@@ -58,8 +58,8 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 		OldBalanceMetrics: oldBalanceMetrics,
 
 		BalanceMetrics: balanceMetrics,
-		NewClient: func() (ton.APIClientWrapped, error) {
-			client, err := opts.NewClient(context.Background())
+		NewClient: func(ctx context.Context) (ton.APIClientWrapped, error) {
+			client, err := opts.NewClient(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get new client: %w", err)
 			}
@@ -85,7 +85,7 @@ type balanceMonitor struct {
 	/// BalanceMetrics uses chainlink-framework and is meant to replace the old GenericBalanceMonitor.
 
 	BalanceMetrics metrics.GenericBalanceMetrics
-	NewClient      func() (ton.APIClientWrapped, error)
+	NewClient      func(ctx context.Context) (ton.APIClientWrapped, error)
 
 	Stop services.StopChan
 	Done chan struct{}
@@ -146,7 +146,7 @@ func (b *balanceMonitor) updateBalances(ctx context.Context) {
 	if len(addrs) == 0 {
 		return
 	}
-	client, err := b.NewClient()
+	client, err := b.NewClient(ctx)
 	if err != nil {
 		b.Logger.Errorw("Failed to create client", "err", err)
 		return
