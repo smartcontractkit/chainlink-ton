@@ -304,7 +304,7 @@ fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
-    routerLockOrBurn = createMessage({
+    val routerLockOrBurn = createMessage({
         bounce: true,
         value: 0,
         dest: destChainConfig.router,

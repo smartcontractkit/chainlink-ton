@@ -57,7 +57,7 @@ struct CCIPSendExecutor_State_Finalized {
 
 struct CCIPSendExecutor_Config {
     feeQuoter: address,
-    tokenRegistry: address,
+    tokenRegistry: address?,
 }
 
 

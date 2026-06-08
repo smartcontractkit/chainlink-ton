@@ -14,6 +14,7 @@ type OnRamp_InMessage =
     | OnRamp_GetValidatedFee<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
     | FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
+    | OnRamp_ExecutorRequestsLockOrBurn
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -43,6 +44,7 @@ struct (0x12312312) OnRamp_ExecutorRequestsLockOrBurn {
     tokenAmount: TokenAmount,
     tokenPool: address,
     destChainSelector: uint64,
+    executorID: CCIPSendExecutor_ID,
 }
 
 struct OnRamp_GetValidatedFeeContext {
