@@ -398,16 +398,17 @@ export const builder = (() => {
 
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: function (data: GetValidatedFee): Builder {
-          return beginCell()
+          const b = beginCell()
             .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeSlice(data.context)
+          remainingBitsOrRef.builder.encode(data.context, b)
+          return b
         },
         load: function (src: Slice): GetValidatedFee {
           src.skip(32) // opcode
           return {
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: src,
+            context: remainingBitsOrRef.builder.load(src),
           }
         },
       }

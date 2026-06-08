@@ -16,6 +16,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
 
+import * as remainingBitsOrRef from '../libraries/utils/RemainingBitsOrRef'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import { asSnakedCell, fromSnakeData } from '../../src/utils'
@@ -379,16 +380,17 @@ export const builder = (() => {
     const messageIn = (() => {
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: (data: GetValidatedFee): Builder => {
-          return beginCell()
+          const b = beginCell()
             .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeSlice(data.context)
+          remainingBitsOrRef.builder.encode(data.context, b)
+          return b
         },
         load: (src: Slice): GetValidatedFee => {
           src.skip(32)
           return {
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: src,
+            context: remainingBitsOrRef.builder.load(src),
           }
         },
       }

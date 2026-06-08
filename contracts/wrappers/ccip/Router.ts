@@ -18,6 +18,7 @@ import { errorCode, facilityId, CellCodec } from '../utils'
 import { asSnakedCell, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 import { contractCode } from '../codeLoader'
 
+import * as remainingBitsOrRef from '../libraries/utils/RemainingBitsOrRef'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
@@ -868,16 +869,17 @@ export const builder = (() => {
 
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: function (data: GetValidatedFee): Builder {
-          return beginCell()
+          const b = beginCell()
             .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(ccipSend.encode(data.msg))
-            .storeSlice(data.context)
+          remainingBitsOrRef.builder.encode(data.context, b)
+          return b
         },
         load: function (src: Slice): GetValidatedFee {
           src.skip(32)
           return {
             msg: ccipSend.load(src.loadRef().beginParse()),
-            context: src,
+            context: remainingBitsOrRef.builder.load(src),
           }
         },
       }

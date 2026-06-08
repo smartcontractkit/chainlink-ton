@@ -4,6 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { asSnakeDataUint, fromSnakeData, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
+import * as remainingBitsOrRef from '../../../wrappers/libraries/utils/RemainingBitsOrRef'
 import * as rtOld from '../../../wrappers/ccip/Router'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
@@ -54,6 +55,12 @@ describe('Router', () => {
       'CrossChainAddress',
       CrossChainAddress__packToBuilder,
       CrossChainAddress__unpackFromSlice,
+    )
+
+    rt.Router.registerCustomPackUnpack(
+      'RemainingBitsOrRef',
+      remainingBitsOrRef.builder.encode,
+      remainingBitsOrRef.builder.load,
     )
   })
 
