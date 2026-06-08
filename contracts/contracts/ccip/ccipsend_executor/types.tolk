@@ -29,6 +29,8 @@ struct CCIPSendExecutor_Addresses {
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
+    | Cell<CCIPSendExecutor_State_TokenRegistryAccess>
+    | Cell<CCIPSendExecutor_State_TokenTransfer>
     | Cell<CCIPSendExecutor_State_Finalized>
 
 struct CCIPSendExecutor_State_Initialized {

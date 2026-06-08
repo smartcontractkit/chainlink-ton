@@ -10,6 +10,8 @@ import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 import "../common/types"
+import "../token_registry/messages"
+import "../test/tokenPool/messages"
 
 tolk 1.4.1
 
@@ -115,7 +117,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
-    val message = Router_CCIPSend.FromCell(self.onrampSend.msg);
+    val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
     val tokenAmounts = message.tokenAmounts;
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds);
@@ -128,7 +130,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
      }
 
     // Else if there are token transfers continue querying the tokenRegistry
-    val tokenRegistry = self.state.load().tokenRegistry;
+    val tokenRegistry = self.addresses.load().tokenRegistry;
     val queryMsg = createMessage({
         bounce: true,
         value: 0,
@@ -139,7 +141,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     queryMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess> {
         id: self.id,
-        messageId: self.messageId,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenRegistryAccess {
@@ -157,21 +158,20 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val requestLockOrBurn = createMessage({
         bounce: true,
         value: 0,
-        dest: self.state.load().addresses.onramp,
+        dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             tokenAmount,
-            tokenPool: msg.info.tokenPool,
+            tokenPool: msg.tokenInfo.tokenPool,
             destChainSelector: onrampSend.destChainSelector,
         }
     });
     requestLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer> {
         id: self.id,
-        messageId: self.messageId,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenTransfer {
-            tokenPool: msg.info.tokenPool,
+            tokenPool: msg.tokenInfo.tokenPool,
             fee: self.state.load().fee,
         }.toCell(),
     };

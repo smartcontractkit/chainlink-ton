@@ -5,12 +5,14 @@ import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../token_registry/messages"
 import "../common/types"
+import "../test/tokenPool/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
     | TokenRegistry_ReturnTokenInfo
+    | MockTokenPool_NotifySuccessfulLockOrBurn
     ;
 
 // crc32('CCIPSendExecutor_Execute')

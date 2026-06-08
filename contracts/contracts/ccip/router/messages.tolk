@@ -9,6 +9,7 @@ import "../../lib/receiver/messages"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
+import "../common/messages"
 
 type Router_InMsg =
     | Router_CCIPSend

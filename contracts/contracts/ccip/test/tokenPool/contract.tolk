@@ -1,9 +1,11 @@
-struct (0x98769876) MockTokenPool_LockOrBurn {
-	tokenAmount: TokenAmount,
-	notify: address,
-}
+import "messages"
 
-struct (0x87658765) MockTokenPool_NotifySuccessfulLockOrBurn {}
+contract MockTokenPool {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.test.TokenPool"
+    incomingMessages: MockTokenPool_LockOrBurn
+}
 
 fun onInternalMessage(in: InMessage) {
 	val msg = lazy MockTokenPool_LockOrBurn.fromSlice(in.body);

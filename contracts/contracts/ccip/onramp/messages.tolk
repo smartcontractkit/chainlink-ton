@@ -7,6 +7,7 @@ import "../ccipsend_executor/messages"
 import "../fee_quoter/messages"
 import "../ccipsend_executor/types"
 import "../fee_quoter/types"
+import "../common/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
