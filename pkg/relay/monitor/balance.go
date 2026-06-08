@@ -42,7 +42,7 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create balance metrics: %w", err)
 	}
-	CLCommonBalanceMetrics, err := clcommonbalance.NewGaugeAccBalance(TON)
+	clCommonBalanceMetrics, err := clcommonbalance.NewGaugeAccBalance(TON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create old balance metrics: %w", err)
 	}
@@ -55,7 +55,7 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 		Keystore: opts.Keystore,
 
 		ChainInfo:              opts.ChainInfo,
-		CLCommonBalanceMetrics: CLCommonBalanceMetrics,
+		CLCommonBalanceMetrics: clCommonBalanceMetrics,
 
 		CLFrameworkBalanceMetrics: balanceMetrics,
 		NewClient: func(ctx context.Context) (ton.APIClientWrapped, error) {
