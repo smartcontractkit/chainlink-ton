@@ -299,7 +299,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 
 fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
     // TODO: calculate token registry address
-    return createAddressNone()
+    return createAddressNone() as address
 }
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {

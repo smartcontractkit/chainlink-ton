@@ -9,7 +9,7 @@ contract MockTokenPool {
 
 fun onInternalMessage(in: InMessage) {
 	val msg = lazy MockTokenPool_LockOrBurn.fromSlice(in.body);
-	notification = createMessage({
+	val notification = createMessage({
 		bounce: false,
 		value: 0,
 		dest: msg.notify,

@@ -13,6 +13,8 @@ import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
 import "../offramp/types"
+import "../common/messages"
+import "../test/tokenPool/messages"
 
 import "types"
 import "messages"
@@ -163,15 +165,16 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be a Jetton Wallet owned by the Router
         Common_JettonTransferNotification => {
             //TODO: Validate sender is owned jetton transfer
+            val st = lazy Storage.load();
 
             // TODO: catch errors, if different message type than CCIPSend
-            val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
+            val sendMsg = Router_CCIPSend.fromCell(msg.forwardPayload!);
 
             var tokenAmounts = sendMsg.tokenAmounts.iter();
             assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
 
             val transferedJetton = tokenAmounts.next();
-            assert (transferedJetton.amount == transferNotification.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
+            assert (transferedJetton.amount == msg.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
             val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
@@ -179,7 +182,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: true,
                 value: 0,
                 dest: onRamp,
-                body: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender, value: transferNotification.amount } },
+                body: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: msg.sender, value: msg.amount } },
             });
             onRampSend.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
@@ -652,7 +655,7 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
 
 //TODO Should be a jetton transfer to the TokenPool wallet, and the LockOrBurn message should go in the forwardPayload of that jetton transfer
 fun onLockOrBurn(msg: Router_LockOrBurn) {
-    tokenPoolLockOrBurn = createMessage({
+    val tokenPoolLockOrBurn = createMessage({
         bounce: true,
         value: 0,
         dest: msg.tokenPool,

@@ -23,7 +23,7 @@ struct CCIPSendExecutor_Data {
 struct CCIPSendExecutor_Addresses {
     onramp: address,
     feeQuoter: address,
-    tokenRegistry: address,
+    tokenRegistry: address?,
 }
 
 type CCIPSendExecutor_State =

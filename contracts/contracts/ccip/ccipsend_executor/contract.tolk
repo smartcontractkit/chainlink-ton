@@ -52,7 +52,7 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be TokenRegistry
         TokenRegistry_ReturnTokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
-            assert(this.addresses.load().tokenRegistry == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert(this.addresses.load().tokenRegistry! == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
         MockTokenPool_NotifySuccessfulLockOrBurn => {
@@ -127,10 +127,11 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
         self.exitSuccessfully(msg.fee);
+        return;
      }
 
     // Else if there are token transfers continue querying the tokenRegistry
-    val tokenRegistry = self.addresses.load().tokenRegistry;
+    val tokenRegistry = self.addresses.load().tokenRegistry!;
     val queryMsg = createMessage({
         bounce: true,
         value: 0,
