@@ -6,11 +6,14 @@ import "../../lib/versioning/upgradeable"
 import "../onramp/messages"
 import "../router/messages"
 import "../fee_quoter/messages"
+import "../token_registry/messages"
+import "../common/types"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+    | TokenRegistry_ReturnTokenInfo
     ;
 
 // crc32('CCIPSendExecutor_Execute')

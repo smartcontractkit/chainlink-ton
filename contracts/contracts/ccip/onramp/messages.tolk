@@ -39,6 +39,12 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
     context: T;
 }
 
+struct (0x12312312) OnRamp_ExecutorRequestsLockOrBurn {
+    tokenAmount: TokenAmount,
+    tokenPool: address,
+    destChainSelector: uint64,
+}
+
 struct OnRamp_GetValidatedFeeContext {
     onrampContext: address; // router address
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,

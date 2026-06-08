@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../onramp/messages.tolk";
+import "../fee_quoter/types"
 
 const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
 const CCIPSendExecutor_FACILITY_ID = 178;  // (crc32(<facility>) % 640) + 10
@@ -33,6 +34,19 @@ struct CCIPSendExecutor_State_Initialized {
 }
 
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
+}
+
+struct CCIPSendExecutor_State_TokenRegistryAccess {
+    fee: Fee,
+}
+
+//TODO Impl wallet address validation through JettonMinter/ stored wallet code
+struct CCIPSendExecutor_State_WalletAddressValidation {
+}
+
+struct CCIPSendExecutor_State_TokenTransfer {
+    tokenPool: address,
+    fee: Fee,
 }
 
 struct CCIPSendExecutor_State_Finalized {

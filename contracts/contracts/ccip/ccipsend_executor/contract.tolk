@@ -10,6 +10,7 @@ import "../onramp/errors"
 import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
+import "../common/types"
 
 const CONTRACT_VERSION = "1.6.0";
 
@@ -35,6 +36,17 @@ fun onInternalMessage(in: InMessage) {
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidationFailed(msg);
         }
+        // Sender must be TokenRegistry
+        TokenRegistry_ReturnTokenInfo => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            assert(this.addresses.load().tokenRegistry == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            this.onTokenInfoReceived(msg);
+        }
+        MockTokenPool_NotifySuccessfulLockOrBurn => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.load();
+            assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            this.onConfirmLockOrBurn(msg);
+        }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
         },   
@@ -59,6 +71,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
+            tokenRegistry: config.tokenRegistry
         }.toCell(),
         state: CCIPSendExecutor_State_Initialized{
         }.toCell(),
@@ -91,13 +104,72 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
+    val message = Router_CCIPSend.FromCell(self.onrampSend.msg);
+    val tokenAmounts = message.tokenAmounts;
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
         return;
     }
+    // If token amounts is empty finalize the message
+    if (tokenAmounts.empty()) {
+        setGasLimitToMaximum();
+        self.exitSuccessfully(msg.fee);
+     }
+
+    // Else if there are token transfers continue querying the tokenRegistry
+    val tokenRegistry = self.state.load().tokenRegistry;
+    val queryMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: tokenRegistry,
+        body: TokenRegistry_GetTokenInfo {
+        }
+    });
+    queryMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess> {
+        id: self.id,
+        messageId: self.messageId,
+        onrampSend: self.onrampSend,
+        addresses: self.addresses,
+        state: CCIPSendExecutor_State_TokenRegistryAccess {
+            fee: msg.fee,
+        }.toCell(),
+    };
+    newState.store();
+}
+
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenRegistry_ReturnTokenInfo) {
+    //TODO validate sender wallet address by querying the jettonMinter
+    assert(msg.tokenInfo.enabled) throw CCIPSendExecutor_Error.TokenNotEnabled;
+    val onrampSend = self.onrampSend.msg.load();
+    val tokenAmount = onrampSend.tokenAmounts.iter().next();
+    val requestLockOrBurn = createMessage({
+        bounce: true,
+        value: 0,
+        dest: self.state.load().addresses.onramp,
+        body: OnRamp_ExecutorRequestsLockOrBurn {
+            tokenAmount,
+            tokenPool: msg.info.tokenPool,
+            destChainSelector: onrampSend.destChainSelector,
+        }
+    });
+    requestLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer> {
+        id: self.id,
+        messageId: self.messageId,
+        onrampSend: self.onrampSend,
+        addresses: self.addresses,
+        state: CCIPSendExecutor_State_TokenTransfer {
+            tokenPool: msg.info.tokenPool,
+            fee: self.state.load().fee,
+        }.toCell(),
+    };
+    newState.store();
+}
+
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.onConfirmLockOrBurn(mutate self, msg: MockTokenPool_NotifySuccessfulLockOrBurn) {
     setGasLimitToMaximum();
-    
-    self.exitSuccessfully(msg.fee);
+    self.exitSuccessfully(self.state.load().fee);
 }
 
 fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {

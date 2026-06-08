@@ -60,6 +60,12 @@ fun onInternalMessage(in: InMessage) {
             assert(destChainConfig.router == in.senderAddress, Error.Unauthorized);
             onSend(st, destChainConfig, msg)
         }
+        OnRamp_ExecutorRequestsLockOrBurn => {
+        // Sender must be Send Executor
+            var st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
+            onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
+        }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             var st = lazy OnRamp_Storage.load();
@@ -282,6 +288,22 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
     // TODO: calculate token registry address
     return createAddressNone()
+}
+
+fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
+    var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
+    routerLockOrBurn = createMessage({
+        bounce: true,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_LockOrBurn {
+            tokenPool: msg.tokenPool,
+            tokenAmount: msg.tokenAmount,
+            destChainSelector: msg.destChainSelector,
+            executorAddress: sender,
+        }
+    });
+    routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*

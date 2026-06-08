@@ -139,6 +139,11 @@ fun onInternalMessage(in: InMessage) {
 
             onSendNACK(msg)
         }
+        Router_LockOrBurn => {
+            val st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onLockOrBurn(msg);
+        }
         // Sender must be a Jetton Wallet owned by the Router
         Common_JettonTransferNotification => {
             //TODO: Validate sender is owned jetton transfer
@@ -628,6 +633,20 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
 
     nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
+
+//TODO Should be a jetton transfer to the TokenPool wallet, and the LockOrBurn message should go in the forwardPayload of that jetton transfer
+fun onLockOrBurn(msg: Router_LockOrBurn) {
+    tokenPoolLockOrBurn = createMessage({
+        bounce: true,
+        value: 0,
+        dest: msg.tokenPool,
+        body: MockTokenPool_LockOrBurn {
+            tokenAmount: msg.tokenAmount,
+            notify: msg.executorAddress,
+        }
+    });
+    tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+} 
 
 /*
 Handles contract upgrade requests using the Upgradeable pattern. Invokes the

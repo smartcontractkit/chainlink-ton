@@ -25,6 +25,7 @@ type Router_InMsg =
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
+    | Router_LockOrBurn
     | Router_RMNOwnableMessage
     | Common_JettonTransferNotification
     ;
@@ -117,6 +118,13 @@ struct (0x5a45d434) Router_CCIPSendNACK {
 struct (0x4dd6aa82) Router_GetValidatedFee<T> {
     ccipSend: Cell<Router_CCIPSend>;
     context: T;
+}
+
+struct (0x45645645) Router_LockOrBurn {
+    tokenPool: address,
+    tokenAmount: TokenAmount,
+    destChainSelector: uint64,
+    executorAddress: address,
 }
 
 struct Router_GetValidatedFeeContext {
