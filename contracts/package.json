@@ -27,6 +27,7 @@
     "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write .",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
+    "wton-gas-report": "blueprint test --gas-report -- --config wton-gas-report.config.ts",
     "get-key-pair": "ts-node scripts/getKeyPair.ts"
   },
   "dependencies": {
@@ -36,14 +37,14 @@
   "devDependencies": {
     "@changesets/cli": "~2.29.6",
     "@tact-lang/compiler": "1.6.13",
-    "@ton-community/func-js": "^0.10.0",
-    "@ton/blueprint": "^0.44.0",
-    "@ton/core": "^0.62.0",
-    "@ton/crypto": "^3.3.0",
-    "@ton/sandbox": "^0.41.0",
-    "@ton/test-utils": "^0.12.0",
-    "@ton/tolk-js": "1.2.0",
-    "@ton/ton": "^16.0.0",
+    "@ton-community/func-js": "0.10.0",
+    "@ton/blueprint": "0.44.2",
+    "@ton/core": "0.63.1",
+    "@ton/crypto": "3.3.0",
+    "@ton/sandbox": "0.42.0",
+    "@ton/test-utils": "0.12.0",
+    "@ton/tolk-js": "1.4.1",
+    "@ton/ton": "16.2.4",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",
     "crc-32": "^1.2.2",
@@ -53,5 +54,13 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "zlib": "^1.0.5"
+  },
+  "resolutions": {
+    "axios": "v1.16.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "v1.16.1"
+    }
   }
 }

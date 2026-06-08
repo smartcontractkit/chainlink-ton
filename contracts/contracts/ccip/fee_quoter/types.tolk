@@ -1,7 +1,8 @@
 import "../../lib/utils"
 
 const FeeQuoter_FACILITY_NAME = "link.chain.ton.ccip.FeeQuoter";
-const FeeQuoter_FACILITY_ID = 344;  // (crc32(<facility>) % 640) + 10
+const FeeQuoter_FACILITY_ID = FeeQuoter_FACILITY_NAME.crc32() % 640 + 10;  // 344
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 struct TimestampedPrice {
     value: uint224;

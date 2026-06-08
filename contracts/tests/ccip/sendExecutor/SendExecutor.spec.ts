@@ -1,9 +1,9 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
-import { compile } from '@ton/blueprint'
 import { beginCell, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 import { CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
@@ -427,7 +427,7 @@ describe('SendExecutor - Unit tests', () => {
 
   it('should handle bounced getValidatedFee', async () => {
     const feeQuoterBouncer = await blockchain.openContract(
-      bouncer.ContractClient.createFromConfig(await compile('tests.mock.Bouncer')),
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
     )
     {
       const result = await feeQuoterBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
@@ -513,7 +513,7 @@ describe('SendExecutor - Unit tests', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'send_executor_unit_tests', [
         {
-          code: await compile('CCIPSendExecutor'),
+          code: await contractCode.ccip.local('CCIPSendExecutor'),
           name: 'send_executor',
         },
       ])

@@ -15,11 +15,12 @@ import (
 
 // JettonWallet opcodes
 const (
-	OpcodeWalletTransfer             = 0x0f8a7ea5
-	OpcodeWalletTransferNotification = 0x7362d09c
-	OpcodeWalletInternalTransfer     = 0x178d4519
-	OpcodeWalletExcesses             = 0xd53276db
-	OpcodeWalletBurn                 = 0x595f07bc
+	OpcodeAskToTransfer                    = 0x0f8a7ea5
+	OpcodeTransferNotificationForRecipient = 0x7362d09c
+	OpcodeInternalTransferStep             = 0x178d4519
+	OpcodeReturnExcessesBack               = 0xd53276db
+	OpcodeAskToBurn                        = 0x595f07bc
+	OpcodeBurnNotificationForMinter        = 0x7bdd97de
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -42,38 +43,63 @@ const (
 )
 
 type AskToTransfer struct {
-	_                   tlb.Magic        `tlb:"#0f8a7ea5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID             uint64           `tlb:"## 64"`
-	Amount              tlb.Coins        `tlb:"."`
-	Destination         *address.Address `tlb:"addr"`
-	ResponseDestination *address.Address `tlb:"addr"`
-	CustomPayload       *cell.Cell       `tlb:"either . ^"`
-	ForwardTonAmount    tlb.Coins        `tlb:"."`
-	ForwardPayload      *cell.Cell       `tlb:"either . ^"`
+	_                 tlb.Magic        `tlb:"#0f8a7ea5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID           uint64           `tlb:"## 64"`
+	JettonAmount      tlb.Coins        `tlb:"."`
+	TransferRecipient *address.Address `tlb:"addr"`
+	SendExcessesTo    *address.Address `tlb:"addr"`
+	CustomPayload     *cell.Cell       `tlb:"either . ^"`
+	ForwardTonAmount  tlb.Coins        `tlb:"."`
+	ForwardPayload    *cell.Cell       `tlb:"either . ^"`
 }
 
-type InternalTransferMessage struct {
-	_                tlb.Magic        `tlb:"#178d4519" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID          uint64           `tlb:"## 64"`
-	Amount           tlb.Coins        `tlb:"."`
-	From             *address.Address `tlb:"addr"`
-	ResponseAddress  *address.Address `tlb:"addr"`
-	ForwardTonAmount tlb.Coins        `tlb:"."`
-	ForwardPayload   *cell.Cell       `tlb:"either . ^"`
-}
-
-type TransferNotification struct {
-	_              tlb.Magic        `tlb:"#7362d09c" json:"-"` //nolint:revive // Ignore opcode tag
+type AskToBurn struct {
+	_              tlb.Magic        `tlb:"#595f07bc" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64           `tlb:"## 64"`
-	Amount         tlb.Coins        `tlb:"^"`
-	Sender         *address.Address `tlb:"addr"`
-	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
+	JettonAmount   tlb.Coins        `tlb:"."`
+	SendExcessesTo *address.Address `tlb:"addr"`
+	CustomPayload  *cell.Cell       `tlb:"maybe ^"`
+}
+
+type InternalTransferStep struct {
+	_                 tlb.Magic        `tlb:"#178d4519" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID           uint64           `tlb:"## 64"`
+	JettonAmount      tlb.Coins        `tlb:"."`
+	TransferInitiator *address.Address `tlb:"addr"`
+	SendExcessesTo    *address.Address `tlb:"addr"`
+	ForwardTonAmount  tlb.Coins        `tlb:"."`
+	ForwardPayload    *cell.Cell       `tlb:"either . ^"`
+}
+
+type TransferNotificationForRecipient struct {
+	_                 tlb.Magic        `tlb:"#7362d09c" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64           `tlb:"## 64"`
+	JettonAmount      tlb.Coins        `tlb:"."`
+	TransferInitiator *address.Address `tlb:"addr"`
+	ForwardPayload    *cell.Cell       `tlb:"maybe ^"`
+}
+
+type BurnNotificationForMinter struct {
+	_              tlb.Magic        `tlb:"#7bdd97de" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID        uint64           `tlb:"## 64"`
+	JettonAmount   tlb.Coins        `tlb:"."`
+	BurnInitiator  *address.Address `tlb:"addr"`
+	SendExcessesTo *address.Address `tlb:"addr"`
+}
+
+type ReturnExcessesBack struct {
+	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64    `tlb:"## 64"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	AskToTransfer{},
-	InternalTransferMessage{},
-	TransferNotification{},
+	AskToBurn{},
+	InternalTransferStep{},
+	TransferNotificationForRecipient{},
+	BurnNotificationForMinter{},
+	ReturnExcessesBack{},
+	jetton.TopUpTons{},
 }).MustWithStorageType(InitData{})
 
 var WalletContractPath = path.Join(jetton.PathToContracts, "JettonWallet.compiled.json")

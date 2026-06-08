@@ -13,8 +13,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -143,9 +144,9 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector},
 		{Address: stateCCIPChain.FeeQuoter.String(), Type: state.FeeQuoter, ChainSelector: selector},
 		// MCMS contracts
-		{Address: stateMCMSChainQ.Proposer.String(), Type: cldfds.ContractType(ccipdutils.ProposerManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
-		{Address: stateMCMSChainQ.Canceller.String(), Type: cldfds.ContractType(ccipdutils.CancellerManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
-		{Address: stateMCMSChainQ.Bypasser.String(), Type: cldfds.ContractType(ccipdutils.BypasserManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
+		{Address: stateMCMSChainQ.Proposer.String(), Type: cldfds.ContractType(ccipdutils.ProposerManyChainMultisig), ChainSelector: selector},
+		{Address: stateMCMSChainQ.Canceller.String(), Type: cldfds.ContractType(ccipdutils.CancellerManyChainMultisig), ChainSelector: selector},
+		{Address: stateMCMSChainQ.Bypasser.String(), Type: cldfds.ContractType(ccipdutils.BypasserManyChainMultisig), ChainSelector: selector},
 	}
 
 	// Step 5: Transfer ownership from deployer to new wallet via the tooling API.

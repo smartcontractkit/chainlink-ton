@@ -91,7 +91,7 @@ describe('ReceiveExecutor', () => {
   describe.each([
     {
       version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION_PREV,
-      loadCode: contractCode.ccip.release_1_6_0,
+      loadCode: contractCode.ccip.release_1_6_1,
     },
     { version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION, loadCode: contractCode.ccip.local },
   ])('Unit Tests with ReceiveExecutor %s', ({ version, loadCode }) => {

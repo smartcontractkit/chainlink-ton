@@ -1,8 +1,9 @@
-import { compile } from '@ton/blueprint'
 import { Cell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
+
 import { mkdirSync, writeFileSync } from 'fs'
-import { mcms } from '../../wrappers/mcms'
+
+import { contractCode } from '../../wrappers/codeLoader'
 
 export const CoverageContractName = {
   router: 'router',
@@ -31,13 +32,13 @@ export async function generateCoverageArtifacts(
   mkdirSync('./.coverage', { recursive: true })
   await Promise.all(
     contracts.map(async (contract) => {
-      let contractCode: Cell
+      let code: Cell
       if (typeof contract.code === 'string') {
-        contractCode = await compile(contract.code)
+        code = await contractCode.ccip.local(contract.code)
       } else {
-        contractCode = contract.code
+        code = contract.code
       }
-      const coverage = blockchain.coverageForCell(contractCode)
+      const coverage = blockchain.coverageForCell(code)
       if (!coverage) {
         console.log(`No coverage data for contract: ${contract.name}`)
         return

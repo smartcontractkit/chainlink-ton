@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
-import "storage"
-import "../../lib/versioning/upgradeable"
 
 import "../onramp/messages"
-import "../router/messages"
 import "../fee_quoter/messages"
 import "../token_registry/messages"
 import "../common/types"
@@ -34,7 +31,7 @@ fun SendExecutor_Costs.Deploy(): int {
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
-    var baseFee =
+    val baseFee =
         + ton("0.002") // computeFee
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()

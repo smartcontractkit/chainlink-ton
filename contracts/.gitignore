@@ -7,3 +7,15 @@ temp/
 gas-report.json
 ccip-gas-report.json
 contract.abi.json
+
+# Acton related files
+.acton/
+lcov.info
+libraries.toml
+global.libraries.toml
+
+# Mnemonic and wallet files
+.env
+*.mnemonic
+wallets.toml
+global.wallets.toml

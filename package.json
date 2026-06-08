@@ -25,5 +25,13 @@
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "~2.29.2",
     "semver": "^7.7.1"
+  },
+  "resolutions": {
+    "axios": "v1.16.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "v1.16.1"
+    }
   }
 }

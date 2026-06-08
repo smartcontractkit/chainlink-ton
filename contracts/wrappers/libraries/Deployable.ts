@@ -14,7 +14,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
 
-import { loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 import { CellCodec } from '../utils'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
@@ -149,7 +149,7 @@ export class ContractClient implements Contract {
     return new ContractClient(contractAddress(workchain, init), init)
   }
   static code(): Promise<Cell> {
-    return loadContractCode('Deployable')
+    return contractCode.ccip.local('Deployable')
   }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {

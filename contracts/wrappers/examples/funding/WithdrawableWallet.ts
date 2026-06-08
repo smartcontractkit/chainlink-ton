@@ -9,7 +9,7 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { loadContractCode } from '../../codeLoader'
+import { contractCode } from '../../codeLoader'
 import * as withdrawable from '../../libraries/funding/Withdrawable'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
@@ -63,7 +63,7 @@ export class ContractClient implements withdrawable.Interface {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('examples.funding.WithdrawableWallet')
+    return contractCode.ccip.local('examples.funding.WithdrawableWallet')
   }
 
   static version() {

@@ -1,23 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/storage.tolk
-// SnakeString describes a (potentially long) string inside a cell;
-// short strings are stored as-is, like "my-picture.png";
-// long strings are nested refs, like "xxxx".ref("yyyy".ref("zzzz"))
-type SnakeString = slice
-
-fun SnakeString.unpackFromSlice(mutate s: slice) {
-    // obviously, SnakeString can be only the last: it's just "the remainder";
-    // for correctness, it's better to validate it has no more refs:
-    // assert (s.remainingRefsCount() <= 1) throw 5;
-    // but since here we're matching the original FunC implementation, leave no checks
-    val snakeRemainder = s;
-    s = createEmptySlice(); // no more left to read
-    return snakeRemainder;
-}
-
-fun SnakeString.packToBuilder(self, mutate b: builder) {
-    b.storeSlice(self);
-}
+// Imported from https://github.com/ton-blockchain/tolk-bench/blob/57e1009743bfc19748caa95d76180d9e9793e4c5/contracts_Tolk/03_notcoin/storage.tolk
 
 struct WalletStorage {
     status: uint4
@@ -28,24 +10,27 @@ struct WalletStorage {
 
 struct MinterStorage {
     totalSupply: coins
-    adminAddress: address
-    nextAdminAddress: address
+    adminAddress: address?
+    nextAdminAddress: address?
     jettonWalletCode: cell
-    metadataUri: Cell<SnakeString>
+    metadataUri: string
 }
 
+
+
 fun MinterStorage.load() {
-    return MinterStorage.fromCell(contract.getData());
+    return MinterStorage.fromCell(contract.getData())
 }
 
 fun MinterStorage.save(self) {
-    contract.setData(self.toCell());
+    contract.setData(self.toCell())
 }
 
+
 fun WalletStorage.load() {
-    return WalletStorage.fromCell(contract.getData());
+    return WalletStorage.fromCell(contract.getData())
 }
 
 fun WalletStorage.save(self) {
-    contract.setData(self.toCell());
+    contract.setData(self.toCell())
 }

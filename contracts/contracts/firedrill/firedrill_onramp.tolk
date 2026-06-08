@@ -1,4 +1,15 @@
-tolk 1.2
+tolk 1.4.1
+
+contract FiredrillOnRamp {
+	author: "SmartContract Chainlink Limited SEZC"
+
+	version: "1.6.0"
+
+	description: "link.chain.ton.ccip.firedrill.firedrillOnRamp"
+
+	storage: FiredrillOnRamp_Storage
+	incomingMessages: FiredrillOnRamp_InMessage
+}
 
 import "../lib/utils.tolk"
 import "../ccip/onramp/events.tolk"
@@ -99,10 +110,10 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 		router: st.controlAddress,
 		sequenceNumber: 0,
 		allowlistEnabled: false,
-		allowedSenders: createEmptyMap()
+		allowedSenders: []
 	};
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("link.chain.ton.ccip.firedrill.firedrillOnRamp", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillOnRamp".literalSlice(), "1.6.0".literalSlice());
 }

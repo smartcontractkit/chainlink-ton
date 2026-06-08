@@ -10,7 +10,7 @@ import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import { deployOnRampContract, CHAINSEL_TON, setup } from './OnRamp.Setup'
+import { deployOnRampContract, CHAINSEL_TON, setup, deployOnRampContractW } from './OnRamp.Setup'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -27,33 +27,31 @@ describe('OnRamp - TypeAndVersion Tests', () => {
   ])
 })
 
-// TODO when we have a new version
-// describe('OnRamp - Upgrade Tests', () => {
-//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
-//     {
-//       contractType: OnRampPrev.type(),
-//       prevVersion: OnRampPrev.version(),
-//       currentVersion: OnRamp.version(),
-//       getPrevCode: () => OnRampPrev.code(),
-//       getCurrentCode: () => OnRamp.code(),
-//       CurrentVersionConstructor: OnRamp,
-//     },
-//     async (blockchain, owner) => {
-//       const codeV1 = await OnRampPrev.code()
-//       const data = {} as any // TODO fill with valid data
-//       const contract = blockchain.openContract(
-//         OnRampPrev.createFromConfig(
-//           data,
-//           codeV1,
-//         ),
-//       )
-//       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-//       return contract
-//     },
-//   )
-//   upgradeSpec.run()
-// })
+describe('OnRamp - Upgrade Tests', () => {
+  const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
+    contractType: or.OnRamp.type(),
+    prevVersionConfigs: Object.entries(or.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+      version,
+      getCode,
+      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) => {
+        const dep = await deployOnRampContractW(blockchain, owner, {
+          code: await getCode(),
+        })
+        return dep.onramp
+      },
+    })),
+    currentVersion: or.OnRamp.version(),
+    getCurrentCode: () => or.OnRamp.code(),
+    CurrentVersionConstructor: or.OnRamp,
+    upgradeValue: toNano('0.05'),
+  })
+  upgradeSpec.run([
+    {
+      code: 'OnRamp',
+      name: 'onramp',
+    },
+  ])
+})
 
 describe('OnRamp - Ownable Tests', () => {
   it('supports ownable messages', async () => {

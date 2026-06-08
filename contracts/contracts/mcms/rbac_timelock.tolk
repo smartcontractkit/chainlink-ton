@@ -1,10 +1,24 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.2
+tolk 1.4.1
 
 import "../lib/utils";
 import "../lib/access/access_control";
 
-const CONTRACT_VERSION = "0.0.3";
+const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
+const Timelock_FACILITY_ID = Timelock_FACILITY_NAME.crc32() % 640 + 10;  // 606
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const Timelock_ERROR_CODE = Timelock_FACILITY_ID * 100;
+const CONTRACT_VERSION = "0.0.4".literalSlice();
+
+contract Timelock {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.4"
+    description: "link.chain.ton.mcms.Timelock"
+
+    storage: Timelock_Data
+    incomingMessages: Timelock_InMessage
+}
 
 /**
  * Contract module which acts as a timelocked controller with role-based
@@ -551,10 +565,10 @@ struct Timelock_Hooks<T> {
 
 // --- Constants ---
 
-const TOPIC_BYPASSER_CALL_EXECUTED = stringCrc32("Timelock_BypasserCallExecuted");
-const TOPIC_CALL_SCHEDULED = stringCrc32("Timelock_CallScheduled");
-const TOPIC_CALL_EXECUTED = stringCrc32("Timelock_CallExecuted");
-const TOPIC_BOUNCE_HANDLED = stringCrc32("Timelock_BounceHandled");
+const TOPIC_BYPASSER_CALL_EXECUTED = "Timelock_BypasserCallExecuted".crc32();
+const TOPIC_CALL_SCHEDULED = "Timelock_CallScheduled".crc32();
+const TOPIC_CALL_EXECUTED = "Timelock_CallExecuted".crc32();
+const TOPIC_BOUNCE_HANDLED = "Timelock_BounceHandled".crc32();
 
 /// Notice: role constants are kept as original Ethereum implementation (keccak256)
 const ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;     // keccak256('ADMIN_ROLE')
@@ -575,7 +589,7 @@ const DEFAULT_FINALIZATION_TIMEOUT = 10; // in seconds
 /// Error codes used by the Timelock contract.
 enum Timelock_Error {
     /// Thrown when trying to schedule an operation which contains a blocked function selector.
-    SelectorIsBlocked = 60600 // Timelock<T>.errorCode(0)
+    SelectorIsBlocked = Timelock_ERROR_CODE, // 60600
 
     /// Thrown when trying to execute an operation which is not ready yet.
     OperationNotReady
@@ -621,19 +635,19 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 60600
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.mcms.Timelock"), local);
+    return getErrorCode(Timelock_FACILITY_NAME.crc32(), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.
 fun Timelock<T>.load(context: T? = null, hooks: Timelock_Hooks<T>? = null): Timelock<T> {
     // Load the contract data from the persistent storage
-    var data = Timelock_Data.fromContractData();
+    val data = Timelock_Data.fromContractData();
 
     // Return the Timelock instance with loaded data and hooks
     return Timelock<T> {
-        data: data,
-        context: context,
-        hooks: hooks,
+        data,
+        context,
+        hooks,
     };
 }
 
@@ -774,7 +788,7 @@ fun Timelock<T>.init(
         validAfter: blockchain.now(),
         opFinalizationTimeout,
         opPendingId: 0,
-        opPendingCalls: createEmptyMap()
+        opPendingCalls: []
     };
 
     // Reply back to sender
@@ -864,7 +878,7 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
 ///
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
-fun Timelock<T>.cancel(mutate self, sender: address, value: coins, queryId: uint64, id: uint256): void {
+fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
     assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
@@ -979,7 +993,7 @@ fun Timelock<T>.getCallFingerprint(self, target: address, truncatedBody: uint256
 
 /// Resets the pending operation tracking info.
 fun Timelock<T>.resetPendingOpTracking(mutate self): void {
-    self.data.opPendingInfo.opPendingCalls = createEmptyMap();
+    self.data.opPendingInfo.opPendingCalls = [];
     self.data.opPendingInfo.opPendingId = 0;
 }
 
@@ -1007,7 +1021,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 fun Timelock<T>.updateDelay(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     newDelay: uint32
 ): void {
@@ -1036,7 +1050,7 @@ fun Timelock<T>.updateDelay(
 fun Timelock<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
@@ -1078,7 +1092,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(
 fun Timelock<T>.blockFunctionSelector(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     selector: uint32
 ): bool {
@@ -1097,7 +1111,7 @@ fun Timelock<T>.blockFunctionSelector(
         bounce: false,
         value: 0,
         dest: sender,
-        body: body,
+        body,
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
@@ -1113,7 +1127,7 @@ fun Timelock<T>.blockFunctionSelector(
 fun Timelock<T>.unblockFunctionSelector(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     selector: uint32,
 ): bool {
@@ -1132,7 +1146,7 @@ fun Timelock<T>.unblockFunctionSelector(
         bounce: false,
         value: 0,
         dest: sender,
-        body: body,
+        body,
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
@@ -1202,7 +1216,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 fun Timelock<T>.updateExecutorRoleCheck(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     enabled: bool,
 ): void {
@@ -1351,7 +1365,7 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
 
     // Load the function selector from the message body
     val selector = data.loadMessageOp(); // 32-bit integer
-    var blocked = self.data.blockedFnSelectors.get(selector);
+    val blocked = self.data.blockedFnSelectors.get(selector);
 
     if (blocked.isFound) {
         throw Timelock_Error.SelectorIsBlocked;
@@ -1542,7 +1556,7 @@ fun Timelock_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.mcms.Timelock", CONTRACT_VERSION);
+    return (Timelock_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 /// @see <Timelock<T>.getId>

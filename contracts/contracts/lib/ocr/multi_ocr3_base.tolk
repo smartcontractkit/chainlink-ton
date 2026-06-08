@@ -4,8 +4,8 @@ import "types.tolk";
 import "errors";
 
 
-const OCR3BASE_CONFIG_SET_TOPIC: int = stringCrc32("OCR3Base_ConfigSet");
-const OCR3BASE_TRANSMITTED: int = stringCrc32("OCR3Base_Transmitted");
+const OCR3BASE_CONFIG_SET_TOPIC: int = "OCR3Base_ConfigSet".crc32();
+const OCR3BASE_TRANSMITTED: int = "OCR3Base_Transmitted".crc32();
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.
 /// @param ocrPluginType OCR plugin type for which the config was set.
@@ -136,7 +136,7 @@ fun OCR3Base.transmit(
     var ocrConfig = self.getConfig(ocrPluginType);
     assert(ocrConfig != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     ocrConfig = ocrConfig!;
-    var configInfo: ConfigInfo = ocrConfig.configInfo;
+    val configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
     
@@ -149,17 +149,17 @@ fun OCR3Base.transmit(
     assert(pluginTransmitters.get(transmitter).isFound, MultiOCR3Base_Error.UnauthorizedTransmitter);
 
     if (configInfo.isSignatureVerificationEnabled) {
-    	var expectedSignatures = configInfo.bigF + 1;
+    	val expectedSignatures = configInfo.bigF + 1;
 		val signatures_length = signatures.iter().countBytes() / 96; //expensive
     	assert(signatures_length == expectedSignatures, MultiOCR3Base_Error.WrongNumberOfSignatures);
-    	var hashedReport = self.hashReport(report, reportContext);
-    	var pluginSigners = ocrConfig.signers;
+    	val hashedReport = self.hashReport(report, reportContext);
+    	val pluginSigners = ocrConfig.signers;
 
     	self.verifySignature(pluginSigners, hashedReport, signatures);
     }
 
     emit(OCR3BASE_TRANSMITTED, OCR3Base_Transmitted {
-	    ocrPluginType: ocrPluginType,
+	    ocrPluginType,
 	    configDigest: reportContext.configDigest,
 	    sequenceNumber: reportContext.sequenceBytes
     });

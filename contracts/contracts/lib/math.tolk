@@ -92,7 +92,7 @@ fun safeProd(a: int, b: int): (int, int) {
 
 // Returns result or throws errCode on overflow.
 fun mustAdd(a: int, b: int, errCode: int): int {
-    var (res, err) = safeAdd(a, b);
+    val (res, err) = safeAdd(a, b);
     if (err != 0) {
         throw errCode;
     }
@@ -101,7 +101,7 @@ fun mustAdd(a: int, b: int, errCode: int): int {
 
 // Returns result or throws errCode on overflow.
 fun mustProd(a: int, b: int, errCode: int): int {
-    var (res, err) = safeProd(a, b);
+    val (res, err) = safeProd(a, b);
     if (err != 0) {
         throw errCode;
     }

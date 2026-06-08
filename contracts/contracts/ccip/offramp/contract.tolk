@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
+import "../../lib/deployable/namespace"
 import "../../lib/access/ownable_2step.tolk"
 import "../../lib/funding/withdrawable.tolk"
 import "../../lib/crypto/merkle_multi_proof.tolk"
@@ -8,7 +9,7 @@ import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
 import "../../lib/receiver/types"
-import "../../lib/deployable/namespace"
+import "../rmn_remote/lib.tolk"
 
 import "../common/types.tolk"
 
@@ -25,7 +26,19 @@ import "types"
 import "storage"
 import "events"
 
-const CONTRACT_VERSION = "1.6.2";
+tolk 1.4.1
+
+contract OffRamp {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.3"
+    description: "link.chain.ton.ccip.OffRamp"
+
+    storage: Storage
+    incomingMessages: OffRamp_InMessage
+}
+
+
+const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
 
@@ -43,13 +56,13 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be MerkleRoot
         OffRamp_ExecuteValidated => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
             onExecuteValidated(st, msg, in.senderAddress)
         }
         // Sender must be ReceiveExecutor
         OffRamp_DispatchValidated => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onDispatchValidated(st, msg)
         }
@@ -59,19 +72,19 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onSetOCR3Config(msg)
         }
         // Sender must be owner
         OffRamp_UpdateDeployables => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpdateDeployables(st, msg)
         }
         // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpdateSourceChainConfigs(msg)
         }
@@ -83,45 +96,45 @@ fun onInternalMessage(in:InMessage) {
         },
         // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onCCIPReceiveConfirm(st, msg);
         }
         // Sender must be router
         OffRamp_CCIPReceiveBounced => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onBouncedCCIPReceive(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifySuccess(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifyFailure(msg);
         }
         // Sender must be owner
         OffRamp_SetDynamicConfig => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onSetDynamicConfig(msg);
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
+            }.withdraw(msg);
         }
         // Sender must be owner
         Upgradeable_Upgrade => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -242,11 +255,7 @@ fun migrate(storage: cell, version: slice): cell {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (
-        version.bitsEqual("1.6.0")
-        || version.bitsEqual("1.6.1")
-    ) 
-    throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)
@@ -409,7 +418,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
-            gasLimit: gasLimit,
+            gasLimit,
         }
     });
 
@@ -422,7 +431,7 @@ fun blockMsg(st: Storage, execId: uint192, receiver: address) {
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, execId),
         body: ReceiveExecutor_Bounced{
-            receiver: receiver,
+            receiver,
             reason: ReceiveExecutor_BouncedReason.NotEnoughGas,
         }
     });
@@ -508,7 +517,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     if (root != null) {
         // validate lane is enabled and not cursed
 
-        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
+        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled);
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
         assert(!st.cursedSubjects.isCursed(root.sourceChainSelector as uint128), Error.SubjectCursed);
 
@@ -691,10 +700,10 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
     assert(message.header.sourceChainSelector == report.sourceChainSelector, Error.SourceChainSelectorMismatch);
 
-    var leafTuple: tuple = createEmptyTuple();
-    leafTuple.push(message.generateMessageId(metadataHash));
+    var leaves: array<uint256> = [];
+    leaves.push(message.generateMessageId(metadataHash));
 
-    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), report.proofs.iter(), report.proofFlagBits);
+    val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
@@ -703,7 +712,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
             message: report.messages as Cell<Any2TVMRampMessage>,
-            metadataHash: metadataHash,
+            metadataHash,
             permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
             gasOverride,
         },
@@ -719,7 +728,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
 
     var configIterator = msg.configs.iter();
     while (!configIterator.empty()) {
-        var configUpdate = configIterator.next();
+        val configUpdate = configIterator.next();
         var config: SourceChainConfig;
         var existingConfigEntry = st.sourceChainConfigs.get(configUpdate.sourceChainSelector);
 
@@ -805,7 +814,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                         owner: contract.getAddress(),
                         message: message.toCell(),
                         root: sender,
-                        execId: execId,
+                        execId,
                     }.toCell(),
                 }
             },
@@ -834,7 +843,7 @@ Retrieves the Router address associated with a given sourceChainSelector.
 Throws an error if the source chain is not enabled in the stored configs.
 */
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
-    val sourceChainConfig = st.sourceChainConfigs.mustGet(sourceChainSelector, Error.SourceChainNotEnabled as int);
+    val sourceChainConfig = st.sourceChainConfigs.mustGet(sourceChainSelector, Error.SourceChainNotEnabled);
     return sourceChainConfig.router;
 }
 
@@ -872,11 +881,11 @@ fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): Au
 }
 
 /*
-Verifies that the caller corresponds to a receiver exector contract
+Verifies that the caller corresponds to a receiver executor contract
 */
 fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutorId, sender: address) {
     val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
-    assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
+    assert(expectedAddress.calculateAddress() == sender) throw Error.MessageNotFromOwnedContract;
 }
 
 /*
@@ -900,7 +909,7 @@ Verifies that the caller corresponds to a merkle root contract
 */
 fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
     val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
-    assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
+    assert(expectedAddress.calculateAddress() == sender) throw Error.MessageNotFromOwnedContract;
 }
 
 /*
@@ -932,13 +941,13 @@ fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
 }
 
 get fun latestPriceSequenceNumber(): uint64 {
-    var st = lazy Storage.load();
+    val st = lazy Storage.load();
     return st.latestPriceSequenceNumber
 }
 
-get fun sourceChainSelectors(): tuple? {
+get fun sourceChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
-    var d = st.sourceChainConfigs;
+    val d = st.sourceChainConfigs;
     return keysLispList(d)!;
 }
 
@@ -958,7 +967,7 @@ get fun config(): Config {
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     val st = lazy Storage.load();
-    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled as int);
+    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled);
 }
 
 get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
@@ -971,7 +980,7 @@ get fun verifyNotCursed(subject: uint128): bool {
     return !st.cursedSubjects.isCursed(subject);
 }
 
-get fun cursedSubjects(): tuple? {
+get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     return keysLispList(st.cursedSubjects.data)!;
 }
@@ -1005,7 +1014,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OffRamp_FACILITY_NAME, CONTRACT_VERSION);
+    return (OffRamp_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -1013,7 +1022,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.OffRamp"), local);
+    return getErrorCode(OffRamp_FACILITY_NAME.crc32(), local);
 }
 
 get fun reserve(): coins {

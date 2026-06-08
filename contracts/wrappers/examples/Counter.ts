@@ -10,11 +10,13 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 
 import { CellCodec } from '../utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+
+export const CONTRACT_VERSION = '1.1.3'
 
 /// @dev Message to set the counter value.
 export type SetCount = {
@@ -167,7 +169,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('examples.Counter')
+    return contractCode.ccip.local('examples.Counter')
   }
 
   async getValue(provider: ContractProvider): Promise<number> {

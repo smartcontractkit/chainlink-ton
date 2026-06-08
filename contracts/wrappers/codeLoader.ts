@@ -98,18 +98,8 @@ export const contractCode = {
     local: createContractCodeLoader({ buildDirectory: BUILD_ROOT }),
     release_1_6_0: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6'),
     release_1_6_1: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_1'),
+    release_1_6_2: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_2'),
   },
-}
-
-// Kept for backwards compatibility
-// Used to load built contracts
-export async function loadContractCode(contractName: string): Promise<Cell> {
-  const loader = createContractCodeLoader({
-    buildDirectory: BUILD_ROOT,
-    compileIfMissing: true,
-    cache: codeCache,
-  })
-  return loader(contractName)
 }
 
 async function getCode(

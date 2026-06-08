@@ -5,7 +5,7 @@
 
 import "../../../../lib/versioning/upgradeable.tolk";
 
-const CONTRACT_VERSION = "invalid_version";
+const CONTRACT_VERSION = "invalid_version".literalSlice();
 
 struct Storage {
     id: uint32;

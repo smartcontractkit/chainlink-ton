@@ -13,7 +13,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, errorCode, facilityId, sha256 } from '../utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 import { asSnakedCell, fromSnakeData, DUMMY_ADDRESS } from '../../src/utils'
 import { loadDict, loadMap } from '../../src/utils/dict'
 import { Maybe } from '@ton/core/dist/utils/maybe'
@@ -926,7 +926,7 @@ export class ContractClient implements Contract {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('mcms.MCMS')
+    return contractCode.ccip.local('mcms.MCMS')
   }
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {

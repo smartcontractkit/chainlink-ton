@@ -1,17 +1,16 @@
 import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { compile } from '@ton/blueprint'
 import { sha256 } from '@ton/crypto'
 
 import * as coverage from '../../coverage/coverage'
-import { asSnakedCell, generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
+import { asSnakedCell, WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
-import { CHAINSEL_EVM_TEST, CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
-import { loadContractCode } from '../../../wrappers/codeLoader'
+import { CHAINSEL_EVM_TEST, CHAINSEL_TON, setup } from './OnRamp.Setup'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -57,7 +56,7 @@ describe('OnRamp - generate message id', () => {
   })
 
   beforeEach(async () => {
-    deployableCode = await loadContractCode('Deployable')
+    deployableCode = await contractCode.ccip.local('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')

@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
-tolk 1.2
+tolk 1.4.1
 
 import "../utils.tolk";
+
+const AccessControl_FACILITY_NAME = "link.chain.ton.lib.access.AccessControl";
+const AccessControl_FACILITY_ID = AccessControl_FACILITY_NAME.crc32() % 640 + 10;  // 474
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const AccessControl_ERROR_CODE = AccessControl_FACILITY_ID * 100;
 
 /**
  * @dev Contract module that allows children to implement role-based access
@@ -215,18 +221,18 @@ struct AccessControl_Hooks<T> {
 
 const DEFAULT_ADMIN_ROLE = 0x00;
 
-/// Error codes used by the Timelock contract.
+/// Error codes used by the AccessControl contract.
 enum AccessControl_Error {
-    UnauthorizedAccount = 47400 // AccessControl<T>.errorCode(0)
+    UnauthorizedAccount = AccessControl_ERROR_CODE // 47400
     BadConfirmation
 }
 
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
-///     errorCode(0) == 60900
+///     errorCode(0) == 47400
 fun AccessControl<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.lib.access.AccessControl"), local);
+    return getErrorCode(AccessControl_FACILITY_NAME.crc32(), local);
 }
 
 /// @dev Returns the sender of the message.
@@ -395,7 +401,7 @@ fun AccessControl<T>.getRoleMembers(self, role: uint256): map<address, bool> {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
-        return createEmptyMap(); // role does not exist
+        return []; // role does not exist
     }
 
     val d = lazy AccessControl_RoleData.fromCell(data.loadValue());
@@ -588,7 +594,7 @@ fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: uint256): Acce
     var _data: AccessControl_RoleData = {
         adminRole: DEFAULT_ADMIN_ROLE,
         // Initialize hasRole as an empty map
-        hasRole: createEmptyMap(),
+        hasRole: [],
         membersLen: 0,
     };
     self.roles.set(role, _data.toCell());

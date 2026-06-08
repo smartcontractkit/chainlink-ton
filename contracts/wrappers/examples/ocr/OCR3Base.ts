@@ -18,7 +18,7 @@ import {
   SignatureEd25519,
 } from '../../libraries/ocr/MultiOCR3Base'
 import { asSnakedCell } from '../../../src/utils'
-import { loadContractCode } from '../../codeLoader'
+import { contractCode } from '../../codeLoader'
 
 export function ocr3BaseExampleStorage(): Cell {
   //using dummy chainId 1 and a radom id for unique addresses
@@ -40,7 +40,7 @@ export class OCR3BaseExample extends OCR3Base {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('examples.OCR3Base')
+    return contractCode.ccip.local('examples.OCR3Base')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

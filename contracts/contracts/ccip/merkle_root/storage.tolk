@@ -20,7 +20,7 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-fun MerkleRoot_Storage.expectedMessages(self) {
+fun MerkleRoot_Storage.expectedMessages(self): int {
     return self.maxMsgNr - self.minMsgNr + 1
 }
 
@@ -42,5 +42,6 @@ fun MerkleRoot_Storage.getMessageState(self, seqNum: uint64): ExecutionState {
 
     val mask = 0b11 << (i * 2);
     val state = (self.messageStates & mask) >> (i * 2);
+    // SAFETY: The state is masked to be between 0 and 3, which are valid ExecutionState values
     return state as ExecutionState
 }

@@ -4,7 +4,6 @@ import {
   beginCell,
   Builder,
   Cell,
-  Contract,
   contractAddress,
   ContractProvider,
   Sender,
@@ -12,9 +11,8 @@ import {
   Slice,
 } from '@ton/core'
 import * as upgradeable from '../../libraries/versioning/Upgradeable'
-import { loadContractCode } from '../../codeLoader'
+import { contractCode } from '../../codeLoader'
 import * as typeAndVersion from '../../libraries/versioning/TypeAndVersion'
-import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
 
 export type Storage = {
@@ -56,7 +54,7 @@ export class ContractClient implements /*typeAndVersion.TypeAndVersion,*/ upgrad
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('examples.versioning.upgrades.WrongVersion')
+    return contractCode.ccip.local('examples.versioning.upgrades.WrongVersion')
   }
 
   static createFromConfig(config: Storage, code: Cell, workchain = 0) {

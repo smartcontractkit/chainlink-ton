@@ -11,6 +11,8 @@ sidebar_position: 1
 
 - [CCIP](./ccip/index.md)
 - [Deployable](./deployable.md)
+- [MCMS](./mcms/index.md)
+- [wTON](./wton/index.md)
 
 ### Examples
 
@@ -20,4 +22,3 @@ sidebar_position: 1
 
 - [Libraries](./libraries/index.md)
 - [Jetton](./jetton/index.md)
-- [MCMS](./mcms/index.md)

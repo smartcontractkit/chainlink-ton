@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "errors";
 import "../../lib/utils";
-import "../../lib/deployable/types"
 
 // 1-byte length prefixed byte slice (up to 64 bytes)
 // Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits
@@ -29,7 +28,7 @@ struct RampMessageHeader { // 512
     nonce: uint64;
 }
 
-const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
+const LEAF_DOMAIN_SEPARATOR: slice = "0000000000000000000000000000000000000000000000000000000000000000".hexToSlice();
 
 // nolint:opcode : hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2"))
 struct (0x181dcf10) GenericExtraArgsV2 {

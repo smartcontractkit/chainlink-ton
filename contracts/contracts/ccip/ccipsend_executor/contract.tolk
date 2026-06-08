@@ -6,13 +6,24 @@ import "errors"
 import "../fee_quoter/messages"
 import "../onramp/messages"
 import "../../lib/utils"
-import "../onramp/errors"
 import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 import "../common/types"
 
-const CONTRACT_VERSION = "1.6.0";
+tolk 1.4.1
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
+
+contract CCIPSendExecutor {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.CCIPSendExecutor"
+
+    storage: CCIPSendExecutor_Data
+    storageAtDeployment: CCIPSendExecutor_InitialData
+    incomingMessages: CCIPSendExecutor_InMessage
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -57,8 +68,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy CCIPSendExecutor_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
         FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce as int);
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce);
         }
     }
 }
@@ -67,7 +78,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         id: st.id,
-        onrampSend: onrampSend,
+        onrampSend,
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
@@ -107,7 +118,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     val message = Router_CCIPSend.FromCell(self.onrampSend.msg);
     val tokenAmounts = message.tokenAmounts;
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
-        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds);
         return;
     }
     // If token amounts is empty finalize the message
@@ -216,7 +227,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
             executorID: self.id,
-            error: error,
+            error,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
         }
@@ -225,7 +236,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (CCIPSendExecutor_FACILITY_NAME, CONTRACT_VERSION);
+    return (CCIPSendExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -233,5 +244,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.CCIPSendExecutor"), local);
+    return getErrorCode(CCIPSendExecutor_FACILITY_NAME.crc32(), local);
 }

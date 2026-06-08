@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/messages.tolk
+// Imported from https://github.com/ton-blockchain/tolk-bench/blob/57e1009743bfc19748caa95d76180d9e9793e4c5/contracts_Tolk/03_notcoin/messages.tolk
+
 import "storage"
 
 type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -9,7 +10,7 @@ struct (0x0f8a7ea5) AskToTransfer {
     queryId: uint64
     jettonAmount: coins
     transferRecipient: address
-    sendExcessesTo: address
+    sendExcessesTo: address?
     customPayload: cell?
     forwardTonAmount: coins
     forwardPayload: ForwardPayloadRemainder
@@ -19,7 +20,7 @@ struct (0x0f8a7ea5) AskToTransfer {
 struct (0x7362d09c) TransferNotificationForRecipient {
     queryId: uint64
     jettonAmount: coins
-    transferInitiator: address
+    transferInitiator: address?
     forwardPayload: ForwardPayloadRemainder
 }
 
@@ -27,8 +28,8 @@ struct (0x7362d09c) TransferNotificationForRecipient {
 struct (0x178d4519) InternalTransferStep {
     queryId: uint64
     jettonAmount: coins
-    transferInitiator: address
-    sendExcessesTo: address
+    transferInitiator: address? // is null when minting (not initiated by another wallet)
+    sendExcessesTo: address?
     forwardTonAmount: coins
     forwardPayload: ForwardPayloadRemainder
 }
@@ -42,7 +43,7 @@ struct (0xd53276db) ReturnExcessesBack {
 struct (0x595f07bc) AskToBurn {
     queryId: uint64
     jettonAmount: coins
-    sendExcessesTo: address
+    sendExcessesTo: address?
     customPayload: cell?
 }
 
@@ -51,7 +52,7 @@ struct (0x7bdd97de) BurnNotificationForMinter {
     queryId: uint64
     jettonAmount: coins
     burnInitiator: address
-    sendExcessesTo: address
+    sendExcessesTo: address?
 }
 
 // nolint:opcode
@@ -64,7 +65,7 @@ struct (0x2c76b973) RequestWalletAddress {
 // nolint:opcode
 struct (0xd1735400) ResponseWalletAddress {
     queryId: uint64
-    jettonWalletAddress: address
+    jettonWalletAddress: address?
     ownerAddress: Cell<address>?
 }
 
@@ -102,11 +103,13 @@ struct (0x2508d66a) UpgradeMinterCode {
 // nolint:opcode
 struct (0xcb862902) ChangeMinterMetadataUri {
     queryId: uint64
-    newMetadataUri: SnakeString
+    newMetadataUri: RemainingBitsAndRefs   // by standard, it's "inlined snake string" (but not in a ref, that's why not `string`)
 }
 
 // nolint:opcode
-struct (0xd372158c) TopUpTons {}
+struct (0xd372158c) TopUpTons {
+}
+
 
 // "forward payload" is TL/B `(Either Cell ^Cell)`;
 // we want to test, that if ^Cell, no other data exists in a slice
@@ -114,6 +117,6 @@ fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
     var mutableCopy = self;
     if (mutableCopy.loadMaybeRef() != null) {
         // throw "cell underflow" if there is data besides a ref
-        mutableCopy.assertEnd();
+        mutableCopy.assertEnd()
     }
 }

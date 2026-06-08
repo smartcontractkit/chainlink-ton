@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.2
-
 import "../../lib/access/ownable_2step";
 import "../../lib/utils";
 import "../../lib/versioning/upgradeable"
@@ -8,7 +6,6 @@ import "../../lib/deployable/types"
 
 import "../common/types";
 
-import "../ccipsend_executor/storage"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
@@ -22,7 +19,22 @@ import "storage"
 import "errors"
 import "messages"
 
-const CONTRACT_VERSION = "1.6.0";
+tolk 1.4.1
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
+
+contract OnRamp {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.OnRamp"
+
+    storage: OnRamp_Storage
+    incomingMessages: OnRamp_InMessage
+}
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -53,7 +65,7 @@ fun onInternalMessage(in: InMessage) {
             val destChainConfigResult = st.destChainConfigs.get(ccipSend.destChainSelector);
             if (!destChainConfigResult.isFound) {
                 // This is a config error. The Router should not be sending messages to unknown chains.
-                return rejectMessage(Error.UnknownDestChainSelector as int, in.senderAddress, ccipSend, msg.metadata.sender);
+                return rejectMessage(Error.UnknownDestChainSelector, in.senderAddress, ccipSend, msg.metadata.sender);
             }
             val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
@@ -68,14 +80,14 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
-            var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
+            val st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, Error.Unauthorized);
             onExecutorFinishedSuccessfully(st, msg);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
-            var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
+            val st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, Error.Unauthorized);
             onExecutorFinishedWithError(st, msg);
         }
         // Sender must be the owner
@@ -115,7 +127,7 @@ fun onInternalMessage(in: InMessage) {
         },
         // Sender must be owner
         Upgradeable_Upgrade => {
-            var st = lazy OnRamp_Storage.load();
+            val st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -240,7 +252,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
         if (!entry.isFound || !entry.loadValue()) {
-            return rejectMessage(Error.SenderNotAllowed as int, destChainConfig.router, payload.msg.load(), payload.metadata.sender);
+            return rejectMessage(Error.SenderNotAllowed, destChainConfig.router, payload.msg.load(), payload.metadata.sender);
         }
     }
 
@@ -318,7 +330,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // else refund and notify
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
-    var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector as int);
+    var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector);
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
     st.store();
@@ -348,7 +360,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = beginCell()
-        .storeUint(stringSha256("TVM2AnyMessageHashV1"), 256)
+        .storeUint("TVM2AnyMessageHashV1".sha256(), 256)
         .storeUint(st.chainSelector, 64)
         .storeUint(ccipsend.destChainSelector, 64)
         .storeAddress(contract.getAddress())
@@ -382,7 +394,7 @@ with error details for tracking and recovery.
 fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
     val ccipSend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
-    val router = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int).router;
+    val router = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector).router;
     rejectMessage(msg.error, router, ccipSend, metadata.sender);
 }
 
@@ -442,7 +454,7 @@ fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: SnakedCell
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
-                allowedSenders: createEmptyMap(),
+                allowedSenders: [],
             };
             st.destChainConfigs.set(update.destChainSelector, config);
             emit(DEST_CHAIN_SELECTOR_ADDED_TOPIC, DestChainSelectorAdded {
@@ -467,7 +479,7 @@ fun onApplyAllowlistUpdates(mutate st: OnRamp_Storage, updates: SnakedCell<Updat
     while (!iter.empty()) {
         val update = iter.next();
 
-        var config = st.destChainConfigs.mustGet(update.destChainSelector, Error.UnknownDestChainSelector as int);
+        var config = st.destChainConfigs.mustGet(update.destChainSelector, Error.UnknownDestChainSelector);
 
         var iterAdd = update.add.iter();
         while (!iterAdd.empty()) {
@@ -520,7 +532,7 @@ get fun isChainSupported(destChainSelector: uint64): bool {
 
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy OnRamp_Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
     return config.sequenceNumber + 1;
 }
 
@@ -537,28 +549,28 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
 
 get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
     val st = lazy OnRamp_Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
+    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
 }
 
 // We are taking destChainSelector as param to enable future per-destination feeQuoters
-get fun feeQuoter(destChainSelector: int): address {
+get fun feeQuoter(_destChainSelector: int): address {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
     return config.feeQuoter;
 }
 
 // vec<address>
-get fun allowedSendersList(destChainSelector: uint64): tuple? {
+get fun allowedSendersList(destChainSelector: uint64): lisp_list<address> {
     val st = lazy OnRamp_Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
-    var allowedSenders = config.allowedSenders;
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
+    val allowedSenders = config.allowedSenders;
 
     return keysLispList(allowedSenders);
 }
 
-get fun destChainSelectors(): tuple? {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy OnRamp_Storage.load();
-    var d = st.destChainConfigs;
+    val d = st.destChainConfigs;
     return keysLispList(d)!;
 }
 
@@ -585,7 +597,7 @@ get fun sendExecutorCodeHash(): uint256 {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OnRamp_FACILITY_NAME, CONTRACT_VERSION);
+    return (OnRamp_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -593,7 +605,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.OnRamp"), local);
+    return getErrorCode(OnRamp_FACILITY_NAME.crc32(), local);
 }
 
 get fun reserve(): coins {
@@ -603,7 +615,10 @@ get fun reserve(): coins {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell {
+    requireSupportedVersion(version);
+    return storage;
+}
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

@@ -8,16 +8,29 @@ import "storage"
 import "../common/types";
 import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
-import "../../lib/deployable/types";
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
-import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.2";
+tolk 1.4.1
+
+contract FeeQuoter {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.3"
+    description: "link.chain.ton.ccip.FeeQuoter"
+
+    storage: Storage
+    incomingMessages: FeeQuoter_InMessage
+}
+
+const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("1");
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -68,14 +81,14 @@ fun onInternalMessage(in: InMessage) {
             handleGetValidatedFee(msg, in.senderAddress)
         }
         Withdrawable_Withdraw => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
+            }.withdraw(msg);
         }
         Upgradeable_Upgrade => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Upgradeable{ migrate, version }.upgrade(msg);
         }
@@ -159,7 +172,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_Upd
                     dataAvailabilityGasPrice: 0,
                     timestamp: 0,
                 }.toCell(),
-                tokenTransferFeeConfigs: createEmptyMap()
+                tokenTransferFeeConfigs: []
             })
         }
     }
@@ -242,8 +255,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
     assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
     val feeToken = msg.feeToken!;
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
-    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
+    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
@@ -260,12 +273,12 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
         }
     }
 
-    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
+    val gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
 
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
-    var tokensIter = msg.tokenAmounts.iter();
-    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow as int);
+    val tokensIter = msg.tokenAmounts.iter();
+    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     val dataAvailabilityCost = _dataAvailabilityCost(
@@ -277,21 +290,21 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     );
 
     val calldataLen = msgDataLen; // + token transfer overheads, not supported in TON yet
-    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow as int);
+    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow);
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
     if (calldataLen > calldataThreshold) {
-        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow as int);
+        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow);
         val extraBytes = calldataLen - calldataThreshold;
-        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow as int);
-        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
+        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow);
+        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow);
     }
 
-    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow as int), calldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
+    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow), calldataGas, FeeQuoter_Error.ExecutionCostOverflow);
 
-    val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow as int), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow as int);
+    val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow);
 
-    val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow as int);
-    val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow as int), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow as int);
+    val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow);
+    val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow);
 
     // Check for division by zero (zero token prices)
     assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
@@ -301,7 +314,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
 
     return Fee {
-        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
+        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
         feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
     };
 }
@@ -309,7 +322,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (feeToken != st.linkToken) {
-        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported as int);
+        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported);
         // Check for division by zero (zero token prices)
         assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
         // convert from USD to juels
@@ -340,28 +353,27 @@ fun _dataAvailabilityCost(
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
     // the overhead data posted for OCR.
-    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte, FeeQuoter_Error.DataAvailabilityCostOverflow);
+    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas, FeeQuoter_Error.DataAvailabilityCostOverflow);
 
     // data_availability_gas_price is in 18 decimals, dest_data_availability_multiplier_bps is in 4 decimals
     // We pad 14 decimals to bring the result to 36 decimals, in line with token bps and execution fee.
-    val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow);
+    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps, FeeQuoter_Error.DataAvailabilityCostOverflow);
+    return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
-    var tokenAmounts = message.tokenAmounts.iter();
+    val tokenAmounts = message.tokenAmounts.iter();
     assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
-        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
+        val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
@@ -427,8 +439,12 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int?{
-    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int {
+    val gasLimit = parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
+    if (gasLimit != null) {
+        return gasLimit as int
+    }
+    return 0;
 }
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
@@ -451,7 +467,7 @@ fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): G
 
 fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV1 {
     val extra = SVMExtraArgsV1.fromCell(extraArgs, {
-        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
+        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
@@ -461,7 +477,7 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV
 
 fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV1 {
     val extra = SuiExtraArgsV1.fromCell(extraArgs, {
-        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
+        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData,
     });
     assert (extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
@@ -471,15 +487,15 @@ fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
     if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress as int);
+        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
         // is non-zero, the address must not be 0x0.
-        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
-        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
@@ -543,23 +559,22 @@ get fun tokenPrice(token: address): TimestampedPrice {
     return entry.loadValue();
 }
 
-// vec<TimestampedPrice>
-get fun tokenPrices(tokens: tuple): tuple {
+get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
     val st = lazy Storage.load();
-    var list: tuple = createEmptyTuple();
-    var iter = TupleIterator<address>.new(tokens);
+    var prices: array<Cell<TimestampedPrice>?> = [];
+    var tokenIterator = ArrayIterator<address>.new(tokens);
 
-    while(!iter.empty()) {
-        val token = iter.next();
+    while(!tokenIterator.empty()) {
+        val token = tokenIterator.next();
         val entry = st.usdPerToken.get(token);
         // NOTE: Need to skip missing items as nil entries rather than fail the query
         if (entry.isFound) {
-            list.push(entry.loadValue().toCell());
+            prices.push(entry.loadValue().toCell());
         } else {
-            list.push(null);
+            prices.push(null);
         }
     }
-    return list;
+    return prices;
 }
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
@@ -575,14 +590,14 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 
 get fun premiumMultiplierWeiPerEth(token: address): uint256 {
     val st = lazy Storage.load();
-    val v = st.premiumMultiplierWeiPerEth.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val v = st.premiumMultiplierWeiPerEth.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported);
     return v as uint256;
 }
 
 // vec<address>
-get fun feeTokens(): tuple? {
+get fun feeTokens(): lisp_list<address> {
     val st = lazy Storage.load();
-    var feeTokens = st.premiumMultiplierWeiPerEth;
+    val feeTokens = st.premiumMultiplierWeiPerEth;
     return keysLispList(feeTokens);
 }
 
@@ -591,13 +606,13 @@ get fun tokenTransferFeeConfig(
     token: address,
 ): TokenTransferFeeConfig {
     val st = lazy Storage.load();
-    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
-    return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
+    return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported);
 }
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    return st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
 }
 
 get fun staticConfig(): (uint96, address, uint32) {
@@ -614,7 +629,7 @@ get fun dataAvailabilityCost(
 ): uint256 {
     val st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
     return _dataAvailabilityCost(
         destChainConfig,
         dataAvailabilityGasPrice,
@@ -637,7 +652,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (FeeQuoter_FACILITY_NAME, CONTRACT_VERSION);
+    return (FeeQuoter_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -645,12 +660,12 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.FeeQuoter"), local);
+    return getErrorCode(FeeQuoter_FACILITY_NAME.crc32(), local);
 }
 
-get fun destChainSelectors(): tuple? {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
-    var d = st.destChainConfigs;
+    val d = st.destChainConfigs;
     return keysLispList(d)!;
 }
 
@@ -665,14 +680,6 @@ fun migrate(storage: cell, version: slice): cell {
     var st = Storage.fromCell(storage);
     st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
     return st.toCell();
-}
-
-fun requireSupportedVersion(version: slice) {
-    assert (
-        version.bitsEqual("1.6.0")
-        || version.bitsEqual("1.6.1")
-    ) 
-    throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)

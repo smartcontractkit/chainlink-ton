@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
+tolk 1.4.1
+
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
 import "../../lib/jetton/messages.tolk"
-import "../../lib/jetton/utils.tolk"
 import "../../lib/utils.tolk"
 
 // OnrampMock contract in Tolk
@@ -11,6 +12,9 @@ const FEE = 5
 
 const INCORRECT_SENDER_ERROR = 100
 const FORWARD_PAYLOAD_REQUIRED_ERROR = 101
+
+// Jetton wallet utilities for Tolk
+const JETTON_TOPIC : int = 0x351 // for easier indexing
 
 struct OnrampMock {
     JettonClient: JettonClient
@@ -49,13 +53,13 @@ fun OnrampMock.handleJettonTransferNotification(
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {
-        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator });
+        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator! });
     } else {
         emit(
             JETTON_TOPIC,
             AcceptedRequest {
                 queryId: msg.queryId,
-                sender: msg.transferInitiator,
+                sender: msg.transferInitiator!,
                 payload: forwardPayloadCell!,
             }
         );

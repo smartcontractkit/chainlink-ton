@@ -8,9 +8,9 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { JettonClientConfig, builder, JettonOpcodes } from './types'
+import { JettonClientConfig, builder } from './types'
 import { crc32 } from 'zlib'
-import { loadContractCode } from '../../codeLoader'
+import { contractCode } from '../../codeLoader'
 
 export type JettonSenderConfig = {
   jettonClient: JettonClientConfig
@@ -57,7 +57,7 @@ export class JettonSender implements Contract {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('examples.jetton.JettonSender')
+    return contractCode.ccip.local('examples.jetton.JettonSender')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

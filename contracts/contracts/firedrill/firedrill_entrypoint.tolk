@@ -1,4 +1,15 @@
-tolk 1.2
+tolk 1.4.1
+
+contract FiredrillEntrypoint {
+	author: "SmartContract Chainlink Limited SEZC"
+
+	version: "1.6.0"
+
+	description: "link.chain.ton.ccip.firedrill.firedrillEntrypoint.Router.FeeQuoter"
+
+	storage: FiredrillEntrypoint_Storage
+	incomingMessages: FiredrillEntrypoint_InMessage
+}
 
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
@@ -265,7 +276,7 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
 	dataAvailabilityGasPrice: 1000000000,
 	timestamp: blockchain.now()
     }.toCell(),
-    tokenTransferFeeConfigs: createEmptyMap(),
+    tokenTransferFeeConfigs: [],
   };
   return destChainConfig;
 }
@@ -309,5 +320,5 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("link.chain.ton.ccip.firedrill.firedrillEntrypoint.Router.FeeQuoter", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillEntrypoint.Router.FeeQuoter".literalSlice(), "1.6.0".literalSlice())
 }

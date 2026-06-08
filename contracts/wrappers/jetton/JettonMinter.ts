@@ -1,77 +1,57 @@
 import {
-  address,
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
   toNano,
 } from '@ton/core'
-import { JettonOpcodes } from '../examples/jetton/types'
+import { JettonOpcodes } from './constants'
 import { JettonMinterCode } from './JettonCode'
 import { Maybe } from '@ton/core/dist/utils/maybe'
+import { CellCodec } from '../utils'
 
 export type JettonMinterContent = {
   uri: string
 }
 
+export type JettonMinterData = {
+  totalSupply: bigint
+  admin: Address | null
+  walletCode: Cell
+  jettonContent: Cell
+  transferAdmin: Maybe<Address>
+}
+
 export type JettonMinterConfig = {
   totalSupply: bigint
-  admin: Address
+  admin: Maybe<Address>
   walletCode: Cell
   jettonContent: Cell | JettonMinterContent
   transferAdmin: Maybe<Address>
 }
 
-export function jettonContentToCell(content: JettonMinterContent): Cell {
-  return beginCell().storeStringRefTail(content.uri).endCell()
-}
-
-export function jettonMinterConfigToCell(config: JettonMinterConfig): Cell {
-  const content =
-    config.jettonContent instanceof Cell
-      ? config.jettonContent
-      : jettonContentToCell(config.jettonContent)
-
-  return beginCell()
-    .storeCoins(config.totalSupply)
-    .storeAddress(config.admin)
-    .storeAddress(config.transferAdmin)
-    .storeRef(config.walletCode)
-    .storeRef(content)
-    .endCell()
-}
-
-export function parseJettonMinterData(data: Cell) {
-  const sc = data.beginParse()
-  return {
-    supply: sc.loadCoins(),
-    admin: sc.loadMaybeAddress(),
-    transferAdmin: sc.loadMaybeAddress(),
-    walletCode: sc.loadRef(),
-    jettonContent: sc.loadRef(),
-  }
-}
-
 export const MinterOpcodes = {
   MINT: JettonOpcodes.MINT,
   BURN_NOTIFICATION: JettonOpcodes.BURN_NOTIFICATION,
-  // PROVIDE_WALLET_ADDRESS: JettonOpcodes.PROVIDE_WALLET_ADDRESS,
-  // TAKE_WALLET_ADDRESS: JettonOpcodes.TAKE_WALLET_ADDRESS,
+  PROVIDE_WALLET_ADDRESS: JettonOpcodes.PROVIDE_WALLET_ADDRESS,
+  TAKE_WALLET_ADDRESS: JettonOpcodes.TAKE_WALLET_ADDRESS,
   CHANGE_ADMIN: JettonOpcodes.CHANGE_ADMIN,
   CLAIM_ADMIN: JettonOpcodes.CLAIM_ADMIN,
   DROP_ADMIN: JettonOpcodes.DROP_ADMIN,
   CHANGE_METADATA_URL: JettonOpcodes.CHANGE_METADATA_URL,
   UPGRADE: JettonOpcodes.UPGRADE,
-  // TOP_UP: JettonOpcodes.TOP_UP,
+  TOP_UP: JettonOpcodes.TOP_UP,
   INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
   EXCESSES: JettonOpcodes.EXCESSES,
 }
 
-export type MintMessage = {
+export type MintNewJettons = {
   queryId: bigint
   destination: Address
   tonAmount: bigint
@@ -82,14 +62,281 @@ export type MintMessage = {
   forwardTonAmount?: bigint
 }
 
-export type ChangeAdminMessage = {
+export type InternalTransferStep = {
+  queryId: bigint
+  jettonAmount: bigint
+  from: Maybe<Address>
+  responseDestination: Maybe<Address>
+  customPayload?: Cell | null
+  forwardTonAmount?: bigint
+}
+
+export type RequestWalletAddress = {
+  queryId: bigint
+  ownerAddress: Address
+  includeOwnerAddress: boolean
+}
+
+export type ChangeMinterAdmin = {
   queryId: bigint
   newAdmin: Address
 }
 
-export type ChangeContentMessage = {
+export type ChangeMinterMetadataUri = {
   queryId: bigint
   content: Cell | JettonMinterContent
+}
+
+export type ClaimMinterAdmin = {
+  queryId: bigint
+}
+
+export type DropMinterAdmin = {
+  queryId: bigint
+}
+
+export type UpgradeMinterCode = {
+  queryId: bigint
+  newData: Cell
+  newCode: Cell
+}
+
+export type TopUpTons = Record<never, never>
+
+function contentToCell(content: Cell | JettonMinterContent): Cell {
+  return content instanceof Cell ? content : builder.data.content.encode(content).asCell()
+}
+
+function toContractData(config: JettonMinterConfig): JettonMinterData {
+  return {
+    totalSupply: config.totalSupply,
+    admin: config.admin ?? null,
+    transferAdmin: config.transferAdmin,
+    walletCode: config.walletCode,
+    jettonContent: contentToCell(config.jettonContent),
+  }
+}
+
+function toInternalTransferStep(message: MintNewJettons): InternalTransferStep {
+  return {
+    queryId: message.queryId,
+    jettonAmount: message.jettonAmount,
+    from: message.from,
+    responseDestination: message.responseDestination,
+    customPayload: message.customPayload,
+    forwardTonAmount: message.forwardTonAmount,
+  }
+}
+
+export const builder = {
+  data: {
+    content: ((): CellCodec<JettonMinterContent> => {
+      return {
+        encode: (data: JettonMinterContent): Builder => {
+          return beginCell().storeStringRefTail(data.uri)
+        },
+        load: (src: Slice): JettonMinterContent => {
+          return { uri: src.loadStringRefTail() }
+        },
+      }
+    })(),
+    contractData: ((): CellCodec<JettonMinterData> => {
+      return {
+        encode: (data: JettonMinterData): Builder => {
+          return beginCell()
+            .storeCoins(data.totalSupply)
+            .storeAddress(data.admin)
+            .storeAddress(data.transferAdmin)
+            .storeRef(data.walletCode)
+            .storeRef(data.jettonContent)
+        },
+        load: (src: Slice): JettonMinterData => {
+          return {
+            totalSupply: src.loadCoins(),
+            admin: src.loadMaybeAddress(),
+            transferAdmin: src.loadMaybeAddress(),
+            walletCode: src.loadRef(),
+            jettonContent: src.loadRef(),
+          }
+        },
+      }
+    })(),
+  },
+  messages: {
+    in: {
+      mintNewJettons: (opts: { opcode?: number } = {}): CellCodec<MintNewJettons> => {
+        return {
+          encode: (data: MintNewJettons): Builder => {
+            return beginCell()
+              .storeUint(opts.opcode ?? MinterOpcodes.MINT, 32)
+              .storeUint(data.queryId, 64)
+              .storeAddress(data.destination)
+              .storeCoins(data.tonAmount)
+              .storeRef(
+                builder.messages.out.internalTransferStep.encode(toInternalTransferStep(data)),
+              )
+          },
+          load: (src: Slice): MintNewJettons => {
+            src.skip(32)
+            const queryId = src.loadUintBig(64)
+            const destination = src.loadAddress()
+            const tonAmount = src.loadCoins()
+            const internalTransfer = builder.messages.out.internalTransferStep.load(
+              src.loadRef().beginParse(),
+            )
+
+            return {
+              queryId,
+              destination,
+              tonAmount,
+              jettonAmount: internalTransfer.jettonAmount,
+              from: internalTransfer.from,
+              responseDestination: internalTransfer.responseDestination,
+              customPayload: internalTransfer.customPayload,
+              forwardTonAmount: internalTransfer.forwardTonAmount,
+            }
+          },
+        }
+      },
+      requestWalletAddress: ((): CellCodec<RequestWalletAddress> => {
+        return {
+          encode: (data: RequestWalletAddress): Builder => {
+            return beginCell()
+              .storeUint(MinterOpcodes.PROVIDE_WALLET_ADDRESS, 32)
+              .storeUint(data.queryId, 64)
+              .storeAddress(data.ownerAddress)
+              .storeBit(data.includeOwnerAddress)
+          },
+          load: (src: Slice): RequestWalletAddress => {
+            src.skip(32)
+            return {
+              queryId: src.loadUintBig(64),
+              ownerAddress: src.loadAddress(),
+              includeOwnerAddress: src.loadBit(),
+            }
+          },
+        }
+      })(),
+      changeMinterAdmin: ((): CellCodec<ChangeMinterAdmin> => {
+        return {
+          encode: (data: ChangeMinterAdmin): Builder => {
+            return beginCell()
+              .storeUint(MinterOpcodes.CHANGE_ADMIN, 32)
+              .storeUint(data.queryId, 64)
+              .storeAddress(data.newAdmin)
+          },
+          load: (src: Slice): ChangeMinterAdmin => {
+            src.skip(32)
+            return {
+              queryId: src.loadUintBig(64),
+              newAdmin: src.loadAddress(),
+            }
+          },
+        }
+      })(),
+      claimMinterAdmin: ((): CellCodec<ClaimMinterAdmin> => {
+        return {
+          encode: (data: ClaimMinterAdmin): Builder => {
+            return beginCell().storeUint(MinterOpcodes.CLAIM_ADMIN, 32).storeUint(data.queryId, 64)
+          },
+          load: (src: Slice): ClaimMinterAdmin => {
+            src.skip(32)
+            return { queryId: src.loadUintBig(64) }
+          },
+        }
+      })(),
+      dropMinterAdmin: ((): CellCodec<DropMinterAdmin> => {
+        return {
+          encode: (data: DropMinterAdmin): Builder => {
+            return beginCell().storeUint(MinterOpcodes.DROP_ADMIN, 32).storeUint(data.queryId, 64)
+          },
+          load: (src: Slice): DropMinterAdmin => {
+            src.skip(32)
+            return { queryId: src.loadUintBig(64) }
+          },
+        }
+      })(),
+      changeMinterMetadataUri: ((): CellCodec<ChangeMinterMetadataUri> => {
+        return {
+          encode: (data: ChangeMinterMetadataUri): Builder => {
+            const content =
+              data.content instanceof Cell
+                ? data.content.beginParse().loadStringTail()
+                : data.content.uri
+
+            return beginCell()
+              .storeUint(MinterOpcodes.CHANGE_METADATA_URL, 32)
+              .storeUint(data.queryId, 64)
+              .storeStringTail(content)
+          },
+          load: (src: Slice): ChangeMinterMetadataUri => {
+            src.skip(32)
+            return {
+              queryId: src.loadUintBig(64),
+              content: { uri: src.loadStringTail() },
+            }
+          },
+        }
+      })(),
+      upgradeMinterCode: ((): CellCodec<UpgradeMinterCode> => {
+        return {
+          encode: (data: UpgradeMinterCode): Builder => {
+            return beginCell()
+              .storeUint(MinterOpcodes.UPGRADE, 32)
+              .storeUint(data.queryId, 64)
+              .storeRef(data.newData)
+              .storeRef(data.newCode)
+          },
+          load: (src: Slice): UpgradeMinterCode => {
+            src.skip(32)
+            return {
+              queryId: src.loadUintBig(64),
+              newData: src.loadRef(),
+              newCode: src.loadRef(),
+            }
+          },
+        }
+      })(),
+      topUpTons: ((): CellCodec<TopUpTons> => {
+        return {
+          encode: (): Builder => {
+            return beginCell().storeUint(MinterOpcodes.TOP_UP, 32)
+          },
+          load: (src: Slice): TopUpTons => {
+            src.skip(32)
+            return {}
+          },
+        }
+      })(),
+    },
+    out: {
+      internalTransferStep: ((): CellCodec<InternalTransferStep> => {
+        return {
+          encode: (data: InternalTransferStep): Builder => {
+            return beginCell()
+              .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
+              .storeUint(data.queryId, 64)
+              .storeCoins(data.jettonAmount)
+              .storeAddress(data.from)
+              .storeAddress(data.responseDestination)
+              .storeCoins(data.forwardTonAmount ?? 0n)
+              .storeMaybeRef(data.customPayload ?? null)
+          },
+          load: (src: Slice): InternalTransferStep => {
+            src.skip(32)
+            return {
+              queryId: src.loadUintBig(64),
+              jettonAmount: src.loadCoins(),
+              from: src.loadMaybeAddress(),
+              responseDestination: src.loadMaybeAddress(),
+              forwardTonAmount: src.loadCoins(),
+              customPayload: src.loadMaybeRef(),
+            }
+          },
+        }
+      })(),
+    },
+  },
 }
 
 export class JettonMinter implements Contract {
@@ -103,7 +350,7 @@ export class JettonMinter implements Contract {
   }
 
   static createFromConfig(config: JettonMinterConfig, code: Cell, workchain = 0) {
-    const data = jettonMinterConfigToCell(config)
+    const data = builder.data.contractData.encode(toContractData(config)).asCell()
     const init = { code, data }
     return new JettonMinter(contractAddress(workchain, init), init)
   }
@@ -116,6 +363,14 @@ export class JettonMinter implements Contract {
     })
   }
 
+  async sendTopUpTons(provider: ContractProvider, via: Sender, value: bigint) {
+    await provider.internal(via, {
+      value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.topUpTons.encode({}).asCell(),
+    })
+  }
+
   static async code(): Promise<Cell> {
     return await JettonMinterCode()
   }
@@ -125,30 +380,14 @@ export class JettonMinter implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      message: MintMessage
+      message: MintNewJettons
+      mintOpcode?: number
     },
   ) {
-    const mintMsg = beginCell()
-      .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
-      .storeUint(opts.message.queryId, 64)
-      .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.from)
-      .storeAddress(opts.message.responseDestination)
-      .storeCoins(opts.message.forwardTonAmount ?? 0n)
-
-    if (opts.message.customPayload) {
-      mintMsg.storeBit(1).storeRef(opts.message.customPayload)
-    } else {
-      mintMsg.storeBit(0)
-    }
-
-    const body = beginCell()
-      .storeUint(MinterOpcodes.MINT, 32)
-      .storeUint(opts.message.queryId, 64)
-      .storeAddress(opts.message.destination)
-      .storeCoins(opts.message.tonAmount)
-      .storeRef(mintMsg.endCell())
-      .endCell()
+    const body = builder.messages.in
+      .mintNewJettons({ opcode: opts.mintOpcode })
+      .encode(opts.message)
+      .asCell()
 
     await provider.internal(via, {
       value: opts.value,
@@ -183,17 +422,13 @@ export class JettonMinter implements Contract {
     via: Sender,
     opts: {
       value?: bigint
-      message: ChangeAdminMessage
+      message: ChangeMinterAdmin
     },
   ) {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.CHANGE_ADMIN, 32)
-        .storeUint(opts.message.queryId, 64)
-        .storeAddress(opts.message.newAdmin)
-        .endCell(),
+      body: builder.messages.in.changeMinterAdmin.encode(opts.message).asCell(),
     })
   }
 
@@ -208,10 +443,7 @@ export class JettonMinter implements Contract {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.CLAIM_ADMIN, 32)
-        .storeUint(opts.queryId ?? 0n, 64)
-        .endCell(),
+      body: builder.messages.in.claimMinterAdmin.encode({ queryId: opts.queryId ?? 0n }).asCell(),
     })
   }
 
@@ -226,10 +458,7 @@ export class JettonMinter implements Contract {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.05'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.DROP_ADMIN, 32)
-        .storeUint(opts.queryId ?? 0n, 64)
-        .endCell(),
+      body: builder.messages.in.dropMinterAdmin.encode({ queryId: opts.queryId ?? 0n }).asCell(),
     })
   }
 
@@ -238,22 +467,13 @@ export class JettonMinter implements Contract {
     via: Sender,
     opts: {
       value?: bigint
-      message: ChangeContentMessage
+      message: ChangeMinterMetadataUri
     },
   ) {
-    const contentString =
-      opts.message.content instanceof Cell
-        ? opts.message.content.beginParse().loadStringTail()
-        : opts.message.content.uri
-
     await provider.internal(via, {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.CHANGE_METADATA_URL, 32)
-        .storeUint(opts.message.queryId, 64)
-        .storeStringTail(contentString)
-        .endCell(),
+      body: builder.messages.in.changeMinterMetadataUri.encode(opts.message).asCell(),
     })
   }
 
@@ -270,12 +490,9 @@ export class JettonMinter implements Contract {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.UPGRADE, 32)
-        .storeUint(opts.queryId ?? 0n, 64)
-        .storeRef(opts.newData)
-        .storeRef(opts.newCode)
-        .endCell(),
+      body: builder.messages.in.upgradeMinterCode
+        .encode({ queryId: opts.queryId ?? 0n, newData: opts.newData, newCode: opts.newCode })
+        .asCell(),
     })
   }
 

@@ -1,6 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
 import { crc32 } from 'zlib'
@@ -157,7 +156,7 @@ describe('OffRamp - TypeAndVersion Tests', () => {
 
 describe('OffRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
-    getCode: () => compile('OffRamp'),
+    getCode: () => contractCode.ccip.local('OffRamp'),
     ContractConstructor: of.OffRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
@@ -173,18 +172,13 @@ describe('OffRamp - Withdrawable Tests', () => {
 describe('OffRamp - Upgrade Tests', () => {
   class OffRamp extends of.OffRamp {}
 
-  const codeLoaders = {
-    '1.6.0': () => contractCode.ccip.release_1_6_0('OffRamp'),
-    '1.6.1': () => contractCode.ccip.release_1_6_1('OffRamp'),
-  } as Record<string, () => Promise<Cell>>
-
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
     contractType: of.OffRamp.type(),
-    prevVersionConfigs: of.OFFRAMP_SUPPORTED_PREV_VERSIONS.map((version) => ({
+    prevVersionConfigs: Object.entries(of.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
       version,
-      getCode: codeLoaders[version],
+      getCode,
       deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
-        deployOffRampContract(blockchain, owner, await codeLoaders[version]()),
+        deployOffRampContract(blockchain, owner, await getCode()),
     })),
     currentVersion: OffRamp.version(),
     getCurrentCode: () => OffRamp.code(),
@@ -617,7 +611,7 @@ describe('OffRamp - Unit Tests', () => {
     // setup router
     //
     {
-      const code = await compile('Router')
+      const code = await contractCode.ccip.local('Router')
       let data: rt.Storage = {
         id: generateRandomContractId(),
         ownable: {
@@ -660,7 +654,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Deploy test receiver
     {
-      let code = await compile('ccip.test.receiver')
+      let code = await contractCode.ccip.local('ccip.test.receiver')
       receiver = blockchain.openContract(
         tr.Receiver.createFromConfig(
           {
@@ -1786,7 +1780,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('Test receiver rejects message from wrong offRamp and emits ExecutionStateChanged: Failure', async () => {
     // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
-    let code = await compile('ccip.test.receiver')
+    let code = await contractCode.ccip.local('ccip.test.receiver')
     const wrongRouterAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
       tr.Receiver.createFromConfig(

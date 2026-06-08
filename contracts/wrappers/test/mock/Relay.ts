@@ -12,15 +12,8 @@ import {
   toNano,
 } from '@ton/core'
 import { CellCodec } from '../../utils'
-import { loadContractCode } from '../../codeLoader'
-import {
-  Blockchain,
-  BlockchainContractProvider,
-  SandboxContract,
-  SandboxContractProvider,
-  SendMessageResult,
-} from '@ton/sandbox'
-import * as deployable from '../../libraries/Deployable'
+import { contractCode } from '../../codeLoader'
+import { SandboxContractProvider } from '@ton/sandbox'
 
 export type Relay_Send = {
   bounce: boolean
@@ -108,7 +101,7 @@ export class ContractClient {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('tests.mock.Relay')
+    return contractCode.ccip.local('tests.mock.Relay')
   }
 
   // Get a sender that routes messages via Relay contract
