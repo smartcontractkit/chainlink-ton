@@ -293,12 +293,14 @@ export const builder = (() => {
 
     const getValidatedFeeContext: CellCodec<GetValidatedFeeContext> = {
       encode: function (data: GetValidatedFeeContext): Builder {
-        return beginCell().storeAddress(data.onrampContext).storeSlice(data.userContext)
+        const b = beginCell().storeAddress(data.onrampContext)
+        remainingBitsOrRef.builder.encode(data.userContext, b)
+        return b
       },
       load: function (src: Slice): GetValidatedFeeContext {
         return {
           onrampContext: src.loadAddress(),
-          userContext: src,
+          userContext: remainingBitsOrRef.builder.load(src),
         }
       },
     }
@@ -380,17 +382,16 @@ export const builder = (() => {
     const messageIn = (() => {
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: (data: GetValidatedFee): Builder => {
-          const b = beginCell()
+          return beginCell()
             .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-          remainingBitsOrRef.builder.encode(data.context, b)
-          return b
+            .storeSlice(data.context)
         },
         load: (src: Slice): GetValidatedFee => {
           src.skip(32)
           return {
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: remainingBitsOrRef.builder.load(src),
+            context: src,
           }
         },
       }

@@ -19,7 +19,6 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
-import * as remainingBitsOrRef from '../libraries/utils/RemainingBitsOrRef'
 import { asSnakedCell } from '../../src/utils'
 import { contractCode } from '../codeLoader'
 
@@ -398,17 +397,16 @@ export const builder = (() => {
 
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: function (data: GetValidatedFee): Builder {
-          const b = beginCell()
+          return beginCell()
             .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-          remainingBitsOrRef.builder.encode(data.context, b)
-          return b
+            .storeSlice(data.context)
         },
         load: function (src: Slice): GetValidatedFee {
           src.skip(32) // opcode
           return {
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: remainingBitsOrRef.builder.load(src),
+            context: src,
           }
         },
       }
@@ -426,38 +424,36 @@ export const builder = (() => {
     out: (() => {
       const messageValidated: CellCodec<MessageValidated> = {
         encode: (data: MessageValidated): TonBuilder => {
-          const b = beginCell()
+          return beginCell()
             .storeUint(opcodes.out.messageValidated, 32)
             .storeBuilder(dataBuilder.fee.encode(data.fee))
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-          remainingBitsOrRef.builder.encode(data.context, b)
-          return b
+            .storeSlice(data.context)
         },
         load: (src: Slice): MessageValidated => {
           src.skip(32) // opcode
           return {
             fee: dataBuilder.fee.load(src),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: remainingBitsOrRef.builder.load(src),
+            context: src,
           }
         },
       }
 
       const messageValidationFailed: CellCodec<MessageValidationFailed> = {
         encode: (data: MessageValidationFailed): TonBuilder => {
-          const b = beginCell()
+          return beginCell()
             .storeUint(opcodes.out.messageValidationFailed, 32)
             .storeUint(data.error, 256)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-          remainingBitsOrRef.builder.encode(data.context, b)
-          return b
+            .storeSlice(data.context)
         },
         load: (src: Slice): MessageValidationFailed => {
           src.skip(32) // opcode
           return {
             error: src.loadUintBig(256),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: remainingBitsOrRef.builder.load(src),
+            context: src,
           }
         },
       }

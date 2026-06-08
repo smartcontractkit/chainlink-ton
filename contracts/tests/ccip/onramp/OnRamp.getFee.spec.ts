@@ -69,10 +69,11 @@ describe('OnRamp - Get Fee', () => {
   })
 
   it('should forward get fee to fee quoter', async () => {
+    const requestCtx = beginCell().storeUint(42, 32).asSlice() // arbitrary context
     const result = await onramp.sendGetValidatedFee(mockRouter.getSender(), {
       value: toNano('0.5'),
       msg: ccipSend,
-      context: beginCell().storeUint(42, 32).endCell(), // arbitrary context
+      context: requestCtx,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -105,9 +106,24 @@ describe('OnRamp - Get Fee', () => {
     if (outMsg.info.type !== 'internal') {
       throw new Error('Unexpected message type')
     }
-    expect(outMsg.body.beginParse().loadUint(32)).toBe(fq.opcodes.in.getValidatedFee)
-    const decoded = fq.builder.message.in.getValidatedFee.load(outMsg.body.beginParse())
-    expect(decoded.msg).toEqual(ccipSend)
+    const outMsgBody = outMsg.body.beginParse()
+    expect(outMsgBody.preloadUint(32)).toBe(fq.opcodes.in.getValidatedFee)
+
+    // The OnRamp wraps the user context with the router address (OnRamp_GetValidatedFeeContext)
+    const expectedContext = or.builder.data.getValidatedFeeContext
+      .encode({
+        onrampContext: mockRouter.address,
+        userContext: beginCell().storeUint(42, 32).asSlice(),
+      })
+      .asSlice()
+    const expectedOutMsgBody = fq.builder.message.in.getValidatedFee
+      .encode({
+        msg: ccipSend,
+        context: expectedContext,
+      })
+      .asCell()
+
+    expect(outMsg.body.toString()).toEqual(expectedOutMsgBody.toString())
   })
 
   it('should throw error if message validated comes from non-feequoter', async () => {
