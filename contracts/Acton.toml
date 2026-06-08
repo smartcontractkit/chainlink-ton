@@ -62,6 +62,12 @@ src = "contracts/mcms/mcms.tolk"
 domain = "mcms"
 depends = []
 
+[contracts.Test_RemainingBitsOrRef]
+display-name = "link.chain.ton.test.lib.RemainingBitsOrRef"
+src = "contracts/test/lib/remaining_bits_or_ref.tolk"
+domain = "test"
+depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100

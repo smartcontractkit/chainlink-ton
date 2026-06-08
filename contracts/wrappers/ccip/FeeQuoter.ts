@@ -19,6 +19,7 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
+import * as remainingBitsOrRef from '../libraries/utils/RemainingBitsOrRef'
 import { asSnakedCell } from '../../src/utils'
 import { contractCode } from '../codeLoader'
 
@@ -424,36 +425,38 @@ export const builder = (() => {
     out: (() => {
       const messageValidated: CellCodec<MessageValidated> = {
         encode: (data: MessageValidated): TonBuilder => {
-          return beginCell()
+          const b = beginCell()
             .storeUint(opcodes.out.messageValidated, 32)
             .storeBuilder(dataBuilder.fee.encode(data.fee))
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeSlice(data.context)
+          remainingBitsOrRef.builder.encode(data.context, b)
+          return b
         },
         load: (src: Slice): MessageValidated => {
           src.skip(32) // opcode
           return {
             fee: dataBuilder.fee.load(src),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: src,
+            context: remainingBitsOrRef.builder.load(src),
           }
         },
       }
 
       const messageValidationFailed: CellCodec<MessageValidationFailed> = {
         encode: (data: MessageValidationFailed): TonBuilder => {
-          return beginCell()
+          const b = beginCell()
             .storeUint(opcodes.out.messageValidationFailed, 32)
             .storeUint(data.error, 256)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeSlice(data.context)
+          remainingBitsOrRef.builder.encode(data.context, b)
+          return b
         },
         load: (src: Slice): MessageValidationFailed => {
           src.skip(32) // opcode
           return {
             error: src.loadUintBig(256),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            context: src,
+            context: remainingBitsOrRef.builder.load(src),
           }
         },
       }

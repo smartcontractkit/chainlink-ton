@@ -2,6 +2,7 @@
 import "types"
 import "../router/messages"
 import "../../lib/utils"
+import "../../lib/remaining_bits_or_ref"
 import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
 import "../fee_quoter/messages"

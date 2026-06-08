@@ -2,6 +2,7 @@
 import "types"
 import "../common/types.tolk"
 import "../../lib/utils"
+import "../../lib/remaining_bits_or_ref"
 import "../../lib/funding/withdrawable.tolk";
 import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
