@@ -13,7 +13,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/monitoring/balance"
+	clcommonbalance "github.com/smartcontractkit/chainlink-common/pkg/monitoring/balance"
 	"github.com/smartcontractkit/chainlink-common/pkg/timeutil"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -25,9 +25,9 @@ import (
 
 // BalanceMonitorOpts contains the options for creating a new TON account balance monitor.
 type BalanceMonitorOpts struct {
-	ChainInfo balance.ChainInfo
+	ChainInfo clcommonbalance.ChainInfo
 
-	Config    balance.GenericBalanceConfig
+	Config    clcommonbalance.GenericBalanceConfig
 	Logger    logger.Logger
 	Keystore  core.Keystore
 	NewClient func(context.Context) (ton.APIClientWrapped, error)
@@ -42,7 +42,7 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create balance metrics: %w", err)
 	}
-	oldBalanceMetrics, err := balance.NewGaugeAccBalance(TON)
+	CLCommonBalanceMetrics, err := clcommonbalance.NewGaugeAccBalance(TON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create old balance metrics: %w", err)
 	}
@@ -54,10 +54,10 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 		Logger:   opts.Logger,
 		Keystore: opts.Keystore,
 
-		ChainInfo:         opts.ChainInfo,
-		OldBalanceMetrics: oldBalanceMetrics,
+		ChainInfo:              opts.ChainInfo,
+		CLCommonBalanceMetrics: CLCommonBalanceMetrics,
 
-		BalanceMetrics: balanceMetrics,
+		CLFrameworkBalanceMetrics: balanceMetrics,
 		NewClient: func(ctx context.Context) (ton.APIClientWrapped, error) {
 			client, err := opts.NewClient(ctx)
 			if err != nil {
@@ -74,18 +74,18 @@ type balanceMonitor struct {
 	services.StateMachine
 	ChainID             string
 	ChainNativeCurrency string
-	Config              balance.GenericBalanceConfig
+	Config              clcommonbalance.GenericBalanceConfig
 	Logger              logger.Logger
 	Keystore            core.Keystore
 
+	ChainInfo clcommonbalance.ChainInfo // Should be migrated to receive ChainID directly
 	// Deprecated: OldBalanceMetrics is the old gauge metric for account balance, which is being replaced by BalanceMetrics. It will be removed in a future release after ensuring all metrics are migrated and stable.
-	ChainInfo         balance.ChainInfo // Only used for OldBalanceMetrics
-	OldBalanceMetrics *balance.GaugeAccBalance
+	CLCommonBalanceMetrics *clcommonbalance.GaugeAccBalance
 
 	/// BalanceMetrics uses chainlink-framework and is meant to replace the old GenericBalanceMonitor.
 
-	BalanceMetrics metrics.GenericBalanceMetrics
-	NewClient      func(ctx context.Context) (ton.APIClientWrapped, error)
+	CLFrameworkBalanceMetrics metrics.GenericBalanceMetrics
+	NewClient                 func(ctx context.Context) (ton.APIClientWrapped, error)
 
 	Stop services.StopChan
 	Done chan struct{}
@@ -243,9 +243,10 @@ func hexPublicKeyToWalletAddress(hexPubKey string) (string, error) {
 }
 
 func (b *balanceMonitor) SendMetric(ctx context.Context, account string, balance float64) {
-	b.Logger.Debugw("Account balance updated", "unit", b.ChainNativeCurrency, "account", account, "balance", balance)
-	b.BalanceMetrics.RecordNodeBalance(ctx, account, balance)
+	b.CLFrameworkBalanceMetrics.RecordNodeBalance(ctx, account, balance)
 
 	// TODO remove after migration to new metrics is complete and stable
-	b.OldBalanceMetrics.Record(ctx, balance, account, b.ChainInfo)
+	b.CLCommonBalanceMetrics.Record(ctx, balance, account, b.ChainInfo)
+
+	b.Logger.Debugw("Account balance updated", "unit", b.ChainNativeCurrency, "account", account, "balance", balance)
 }
