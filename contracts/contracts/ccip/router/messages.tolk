@@ -126,7 +126,7 @@ struct (0x4dd6aa82) Router_GetValidatedFee<T> {
     context: T;
 }
 
-struct (0x45645645) Router_LockOrBurn {
+struct (0x6f2d00df) Router_LockOrBurn {
     tokenPool: address,
     tokenAmount: TokenAmount,
     destChainSelector: uint64,

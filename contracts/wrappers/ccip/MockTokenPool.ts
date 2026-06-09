@@ -41,3 +41,12 @@ export class MockTokenPool implements Contract {
     })
   }
 }
+
+export const opcodes = {
+  in: {
+    lockOrBurn: 0x7dd8f942,
+  },
+  out: {
+    notifySuccessfulLockOrBurn: 0x7adb20bb,
+  },
+}

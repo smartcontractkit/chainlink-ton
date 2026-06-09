@@ -8,6 +8,6 @@ struct (0xDD5D5127) TokenRegistry_GetTokenInfo {
 }
 
 // Outgoing messages
-struct (0xB8F88A81) TokenRegistry_ReturnTokenInfo {
+struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
     tokenInfo: TokenRegistry_TokenInfo,
 }

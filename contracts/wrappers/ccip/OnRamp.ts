@@ -651,6 +651,7 @@ export const opcodes = {
     get messageValidationFailed() {
       return fq.opcodes.out.messageValidationFailed
     },
+    executorRequestsLockOrBurn: 0x9be1fb61,
     executorFinishedSuccessfully: 0xcfa6b336,
     executorFinishedWithError: 0xc4068e21,
     setDynamicConfig: 0xa178c62e,

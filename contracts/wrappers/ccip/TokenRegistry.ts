@@ -58,3 +58,9 @@ export class TokenRegistry implements Contract {
     })
   }
 }
+
+export const opcodes = {
+  out: {
+    returnTokenInfo: 0xddccddb5,
+  },
+}

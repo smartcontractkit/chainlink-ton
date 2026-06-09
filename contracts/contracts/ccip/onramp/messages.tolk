@@ -40,7 +40,7 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
     context: T;
 }
 
-struct (0x12312312) OnRamp_ExecutorRequestsLockOrBurn {
+struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     tokenAmount: TokenAmount,
     tokenPool: address,
     destChainSelector: uint64,
