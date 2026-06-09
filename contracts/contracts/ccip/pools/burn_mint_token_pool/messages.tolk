@@ -6,7 +6,7 @@ struct (0x93c174a1) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;
 }
 
-type BurnMintTokenPool_CustomInMessage =
-    | BurnMintTokenPool_ClaimMinterAdmin
+type BurnMintTokenPool_InMessage =
     | TransferNotificationForRecipient
+    | BurnMintTokenPool_ClaimMinterAdmin
     | ReturnExcessesBack;

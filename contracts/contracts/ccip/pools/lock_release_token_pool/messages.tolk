@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../messages"
 import "../../../lib/jetton/messages.tolk"
+import "../messages"
 
-type LockReleaseTokenPool_CustomInMessage =
+type LockReleaseTokenPool_InMessage =
     | TransferNotificationForRecipient
     | ReturnExcessesBack;
 

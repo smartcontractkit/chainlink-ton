@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "rate_limiter"
+import "../../lib/utils"
 import "../common/types"
 import "../rmn_remote/lib"
-import "../../lib/utils"
+
+import "rate_limiter"
 
 const TOKEN_POOL_WAIT_FOR_FINALITY_FLAG: uint32 = 0;
 const TOKEN_POOL_DEFAULT_FINALITY: uint32 = TOKEN_POOL_WAIT_FOR_FINALITY_FLAG;
@@ -130,8 +131,8 @@ enum TokenPool_MessageDirection: uint8 {
 
 struct TokenPool_LockOrBurnInV1 {
     receiver: Cell<CrossChainAddress>; // The recipient of the tokens on the destination chain. For EVM source chains, this is abi-encoded (32 bytes).
-    remoteChainSelector: uint64;       // ─╮The chain ID of the destination chain.
-    originalSender: address;           // ─╯The original sender of the tx on the source chain.
+    remoteChainSelector: uint64;       // ─╮ The chain ID of the destination chain.
+    originalSender: address;           // ─╯ The original sender of the tx on the source chain.
     amount: uint256;                   // The amount of tokens to lock or burn, denominated in the source token's decimals.
     localToken: address;               // The address on this chain of the token to lock or burn.
 }

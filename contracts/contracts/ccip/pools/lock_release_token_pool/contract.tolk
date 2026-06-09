@@ -24,7 +24,7 @@ contract LockReleaseTokenPool {
     description: "link.chain.ton.ccip.LockReleaseTokenPool"
 
     storage: Storage
-    incomingMessages: LockReleaseTokenPool_CustomInMessage // TODO: all incoming messages should be registered
+    incomingMessages: TokenPool_InMessage | LockReleaseTokenPool_InMessage // TODO: all incoming messages should be registered
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -38,7 +38,7 @@ fun onInternalMessage(in: InMessage) {
         return;
     }
 
-    val msg = lazy LockReleaseTokenPool_CustomInMessage.fromSlice(in.body);
+    val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         TransferNotificationForRecipient => {
             onJettonTransferNotification(mutate st, msg, in.senderAddress);
@@ -262,6 +262,10 @@ get fun offRamp(remoteChainSelector: uint64): address? {
 
 get fun hasPendingRelease(queryId: uint64): bool {
     return Storage.load().pendingReleases.get(queryId).isFound;
+}
+
+get fun getRMNProxy(): address {
+    return Storage.load().poolData.load().adminConfig.load().rmnProxy;
 }
 
 get fun verifyNotCursed(subject: uint128): bool {

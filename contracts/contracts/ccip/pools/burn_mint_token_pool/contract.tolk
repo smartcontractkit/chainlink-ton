@@ -24,7 +24,7 @@ contract BurnMintTokenPool {
     description: "link.chain.ton.ccip.BurnMintTokenPool"
 
     storage: Storage
-    incomingMessages: BurnMintTokenPool_CustomInMessage // TODO: all incoming messages should be registered
+    incomingMessages: TokenPool_InMessage | BurnMintTokenPool_InMessage // TODO: all incoming messages should be registered
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -38,7 +38,7 @@ fun onInternalMessage(in: InMessage) {
         return;
     }
 
-    val msg = lazy BurnMintTokenPool_CustomInMessage.fromSlice(in.body);
+    val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
             onClaimMinterAdmin(mutate st, in.senderAddress, msg);
@@ -287,6 +287,10 @@ get fun hasPendingBurn(queryId: uint64): bool {
 
 get fun hasPendingMint(queryId: uint64): bool {
     return Storage.load().pendingMints.get(queryId).isFound;
+}
+
+get fun getRMNProxy(): address {
+    return Storage.load().poolData.load().adminConfig.load().rmnProxy;
 }
 
 get fun verifyNotCursed(subject: uint128): bool {

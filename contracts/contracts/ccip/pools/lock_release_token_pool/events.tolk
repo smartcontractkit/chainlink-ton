@@ -37,5 +37,3 @@ struct RampAccessUpdated {
     onRamp: address? = null;
     offRamp: address? = null;
 }
-
-struct CursedSubjectsUpdated {}

@@ -184,6 +184,11 @@ type uint128 = bigint
 type uint256 = bigint
 
 /**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = c.Cell
+
+/**
  > struct Ownable2Step {
  >     owner: address
  >     pendingOwner: address?
@@ -760,6 +765,51 @@ export const TokenPool_MirroredPolicy = {
 }
 
 /**
+ > struct TokenPool_RampUpdate {
+ >     remoteChainSelector: uint64
+ >     onRamp: address?
+ >     offRamp: address?
+ > }
+ */
+export interface TokenPool_RampUpdate {
+    readonly $: 'TokenPool_RampUpdate'
+    remoteChainSelector: uint64
+    onRamp: c.Address | null /* = null */
+    offRamp: c.Address | null /* = null */
+}
+
+export const TokenPool_RampUpdate = {
+    create(args: {
+        remoteChainSelector: uint64
+        onRamp?: c.Address | null /* = null */
+        offRamp?: c.Address | null /* = null */
+    }): TokenPool_RampUpdate {
+        return {
+            $: 'TokenPool_RampUpdate',
+            onRamp: null,
+            offRamp: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RampUpdate {
+        return {
+            $: 'TokenPool_RampUpdate',
+            remoteChainSelector: s.loadUintBig(64),
+            onRamp: s.loadMaybeAddress(),
+            offRamp: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_RampUpdate, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.onRamp);
+        b.storeAddress(self.offRamp);
+    },
+    toCell(self: TokenPool_RampUpdate): c.Cell {
+        return makeCellFrom<TokenPool_RampUpdate>(self, TokenPool_RampUpdate.store);
+    }
+}
+
+/**
  > struct TokenPool_RateLimiterPair {
  >     outbound: Cell<RateLimiter_TokenBucket>
  >     inbound: Cell<RateLimiter_TokenBucket>
@@ -794,6 +844,92 @@ export const TokenPool_RateLimiterPair = {
     },
     toCell(self: TokenPool_RateLimiterPair): c.Cell {
         return makeCellFrom<TokenPool_RateLimiterPair>(self, TokenPool_RateLimiterPair.store);
+    }
+}
+
+/**
+ > struct TokenPool_RateLimitConfigPair {
+ >     outbound: Cell<RateLimiter_Config>
+ >     inbound: Cell<RateLimiter_Config>
+ > }
+ */
+export interface TokenPool_RateLimitConfigPair {
+    readonly $: 'TokenPool_RateLimitConfigPair'
+    outbound: CellRef<RateLimiter_Config>
+    inbound: CellRef<RateLimiter_Config>
+}
+
+export const TokenPool_RateLimitConfigPair = {
+    create(args: {
+        outbound: CellRef<RateLimiter_Config>
+        inbound: CellRef<RateLimiter_Config>
+    }): TokenPool_RateLimitConfigPair {
+        return {
+            $: 'TokenPool_RateLimitConfigPair',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RateLimitConfigPair {
+        return {
+            $: 'TokenPool_RateLimitConfigPair',
+            outbound: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+            inbound: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+        }
+    },
+    store(self: TokenPool_RateLimitConfigPair, b: c.Builder): void {
+        storeCellRef<RateLimiter_Config>(self.outbound, b, RateLimiter_Config.store);
+        storeCellRef<RateLimiter_Config>(self.inbound, b, RateLimiter_Config.store);
+    },
+    toCell(self: TokenPool_RateLimitConfigPair): c.Cell {
+        return makeCellFrom<TokenPool_RateLimitConfigPair>(self, TokenPool_RateLimitConfigPair.store);
+    }
+}
+
+/**
+ > struct TokenPool_ChainUpdate {
+ >     remoteChainSelector: uint64
+ >     remotePoolAddresses: SnakedCell<CrossChainAddress>
+ >     remoteTokenAddress: Cell<CrossChainAddress>
+ >     rateLimitConfigs: Cell<TokenPool_RateLimitConfigPair>
+ > }
+ */
+export interface TokenPool_ChainUpdate {
+    readonly $: 'TokenPool_ChainUpdate'
+    remoteChainSelector: uint64
+    remotePoolAddresses: SnakedCell<CrossChainAddress>
+    remoteTokenAddress: CellRef<CrossChainAddress>
+    rateLimitConfigs: CellRef<TokenPool_RateLimitConfigPair>
+}
+
+export const TokenPool_ChainUpdate = {
+    create(args: {
+        remoteChainSelector: uint64
+        remotePoolAddresses: SnakedCell<CrossChainAddress>
+        remoteTokenAddress: CellRef<CrossChainAddress>
+        rateLimitConfigs: CellRef<TokenPool_RateLimitConfigPair>
+    }): TokenPool_ChainUpdate {
+        return {
+            $: 'TokenPool_ChainUpdate',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ChainUpdate {
+        return {
+            $: 'TokenPool_ChainUpdate',
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddresses: s.loadRef(),
+            remoteTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            rateLimitConfigs: loadCellRef<TokenPool_RateLimitConfigPair>(s, TokenPool_RateLimitConfigPair.fromSlice),
+        }
+    },
+    store(self: TokenPool_ChainUpdate, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeRef(self.remotePoolAddresses);
+        storeCellRef<CrossChainAddress>(self.remoteTokenAddress, b, CrossChainAddress.store);
+        storeCellRef<TokenPool_RateLimitConfigPair>(self.rateLimitConfigs, b, TokenPool_RateLimitConfigPair.store);
+    },
+    toCell(self: TokenPool_ChainUpdate): c.Cell {
+        return makeCellFrom<TokenPool_ChainUpdate>(self, TokenPool_ChainUpdate.store);
     }
 }
 
@@ -848,6 +984,92 @@ export const TokenPool_RemoteChainConfig = {
     },
     toCell(self: TokenPool_RemoteChainConfig): c.Cell {
         return makeCellFrom<TokenPool_RemoteChainConfig>(self, TokenPool_RemoteChainConfig.store);
+    }
+}
+
+/**
+ > struct TokenPool_RateLimitConfigArgs {
+ >     remoteChainSelector: uint64
+ >     fastFinality: bool
+ >     outboundRateLimiterConfig: Cell<RateLimiter_Config>
+ >     inboundRateLimiterConfig: Cell<RateLimiter_Config>
+ > }
+ */
+export interface TokenPool_RateLimitConfigArgs {
+    readonly $: 'TokenPool_RateLimitConfigArgs'
+    remoteChainSelector: uint64
+    fastFinality: boolean
+    outboundRateLimiterConfig: CellRef<RateLimiter_Config>
+    inboundRateLimiterConfig: CellRef<RateLimiter_Config>
+}
+
+export const TokenPool_RateLimitConfigArgs = {
+    create(args: {
+        remoteChainSelector: uint64
+        fastFinality: boolean
+        outboundRateLimiterConfig: CellRef<RateLimiter_Config>
+        inboundRateLimiterConfig: CellRef<RateLimiter_Config>
+    }): TokenPool_RateLimitConfigArgs {
+        return {
+            $: 'TokenPool_RateLimitConfigArgs',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RateLimitConfigArgs {
+        return {
+            $: 'TokenPool_RateLimitConfigArgs',
+            remoteChainSelector: s.loadUintBig(64),
+            fastFinality: s.loadBoolean(),
+            outboundRateLimiterConfig: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+            inboundRateLimiterConfig: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+        }
+    },
+    store(self: TokenPool_RateLimitConfigArgs, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeBit(self.fastFinality);
+        storeCellRef<RateLimiter_Config>(self.outboundRateLimiterConfig, b, RateLimiter_Config.store);
+        storeCellRef<RateLimiter_Config>(self.inboundRateLimiterConfig, b, RateLimiter_Config.store);
+    },
+    toCell(self: TokenPool_RateLimitConfigArgs): c.Cell {
+        return makeCellFrom<TokenPool_RateLimitConfigArgs>(self, TokenPool_RateLimitConfigArgs.store);
+    }
+}
+
+/**
+ > struct TokenPool_TokenTransferFeeConfigArgs {
+ >     destChainSelector: uint64
+ >     tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig
+ > }
+ */
+export interface TokenPool_TokenTransferFeeConfigArgs {
+    readonly $: 'TokenPool_TokenTransferFeeConfigArgs'
+    destChainSelector: uint64
+    tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig
+}
+
+export const TokenPool_TokenTransferFeeConfigArgs = {
+    create(args: {
+        destChainSelector: uint64
+        tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig
+    }): TokenPool_TokenTransferFeeConfigArgs {
+        return {
+            $: 'TokenPool_TokenTransferFeeConfigArgs',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_TokenTransferFeeConfigArgs {
+        return {
+            $: 'TokenPool_TokenTransferFeeConfigArgs',
+            destChainSelector: s.loadUintBig(64),
+            tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_TokenTransferFeeConfigArgs, b: c.Builder): void {
+        b.storeUint(self.destChainSelector, 64);
+        TokenPool_TokenTransferFeeConfig.store(self.tokenTransferFeeConfig, b);
+    },
+    toCell(self: TokenPool_TokenTransferFeeConfigArgs): c.Cell {
+        return makeCellFrom<TokenPool_TokenTransferFeeConfigArgs>(self, TokenPool_TokenTransferFeeConfigArgs.store);
     }
 }
 
@@ -1058,6 +1280,458 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 }
 
 /**
+ > struct (0xdc0b6ff5) TokenPool_ApplyChainUpdates {
+ >     queryId: uint64
+ >     remoteChainSelectorsToRemove: SnakedCell<uint64>
+ >     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+ > }
+ */
+export interface TokenPool_ApplyChainUpdates {
+    readonly $: 'TokenPool_ApplyChainUpdates'
+    queryId: uint64
+    remoteChainSelectorsToRemove: SnakedCell<uint64>
+    chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+}
+
+export const TokenPool_ApplyChainUpdates = {
+    PREFIX: 0xdc0b6ff5,
+
+    create(args: {
+        queryId: uint64
+        remoteChainSelectorsToRemove: SnakedCell<uint64>
+        chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+    }): TokenPool_ApplyChainUpdates {
+        return {
+            $: 'TokenPool_ApplyChainUpdates',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ApplyChainUpdates {
+        loadAndCheckPrefix32(s, 0xdc0b6ff5, 'TokenPool_ApplyChainUpdates');
+        return {
+            $: 'TokenPool_ApplyChainUpdates',
+            queryId: s.loadUintBig(64),
+            remoteChainSelectorsToRemove: s.loadRef(),
+            chainsToAdd: s.loadRef(),
+        }
+    },
+    store(self: TokenPool_ApplyChainUpdates, b: c.Builder): void {
+        b.storeUint(0xdc0b6ff5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.remoteChainSelectorsToRemove);
+        b.storeRef(self.chainsToAdd);
+    },
+    toCell(self: TokenPool_ApplyChainUpdates): c.Cell {
+        return makeCellFrom<TokenPool_ApplyChainUpdates>(self, TokenPool_ApplyChainUpdates.store);
+    }
+}
+
+/**
+ > struct (0x5fd2c8b6) TokenPool_AddRemotePool {
+ >     queryId: uint64
+ >     remoteChainSelector: uint64
+ >     remotePoolAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_AddRemotePool {
+    readonly $: 'TokenPool_AddRemotePool'
+    queryId: uint64
+    remoteChainSelector: uint64
+    remotePoolAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_AddRemotePool = {
+    PREFIX: 0x5fd2c8b6,
+
+    create(args: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }): TokenPool_AddRemotePool {
+        return {
+            $: 'TokenPool_AddRemotePool',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_AddRemotePool {
+        loadAndCheckPrefix32(s, 0x5fd2c8b6, 'TokenPool_AddRemotePool');
+        return {
+            $: 'TokenPool_AddRemotePool',
+            queryId: s.loadUintBig(64),
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_AddRemotePool, b: c.Builder): void {
+        b.storeUint(0x5fd2c8b6, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_AddRemotePool): c.Cell {
+        return makeCellFrom<TokenPool_AddRemotePool>(self, TokenPool_AddRemotePool.store);
+    }
+}
+
+/**
+ > struct (0xdbf0a2df) TokenPool_RemoveRemotePool {
+ >     queryId: uint64
+ >     remoteChainSelector: uint64
+ >     remotePoolAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_RemoveRemotePool {
+    readonly $: 'TokenPool_RemoveRemotePool'
+    queryId: uint64
+    remoteChainSelector: uint64
+    remotePoolAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_RemoveRemotePool = {
+    PREFIX: 0xdbf0a2df,
+
+    create(args: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }): TokenPool_RemoveRemotePool {
+        return {
+            $: 'TokenPool_RemoveRemotePool',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RemoveRemotePool {
+        loadAndCheckPrefix32(s, 0xdbf0a2df, 'TokenPool_RemoveRemotePool');
+        return {
+            $: 'TokenPool_RemoveRemotePool',
+            queryId: s.loadUintBig(64),
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_RemoveRemotePool, b: c.Builder): void {
+        b.storeUint(0xdbf0a2df, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_RemoveRemotePool): c.Cell {
+        return makeCellFrom<TokenPool_RemoveRemotePool>(self, TokenPool_RemoveRemotePool.store);
+    }
+}
+
+/**
+ > struct (0x4eea060b) TokenPool_SetDynamicConfig {
+ >     queryId: uint64
+ >     router: address
+ >     rateLimitAdmin: address?
+ >     feeAdmin: address?
+ > }
+ */
+export interface TokenPool_SetDynamicConfig {
+    readonly $: 'TokenPool_SetDynamicConfig'
+    queryId: uint64
+    router: c.Address
+    rateLimitAdmin: c.Address | null /* = null */
+    feeAdmin: c.Address | null /* = null */
+}
+
+export const TokenPool_SetDynamicConfig = {
+    PREFIX: 0x4eea060b,
+
+    create(args: {
+        queryId: uint64
+        router: c.Address
+        rateLimitAdmin?: c.Address | null /* = null */
+        feeAdmin?: c.Address | null /* = null */
+    }): TokenPool_SetDynamicConfig {
+        return {
+            $: 'TokenPool_SetDynamicConfig',
+            rateLimitAdmin: null,
+            feeAdmin: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetDynamicConfig {
+        loadAndCheckPrefix32(s, 0x4eea060b, 'TokenPool_SetDynamicConfig');
+        return {
+            $: 'TokenPool_SetDynamicConfig',
+            queryId: s.loadUintBig(64),
+            router: s.loadAddress(),
+            rateLimitAdmin: s.loadMaybeAddress(),
+            feeAdmin: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_SetDynamicConfig, b: c.Builder): void {
+        b.storeUint(0x4eea060b, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.router);
+        b.storeAddress(self.rateLimitAdmin);
+        b.storeAddress(self.feeAdmin);
+    },
+    toCell(self: TokenPool_SetDynamicConfig): c.Cell {
+        return makeCellFrom<TokenPool_SetDynamicConfig>(self, TokenPool_SetDynamicConfig.store);
+    }
+}
+
+/**
+ > struct (0x29b46fc6) TokenPool_SetAllowedFinalityConfig {
+ >     queryId: uint64
+ >     allowedFinalityConfig: uint32
+ > }
+ */
+export interface TokenPool_SetAllowedFinalityConfig {
+    readonly $: 'TokenPool_SetAllowedFinalityConfig'
+    queryId: uint64
+    allowedFinalityConfig: uint32
+}
+
+export const TokenPool_SetAllowedFinalityConfig = {
+    PREFIX: 0x29b46fc6,
+
+    create(args: {
+        queryId: uint64
+        allowedFinalityConfig: uint32
+    }): TokenPool_SetAllowedFinalityConfig {
+        return {
+            $: 'TokenPool_SetAllowedFinalityConfig',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetAllowedFinalityConfig {
+        loadAndCheckPrefix32(s, 0x29b46fc6, 'TokenPool_SetAllowedFinalityConfig');
+        return {
+            $: 'TokenPool_SetAllowedFinalityConfig',
+            queryId: s.loadUintBig(64),
+            allowedFinalityConfig: s.loadUintBig(32),
+        }
+    },
+    store(self: TokenPool_SetAllowedFinalityConfig, b: c.Builder): void {
+        b.storeUint(0x29b46fc6, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.allowedFinalityConfig, 32);
+    },
+    toCell(self: TokenPool_SetAllowedFinalityConfig): c.Cell {
+        return makeCellFrom<TokenPool_SetAllowedFinalityConfig>(self, TokenPool_SetAllowedFinalityConfig.store);
+    }
+}
+
+/**
+ > struct (0x3a028da2) TokenPool_SetRateLimitConfig {
+ >     queryId: uint64
+ >     updates: SnakedCell<TokenPool_RateLimitConfigArgs>
+ > }
+ */
+export interface TokenPool_SetRateLimitConfig {
+    readonly $: 'TokenPool_SetRateLimitConfig'
+    queryId: uint64
+    updates: SnakedCell<TokenPool_RateLimitConfigArgs>
+}
+
+export const TokenPool_SetRateLimitConfig = {
+    PREFIX: 0x3a028da2,
+
+    create(args: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_RateLimitConfigArgs>
+    }): TokenPool_SetRateLimitConfig {
+        return {
+            $: 'TokenPool_SetRateLimitConfig',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetRateLimitConfig {
+        loadAndCheckPrefix32(s, 0x3a028da2, 'TokenPool_SetRateLimitConfig');
+        return {
+            $: 'TokenPool_SetRateLimitConfig',
+            queryId: s.loadUintBig(64),
+            updates: s.loadRef(),
+        }
+    },
+    store(self: TokenPool_SetRateLimitConfig, b: c.Builder): void {
+        b.storeUint(0x3a028da2, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.updates);
+    },
+    toCell(self: TokenPool_SetRateLimitConfig): c.Cell {
+        return makeCellFrom<TokenPool_SetRateLimitConfig>(self, TokenPool_SetRateLimitConfig.store);
+    }
+}
+
+/**
+ > struct (0x10c4b4a1) TokenPool_ApplyTokenTransferFeeConfigUpdates {
+ >     queryId: uint64
+ >     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
+ >     disableChainSelectors: SnakedCell<uint64>
+ > }
+ */
+export interface TokenPool_ApplyTokenTransferFeeConfigUpdates {
+    readonly $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates'
+    queryId: uint64
+    updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
+    disableChainSelectors: SnakedCell<uint64>
+}
+
+export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
+    PREFIX: 0x10c4b4a1,
+
+    create(args: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
+        disableChainSelectors: SnakedCell<uint64>
+    }): TokenPool_ApplyTokenTransferFeeConfigUpdates {
+        return {
+            $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ApplyTokenTransferFeeConfigUpdates {
+        loadAndCheckPrefix32(s, 0x10c4b4a1, 'TokenPool_ApplyTokenTransferFeeConfigUpdates');
+        return {
+            $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
+            queryId: s.loadUintBig(64),
+            updates: s.loadRef(),
+            disableChainSelectors: s.loadRef(),
+        }
+    },
+    store(self: TokenPool_ApplyTokenTransferFeeConfigUpdates, b: c.Builder): void {
+        b.storeUint(0x10c4b4a1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.updates);
+        b.storeRef(self.disableChainSelectors);
+    },
+    toCell(self: TokenPool_ApplyTokenTransferFeeConfigUpdates): c.Cell {
+        return makeCellFrom<TokenPool_ApplyTokenTransferFeeConfigUpdates>(self, TokenPool_ApplyTokenTransferFeeConfigUpdates.store);
+    }
+}
+
+/**
+ > struct (0x7a9c4aa5) TokenPool_UpdateRampAccess {
+ >     queryId: uint64
+ >     updates: SnakedCell<TokenPool_RampUpdate>
+ > }
+ */
+export interface TokenPool_UpdateRampAccess {
+    readonly $: 'TokenPool_UpdateRampAccess'
+    queryId: uint64
+    updates: SnakedCell<TokenPool_RampUpdate>
+}
+
+export const TokenPool_UpdateRampAccess = {
+    PREFIX: 0x7a9c4aa5,
+
+    create(args: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_RampUpdate>
+    }): TokenPool_UpdateRampAccess {
+        return {
+            $: 'TokenPool_UpdateRampAccess',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_UpdateRampAccess {
+        loadAndCheckPrefix32(s, 0x7a9c4aa5, 'TokenPool_UpdateRampAccess');
+        return {
+            $: 'TokenPool_UpdateRampAccess',
+            queryId: s.loadUintBig(64),
+            updates: s.loadRef(),
+        }
+    },
+    store(self: TokenPool_UpdateRampAccess, b: c.Builder): void {
+        b.storeUint(0x7a9c4aa5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.updates);
+    },
+    toCell(self: TokenPool_UpdateRampAccess): c.Cell {
+        return makeCellFrom<TokenPool_UpdateRampAccess>(self, TokenPool_UpdateRampAccess.store);
+    }
+}
+
+/**
+ > struct (0x12345678) TokenPool_SetRMNProxy {
+ >     queryId: uint64
+ >     rmnProxy: address
+ > }
+ */
+export interface TokenPool_SetRMNProxy {
+    readonly $: 'TokenPool_SetRMNProxy'
+    queryId: uint64
+    rmnProxy: c.Address
+}
+
+export const TokenPool_SetRMNProxy = {
+    PREFIX: 0x12345678,
+
+    create(args: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }): TokenPool_SetRMNProxy {
+        return {
+            $: 'TokenPool_SetRMNProxy',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetRMNProxy {
+        loadAndCheckPrefix32(s, 0x12345678, 'TokenPool_SetRMNProxy');
+        return {
+            $: 'TokenPool_SetRMNProxy',
+            queryId: s.loadUintBig(64),
+            rmnProxy: s.loadAddress(),
+        }
+    },
+    store(self: TokenPool_SetRMNProxy, b: c.Builder): void {
+        b.storeUint(0x12345678, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.rmnProxy);
+    },
+    toCell(self: TokenPool_SetRMNProxy): c.Cell {
+        return makeCellFrom<TokenPool_SetRMNProxy>(self, TokenPool_SetRMNProxy.store);
+    }
+}
+
+/**
+ > struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
+ >     queryId: uint64
+ >     cursedSubjects: CursedSubjects
+ > }
+ */
+export interface TokenPool_UpdateCursedSubjects {
+    readonly $: 'TokenPool_UpdateCursedSubjects'
+    queryId: uint64
+    cursedSubjects: CursedSubjects
+}
+
+export const TokenPool_UpdateCursedSubjects = {
+    PREFIX: 0x823dadf2,
+
+    create(args: {
+        queryId: uint64
+        cursedSubjects: CursedSubjects
+    }): TokenPool_UpdateCursedSubjects {
+        return {
+            $: 'TokenPool_UpdateCursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_UpdateCursedSubjects {
+        loadAndCheckPrefix32(s, 0x823dadf2, 'TokenPool_UpdateCursedSubjects');
+        return {
+            $: 'TokenPool_UpdateCursedSubjects',
+            queryId: s.loadUintBig(64),
+            cursedSubjects: CursedSubjects.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_UpdateCursedSubjects, b: c.Builder): void {
+        b.storeUint(0x823dadf2, 32);
+        b.storeUint(self.queryId, 64);
+        CursedSubjects.store(self.cursedSubjects, b);
+    },
+    toCell(self: TokenPool_UpdateCursedSubjects): c.Cell {
+        return makeCellFrom<TokenPool_UpdateCursedSubjects>(self, TokenPool_UpdateCursedSubjects.store);
+    }
+}
+
+/**
  > struct (0x19e65bea) TokenPool_LockOrBurnResponse {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
@@ -1101,6 +1775,59 @@ export const TokenPool_LockOrBurnResponse = {
     },
     toCell(self: TokenPool_LockOrBurnResponse): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnResponse>(self, TokenPool_LockOrBurnResponse.store);
+    }
+}
+
+/**
+ > struct (0x7d0ffd89) TokenPool_ReleaseOrMint {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_ReleaseOrMintInV1>
+ >     requestedFinalityConfig: uint32
+ >     replyTo: address?
+ > }
+ */
+export interface TokenPool_ReleaseOrMint {
+    readonly $: 'TokenPool_ReleaseOrMint'
+    queryId: uint64
+    request: CellRef<TokenPool_ReleaseOrMintInV1>
+    requestedFinalityConfig: uint32
+    replyTo: c.Address | null /* = null */
+}
+
+export const TokenPool_ReleaseOrMint = {
+    PREFIX: 0x7d0ffd89,
+
+    create(args: {
+        queryId: uint64
+        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null /* = null */
+    }): TokenPool_ReleaseOrMint {
+        return {
+            $: 'TokenPool_ReleaseOrMint',
+            replyTo: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMint {
+        loadAndCheckPrefix32(s, 0x7d0ffd89, 'TokenPool_ReleaseOrMint');
+        return {
+            $: 'TokenPool_ReleaseOrMint',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
+            requestedFinalityConfig: s.loadUintBig(32),
+            replyTo: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
+        b.storeUint(0x7d0ffd89, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        b.storeAddress(self.replyTo);
+    },
+    toCell(self: TokenPool_ReleaseOrMint): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMint>(self, TokenPool_ReleaseOrMint.store);
     }
 }
 
@@ -1798,6 +2525,49 @@ export const CrossChainAddress = {
 }
 
 /**
+ > struct RateLimiter_Config {
+ >     isEnabled: bool
+ >     capacity: uint256
+ >     rate: uint256
+ > }
+ */
+export interface RateLimiter_Config {
+    readonly $: 'RateLimiter_Config'
+    isEnabled: boolean
+    capacity: uint256
+    rate: uint256
+}
+
+export const RateLimiter_Config = {
+    create(args: {
+        isEnabled: boolean
+        capacity: uint256
+        rate: uint256
+    }): RateLimiter_Config {
+        return {
+            $: 'RateLimiter_Config',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RateLimiter_Config {
+        return {
+            $: 'RateLimiter_Config',
+            isEnabled: s.loadBoolean(),
+            capacity: s.loadUintBig(256),
+            rate: s.loadUintBig(256),
+        }
+    },
+    store(self: RateLimiter_Config, b: c.Builder): void {
+        b.storeBit(self.isEnabled);
+        b.storeUint(self.capacity, 256);
+        b.storeUint(self.rate, 256);
+    },
+    toCell(self: RateLimiter_Config): c.Cell {
+        return makeCellFrom<RateLimiter_Config>(self, RateLimiter_Config.store);
+    }
+}
+
+/**
  > struct RateLimiter_TokenBucket {
  >     tokens: uint256
  >     lastUpdated: uint64
@@ -1889,7 +2659,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class LockReleaseTokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -1958,6 +2728,91 @@ export class LockReleaseTokenPool implements c.Contract {
         return new LockReleaseTokenPool(address, initialState);
     }
 
+    static createCellOfTokenPoolApplyChainUpdates(body: {
+        queryId: uint64
+        remoteChainSelectorsToRemove: SnakedCell<uint64>
+        chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+    }) {
+        return TokenPool_ApplyChainUpdates.toCell(TokenPool_ApplyChainUpdates.create(body));
+    }
+
+    static createCellOfTokenPoolAddRemotePool(body: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }) {
+        return TokenPool_AddRemotePool.toCell(TokenPool_AddRemotePool.create(body));
+    }
+
+    static createCellOfTokenPoolRemoveRemotePool(body: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }) {
+        return TokenPool_RemoveRemotePool.toCell(TokenPool_RemoveRemotePool.create(body));
+    }
+
+    static createCellOfTokenPoolSetDynamicConfig(body: {
+        queryId: uint64
+        router: c.Address
+        rateLimitAdmin?: c.Address | null /* = null */
+        feeAdmin?: c.Address | null /* = null */
+    }) {
+        return TokenPool_SetDynamicConfig.toCell(TokenPool_SetDynamicConfig.create(body));
+    }
+
+    static createCellOfTokenPoolSetAllowedFinalityConfig(body: {
+        queryId: uint64
+        allowedFinalityConfig: uint32
+    }) {
+        return TokenPool_SetAllowedFinalityConfig.toCell(TokenPool_SetAllowedFinalityConfig.create(body));
+    }
+
+    static createCellOfTokenPoolSetRateLimitConfig(body: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_RateLimitConfigArgs>
+    }) {
+        return TokenPool_SetRateLimitConfig.toCell(TokenPool_SetRateLimitConfig.create(body));
+    }
+
+    static createCellOfTokenPoolApplyTokenTransferFeeConfigUpdates(body: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
+        disableChainSelectors: SnakedCell<uint64>
+    }) {
+        return TokenPool_ApplyTokenTransferFeeConfigUpdates.toCell(TokenPool_ApplyTokenTransferFeeConfigUpdates.create(body));
+    }
+
+    static createCellOfTokenPoolUpdateRampAccess(body: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_RampUpdate>
+    }) {
+        return TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body));
+    }
+
+    static createCellOfTokenPoolSetRMNProxy(body: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }) {
+        return TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body));
+    }
+
+    static createCellOfTokenPoolUpdateCursedSubjects(body: {
+        queryId: uint64
+        cursedSubjects: CursedSubjects
+    }) {
+        return TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body));
+    }
+
+    static createCellOfTokenPoolReleaseOrMint(body: {
+        queryId: uint64
+        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null /* = null */
+    }) {
+        return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
+    }
+
     static createCellOfTransferNotificationForRecipient(body: {
         queryId: uint64
         jettonAmount: coins
@@ -1977,6 +2832,135 @@ export class LockReleaseTokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolApplyChainUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        remoteChainSelectorsToRemove: SnakedCell<uint64>
+        chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ApplyChainUpdates.toCell(TokenPool_ApplyChainUpdates.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolAddRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_AddRemotePool.toCell(TokenPool_AddRemotePool.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolRemoveRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_RemoveRemotePool.toCell(TokenPool_RemoveRemotePool.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        router: c.Address
+        rateLimitAdmin?: c.Address | null /* = null */
+        feeAdmin?: c.Address | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetDynamicConfig.toCell(TokenPool_SetDynamicConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolSetAllowedFinalityConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        allowedFinalityConfig: uint32
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetAllowedFinalityConfig.toCell(TokenPool_SetAllowedFinalityConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolSetRateLimitConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_RateLimitConfigArgs>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetRateLimitConfig.toCell(TokenPool_SetRateLimitConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolApplyTokenTransferFeeConfigUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
+        disableChainSelectors: SnakedCell<uint64>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ApplyTokenTransferFeeConfigUpdates.toCell(TokenPool_ApplyTokenTransferFeeConfigUpdates.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolUpdateRampAccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        updates: SnakedCell<TokenPool_RampUpdate>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolSetRMNProxy(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolUpdateCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        cursedSubjects: CursedSubjects
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body)),
             ...extraOptions
         });
     }
@@ -2055,6 +3039,11 @@ export class LockReleaseTokenPool implements c.Contract {
             { type: 'int', value: queryId },
         ]));
         return r.readBoolean();
+    }
+
+    async getRMNProxy(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
+        return r.readSlice().loadAddress();
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {

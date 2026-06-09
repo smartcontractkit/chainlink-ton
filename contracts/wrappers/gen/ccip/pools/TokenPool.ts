@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type RemainingBitsAndRefs = c.Slice
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -46,6 +48,19 @@ function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallbac
 function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
     let s_ref = s.loadRef().beginParse();
     return { ref: loadFn_T(s_ref) };
+}
+
+function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
+    b.storeSlice(v);
+}
+
+function loadTolkRemaining(s: c.Slice): RemainingBitsAndRefs {
+    let rest = s.clone();
+    s.loadBits(s.remainingBits);
+    while (s.remainingRefs) {
+        s.loadRef();
+    }
+    return rest;
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -631,59 +646,6 @@ export const TokenPool_TokenTransferFeeConfig = {
 }
 
 /**
- > struct TokenPool_LockOrBurnInV1 {
- >     receiver: Cell<CrossChainAddress>
- >     remoteChainSelector: uint64
- >     originalSender: address
- >     amount: uint256
- >     localToken: address
- > }
- */
-export interface TokenPool_LockOrBurnInV1 {
-    readonly $: 'TokenPool_LockOrBurnInV1'
-    receiver: CellRef<CrossChainAddress>
-    remoteChainSelector: uint64
-    originalSender: c.Address
-    amount: uint256
-    localToken: c.Address
-}
-
-export const TokenPool_LockOrBurnInV1 = {
-    create(args: {
-        receiver: CellRef<CrossChainAddress>
-        remoteChainSelector: uint64
-        originalSender: c.Address
-        amount: uint256
-        localToken: c.Address
-    }): TokenPool_LockOrBurnInV1 {
-        return {
-            $: 'TokenPool_LockOrBurnInV1',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurnInV1 {
-        return {
-            $: 'TokenPool_LockOrBurnInV1',
-            receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            remoteChainSelector: s.loadUintBig(64),
-            originalSender: s.loadAddress(),
-            amount: s.loadUintBig(256),
-            localToken: s.loadAddress(),
-        }
-    },
-    store(self: TokenPool_LockOrBurnInV1, b: c.Builder): void {
-        storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
-        b.storeUint(self.remoteChainSelector, 64);
-        b.storeAddress(self.originalSender);
-        b.storeUint(self.amount, 256);
-        b.storeAddress(self.localToken);
-    },
-    toCell(self: TokenPool_LockOrBurnInV1): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurnInV1>(self, TokenPool_LockOrBurnInV1.store);
-    }
-}
-
-/**
  > struct TokenPool_ReleaseOrMintInV1 {
  >     originalSender: Cell<CrossChainAddress>
  >     remoteChainSelector: uint64
@@ -1124,12 +1086,56 @@ export const TokenPool_UpdateRampAccess = {
 }
 
 /**
+ > struct (0x12345678) TokenPool_SetRMNProxy {
+ >     queryId: uint64
+ >     rmnProxy: address
+ > }
+ */
+export interface TokenPool_SetRMNProxy {
+    readonly $: 'TokenPool_SetRMNProxy'
+    queryId: uint64
+    rmnProxy: c.Address
+}
+
+export const TokenPool_SetRMNProxy = {
+    PREFIX: 0x12345678,
+
+    create(args: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }): TokenPool_SetRMNProxy {
+        return {
+            $: 'TokenPool_SetRMNProxy',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetRMNProxy {
+        loadAndCheckPrefix32(s, 0x12345678, 'TokenPool_SetRMNProxy');
+        return {
+            $: 'TokenPool_SetRMNProxy',
+            queryId: s.loadUintBig(64),
+            rmnProxy: s.loadAddress(),
+        }
+    },
+    store(self: TokenPool_SetRMNProxy, b: c.Builder): void {
+        b.storeUint(0x12345678, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.rmnProxy);
+    },
+    toCell(self: TokenPool_SetRMNProxy): c.Cell {
+        return makeCellFrom<TokenPool_SetRMNProxy>(self, TokenPool_SetRMNProxy.store);
+    }
+}
+
+/**
  > struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
+ >     queryId: uint64
  >     cursedSubjects: CursedSubjects
  > }
  */
 export interface TokenPool_UpdateCursedSubjects {
     readonly $: 'TokenPool_UpdateCursedSubjects'
+    queryId: uint64
     cursedSubjects: CursedSubjects
 }
 
@@ -1137,6 +1143,7 @@ export const TokenPool_UpdateCursedSubjects = {
     PREFIX: 0x823dadf2,
 
     create(args: {
+        queryId: uint64
         cursedSubjects: CursedSubjects
     }): TokenPool_UpdateCursedSubjects {
         return {
@@ -1148,74 +1155,17 @@ export const TokenPool_UpdateCursedSubjects = {
         loadAndCheckPrefix32(s, 0x823dadf2, 'TokenPool_UpdateCursedSubjects');
         return {
             $: 'TokenPool_UpdateCursedSubjects',
+            queryId: s.loadUintBig(64),
             cursedSubjects: CursedSubjects.fromSlice(s),
         }
     },
     store(self: TokenPool_UpdateCursedSubjects, b: c.Builder): void {
         b.storeUint(0x823dadf2, 32);
+        b.storeUint(self.queryId, 64);
         CursedSubjects.store(self.cursedSubjects, b);
     },
     toCell(self: TokenPool_UpdateCursedSubjects): c.Cell {
         return makeCellFrom<TokenPool_UpdateCursedSubjects>(self, TokenPool_UpdateCursedSubjects.store);
-    }
-}
-
-/**
- > struct (0x1161516e) TokenPool_LockOrBurn {
- >     queryId: uint64
- >     request: Cell<TokenPool_LockOrBurnInV1>
- >     requestedFinalityConfig: uint32
- >     tokenArgs: cell?
- >     replyTo: address?
- > }
- */
-export interface TokenPool_LockOrBurn {
-    readonly $: 'TokenPool_LockOrBurn'
-    queryId: uint64
-    request: CellRef<TokenPool_LockOrBurnInV1>
-    requestedFinalityConfig: uint32
-    tokenArgs: c.Cell | null
-    replyTo: c.Address | null
-}
-
-export const TokenPool_LockOrBurn = {
-    PREFIX: 0x1161516e,
-
-    create(args: {
-        queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
-        requestedFinalityConfig: uint32
-        tokenArgs: c.Cell | null
-        replyTo: c.Address | null
-    }): TokenPool_LockOrBurn {
-        return {
-            $: 'TokenPool_LockOrBurn',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurn {
-        loadAndCheckPrefix32(s, 0x1161516e, 'TokenPool_LockOrBurn');
-        return {
-            $: 'TokenPool_LockOrBurn',
-            queryId: s.loadUintBig(64),
-            request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
-            requestedFinalityConfig: s.loadUintBig(32),
-            tokenArgs: s.loadBoolean() ? s.loadRef() : null,
-            replyTo: s.loadMaybeAddress(),
-        }
-    },
-    store(self: TokenPool_LockOrBurn, b: c.Builder): void {
-        b.storeUint(0x1161516e, 32);
-        b.storeUint(self.queryId, 64);
-        storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
-        b.storeUint(self.requestedFinalityConfig, 32);
-        storeTolkNullable<c.Cell>(self.tokenArgs, b,
-            (v,b) => b.storeRef(v)
-        );
-        b.storeAddress(self.replyTo);
-    },
-    toCell(self: TokenPool_LockOrBurn): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);
     }
 }
 
@@ -1380,6 +1330,67 @@ export const TokenPool_Data = {
 }
 
 /**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = c.Cell
+
+/**
+ > type CrossChainAddress = slice
+ */
+export type CrossChainAddress = c.Slice
+
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+    },
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    },
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
+ > }
+ */
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: c.Dictionary<uint128, []>
+}
+
+export const CursedSubjects = {
+    create(args: {
+        data: c.Dictionary<uint128, []>
+    }): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                (s) => [],
+                (v,b) => { {} }
+            ), s),
+        }
+    },
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
+    }
+}
+
+/**
  > struct RateLimiter_Config {
  >     isEnabled: bool
  >     capacity: uint256
@@ -1476,65 +1487,73 @@ export const RateLimiter_TokenBucket = {
 }
 
 /**
- > type CrossChainAddress = slice
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
-export type CrossChainAddress = c.Slice
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
 
-export const CrossChainAddress = {
-    fromSlice(s: c.Slice): CrossChainAddress {
-        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
     },
-    store(self: CrossChainAddress, b: c.Builder): void {
-        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
     },
-    toCell(self: CrossChainAddress): c.Cell {
-        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
     }
 }
 
 /**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
+ > struct (0x7362d09c) TransferNotificationForRecipient {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferInitiator: address?
+ >     forwardPayload: ForwardPayloadRemainder
  > }
  */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: c.Dictionary<uint128, []>
+export interface TransferNotificationForRecipient {
+    readonly $: 'TransferNotificationForRecipient'
+    queryId: uint64
+    jettonAmount: coins
+    transferInitiator: c.Address | null
+    forwardPayload: ForwardPayloadRemainder
 }
 
-export const CursedSubjects = {
+export const TransferNotificationForRecipient = {
+    PREFIX: 0x7362d09c,
+
     create(args: {
-        data: c.Dictionary<uint128, []>
-    }): CursedSubjects {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }): TransferNotificationForRecipient {
         return {
-            $: 'CursedSubjects',
+            $: 'TransferNotificationForRecipient',
             ...args
         }
     },
-    fromSlice(s: c.Slice): CursedSubjects {
+    fromSlice(s: c.Slice): TransferNotificationForRecipient {
+        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
         return {
-            $: 'CursedSubjects',
-            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
+            $: 'TransferNotificationForRecipient',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferInitiator: s.loadMaybeAddress(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
         }
     },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
+    store(self: TransferNotificationForRecipient, b: c.Builder): void {
+        b.storeUint(0x7362d09c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferInitiator);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
     },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
+    toCell(self: TransferNotificationForRecipient): c.Cell {
+        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
     }
 }
-
-/**
- > type SnakedCell<T> = cell
- */
-export type SnakedCell<T> = c.Cell
 
 /**
  > struct Ownable2Step {
@@ -1719,20 +1738,18 @@ export class TokenPool implements c.Contract {
         return TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body));
     }
 
+    static createCellOfTokenPoolSetRMNProxy(body: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }) {
+        return TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body));
+    }
+
     static createCellOfTokenPoolUpdateCursedSubjects(body: {
+        queryId: uint64
         cursedSubjects: CursedSubjects
     }) {
         return TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body));
-    }
-
-    static createCellOfTokenPoolLockOrBurn(body: {
-        queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
-        requestedFinalityConfig: uint32
-        tokenArgs: c.Cell | null
-        replyTo: c.Address | null
-    }) {
-        return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
     }
 
     static createCellOfTokenPoolReleaseOrMint(body: {
@@ -1742,6 +1759,15 @@ export class TokenPool implements c.Contract {
         replyTo?: c.Address | null /* = null */
     }) {
         return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
+    }
+
+    static createCellOfTransferNotificationForRecipient(body: {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }) {
+        return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -1846,26 +1872,24 @@ export class TokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolSetRMNProxy(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendTokenPoolUpdateCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
         cursedSubjects: CursedSubjects
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
-        requestedFinalityConfig: uint32
-        tokenArgs: c.Cell | null
-        replyTo: c.Address | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body)),
             ...extraOptions
         });
     }
@@ -1879,6 +1903,19 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
             ...extraOptions
         });
     }

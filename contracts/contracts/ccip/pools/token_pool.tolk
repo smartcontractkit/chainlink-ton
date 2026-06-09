@@ -2,6 +2,7 @@
 import "@stdlib/lisp-lists"
 
 import "../../lib/utils"
+import "../../lib/jetton/messages.tolk"
 import "../../lib/access/ownable_2step.tolk"
 import "../common/types"
 import "../rmn_remote/lib"
@@ -60,11 +61,8 @@ struct TokenPool<T> {
 
 @inline
 fun TokenPool<T>.load(context: T? = null, hooks: TokenPool_Hooks<T>? = null): TokenPool<T> {
-    return TokenPool<T> {
-        data: TokenPool_Data.fromContractData(),
-        context,
-        hooks,
-    };
+    val data = TokenPool_Data.fromContractData();
+    return TokenPool<T> { data, context, hooks };
 }
 
 fun TokenPool<T>.store(self) {
@@ -487,8 +485,8 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.context = self.hooks.handleReleaseOrMintMessage(self.context, msgSender, msg, prepared);
             return true;
         }
-        TokenPool_LockOrBurn => {
-            return false; // TODO: handle me, should be JettonNitification payload
+        TransferNotificationForRecipient => {
+            return false; // TODO: handle me, should host fwdPayload = TokenPool_LockOrBurn
         }
         else => {
             var adminConfig = self.data.adminConfig.load();
@@ -1043,7 +1041,7 @@ fun pow10(n: uint8): uint256 {
     var base: uint256 = 10;
 
     while (n > 0) {
-        if (n & 1 == 1) {
+        if ((n & 1) == 1) {
             // Check for potential overflow before multiplication
             assert(result == 0 || base <= TOKEN_POOL_MAX_UINT256 / result, TokenPool_Error.OverflowDetected);
             result *= base;

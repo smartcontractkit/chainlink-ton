@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/jetton/messages.tolk"
 import "../../lib/utils"
 import "../common/types"
 import "../rmn_remote/lib"
@@ -111,6 +112,7 @@ type TokenPool_InMessage =
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
+    | TokenPool_SetRMNProxy
     | TokenPool_UpdateCursedSubjects
-    | TokenPool_LockOrBurn
-    | TokenPool_ReleaseOrMint;
+    | TokenPool_ReleaseOrMint
+    | TransferNotificationForRecipient; // fwdPayload = TokenPool_LockOrBurn
