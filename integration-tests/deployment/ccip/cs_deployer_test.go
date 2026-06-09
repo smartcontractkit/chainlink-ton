@@ -248,14 +248,14 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 
 	p2pKeys := make([]p2pkey.KeyV2, numNodes)
 	testP2PIDs := make([][32]byte, numNodes)
-	for i := 0; i < numNodes; i++ {
+	for i := range numNodes {
 		var key p2pkey.KeyV2
 		key, err = p2pkey.NewV2()
 		require.NoError(t, err, "failed to generate p2p key")
 		p2pKeys[i] = key
 		testP2PIDs[i] = key.PeerID()
 
-		for j := 0; j < i; j++ {
+		for j := range i {
 			require.NotEqual(t, testP2PIDs[i], testP2PIDs[j], "P2P keys must be unique, but node %d and %d have the same peer ID", i, j)
 		}
 	}
@@ -490,9 +490,9 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 		// Mock nodes generate OCR keys as: ocrKeyBytes[j] = byte(nodeIdx + 1 + j) for j in 0..31
 		signers := make([][]byte, numNodes)
 		transmitters := make([][]byte, numNodes)
-		for nodeIdx := 0; nodeIdx < numNodes; nodeIdx++ {
+		for nodeIdx := range numNodes {
 			var ocrKeyBytes [32]byte
-			for j := 0; j < 32; j++ {
+			for j := range 32 {
 				ocrKeyBytes[j] = byte(nodeIdx + 1 + j)
 			}
 			signers[nodeIdx] = ocrKeyBytes[:]
@@ -570,7 +570,7 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 
 				// Generate unique OCR keys per node
 				var ocrKeyBytes [32]byte
-				for j := 0; j < 32; j++ {
+				for j := range 32 {
 					ocrKeyBytes[j] = byte(nodeIdx + 1 + j)
 				}
 

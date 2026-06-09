@@ -30,9 +30,9 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 	const numTokensPerMsg = 2
 
 	chainReports := make([]ccipocr3.ExecutePluginReportSingleChain, numChainReports)
-	for i := 0; i < numChainReports; i++ {
+	for i := range numChainReports {
 		reportMessages := make([]ccipocr3.Message, msgsPerReport)
-		for j := 0; j < msgsPerReport; j++ {
+		for j := range msgsPerReport {
 			addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 			require.NoError(t, err)
 			extraData := []byte{0x12, 0x34}
@@ -44,7 +44,7 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 			require.NoError(t, err)
 
 			tokenAmounts := make([]ccipocr3.RampTokenAmount, numTokensPerMsg)
-			for z := 0; z < numTokensPerMsg; z++ {
+			for z := range numTokensPerMsg {
 				tokenAmounts[z] = ccipocr3.RampTokenAmount{
 					SourcePoolAddress: ccipocr3.UnknownAddress(addr.String()),
 					DestTokenAddress:  receiverAddr[:],

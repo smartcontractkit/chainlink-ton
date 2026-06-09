@@ -16,14 +16,14 @@ import (
 )
 
 var (
-	OpcodeApplyRampUpdates   = tvm.MustExtractMagic(reflect.TypeOf(ApplyRampUpdates{}))
-	OpcodeCCIPSend           = tvm.MustExtractMagic(reflect.TypeOf(CCIPSend{}))
-	OpcodeRouteMessage       = tvm.MustExtractMagic(reflect.TypeOf(RouteMessage{}))
-	OpcodeCCIPReceiveConfirm = tvm.MustExtractMagic(reflect.TypeOf(CCIPReceiveConfirm{}))
-	OpcodeMessageSent        = tvm.MustExtractMagic(reflect.TypeOf(MessageSent{}))
-	OpcodeMessageRejected    = tvm.MustExtractMagic(reflect.TypeOf(MessageRejected{}))
-	OpcodeRMNRemoteCurse     = tvm.MustExtractMagic(reflect.TypeOf(RMNRemoteCurse{}))
-	OpcodeRMNRemoteUncurse   = tvm.MustExtractMagic(reflect.TypeOf(RMNRemoteUncurse{}))
+	OpcodeApplyRampUpdates   = tvm.MustExtractMagic(reflect.TypeFor[ApplyRampUpdates]())
+	OpcodeCCIPSend           = tvm.MustExtractMagic(reflect.TypeFor[CCIPSend]())
+	OpcodeRouteMessage       = tvm.MustExtractMagic(reflect.TypeFor[RouteMessage]())
+	OpcodeCCIPReceiveConfirm = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
+	OpcodeMessageSent        = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
+	OpcodeMessageRejected    = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
+	OpcodeRMNRemoteCurse     = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
+	OpcodeRMNRemoteUncurse   = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
 )
 
 const (

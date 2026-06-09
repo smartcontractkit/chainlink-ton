@@ -71,7 +71,7 @@ func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*tracetra
 }
 
 // Calls a getter method on the contract and waits for it to be received.
-func (c *Contract) Get(key string, params ...interface{}) (*ton.ExecutionResult, error) {
+func (c *Contract) Get(key string, params ...any) (*ton.ExecutionResult, error) {
 	block, err := c.Client.Client.CurrentMasterchainInfo(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)

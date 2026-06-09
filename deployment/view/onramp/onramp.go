@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -19,7 +20,7 @@ import (
 type View struct {
 	view.MetaData
 	ChainSelector   uint64                            `json:"chainSelector,omitempty"`
-	DynamicConfig   onramp.DynamicConfig              `json:"dynamicConfig,omitempty"`
+	DynamicConfig   onramp.DynamicConfig              `json:"dynamicConfig,omitempty"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
 	DestChainConfig map[uint64]onramp.DestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
 }
 

@@ -3,6 +3,7 @@ package ton_test
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -125,9 +126,7 @@ func NewGenerator(opts ...Option) *Generator {
 		maxCollectionItems: defaultMaxCollectionItems,
 	}
 
-	for t, factory := range buildDefaultFactories() {
-		g.custom[t] = factory
-	}
+	maps.Copy(g.custom, buildDefaultFactories())
 
 	for _, opt := range opts {
 		opt(g)
@@ -263,7 +262,7 @@ func (g *Generator) buildValue(t reflect.Type, field *reflect.StructField, visit
 			if fieldInfo.Tag.Get("json") == "-" {
 				continue
 			}
-			if fieldInfo.Type == reflect.TypeOf(tlb.Magic{}) {
+			if fieldInfo.Type == reflect.TypeFor[tlb.Magic]() {
 				continue
 			}
 
@@ -299,7 +298,7 @@ func (g *Generator) buildValue(t reflect.Type, field *reflect.StructField, visit
 
 		size := g.randomCollectionSize()
 		slice := reflect.MakeSlice(t, size, size)
-		for i := 0; i < size; i++ {
+		for i := range size {
 			item, err := g.buildValue(t.Elem(), nil, visited, depth+1)
 			if err != nil {
 				return reflect.Value{}, err
@@ -440,7 +439,7 @@ func (g *Generator) randomDictionary(keyBits int) (*cell.Dictionary, error) {
 
 	dict := cell.NewDict(uint(keyBits))
 	entries := g.randomCollectionSize()
-	for i := 0; i < entries; i++ {
+	for range entries {
 		keyBuilder := cell.BeginCell()
 		switch {
 		case keyBits <= 64:
@@ -493,22 +492,22 @@ func ensureAssignable(value reflect.Value, targetType reflect.Type) (reflect.Val
 func buildDefaultFactories() map[reflect.Type]Factory {
 	coinsVal := tlb.MustFromTON("0.125")
 	return map[reflect.Type]Factory{
-		reflect.TypeOf(coinsVal): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[tlb.Coins](): func(ctx *Context) (reflect.Value, error) {
 			return reflect.ValueOf(coinsVal), nil
 		},
-		reflect.TypeOf(&coinsVal): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*tlb.Coins](): func(ctx *Context) (reflect.Value, error) {
 			c := coinsVal
 			return reflect.ValueOf(&c), nil
 		},
-		reflect.TypeOf(tlbe.Uint256{}): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[tlbe.Uint256](): func(ctx *Context) (reflect.Value, error) {
 			val := ctx.Generator.randomBigInt(256)
 			return reflect.ValueOf(*tlbe.NewUint256(val)), nil
 		},
-		reflect.TypeOf((*tlbe.Uint256)(nil)): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*tlbe.Uint256](): func(ctx *Context) (reflect.Value, error) {
 			val := ctx.Generator.randomBigInt(256)
 			return reflect.ValueOf(tlbe.NewUint256(val)), nil
 		},
-		reflect.TypeOf(big.Int{}): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[big.Int](): func(ctx *Context) (reflect.Value, error) {
 			bits, ok := ctx.Tag.IntBitLen()
 			if !ok || bits <= 0 {
 				bits = 256
@@ -516,7 +515,7 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 			val := ctx.Generator.randomBigInt(bits)
 			return reflect.ValueOf(*val), nil
 		},
-		reflect.TypeOf(&big.Int{}): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*big.Int](): func(ctx *Context) (reflect.Value, error) {
 			bits, ok := ctx.Tag.IntBitLen()
 			if !ok || bits <= 0 {
 				bits = 256
@@ -524,20 +523,20 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 			val := ctx.Generator.randomBigInt(bits)
 			return reflect.ValueOf(val), nil
 		},
-		reflect.TypeOf((*address.Address)(nil)): func(*Context) (reflect.Value, error) {
+		reflect.TypeFor[*address.Address](): func(*Context) (reflect.Value, error) {
 			addr := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 			return reflect.ValueOf(addr), nil
 		},
-		reflect.TypeOf(address.Address{}): func(*Context) (reflect.Value, error) {
+		reflect.TypeFor[address.Address](): func(*Context) (reflect.Value, error) {
 			addr := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 			return reflect.ValueOf(*addr), nil
 		},
-		reflect.TypeOf((*cell.Cell)(nil)): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*cell.Cell](): func(ctx *Context) (reflect.Value, error) {
 			builder := cell.BeginCell()
 			builder.MustStoreUInt(uint64(ctx.Generator.rng.Intn(32)), 5) //nolint:gosec // safe for tests
 			return reflect.ValueOf(builder.EndCell()), nil
 		},
-		reflect.TypeOf((*cell.Dictionary)(nil)): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*cell.Dictionary](): func(ctx *Context) (reflect.Value, error) {
 			keyBits, ok := ctx.Tag.DictKeyBitLen()
 			if !ok {
 				keyBits = 16
@@ -548,11 +547,8 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 			}
 			return reflect.ValueOf(dict), nil
 		},
-		reflect.TypeOf(common.CrossChainAddress{}): func(ctx *Context) (reflect.Value, error) {
-			length := ctx.Generator.randomByteLen(ctx.Tag)
-			if length > 64 {
-				length = 64
-			}
+		reflect.TypeFor[common.CrossChainAddress](): func(ctx *Context) (reflect.Value, error) {
+			length := min(ctx.Generator.randomByteLen(ctx.Tag), 64)
 			data := make([]byte, length)
 			if _, err := ctx.Generator.rng.Read(data); err != nil {
 				return reflect.Value{}, err
@@ -563,21 +559,21 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 			}
 			return reflect.ValueOf(common.CrossChainAddress(data)), nil
 		},
-		reflect.TypeOf(&tlbe.Dict[uint8, uint8]{}): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*tlbe.Dict[uint8, uint8]](): func(ctx *Context) (reflect.Value, error) {
 			d := tlbe.NewEmptyDict[uint8, uint8]()
 			d.Set(1, 42)
 			return reflect.ValueOf(d), nil
 		},
-		reflect.TypeOf(&tlbe.Dict[uint8, mcms.Signer]{}): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[*tlbe.Dict[uint8, mcms.Signer]](): func(ctx *Context) (reflect.Value, error) {
 			d := tlbe.NewEmptyDict[uint8, mcms.Signer]()
 			return reflect.ValueOf(d), nil
 		},
-		reflect.TypeOf(tlbe.Dict[uint16, common.AddressWrap]{}): func(ctx *Context) (reflect.Value, error) {
+		reflect.TypeFor[tlbe.Dict[uint16, common.AddressWrap]](): func(ctx *Context) (reflect.Value, error) {
 			keyBits := 16
 			wrappedDict := tlbe.Dict[uint16, common.AddressWrap]{}
 
 			entries := ctx.Generator.randomCollectionSize()
-			for i := 0; i < entries; i++ {
+			for range entries {
 				key := uint16(ctx.Generator.rng.Intn(1 << keyBits)) //nolint:gosec // keyBits := 16
 				var api wallet.TonAPI
 				w, err := tvm.NewRandomV5R1TestWallet(api, -217)

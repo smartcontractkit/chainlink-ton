@@ -176,7 +176,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		Config: balance.GenericBalanceConfig{
 			BalancePollPeriod: *commonconfig.MustNewDuration(balancePollPeriod),
 		},
-		Logger:    lggr,
+		Logger:    logger.Named(lggr, "BalanceMonitor"),
 		Keystore:  loopKs,
 		NewClient: ch.GetClient,
 	})

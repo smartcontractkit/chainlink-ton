@@ -101,7 +101,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
-								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
+								GoType:   reflect.TypeFor[*ownable2step.TransferOwnership](),
 							},
 							Value: &ownable2step.TransferOwnership{
 								QueryID:  663255246267367818,
@@ -165,7 +165,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
-								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
+								GoType:   reflect.TypeFor[*ownable2step.TransferOwnership](),
 							},
 							Value: &ownable2step.TransferOwnership{
 								QueryID:  663255246267367818,
@@ -182,7 +182,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
-								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
+								GoType:   reflect.TypeFor[*ownable2step.TransferOwnership](),
 							},
 							Value: &ownable2step.TransferOwnership{
 								QueryID:  663255246267367818,
@@ -239,7 +239,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeRouter,
 								Opcode:   0xaf7a9ac6,
 								TypeName: "RMNOwnableMessage",
-								GoType:   reflect.TypeOf(&router.RMNOwnableMessage[ownable2step.AcceptOwnership]{}),
+								GoType:   reflect.TypeFor[*router.RMNOwnableMessage[ownable2step.AcceptOwnership]](),
 							},
 							Value: router.RMNOwnableMessage[ownable2step.AcceptOwnership]{
 								Content: &codec.MessageEnvelope[ownable2step.AcceptOwnership]{
@@ -247,7 +247,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 										Contract: bindings.TypeOwnable,
 										Opcode:   0xf9e29e4a,
 										TypeName: "AcceptOwnership",
-										GoType:   reflect.TypeOf(ownable2step.AcceptOwnership{}),
+										GoType:   reflect.TypeFor[ownable2step.AcceptOwnership](),
 									},
 									Value: ownable2step.AcceptOwnership{
 										QueryID: 42,
@@ -306,7 +306,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeRouter,
 								Opcode:   0xaf7a9ac6,
 								TypeName: "RMNOwnableMessage",
-								GoType:   reflect.TypeOf(&router.RMNOwnableMessage[ownable2step.TransferOwnership]{}),
+								GoType:   reflect.TypeFor[*router.RMNOwnableMessage[ownable2step.TransferOwnership]](),
 							},
 							Value: router.RMNOwnableMessage[ownable2step.TransferOwnership]{
 								Content: &codec.MessageEnvelope[ownable2step.TransferOwnership]{
@@ -314,7 +314,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 										Contract: bindings.TypeOwnable,
 										Opcode:   0xf21b7da1,
 										TypeName: "TransferOwnership",
-										GoType:   reflect.TypeOf(ownable2step.TransferOwnership{}),
+										GoType:   reflect.TypeFor[ownable2step.TransferOwnership](),
 									},
 									Value: ownable2step.TransferOwnership{
 										QueryID:  42,
@@ -393,7 +393,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
-								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
+								GoType:   reflect.TypeFor[*ownable2step.TransferOwnership](),
 							},
 							Value: &ownable2step.TransferOwnership{
 								QueryID:  663255246267367818,
@@ -504,7 +504,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								Contract: bindings.TypeMCMS,
 								Opcode:   0x9b9ce96a,
 								TypeName: "Execute",
-								GoType:   reflect.TypeOf(&mcms.Execute{}),
+								GoType:   reflect.TypeFor[*mcms.Execute](),
 							},
 							Value: &mcms.Execute{
 								QueryID: 31,

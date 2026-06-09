@@ -191,7 +191,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 }).MustWithStorageType(Storage{})
 
 var (
-	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeOf(CCIPReceive{}))
+	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceive]())
 )
 
 // Config types that implements getter fetching interface with rpc client

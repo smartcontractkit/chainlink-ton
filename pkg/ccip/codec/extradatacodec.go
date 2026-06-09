@@ -40,9 +40,9 @@ func NewExtraDataDecoder() ccipocr3.SourceChainExtraDataCodec {
 
 // extraArgsTypes maps tag hex strings to their corresponding struct types
 var extraArgsTypes = map[string]reflect.Type{
-	evmExtraArgsTagStr: reflect.TypeOf(onramp.GenericExtraArgsV2{}),
-	svmExtraArgsTagStr: reflect.TypeOf(onramp.SVMExtraArgsV1{}),
-	suiExtraArgsTagStr: reflect.TypeOf(onramp.SuiExtraArgsV1{}),
+	evmExtraArgsTagStr: reflect.TypeFor[onramp.GenericExtraArgsV2](),
+	svmExtraArgsTagStr: reflect.TypeFor[onramp.SVMExtraArgsV1](),
+	suiExtraArgsTagStr: reflect.TypeFor[onramp.SuiExtraArgsV1](),
 }
 
 // DecodeExtraArgsToMap is a helper function for converting BOC encoded extra args bytes into map[string]any

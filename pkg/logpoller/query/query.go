@@ -31,7 +31,7 @@ type LogQuery struct {
 type FieldFilter struct {
 	Field    string
 	Operator primitives.ComparisonOperator
-	Value    interface{}
+	Value    any
 }
 
 // ByteFilter represents a filter that operates on raw byte data within a log's cell.

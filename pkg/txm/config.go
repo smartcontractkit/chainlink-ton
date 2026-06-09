@@ -40,11 +40,7 @@ var DefaultConfigSet = Config{
 	CleanupInterval:    config.MustNewDuration(60 * time.Minute),
 	SendTimeout:        config.MustNewDuration(30 * time.Second),
 	TraceTimeout:       config.MustNewDuration(60 * time.Second),
-	EnableTraceLogging: ptr(true),
-}
-
-func ptr[T any](v T) *T {
-	return &v
+	EnableTraceLogging: new(true),
 }
 
 func (c *Config) ApplyDefaults() {
