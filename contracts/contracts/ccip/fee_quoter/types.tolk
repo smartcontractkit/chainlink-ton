@@ -78,8 +78,6 @@ const VAL_1E18: uint256 = 1000000000000000000;
   /// The fixed bytes does not cover struct data (this is represented by MESSAGE_FIXED_BYTES_PER_TOKEN)
 const TON_2_EVM_MESSAGE_FIXED_BYTES = 15 * 32;
 
-const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
-
 const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
 const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
 const CHAIN_FAMILY_SELECTOR_TVM:   uint32 = 0x647e2ba9;
