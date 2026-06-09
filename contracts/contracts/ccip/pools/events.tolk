@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
+import "types"
 
 const TOKEN_POOL_LOCKED_OR_BURNED_TOPIC = stringCrc32("TokenPool_LockedOrBurned");
 const TOKEN_POOL_RELEASED_OR_MINTED_TOPIC = stringCrc32("TokenPool_ReleasedOrMinted");

@@ -60,7 +60,7 @@ struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
 /// @param tokenArgs Additional token arguments.
 struct (0x1161516e) TokenPool_LockOrBurn {
     queryId: uint64;
-    lockOrBurnIn: Cell<TokenPool_LockOrBurnInV1>;
+    request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
     replyTo: address?;

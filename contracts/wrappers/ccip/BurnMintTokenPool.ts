@@ -62,7 +62,7 @@ export class BurnMintTokenPool implements Contract {
   }
 
   static code(): Promise<Cell> {
-    return contractCode.ccip.local('BurnMintTokenPool')
+    return contractCode.ccip.local('ccip.pools.BurnMintTokenPool')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

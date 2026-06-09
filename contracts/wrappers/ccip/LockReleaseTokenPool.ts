@@ -63,7 +63,7 @@ export class LockReleaseTokenPool implements Contract {
   }
 
   static code(): Promise<Cell> {
-    return contractCode.ccip.local('LockReleaseTokenPool')
+    return contractCode.ccip.local('ccip.pools.LockReleaseTokenPool')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

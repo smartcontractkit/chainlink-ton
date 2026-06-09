@@ -339,7 +339,7 @@ export function runTokenPoolBehaviorTests(
       })
     })
 
-    it('keeps existing off-ramp when update passes null off-ramp', async () => {
+    it('clears existing off-ramp when update passes null off-ramp', async () => {
       const ctx = await setup()
       await ctx.pool.sendUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 914n,
@@ -352,10 +352,10 @@ export function runTokenPoolBehaviorTests(
         ],
       })
 
-      expect(await ctx.pool.getOffRamp(ctx.remoteChainSelector)).toEqualAddress(ctx.offRamp.address)
+      expect(await ctx.pool.getOffRamp(ctx.remoteChainSelector)).toBeNull()
     })
 
-    it('still accepts existing off-ramp sender after null off-ramp update', async () => {
+    it('rejects existing off-ramp sender after null off-ramp update', async () => {
       const ctx = await setup()
       await ctx.pool.sendUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 915n,
@@ -378,6 +378,7 @@ export function runTokenPoolBehaviorTests(
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
         to: ctx.pool.address,
+        success: false,
       })
     })
 

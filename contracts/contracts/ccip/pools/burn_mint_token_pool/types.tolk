@@ -3,7 +3,7 @@ import "../../../lib/jetton/jetton_client.tolk"
 import "../../rmn_remote/lib"
 import "../types"
 
-const BurnMintTokenPool_CONTRACT_NAME = "BurnMintTokenPool".literalSlice();
+const BurnMintTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.BurnMintTokenPool".literalSlice();
 const BurnMintTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
 const BurnMintTokenPool_BURN_VALUE = ton("0.05");

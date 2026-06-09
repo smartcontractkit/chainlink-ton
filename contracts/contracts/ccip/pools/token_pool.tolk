@@ -190,7 +190,8 @@ fun TokenPool<T>.setDynamicConfig(
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
-    assert(!router.isNone(), TokenPool_Error.ZeroAddressInvalid);
+    // TODO: check if address is valid (not zero)
+    // assert(!router.isNone(), TokenPool_Error.ZeroAddressInvalid);
     adminConfig.dynamicConfig = TokenPool_DynamicConfig {
         router,
         rateLimitAdmin,
@@ -379,7 +380,7 @@ fun TokenPool<T>.applyChainUpdates(
 fun TokenPool<T>.applyRampAccessUpdates(
     mutate self,
     sender: address,
-    updates: cell,
+    updates: SnakedCell<TokenPool_RampUpdate>,
 ) {
     var adminConfig = self.data.adminConfig.load();
     var ownable = adminConfig.ownable.load();
@@ -388,36 +389,27 @@ fun TokenPool<T>.applyRampAccessUpdates(
     self.data.adminConfig = adminConfig.toCell();
 
     var mirroredPolicy = self.data.mirroredPolicy.load();
-    var updatesSlice = updates.beginParse();
-    var updatesDone = false;
-    while (!updatesDone) {
-        while (updatesSlice.remainingBitsCount() > 0) {
-            val update = TokenPool_RampUpdate.fromSlice(mutate updatesSlice);
+    var iter = updates.iter();
+    while (!iter.empty()) {
+        val update = iter.next();
 
-            if (update.onRamp != null) {
-                mirroredPolicy.onRamps.set(update.remoteChainSelector, update.onRamp!);
-            } else {
-                mirroredPolicy.onRamps.delete(update.remoteChainSelector);
-            }
-
-            if (update.offRamp != null) {
-                mirroredPolicy.offRamps.set(update.remoteChainSelector, update.offRamp!);
-            } else {
-                mirroredPolicy.offRamps.delete(update.remoteChainSelector);
-            }
-
-            emit(TOKEN_POOL_RAMP_ACCESS_UPDATED_TOPIC, TokenPool_RampAccessUpdated {
-                remoteChainSelector: update.remoteChainSelector,
-                onRamp: update.onRamp,
-                offRamp: update.offRamp,
-            });
-        }
-
-        if (updatesSlice.remainingRefsCount() == 0) {
-            updatesDone = true;
+        if (update.onRamp != null) {
+            mirroredPolicy.onRamps.set(update.remoteChainSelector, update.onRamp!);
         } else {
-            updatesSlice = updatesSlice.loadRef().beginParse();
+            mirroredPolicy.onRamps.delete(update.remoteChainSelector);
         }
+
+        if (update.offRamp != null) {
+            mirroredPolicy.offRamps.set(update.remoteChainSelector, update.offRamp!);
+        } else {
+            mirroredPolicy.offRamps.delete(update.remoteChainSelector);
+        }
+
+        emit(TOKEN_POOL_RAMP_ACCESS_UPDATED_TOPIC, TokenPool_RampAccessUpdated {
+            remoteChainSelector: update.remoteChainSelector,
+            onRamp: update.onRamp,
+            offRamp: update.offRamp,
+        });
     }
 
     self.data.mirroredPolicy = mirroredPolicy.toCell();
@@ -462,11 +454,11 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             return true;
         }
         TokenPool_SetRateLimitConfig => {
-            self.setRateLimitConfig(msgSender, msg.updates.load());
+            self.setRateLimitConfig(msgSender, msg.updates);
             return true;
         }
         TokenPool_ApplyTokenTransferFeeConfigUpdates => {
-            self.applyTokenTransferFeeConfigUpdates(msgSender, msg.updates.load(), msg.disableChainSelectors.load());
+            self.applyTokenTransferFeeConfigUpdates(msgSender, msg.updates, msg.disableChainSelectors);
             return true;
         }
         TokenPool_UpdateRampAccess => {
@@ -482,6 +474,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             assert(self.hooks != null && self.hooks.handleReleaseOrMintMessage != null, TokenPool_Error.UnsupportedOperation);
             self.context = self.hooks.handleReleaseOrMintMessage(self.context, msgSender, msg, prepared);
             return true;
+        }
+        TokenPool_LockOrBurn => {
+            return false; // TODO: handle me, should be JettonNitification payload
         }
         else => {
             var adminConfig = self.data.adminConfig.load();

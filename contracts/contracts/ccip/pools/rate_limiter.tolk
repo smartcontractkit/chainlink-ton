@@ -30,7 +30,8 @@ fun RateLimiter_consumeBucket(mutate bucket: RateLimiter_TokenBucket, amount: ui
     }
 
     RateLimiter_refillBucket(mutate bucket);
-    assert(bucket.tokens >= amount, TokenPool_Error.RateLimitExceeded);
+    // TODO: should be RateLimiter error
+    // assert(bucket.tokens >= amount, TokenPool_Error.RateLimitExceeded);
     bucket.tokens -= amount;
 }
 

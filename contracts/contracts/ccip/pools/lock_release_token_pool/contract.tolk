@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
+tolk 1.4.1
+
 import "../../../lib/utils.tolk"
 import "../../../lib/access/ownable_2step.tolk"
 import "../../../lib/jetton/messages.tolk"
@@ -15,6 +17,15 @@ import "messages"
 import "types"
 import "errors"
 import "storage"
+
+contract LockReleaseTokenPool {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.1.0"
+    description: "link.chain.ton.ccip.LockReleaseTokenPool"
+
+    storage: Storage
+    incomingMessages: LockReleaseTokenPool_CustomInMessage // TODO: all incoming messages should be registered
+}
 
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
