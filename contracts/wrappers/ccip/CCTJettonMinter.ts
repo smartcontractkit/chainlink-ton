@@ -9,9 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { contractCode } from '../codeLoader'
-import {
-  builder as jettonMinterBuilder,
-} from '../jetton/JettonMinter'
+import { builder as jettonMinterBuilder } from '../jetton/JettonMinter'
 
 export type CCTJettonMinterConfig = {
   totalSupply: bigint
@@ -109,15 +107,16 @@ export class CCTJettonMinter implements Contract {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: jettonMinterBuilder.messages.in
-        .changeMinterAdmin
+      body: jettonMinterBuilder.messages.in.changeMinterAdmin
         .encode({ queryId: opts.queryId ?? 0n, newAdmin: opts.newAdminAddress })
         .asCell(),
     })
   }
 
   async getWalletAddress(provider: ContractProvider, ownerAddress: Address): Promise<Address> {
-    const { stack } = await provider.get('get_wallet_address', [{ type: 'slice', cell: beginCell().storeAddress(ownerAddress).endCell() }])
+    const { stack } = await provider.get('get_wallet_address', [
+      { type: 'slice', cell: beginCell().storeAddress(ownerAddress).endCell() },
+    ])
     return stack.readAddress()
   }
 }

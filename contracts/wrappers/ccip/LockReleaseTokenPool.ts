@@ -122,19 +122,27 @@ export class LockReleaseTokenPool implements Contract {
   }
 
   async getVerifyNotCursed(provider: ContractProvider, subject: bigint) {
-    return provider.get('verifyNotCursed', [{ type: 'int', value: subject }]).then((res) => res.stack.readBoolean())
+    return provider
+      .get('verifyNotCursed', [{ type: 'int', value: subject }])
+      .then((res) => res.stack.readBoolean())
   }
 
   async getOnRamp(provider: ContractProvider, remoteChainSelector: bigint) {
-    return provider.get('onRamp', [{ type: 'int', value: remoteChainSelector }]).then((res) => res.stack.readAddressOpt())
+    return provider
+      .get('onRamp', [{ type: 'int', value: remoteChainSelector }])
+      .then((res) => res.stack.readAddressOpt())
   }
 
   async getOffRamp(provider: ContractProvider, remoteChainSelector: bigint) {
-    return provider.get('offRamp', [{ type: 'int', value: remoteChainSelector }]).then((res) => res.stack.readAddressOpt())
+    return provider
+      .get('offRamp', [{ type: 'int', value: remoteChainSelector }])
+      .then((res) => res.stack.readAddressOpt())
   }
 
   async getIsSupportedChain(provider: ContractProvider, remoteChainSelector: bigint) {
-    return provider.get('isSupportedChain', [{ type: 'int', value: remoteChainSelector }]).then((res) => res.stack.readBoolean())
+    return provider
+      .get('isSupportedChain', [{ type: 'int', value: remoteChainSelector }])
+      .then((res) => res.stack.readBoolean())
   }
 }
 

@@ -2,7 +2,11 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Message, beginCell, toNano } from '@ton/core'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
-import { LockReleaseTokenPool, codec as poolCodec, opcodes as poolOpcodes } from '../../../wrappers/ccip/LockReleaseTokenPool'
+import {
+  LockReleaseTokenPool,
+  codec as poolCodec,
+  opcodes as poolOpcodes,
+} from '../../../wrappers/ccip/LockReleaseTokenPool'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 
@@ -80,19 +84,23 @@ describe('LockReleaseTokenPool', () => {
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))
 
-    const applyChains = await lockReleasePool.sendApplyChainUpdates(deployer.getSender(), toNano('0.2'), {
-      queryId: 1n,
-      remove: [],
-      add: [
-        {
-          remoteChainSelector,
-          remotePoolAddresses: [sourcePoolAddress],
-          remoteTokenAddress: destTokenAddress,
-          outboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-          inboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-        },
-      ],
-    })
+    const applyChains = await lockReleasePool.sendApplyChainUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 1n,
+        remove: [],
+        add: [
+          {
+            remoteChainSelector,
+            remotePoolAddresses: [sourcePoolAddress],
+            remoteTokenAddress: destTokenAddress,
+            outboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
+            inboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
+          },
+        ],
+      },
+    )
 
     expect(applyChains.transactions).toHaveTransaction({
       from: deployer.address,
@@ -100,16 +108,20 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    const updateRampAccess = await lockReleasePool.sendUpdateRampAccess(deployer.getSender(), toNano('0.2'), {
-      queryId: 2n,
-      updates: [
-        {
-          remoteChainSelector,
-          onRamp: jettonSender.address,
-          offRamp: offRamp.address,
-        },
-      ],
-    })
+    const updateRampAccess = await lockReleasePool.sendUpdateRampAccess(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 2n,
+        updates: [
+          {
+            remoteChainSelector,
+            onRamp: jettonSender.address,
+            offRamp: offRamp.address,
+          },
+        ],
+      },
+    )
 
     expect(updateRampAccess.transactions).toHaveTransaction({
       from: deployer.address,
@@ -151,7 +163,9 @@ describe('LockReleaseTokenPool', () => {
     recipient,
     remoteChainSelector,
     unsupportedChainSelector: remoteChainSelector + 1n,
-    unknownSourcePoolAddress: poolCodec.crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+    unknownSourcePoolAddress: poolCodec.crossChainAddressFromBuffer(
+      Buffer.from('unknown-source-pool'),
+    ),
     remoteTokenAddress: destTokenAddress,
     onRampAddress: jettonSender.address,
     destTokenAddress,
@@ -344,9 +358,11 @@ describe('LockReleaseTokenPool', () => {
   })
 
   it('mirrors cursed state locally and blocks release while cursed', async () => {
-    const curseUpdate = await lockReleasePool.sendUpdateCursedSubjects(deployer.getSender(), toNano('0.2'), [
-      remoteChainSelector,
-    ])
+    const curseUpdate = await lockReleasePool.sendUpdateCursedSubjects(
+      deployer.getSender(),
+      toNano('0.2'),
+      [remoteChainSelector],
+    )
 
     expect(curseUpdate.transactions).toHaveTransaction({
       from: deployer.address,

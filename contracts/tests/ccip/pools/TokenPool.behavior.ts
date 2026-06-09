@@ -112,7 +112,9 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint while chain is cursed', async () => {
       const ctx = await setup()
 
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [ctx.remoteChainSelector])
+      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [
+        ctx.remoteChainSelector,
+      ])
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
       const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
@@ -149,11 +151,15 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects applyChainUpdates from non-owner', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendApplyChainUpdates(ctx.unauthorized.getSender(), toNano('0.2'), {
-        queryId: 903n,
-        remove: [],
-        add: [],
-      })
+      const result = await ctx.pool.sendApplyChainUpdates(
+        ctx.unauthorized.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 903n,
+          remove: [],
+          add: [],
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,
@@ -164,16 +170,20 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects updateRampAccess from non-owner', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendUpdateRampAccess(ctx.unauthorized.getSender(), toNano('0.2'), {
-        queryId: 904n,
-        updates: [
-          {
-            remoteChainSelector: ctx.remoteChainSelector,
-            onRamp: ctx.onRampAddress,
-            offRamp: ctx.unauthorized.address,
-          },
-        ],
-      })
+      const result = await ctx.pool.sendUpdateRampAccess(
+        ctx.unauthorized.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 904n,
+          updates: [
+            {
+              remoteChainSelector: ctx.remoteChainSelector,
+              onRamp: ctx.onRampAddress,
+              offRamp: ctx.unauthorized.address,
+            },
+          ],
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,
@@ -184,9 +194,11 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects cursed-subject updates from non-rmn sender', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendUpdateCursedSubjects(ctx.unauthorized.getSender(), toNano('0.2'), [
-        ctx.remoteChainSelector,
-      ])
+      const result = await ctx.pool.sendUpdateCursedSubjects(
+        ctx.unauthorized.getSender(),
+        toNano('0.2'),
+        [ctx.remoteChainSelector],
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,
@@ -197,7 +209,9 @@ export function runTokenPoolBehaviorTests(
 
     it('can clear cursed subject back to not cursed', async () => {
       const ctx = await setup()
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [ctx.remoteChainSelector])
+      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [
+        ctx.remoteChainSelector,
+      ])
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
       await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [])
@@ -275,7 +289,9 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: true,
       })
-      expect(await ctx.pool.getOffRamp(ctx.remoteChainSelector)).toEqualAddress(ctx.unauthorized.address)
+      expect(await ctx.pool.getOffRamp(ctx.remoteChainSelector)).toEqualAddress(
+        ctx.unauthorized.address,
+      )
     })
 
     it('rejects old off-ramp sender after remapping off-ramp', async () => {
@@ -307,7 +323,10 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects releaseOrMint when source pool is not configured', async () => {
       const ctx = await setup()
-      const wrongSourcePoolAddress = beginCell().storeUint(4, 8).storeBuffer(Buffer.from('evil')).endCell()
+      const wrongSourcePoolAddress = beginCell()
+        .storeUint(4, 8)
+        .storeBuffer(Buffer.from('evil'))
+        .endCell()
       const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
         queryId: 912n,
         request: releaseRequest(ctx, { sourcePoolAddress: wrongSourcePoolAddress }),
@@ -391,19 +410,23 @@ export function runTokenPoolBehaviorTests(
         add: [],
       })
 
-      const addResult = await ctx.pool.sendApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 918n,
-        remove: [],
-        add: [
-          {
-            remoteChainSelector: ctx.remoteChainSelector,
-            remotePoolAddresses: [ctx.sourcePoolAddress],
-            remoteTokenAddress: ctx.destTokenAddress,
-            outboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-            inboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-          },
-        ],
-      })
+      const addResult = await ctx.pool.sendApplyChainUpdates(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 918n,
+          remove: [],
+          add: [
+            {
+              remoteChainSelector: ctx.remoteChainSelector,
+              remotePoolAddresses: [ctx.sourcePoolAddress],
+              remoteTokenAddress: ctx.destTokenAddress,
+              outboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
+              inboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
+            },
+          ],
+        },
+      )
 
       expect(addResult.transactions).toHaveTransaction({
         from: ctx.deployer.address,

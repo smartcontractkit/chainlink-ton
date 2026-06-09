@@ -2,7 +2,11 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import { BurnMintTokenPool, codec as poolCodec, opcodes as poolOpcodes } from '../../../wrappers/ccip/BurnMintTokenPool'
+import {
+  BurnMintTokenPool,
+  codec as poolCodec,
+  opcodes as poolOpcodes,
+} from '../../../wrappers/ccip/BurnMintTokenPool'
 import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
 import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
@@ -143,7 +147,11 @@ describe('BurnMintTokenPool', () => {
       success: true,
     })
 
-    const claimAdminResult = await burnMintPool.sendClaimMinterAdmin(deployer.getSender(), toNano('0.2'), 202n)
+    const claimAdminResult = await burnMintPool.sendClaimMinterAdmin(
+      deployer.getSender(),
+      toNano('0.2'),
+      202n,
+    )
     expect(claimAdminResult.transactions).toHaveTransaction({
       from: burnMintPool.address,
       to: cctMinter.address,
@@ -155,7 +163,9 @@ describe('BurnMintTokenPool', () => {
     expect(await cctMinterRuntime.getNextAdminAddress()).toBeNull()
 
     userWallet = async (address: Address) => {
-      return blockchain.openContract(JettonWallet.createFromAddress(await cctMinterRuntime.getWalletAddress(address)))
+      return blockchain.openContract(
+        JettonWallet.createFromAddress(await cctMinterRuntime.getWalletAddress(address)),
+      )
     }
   })
 
@@ -168,7 +178,9 @@ describe('BurnMintTokenPool', () => {
     recipient,
     remoteChainSelector,
     unsupportedChainSelector: remoteChainSelector + 1n,
-    unknownSourcePoolAddress: poolCodec.crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+    unknownSourcePoolAddress: poolCodec.crossChainAddressFromBuffer(
+      Buffer.from('unknown-source-pool'),
+    ),
     remoteTokenAddress: destTokenAddress,
     onRampAddress: deployer.address,
     destTokenAddress,
@@ -182,7 +194,11 @@ describe('BurnMintTokenPool', () => {
   })
 
   it('rejects claim-minter-admin from non-owner sender', async () => {
-    const result = await burnMintPool.sendClaimMinterAdmin(unauthorized.getSender(), toNano('0.2'), 302n)
+    const result = await burnMintPool.sendClaimMinterAdmin(
+      unauthorized.getSender(),
+      toNano('0.2'),
+      302n,
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: unauthorized.address,
@@ -388,7 +404,8 @@ describe('BurnMintTokenPool', () => {
     const releaseResponses = result.transactions.filter((tx: any) => {
       return (
         tx.inMessage?.info?.src?.equals?.(burnMintPool.address) &&
-        tx.inMessage?.body?.beginParse?.().preloadUint?.(32) === poolOpcodes.out.releaseOrMintResponse
+        tx.inMessage?.body?.beginParse?.().preloadUint?.(32) ===
+          poolOpcodes.out.releaseOrMintResponse
       )
     })
     expect(releaseResponses.length).toBe(0)

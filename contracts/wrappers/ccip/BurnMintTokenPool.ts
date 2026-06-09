@@ -123,34 +123,56 @@ export class BurnMintTokenPool implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(BURN_MINT_CLAIM_MINTER_ADMIN_OPCODE, 32).storeUint(queryId, 64).endCell(),
+      body: beginCell()
+        .storeUint(BURN_MINT_CLAIM_MINTER_ADMIN_OPCODE, 32)
+        .storeUint(queryId, 64)
+        .endCell(),
     })
   }
 
   async getHasPendingBurn(provider: ContractProvider, queryId: bigint) {
-    return provider.get('hasPendingBurn', [{ type: 'int', value: queryId }]).then((res) => res.stack.readBoolean())
+    return provider
+      .get('hasPendingBurn', [{ type: 'int', value: queryId }])
+      .then((res) => res.stack.readBoolean())
   }
 
   async getHasPendingMint(provider: ContractProvider, queryId: bigint) {
-    return provider.get('hasPendingMint', [{ type: 'int', value: queryId }]).then((res) => res.stack.readBoolean())
+    return provider
+      .get('hasPendingMint', [{ type: 'int', value: queryId }])
+      .then((res) => res.stack.readBoolean())
   }
 
   async getVerifyNotCursed(provider: ContractProvider, subject: bigint) {
-    return provider.get('verifyNotCursed', [{ type: 'int', value: subject }]).then((res) => res.stack.readBoolean())
+    return provider
+      .get('verifyNotCursed', [{ type: 'int', value: subject }])
+      .then((res) => res.stack.readBoolean())
   }
 
   async getOnRamp(provider: ContractProvider, remoteChainSelector: bigint) {
-    return provider.get('onRamp', [{ type: 'int', value: remoteChainSelector }]).then((res) => res.stack.readAddressOpt())
+    return provider
+      .get('onRamp', [{ type: 'int', value: remoteChainSelector }])
+      .then((res) => res.stack.readAddressOpt())
   }
 
   async getOffRamp(provider: ContractProvider, remoteChainSelector: bigint) {
-    return provider.get('offRamp', [{ type: 'int', value: remoteChainSelector }]).then((res) => res.stack.readAddressOpt())
+    return provider
+      .get('offRamp', [{ type: 'int', value: remoteChainSelector }])
+      .then((res) => res.stack.readAddressOpt())
   }
 
   async getIsSupportedChain(provider: ContractProvider, remoteChainSelector: bigint) {
-    return provider.get('isSupportedChain', [{ type: 'int', value: remoteChainSelector }]).then((res) => res.stack.readBoolean())
+    return provider
+      .get('isSupportedChain', [{ type: 'int', value: remoteChainSelector }])
+      .then((res) => res.stack.readBoolean())
   }
 }
 
 export { codec, opcodes }
-export type { ChainUpdate, JettonClientConfig, LockOrBurnInV1, LockOrBurnPayload, RampAccess, ReleaseOrMintInV1 }
+export type {
+  ChainUpdate,
+  JettonClientConfig,
+  LockOrBurnInV1,
+  LockOrBurnPayload,
+  RampAccess,
+  ReleaseOrMintInV1,
+}

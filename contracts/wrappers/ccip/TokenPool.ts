@@ -115,7 +115,10 @@ export const codec = {
 
   rateLimitConfig: {
     encode(data: RateLimitConfig): Builder {
-      return beginCell().storeBit(data.isEnabled).storeUint(data.capacity, 256).storeUint(data.rate, 256)
+      return beginCell()
+        .storeBit(data.isEnabled)
+        .storeUint(data.capacity, 256)
+        .storeUint(data.rate, 256)
     },
   },
 
@@ -209,10 +212,12 @@ export function createTokenPoolData(config: TokenPoolConfig): Cell {
 
   const adminConfig = beginCell()
     .storeRef(
-      ownable2step.builder.data.traitData.encode({
-        owner: config.owner,
-        pendingOwner: null,
-      }).asCell(),
+      ownable2step.builder.data.traitData
+        .encode({
+          owner: config.owner,
+          pendingOwner: null,
+        })
+        .asCell(),
     )
     .storeAddress(config.rmnProxy)
     .storeRef(dynamicConfig)
@@ -236,10 +241,7 @@ export function createTokenPoolData(config: TokenPoolConfig): Cell {
 }
 
 export function createJettonClientData(config: JettonClientConfig): Cell {
-  return beginCell()
-    .storeAddress(config.masterAddress)
-    .storeRef(config.jettonWalletCode)
-    .endCell()
+  return beginCell().storeAddress(config.masterAddress).storeRef(config.jettonWalletCode).endCell()
 }
 
 export async function sendApplyChainUpdates(
@@ -341,6 +343,9 @@ function asSnakeChainUpdates(items: ChainUpdate[]): Cell {
 
 function asSnakeRampAccess(items: RampAccess[]): Cell {
   return asSnakedCell(items, (item) =>
-    beginCell().storeUint(item.remoteChainSelector, 64).storeAddress(item.onRamp).storeAddress(item.offRamp),
+    beginCell()
+      .storeUint(item.remoteChainSelector, 64)
+      .storeAddress(item.onRamp)
+      .storeAddress(item.offRamp),
   )
 }
