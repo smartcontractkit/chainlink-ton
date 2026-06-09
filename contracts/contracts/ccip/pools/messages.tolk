@@ -2,6 +2,7 @@
 import "../../lib/utils"
 import "../common/types"
 import "../rmn_remote/lib"
+
 import "types"
 
 struct (0xdc0b6ff5) TokenPool_ApplyChainUpdates {
@@ -50,7 +51,15 @@ struct (0x7a9c4aa5) TokenPool_UpdateRampAccess {
     updates: SnakedCell<TokenPool_RampUpdate>;
 }
 
+// TODO: update opcode
+/// Sets the RMN proxy address, a role which is responsible for updating the cursed subjects list.
+struct (0x12345678) TokenPool_SetRMNProxy {
+    queryId: uint64;
+    rmnProxy: address;
+}
+
 struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
+    queryId: uint64;
     cursedSubjects: CursedSubjects;
 }
 

@@ -415,6 +415,14 @@ fun TokenPool<T>.applyRampAccessUpdates(
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 }
 
+fun TokenPool<T>.setRMNProxy(mutate self, sender: address, rmnProxy: address) {
+    var adminConfig = self.data.adminConfig.load();
+    adminConfig.ownable.load().requireOwner(sender);
+
+    adminConfig.rmnProxy = rmnProxy;
+    self.data.adminConfig = adminConfig.toCell();
+}
+
 fun TokenPool<T>.setCursedSubjects(
     mutate self,
     sender: address,
@@ -463,6 +471,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_UpdateRampAccess => {
             self.applyRampAccessUpdates(msgSender, msg.updates);
+            return true;
+        }
+        TokenPool_SetRMNProxy => {
+            self.setRMNProxy(msgSender, msg.rmnProxy);
             return true;
         }
         TokenPool_UpdateCursedSubjects => {
@@ -523,10 +535,17 @@ fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): Tok
     return entry.isFound ? entry.loadValue() : null;
 }
 
+/// Returns the pool fee parameters that will apply to a transfer.
+/// @param destChainSelector The destination lane selector.
+/// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
 fun TokenPool<T>.getFee(
     self,
+    _localToken: address,
     destChainSelector: uint64,
+    _amount: uint256,
+    _feeToken: address,
     requestedFinalityConfig: uint32,
+    _tokenArgs: cell?,
 ): (uint256, uint32, uint32, uint16, bool) {
     TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
 
@@ -536,6 +555,7 @@ fun TokenPool<T>.getFee(
     }
 
     val feeConfig = entry.loadValue();
+    // If config is disabled, return zeros with isEnabled=false to signal OnRamp to use FeeQuoter defaults.
     if (!feeConfig.isEnabled) {
         return (0, 0, 0, 0, false);
     }
@@ -557,6 +577,33 @@ fun TokenPool<T>.getFee(
         feeConfig.finalityTransferFeeBps,
         true,
     );
+}
+
+/// @dev Calculates the fee based on the transferred amount, and the configured basis points.
+/// @param lockOrBurnIn The original lock or burn request.
+/// @param requestedFinalityConfig The requested finality encoding (see `FinalityCodec`).
+/// A value of zero (FinalityCodec.WAIT_FOR_FINALITY_FLAG) applies default finality fees.
+/// Returns the fee amount.
+fun TokenPool<T>.getFeeAmount(
+    self,
+    request: TokenPool_LockOrBurnInV1,
+    requestedFinalityConfig: uint32,
+): uint256 {
+    val entry = self.data.tokenTransferFeeConfigs.get(request.remoteChainSelector);
+    if (!entry.isFound) {
+        return 0;
+    }
+
+    val feeConfig = entry.loadValue();
+    if (!feeConfig.isEnabled) {
+        return 0;
+    }
+
+    if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        return (request.amount * (feeConfig.fastFinalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
+    }
+
+    return (request.amount * (feeConfig.finalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
 }
 
 fun TokenPool<T>.prepareLockOrBurn(
@@ -664,18 +711,28 @@ fun TokenPool<T>.encodeLocalDecimals(self): cell {
 }
 
 fun TokenPool<T>.parseRemoteDecimals(self, sourcePoolData: cell?): uint8 {
+    // Fallback to the local token decimals if the source pool data is empty. This allows for backwards compatibility.
     if (sourcePoolData == null) {
         return self.data.tokenDecimals;
     }
 
-    var cs = sourcePoolData!.beginParse();
-    assert(cs.remainingBitsCount() == 256 && cs.remainingRefsCount() == 0, TokenPool_Error.InvalidRemoteChainDecimals);
-    val remoteDecimals = cs.loadUint(256);
-    cs.assertEnd();
-    assert(remoteDecimals <= 255, TokenPool_Error.InvalidRemoteChainDecimals);
+    var s = sourcePoolData!.beginParse();
+    assert(s.remainingBitsCount() == 256 && s.remainingRefsCount() == 0, TokenPool_Error.InvalidRemoteChainDecimals);
+    val remoteDecimals = s.loadUint(256);
+    s.assertEnd();
+    assert(remoteDecimals <= TOKEN_POOL_MAX_UINT8, TokenPool_Error.InvalidRemoteChainDecimals);
+
     return remoteDecimals as uint8;
 }
 
+  /// Calculates the local amount based on the remote amount and decimals.
+  /// @param remoteAmount The amount on the remote chain.
+  /// @param remoteDecimals The decimals of the token on the remote chain.
+  /// @return The local amount.
+  /// @dev This function protects against overflows. If there is a transaction that hits the overflow check, it is
+  /// probably incorrect as that means the amount cannot be represented on this chain. If the local decimals have been
+  /// wrongly configured, the token issuer could redeploy the pool with the correct decimals and manually re-execute the
+  /// CCIP tx to fix the issue.
 fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimals: uint8): uint256 {
     if (remoteDecimals == self.data.tokenDecimals) {
         return remoteAmount;
@@ -683,36 +740,21 @@ fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimal
 
     if (remoteDecimals > self.data.tokenDecimals) {
         val decimalsDiff = remoteDecimals - self.data.tokenDecimals;
+        // This is a safety check to prevent overflow in the next calculation.
         assert(decimalsDiff <= TOKEN_POOL_MAX_EXP10, TokenPool_Error.OverflowDetected);
-        return remoteAmount / TokenPool_pow10(decimalsDiff);
+
+        return remoteAmount / pow10(decimalsDiff);
     }
 
+    // This is a safety check to prevent overflow in the next calculation.
+    // More than 77 would never fit in a uint256 and would cause an overflow.
+    // We also check if the resulting amount would overflow.
     val decimalsDiff = self.data.tokenDecimals - remoteDecimals;
     assert(decimalsDiff <= TOKEN_POOL_MAX_EXP10, TokenPool_Error.OverflowDetected);
-    val scale = TokenPool_pow10(decimalsDiff);
+    val scale = pow10(decimalsDiff);
     assert(scale == 0 || remoteAmount <= TOKEN_POOL_MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
+ 
     return remoteAmount * scale;
-}
-
-fun TokenPool<T>.getFeeAmount(
-    self,
-    request: TokenPool_LockOrBurnInV1,
-    requestedFinalityConfig: uint32,
-): uint256 {
-    val entry = self.data.tokenTransferFeeConfigs.get(request.remoteChainSelector);
-    if (!entry.isFound) {
-        return 0;
-    }
-
-    val feeConfig = entry.loadValue();
-    if (!feeConfig.isEnabled) {
-        return 0;
-    }
-
-    if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        return (request.amount * (feeConfig.fastFinalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
-    }
-    return (request.amount * (feeConfig.finalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
 }
 
 fun TokenPool<T>.requireSupportedChain(self, remoteChainSelector: uint64) {
@@ -960,6 +1002,8 @@ fun TokenPool<T>._setRemotePool(mutate self, mutate config: TokenPool_RemoteChai
     config.remotePools.set(poolHash, remotePoolAddress);
 }
 
+// TODO: withdrawFeeTokens
+
 fun TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32, allowedFinalityConfig: uint32) {
     if (requestedFinalityConfig == TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
         return;
@@ -992,12 +1036,21 @@ fun TokenPool_boxCrossChainAddress(addressBytes: CrossChainAddress): Cell<CrossC
         .endCell() as Cell<CrossChainAddress>;
 }
 
-fun TokenPool_pow10(exponent: uint8): uint256 {
-    var i: uint8 = 0;
+// TODO: move to common utils library
+// @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
+fun pow10(n: uint8): uint256 {
     var result: uint256 = 1;
-    while (i < exponent) {
-        result *= 10;
-        i += 1;
+    var base: uint256 = 10;
+
+    while (n > 0) {
+        if (n & 1 == 1) {
+            // Check for potential overflow before multiplication
+            assert(result == 0 || base <= TOKEN_POOL_MAX_UINT256 / result, TokenPool_Error.OverflowDetected);
+            result *= base;
+        }
+        base *= base;
+        n >>= 1;
     }
+
     return result;
 }
