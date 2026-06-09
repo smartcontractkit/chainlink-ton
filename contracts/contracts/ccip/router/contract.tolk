@@ -178,11 +178,14 @@ fun onInternalMessage(in: InMessage) {
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
             val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+            // Fees are paid in native TON, not in the transferred token. metadata.value must be the
+            // native TON attached to the transfer notification (used downstream to cover fee +
+            // execution costs), mirroring the plain-message path which uses in.valueCoins.
             val onRampSend = createMessage({
                 bounce: true,
                 value: 0,
                 dest: onRamp,
-                body: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: msg.sender, value: msg.amount } },
+                body: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: msg.sender, value: in.valueCoins } },
             });
             onRampSend.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }

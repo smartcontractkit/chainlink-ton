@@ -1,3 +1,5 @@
+import "types"
+
 struct TokenRegistry_Storage {
     info: TokenRegistry_TokenInfo
 }

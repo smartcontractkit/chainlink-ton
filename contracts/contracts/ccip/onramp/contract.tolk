@@ -298,8 +298,9 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 }
 
 fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
-    // TODO: calculate token registry address
-    return createAddressNone() as address
+    // TODO: resolve a per-token registry address. For now the OnRamp stores a single
+    // TokenRegistry address that is used for every token transfer.
+    return st.tokenRegistry!
 }
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {

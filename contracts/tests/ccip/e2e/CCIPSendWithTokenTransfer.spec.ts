@@ -1,0 +1,296 @@
+import '@ton/test-utils'
+import { compile } from '@ton/blueprint'
+import { toNano, Cell, Address, beginCell } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+
+import { LogTypes } from '../../../wrappers/ccip/Logs'
+import { assertLog } from '../../Logs'
+import { WRAPPED_NATIVE } from '../../../src/utils'
+
+import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import * as rt from '../../../wrappers/ccip/Router'
+import { TokenRegistry } from '../../../wrappers/ccip/TokenRegistry'
+import { MockTokenPool } from '../../../wrappers/ccip/MockTokenPool'
+import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
+import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
+import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
+
+import { setup, CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
+
+const JETTON_CONTENT = beginCell().storeStringTail('wton.e2e').endCell()
+
+// Amount of wTON the user transfers (also the CCIP tokenAmount). Deliberately different from
+// FORWARD_TON_AMOUNT so the test can prove metadata.value is the attached native TON, not the
+// transferred token amount (fees are paid in native TON, not in the transferred token).
+const TOKEN_AMOUNT = toNano('5')
+
+// Native TON attached to the transfer notification, used to pay fees + execution costs.
+const FORWARD_TON_AMOUNT = toNano('1')
+
+describe('CCIPSend with token transfer (e2e)', () => {
+  let blockchain: Blockchain
+
+  let minterCode: Cell
+  let walletCode: Cell
+
+  let deployer: SandboxContract<TreasuryContract>
+  let sender: SandboxContract<TreasuryContract>
+
+  let minter: SandboxContract<JettonMinter>
+  let mockTokenPool: SandboxContract<MockTokenPool>
+  let tokenRegistry: SandboxContract<TokenRegistry>
+
+  let router: SandboxContract<rt.Router>
+  let feeQuoter: SandboxContract<fq.FeeQuoter>
+  let onRamp: SandboxContract<or.OnRamp>
+
+  beforeAll(async () => {
+    minterCode = await compile('wton.JettonMinter')
+    walletCode = await compile('wton.JettonWallet')
+  })
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create()
+    blockchain.verbosity = {
+      print: true,
+      blockchainLogs: false,
+      vmLogs: 'none',
+      debugLogs: true,
+    }
+
+    deployer = await blockchain.treasury('deployer')
+    sender = await blockchain.treasury('sender')
+
+    // 1. Deploy the wTON jetton minter.
+    minter = blockchain.openContract(
+      JettonMinter.createFromConfig(
+        {
+          admin: null,
+          transferAdmin: null,
+          walletCode,
+          jettonContent: JETTON_CONTENT,
+          totalSupply: 0n,
+        },
+        minterCode,
+      ),
+    )
+    await minter.sendTopUpTons(deployer.getSender(), toNano('0.01'))
+
+    // 2. Mint wTON to the user (deploys the user's wallet with a balance).
+    await minter.sendMint(deployer.getSender(), {
+      value: TOKEN_AMOUNT + toNano('1') + toNano('0.3'),
+      mintOpcode: WTON_MINT_OPCODE,
+      message: {
+        queryId: 0n,
+        destination: sender.address,
+        tonAmount: toNano('1'),
+        jettonAmount: TOKEN_AMOUNT,
+        from: null,
+        responseDestination: sender.address,
+        forwardTonAmount: 0n,
+        customPayload: null,
+      },
+    })
+
+    // 3. Deploy the MockTokenPool that performs the (mock) lock/burn.
+    const mockTokenPoolCode = await MockTokenPool.code()
+    mockTokenPool = blockchain.openContract(MockTokenPool.createFromConfig(mockTokenPoolCode))
+    await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+    // 4. Deploy the TokenRegistry, hard-coded to return the MockTokenPool address.
+    const tokenRegistryCode = await TokenRegistry.code()
+    tokenRegistry = blockchain.openContract(
+      TokenRegistry.createFromConfig(
+        {
+          info: {
+            tokenPool: mockTokenPool.address,
+            minterAddress: minter.address,
+            enabled: true,
+          },
+        },
+        tokenRegistryCode,
+      ),
+    )
+    await tokenRegistry.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+    // 5. Deploy router/feeQuoter/onRamp/offRamp, storing the TokenRegistry in the OnRamp.
+    ;({ router, feeQuoter, onRamp } = await setup(blockchain, {
+      deployer,
+      sender,
+      tokenRegistry: tokenRegistry.address,
+    }))
+  })
+
+  it('propagates a token-transfer-initiated CCIP send end to end', async () => {
+    const ccipSend: rt.CCIPSend = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+
+    // The CCIPSend payload travels as the forward payload of the jetton transfer.
+    const forwardPayload = rt.builder.message.in.ccipSend.encode(ccipSend).endCell()
+
+    const routerWalletAddress = await minter.getWalletAddress(router.address)
+    const senderWallet = blockchain.openContract(
+      JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
+    )
+
+    // User transfers wTON to the router-owned wallet, carrying the CCIPSend payload.
+    const result = await senderWallet.sendTransfer(sender.getSender(), {
+      value: FORWARD_TON_AMOUNT + toNano('2'),
+      message: {
+        queryId: 1,
+        jettonAmount: TOKEN_AMOUNT,
+        destination: router.address,
+        responseDestination: sender.address,
+        customPayload: null,
+        forwardTonAmount: FORWARD_TON_AMOUNT,
+        forwardPayload,
+      },
+    })
+
+    // Discover the deployed CCIPSendExecutor (first message emitted by the OnRamp).
+    const executorAddress = ((): Address => {
+      for (const tx of result.transactions) {
+        const inMsg = tx.inMessage
+        if (
+          inMsg?.info.type === 'internal' &&
+          inMsg.info.src instanceof Address &&
+          inMsg.info.src.equals(onRamp.address) &&
+          inMsg.info.dest instanceof Address
+        ) {
+          return inMsg.info.dest
+        }
+      }
+      throw new Error('Executor address not found')
+    })()
+
+    // --- jetton transfer leg ---
+    // user -> user wallet
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: senderWallet.address,
+      success: true,
+    })
+    // user wallet -> router wallet (deploys it)
+    expect(result.transactions).toHaveTransaction({
+      from: senderWallet.address,
+      to: routerWalletAddress,
+      deploy: true,
+      success: true,
+    })
+    // router wallet -> router (transfer notification)
+    expect(result.transactions).toHaveTransaction({
+      from: routerWalletAddress,
+      to: router.address,
+      success: true,
+    })
+
+    // --- ccip send leg ---
+    // router -> onRamp
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+    })
+    // onRamp deploys the executor
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: executorAddress,
+      deploy: true,
+      success: true,
+    })
+    // executor -> feeQuoter and back
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: feeQuoter.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      to: executorAddress,
+      success: true,
+    })
+    // executor -> tokenRegistry and back
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: tokenRegistry.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: tokenRegistry.address,
+      to: executorAddress,
+      success: true,
+    })
+    // executor -> onRamp (requests lock/burn)
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      success: true,
+    })
+    // onRamp -> router (forwards lock/burn)
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: router.address,
+      success: true,
+    })
+    // router -> mockTokenPool (lock/burn) and back to the executor (confirmation)
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: mockTokenPool.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: mockTokenPool.address,
+      to: executorAddress,
+      success: true,
+    })
+    // executor -> onRamp (finished successfully) and self-destructs
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      success: true,
+    })
+
+    // OnRamp emits the CCIPMessageSent log. Verify the token-transfer amount equals TOKEN_AMOUNT (wTON).
+    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      message: {
+        header: {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        },
+        sender: sender.address,
+        body: {
+          tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
+        },
+      },
+    } as any)
+
+    // OnRamp -> router (Router_MessageSent)
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: router.address,
+      op: rt.opcodes.in.messageSent,
+      success: true,
+    })
+
+    // router -> user (CCIPSendACK)
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.ccipSendACK,
+      success: true,
+    })
+  })
+})

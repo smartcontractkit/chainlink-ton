@@ -48,6 +48,8 @@ export type Data = {
 export type Addresses = {
   onramp: Address
   feeQuoter: Address
+  // Null when the send carries no token transfers.
+  tokenRegistry?: Address | null
 }
 
 export type State = Initialized | OnGoingFeeValidation
@@ -62,6 +64,8 @@ export type OnGoingFeeValidation = {
 
 export type Config = {
   feeQuoter: Address
+  // Null when the send carries no token transfers.
+  tokenRegistry?: Address | null
 }
 
 export type Execute = {
@@ -85,12 +89,16 @@ export const builder = (() => {
 
     const addresses: CellCodec<Addresses> = {
       encode: (data: Addresses): Builder => {
-        return beginCell().storeAddress(data.onramp).storeAddress(data.feeQuoter)
+        return beginCell()
+          .storeAddress(data.onramp)
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.tokenRegistry ?? null)
       },
       load: (src: Slice): Addresses => {
         return {
           onramp: src.loadAddress(),
           feeQuoter: src.loadAddress(),
+          tokenRegistry: src.loadMaybeAddress(),
         }
       },
     }
@@ -119,11 +127,14 @@ export const builder = (() => {
 
     const config: CellCodec<Config> = {
       encode: (data: Config): Builder => {
-        return beginCell().storeAddress(data.feeQuoter)
+        return beginCell()
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.tokenRegistry ?? null)
       },
       load: (src: Slice): Config => {
         return {
           feeQuoter: src.loadAddress(),
+          tokenRegistry: src.loadMaybeAddress(),
         }
       },
     }

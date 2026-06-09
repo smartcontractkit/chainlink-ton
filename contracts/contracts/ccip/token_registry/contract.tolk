@@ -1,5 +1,17 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "messages"
 import "storage"
+
+tolk 1.4.1
+
+contract TokenRegistry {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.TokenRegistry"
+
+    storage: TokenRegistry_Storage
+    incomingMessages: TokenRegistry_InMessage
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenRegistry_InMessage.fromSlice(in.body);
@@ -20,7 +32,7 @@ fun onGetTokenInfo(msg: TokenRegistry_GetTokenInfo, sender: address) {
         dest: sender,
         value: 0,
         bounce: false,
-        body: TokenRegistry_TokenPoolInfo {
+        body: TokenRegistry_ReturnTokenInfo {
             tokenInfo: st.info,
         }
     });
