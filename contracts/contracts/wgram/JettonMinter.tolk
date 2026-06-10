@@ -12,7 +12,7 @@ import "fees-management"
 contract JettonMinter {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.0.1"
-    description: "link.chain.ton.wton.JettonMinter"
+    description: "link.chain.ton.wgram.JettonMinter"
 
     storage: MinterStorage
     incomingMessages: AllowedMessageToMinter
@@ -96,7 +96,7 @@ fun onInternalMessage(in: InMessage) {
                     queryId: msg.queryId
                 }
             });
-            // If the send action cannot be executed, the tx must fail and bounce back to the wallet to restore wTON.
+            // If the send action cannot be executed, the tx must fail and bounce back to the wallet to restore wGRAM.
             excessesMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
@@ -193,7 +193,7 @@ struct (0x00) OnchainMetadataReply {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.wton.JettonMinter".literalSlice(), "0.0.1".literalSlice());
+    return ("link.chain.ton.wgram.JettonMinter".literalSlice(), "0.0.1".literalSlice());
 }
 
 get fun get_jetton_data(): JettonDataReply {

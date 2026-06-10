@@ -11,7 +11,7 @@ import "fees-management"
 contract JettonWallet {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.0.1"
-    description: "link.chain.ton.wton.JettonWallet"
+    description: "link.chain.ton.wgram.JettonWallet"
 
     storage: WalletStorage
     incomingMessages: AllowedMessageToWallet
@@ -68,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
             val jettonBalanceNext = storage.jettonBalance + msg.jettonAmount;
             val requiredReserve = requiredWalletReserve(jettonBalanceNext);
             // Hard reserve check: the inbound transfer must fund the full post-credit backing floor
-            // before we credit wTON or allow any forward / excess action to run.
+            // before we credit wGRAM or allow any forward / excess action to run.
             assert (contract.getOriginalBalance() >= requiredReserve + msg.forwardTonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
             // Soft reserve check: keep TON that was already on the wallet before this message from
             // being reclassified as outbound excess. This surplus is best-effort under RESERVE_MODE_AT_MOST.
@@ -127,7 +127,7 @@ fun onInternalMessage(in: InMessage) {
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
-            // Preserve the remaining wTON backing plus storage reserve exactly, or abort the transfer.
+            // Preserve the remaining wGRAM backing plus storage reserve exactly, or abort the transfer.
             reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val deployMsg = createMessage({
@@ -214,7 +214,7 @@ struct JettonWalletDataReply {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.wton.JettonWallet".literalSlice(), "0.0.1".literalSlice());
+    return ("link.chain.ton.wgram.JettonWallet".literalSlice(), "0.0.1".literalSlice());
 }
 
 get fun get_wallet_data(): JettonWalletDataReply {

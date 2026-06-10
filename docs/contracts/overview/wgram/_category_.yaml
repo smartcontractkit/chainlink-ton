@@ -1,7 +1,7 @@
 position: 6
-label: wTON
+label: wGRAM
 collapsible: true
 collapsed: true
 link:
   type: doc
-  id: contracts-overview-wton-index
+  id: contracts-overview-wgram-index

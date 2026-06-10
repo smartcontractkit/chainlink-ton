@@ -29,7 +29,7 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 // these constants are used to estimate gas fee (how much we should remain on balance for a swap to succeed);
 // they must stay exactly equal to the calibrated measured gas values for the covered live paths;
 // if those measured values drift, tests fail.
-// actual consumed gas is measured by tests/gas-report/wton/Wton.spec.ts via yarn wton-gas-report
+// actual consumed gas is measured by tests/gas-report/wgram/wgram.spec.ts via yarn wgram-gas-report
 // GAS_CONSUMPTION_JettonTransfer is calibrated against the max sender-side path that reuses
 // checkAmountIsEnoughToTransfer (wallet transfer sender vs mint sender candidate).
 // GAS_CONSUMPTION_JettonReceive is calibrated against the max live receive branch with both
