@@ -96,9 +96,9 @@ export class LockReleaseTokenPool implements Contract {
     provider: ContractProvider,
     via: Sender,
     value: bigint,
-    cursedSubjects: bigint[],
+    body: { queryId: bigint; cursedSubjects: bigint[] },
   ) {
-    await sendUpdateCursedSubjects(provider, via, value, cursedSubjects)
+    await sendUpdateCursedSubjects(provider, via, value, body)
   }
 
   async sendReleaseOrMint(

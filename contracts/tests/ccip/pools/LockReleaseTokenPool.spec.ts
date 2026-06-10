@@ -361,7 +361,7 @@ describe('LockReleaseTokenPool', () => {
     const curseUpdate = await lockReleasePool.sendUpdateCursedSubjects(
       deployer.getSender(),
       toNano('0.2'),
-      [remoteChainSelector],
+      { queryId: 901n, cursedSubjects: [remoteChainSelector] },
     )
 
     expect(curseUpdate.transactions).toHaveTransaction({

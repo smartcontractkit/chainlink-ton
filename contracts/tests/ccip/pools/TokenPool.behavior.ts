@@ -25,7 +25,7 @@ export type TokenPoolBehaviorContext = {
     sendUpdateCursedSubjects: (
       via: Sender,
       value: bigint,
-      cursedSubjects: bigint[],
+      body: { queryId: bigint; cursedSubjects: bigint[] },
     ) => Promise<{ transactions: unknown[] }>
     sendReleaseOrMint: (
       via: Sender,
@@ -112,9 +112,10 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint while chain is cursed', async () => {
       const ctx = await setup()
 
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [
-        ctx.remoteChainSelector,
-      ])
+      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 901n,
+        cursedSubjects: [ctx.remoteChainSelector],
+      })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
       const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
@@ -197,7 +198,10 @@ export function runTokenPoolBehaviorTests(
       const result = await ctx.pool.sendUpdateCursedSubjects(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
-        [ctx.remoteChainSelector],
+        {
+          queryId: 904n,
+          cursedSubjects: [ctx.remoteChainSelector],
+        },
       )
 
       expect(result.transactions).toHaveTransaction({
@@ -209,12 +213,16 @@ export function runTokenPoolBehaviorTests(
 
     it('can clear cursed subject back to not cursed', async () => {
       const ctx = await setup()
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [
-        ctx.remoteChainSelector,
-      ])
+      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 901n,
+        cursedSubjects: [ctx.remoteChainSelector],
+      })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), [])
+      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 902n,
+        cursedSubjects: [],
+      })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
     })
 

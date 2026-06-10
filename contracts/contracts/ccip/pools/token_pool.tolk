@@ -846,7 +846,7 @@ fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
-    RateLimiter_consumeBucket(mutate bucket, amount);
+    bucket._consume(amount, self.data.token);
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -862,7 +862,7 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
-    RateLimiter_consumeBucket(mutate bucket, amount);
+    bucket._consume(amount, self.data.token);
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -883,11 +883,11 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.outbound.load();
-        RateLimiter_consumeBucket(mutate bucket, amount);
+        bucket._consume(amount, self.data.token);
         rateLimiters.outbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        RateLimiter_consumeBucket(mutate fastBucket, amount);
+        fastBucket._consume(amount, self.data.token);
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -909,11 +909,11 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.inbound.load();
-        RateLimiter_consumeBucket(mutate bucket, amount);
+        bucket._consume(amount, self.data.token);
         rateLimiters.inbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        RateLimiter_consumeBucket(mutate fastBucket, amount);
+        fastBucket._consume(amount, self.data.token);
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }

@@ -117,8 +117,8 @@ export const codec = {
     encode(data: RateLimitConfig): Builder {
       return beginCell()
         .storeBit(data.isEnabled)
-        .storeUint(data.capacity, 256)
-        .storeUint(data.rate, 256)
+        .storeUint(data.capacity, 128)
+        .storeUint(data.rate, 128)
     },
   },
 
@@ -283,14 +283,18 @@ export async function sendUpdateCursedSubjects(
   provider: ContractProvider,
   via: Sender,
   value: bigint,
-  cursedSubjects: bigint[],
+  body: { queryId: bigint; cursedSubjects: bigint[] },
 ) {
   const dict = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
-  cursedSubjects.forEach((subject) => dict.set(subject, true))
+  body.cursedSubjects.forEach((subject) => dict.set(subject, true))
   await provider.internal(via, {
     value,
     sendMode: SendMode.PAY_GAS_SEPARATELY,
-    body: beginCell().storeUint(opcodes.in.updateCursedSubjects, 32).storeDict(dict).endCell(),
+    body: beginCell()
+      .storeUint(opcodes.in.updateCursedSubjects, 32)
+      .storeUint(body.queryId, 64)
+      .storeDict(dict)
+      .endCell(),
   })
 }
 
