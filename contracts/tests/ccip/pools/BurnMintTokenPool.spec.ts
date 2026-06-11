@@ -51,6 +51,7 @@ describe('BurnMintTokenPool', () => {
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
   const remoteChainSelector = 91000001n
+
   let sourcePoolAddress: CrossChainAddress
   let destTokenAddress: CrossChainAddress
   let receiverAddress: CrossChainAddress

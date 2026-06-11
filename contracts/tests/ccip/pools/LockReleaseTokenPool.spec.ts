@@ -1,16 +1,41 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
+import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
-import {
-  LockReleaseTokenPool,
-  codec as poolCodec,
-  opcodes as poolOpcodes,
-} from '../../../wrappers/ccip/LockReleaseTokenPool'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
-import { TokenPool } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import {
+  CrossChainAddress,
+  CursedSubjects,
+  RateLimiter_Config,
+  TokenPool,
+  TokenPool_Data,
+  TokenPool_AdminConfig,
+  TokenPool_DynamicConfig,
+  TokenPool_MirroredPolicy,
+  TokenPool_ReleaseOrMintResponse,
+  TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnInV1,
+  TokenPool_ReleaseOrMintInV1,
+  TokenPool_RateLimitConfigPair,
+  TokenPool_RampUpdate,
+  TokenPool_ChainUpdate,
+  Ownable2Step,
+} from '../../../wrappers/gen/ccip/pools/TokenPool'
+import {
+  JettonClient,
+  LockReleaseTokenPool,
+} from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import { setupGenBindings } from '../../../wrappers/gen'
+
+import * as rtOld from '../../../wrappers/ccip/Router'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
+
+function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
+  const addrSlice = rtOld.builder.data.crossChainAddress.encode(buffer).asSlice()
+  return CrossChainAddress.fromSlice(addrSlice)
+}
 
 describe('LockReleaseTokenPool', () => {
   let blockchain: Blockchain
@@ -27,12 +52,17 @@ describe('LockReleaseTokenPool', () => {
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
   const remoteChainSelector = 90000001n
-  const sourcePoolAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('source-pool'))
-  const destTokenAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('dest-token'))
-  const receiverAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('receiver'))
+
+  let sourcePoolAddress: CrossChainAddress
+  let destTokenAddress: CrossChainAddress
+  let receiverAddress: CrossChainAddress
 
   beforeAll(async () => {
     setupGenBindings()
+
+    sourcePoolAddress = crossChainAddressFromBuffer(Buffer.from('source-pool'))
+    destTokenAddress = crossChainAddressFromBuffer(Buffer.from('dest-token'))
+    receiverAddress = crossChainAddressFromBuffer(Buffer.from('receiver'))
   })
 
   beforeEach(async () => {
@@ -72,43 +102,93 @@ describe('LockReleaseTokenPool', () => {
     )
     await jettonSender.sendDeploy(deployer.getSender(), toNano('1'))
 
-    const poolCode = await LockReleaseTokenPool.code()
     lockReleasePool = blockchain.openContract(
-      LockReleaseTokenPool.createFromConfig(
-        {
-          owner: deployer.address,
-          token: jettonMinter.address,
-          tokenDecimals: 9,
-          rmnProxy: deployer.address,
-          router: deployer.address,
-          jettonClient: {
+      LockReleaseTokenPool.fromStorage({
+        poolData: {
+          ref: TokenPool_Data.create({
+            adminConfig: {
+              ref: TokenPool_AdminConfig.create({
+                ownable: {
+                  ref: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+                },
+                rmnProxy: deployer.address,
+                dynamicConfig: {
+                  ref: TokenPool_DynamicConfig.create({
+                    router: deployer.address,
+                    rateLimitAdmin: null,
+                    feeAdmin: null,
+                  }),
+                },
+                allowedFinalityConfig: 0n,
+              }),
+            },
+            mirroredPolicy: {
+              ref: TokenPool_MirroredPolicy.create({
+                onRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+                offRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+                cursedSubjects: CursedSubjects.create({
+                  data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
+                }),
+              }),
+            },
+            token: jettonMinter.address,
+            tokenDecimals: 9n,
+            remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+            tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+          }),
+        },
+        jettonClient: {
+          ref: JettonClient.create({
             masterAddress: jettonMinter.address,
             jettonWalletCode,
-          },
+          }),
         },
-        poolCode,
-      ),
+        pendingReleases: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+      }),
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))
 
     // Standard TokenPool interface
     pool = blockchain.openContract(TokenPool.fromAddress(lockReleasePool.address))
 
-    const applyChains = await lockReleasePool.sendApplyChainUpdates(
+    const applyChains = await lockReleasePool.sendTokenPoolApplyChainUpdates(
       deployer.getSender(),
       toNano('0.2'),
       {
         queryId: 1n,
-        remove: [],
-        add: [
-          {
-            remoteChainSelector,
-            remotePoolAddresses: [sourcePoolAddress],
-            remoteTokenAddress: destTokenAddress,
-            outboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-            inboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-          },
-        ],
+        remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
+        chainsToAdd: asSnakedCell(
+          [
+            TokenPool_ChainUpdate.create({
+              remoteChainSelector,
+              remotePoolAddresses: asSnakedCell([sourcePoolAddress], (item) => {
+                let b = beginCell()
+                CrossChainAddress.store(item, b)
+                return b
+              }),
+              remoteTokenAddress: { ref: destTokenAddress },
+              rateLimitConfigs: {
+                ref: TokenPool_RateLimitConfigPair.create({
+                  outbound: {
+                    ref: RateLimiter_Config.create({
+                      isEnabled: true,
+                      capacity: toNano('100'),
+                      rate: 1n,
+                    }),
+                  },
+                  inbound: {
+                    ref: RateLimiter_Config.create({
+                      isEnabled: true,
+                      capacity: toNano('100'),
+                      rate: 1n,
+                    }),
+                  },
+                }),
+              },
+            }),
+          ],
+          (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
+        ),
       },
     )
 
@@ -118,18 +198,21 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    const updateRampAccess = await lockReleasePool.sendUpdateRampAccess(
+    const updateRampAccess = await lockReleasePool.sendTokenPoolUpdateRampAccess(
       deployer.getSender(),
       toNano('0.2'),
       {
         queryId: 2n,
-        updates: [
-          {
-            remoteChainSelector,
-            onRamp: jettonSender.address,
-            offRamp: offRamp.address,
-          },
-        ],
+        updates: asSnakedCell(
+          [
+            TokenPool_RampUpdate.create({
+              remoteChainSelector,
+              onRamp: jettonSender.address,
+              offRamp: offRamp.address,
+            }),
+          ],
+          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
+        ),
       },
     )
 
@@ -173,9 +256,7 @@ describe('LockReleaseTokenPool', () => {
     recipient,
     remoteChainSelector,
     unsupportedChainSelector: remoteChainSelector + 1n,
-    unknownSourcePoolAddress: poolCodec.crossChainAddressFromBuffer(
-      Buffer.from('unknown-source-pool'),
-    ),
+    unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
     remoteTokenAddress: destTokenAddress,
     onRampAddress: jettonSender.address,
     destTokenAddress,
@@ -199,21 +280,23 @@ describe('LockReleaseTokenPool', () => {
         destination: lockReleasePool.address,
         customPayload: beginCell().storeBit(1).endCell(),
         forwardTonAmount: toNano('0.2'),
-        forwardPayload: poolCodec.lockOrBurnPayload
-          .encode({
+        forwardPayload: TokenPool_LockOrBurn.toCell(
+          TokenPool_LockOrBurn.create({
             queryId: 44n,
             request: {
-              receiver: receiverAddress,
-              remoteChainSelector,
-              originalSender: deployer.address,
-              amount: toNano('2'),
-              localToken: jettonMinter.address,
+              ref: TokenPool_LockOrBurnInV1.create({
+                receiver: { ref: receiverAddress },
+                remoteChainSelector,
+                originalSender: deployer.address,
+                amount: toNano('2'),
+                localToken: jettonMinter.address,
+              }),
             },
-            requestedFinalityConfig: 0,
+            requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: deployer.address,
-          })
-          .endCell(),
+          }),
+        ),
       },
     })
 
@@ -248,21 +331,27 @@ describe('LockReleaseTokenPool', () => {
   })
 
   it('reverts releaseOrMint when requested amount exceeds pool liquidity', async () => {
-    const result = await lockReleasePool.sendReleaseOrMint(offRamp.getSender(), toNano('0.4'), {
-      queryId: 46n,
-      request: {
-        originalSender: sourcePoolAddress,
-        remoteChainSelector,
-        receiver: recipient.address,
-        sourceDenominatedAmount: toNano('999999'),
-        localToken: jettonMinter.address,
-        sourcePoolAddress,
-        sourcePoolData: null,
-        offchainTokenData: null,
+    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.4'),
+      {
+        queryId: 46n,
+        request: {
+          ref: TokenPool_ReleaseOrMintInV1.create({
+            originalSender: { ref: sourcePoolAddress },
+            remoteChainSelector,
+            receiver: recipient.address,
+            sourceDenominatedAmount: toNano('999999'),
+            localToken: jettonMinter.address,
+            sourcePoolAddress: { ref: sourcePoolAddress },
+            sourcePoolData: null,
+            offchainTokenData: null,
+          }),
+        },
+        requestedFinalityConfig: 0n,
+        replyTo: deployer.address,
       },
-      requestedFinalityConfig: 0,
-      replyTo: deployer.address,
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
@@ -284,21 +373,23 @@ describe('LockReleaseTokenPool', () => {
         destination: lockReleasePool.address,
         customPayload: beginCell().storeBit(1).endCell(),
         forwardTonAmount: toNano('0.2'),
-        forwardPayload: poolCodec.lockOrBurnPayload
-          .encode({
+        forwardPayload: TokenPool_LockOrBurn.toCell(
+          TokenPool_LockOrBurn.create({
             queryId: 11n,
             request: {
-              receiver: receiverAddress,
-              remoteChainSelector,
-              originalSender: deployer.address,
-              amount: toNano('3'),
-              localToken: jettonMinter.address,
+              ref: TokenPool_LockOrBurnInV1.create({
+                receiver: { ref: receiverAddress },
+                remoteChainSelector,
+                originalSender: deployer.address,
+                amount: toNano('3'),
+                localToken: jettonMinter.address,
+              }),
             },
-            requestedFinalityConfig: 0,
+            requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: deployer.address,
-          })
-          .endCell(),
+          }),
+        ),
       },
     })
 
@@ -328,21 +419,27 @@ describe('LockReleaseTokenPool', () => {
       },
     })
 
-    const result = await lockReleasePool.sendReleaseOrMint(offRamp.getSender(), toNano('0.4'), {
-      queryId: 22n,
-      request: {
-        originalSender: sourcePoolAddress,
-        remoteChainSelector,
-        receiver: recipient.address,
-        sourceDenominatedAmount: toNano('2'),
-        localToken: jettonMinter.address,
-        sourcePoolAddress,
-        sourcePoolData: null,
-        offchainTokenData: null,
+    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.4'),
+      {
+        queryId: 22n,
+        request: {
+          ref: TokenPool_ReleaseOrMintInV1.create({
+            originalSender: { ref: sourcePoolAddress },
+            remoteChainSelector,
+            receiver: recipient.address,
+            sourceDenominatedAmount: toNano('2'),
+            localToken: jettonMinter.address,
+            sourcePoolAddress: { ref: sourcePoolAddress },
+            sourcePoolData: null,
+            offchainTokenData: null,
+          }),
+        },
+        requestedFinalityConfig: 0n,
+        replyTo: deployer.address,
       },
-      requestedFinalityConfig: 0,
-      replyTo: deployer.address,
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
@@ -358,20 +455,29 @@ describe('LockReleaseTokenPool', () => {
       from: lockReleasePool.address,
       to: deployer.address,
       success: true,
-      op: poolOpcodes.out.releaseOrMintResponse,
+      op: TokenPool_ReleaseOrMintResponse.PREFIX,
       body(body) {
         if (!body) return false
-        const response = poolCodec.releaseOrMintResponse.load(body.beginParse())
-        return response.queryId === 22n && response.destinationAmount === toNano('2')
+        const response = TokenPool_ReleaseOrMintResponse.fromSlice(body.beginParse())
+        return response.queryId === 22n && response.out.ref.destinationAmount === toNano('2')
       },
     })
   })
 
   it('mirrors cursed state locally and blocks release while cursed', async () => {
-    const curseUpdate = await lockReleasePool.sendUpdateCursedSubjects(
+    const curseUpdate = await lockReleasePool.sendTokenPoolUpdateCursedSubjects(
       deployer.getSender(),
       toNano('0.2'),
-      { queryId: 901n, cursedSubjects: [remoteChainSelector] },
+      {
+        queryId: 901n,
+        cursedSubjects: CursedSubjects.create({
+          data: loadMap(
+            Dictionary.Keys.BigInt(128),
+            createEmptyTensorValue(),
+            new Map([[remoteChainSelector, []]]),
+          ),
+        }),
+      },
     )
 
     expect(curseUpdate.transactions).toHaveTransaction({
@@ -382,21 +488,27 @@ describe('LockReleaseTokenPool', () => {
 
     expect(await lockReleasePool.getVerifyNotCursed(remoteChainSelector)).toBe(false)
 
-    const result = await lockReleasePool.sendReleaseOrMint(offRamp.getSender(), toNano('0.3'), {
-      queryId: 33n,
-      request: {
-        originalSender: sourcePoolAddress,
-        remoteChainSelector,
-        receiver: recipient.address,
-        sourceDenominatedAmount: 1n,
-        localToken: jettonMinter.address,
-        sourcePoolAddress,
-        sourcePoolData: null,
-        offchainTokenData: null,
+    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.3'),
+      {
+        queryId: 33n,
+        request: {
+          ref: TokenPool_ReleaseOrMintInV1.create({
+            originalSender: { ref: sourcePoolAddress },
+            remoteChainSelector,
+            receiver: recipient.address,
+            sourceDenominatedAmount: toNano('1'),
+            localToken: jettonMinter.address,
+            sourcePoolAddress: { ref: sourcePoolAddress },
+            sourcePoolData: null,
+            offchainTokenData: null,
+          }),
+        },
+        requestedFinalityConfig: 0n,
+        replyTo: deployer.address,
       },
-      requestedFinalityConfig: 0,
-      replyTo: deployer.address,
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
