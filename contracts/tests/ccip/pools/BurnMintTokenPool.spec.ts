@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { Address, Builder, Cell, Slice, beginCell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import {
   BurnMintTokenPool,
@@ -10,6 +10,8 @@ import {
 import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
 import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { CrossChainAddress, TokenPool } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as rtOld from '../../../wrappers/ccip/Router'
 
 describe('BurnMintTokenPool', () => {
   let blockchain: Blockchain
@@ -21,6 +23,7 @@ describe('BurnMintTokenPool', () => {
   let cctMinter: SandboxContract<CCTJettonMinter>
   let cctMinterRuntime: SandboxContract<JettonMinter>
   let burnMintPool: SandboxContract<BurnMintTokenPool>
+  let pool: SandboxContract<TokenPool>
   let cctWalletCode: Cell
 
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
@@ -29,6 +32,25 @@ describe('BurnMintTokenPool', () => {
   const sourcePoolAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('source-pool'))
   const destTokenAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('dest-token'))
   const receiverAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('receiver'))
+
+  beforeAll(async () => {
+    // TODO: move this to a common setup utility
+    function CrossChainAddress__packToBuilder(self: CrossChainAddress, b: Builder): void {
+      const src = self.clone()
+      const buffer = src.loadBuffer(src.remainingBits / 8)
+      b.storeBuilder(rtOld.builder.data.crossChainAddress.encode(buffer))
+    }
+    function CrossChainAddress__unpackFromSlice(s: Slice): CrossChainAddress {
+      const buff = rtOld.builder.data.crossChainAddress.load(s)
+      return beginCell().storeBuffer(buff).asSlice() as CrossChainAddress
+    }
+
+    TokenPool.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddress__packToBuilder,
+      CrossChainAddress__unpackFromSlice,
+    )
+  })
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -73,6 +95,9 @@ describe('BurnMintTokenPool', () => {
       ),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
+
+    // Standard TokenPool interface
+    pool = blockchain.openContract(TokenPool.fromAddress(burnMintPool.address))
 
     await burnMintPool.sendApplyChainUpdates(deployer.getSender(), toNano('0.2'), {
       queryId: 1n,
@@ -170,7 +195,7 @@ describe('BurnMintTokenPool', () => {
   })
 
   runTokenPoolBehaviorTests('BurnMintTokenPool', async () => ({
-    pool: burnMintPool,
+    pool,
     deployer,
     offRamp,
     altOffRamp: deployer,

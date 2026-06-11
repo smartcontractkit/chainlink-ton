@@ -19,3 +19,47 @@ contract TokenPool {
 fun onInternalMessage(in: InMessage) {
     throw 0xFFFF; // template for bindings, should not be deployed
 }
+
+get fun typeAndVersion(): (slice, slice) {
+    throw 0xFFFF;
+}
+
+get fun token(): address {
+    throw 0xFFFF;
+}
+
+get fun tokenDecimals(): uint8 {
+    throw 0xFFFF;
+}
+
+get fun isSupportedChain(remoteChainSelector: uint64): bool {
+    throw 0xFFFF;
+}
+
+get fun onRamp(remoteChainSelector: uint64): address? {
+    throw 0xFFFF;
+}
+
+get fun offRamp(remoteChainSelector: uint64): address? {
+    throw 0xFFFF;
+}
+
+get fun hasPendingRelease(queryId: uint64): bool {
+    throw 0xFFFF;
+}
+
+get fun getRMNProxy(): address {
+    throw 0xFFFF;
+}
+
+get fun verifyNotCursed(subject: uint128): bool {
+    throw 0xFFFF;
+}
+
+get fun owner(): address {
+    throw 0xFFFF;
+}
+
+get fun pendingOwner(): address? {
+    throw 0xFFFF;
+}

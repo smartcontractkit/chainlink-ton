@@ -135,6 +135,14 @@ class StackReader {
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
     }
+
+    readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return null;
+        }
+        return readFn_T(this);
+    }
 }
 
 // ————————————————————————————————————————————
@@ -1632,7 +1640,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAGQABFP8A9KQT9LzyyAsBABTTMPiR8kCED/Lw');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBGAEArgABFP8A9KQT9LzyyAsBAgFiAgMAFNAw+JHyQIQP8vACASAEBQIBIAYHAgEgEhMCASAICQIBIA4PAgEgCgsADbW1EIH+XhACAWoMDQANsFfhA/y8IAALpXUIH+XhAAunIwgf5eEADbSjsIH+XhACA3tgEBEAC6OuED/LwgALohoQP8vCAA24PthA/y8IAgFYFBUADbLgYQP8vCACAVgWFwAMqHGED/LwAAyqqIQP8vA=');
 
     static Errors = {
     }
@@ -1918,5 +1926,82 @@ export class TokenPool implements c.Contract {
             body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
             ...extraOptions
         });
+    }
+
+    async getTypeAndVersion(provider: ContractProvider): Promise<[
+        c.Slice,
+        c.Slice,
+    ]> {
+        const r = StackReader.fromGetMethod(2, await provider.get('typeAndVersion', []));
+        return [
+            r.readSlice(),
+            r.readSlice(),
+        ];
+    }
+
+    async getToken(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('token', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getTokenDecimals(provider: ContractProvider): Promise<uint8> {
+        const r = StackReader.fromGetMethod(1, await provider.get('tokenDecimals', []));
+        return r.readBigInt();
+    }
+
+    async getIsSupportedChain(provider: ContractProvider, remoteChainSelector: uint64): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('isSupportedChain', [
+            { type: 'int', value: remoteChainSelector },
+        ]));
+        return r.readBoolean();
+    }
+
+    async getOnRamp(provider: ContractProvider, remoteChainSelector: uint64): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('onRamp', [
+            { type: 'int', value: remoteChainSelector },
+        ]));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
+    }
+
+    async getOffRamp(provider: ContractProvider, remoteChainSelector: uint64): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('offRamp', [
+            { type: 'int', value: remoteChainSelector },
+        ]));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
+    }
+
+    async getHasPendingRelease(provider: ContractProvider, queryId: uint64): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('hasPendingRelease', [
+            { type: 'int', value: queryId },
+        ]));
+        return r.readBoolean();
+    }
+
+    async getRMNProxy(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('verifyNotCursed', [
+            { type: 'int', value: subject },
+        ]));
+        return r.readBoolean();
+    }
+
+    async getOwner(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('owner', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getPendingOwner(provider: ContractProvider): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('pendingOwner', []));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 }

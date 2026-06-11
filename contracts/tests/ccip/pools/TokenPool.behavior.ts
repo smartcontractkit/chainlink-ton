@@ -1,48 +1,20 @@
 import '@ton/test-utils'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
-import { ReleaseOrMintInV1 } from '../../../wrappers/ccip/TokenPool'
+import { Address, beginCell, Cell, Dictionary, DictionaryValue, Sender, toNano } from '@ton/core'
+import {
+  CursedSubjects,
+  TokenPool,
+  TokenPool_ChainUpdate,
+  TokenPool_RampUpdate,
+  TokenPool_RateLimitConfigPair,
+  TokenPool_ReleaseOrMintInV1,
+  RateLimiter_Config,
+} from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
+import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
 
 export type TokenPoolBehaviorContext = {
-  pool: {
-    sendApplyChainUpdates: (
-      via: Sender,
-      value: bigint,
-      body: { queryId: bigint; remove: bigint[]; add: ChainUpdateInput[] },
-    ) => Promise<{ transactions: unknown[] }>
-    sendUpdateRampAccess: (
-      via: Sender,
-      value: bigint,
-      body: {
-        queryId: bigint
-        updates: {
-          remoteChainSelector: bigint
-          onRamp: Address | null
-          offRamp: Address | null
-        }[]
-      },
-    ) => Promise<{ transactions: unknown[] }>
-    sendUpdateCursedSubjects: (
-      via: Sender,
-      value: bigint,
-      body: { queryId: bigint; cursedSubjects: bigint[] },
-    ) => Promise<{ transactions: unknown[] }>
-    sendReleaseOrMint: (
-      via: Sender,
-      value: bigint,
-      body: {
-        queryId: bigint
-        request: ReleaseOrMintInV1
-        requestedFinalityConfig?: number
-        replyTo?: Address | null
-      },
-    ) => Promise<{ transactions: unknown[] }>
-    getVerifyNotCursed: (subject: bigint) => Promise<boolean>
-    getOnRamp: (remoteChainSelector: bigint) => Promise<Address | null>
-    getOffRamp: (remoteChainSelector: bigint) => Promise<Address | null>
-    getIsSupportedChain: (remoteChainSelector: bigint) => Promise<boolean>
-    address: Address
-  }
+  pool: SandboxContract<TokenPool>
   deployer: SandboxContract<TreasuryContract>
   offRamp: SandboxContract<TreasuryContract>
   unauthorized: SandboxContract<TreasuryContract>
@@ -54,29 +26,21 @@ export type TokenPoolBehaviorContext = {
   localToken: Address
 }
 
-type ChainUpdateInput = {
-  remoteChainSelector: bigint
-  remotePoolAddresses: Cell[]
-  remoteTokenAddress: Cell
-  outboundRateLimiterConfig: { isEnabled: boolean; capacity: bigint; rate: bigint }
-  inboundRateLimiterConfig: { isEnabled: boolean; capacity: bigint; rate: bigint }
-}
-
 function releaseRequest(
   ctx: TokenPoolBehaviorContext,
-  overrides: Partial<ReleaseOrMintInV1> = {},
-): ReleaseOrMintInV1 {
-  return {
-    originalSender: ctx.sourcePoolAddress,
+  overrides: Partial<TokenPool_ReleaseOrMintInV1> = {},
+): TokenPool_ReleaseOrMintInV1 {
+  return TokenPool_ReleaseOrMintInV1.create({
+    originalSender: { ref: ctx.sourcePoolAddress.beginParse() },
     remoteChainSelector: ctx.remoteChainSelector,
     receiver: ctx.recipient.address,
     sourceDenominatedAmount: 1n,
     localToken: ctx.localToken,
-    sourcePoolAddress: ctx.sourcePoolAddress,
+    sourcePoolAddress: { ref: ctx.sourcePoolAddress.beginParse() },
     sourcePoolData: null,
     offchainTokenData: null,
     ...overrides,
-  }
+  })
 }
 
 export function runTokenPoolBehaviorTests(
@@ -95,12 +59,16 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint when caller is not configured off-ramp', async () => {
       const ctx = await setup()
 
-      const result = await ctx.pool.sendReleaseOrMint(ctx.unauthorized.getSender(), toNano('0.3'), {
-        queryId: 901n,
-        request: releaseRequest(ctx),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.unauthorized.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 901n,
+          request: { ref: releaseRequest(ctx) },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,
@@ -112,18 +80,28 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint while chain is cursed', async () => {
       const ctx = await setup()
 
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: [ctx.remoteChainSelector],
+        cursedSubjects: CursedSubjects.create({
+          data: loadMap(
+            Dictionary.Keys.BigInt(128),
+            createEmptyTensorValue(),
+            new Map([[ctx.remoteChainSelector, []]]),
+          ),
+        }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
-      const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
-        queryId: 902n,
-        request: releaseRequest(ctx),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 902n,
+          request: { ref: releaseRequest(ctx) },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
@@ -152,13 +130,13 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects applyChainUpdates from non-owner', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendApplyChainUpdates(
+      const result = await ctx.pool.sendTokenPoolApplyChainUpdates(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
           queryId: 903n,
-          remove: [],
-          add: [],
+          remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
+          chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
         },
       )
 
@@ -171,18 +149,21 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects updateRampAccess from non-owner', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendUpdateRampAccess(
+      const result = await ctx.pool.sendTokenPoolUpdateRampAccess(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
           queryId: 904n,
-          updates: [
-            {
-              remoteChainSelector: ctx.remoteChainSelector,
-              onRamp: ctx.onRampAddress,
-              offRamp: ctx.unauthorized.address,
-            },
-          ],
+          updates: asSnakedCell(
+            [
+              TokenPool_RampUpdate.create({
+                remoteChainSelector: ctx.remoteChainSelector,
+                onRamp: ctx.onRampAddress,
+                offRamp: ctx.unauthorized.address,
+              }),
+            ],
+            (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
+          ),
         },
       )
 
@@ -195,12 +176,18 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects cursed-subject updates from non-rmn sender', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendUpdateCursedSubjects(
+      const result = await ctx.pool.sendTokenPoolUpdateCursedSubjects(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
           queryId: 904n,
-          cursedSubjects: [ctx.remoteChainSelector],
+          cursedSubjects: CursedSubjects.create({
+            data: loadMap(
+              Dictionary.Keys.BigInt(128),
+              createEmptyTensorValue(),
+              new Map([[ctx.remoteChainSelector, []]]),
+            ),
+          }),
         },
       )
 
@@ -213,26 +200,40 @@ export function runTokenPoolBehaviorTests(
 
     it('can clear cursed subject back to not cursed', async () => {
       const ctx = await setup()
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: [ctx.remoteChainSelector],
+        cursedSubjects: CursedSubjects.create({
+          data: loadMap(
+            Dictionary.Keys.BigInt(128),
+            createEmptyTensorValue(),
+            new Map([[ctx.remoteChainSelector, []]]),
+          ),
+        }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
-      await ctx.pool.sendUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 902n,
-        cursedSubjects: [],
+        cursedSubjects: CursedSubjects.create({
+          data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
+        }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
     })
 
     it('removes configured chain via applyChainUpdates', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 905n,
-        remove: [ctx.remoteChainSelector],
-        add: [],
-      })
+      const result = await ctx.pool.sendTokenPoolApplyChainUpdates(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 905n,
+          remoteChainSelectorsToRemove: asSnakedCell([ctx.remoteChainSelector], (item: bigint) =>
+            beginCell().storeUint(item, 64),
+          ),
+          chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.deployer.address,
@@ -244,18 +245,24 @@ export function runTokenPoolBehaviorTests(
 
     it('reverts releaseOrMint after configured chain is removed', async () => {
       const ctx = await setup()
-      await ctx.pool.sendApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 906n,
-        remove: [ctx.remoteChainSelector],
-        add: [],
+        remoteChainSelectorsToRemove: asSnakedCell([ctx.remoteChainSelector], (item: bigint) =>
+          beginCell().storeUint(item, 64),
+        ),
+        chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
       })
 
-      const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
-        queryId: 907n,
-        request: releaseRequest(ctx),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 907n,
+          request: { ref: releaseRequest(ctx) },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
@@ -266,11 +273,18 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects removing a non-existent chain', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 908n,
-        remove: [ctx.remoteChainSelector + 1n],
-        add: [],
-      })
+      const result = await ctx.pool.sendTokenPoolApplyChainUpdates(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 908n,
+          remoteChainSelectorsToRemove: asSnakedCell(
+            [ctx.remoteChainSelector + 1n],
+            (item: bigint) => beginCell().storeUint(item, 64),
+          ),
+          chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.deployer.address,
@@ -281,16 +295,23 @@ export function runTokenPoolBehaviorTests(
 
     it('can replace off-ramp mapping via updateRampAccess', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 909n,
-        updates: [
-          {
-            remoteChainSelector: ctx.remoteChainSelector,
-            onRamp: ctx.onRampAddress,
-            offRamp: ctx.unauthorized.address,
-          },
-        ],
-      })
+      const result = await ctx.pool.sendTokenPoolUpdateRampAccess(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 909n,
+          updates: asSnakedCell(
+            [
+              TokenPool_RampUpdate.create({
+                remoteChainSelector: ctx.remoteChainSelector,
+                onRamp: ctx.onRampAddress,
+                offRamp: ctx.unauthorized.address,
+              }),
+            ],
+            (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
+          ),
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.deployer.address,
@@ -304,23 +325,30 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects old off-ramp sender after remapping off-ramp', async () => {
       const ctx = await setup()
-      await ctx.pool.sendUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 910n,
-        updates: [
-          {
-            remoteChainSelector: ctx.remoteChainSelector,
-            onRamp: ctx.onRampAddress,
-            offRamp: ctx.unauthorized.address,
-          },
-        ],
+        updates: asSnakedCell(
+          [
+            TokenPool_RampUpdate.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              onRamp: ctx.onRampAddress,
+              offRamp: ctx.unauthorized.address,
+            }),
+          ],
+          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
+        ),
       })
 
-      const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
-        queryId: 911n,
-        request: releaseRequest(ctx),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 911n,
+          request: { ref: releaseRequest(ctx) },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
@@ -335,12 +363,19 @@ export function runTokenPoolBehaviorTests(
         .storeUint(4, 8)
         .storeBuffer(Buffer.from('evil'))
         .endCell()
-      const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
-        queryId: 912n,
-        request: releaseRequest(ctx, { sourcePoolAddress: wrongSourcePoolAddress }),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+        .beginParse()
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 912n,
+          request: {
+            ref: releaseRequest(ctx, { sourcePoolAddress: { ref: wrongSourcePoolAddress } }),
+          },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
@@ -352,12 +387,16 @@ export function runTokenPoolBehaviorTests(
     it('rejects releaseOrMint when local token does not match pool token', async () => {
       const ctx = await setup()
       const wrongLocalToken = ctx.deployer.address
-      const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
-        queryId: 913n,
-        request: releaseRequest(ctx, { localToken: wrongLocalToken }),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 913n,
+          request: { ref: releaseRequest(ctx, { localToken: wrongLocalToken }) },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
@@ -368,15 +407,18 @@ export function runTokenPoolBehaviorTests(
 
     it('clears existing off-ramp when update passes null off-ramp', async () => {
       const ctx = await setup()
-      await ctx.pool.sendUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 914n,
-        updates: [
-          {
-            remoteChainSelector: ctx.remoteChainSelector,
-            onRamp: ctx.onRampAddress,
-            offRamp: null,
-          },
-        ],
+        updates: asSnakedCell(
+          [
+            TokenPool_RampUpdate.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              onRamp: ctx.onRampAddress,
+              offRamp: null,
+            }),
+          ],
+          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
+        ),
       })
 
       expect(await ctx.pool.getOffRamp(ctx.remoteChainSelector)).toBeNull()
@@ -384,23 +426,30 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects existing off-ramp sender after null off-ramp update', async () => {
       const ctx = await setup()
-      await ctx.pool.sendUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 915n,
-        updates: [
-          {
-            remoteChainSelector: ctx.remoteChainSelector,
-            onRamp: ctx.onRampAddress,
-            offRamp: null,
-          },
-        ],
+        updates: asSnakedCell(
+          [
+            TokenPool_RampUpdate.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              onRamp: ctx.onRampAddress,
+              offRamp: null,
+            }),
+          ],
+          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
+        ),
       })
 
-      const result = await ctx.pool.sendReleaseOrMint(ctx.offRamp.getSender(), toNano('0.3'), {
-        queryId: 916n,
-        request: releaseRequest(ctx),
-        requestedFinalityConfig: 0,
-        replyTo: ctx.deployer.address,
-      })
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 916n,
+          request: { ref: releaseRequest(ctx) },
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.offRamp.address,
@@ -412,27 +461,50 @@ export function runTokenPoolBehaviorTests(
     it('can re-add chain after remove via applyChainUpdates', async () => {
       const ctx = await setup()
 
-      await ctx.pool.sendApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 917n,
-        remove: [ctx.remoteChainSelector],
-        add: [],
+        remoteChainSelectorsToRemove: asSnakedCell([ctx.remoteChainSelector], (item) =>
+          beginCell().storeUint(item, 64),
+        ),
+        chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
       })
 
-      const addResult = await ctx.pool.sendApplyChainUpdates(
+      const addResult = await ctx.pool.sendTokenPoolApplyChainUpdates(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
           queryId: 918n,
-          remove: [],
-          add: [
-            {
-              remoteChainSelector: ctx.remoteChainSelector,
-              remotePoolAddresses: [ctx.sourcePoolAddress],
-              remoteTokenAddress: ctx.destTokenAddress,
-              outboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-              inboundRateLimiterConfig: { isEnabled: true, capacity: toNano('100'), rate: 1n },
-            },
-          ],
+          remoteChainSelectorsToRemove: asSnakedCell([], (item) => beginCell().storeUint(item, 64)),
+          chainsToAdd: asSnakedCell(
+            [
+              TokenPool_ChainUpdate.create({
+                remoteChainSelector: ctx.remoteChainSelector,
+                remotePoolAddresses: asSnakedCell([ctx.sourcePoolAddress.beginParse()], (item) =>
+                  item.asBuilder(),
+                ),
+                remoteTokenAddress: { ref: ctx.destTokenAddress.beginParse() },
+                rateLimitConfigs: {
+                  ref: TokenPool_RateLimitConfigPair.create({
+                    outbound: {
+                      ref: RateLimiter_Config.create({
+                        isEnabled: true,
+                        capacity: toNano('100'),
+                        rate: 1n,
+                      }),
+                    },
+                    inbound: {
+                      ref: RateLimiter_Config.create({
+                        isEnabled: true,
+                        capacity: toNano('100'),
+                        rate: 1n,
+                      }),
+                    },
+                  }),
+                },
+              }),
+            ],
+            (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
+          ),
         },
       )
 

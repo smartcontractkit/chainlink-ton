@@ -27,6 +27,10 @@ contract LockReleaseTokenPool {
     incomingMessages: TokenPool_InMessage | LockReleaseTokenPool_InMessage // TODO: all incoming messages should be registered
 }
 
+// TODO:
+// _lockOrBurn -> after async checks, (1) does nothing, or (2) deposits to the Lockbox
+// _releaseOrMint -> after async checks, (1) transfers from own wallet, or (2) withdraws from the Lockbox
+
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
     var pool = loadPool(st);
