@@ -13,6 +13,7 @@ import {
   EVM_ADDRESS,
   contractsCoverageConfig,
 } from './Router.Setup'
+import { setupGenBindings } from '../../../wrappers/gen'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = beginCell().storeBuffer(EVM_ADDRESS).asSlice()
 
@@ -25,6 +26,8 @@ describe('Router', () => {
   let onRamp: SandboxContract<TreasuryContract>
 
   beforeAll(async () => {
+    setupGenBindings()
+
     blockchain = await Blockchain.create()
     blockchain.verbosity = {
       print: true,
@@ -39,22 +42,6 @@ describe('Router', () => {
     }
     feeQuoter = await blockchain.treasury('feeQuoter')
     onRamp = await blockchain.treasury('onRamp')
-
-    function CrossChainAddress__packToBuilder(self: rt.CrossChainAddress, b: Builder): void {
-      const src = self.clone()
-      const buffer = src.loadBuffer(src.remainingBits / 8)
-      b.storeBuilder(rtOld.builder.data.crossChainAddress.encode(buffer))
-    }
-    function CrossChainAddress__unpackFromSlice(s: Slice): rt.CrossChainAddress {
-      const buff = rtOld.builder.data.crossChainAddress.load(s)
-      return beginCell().storeBuffer(buff).asSlice() as rt.CrossChainAddress
-    }
-
-    rt.Router.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddress__packToBuilder,
-      CrossChainAddress__unpackFromSlice,
-    )
   })
 
   beforeEach(async () => {

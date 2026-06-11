@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Builder, Cell, Slice, beginCell, toNano } from '@ton/core'
+import { Address, Cell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import {
   BurnMintTokenPool,
@@ -10,8 +10,8 @@ import {
 import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
 import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
-import { CrossChainAddress, TokenPool } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import * as rtOld from '../../../wrappers/ccip/Router'
+import { TokenPool } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { setupGenBindings } from '../../../wrappers/gen'
 
 describe('BurnMintTokenPool', () => {
   let blockchain: Blockchain
@@ -34,22 +34,7 @@ describe('BurnMintTokenPool', () => {
   const receiverAddress = poolCodec.crossChainAddressFromBuffer(Buffer.from('receiver'))
 
   beforeAll(async () => {
-    // TODO: move this to a common setup utility
-    function CrossChainAddress__packToBuilder(self: CrossChainAddress, b: Builder): void {
-      const src = self.clone()
-      const buffer = src.loadBuffer(src.remainingBits / 8)
-      b.storeBuilder(rtOld.builder.data.crossChainAddress.encode(buffer))
-    }
-    function CrossChainAddress__unpackFromSlice(s: Slice): CrossChainAddress {
-      const buff = rtOld.builder.data.crossChainAddress.load(s)
-      return beginCell().storeBuffer(buff).asSlice() as CrossChainAddress
-    }
-
-    TokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddress__packToBuilder,
-      CrossChainAddress__unpackFromSlice,
-    )
+    setupGenBindings()
   })
 
   beforeEach(async () => {
