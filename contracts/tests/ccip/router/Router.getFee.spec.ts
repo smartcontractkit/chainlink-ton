@@ -4,7 +4,6 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { asSnakeDataUint, fromSnakeData, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
-import * as rtOld from '../../../wrappers/ccip/Router'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import {

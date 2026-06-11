@@ -277,45 +277,33 @@ fun TokenPool<T>.removeRemotePool(
 fun TokenPool<T>.applyChainUpdates(
     mutate self,
     sender: address,
-    remoteChainSelectorsToRemove: cell,
-    chainsToAdd: cell,
+    remoteChainSelectorsToRemove: SnakedCell<uint64>,
+    chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
-    var removeSlice = remoteChainSelectorsToRemove.beginParse();
-    var removeDone = false;
-    while (!removeDone) {
-        while (removeSlice.remainingBitsCount() > 0) {
-            val remoteChainSelector = removeSlice.loadUint(64);
-            val deleted = self.data.remoteChainConfigs.delete(remoteChainSelector);
-            assert(deleted, TokenPool_Error.NonExistentChain);
+    var rmIter = remoteChainSelectorsToRemove.iter();
+    while (!rmIter.empty()) {
+        val remoteChainSelector = rmIter.next();
+        val deleted = self.data.remoteChainConfigs.delete(remoteChainSelector);
+        assert(deleted, TokenPool_Error.NonExistentChain);
 
-            emit(TOKEN_POOL_CHAIN_REMOVED_TOPIC, TokenPool_ChainRemoved {
-                remoteChainSelector,
-            });
-        }
-
-        if (removeSlice.remainingRefsCount() == 0) {
-            removeDone = true;
-        } else {
-            removeSlice = removeSlice.loadRef().beginParse();
-        }
+        emit(TOKEN_POOL_CHAIN_REMOVED_TOPIC, TokenPool_ChainRemoved {
+            remoteChainSelector,
+        });
     }
 
-    var addSlice = chainsToAdd.beginParse();
-    var addDone = false;
-    while (!addDone) {
-        while (addSlice.remainingBitsCount() > 0) {
-            val remoteChainSelector = addSlice.loadUint(64);
-            val remotePoolAddresses = addSlice.loadRef();
-            val remoteTokenAddress = addSlice.loadRef() as Cell<CrossChainAddress>;
-            var rateLimitConfigs = addSlice.loadRef().beginParse();
-            val outboundRateLimiterConfig = RateLimiter_rateLimitConfigFromCell(rateLimitConfigs.loadRef());
-            val inboundRateLimiterConfig = RateLimiter_rateLimitConfigFromCell(rateLimitConfigs.loadRef());
-            rateLimitConfigs.assertEnd();
+    var addIter = chainsToAdd.iter();
+    while (!addIter.empty()) {
+        val chainUpdate = addIter.next();
+        val remoteChainSelector = chainUpdate.remoteChainSelector;
+        val remoteTokenAddress = chainUpdate.remoteTokenAddress;
+        var rateLimitConfigs = chainUpdate.rateLimitConfigs.load();
+        val outboundRateLimiterConfig = rateLimitConfigs.outbound.load();
+        val inboundRateLimiterConfig = rateLimitConfigs.inbound.load();
 
-            assert(!TokenPool_isEmptyCrossChainAddress(remoteTokenAddress), TokenPool_Error.ZeroAddressInvalid);
-            assert(!self.data.remoteChainConfigs.get(remoteChainSelector).isFound, TokenPool_Error.ChainAlreadyExists);
+        assert(!TokenPool_isEmptyCrossChainAddress(remoteTokenAddress), TokenPool_Error.ZeroAddressInvalid);
+        assert(!self.data.remoteChainConfigs.get(remoteChainSelector).isFound, TokenPool_Error.ChainAlreadyExists);
 
         var remotePools: map<uint256, Cell<CrossChainAddress>> = createEmptyMap();
         var config = TokenPool_RemoteChainConfig {
@@ -339,39 +327,23 @@ fun TokenPool<T>.applyChainUpdates(
             }.toCell(),
         };
 
-            var remotePoolsSlice = remotePoolAddresses.beginParse();
-            var remotePoolsDone = false;
-            while (!remotePoolsDone) {
-                while (remotePoolsSlice.remainingBitsCount() > 0) {
-                    val remotePoolAddress = TokenPool_boxCrossChainAddress(CrossChainAddress.unpackFromSlice(mutate remotePoolsSlice));
-                    self._setRemotePool(mutate config, remotePoolAddress);
+        var remotePoolAddressesIter = chainUpdate.remotePoolAddresses.iter();
+        while (!remotePoolAddressesIter.empty()) {
+            val remotePoolAddress = remotePoolAddressesIter.next().toCell();
+            self._setRemotePool(mutate config, remotePoolAddress);
 
-                    emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
-                        remoteChainSelector,
-                        remotePoolAddress,
-                    });
-                }
-
-                if (remotePoolsSlice.remainingRefsCount() == 0) {
-                    remotePoolsDone = true;
-                } else {
-                    remotePoolsSlice = remotePoolsSlice.loadRef().beginParse();
-                }
-            }
-
-            emit(TOKEN_POOL_CHAIN_ADDED_TOPIC, TokenPool_ChainAdded {
+            emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
                 remoteChainSelector,
-                remoteTokenAddress,
+                remotePoolAddress,
             });
-
-            self.data.remoteChainConfigs.set(remoteChainSelector, config);
         }
 
-        if (addSlice.remainingRefsCount() == 0) {
-            addDone = true;
-        } else {
-            addSlice = addSlice.loadRef().beginParse();
-        }
+        emit(TOKEN_POOL_CHAIN_ADDED_TOPIC, TokenPool_ChainAdded {
+            remoteChainSelector,
+            remoteTokenAddress,
+        });
+
+        self.data.remoteChainConfigs.set(remoteChainSelector, config);
     }
 }
 

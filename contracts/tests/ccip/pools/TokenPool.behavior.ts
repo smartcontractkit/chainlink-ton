@@ -2,6 +2,7 @@ import '@ton/test-utils'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, Dictionary, DictionaryValue, Sender, toNano } from '@ton/core'
 import {
+  CrossChainAddress,
   CursedSubjects,
   TokenPool,
   TokenPool_ChainUpdate,
@@ -21,8 +22,8 @@ export type TokenPoolBehaviorContext = {
   recipient: SandboxContract<TreasuryContract>
   onRampAddress: Address
   remoteChainSelector: bigint
-  destTokenAddress: Cell
-  sourcePoolAddress: Cell
+  destTokenAddress: CrossChainAddress
+  sourcePoolAddress: CrossChainAddress
   localToken: Address
 }
 
@@ -31,12 +32,12 @@ function releaseRequest(
   overrides: Partial<TokenPool_ReleaseOrMintInV1> = {},
 ): TokenPool_ReleaseOrMintInV1 {
   return TokenPool_ReleaseOrMintInV1.create({
-    originalSender: { ref: ctx.sourcePoolAddress.beginParse() },
+    originalSender: { ref: ctx.sourcePoolAddress },
     remoteChainSelector: ctx.remoteChainSelector,
     receiver: ctx.recipient.address,
     sourceDenominatedAmount: 1n,
     localToken: ctx.localToken,
-    sourcePoolAddress: { ref: ctx.sourcePoolAddress.beginParse() },
+    sourcePoolAddress: { ref: ctx.sourcePoolAddress },
     sourcePoolData: null,
     offchainTokenData: null,
     ...overrides,
@@ -479,10 +480,12 @@ export function runTokenPoolBehaviorTests(
             [
               TokenPool_ChainUpdate.create({
                 remoteChainSelector: ctx.remoteChainSelector,
-                remotePoolAddresses: asSnakedCell([ctx.sourcePoolAddress.beginParse()], (item) =>
-                  item.asBuilder(),
-                ),
-                remoteTokenAddress: { ref: ctx.destTokenAddress.beginParse() },
+                remotePoolAddresses: asSnakedCell([ctx.sourcePoolAddress], (item) => {
+                  let b = beginCell()
+                  CrossChainAddress.store(item, b)
+                  return b
+                }),
+                remoteTokenAddress: { ref: ctx.destTokenAddress },
                 rateLimitConfigs: {
                   ref: TokenPool_RateLimitConfigPair.create({
                     outbound: {
