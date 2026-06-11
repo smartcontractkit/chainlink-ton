@@ -52,7 +52,7 @@ export type Addresses = {
   tokenRegistry?: Address | null
 }
 
-export type State = Initialized | OnGoingFeeValidation
+export type State = Initialized | OnGoingFeeValidation | TokenRegistryAccess | TokenTransfer | Finalized
 
 export type Initialized = {
   kind: 'initialized'
@@ -60,6 +60,21 @@ export type Initialized = {
 
 export type OnGoingFeeValidation = {
   kind: 'on-going-fee-validation'
+}
+
+export type TokenRegistryAccess = {
+  kind: 'token-registry-access'
+  fee: fq.Fee
+}
+
+export type TokenTransfer = {
+  kind: 'token-transfer'
+  tokenPool: Address
+  fee: fq.Fee
+}
+
+export type Finalized = {
+  kind: 'finalized'
 }
 
 export type Config = {
@@ -107,20 +122,52 @@ export const builder = (() => {
       encode: function (data: State): Builder {
         switch (data.kind) {
           case 'initialized':
-            return beginCell().storeUint(0, 1)
+            return beginCell().storeUint(0b000, 3).storeRef(beginCell().endCell())
           case 'on-going-fee-validation':
-            return beginCell().storeUint(1, 1)
+            return beginCell().storeUint(0b001, 3).storeRef(beginCell().endCell())
+          case 'token-registry-access':
+            return beginCell()
+              .storeUint(0b010, 3)
+              .storeRef(fq.builder.data.fee.encode(data.fee).endCell())
+          case 'token-transfer':
+            return beginCell()
+              .storeUint(0b011, 3)
+              .storeRef(
+                beginCell()
+                  .storeAddress(data.tokenPool)
+                  .storeBuilder(fq.builder.data.fee.encode(data.fee))
+                  .endCell(),
+              )
+          case 'finalized':
+            return beginCell().storeUint(0b100, 3).storeRef(beginCell().endCell())
         }
       },
       load: function (src: Slice): State {
-        const kind = src.loadUint(1)
-        switch (kind) {
-          case 0:
+        const tag = src.loadUint(3)
+        switch (tag) {
+          case 0b000:
+            src.loadRef()
             return { kind: 'initialized' }
-          case 1:
+          case 0b001:
+            src.loadRef()
             return { kind: 'on-going-fee-validation' }
+          case 0b010: {
+            const feeSlice = src.loadRef().beginParse()
+            return { kind: 'token-registry-access', fee: fq.builder.data.fee.load(feeSlice) }
+          }
+          case 0b011: {
+            const inner = src.loadRef().beginParse()
+            return {
+              kind: 'token-transfer',
+              tokenPool: inner.loadAddress(),
+              fee: fq.builder.data.fee.load(inner),
+            }
+          }
+          case 0b100:
+            src.loadRef()
+            return { kind: 'finalized' }
           default:
-            throw new Error(`Unknown State kind: ${kind}`)
+            throw new Error(`Unknown State tag: ${tag}`)
         }
       },
     }
