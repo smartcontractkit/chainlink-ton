@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
+import "../../lib/math"
 import "../../lib/utils"
 import "../../lib/jetton/messages.tolk"
 import "../../lib/access/ownable_2step.tolk"
@@ -690,7 +691,7 @@ fun TokenPool<T>.parseRemoteDecimals(self, sourcePoolData: cell?): uint8 {
     assert(s.remainingBitsCount() == 256 && s.remainingRefsCount() == 0, TokenPool_Error.InvalidRemoteChainDecimals);
     val remoteDecimals = s.loadUint(256);
     s.assertEnd();
-    assert(remoteDecimals <= TOKEN_POOL_MAX_UINT8, TokenPool_Error.InvalidRemoteChainDecimals);
+    assert(remoteDecimals <= MAX_UINT8, TokenPool_Error.InvalidRemoteChainDecimals);
 
     return remoteDecimals as uint8;
 }
@@ -711,7 +712,7 @@ fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimal
     if (remoteDecimals > self.data.tokenDecimals) {
         val decimalsDiff = remoteDecimals - self.data.tokenDecimals;
         // This is a safety check to prevent overflow in the next calculation.
-        assert(decimalsDiff <= TOKEN_POOL_MAX_EXP10, TokenPool_Error.OverflowDetected);
+        assert(decimalsDiff <= MAX_EXP10, TokenPool_Error.OverflowDetected);
 
         return remoteAmount / pow10(decimalsDiff);
     }
@@ -720,9 +721,9 @@ fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimal
     // More than 77 would never fit in a uint256 and would cause an overflow.
     // We also check if the resulting amount would overflow.
     val decimalsDiff = self.data.tokenDecimals - remoteDecimals;
-    assert(decimalsDiff <= TOKEN_POOL_MAX_EXP10, TokenPool_Error.OverflowDetected);
+    assert(decimalsDiff <= MAX_EXP10, TokenPool_Error.OverflowDetected);
     val scale = pow10(decimalsDiff);
-    assert(scale == 0 || remoteAmount <= TOKEN_POOL_MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
+    assert(scale == 0 || remoteAmount <= MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
  
     return remoteAmount * scale;
 }
@@ -1004,23 +1005,4 @@ fun TokenPool_boxCrossChainAddress(addressBytes: CrossChainAddress): Cell<CrossC
         .storeUint(bits / 8, 8)
         .storeSlice(pureAddressBits)
         .endCell() as Cell<CrossChainAddress>;
-}
-
-// TODO: move to common utils library
-// @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
-fun pow10(n: uint8): uint256 {
-    var result: uint256 = 1;
-    var base: uint256 = 10;
-
-    while (n > 0) {
-        if ((n & 1) == 1) {
-            // Check for potential overflow before multiplication
-            assert(result == 0 || base <= TOKEN_POOL_MAX_UINT256 / result, TokenPool_Error.OverflowDetected);
-            result *= base;
-        }
-        base *= base;
-        n >>= 1;
-    }
-
-    return result;
 }

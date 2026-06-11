@@ -9,9 +9,6 @@ const TOKEN_POOL_WAIT_FOR_FINALITY_FLAG: uint32 = 0;
 const TOKEN_POOL_DEFAULT_FINALITY: uint32 = TOKEN_POOL_WAIT_FOR_FINALITY_FLAG;
 /// The division factor for bps. This also represents the maximum bps fee.
 const TOKEN_POOL_BPS_DIVIDER: uint256 = 10000;
-const TOKEN_POOL_MAX_UINT8: uint8 = 0xFF; // 255
-const TOKEN_POOL_MAX_UINT256: uint256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-const TOKEN_POOL_MAX_EXP10: uint8 = 77;
 
 // The number of bytes in the return data for a pool v1 releaseOrMint call.
 // This should match the size of the ReleaseOrMintOutV1 struct.

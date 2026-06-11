@@ -35,19 +35,6 @@ fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_
     };
 }
 
-fun RateLimiter_rateLimitConfigFromCell(data: cell): RateLimiter_Config {
-    var cs = data.beginParse();
-    val isEnabled = cs.loadUint(1) != 0;
-    val capacity = cs.loadUint(128);
-    val rate = cs.loadUint(128);
-    cs.assertEnd();
-    return RateLimiter_Config {
-        isEnabled,
-        capacity,
-        rate,
-    };
-}
-
 /// @notice _consume removes the given tokens from the pool, lowering the rate tokens allowed to be
 /// consumed for subsequent calls.
 /// @param requestTokens The total tokens to be consumed from the bucket.
