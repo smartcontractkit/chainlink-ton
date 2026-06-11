@@ -62,9 +62,7 @@ struct TokenPool_RemoteChainConfig {
     // TODO: EnumerableSet.Bytes32Set remotePools;
     remotePools: map<uint256, Cell<CrossChainAddress>>;        // Set of remote pool hashes, ABI encoded in the case of a remote EVM chain.
     rateLimiters: Cell<TokenPool_RateLimiterPair>;             // Rate limiter configs.
-    
-    // TODO: N/A in EVM RemoteChainConfig
-    fastFinalityRateLimiters: Cell<TokenPool_RateLimiterPair>;
+    fastFinalityRateLimiters: Cell<TokenPool_RateLimiterPair>; // Rate limiter configs for fast finality transfers.
 }
 
 struct TokenPool_RateLimitConfigArgs {

@@ -274,6 +274,12 @@ fun TokenPool<T>.removeRemotePool(
     });
 }
 
+/// Sets the permissions for a list of chains selectors. Actual senders for these chains
+/// need to be allowed on the Router to interact with this pool.
+/// @param remoteChainSelectorsToRemove A list of chain selectors to remove.
+/// @param chainsToAdd A list of chains and their new permission status & rate limits. Rate limits
+/// are only used when the chain is being added through `allowed` being true.
+/// @dev Only callable by the owner
 fun TokenPool<T>.applyChainUpdates(
     mutate self,
     sender: address,
@@ -288,48 +294,41 @@ fun TokenPool<T>.applyChainUpdates(
         val deleted = self.data.remoteChainConfigs.delete(remoteChainSelector);
         assert(deleted, TokenPool_Error.NonExistentChain);
 
-        emit(TOKEN_POOL_CHAIN_REMOVED_TOPIC, TokenPool_ChainRemoved {
-            remoteChainSelector,
-        });
+        emit(TOKEN_POOL_CHAIN_REMOVED_TOPIC, TokenPool_ChainRemoved { remoteChainSelector });
     }
 
     var addIter = chainsToAdd.iter();
     while (!addIter.empty()) {
-        val chainUpdate = addIter.next();
-        val remoteChainSelector = chainUpdate.remoteChainSelector;
-        val remoteTokenAddress = chainUpdate.remoteTokenAddress;
-        var rateLimitConfigs = chainUpdate.rateLimitConfigs.load();
-        val outboundRateLimiterConfig = rateLimitConfigs.outbound.load();
-        val inboundRateLimiterConfig = rateLimitConfigs.inbound.load();
-
+        val newChain = addIter.next();
+        val remoteTokenAddress = newChain.remoteTokenAddress;
         assert(!TokenPool_isEmptyCrossChainAddress(remoteTokenAddress), TokenPool_Error.ZeroAddressInvalid);
+
+        val remoteChainSelector = newChain.remoteChainSelector;
         assert(!self.data.remoteChainConfigs.get(remoteChainSelector).isFound, TokenPool_Error.ChainAlreadyExists);
 
-        var remotePools: map<uint256, Cell<CrossChainAddress>> = createEmptyMap();
+        val rlConfigDefault = RateLimiter_Config {
+            isEnabled: false,
+            capacity: 0,
+            rate: 0,
+        };
+
+        var rateLimitConfigs = newChain.rateLimitConfigs.load();
         var config = TokenPool_RemoteChainConfig {
             remoteTokenAddress,
-            remotePools,
+            remotePools: createEmptyMap(),
             rateLimiters: TokenPool_RateLimiterPair {
-                outbound: RateLimiter_tokenBucketFromConfig(outboundRateLimiterConfig).toCell(),
-                inbound: RateLimiter_tokenBucketFromConfig(inboundRateLimiterConfig).toCell(),
+                outbound: RateLimiter_TokenBucket.fromConfig(rateLimitConfigs.outbound.load()).toCell(),
+                inbound: RateLimiter_TokenBucket.fromConfig(rateLimitConfigs.inbound.load()).toCell(),
             }.toCell(),
             fastFinalityRateLimiters: TokenPool_RateLimiterPair {
-                outbound: RateLimiter_tokenBucketFromConfig(RateLimiter_Config {
-                    isEnabled: false,
-                    capacity: 0,
-                    rate: 0,
-                }).toCell(),
-                inbound: RateLimiter_tokenBucketFromConfig(RateLimiter_Config {
-                    isEnabled: false,
-                    capacity: 0,
-                    rate: 0,
-                }).toCell(),
+                outbound: RateLimiter_TokenBucket.fromConfig(rlConfigDefault).toCell(),
+                inbound: RateLimiter_TokenBucket.fromConfig(rlConfigDefault).toCell(),
             }.toCell(),
         };
 
-        var remotePoolAddressesIter = chainUpdate.remotePoolAddresses.iter();
-        while (!remotePoolAddressesIter.empty()) {
-            val remotePoolAddress = remotePoolAddressesIter.next().toCell();
+        var rpAddrIter = newChain.remotePoolAddresses.iter();
+        while (!rpAddrIter.empty()) {
+            val remotePoolAddress = rpAddrIter.next().toCell();
             self._setRemotePool(mutate config, remotePoolAddress);
 
             emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
@@ -338,13 +337,15 @@ fun TokenPool<T>.applyChainUpdates(
             });
         }
 
+        self.data.remoteChainConfigs.set(remoteChainSelector, config);
+
         emit(TOKEN_POOL_CHAIN_ADDED_TOPIC, TokenPool_ChainAdded {
             remoteChainSelector,
             remoteTokenAddress,
         });
-
-        self.data.remoteChainConfigs.set(remoteChainSelector, config);
     }
+
+    // TODO: reply back to sender with excess
 }
 
 fun TokenPool<T>.applyRampAccessUpdates(
@@ -404,8 +405,7 @@ fun TokenPool<T>.setCursedSubjects(
     mirroredPolicy.cursedSubjects = cursedSubjects;
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 
-    emit(TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC, TokenPool_CursedSubjectsUpdated {});
-}
+    emit(TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC, TokenPool_CursedSubjectsUpdated {})}
 
 fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice): bool {
     val msg = lazy TokenPool_InMessage.fromSlice(msgBody);
@@ -937,14 +937,14 @@ fun TokenPool<T>.setRateLimitConfig(
         if (update.fastFinality) {
             var fastRateLimiters = config.fastFinalityRateLimiters.load();
             // TODO: use setter RateLimiter._setTokenBucketConfig
-            fastRateLimiters.outbound = RateLimiter_tokenBucketFromConfig(update.outboundRateLimiterConfig.load()).toCell();
-            fastRateLimiters.inbound = RateLimiter_tokenBucketFromConfig(update.inboundRateLimiterConfig.load()).toCell();
+            fastRateLimiters.outbound = RateLimiter_TokenBucket.fromConfig(update.outboundRateLimiterConfig.load()).toCell();
+            fastRateLimiters.inbound = RateLimiter_TokenBucket.fromConfig(update.inboundRateLimiterConfig.load()).toCell();
             config.fastFinalityRateLimiters = fastRateLimiters.toCell();
         } else {
             var rateLimiters = config.rateLimiters.load();
             // TODO: use setter RateLimiter._setTokenBucketConfig
-            rateLimiters.outbound = RateLimiter_tokenBucketFromConfig(update.outboundRateLimiterConfig.load()).toCell();
-            rateLimiters.inbound = RateLimiter_tokenBucketFromConfig(update.inboundRateLimiterConfig.load()).toCell();
+            rateLimiters.outbound = RateLimiter_TokenBucket.fromConfig(update.outboundRateLimiterConfig.load()).toCell();
+            rateLimiters.inbound = RateLimiter_TokenBucket.fromConfig(update.inboundRateLimiterConfig.load()).toCell();
             config.rateLimiters = rateLimiters.toCell();
         }
         self.data.remoteChainConfigs.set(update.remoteChainSelector, config);

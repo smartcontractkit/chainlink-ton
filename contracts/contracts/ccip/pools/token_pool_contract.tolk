@@ -22,7 +22,7 @@ contract TokenPool {
         | TokenPool_ReleaseOrMintResponse
 }
 
-fun onInternalMessage(in: InMessage) {
+fun onInternalMessage(_: InMessage) {
     throw 0xFFFF; // template for bindings, should not be deployed
 }
 

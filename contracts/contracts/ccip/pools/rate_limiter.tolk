@@ -25,7 +25,7 @@ struct RateLimiter_TokenBucket {
     rate: uint128 // ──────╯ Number of tokens per second that the bucket is refilled.
 }
 
-fun RateLimiter_tokenBucketFromConfig(config: RateLimiter_Config): RateLimiter_TokenBucket {
+fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_TokenBucket {
     return RateLimiter_TokenBucket {
         tokens: config.capacity,
         lastUpdated: blockchain.now(),
