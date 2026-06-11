@@ -6,9 +6,12 @@ import "../../lib/jetton/messages"
 import "fees-management"
 
 contract JettonWallet {
-    author: "The Tolk Team"
-    incomingMessages: AllowedMessageToWallet
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.1"
+    description: "link.chain.ton.ccip.cct.JettonWallet"
+
     storage: WalletStorage
+    incomingMessages: AllowedMessageToWallet
 }
 
 type AllowedMessageToWallet =
