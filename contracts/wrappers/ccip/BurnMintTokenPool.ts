@@ -33,7 +33,6 @@ export const FACILITY_NAME = 'link.chain.ton.ccip.BurnMintTokenPool'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 export const CONTRACT_VERSION = '0.1.0'
-const BURN_MINT_CLAIM_MINTER_ADMIN_OPCODE = 0x93c174a1
 
 export type Config = TokenPoolConfig & {
   jettonClient: JettonClientConfig

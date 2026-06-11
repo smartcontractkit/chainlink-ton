@@ -726,7 +726,7 @@ export const TokenPool_ReleaseOrMintInV1 = {
 }
 
 /**
- > struct (0xdc0b6ff5) TokenPool_ApplyChainUpdates {
+ > struct (0x56f73d37) TokenPool_ApplyChainUpdates {
  >     queryId: uint64
  >     remoteChainSelectorsToRemove: SnakedCell<uint64>
  >     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
@@ -740,7 +740,7 @@ export interface TokenPool_ApplyChainUpdates {
 }
 
 export const TokenPool_ApplyChainUpdates = {
-    PREFIX: 0xdc0b6ff5,
+    PREFIX: 0x56f73d37,
 
     create(args: {
         queryId: uint64
@@ -753,7 +753,7 @@ export const TokenPool_ApplyChainUpdates = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_ApplyChainUpdates {
-        loadAndCheckPrefix32(s, 0xdc0b6ff5, 'TokenPool_ApplyChainUpdates');
+        loadAndCheckPrefix32(s, 0x56f73d37, 'TokenPool_ApplyChainUpdates');
         return {
             $: 'TokenPool_ApplyChainUpdates',
             queryId: s.loadUintBig(64),
@@ -762,7 +762,7 @@ export const TokenPool_ApplyChainUpdates = {
         }
     },
     store(self: TokenPool_ApplyChainUpdates, b: c.Builder): void {
-        b.storeUint(0xdc0b6ff5, 32);
+        b.storeUint(0x56f73d37, 32);
         b.storeUint(self.queryId, 64);
         b.storeRef(self.remoteChainSelectorsToRemove);
         b.storeRef(self.chainsToAdd);
@@ -773,7 +773,7 @@ export const TokenPool_ApplyChainUpdates = {
 }
 
 /**
- > struct (0x5fd2c8b6) TokenPool_AddRemotePool {
+ > struct (0x17c242dc) TokenPool_AddRemotePool {
  >     queryId: uint64
  >     remoteChainSelector: uint64
  >     remotePoolAddress: Cell<CrossChainAddress>
@@ -787,7 +787,7 @@ export interface TokenPool_AddRemotePool {
 }
 
 export const TokenPool_AddRemotePool = {
-    PREFIX: 0x5fd2c8b6,
+    PREFIX: 0x17c242dc,
 
     create(args: {
         queryId: uint64
@@ -800,7 +800,7 @@ export const TokenPool_AddRemotePool = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_AddRemotePool {
-        loadAndCheckPrefix32(s, 0x5fd2c8b6, 'TokenPool_AddRemotePool');
+        loadAndCheckPrefix32(s, 0x17c242dc, 'TokenPool_AddRemotePool');
         return {
             $: 'TokenPool_AddRemotePool',
             queryId: s.loadUintBig(64),
@@ -809,7 +809,7 @@ export const TokenPool_AddRemotePool = {
         }
     },
     store(self: TokenPool_AddRemotePool, b: c.Builder): void {
-        b.storeUint(0x5fd2c8b6, 32);
+        b.storeUint(0x17c242dc, 32);
         b.storeUint(self.queryId, 64);
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
@@ -820,7 +820,7 @@ export const TokenPool_AddRemotePool = {
 }
 
 /**
- > struct (0xdbf0a2df) TokenPool_RemoveRemotePool {
+ > struct (0x426b8cc4) TokenPool_RemoveRemotePool {
  >     queryId: uint64
  >     remoteChainSelector: uint64
  >     remotePoolAddress: Cell<CrossChainAddress>
@@ -834,7 +834,7 @@ export interface TokenPool_RemoveRemotePool {
 }
 
 export const TokenPool_RemoveRemotePool = {
-    PREFIX: 0xdbf0a2df,
+    PREFIX: 0x426b8cc4,
 
     create(args: {
         queryId: uint64
@@ -847,7 +847,7 @@ export const TokenPool_RemoveRemotePool = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemoveRemotePool {
-        loadAndCheckPrefix32(s, 0xdbf0a2df, 'TokenPool_RemoveRemotePool');
+        loadAndCheckPrefix32(s, 0x426b8cc4, 'TokenPool_RemoveRemotePool');
         return {
             $: 'TokenPool_RemoveRemotePool',
             queryId: s.loadUintBig(64),
@@ -856,7 +856,7 @@ export const TokenPool_RemoveRemotePool = {
         }
     },
     store(self: TokenPool_RemoveRemotePool, b: c.Builder): void {
-        b.storeUint(0xdbf0a2df, 32);
+        b.storeUint(0x426b8cc4, 32);
         b.storeUint(self.queryId, 64);
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
@@ -867,7 +867,7 @@ export const TokenPool_RemoveRemotePool = {
 }
 
 /**
- > struct (0x4eea060b) TokenPool_SetDynamicConfig {
+ > struct (0xd7712810) TokenPool_SetDynamicConfig {
  >     queryId: uint64
  >     router: address
  >     rateLimitAdmin: address?
@@ -883,7 +883,7 @@ export interface TokenPool_SetDynamicConfig {
 }
 
 export const TokenPool_SetDynamicConfig = {
-    PREFIX: 0x4eea060b,
+    PREFIX: 0xd7712810,
 
     create(args: {
         queryId: uint64
@@ -899,7 +899,7 @@ export const TokenPool_SetDynamicConfig = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetDynamicConfig {
-        loadAndCheckPrefix32(s, 0x4eea060b, 'TokenPool_SetDynamicConfig');
+        loadAndCheckPrefix32(s, 0xd7712810, 'TokenPool_SetDynamicConfig');
         return {
             $: 'TokenPool_SetDynamicConfig',
             queryId: s.loadUintBig(64),
@@ -909,7 +909,7 @@ export const TokenPool_SetDynamicConfig = {
         }
     },
     store(self: TokenPool_SetDynamicConfig, b: c.Builder): void {
-        b.storeUint(0x4eea060b, 32);
+        b.storeUint(0xd7712810, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.router);
         b.storeAddress(self.rateLimitAdmin);
@@ -921,7 +921,7 @@ export const TokenPool_SetDynamicConfig = {
 }
 
 /**
- > struct (0x29b46fc6) TokenPool_SetAllowedFinalityConfig {
+ > struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
  >     queryId: uint64
  >     allowedFinalityConfig: uint32
  > }
@@ -933,7 +933,7 @@ export interface TokenPool_SetAllowedFinalityConfig {
 }
 
 export const TokenPool_SetAllowedFinalityConfig = {
-    PREFIX: 0x29b46fc6,
+    PREFIX: 0x3c50a39b,
 
     create(args: {
         queryId: uint64
@@ -945,7 +945,7 @@ export const TokenPool_SetAllowedFinalityConfig = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetAllowedFinalityConfig {
-        loadAndCheckPrefix32(s, 0x29b46fc6, 'TokenPool_SetAllowedFinalityConfig');
+        loadAndCheckPrefix32(s, 0x3c50a39b, 'TokenPool_SetAllowedFinalityConfig');
         return {
             $: 'TokenPool_SetAllowedFinalityConfig',
             queryId: s.loadUintBig(64),
@@ -953,7 +953,7 @@ export const TokenPool_SetAllowedFinalityConfig = {
         }
     },
     store(self: TokenPool_SetAllowedFinalityConfig, b: c.Builder): void {
-        b.storeUint(0x29b46fc6, 32);
+        b.storeUint(0x3c50a39b, 32);
         b.storeUint(self.queryId, 64);
         b.storeUint(self.allowedFinalityConfig, 32);
     },
@@ -963,7 +963,7 @@ export const TokenPool_SetAllowedFinalityConfig = {
 }
 
 /**
- > struct (0x3a028da2) TokenPool_SetRateLimitConfig {
+ > struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
  >     queryId: uint64
  >     updates: SnakedCell<TokenPool_RateLimitConfigArgs>
  > }
@@ -975,7 +975,7 @@ export interface TokenPool_SetRateLimitConfig {
 }
 
 export const TokenPool_SetRateLimitConfig = {
-    PREFIX: 0x3a028da2,
+    PREFIX: 0x4fe2d26c,
 
     create(args: {
         queryId: uint64
@@ -987,7 +987,7 @@ export const TokenPool_SetRateLimitConfig = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetRateLimitConfig {
-        loadAndCheckPrefix32(s, 0x3a028da2, 'TokenPool_SetRateLimitConfig');
+        loadAndCheckPrefix32(s, 0x4fe2d26c, 'TokenPool_SetRateLimitConfig');
         return {
             $: 'TokenPool_SetRateLimitConfig',
             queryId: s.loadUintBig(64),
@@ -995,7 +995,7 @@ export const TokenPool_SetRateLimitConfig = {
         }
     },
     store(self: TokenPool_SetRateLimitConfig, b: c.Builder): void {
-        b.storeUint(0x3a028da2, 32);
+        b.storeUint(0x4fe2d26c, 32);
         b.storeUint(self.queryId, 64);
         b.storeRef(self.updates);
     },
@@ -1005,7 +1005,7 @@ export const TokenPool_SetRateLimitConfig = {
 }
 
 /**
- > struct (0x10c4b4a1) TokenPool_ApplyTokenTransferFeeConfigUpdates {
+ > struct (0x30a1d1f7) TokenPool_ApplyTokenTransferFeeConfigUpdates {
  >     queryId: uint64
  >     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
  >     disableChainSelectors: SnakedCell<uint64>
@@ -1019,7 +1019,7 @@ export interface TokenPool_ApplyTokenTransferFeeConfigUpdates {
 }
 
 export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
-    PREFIX: 0x10c4b4a1,
+    PREFIX: 0x30a1d1f7,
 
     create(args: {
         queryId: uint64
@@ -1032,7 +1032,7 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_ApplyTokenTransferFeeConfigUpdates {
-        loadAndCheckPrefix32(s, 0x10c4b4a1, 'TokenPool_ApplyTokenTransferFeeConfigUpdates');
+        loadAndCheckPrefix32(s, 0x30a1d1f7, 'TokenPool_ApplyTokenTransferFeeConfigUpdates');
         return {
             $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
             queryId: s.loadUintBig(64),
@@ -1041,7 +1041,7 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
         }
     },
     store(self: TokenPool_ApplyTokenTransferFeeConfigUpdates, b: c.Builder): void {
-        b.storeUint(0x10c4b4a1, 32);
+        b.storeUint(0x30a1d1f7, 32);
         b.storeUint(self.queryId, 64);
         b.storeRef(self.updates);
         b.storeRef(self.disableChainSelectors);
@@ -1052,7 +1052,7 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
 }
 
 /**
- > struct (0x7a9c4aa5) TokenPool_UpdateRampAccess {
+ > struct (0xe30764be) TokenPool_UpdateRampAccess {
  >     queryId: uint64
  >     updates: SnakedCell<TokenPool_RampUpdate>
  > }
@@ -1064,7 +1064,7 @@ export interface TokenPool_UpdateRampAccess {
 }
 
 export const TokenPool_UpdateRampAccess = {
-    PREFIX: 0x7a9c4aa5,
+    PREFIX: 0xe30764be,
 
     create(args: {
         queryId: uint64
@@ -1076,7 +1076,7 @@ export const TokenPool_UpdateRampAccess = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_UpdateRampAccess {
-        loadAndCheckPrefix32(s, 0x7a9c4aa5, 'TokenPool_UpdateRampAccess');
+        loadAndCheckPrefix32(s, 0xe30764be, 'TokenPool_UpdateRampAccess');
         return {
             $: 'TokenPool_UpdateRampAccess',
             queryId: s.loadUintBig(64),
@@ -1084,7 +1084,7 @@ export const TokenPool_UpdateRampAccess = {
         }
     },
     store(self: TokenPool_UpdateRampAccess, b: c.Builder): void {
-        b.storeUint(0x7a9c4aa5, 32);
+        b.storeUint(0xe30764be, 32);
         b.storeUint(self.queryId, 64);
         b.storeRef(self.updates);
     },
@@ -1094,7 +1094,7 @@ export const TokenPool_UpdateRampAccess = {
 }
 
 /**
- > struct (0x12345678) TokenPool_SetRMNProxy {
+ > struct (0x9929b642) TokenPool_SetRMNProxy {
  >     queryId: uint64
  >     rmnProxy: address
  > }
@@ -1106,7 +1106,7 @@ export interface TokenPool_SetRMNProxy {
 }
 
 export const TokenPool_SetRMNProxy = {
-    PREFIX: 0x12345678,
+    PREFIX: 0x9929b642,
 
     create(args: {
         queryId: uint64
@@ -1118,7 +1118,7 @@ export const TokenPool_SetRMNProxy = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetRMNProxy {
-        loadAndCheckPrefix32(s, 0x12345678, 'TokenPool_SetRMNProxy');
+        loadAndCheckPrefix32(s, 0x9929b642, 'TokenPool_SetRMNProxy');
         return {
             $: 'TokenPool_SetRMNProxy',
             queryId: s.loadUintBig(64),
@@ -1126,7 +1126,7 @@ export const TokenPool_SetRMNProxy = {
         }
     },
     store(self: TokenPool_SetRMNProxy, b: c.Builder): void {
-        b.storeUint(0x12345678, 32);
+        b.storeUint(0x9929b642, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.rmnProxy);
     },
@@ -1136,7 +1136,7 @@ export const TokenPool_SetRMNProxy = {
 }
 
 /**
- > struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
+ > struct (0x2c906eb7) TokenPool_UpdateCursedSubjects {
  >     queryId: uint64
  >     cursedSubjects: CursedSubjects
  > }
@@ -1148,7 +1148,7 @@ export interface TokenPool_UpdateCursedSubjects {
 }
 
 export const TokenPool_UpdateCursedSubjects = {
-    PREFIX: 0x823dadf2,
+    PREFIX: 0x2c906eb7,
 
     create(args: {
         queryId: uint64
@@ -1160,7 +1160,7 @@ export const TokenPool_UpdateCursedSubjects = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_UpdateCursedSubjects {
-        loadAndCheckPrefix32(s, 0x823dadf2, 'TokenPool_UpdateCursedSubjects');
+        loadAndCheckPrefix32(s, 0x2c906eb7, 'TokenPool_UpdateCursedSubjects');
         return {
             $: 'TokenPool_UpdateCursedSubjects',
             queryId: s.loadUintBig(64),
@@ -1168,7 +1168,7 @@ export const TokenPool_UpdateCursedSubjects = {
         }
     },
     store(self: TokenPool_UpdateCursedSubjects, b: c.Builder): void {
-        b.storeUint(0x823dadf2, 32);
+        b.storeUint(0x2c906eb7, 32);
         b.storeUint(self.queryId, 64);
         CursedSubjects.store(self.cursedSubjects, b);
     },
@@ -1178,7 +1178,7 @@ export const TokenPool_UpdateCursedSubjects = {
 }
 
 /**
- > struct (0x7d0ffd89) TokenPool_ReleaseOrMint {
+ > struct (0x351f77e3) TokenPool_ReleaseOrMint {
  >     queryId: uint64
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
  >     requestedFinalityConfig: uint32
@@ -1194,7 +1194,7 @@ export interface TokenPool_ReleaseOrMint {
 }
 
 export const TokenPool_ReleaseOrMint = {
-    PREFIX: 0x7d0ffd89,
+    PREFIX: 0x351f77e3,
 
     create(args: {
         queryId: uint64
@@ -1209,7 +1209,7 @@ export const TokenPool_ReleaseOrMint = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMint {
-        loadAndCheckPrefix32(s, 0x7d0ffd89, 'TokenPool_ReleaseOrMint');
+        loadAndCheckPrefix32(s, 0x351f77e3, 'TokenPool_ReleaseOrMint');
         return {
             $: 'TokenPool_ReleaseOrMint',
             queryId: s.loadUintBig(64),
@@ -1219,7 +1219,7 @@ export const TokenPool_ReleaseOrMint = {
         }
     },
     store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
-        b.storeUint(0x7d0ffd89, 32);
+        b.storeUint(0x351f77e3, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);

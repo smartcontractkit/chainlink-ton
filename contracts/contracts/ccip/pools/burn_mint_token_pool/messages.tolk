@@ -2,7 +2,7 @@
 import "../../../lib/jetton/messages.tolk"
 import "../messages"
 
-struct (0x93c174a1) BurnMintTokenPool_ClaimMinterAdmin {
+struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;
 }
 

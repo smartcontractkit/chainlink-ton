@@ -11,27 +11,43 @@ import {
 } from '@ton/core'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { asSnakedCell } from '../../src/utils'
+import {
+  TokenPool_ApplyChainUpdates,
+  TokenPool_AddRemotePool,
+  TokenPool_RemoveRemotePool,
+  TokenPool_SetDynamicConfig,
+  TokenPool_SetAllowedFinalityConfig,
+  TokenPool_SetRateLimitConfig,
+  TokenPool_UpdateRampAccess,
+  TokenPool_ApplyTokenTransferFeeConfigUpdates,
+  TokenPool_UpdateCursedSubjects,
+  TokenPool_ReleaseOrMint,
+} from '../gen/ccip/pools/TokenPool'
+import {
+  TokenPool_ReleaseOrMintFailure,
+  TokenPool_ReleaseOrMintResponse,
+} from '../gen/ccip/pools/LockReleaseTokenPool'
 
 export const opcodes = {
   in: {
-    applyChainUpdates: 0xdc0b6ff5,
-    addRemotePool: 0x5fd2c8b6,
-    removeRemotePool: 0xdbf0a2df,
-    setDynamicConfig: 0x4eea060b,
-    setAllowedFinalityConfig: 0x29b46fc6,
-    setRateLimitConfig: 0x3a028da2,
-    applyTokenTransferFeeConfigUpdates: 0x10c4b4a1,
-    updateRampAccess: 0x7a9c4aa5,
-    updateCursedSubjects: 0x823dadf2,
-    releaseOrMint: 0x7d0ffd89,
+    applyChainUpdates: TokenPool_ApplyChainUpdates.PREFIX,
+    addRemotePool: TokenPool_AddRemotePool.PREFIX,
+    removeRemotePool: TokenPool_RemoveRemotePool.PREFIX,
+    setDynamicConfig: TokenPool_SetDynamicConfig.PREFIX,
+    setAllowedFinalityConfig: TokenPool_SetAllowedFinalityConfig.PREFIX,
+    setRateLimitConfig: TokenPool_SetRateLimitConfig.PREFIX,
+    applyTokenTransferFeeConfigUpdates: TokenPool_ApplyTokenTransferFeeConfigUpdates.PREFIX,
+    updateRampAccess: TokenPool_UpdateRampAccess.PREFIX,
+    updateCursedSubjects: TokenPool_UpdateCursedSubjects.PREFIX,
+    releaseOrMint: TokenPool_ReleaseOrMint.PREFIX,
   },
   payload: {
-    lockOrBurn: 0x1161516e,
+    lockOrBurn: 0xfa7da444,
   },
   out: {
-    lockOrBurnResponse: 0x19e65bea,
-    releaseOrMintResponse: 0x7ec43aee,
-    releaseOrMintFailure: 0x41a1702b,
+    lockOrBurnResponse: 0x6c060424,
+    releaseOrMintResponse: TokenPool_ReleaseOrMintResponse.PREFIX,
+    releaseOrMintFailure: TokenPool_ReleaseOrMintFailure.PREFIX,
   },
 }
 

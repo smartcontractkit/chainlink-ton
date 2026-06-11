@@ -6,60 +6,59 @@ import "../rmn_remote/lib"
 
 import "types"
 
-struct (0xdc0b6ff5) TokenPool_ApplyChainUpdates {
+struct (0x56f73d37) TokenPool_ApplyChainUpdates {
     queryId: uint64;
     remoteChainSelectorsToRemove: SnakedCell<uint64>;
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>;
 }
 
-struct (0x5fd2c8b6) TokenPool_AddRemotePool {
+struct (0x17c242dc) TokenPool_AddRemotePool {
     queryId: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-struct (0xdbf0a2df) TokenPool_RemoveRemotePool {
+struct (0x426b8cc4) TokenPool_RemoveRemotePool {
     queryId: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-struct (0x4eea060b) TokenPool_SetDynamicConfig {
+struct (0xd7712810) TokenPool_SetDynamicConfig {
     queryId: uint64;
     router: address;
     rateLimitAdmin: address? = null;
     feeAdmin: address? = null;
 }
 
-struct (0x29b46fc6) TokenPool_SetAllowedFinalityConfig {
+struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
     queryId: uint64;
     allowedFinalityConfig: uint32;
 }
 
-struct (0x3a028da2) TokenPool_SetRateLimitConfig {
+struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
     queryId: uint64;
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>;
 }
 
-struct (0x10c4b4a1) TokenPool_ApplyTokenTransferFeeConfigUpdates {
+struct (0x30a1d1f7) TokenPool_ApplyTokenTransferFeeConfigUpdates {
     queryId: uint64;
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>;
     disableChainSelectors: SnakedCell<uint64>;
 }
 
-struct (0x7a9c4aa5) TokenPool_UpdateRampAccess {
+struct (0xe30764be) TokenPool_UpdateRampAccess {
     queryId: uint64;
     updates: SnakedCell<TokenPool_RampUpdate>;
 }
 
-// TODO: update opcode
 /// Sets the RMN proxy address, a role which is responsible for updating the cursed subjects list.
-struct (0x12345678) TokenPool_SetRMNProxy {
+struct (0x9929b642) TokenPool_SetRMNProxy {
     queryId: uint64;
     rmnProxy: address;
 }
 
-struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
+struct (0x2c906eb7) TokenPool_UpdateCursedSubjects {
     queryId: uint64;
     cursedSubjects: CursedSubjects;
 }
@@ -68,7 +67,7 @@ struct (0x823dadf2) TokenPool_UpdateCursedSubjects {
 /// @param lockOrBurnIn Encoded data fields for the processing of tokens on the source chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
 /// @param tokenArgs Additional token arguments.
-struct (0x1161516e) TokenPool_LockOrBurn {
+struct (0xfa7da444) TokenPool_LockOrBurn {
     queryId: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
     requestedFinalityConfig: uint32;
@@ -76,7 +75,7 @@ struct (0x1161516e) TokenPool_LockOrBurn {
     replyTo: address?;
 }
 
-struct (0x19e65bea) TokenPool_LockOrBurnResponse {
+struct (0x6c060424) TokenPool_LockOrBurnResponse {
     queryId: uint64;
     // TODO: unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
@@ -86,19 +85,19 @@ struct (0x19e65bea) TokenPool_LockOrBurnResponse {
 /// @Releases or mints tokens on the destination chain.
 /// @param releaseOrMintIn Encoded data fields for the processing of tokens on the destination chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
-struct (0x7d0ffd89) TokenPool_ReleaseOrMint {
+struct (0x351f77e3) TokenPool_ReleaseOrMint {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     replyTo: address? = null;
 }
 
-struct (0x7ec43aee) TokenPool_ReleaseOrMintResponse {
+struct (0x78dc2232) TokenPool_ReleaseOrMintResponse {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
 
-struct (0x41a1702b) TokenPool_ReleaseOrMintFailure {
+struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
     queryId: uint64;
     errorCode: uint16;
 }
