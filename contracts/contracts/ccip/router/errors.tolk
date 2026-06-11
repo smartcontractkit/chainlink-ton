@@ -13,4 +13,6 @@ enum Router_Error {
     NoMultiTokenTransfers
     InsufficientFee
     TokenTransferNotThroughNotification
+    JettonTransferNotificationWithoutForwardPayload
+    TokenAmountMismatch
 }

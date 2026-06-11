@@ -167,14 +167,16 @@ fun onInternalMessage(in: InMessage) {
             //TODO: Validate sender is owned jetton transfer
             val st = lazy Storage.load();
 
-            // TODO: catch errors, if different message type than CCIPSend
-            val sendMsg = Router_CCIPSend.fromCell(msg.forwardPayload!);
+            assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
+
+            //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
+            val sendMsg = Router_CCIPSend.fromCell(msg.forwardPayload);
 
             var tokenAmounts = sendMsg.tokenAmounts.iter();
             assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
 
             val transferedJetton = tokenAmounts.next();
-            assert (transferedJetton.amount == msg.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
+            assert (transferedJetton.amount == msg.amount) throw Router_Error.TokenAmountMismatch;
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
             val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
