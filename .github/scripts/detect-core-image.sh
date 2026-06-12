@@ -138,33 +138,59 @@ check_image_availability() {
 
         # The manifest doesn't exist. Check for orphaned per-arch tags left over
         # from a partial build failure (e.g. one arch succeeded, the other didn't,
-        # so the docker-manifest job never ran). If any per-arch images exist,
-        # create the manifest from them rather than erroring out.
+        # so the docker-manifest job never ran).
         local registry="${AWS_ACCOUNT_ID_STAGING}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         local full_manifest="${registry}/${ECR_REPO}:${manifest_tag}"
         local existing_arch_refs=()
+        local missing_arches=()
         for arch in amd64 arm64; do
             if check_ecr_tag_exists "${manifest_tag}-${arch}"; then
                 existing_arch_refs+=("${registry}/${ECR_REPO}:${manifest_tag}-${arch}")
                 log_info "Found existing per-arch image: ${manifest_tag}-${arch}"
+            else
+                missing_arches+=("${arch}")
             fi
         done
 
-        if [[ ${#existing_arch_refs[@]} -gt 0 ]]; then
-            log_info "Creating manifest from existing per-arch images: ${existing_arch_refs[*]}"
-            if docker buildx imagetools create -t "${full_manifest}" "${existing_arch_refs[@]}"; then
-                log_success "Manifest created from existing per-arch images"
-                echo "EXISTS=true"
-                return
-            else
-                log_error "Failed to create manifest from existing per-arch images."
-                log_error "Manual intervention may be required."
-                exit 1
-            fi
+        if [[ ${#existing_arch_refs[@]} -eq 0 ]]; then
+            # No per-arch images at all — clean slate, proceed with full build.
+            log_warning "SHA-based image not found in ECR - needs to be built"
+            echo "EXISTS=false"
+            return
         fi
 
-        log_warning "SHA-based image not found in ECR - needs to be built"
-        echo "EXISTS=false"
+        if [[ ${#missing_arches[@]} -gt 0 ]]; then
+            # Some arches are missing. We can't build them (immutable tags block
+            # overwriting the ones that do exist), and a partial manifest would
+            # cause the relayer build to fail on the missing platform.
+            # The orphaned tags must be deleted so the full build can retry.
+            log_error "Partial build state detected: per-arch images exist for [${existing_arch_refs[*]}] but not for [${missing_arches[*]}]."
+            log_error "A partial manifest cannot serve as a multi-arch base image."
+            log_error "Delete the orphaned immutable tags so the full build can retry:"
+            log_error ""
+            local image_ids_args=""
+            for ref in "${existing_arch_refs[@]}"; do
+                local tag="${ref##*:}"
+                image_ids_args+=" imageTag=${tag}"
+            done
+            log_error "  aws ecr batch-delete-image \\"
+            log_error "    --registry-id ${AWS_ACCOUNT_ID_STAGING} \\"
+            log_error "    --repository-name ${ECR_REPO} \\"
+            log_error "    --region ${AWS_REGION} \\"
+            log_error "    --image-ids${image_ids_args}"
+            exit 1
+        fi
+
+        # All arches are present — create the manifest index from them.
+        log_info "All per-arch images present. Creating manifest: ${full_manifest}"
+        if docker buildx imagetools create -t "${full_manifest}" "${existing_arch_refs[@]}"; then
+            log_success "Manifest created from existing per-arch images"
+            echo "EXISTS=true"
+            return
+        else
+            log_error "Failed to create manifest from existing per-arch images."
+            exit 1
+        fi
     fi
 }
 
