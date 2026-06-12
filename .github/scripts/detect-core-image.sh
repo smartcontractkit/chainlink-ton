@@ -152,9 +152,7 @@ check_image_availability() {
 
         if [[ ${#existing_arch_refs[@]} -gt 0 ]]; then
             log_info "Creating manifest from existing per-arch images: ${existing_arch_refs[*]}"
-            export DOCKER_CLI_EXPERIMENTAL=enabled
-            if docker manifest create "${full_manifest}" "${existing_arch_refs[@]}" \
-                && docker manifest push "${full_manifest}"; then
+            if docker buildx imagetools create -t "${full_manifest}" "${existing_arch_refs[@]}"; then
                 log_success "Manifest created from existing per-arch images"
                 echo "EXISTS=true"
                 return
