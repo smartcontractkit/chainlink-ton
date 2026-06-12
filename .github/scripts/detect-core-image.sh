@@ -138,31 +138,31 @@ check_image_availability() {
 
         # The manifest doesn't exist. Check for orphaned per-arch tags left over
         # from a partial build failure (e.g. one arch succeeded, the other didn't,
-        # so the docker-manifest job never ran). Those tags are immutable and will
-        # block any retry — surface the problem clearly instead of silently failing.
-        local orphaned_tags=()
+        # so the docker-manifest job never ran). If any per-arch images exist,
+        # create the manifest from them rather than erroring out.
+        local registry="${AWS_ACCOUNT_ID_STAGING}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        local full_manifest="${registry}/${ECR_REPO}:${manifest_tag}"
+        local existing_arch_refs=()
         for arch in amd64 arm64; do
             if check_ecr_tag_exists "${manifest_tag}-${arch}"; then
-                orphaned_tags+=("${manifest_tag}-${arch}")
-                log_warning "Orphaned per-arch image found in ECR: ${manifest_tag}-${arch}"
+                existing_arch_refs+=("${registry}/${ECR_REPO}:${manifest_tag}-${arch}")
+                log_info "Found existing per-arch image: ${manifest_tag}-${arch}"
             fi
         done
 
-        if [[ ${#orphaned_tags[@]} -gt 0 ]]; then
-            log_error "Partial build state detected: per-arch images exist without a manifest."
-            log_error "This likely means a previous build failed after pushing some arch images."
-            log_error "The immutable ECR tags must be deleted before retrying:"
-            log_error ""
-            local image_ids_args=""
-            for tag in "${orphaned_tags[@]}"; do
-                image_ids_args+=" imageTag=${tag}"
-            done
-            log_error "  aws ecr batch-delete-image \\"
-            log_error "    --registry-id ${AWS_ACCOUNT_ID_STAGING} \\"
-            log_error "    --repository-name ${ECR_REPO} \\"
-            log_error "    --region ${AWS_REGION} \\"
-            log_error "    --image-ids${image_ids_args}"
-            exit 1
+        if [[ ${#existing_arch_refs[@]} -gt 0 ]]; then
+            log_info "Creating manifest from existing per-arch images: ${existing_arch_refs[*]}"
+            export DOCKER_CLI_EXPERIMENTAL=enabled
+            if docker manifest create "${full_manifest}" "${existing_arch_refs[@]}" \
+                && docker manifest push "${full_manifest}"; then
+                log_success "Manifest created from existing per-arch images"
+                echo "EXISTS=true"
+                return
+            else
+                log_error "Failed to create manifest from existing per-arch images."
+                log_error "Manual intervention may be required."
+                exit 1
+            fi
         fi
 
         log_warning "SHA-based image not found in ECR - needs to be built"
