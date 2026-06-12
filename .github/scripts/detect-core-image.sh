@@ -8,6 +8,7 @@ CHAINLINK_PUBLIC_ECR_IMAGE="public.ecr.aws/chainlink/chainlink"
 DOCKER_CACHE_DIR="${GITHUB_WORKSPACE}/.cache"
 DOCKER_CACHE_KEY="ccip-chainlink-core-sha-cache-v1"
 DOCKER_CACHE_TAR_NAME="ccip-chainlink-core-sha-cache.tar"
+ECR_REPO="chainlink-plugins-dev"
 
 # Colors for output
 RED='\033[0;31m'
@@ -98,6 +99,17 @@ determine_base_image() {
     echo "BASE_IMAGE_PUBLIC=${base_image_public}"
 }
 
+# Check if a specific ECR tag exists (no image pull needed)
+check_ecr_tag_exists() {
+    local tag="$1"
+    aws ecr describe-images \
+        --registry-id "${AWS_ACCOUNT_ID_STAGING}" \
+        --repository-name "${ECR_REPO}" \
+        --image-ids "imageTag=${tag}" \
+        --region "${AWS_REGION}" \
+        &>/dev/null 2>&1
+}
+
 # Check if image already exists
 check_image_availability() {
     local base_image="$1"
@@ -113,14 +125,48 @@ check_image_availability() {
             echo "EXISTS=false"
         fi
     else
-        log_info "SHA-based image - checking if exists in ECR"
-        if docker pull "$base_image" &>/dev/null; then
-            log_success "SHA-based image exists in ECR"
+        local core_ref_short
+        core_ref_short=$(get_short_ref "$core_ref")
+        local manifest_tag="chainlink-${core_ref_short}"
+
+        log_info "SHA-based image - checking if manifest exists in ECR"
+        if check_ecr_tag_exists "${manifest_tag}"; then
+            log_success "SHA-based manifest image exists in ECR"
             echo "EXISTS=true"
-        else
-            log_warning "SHA-based image not found in ECR - needs to be built"
-            echo "EXISTS=false"
+            return
         fi
+
+        # The manifest doesn't exist. Check for orphaned per-arch tags left over
+        # from a partial build failure (e.g. one arch succeeded, the other didn't,
+        # so the docker-manifest job never ran). Those tags are immutable and will
+        # block any retry — surface the problem clearly instead of silently failing.
+        local orphaned_tags=()
+        for arch in amd64 arm64; do
+            if check_ecr_tag_exists "${manifest_tag}-${arch}"; then
+                orphaned_tags+=("${manifest_tag}-${arch}")
+                log_warning "Orphaned per-arch image found in ECR: ${manifest_tag}-${arch}"
+            fi
+        done
+
+        if [[ ${#orphaned_tags[@]} -gt 0 ]]; then
+            log_error "Partial build state detected: per-arch images exist without a manifest."
+            log_error "This likely means a previous build failed after pushing some arch images."
+            log_error "The immutable ECR tags must be deleted before retrying:"
+            log_error ""
+            local image_ids_args=""
+            for tag in "${orphaned_tags[@]}"; do
+                image_ids_args+=" imageTag=${tag}"
+            done
+            log_error "  aws ecr batch-delete-image \\"
+            log_error "    --registry-id ${AWS_ACCOUNT_ID_STAGING} \\"
+            log_error "    --repository-name ${ECR_REPO} \\"
+            log_error "    --region ${AWS_REGION} \\"
+            log_error "    --image-ids${image_ids_args}"
+            exit 1
+        fi
+
+        log_warning "SHA-based image not found in ECR - needs to be built"
+        echo "EXISTS=false"
     fi
 }
 
