@@ -1,6 +1,12 @@
 # TON Relayer Docker Publishing Workflow
 # Builds and publishes Docker images for the TON relayer,
 # including the base Chainlink core image and the combined core+relayer image
+#
+# NOTE: both jobs pin a fork of reusable-docker-build-publish (6fb1587) that adds latest's
+# free-disk-space on top of the DOCKER_BUILD_ARGS *secret* channel. The secret is required to
+# pass the sensitive AWS account ID in BASE_IMAGE without it being redacted (masked job outputs
+# become *** downstream, and `secrets` can't be referenced from a non-secret build-args input).
+# No published version supports both, so this is tracked upstream in DX-1765 to drop the fork.
 
 name: TON - Relayer - Publish Docker Image
 
@@ -73,7 +79,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@dc50cf055925cceb3fcad2f394e3c2cb2ba172cc
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6fb158757c9537d3fbecfe3b357b30199fc37fad
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
@@ -121,7 +127,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@dc50cf055925cceb3fcad2f394e3c2cb2ba172cc
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6fb158757c9537d3fbecfe3b357b30199fc37fad
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
@@ -129,17 +135,6 @@ jobs:
       free-disk-space: "true"
       dockerfile: scripts/build/Dockerfile.build.nix
       docker-build-context: .
-      docker-build-args: |
-        CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ 
-          needs.determine-core-image.outputs.base_image_public == 'true' && 
-          needs.determine-core-image.outputs.base_image || 
-          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', 
-            secrets.AWS_ACCOUNT_ID_STAGING, 
-            vars.AWS_REGION, 
-            needs.determine-core-image.outputs.base_image_tag) 
-        }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -152,6 +147,17 @@ jobs:
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
       AWS_ROLE_GATI_ARN: ${{ secrets.AWS_OIDC_CHAINLINK_READ_ONLY_TOKEN_ISSUER_ROLE_ARN }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+      DOCKER_BUILD_ARGS: |
+        CHAINLINK_USER=chainlink
+        COMMIT_SHA=${{ github.sha }}
+        BASE_IMAGE=${{ 
+          needs.determine-core-image.outputs.base_image_public == 'true' && 
+          needs.determine-core-image.outputs.base_image || 
+          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', 
+            secrets.AWS_ACCOUNT_ID_STAGING, 
+            vars.AWS_REGION, 
+            needs.determine-core-image.outputs.base_image_tag) 
+        }}
 
   # Updates the Kubernetes infrastructure with the newly built image
   deploy-to-staging:
