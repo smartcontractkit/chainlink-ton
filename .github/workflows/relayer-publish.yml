@@ -73,11 +73,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@a3959a064356bde13839ab7f656bd84e5fb071e1
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@dc50cf055925cceb3fcad2f394e3c2cb2ba172cc
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
+      free-disk-space: "true"
       dockerfile: core/chainlink.Dockerfile
       docker-build-context: .
       docker-build-args: |
@@ -112,11 +113,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@a3959a064356bde13839ab7f656bd84e5fb071e1
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@dc50cf055925cceb3fcad2f394e3c2cb2ba172cc
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
+      free-disk-space: "true"
       dockerfile: scripts/build/Dockerfile.build.nix
       docker-build-context: .
       docker-manifest-sign: true
