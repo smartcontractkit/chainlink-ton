@@ -79,14 +79,22 @@ jobs:
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
       free-disk-space: "true"
-      dockerfile: core/chainlink.Dockerfile
-      docker-build-context: .
+      # The reusable workflow checks out chainlink-ton; clone chainlink core separately.
+      docker-pre-build-commands: |
+        set -euo pipefail
+        rm -rf core-src
+        git init core-src
+        git -C core-src remote add origin https://github.com/smartcontractkit/chainlink.git
+        git -C core-src fetch --depth 1 origin ${{ needs.determine-core-image.outputs.core_ref }}
+        git -C core-src checkout FETCH_HEAD
+      dockerfile: core-src/core/chainlink.Dockerfile
+      docker-build-context: core-src
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ needs.determine-core-image.outputs.core_ref }}
       docker-manifest-sign: false
       docker-image-tag-override: ${{ needs.determine-core-image.outputs.base_image_tag }}
-      git-sha: ${{ needs.determine-core-image.outputs.core_ref }}
+      git-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
@@ -121,6 +129,17 @@ jobs:
       free-disk-space: "true"
       dockerfile: scripts/build/Dockerfile.build.nix
       docker-build-context: .
+      docker-build-args: |
+        CHAINLINK_USER=chainlink
+        COMMIT_SHA=${{ github.sha }}
+        BASE_IMAGE=${{ 
+          needs.determine-core-image.outputs.base_image_public == 'true' && 
+          needs.determine-core-image.outputs.base_image || 
+          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', 
+            secrets.AWS_ACCOUNT_ID_STAGING, 
+            vars.AWS_REGION, 
+            needs.determine-core-image.outputs.base_image_tag) 
+        }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -133,17 +152,6 @@ jobs:
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
       AWS_ROLE_GATI_ARN: ${{ secrets.AWS_OIDC_CHAINLINK_READ_ONLY_TOKEN_ISSUER_ROLE_ARN }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
-      DOCKER_BUILD_ARGS: |
-        CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ 
-          needs.determine-core-image.outputs.base_image_public == 'true' && 
-          needs.determine-core-image.outputs.base_image || 
-          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', 
-            secrets.AWS_ACCOUNT_ID_STAGING, 
-            vars.AWS_REGION, 
-            needs.determine-core-image.outputs.base_image_tag) 
-        }}
 
   # Updates the Kubernetes infrastructure with the newly built image
   deploy-to-staging:
