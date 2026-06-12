@@ -52,7 +52,12 @@ export type Addresses = {
   tokenRegistry?: Address | null
 }
 
-export type State = Initialized | OnGoingFeeValidation | TokenRegistryAccess | TokenTransfer | Finalized
+export type State =
+  | Initialized
+  | OnGoingFeeValidation
+  | TokenRegistryAccess
+  | TokenTransfer
+  | Finalized
 
 export type Initialized = {
   kind: 'initialized'
