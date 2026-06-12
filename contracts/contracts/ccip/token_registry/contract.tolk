@@ -18,6 +18,7 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         TokenRegistry_GetTokenInfo => {
+            //TODO: min value assertion
             onGetTokenInfo(msg, in.senderAddress);
         }
         else => {
@@ -28,6 +29,7 @@ fun onInternalMessage(in: InMessage) {
 
 fun onGetTokenInfo(msg: TokenRegistry_GetTokenInfo, sender: address) {
     val st = TokenRegistry_Storage.load();
+    //TODO we might want to send a different message than ReturnTokenInfo when the token is not enabled
     val response = createMessage({
         dest: sender,
         value: 0,

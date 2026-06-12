@@ -73,9 +73,16 @@ fun onBouncedMessage(in: InMessageBounced) {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce);
         }
+        //TODO: We should handle bounced messages from the TokenRegistry, as that means the token is not enabled on the lane
     }
 }
 
+//TODO: Figure out how to maintain backwards compatibility for messages sent between updating the Executor code in the OnRamp and upgrading the OnRamp itself.
+// Option 1: split the initialization in two messages to maintain backwards compatibility.
+// 1. CCIPSendExecutor_Execute stays the same as in 1.6.1 (that means not changing Config)
+// 2. CCIPSendExecutor_InitTokenTransfer passes the token registry address and other necessary configs
+// That way we can upgrade the SendExecutor code in the OnRamp and then upgrade the OnRamp itself, if an executor is deployed by the OnRamp between upgrades the new SendExecutor will still be able to handle the initialization message.
+// Option 2: Create a new message type CCIPSendExecutor_ExecuteV2 which has the new config element. Make the new executor able to handle both this version and the original.
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
@@ -154,12 +161,13 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenRegistry_ReturnTokenInfo) {
     //TODO validate sender wallet address by querying the jettonMinter
     assert(msg.tokenInfo.enabled) throw CCIPSendExecutor_Error.TokenNotEnabled;
-    val onrampSend = self.onrampSend.msg.load();
+    val onrampSend = lazy self.onrampSend.msg.load();
     val tokenAmount = onrampSend.tokenAmounts.iter().next();
+    val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
         value: 0,
-        dest: self.addresses.load().onramp,
+        dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             tokenAmount,
             tokenPool: msg.tokenInfo.tokenPool,

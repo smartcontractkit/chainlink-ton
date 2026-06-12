@@ -75,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_ExecutorRequestsLockOrBurn => {
         // Sender must be Send Executor
             var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
+            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
