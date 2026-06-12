@@ -15,4 +15,5 @@ enum Router_Error {
     TokenTransferNotThroughNotification
     JettonTransferNotificationWithoutForwardPayload
     TokenAmountMismatch
+    ForwardPayloadIsNotCCIPSend
 }

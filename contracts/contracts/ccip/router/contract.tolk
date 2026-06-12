@@ -55,6 +55,8 @@ fun onInternalMessage(in: InMessage) {
         Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            // Token transfer messages can only come in through jetton transfer notifications
+            assert(msg.tokenAmounts.empty()) throw Router_Error.TokenTransferNotThroughNotification; //TBD shuold this be sendMessageRejected instead of throw?
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
         // Permissionless
@@ -164,13 +166,16 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be a Jetton Wallet owned by the Router
         Common_JettonTransferNotification => {
-            //TODO: Validate sender is owned jetton transfer
-            val st = lazy Storage.load();
+
+            // TODO minValue is probably higher for a tokenTransfer as it needs more hops.
+            // We should revisit our entire min gas assertion model anyway
+            val minValue = Router_Costs.CCIPSend();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
 
             assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
 
             //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
-            val sendMsg = Router_CCIPSend.fromCell(msg.forwardPayload);
+            val sendMsg = lazy Router_CCIPSend.fromCell(msg.forwardPayload);
 
             var tokenAmounts = sendMsg.tokenAmounts.iter();
             assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
@@ -179,17 +184,7 @@ fun onInternalMessage(in: InMessage) {
             assert (transferedJetton.amount == msg.amount) throw Router_Error.TokenAmountMismatch;
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
-            val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
-            // Fees are paid in native TON, not in the transferred token. metadata.value must be the
-            // native TON attached to the transfer notification (used downstream to cover fee +
-            // execution costs), mirroring the plain-message path which uses in.valueCoins.
-            val onRampSend = createMessage({
-                bounce: true,
-                value: 0,
-                dest: onRamp,
-                body: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: msg.sender, value: in.valueCoins } },
-            });
-            onRampSend.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            onCCIPSend(sendMsg, msg.sender, in.valueCoins);
         }
         else => {
             // attempt to handle Ownable messages
@@ -517,9 +512,6 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (msg.feeToken == null) {
         msg.feeToken = st.wrappedNative
     }
-
-    // Token transfer messages can only come in through jetton transfer notifications
-    assert(msg.tokenAmounts.empty()) throw Router_Error.TokenTransferNotThroughNotification; //TBD shuold this be sendMessageRejected instead of throw?
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
