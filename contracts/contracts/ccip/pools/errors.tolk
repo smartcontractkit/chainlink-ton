@@ -25,6 +25,9 @@ enum TokenPool_Error {
     UnsupportedOperation // ();
 
     // TODO: extra
+    MissingForwardPayload
+    MissingTransferInitiator
+    AmountMismatch
     InvalidRequestedFinality
     RateLimitExceeded
 }

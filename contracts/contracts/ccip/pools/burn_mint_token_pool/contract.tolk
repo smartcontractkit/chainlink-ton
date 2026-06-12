@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.1
 
-import "../../../lib/utils.tolk"
-import "../../../lib/access/ownable_2step.tolk"
-import "../../../lib/jetton/jetton_client.tolk"
-import "../../../lib/jetton/messages.tolk"
-import "../../../lib/jetton/jetton-utils.tolk"
+import "../../../lib/utils"
+import "../../../lib/access/ownable_2step"
+import "../../../lib/jetton/jetton_client"
+import "../../../lib/jetton/messages"
+import "../../../lib/jetton/jetton-utils"
 import "../../rmn_remote/lib"
-import "../token_pool.tolk"
+import "../token_pool"
 import "../types"
 import "../messages"
 import "../events"
@@ -44,10 +44,6 @@ fun onInternalMessage(in: InMessage) {
             onClaimMinterAdmin(mutate st, in.senderAddress, msg);
             st.store();
         }
-        TransferNotificationForRecipient => {
-            onJettonTransferNotification(mutate st, msg, in.senderAddress);
-            st.store();
-        }
         ReturnExcessesBack => {
             onReturnExcessesBack(mutate st, msg, in.senderAddress);
             st.store();
@@ -77,28 +73,16 @@ fun onClaimMinterAdmin(
 
 /// @notice Token pool used for burn and mint tokens. This uses a burn and mint mechanism.
 /// @dev One token per BurnMintTokenPool. In this variant the pool contract owns the Jetton wallet and the Jetton minter admin role.
-fun onJettonTransferNotification(
-    mutate st: Storage,
-    msg: TransferNotificationForRecipient,
+fun doLockOrBurn(
+    st: Storage,
     sender: address,
-) {
-    val jettonClient = st.jettonClient.load();
-    assert(jettonClient.isWallet(sender), Error.IncorrectJettonSender);
-
-    val payload = loadForwardPayloadAsSlice(msg.forwardPayload);
-    assert(payload != null, Error.MissingForwardPayload);
-
-    val requestMsg = TokenPool_LockOrBurn.fromSlice(payload!);
-    val request = requestMsg.request.load();
-    assert(request.amount == msg.jettonAmount, Error.AmountMismatch);
-    assert(msg.transferInitiator != null, Error.MissingTransferInitiator);
+    _: TransferNotificationForRecipient,
+    requestMsg: TokenPool_LockOrBurn,
+    prepared: TokenPool_LockOrBurnPrepared,
+): Storage {
     assert(!st.pendingBurns.get(requestMsg.queryId).isFound, Error.PendingBurnAlreadyExists);
-    val transferInitiator = msg.transferInitiator!;
 
-    var pool = loadPool(st);
-    val prepared = pool.prepareLockOrBurn(transferInitiator, request, requestMsg.requestedFinalityConfig, requestMsg.tokenArgs);
-    st.poolData = pool.data.toCell();
-
+    val jettonClient = st.jettonClient.load();
     st.pendingBurns.set(requestMsg.queryId, BurnMintTokenPool_PendingBurn {
         replyTo: requestMsg.replyTo,
         request: prepared.request.toCell(),
@@ -118,9 +102,11 @@ fun onJettonTransferNotification(
             customPayload: null,
         },
     }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+
+    return st;
 }
 
-fun hookHandleReleaseOrMintMessage(
+fun handleReleaseOrMintMessage(
     ctx: Storage?,
     sender: address,
     msg: TokenPool_ReleaseOrMint,
@@ -250,7 +236,10 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             postflightCheck: null,
             applyLockOrBurn: null,
             applyReleaseOrMint: null,
-            handleReleaseOrMintMessage: hookHandleReleaseOrMintMessage,
+            onLockOrBurn: null,
+            validateLockOrBurn: null,
+            doLockOrBurn,
+            handleReleaseOrMintMessage,
         },
     };
 }

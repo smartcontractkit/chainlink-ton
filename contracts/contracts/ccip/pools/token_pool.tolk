@@ -3,8 +3,9 @@ import "@stdlib/lisp-lists"
 
 import "../../lib/math"
 import "../../lib/utils"
-import "../../lib/jetton/messages.tolk"
-import "../../lib/access/ownable_2step.tolk"
+import "../../lib/jetton/messages"
+import "../../lib/jetton/jetton_client"
+import "../../lib/access/ownable_2step"
 import "../common/types"
 import "../rmn_remote/lib"
 
@@ -51,6 +52,11 @@ struct TokenPool_Hooks<T> {
     postflightCheck: ((T?, TokenPool_ReleaseOrMintInV1, uint256, uint32) -> void)?;
     applyLockOrBurn: ((T?, TokenPool_LockOrBurnPrepared) -> void)?;
     applyReleaseOrMint: ((T?, TokenPool_ReleaseOrMintPrepared) -> void)?;
+
+    // LockOrBurn flow
+    onLockOrBurn: ((T, address, TransferNotificationForRecipient) -> T)?;
+    validateLockOrBurn: ((T, address, TokenPool_LockOrBurnInV1, uint32, cell?) -> (T, TokenPool_LockOrBurnPrepared))?;
+    doLockOrBurn: ((T, address, TransferNotificationForRecipient, TokenPool_LockOrBurn, TokenPool_LockOrBurnPrepared) -> T)?;
     handleReleaseOrMintMessage: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 }
 
@@ -459,7 +465,8 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             return true;
         }
         TransferNotificationForRecipient => {
-            return false; // TODO: handle me, should host fwdPayload = TokenPool_LockOrBurn
+            self.onLockOrBurn(msgSender, msg);
+            return true;
         }
         else => {
             var adminConfig = self.data.adminConfig.load();
@@ -577,13 +584,33 @@ fun TokenPool<T>.getFeeAmount(
     return (request.amount * (feeConfig.finalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
 }
 
-fun TokenPool<T>.prepareLockOrBurn(
+/// Validates the lock or burn input for correctness on
+/// - token to be locked or burned
+/// - RMN curse status
+/// - if the sender is a valid onRamp
+/// - rate limiting for either default or FTF transfer messages.
+/// - preflight checks hooks (if enabled)
+/// @param lockOrBurnIn The input to validate.
+/// @param requestedFinality The requested finality speed according to the FinalityCodec encoding.
+/// @param tokenArgs Additional token arguments passed in by the sender of the message.
+/// @param feeAmount The fee amount deducted from the transfer amount.
+/// @dev This function should always be called before executing a lock or burn. Not doing so would allow
+/// for various exploits.
+fun TokenPool<T>.validateLockOrBurn(
     mutate self,
     sender: address,
     request: TokenPool_LockOrBurnInV1,
     requestedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY,
     tokenArgs: cell? = null,
 ): TokenPool_LockOrBurnPrepared {
+    if (self.hooks != null && self.hooks.validateLockOrBurn != null) {
+        val (newContext, prepared)
+            = self.hooks.validateLockOrBurn(self.context!, sender, request, requestedFinalityConfig, tokenArgs);
+        self.context = newContext;
+
+        return prepared;
+    }
+
     assert(self.isSupportedToken(request.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(request.remoteChainSelector);
     self.ensureNotCursed(request.remoteChainSelector);
@@ -599,6 +626,7 @@ fun TokenPool<T>.prepareLockOrBurn(
         self.consumeOutboundRateLimit(request.remoteChainSelector, destTokenAmount);
     }
 
+    // TODO: preflightCheck needs to indicate if we can continue or wait for an async trigger (to continue)
     self.preflightCheck(request, requestedFinalityConfig, tokenArgs, destTokenAmount);
 
     return TokenPool_LockOrBurnPrepared {
@@ -615,19 +643,97 @@ fun TokenPool<T>.prepareLockOrBurn(
     };
 }
 
-fun TokenPool<T>.lockOrBurn(
+fun TokenPool<T>.onLockOrBurn(
     mutate self,
     sender: address,
-    request: TokenPool_LockOrBurnInV1,
-    requestedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY,
-    tokenArgs: cell? = null,
-): TokenPool_LockOrBurnPrepared {
-    val prepared = self.prepareLockOrBurn(sender, request, requestedFinalityConfig, tokenArgs);
-    if (self.hooks != null && self.hooks.applyLockOrBurn != null) {
-        self.hooks.applyLockOrBurn(self.context, prepared);
+    msg: TransferNotificationForRecipient,
+): void {
+    if (self.hooks != null && self.hooks.onLockOrBurn != null) {
+        self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
+        
+        return;
     }
-    return prepared;
+
+    // TODO: hooks in this flow
+    //  - lockOrBurn (this)
+    //  - _getFee
+    //  - _validateLockOrBurn
+    //  - _lockOrBurn
+
+    // val jettonClient = st.jettonClient.load();
+    // assert(jettonClient.isWallet(sender), Error.IncorrectJettonSender);
+
+    val payload = loadForwardPayloadAsSlice(msg.forwardPayload);
+    assert(payload != null, TokenPool_Error.MissingForwardPayload);
+
+    val requestMsg = TokenPool_LockOrBurn.fromSlice(payload!);
+    val request = requestMsg.request.load();
+    assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+    assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
+
+    val transferInitiator = msg.transferInitiator!;
+
+    // TODO: should indicate if we need to wait for an async callback before proceeding (e.g., preflight check)
+    val prepared = self.validateLockOrBurn(transferInitiator, request, requestMsg.requestedFinalityConfig, requestMsg.tokenArgs);
+
+    // TODO: should indicate if we need to wait for an async callback before proceeding (e.g., burn process)
+    self.doLockOrBurn(sender, msg, requestMsg, prepared);
 }
+
+// /// Contains the specific lock or burn token logic for a pool.
+// /// @dev overriding this method allows us to create pools with different lock/burn signatures
+// /// without duplicating the underlying logic.
+// /// @param remoteChainSelector The selector of the remote chain.
+// /// @param amount The amount of tokens to lock or burn.
+// fun TokenPool<T>.doLockOrBurn(
+//     mutate self,
+//     sender: address,
+//     uint64 remoteChainSelector,
+//     uint256 amount,
+// ): void {}
+
+// TODO: should be simplified to above fun signature
+fun TokenPool<T>.doLockOrBurn(
+    mutate self,
+    sender: address,
+    msg: TransferNotificationForRecipient,
+    requestMsg: TokenPool_LockOrBurn,
+    prepared: TokenPool_LockOrBurnPrepared,
+): bool {
+    var wait = false;
+    if (self.hooks != null && self.hooks.doLockOrBurn != null) {
+        // TODO: hooks.doLockOrBurn should indicate if we need to wait for an async callback before proceeding
+        self.context = self.hooks.doLockOrBurn(self.context!, sender, msg, requestMsg, prepared);
+    }
+
+    return wait;
+}
+
+
+// function lockOrBurn(
+//     Pool.LockOrBurnInV1 calldata lockOrBurnIn,
+//     bytes4 requestedFinalityConfig,
+//     bytes calldata tokenArgs
+//   ) public virtual returns (Pool.LockOrBurnOutV1 memory, uint256 destTokenAmount) {
+//     uint256 feeAmount = _getFee(lockOrBurnIn, requestedFinalityConfig);
+//     _validateLockOrBurn(lockOrBurnIn, requestedFinalityConfig, tokenArgs, feeAmount);
+//     destTokenAmount = lockOrBurnIn.amount - feeAmount;
+//     _lockOrBurn(lockOrBurnIn.remoteChainSelector, destTokenAmount);
+
+//     emit LockedOrBurned({
+//       remoteChainSelector: lockOrBurnIn.remoteChainSelector,
+//       token: lockOrBurnIn.localToken,
+//       sender: msg.sender,
+//       amount: destTokenAmount
+//     });
+
+//     return (
+//       Pool.LockOrBurnOutV1({
+//         destTokenAddress: getRemoteToken(lockOrBurnIn.remoteChainSelector), destPoolData: _encodeLocalDecimals()
+//       }),
+//       destTokenAmount
+//     );
+//   }
 
 fun TokenPool<T>.prepareReleaseOrMint(
     mutate self,

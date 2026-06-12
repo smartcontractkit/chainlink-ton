@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.1
 
-import "../../../lib/utils.tolk"
-import "../../../lib/access/ownable_2step.tolk"
-import "../../../lib/jetton/messages.tolk"
-import "../../../lib/jetton/jetton-utils.tolk"
-import "../../../lib/jetton/jetton_client.tolk"
+import "../../../lib/utils"
+import "../../../lib/access/ownable_2step"
+import "../../../lib/jetton/messages"
+import "../../../lib/jetton/jetton-utils"
+import "../../../lib/jetton/jetton_client"
 import "../../rmn_remote/lib"
-import "../token_pool.tolk"
+import "../token_pool"
 import "../types"
 import "../messages"
 import "../events"
@@ -44,10 +44,6 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
-        TransferNotificationForRecipient => {
-            onJettonTransferNotification(mutate st, msg, in.senderAddress);
-            st.store();
-        }
         ReturnExcessesBack => {
             onReturnExcessesBack(mutate st, msg, in.senderAddress);
             st.store();
@@ -71,32 +67,19 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 /// @notice Token pool used for tokens on their native chain. This uses a lock and release mechanism.
 /// @dev One token per LockReleaseTokenPool. In this non-lockbox variant the pool contract's Jetton wallet holds custody directly.
-fun onJettonTransferNotification(
-    mutate st: Storage,
-    msg: TransferNotificationForRecipient,
+fun doLockOrBurn(
+    st: Storage, // TODO: should be TokenPool<Storage> so I get access to hooks and context
     sender: address,
-) {
-    val jettonClient = st.jettonClient.load();
-    assert(jettonClient.isWallet(sender), Error.IncorrectJettonSender);
-
-    val payload = loadForwardPayloadAsSlice(msg.forwardPayload);
-    assert(payload != null, Error.MissingForwardPayload);
-
-    val requestMsg = TokenPool_LockOrBurn.fromSlice(payload!);
+    msg: TransferNotificationForRecipient,
+    requestMsg: TokenPool_LockOrBurn,
+    prepared: TokenPool_LockOrBurnPrepared,
+): Storage {
     var request = requestMsg.request.load();
-    assert(request.amount == msg.jettonAmount, Error.AmountMismatch);
-    assert(msg.transferInitiator != null, Error.MissingTransferInitiator);
-    val transferInitiator = msg.transferInitiator!;
-
-    var pool = loadPool(st);
-    val prepared = pool.prepareLockOrBurn(transferInitiator, request, requestMsg.requestedFinalityConfig, requestMsg.tokenArgs);
-    st.poolData = pool.data.toCell();
-
     emit(TOKEN_POOL_LOCKED_OR_BURNED_TOPIC, TokenPool_LockedOrBurned {
         remoteChainSelector: request.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
             token: request.localToken,
-            sender: transferInitiator,
+            sender: msg.transferInitiator!,
             amount: prepared.destTokenAmount,
         }.toCell(),
     });
@@ -113,9 +96,11 @@ fun onJettonTransferNotification(
             },
         }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+
+    return st;
 }
 
-fun hookHandleReleaseOrMintMessage(
+fun handleReleaseOrMintMessage(
     ctx: Storage?,
     sender: address,
     msg: TokenPool_ReleaseOrMint,
@@ -233,7 +218,10 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             postflightCheck: null,
             applyLockOrBurn: null,
             applyReleaseOrMint: null,
-            handleReleaseOrMintMessage: hookHandleReleaseOrMintMessage,
+            onLockOrBurn: null,
+            validateLockOrBurn: null,
+            doLockOrBurn,
+            handleReleaseOrMintMessage,
         },
     };
 }
