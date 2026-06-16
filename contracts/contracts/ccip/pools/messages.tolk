@@ -104,10 +104,11 @@ type TokenPool_InMessage =
     | TokenPool_ReleaseOrMint
     | TokenPool_LockOrBurn
     | TransferNotificationForRecipient; // fwdPayload = TokenPool_LockOrBurnForwardPayload
+    // TODO: add async pre/postflight checks (async hooks) message callbacks here as well
 
 struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
-    request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
+    forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
 struct (0x6c060424) TokenPool_LockOrBurnFinished {

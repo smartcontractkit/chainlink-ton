@@ -24,7 +24,9 @@ contract BurnMintTokenPool {
     description: "link.chain.ton.ccip.BurnMintTokenPool"
 
     storage: Storage
-    incomingMessages: TokenPool_InMessage | BurnMintTokenPool_InMessage // TODO: all incoming messages should be registered
+    incomingMessages:
+        | TokenPool_InMessage
+        | BurnMintTokenPool_InMessage // TODO: all incoming messages should be registered
 }
 
 fun onInternalMessage(in: InMessage) {

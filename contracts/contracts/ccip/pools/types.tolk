@@ -80,7 +80,6 @@ struct TokenPool_TokenTransferFeeConfigArgs {
 struct TokenPool_LockOrBurnPrepared {
     feeAmount: uint256;
     destTokenAmount: uint256;
-    usingFastFinality: bool;
     out: TokenPool_LockOrBurnOutV1;
 }
 
@@ -88,7 +87,6 @@ struct TokenPool_ReleaseOrMintPrepared {
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     localAmount: uint256;
-    usingFastFinality: bool;
     out: TokenPool_ReleaseOrMintOutV1;
 }
 

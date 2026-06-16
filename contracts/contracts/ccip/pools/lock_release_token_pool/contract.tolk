@@ -24,7 +24,9 @@ contract LockReleaseTokenPool {
     description: "link.chain.ton.ccip.LockReleaseTokenPool"
 
     storage: Storage
-    incomingMessages: TokenPool_InMessage | LockReleaseTokenPool_InMessage // TODO: all incoming messages should be registered
+    incomingMessages:
+        | TokenPool_InMessage
+        | LockReleaseTokenPool_InMessage // TODO: all incoming messages should be registered
 }
 
 // TODO:
