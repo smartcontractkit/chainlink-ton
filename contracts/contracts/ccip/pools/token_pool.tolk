@@ -54,9 +54,9 @@ struct TokenPool_Hooks<T> {
     applyReleaseOrMint: ((T?, TokenPool_ReleaseOrMintPrepared) -> void)?;
 
     // LockOrBurn flow
-    onLockOrBurn: ((T, address, TransferNotificationForRecipient) -> T)?;
+    onLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> T)?;
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurnInV1, uint32, cell?) -> (T, TokenPool_LockOrBurnPrepared))?;
-    doLockOrBurn: ((T, address, TransferNotificationForRecipient, TokenPool_LockOrBurn, TokenPool_LockOrBurnPrepared) -> T)?;
+    onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
     handleReleaseOrMintMessage: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 }
 
@@ -464,8 +464,17 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.context = self.hooks.handleReleaseOrMintMessage(self.context, msgSender, msg, prepared);
             return true;
         }
-        TransferNotificationForRecipient => {
+        TokenPool_LockOrBurn => {
             self.onLockOrBurn(msgSender, msg);
+            return true;
+        }
+        // Once we withdraw via Executor -> OnRamp -> JettonWallet, we will receive a TransferNotificationForRecipient callback,
+        // which is only allowed to be called by a valid OnRamp address, otherwise we try a best effort return.
+        //
+        // In the worst case, not enough funds, received Jettons are burned.
+        TransferNotificationForRecipient => {
+            // TODO: how do we know this transfer is allowed - easiest to just accept transfers from the Router (static)
+            self.onLockOrBurnTransfer(msgSender, msg);
             return true;
         }
         else => {
@@ -630,7 +639,7 @@ fun TokenPool<T>.validateLockOrBurn(
     self.preflightCheck(request, requestedFinalityConfig, tokenArgs, destTokenAmount);
 
     return TokenPool_LockOrBurnPrepared {
-        request,
+        request: request.toCell(),
         requestedFinalityConfig,
         tokenArgs,
         feeAmount,
@@ -646,7 +655,7 @@ fun TokenPool<T>.validateLockOrBurn(
 fun TokenPool<T>.onLockOrBurn(
     mutate self,
     sender: address,
-    msg: TransferNotificationForRecipient,
+    msg: TokenPool_LockOrBurn,
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
@@ -660,24 +669,27 @@ fun TokenPool<T>.onLockOrBurn(
     //  - _validateLockOrBurn
     //  - _lockOrBurn
 
-    // val jettonClient = st.jettonClient.load();
-    // assert(jettonClient.isWallet(sender), Error.IncorrectJettonSender);
+    // TODO: should validate JettonSender at this point, if not already validated by Executor (TP flag):
+    //  - gets Router JettonWallet address in TokenPool_LockOrBurn from a trusted source
+    //  - validates locally via JettonMinter address + JettonWallet code + Router address
 
-    val payload = loadForwardPayloadAsSlice(msg.forwardPayload);
-    assert(payload != null, TokenPool_Error.MissingForwardPayload);
-
-    val requestMsg = TokenPool_LockOrBurn.fromSlice(payload!);
-    val request = requestMsg.request.load();
-    assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
-    assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
-
-    val transferInitiator = msg.transferInitiator!;
+    val request = msg.request.load();
+     // TODO: get actual transfer initiator (msg.request.originalSender)
+    val transferInitiator = sender; // TODO: fixme
 
     // TODO: should indicate if we need to wait for an async callback before proceeding (e.g., preflight check)
-    val prepared = self.validateLockOrBurn(transferInitiator, request, requestMsg.requestedFinalityConfig, requestMsg.tokenArgs);
+    val prepared = self.validateLockOrBurn(transferInitiator, request, msg.requestedFinalityConfig, msg.tokenArgs);
 
-    // TODO: should indicate if we need to wait for an async callback before proceeding (e.g., burn process)
-    self.doLockOrBurn(sender, msg, requestMsg, prepared);
+    val withdrawalMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: msg.replyTo!, // should always be set as msg Executor
+        body: TokenPool_LockOrBurnWithdraw {
+            queryId: msg.queryId,
+            request: msg.request,
+        },
+    });
+    withdrawalMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // /// Contains the specific lock or burn token logic for a pool.
@@ -685,7 +697,7 @@ fun TokenPool<T>.onLockOrBurn(
 // /// without duplicating the underlying logic.
 // /// @param remoteChainSelector The selector of the remote chain.
 // /// @param amount The amount of tokens to lock or burn.
-// fun TokenPool<T>.doLockOrBurn(
+// fun TokenPool<T>.onLockOrBurnTransfer(
 //     mutate self,
 //     sender: address,
 //     uint64 remoteChainSelector,
@@ -693,20 +705,14 @@ fun TokenPool<T>.onLockOrBurn(
 // ): void {}
 
 // TODO: should be simplified to above fun signature
-fun TokenPool<T>.doLockOrBurn(
+fun TokenPool<T>.onLockOrBurnTransfer(
     mutate self,
     sender: address,
     msg: TransferNotificationForRecipient,
-    requestMsg: TokenPool_LockOrBurn,
-    prepared: TokenPool_LockOrBurnPrepared,
-): bool {
-    var wait = false;
-    if (self.hooks != null && self.hooks.doLockOrBurn != null) {
-        // TODO: hooks.doLockOrBurn should indicate if we need to wait for an async callback before proceeding
-        self.context = self.hooks.doLockOrBurn(self.context!, sender, msg, requestMsg, prepared);
+): void {
+    if (self.hooks != null && self.hooks.onLockOrBurnTransfer != null) {
+        self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
     }
-
-    return wait;
 }
 
 
@@ -760,7 +766,7 @@ fun TokenPool<T>.prepareReleaseOrMint(
     self.postflightCheck(request, localAmount, requestedFinalityConfig);
 
     return TokenPool_ReleaseOrMintPrepared {
-        request,
+        request: request.toCell(),
         requestedFinalityConfig,
         localAmount,
         usingFastFinality,

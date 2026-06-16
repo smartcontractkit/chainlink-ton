@@ -67,13 +67,46 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 /// @notice Token pool used for tokens on their native chain. This uses a lock and release mechanism.
 /// @dev One token per LockReleaseTokenPool. In this non-lockbox variant the pool contract's Jetton wallet holds custody directly.
-fun doLockOrBurn(
+fun onLockOrBurnTransfer(
     st: Storage, // TODO: should be TokenPool<Storage> so I get access to hooks and context
     sender: address,
     msg: TransferNotificationForRecipient,
-    requestMsg: TokenPool_LockOrBurn,
-    prepared: TokenPool_LockOrBurnPrepared,
 ): Storage {
+
+    // TODO: duplicated code with burn/mint TP 
+    var isValidPayload = true; // TODO: safely inspect the payload
+    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
+    val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val prepared = lazy fwdp.prepared.load();
+
+    // TODO: can we trust (any) JettonWallet forward payloads?
+    // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+
+    // TODO: check msg.transferInitiator is Router (or best effort return)
+    val router = createAddressNone();
+    if (msg.transferInitiator == null || msg.transferInitiator! != router || !isValidPayload) {
+        // TODO: check available gas, we don't want to drain the contract with return transfers
+        // send back the tokens, we don't support direct transfers to the pool
+        val returnTransfer = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: sender,
+            body: AskToTransfer {
+                queryId: msg.queryId,
+                jettonAmount: msg.jettonAmount,
+                transferRecipient: msg.transferInitiator!,
+                sendExcessesTo: msg.transferInitiator,
+                customPayload: null,
+                forwardTonAmount: 0,
+                forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+            },
+        });
+        returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+        return st;
+    }
+
     var request = requestMsg.request.load();
     emit(TOKEN_POOL_LOCKED_OR_BURNED_TOPIC, TokenPool_LockedOrBurned {
         remoteChainSelector: request.remoteChainSelector,
@@ -84,17 +117,18 @@ fun doLockOrBurn(
         }.toCell(),
     });
 
+    // TODO: we should reply in any case, send a message to the OnRamp to indicate that the lockOrBurn was processed
     if (requestMsg.replyTo != null) {
         createMessage({
             bounce: true,
-            value: LockReleaseTokenPool_REPLY_VALUE,
+            value: 0,
             dest: requestMsg.replyTo!,
             body: TokenPool_LockOrBurnResponse {
                 queryId: requestMsg.queryId,
                 out: prepared.out.toCell(),
                 destTokenAmount: prepared.destTokenAmount,
             },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 
     return st;
@@ -111,15 +145,17 @@ fun handleReleaseOrMintMessage(
     assert(!st.pendingReleases.get(msg.queryId).isFound, Error.PendingReleaseAlreadyExists);
     val jettonClient = st.jettonClient.load();
 
+    val request = prepared.request.load();
+
     val recipientWallet = calcAddressOfJettonWallet(
-        prepared.request.receiver,
+        request.receiver,
         jettonClient.masterAddress,
         jettonClient.jettonWalletCode,
     );
 
     st.pendingReleases.set(msg.queryId, LockReleaseTokenPool_PendingRelease {
         replyTo: msg.replyTo,
-        request: prepared.request.toCell(),
+        request: request.toCell(),
         out: prepared.out.toCell(),
         expectedSender: recipientWallet,
     }.toCell());
@@ -132,7 +168,7 @@ fun handleReleaseOrMintMessage(
         SEND_MODE_PAY_FEES_SEPARATELY,
         msg.queryId,
         prepared.localAmount as coins,
-        prepared.request.receiver,
+        request.receiver,
         contract.getAddress(),
     );
 
@@ -220,7 +256,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             applyReleaseOrMint: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
-            doLockOrBurn,
+            onLockOrBurnTransfer,
             handleReleaseOrMintMessage,
         },
     };

@@ -75,11 +75,9 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     replyTo: address?;
 }
 
-struct (0x6c060424) TokenPool_LockOrBurnResponse {
-    queryId: uint64;
-    // TODO: unwrap and inline this type
-    out: Cell<TokenPool_LockOrBurnOutV1>;
-    destTokenAmount: uint256;
+struct TokenPool_LockOrBurnForwardPayload {
+    requestMsg: Cell<TokenPool_LockOrBurn>,
+    prepared: Cell<TokenPool_LockOrBurnPrepared>,
 }
 
 /// @Releases or mints tokens on the destination chain.
@@ -90,16 +88,6 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     replyTo: address? = null;
-}
-
-struct (0x78dc2232) TokenPool_ReleaseOrMintResponse {
-    queryId: uint64;
-    out: Cell<TokenPool_ReleaseOrMintOutV1>;
-}
-
-struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
-    queryId: uint64;
-    errorCode: uint16;
 }
 
 type TokenPool_InMessage =
@@ -114,4 +102,33 @@ type TokenPool_InMessage =
     | TokenPool_SetRMNProxy
     | TokenPool_UpdateCursedSubjects
     | TokenPool_ReleaseOrMint
-    | TransferNotificationForRecipient; // fwdPayload = TokenPool_LockOrBurn
+    | TokenPool_LockOrBurn
+    | TransferNotificationForRecipient; // fwdPayload = TokenPool_LockOrBurnForwardPayload
+
+struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
+    queryId: uint64;
+    request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
+}
+
+struct (0x6c060424) TokenPool_LockOrBurnResponse {
+    queryId: uint64;
+    // TODO: unwrap and inline this type
+    out: Cell<TokenPool_LockOrBurnOutV1>;
+    destTokenAmount: uint256;
+}
+
+struct (0x78dc2232) TokenPool_ReleaseOrMintResponse {
+    queryId: uint64;
+    out: Cell<TokenPool_ReleaseOrMintOutV1>;
+}
+
+struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
+    queryId: uint64;
+    errorCode: uint16;
+}
+
+type TokenPool_OutMessage = 
+    | TokenPool_LockOrBurnWithdraw
+    | TokenPool_LockOrBurnResponse
+    | TokenPool_ReleaseOrMintResponse
+    | TokenPool_ReleaseOrMintFailure;

@@ -1361,53 +1361,6 @@ export const TokenPool_LockOrBurn = {
 }
 
 /**
- > struct (0x6c060424) TokenPool_LockOrBurnResponse {
- >     queryId: uint64
- >     out: Cell<TokenPool_LockOrBurnOutV1>
- >     destTokenAmount: uint256
- > }
- */
-export interface TokenPool_LockOrBurnResponse {
-    readonly $: 'TokenPool_LockOrBurnResponse'
-    queryId: uint64
-    out: CellRef<TokenPool_LockOrBurnOutV1>
-    destTokenAmount: uint256
-}
-
-export const TokenPool_LockOrBurnResponse = {
-    PREFIX: 0x6c060424,
-
-    create(args: {
-        queryId: uint64
-        out: CellRef<TokenPool_LockOrBurnOutV1>
-        destTokenAmount: uint256
-    }): TokenPool_LockOrBurnResponse {
-        return {
-            $: 'TokenPool_LockOrBurnResponse',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurnResponse {
-        loadAndCheckPrefix32(s, 0x6c060424, 'TokenPool_LockOrBurnResponse');
-        return {
-            $: 'TokenPool_LockOrBurnResponse',
-            queryId: s.loadUintBig(64),
-            out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
-            destTokenAmount: s.loadUintBig(256),
-        }
-    },
-    store(self: TokenPool_LockOrBurnResponse, b: c.Builder): void {
-        b.storeUint(0x6c060424, 32);
-        b.storeUint(self.queryId, 64);
-        storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
-        b.storeUint(self.destTokenAmount, 256);
-    },
-    toCell(self: TokenPool_LockOrBurnResponse): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurnResponse>(self, TokenPool_LockOrBurnResponse.store);
-    }
-}
-
-/**
  > struct (0x351f77e3) TokenPool_ReleaseOrMint {
  >     queryId: uint64
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
@@ -1457,6 +1410,53 @@ export const TokenPool_ReleaseOrMint = {
     },
     toCell(self: TokenPool_ReleaseOrMint): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMint>(self, TokenPool_ReleaseOrMint.store);
+    }
+}
+
+/**
+ > struct (0x6c060424) TokenPool_LockOrBurnResponse {
+ >     queryId: uint64
+ >     out: Cell<TokenPool_LockOrBurnOutV1>
+ >     destTokenAmount: uint256
+ > }
+ */
+export interface TokenPool_LockOrBurnResponse {
+    readonly $: 'TokenPool_LockOrBurnResponse'
+    queryId: uint64
+    out: CellRef<TokenPool_LockOrBurnOutV1>
+    destTokenAmount: uint256
+}
+
+export const TokenPool_LockOrBurnResponse = {
+    PREFIX: 0x6c060424,
+
+    create(args: {
+        queryId: uint64
+        out: CellRef<TokenPool_LockOrBurnOutV1>
+        destTokenAmount: uint256
+    }): TokenPool_LockOrBurnResponse {
+        return {
+            $: 'TokenPool_LockOrBurnResponse',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnResponse {
+        loadAndCheckPrefix32(s, 0x6c060424, 'TokenPool_LockOrBurnResponse');
+        return {
+            $: 'TokenPool_LockOrBurnResponse',
+            queryId: s.loadUintBig(64),
+            out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
+            destTokenAmount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_LockOrBurnResponse, b: c.Builder): void {
+        b.storeUint(0x6c060424, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
+        b.storeUint(self.destTokenAmount, 256);
+    },
+    toCell(self: TokenPool_LockOrBurnResponse): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnResponse>(self, TokenPool_LockOrBurnResponse.store);
     }
 }
 
@@ -2041,6 +2041,16 @@ export class TokenPool implements c.Contract {
         return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
     }
 
+    static createCellOfTokenPoolLockOrBurn(body: {
+        queryId: uint64
+        request: CellRef<TokenPool_LockOrBurnInV1>
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        replyTo: c.Address | null
+    }) {
+        return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
+    }
+
     static createCellOfTransferNotificationForRecipient(body: {
         queryId: uint64
         jettonAmount: coins
@@ -2183,6 +2193,20 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        request: CellRef<TokenPool_LockOrBurnInV1>
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        replyTo: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body)),
             ...extraOptions
         });
     }

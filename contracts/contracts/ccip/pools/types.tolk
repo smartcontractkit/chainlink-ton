@@ -78,7 +78,7 @@ struct TokenPool_TokenTransferFeeConfigArgs {
 // TODO: triage new types below
 
 struct TokenPool_LockOrBurnPrepared {
-    request: TokenPool_LockOrBurnInV1;
+    request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
     feeAmount: uint256;
@@ -88,7 +88,7 @@ struct TokenPool_LockOrBurnPrepared {
 }
 
 struct TokenPool_ReleaseOrMintPrepared {
-    request: TokenPool_ReleaseOrMintInV1;
+    request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     localAmount: uint256;
     usingFastFinality: bool;

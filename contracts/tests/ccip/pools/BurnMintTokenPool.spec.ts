@@ -399,7 +399,7 @@ describe('BurnMintTokenPool', () => {
         responseDestination: deployer.address,
         customPayload: null,
         forwardTonAmount: toNano('0.2'),
-        forwardPayload: TokenPool_LockOrBurn.toCell(
+        forwardPayload: TokenPool_LockOrBurn.toCell( // TODO: fixme, this now requires elaborate context - TokenPool_LockOrBurnForwardPayload
           TokenPool_LockOrBurn.create({
             queryId: 11n,
             request: {
