@@ -27,6 +27,7 @@ contract LockReleaseTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseTokenPool_InMessage // TODO: all incoming messages should be registered
+    outgoingMessages: TokenPool_OutMessage
 }
 
 // TODO:
@@ -173,11 +174,9 @@ fun onReturnExcessesBack(
         remoteChainSelector: request.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
             token: request.localToken,
+            sender: contract.getAddress(),
+            recipient: request.receiver.toCell(),
             amount: out.destinationAmount,
-            participants: TokenPool_ReleasedOrMintedParticipants {
-                sender: contract.getAddress(),
-                recipient: request.receiver,
-            }.toCell(),
         }.toCell(),
     });
 

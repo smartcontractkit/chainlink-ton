@@ -591,6 +591,49 @@ export const TokenPool_TokenTransferFeeConfigArgs = {
 }
 
 /**
+ > struct TokenPool_LockOrBurnPrepared {
+ >     feeAmount: uint256
+ >     destTokenAmount: uint256
+ >     out: TokenPool_LockOrBurnOutV1
+ > }
+ */
+export interface TokenPool_LockOrBurnPrepared {
+    readonly $: 'TokenPool_LockOrBurnPrepared'
+    feeAmount: uint256
+    destTokenAmount: uint256
+    out: TokenPool_LockOrBurnOutV1
+}
+
+export const TokenPool_LockOrBurnPrepared = {
+    create(args: {
+        feeAmount: uint256
+        destTokenAmount: uint256
+        out: TokenPool_LockOrBurnOutV1
+    }): TokenPool_LockOrBurnPrepared {
+        return {
+            $: 'TokenPool_LockOrBurnPrepared',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnPrepared {
+        return {
+            $: 'TokenPool_LockOrBurnPrepared',
+            feeAmount: s.loadUintBig(256),
+            destTokenAmount: s.loadUintBig(256),
+            out: TokenPool_LockOrBurnOutV1.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_LockOrBurnPrepared, b: c.Builder): void {
+        b.storeUint(self.feeAmount, 256);
+        b.storeUint(self.destTokenAmount, 256);
+        TokenPool_LockOrBurnOutV1.store(self.out, b);
+    },
+    toCell(self: TokenPool_LockOrBurnPrepared): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnPrepared>(self, TokenPool_LockOrBurnPrepared.store);
+    }
+}
+
+/**
  > struct TokenPool_TokenTransferFeeConfig {
  >     isEnabled: bool
  >     finalityFeeUSDCents: uint256
@@ -1361,6 +1404,44 @@ export const TokenPool_LockOrBurn = {
 }
 
 /**
+ > struct TokenPool_LockOrBurnForwardPayload {
+ >     requestMsg: Cell<TokenPool_LockOrBurn>
+ >     prepared: Cell<TokenPool_LockOrBurnPrepared>
+ > }
+ */
+export interface TokenPool_LockOrBurnForwardPayload {
+    readonly $: 'TokenPool_LockOrBurnForwardPayload'
+    requestMsg: CellRef<TokenPool_LockOrBurn>
+    prepared: CellRef<TokenPool_LockOrBurnPrepared>
+}
+
+export const TokenPool_LockOrBurnForwardPayload = {
+    create(args: {
+        requestMsg: CellRef<TokenPool_LockOrBurn>
+        prepared: CellRef<TokenPool_LockOrBurnPrepared>
+    }): TokenPool_LockOrBurnForwardPayload {
+        return {
+            $: 'TokenPool_LockOrBurnForwardPayload',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnForwardPayload {
+        return {
+            $: 'TokenPool_LockOrBurnForwardPayload',
+            requestMsg: loadCellRef<TokenPool_LockOrBurn>(s, TokenPool_LockOrBurn.fromSlice),
+            prepared: loadCellRef<TokenPool_LockOrBurnPrepared>(s, TokenPool_LockOrBurnPrepared.fromSlice),
+        }
+    },
+    store(self: TokenPool_LockOrBurnForwardPayload, b: c.Builder): void {
+        storeCellRef<TokenPool_LockOrBurn>(self.requestMsg, b, TokenPool_LockOrBurn.store);
+        storeCellRef<TokenPool_LockOrBurnPrepared>(self.prepared, b, TokenPool_LockOrBurnPrepared.store);
+    },
+    toCell(self: TokenPool_LockOrBurnForwardPayload): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnForwardPayload>(self, TokenPool_LockOrBurnForwardPayload.store);
+    }
+}
+
+/**
  > struct (0x351f77e3) TokenPool_ReleaseOrMint {
  >     queryId: uint64
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
@@ -1414,6 +1495,216 @@ export const TokenPool_ReleaseOrMint = {
 }
 
 /**
+ > struct (0xfa7da440) TokenPool_PreflightCheckFinished {
+ >     queryId: uint64
+ >     forwardPayload: TokenPool_LockOrBurnForwardPayload
+ > }
+ */
+export interface TokenPool_PreflightCheckFinished {
+    readonly $: 'TokenPool_PreflightCheckFinished'
+    queryId: uint64
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const TokenPool_PreflightCheckFinished = {
+    PREFIX: 0xfa7da440,
+
+    create(args: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): TokenPool_PreflightCheckFinished {
+        return {
+            $: 'TokenPool_PreflightCheckFinished',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PreflightCheckFinished {
+        loadAndCheckPrefix32(s, 0xfa7da440, 'TokenPool_PreflightCheckFinished');
+        return {
+            $: 'TokenPool_PreflightCheckFinished',
+            queryId: s.loadUintBig(64),
+            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_PreflightCheckFinished, b: c.Builder): void {
+        b.storeUint(0xfa7da440, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
+    },
+    toCell(self: TokenPool_PreflightCheckFinished): c.Cell {
+        return makeCellFrom<TokenPool_PreflightCheckFinished>(self, TokenPool_PreflightCheckFinished.store);
+    }
+}
+
+/**
+ > struct (0xfa7da441) TokenPool_PreflightCheckFailed {
+ >     queryId: uint64
+ >     forwardPayload: TokenPool_LockOrBurnForwardPayload
+ > }
+ */
+export interface TokenPool_PreflightCheckFailed {
+    readonly $: 'TokenPool_PreflightCheckFailed'
+    queryId: uint64
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const TokenPool_PreflightCheckFailed = {
+    PREFIX: 0xfa7da441,
+
+    create(args: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): TokenPool_PreflightCheckFailed {
+        return {
+            $: 'TokenPool_PreflightCheckFailed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PreflightCheckFailed {
+        loadAndCheckPrefix32(s, 0xfa7da441, 'TokenPool_PreflightCheckFailed');
+        return {
+            $: 'TokenPool_PreflightCheckFailed',
+            queryId: s.loadUintBig(64),
+            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_PreflightCheckFailed, b: c.Builder): void {
+        b.storeUint(0xfa7da441, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
+    },
+    toCell(self: TokenPool_PreflightCheckFailed): c.Cell {
+        return makeCellFrom<TokenPool_PreflightCheckFailed>(self, TokenPool_PreflightCheckFailed.store);
+    }
+}
+
+/**
+ > struct (0xfa7da442) TokenPool_PostflightCheckFinished {
+ >     queryId: uint64
+ >     forwardPayload: TokenPool_LockOrBurnForwardPayload
+ > }
+ */
+export interface TokenPool_PostflightCheckFinished {
+    readonly $: 'TokenPool_PostflightCheckFinished'
+    queryId: uint64
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const TokenPool_PostflightCheckFinished = {
+    PREFIX: 0xfa7da442,
+
+    create(args: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): TokenPool_PostflightCheckFinished {
+        return {
+            $: 'TokenPool_PostflightCheckFinished',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PostflightCheckFinished {
+        loadAndCheckPrefix32(s, 0xfa7da442, 'TokenPool_PostflightCheckFinished');
+        return {
+            $: 'TokenPool_PostflightCheckFinished',
+            queryId: s.loadUintBig(64),
+            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_PostflightCheckFinished, b: c.Builder): void {
+        b.storeUint(0xfa7da442, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
+    },
+    toCell(self: TokenPool_PostflightCheckFinished): c.Cell {
+        return makeCellFrom<TokenPool_PostflightCheckFinished>(self, TokenPool_PostflightCheckFinished.store);
+    }
+}
+
+/**
+ > struct (0xfa7da443) TokenPool_PostflightCheckFailed {
+ >     queryId: uint64
+ >     forwardPayload: TokenPool_LockOrBurnForwardPayload
+ > }
+ */
+export interface TokenPool_PostflightCheckFailed {
+    readonly $: 'TokenPool_PostflightCheckFailed'
+    queryId: uint64
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const TokenPool_PostflightCheckFailed = {
+    PREFIX: 0xfa7da443,
+
+    create(args: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): TokenPool_PostflightCheckFailed {
+        return {
+            $: 'TokenPool_PostflightCheckFailed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PostflightCheckFailed {
+        loadAndCheckPrefix32(s, 0xfa7da443, 'TokenPool_PostflightCheckFailed');
+        return {
+            $: 'TokenPool_PostflightCheckFailed',
+            queryId: s.loadUintBig(64),
+            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_PostflightCheckFailed, b: c.Builder): void {
+        b.storeUint(0xfa7da443, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
+    },
+    toCell(self: TokenPool_PostflightCheckFailed): c.Cell {
+        return makeCellFrom<TokenPool_PostflightCheckFailed>(self, TokenPool_PostflightCheckFailed.store);
+    }
+}
+
+/**
+ > struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
+ >     queryId: uint64
+ >     forwardPayload: TokenPool_LockOrBurnForwardPayload
+ > }
+ */
+export interface TokenPool_LockOrBurnWithdraw {
+    readonly $: 'TokenPool_LockOrBurnWithdraw'
+    queryId: uint64
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const TokenPool_LockOrBurnWithdraw = {
+    PREFIX: 0xfa7da444,
+
+    create(args: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): TokenPool_LockOrBurnWithdraw {
+        return {
+            $: 'TokenPool_LockOrBurnWithdraw',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
+        loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurnWithdraw');
+        return {
+            $: 'TokenPool_LockOrBurnWithdraw',
+            queryId: s.loadUintBig(64),
+            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
+        b.storeUint(0xfa7da444, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
+    },
+    toCell(self: TokenPool_LockOrBurnWithdraw): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnWithdraw>(self, TokenPool_LockOrBurnWithdraw.store);
+    }
+}
+
+/**
  > struct (0x6c060424) TokenPool_LockOrBurnFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
@@ -1461,6 +1752,48 @@ export const TokenPool_LockOrBurnFinished = {
 }
 
 /**
+ > struct (0xef0cb360) TokenPool_LockOrBurnFailure {
+ >     queryId: uint64
+ >     errorCode: uint16
+ > }
+ */
+export interface TokenPool_LockOrBurnFailure {
+    readonly $: 'TokenPool_LockOrBurnFailure'
+    queryId: uint64
+    errorCode: uint16
+}
+
+export const TokenPool_LockOrBurnFailure = {
+    PREFIX: 0xef0cb360,
+
+    create(args: {
+        queryId: uint64
+        errorCode: uint16
+    }): TokenPool_LockOrBurnFailure {
+        return {
+            $: 'TokenPool_LockOrBurnFailure',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnFailure {
+        loadAndCheckPrefix32(s, 0xef0cb360, 'TokenPool_LockOrBurnFailure');
+        return {
+            $: 'TokenPool_LockOrBurnFailure',
+            queryId: s.loadUintBig(64),
+            errorCode: s.loadUintBig(16),
+        }
+    },
+    store(self: TokenPool_LockOrBurnFailure, b: c.Builder): void {
+        b.storeUint(0xef0cb360, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.errorCode, 16);
+    },
+    toCell(self: TokenPool_LockOrBurnFailure): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFailure>(self, TokenPool_LockOrBurnFailure.store);
+    }
+}
+
+/**
  > struct (0x78dc2232) TokenPool_ReleaseOrMintFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_ReleaseOrMintOutV1>
@@ -1499,6 +1832,164 @@ export const TokenPool_ReleaseOrMintFinished = {
     },
     toCell(self: TokenPool_ReleaseOrMintFinished): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintFinished>(self, TokenPool_ReleaseOrMintFinished.store);
+    }
+}
+
+/**
+ > struct (0xef0cb361) TokenPool_ReleaseOrMintFailure {
+ >     queryId: uint64
+ >     errorCode: uint16
+ > }
+ */
+export interface TokenPool_ReleaseOrMintFailure {
+    readonly $: 'TokenPool_ReleaseOrMintFailure'
+    queryId: uint64
+    errorCode: uint16
+}
+
+export const TokenPool_ReleaseOrMintFailure = {
+    PREFIX: 0xef0cb361,
+
+    create(args: {
+        queryId: uint64
+        errorCode: uint16
+    }): TokenPool_ReleaseOrMintFailure {
+        return {
+            $: 'TokenPool_ReleaseOrMintFailure',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFailure {
+        loadAndCheckPrefix32(s, 0xef0cb361, 'TokenPool_ReleaseOrMintFailure');
+        return {
+            $: 'TokenPool_ReleaseOrMintFailure',
+            queryId: s.loadUintBig(64),
+            errorCode: s.loadUintBig(16),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintFailure, b: c.Builder): void {
+        b.storeUint(0xef0cb361, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.errorCode, 16);
+    },
+    toCell(self: TokenPool_ReleaseOrMintFailure): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintFailure>(self, TokenPool_ReleaseOrMintFailure.store);
+    }
+}
+
+/**
+ > struct TokenPool_ChainAdded {
+ >     remoteChainSelector: uint64
+ >     remoteTokenAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_ChainAdded {
+    readonly $: 'TokenPool_ChainAdded'
+    remoteChainSelector: uint64
+    remoteTokenAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_ChainAdded = {
+    create(args: {
+        remoteChainSelector: uint64
+        remoteTokenAddress: CellRef<CrossChainAddress>
+    }): TokenPool_ChainAdded {
+        return {
+            $: 'TokenPool_ChainAdded',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ChainAdded {
+        return {
+            $: 'TokenPool_ChainAdded',
+            remoteChainSelector: s.loadUintBig(64),
+            remoteTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_ChainAdded, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remoteTokenAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_ChainAdded): c.Cell {
+        return makeCellFrom<TokenPool_ChainAdded>(self, TokenPool_ChainAdded.store);
+    }
+}
+
+/**
+ > struct TokenPool_ChainRemoved {
+ >     remoteChainSelector: uint64
+ > }
+ */
+export interface TokenPool_ChainRemoved {
+    readonly $: 'TokenPool_ChainRemoved'
+    remoteChainSelector: uint64
+}
+
+export const TokenPool_ChainRemoved = {
+    create(args: {
+        remoteChainSelector: uint64
+    }): TokenPool_ChainRemoved {
+        return {
+            $: 'TokenPool_ChainRemoved',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ChainRemoved {
+        return {
+            $: 'TokenPool_ChainRemoved',
+            remoteChainSelector: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_ChainRemoved, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+    },
+    toCell(self: TokenPool_ChainRemoved): c.Cell {
+        return makeCellFrom<TokenPool_ChainRemoved>(self, TokenPool_ChainRemoved.store);
+    }
+}
+
+/**
+ > struct TokenPool_RampAccessUpdated {
+ >     remoteChainSelector: uint64
+ >     onRamp: address?
+ >     offRamp: address?
+ > }
+ */
+export interface TokenPool_RampAccessUpdated {
+    readonly $: 'TokenPool_RampAccessUpdated'
+    remoteChainSelector: uint64
+    onRamp: c.Address | null /* = null */
+    offRamp: c.Address | null /* = null */
+}
+
+export const TokenPool_RampAccessUpdated = {
+    create(args: {
+        remoteChainSelector: uint64
+        onRamp?: c.Address | null /* = null */
+        offRamp?: c.Address | null /* = null */
+    }): TokenPool_RampAccessUpdated {
+        return {
+            $: 'TokenPool_RampAccessUpdated',
+            onRamp: null,
+            offRamp: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RampAccessUpdated {
+        return {
+            $: 'TokenPool_RampAccessUpdated',
+            remoteChainSelector: s.loadUintBig(64),
+            onRamp: s.loadMaybeAddress(),
+            offRamp: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_RampAccessUpdated, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.onRamp);
+        b.storeAddress(self.offRamp);
+    },
+    toCell(self: TokenPool_RampAccessUpdated): c.Cell {
+        return makeCellFrom<TokenPool_RampAccessUpdated>(self, TokenPool_RampAccessUpdated.store);
     }
 }
 
@@ -1956,6 +2447,62 @@ export class TokenPool implements c.Contract {
         return new TokenPool(address, initialState);
     }
 
+    static createCellOfTokenPoolLockOrBurn(body: {
+        queryId: uint64
+        request: CellRef<TokenPool_LockOrBurnInV1>
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        replyTo: c.Address | null
+    }) {
+        return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
+    }
+
+    static createCellOfTransferNotificationForRecipient(body: {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }) {
+        return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
+    }
+
+    static createCellOfTokenPoolPreflightCheckFinished(body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }) {
+        return TokenPool_PreflightCheckFinished.toCell(TokenPool_PreflightCheckFinished.create(body));
+    }
+
+    static createCellOfTokenPoolPreflightCheckFailed(body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }) {
+        return TokenPool_PreflightCheckFailed.toCell(TokenPool_PreflightCheckFailed.create(body));
+    }
+
+    static createCellOfTokenPoolReleaseOrMint(body: {
+        queryId: uint64
+        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null /* = null */
+    }) {
+        return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
+    }
+
+    static createCellOfTokenPoolPostflightCheckFinished(body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }) {
+        return TokenPool_PostflightCheckFinished.toCell(TokenPool_PostflightCheckFinished.create(body));
+    }
+
+    static createCellOfTokenPoolPostflightCheckFailed(body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }) {
+        return TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body));
+    }
+
     static createCellOfTokenPoolApplyChainUpdates(body: {
         queryId: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
@@ -2032,38 +2579,94 @@ export class TokenPool implements c.Contract {
         return TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body));
     }
 
-    static createCellOfTokenPoolReleaseOrMint(body: {
-        queryId: uint64
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
-        requestedFinalityConfig: uint32
-        replyTo?: c.Address | null /* = null */
-    }) {
-        return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
+    async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: c.Cell.EMPTY,
+            ...extraOptions
+        });
     }
 
-    static createCellOfTokenPoolLockOrBurn(body: {
+    async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         request: CellRef<TokenPool_LockOrBurnInV1>
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address | null
-    }) {
-        return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body)),
+            ...extraOptions
+        });
     }
 
-    static createCellOfTransferNotificationForRecipient(body: {
+    async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
-    }) {
-        return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
-    }
-
-    async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: c.Cell.EMPTY,
+            body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolPreflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_PreflightCheckFinished.toCell(TokenPool_PreflightCheckFinished.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolPreflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_PreflightCheckFailed.toCell(TokenPool_PreflightCheckFailed.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolPostflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_PostflightCheckFinished.toCell(TokenPool_PostflightCheckFinished.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolPostflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body)),
             ...extraOptions
         });
     }
@@ -2180,46 +2783,6 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTokenPoolReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
-        requestedFinalityConfig: uint32
-        replyTo?: c.Address | null /* = null */
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
-        requestedFinalityConfig: uint32
-        tokenArgs: c.Cell | null
-        replyTo: c.Address | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        jettonAmount: coins
-        transferInitiator: c.Address | null
-        forwardPayload: ForwardPayloadRemainder
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
             ...extraOptions
         });
     }

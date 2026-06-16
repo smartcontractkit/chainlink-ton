@@ -14,12 +14,8 @@ contract TokenPool {
 
     storage: TokenPool_Data
     incomingMessages: TokenPool_InMessage // TODO: all incoming messages should be registered
-
-    // TODO: should be used in hooks of the core library,
-    // but for now we need to register them here.
-    forceAbiExport: TokenPool_LockOrBurn
-        | TokenPool_LockOrBurnFinished
-        | TokenPool_ReleaseOrMintFinished
+    outgoingMessages: TokenPool_OutMessage
+    emittedEvents: TokenPool_Events
 }
 
 fun onInternalMessage(_: InMessage) {

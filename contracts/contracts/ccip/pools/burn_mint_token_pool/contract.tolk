@@ -27,6 +27,7 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage // TODO: all incoming messages should be registered
+    outgoingMessages: TokenPool_OutMessage
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -216,11 +217,9 @@ fun onReturnExcessesBack(
         remoteChainSelector: request.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
             token: request.localToken,
+            sender: contract.getAddress(),
+            recipient: request.receiver.toCell(),
             amount: out.destinationAmount,
-            participants: TokenPool_ReleasedOrMintedParticipants {
-                sender: contract.getAddress(),
-                recipient: request.receiver,
-            }.toCell(),
         }.toCell(),
     });
 

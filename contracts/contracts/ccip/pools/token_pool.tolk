@@ -4,7 +4,6 @@ import "@stdlib/lisp-lists"
 import "../../lib/math"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
-import "../../lib/jetton/jetton_client"
 import "../../lib/access/ownable_2step"
 import "../common/types"
 import "../rmn_remote/lib"
@@ -48,16 +47,18 @@ struct TokenPool_Hooks<T> {
     ensureOutboundAccess: ((T?, address, uint64) -> void)?;
     ensureInboundAccess: ((T?, address, uint64) -> void)?;
     ensureNotCursed: ((T?, uint64) -> void)?;
-    preflightCheck: ((T?, TokenPool_LockOrBurnInV1, uint32, cell?, uint256) -> bool)?;
-    postflightCheck: ((T?, TokenPool_ReleaseOrMintInV1, uint256, uint32) -> bool)?;
     applyLockOrBurn: ((T?, TokenPool_LockOrBurnPrepared) -> void)?;
     applyReleaseOrMint: ((T?, TokenPool_ReleaseOrMintPrepared) -> void)?;
+
+    // ReleaseOrMint flow
+    postflightCheck: ((T?, TokenPool_ReleaseOrMintInV1, uint256, uint32) -> bool)?;
+    handleReleaseOrMintMessage: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
     // LockOrBurn flow
     onLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> T)?;
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurnInV1, uint32, cell?) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
+    preflightCheck: ((T?, TokenPool_LockOrBurnInV1, uint32, cell?, uint256) -> bool)?;
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
-    handleReleaseOrMintMessage: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 }
 
 struct TokenPool<T> {
@@ -412,61 +413,21 @@ fun TokenPool<T>.setCursedSubjects(
     mirroredPolicy.cursedSubjects = cursedSubjects;
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 
-    emit(TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC, TokenPool_CursedSubjectsUpdated {})}
+    emit(TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC, TokenPool_CursedSubjectsUpdated {})
+}
 
 fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice): bool {
     val msg = lazy TokenPool_InMessage.fromSlice(msgBody);
 
     match (msg) {
-        TokenPool_ApplyChainUpdates => {
-            self.applyChainUpdates(msgSender, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
-            return true;
-        }
-        TokenPool_AddRemotePool => {
-            self.addRemotePool(msgSender, msg.remoteChainSelector, msg.remotePoolAddress);
-            return true;
-        }
-        TokenPool_RemoveRemotePool => {
-            self.removeRemotePool(msgSender, msg.remoteChainSelector, msg.remotePoolAddress);
-            return true;
-        }
-        TokenPool_SetDynamicConfig => {
-            self.setDynamicConfig(msgSender, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
-            return true;
-        }
-        TokenPool_SetAllowedFinalityConfig => {
-            self.setAllowedFinalityConfig(msgSender, msg.allowedFinalityConfig);
-            return true;
-        }
-        TokenPool_SetRateLimitConfig => {
-            self.setRateLimitConfig(msgSender, msg.updates);
-            return true;
-        }
-        TokenPool_ApplyTokenTransferFeeConfigUpdates => {
-            self.applyTokenTransferFeeConfigUpdates(msgSender, msg.updates, msg.disableChainSelectors);
-            return true;
-        }
-        TokenPool_UpdateRampAccess => {
-            self.applyRampAccessUpdates(msgSender, msg.updates);
-            return true;
-        }
-        TokenPool_SetRMNProxy => {
-            self.setRMNProxy(msgSender, msg.rmnProxy);
-            return true;
-        }
-        TokenPool_UpdateCursedSubjects => {
-            self.setCursedSubjects(msgSender, msg.cursedSubjects);
-            return true;
-        }
-        TokenPool_ReleaseOrMint => {
-            val (_wait, prepared) = self.validateReleaseOrMint(msgSender, msg.request.load(), msg.requestedFinalityConfig);
-            assert(self.hooks != null && self.hooks.handleReleaseOrMintMessage != null, TokenPool_Error.UnsupportedOperation);
-            self.context = self.hooks.handleReleaseOrMintMessage(self.context, msgSender, msg, prepared);
-            return true;
-        }
         TokenPool_LockOrBurn => {
             self.onLockOrBurn(msgSender, msg);
-            return true;
+        }
+        TokenPool_PreflightCheckFinished => {
+            // TODO: implement me
+        }
+        TokenPool_PreflightCheckFailed => {
+            // TODO: propagate error back to sender (executor)
         }
         // Once we withdraw via Executor -> OnRamp -> JettonWallet, we will receive a TransferNotificationForRecipient callback,
         // which is only allowed to be called by a valid OnRamp address, otherwise we try a best effort return.
@@ -475,7 +436,47 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TransferNotificationForRecipient => {
             // TODO: how do we know this transfer is allowed - easiest to just accept transfers from the Router (static)
             self.onLockOrBurnTransfer(msgSender, msg);
-            return true;
+        }
+        TokenPool_ReleaseOrMint => {
+            val (_wait, prepared) = self.validateReleaseOrMint(msgSender, msg.request.load(), msg.requestedFinalityConfig);
+            assert(self.hooks != null && self.hooks.handleReleaseOrMintMessage != null, TokenPool_Error.UnsupportedOperation);
+            self.context = self.hooks.handleReleaseOrMintMessage(self.context, msgSender, msg, prepared);
+        }
+        TokenPool_PostflightCheckFinished => {
+            // TODO: implement me
+        }
+        TokenPool_PostflightCheckFailed => {
+            // TODO: propagate error back to sender (executor)
+        }
+         TokenPool_ApplyChainUpdates => {
+            self.applyChainUpdates(msgSender, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
+        }
+        TokenPool_AddRemotePool => {
+            self.addRemotePool(msgSender, msg.remoteChainSelector, msg.remotePoolAddress);
+        }
+        TokenPool_RemoveRemotePool => {
+            self.removeRemotePool(msgSender, msg.remoteChainSelector, msg.remotePoolAddress);
+        }
+        TokenPool_SetDynamicConfig => {
+            self.setDynamicConfig(msgSender, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
+        }
+        TokenPool_SetAllowedFinalityConfig => {
+            self.setAllowedFinalityConfig(msgSender, msg.allowedFinalityConfig);
+        }
+        TokenPool_SetRateLimitConfig => {
+            self.setRateLimitConfig(msgSender, msg.updates);
+        }
+        TokenPool_ApplyTokenTransferFeeConfigUpdates => {
+            self.applyTokenTransferFeeConfigUpdates(msgSender, msg.updates, msg.disableChainSelectors);
+        }
+        TokenPool_UpdateRampAccess => {
+            self.applyRampAccessUpdates(msgSender, msg.updates);
+        }
+        TokenPool_SetRMNProxy => {
+            self.setRMNProxy(msgSender, msg.rmnProxy);
+        }
+        TokenPool_UpdateCursedSubjects => {
+            self.setCursedSubjects(msgSender, msg.cursedSubjects);
         }
         else => {
             var adminConfig = self.data.adminConfig.load();
@@ -490,6 +491,8 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             return msgBody.isEmpty();
         }
     }
+
+    return true; // default
 }
 
 fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
@@ -911,6 +914,8 @@ fun TokenPool<T>.preflightCheck(
         return self.hooks.preflightCheck(self.context, request, requestedFinalityConfig, tokenArgs, amountPostFee);
     }
 
+    // TODO: by default, we should call async hooks if configured, return true (wait)
+
     return false; // do we need to wait for an async callback
 }
 
@@ -923,6 +928,8 @@ fun TokenPool<T>.postflightCheck(
     if (self.hooks != null && self.hooks.postflightCheck != null) {
         return self.hooks.postflightCheck(self.context, request, localAmount, requestedFinalityConfig);
     }
+
+    // TODO: by default, we should call async hooks if configured, return true (wait)
 
     return false;
 }

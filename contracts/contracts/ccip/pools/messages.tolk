@@ -90,7 +90,38 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     replyTo: address? = null;
 }
 
+/// Sent by advanced hooks contract to notify preflight check success
+struct (0xfa7da440) TokenPool_PreflightCheckFinished {
+    queryId: uint64;
+    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+}
+
+/// Sent by advanced hooks contract to notify preflight check failure
+struct (0xfa7da441) TokenPool_PreflightCheckFailed {
+    queryId: uint64;
+    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+}
+
+/// Sent by advanced hooks contract to notify postflight check success
+struct (0xfa7da442) TokenPool_PostflightCheckFinished {
+    queryId: uint64;
+    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+}
+
+/// Sent by advanced hooks contract to notify postflight check failure
+struct (0xfa7da443) TokenPool_PostflightCheckFailed {
+    queryId: uint64;
+    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+}
+
 type TokenPool_InMessage =
+    | TokenPool_LockOrBurn
+    | TransferNotificationForRecipient // fwdPayload = TokenPool_LockOrBurnForwardPayload
+    | TokenPool_PreflightCheckFinished
+    | TokenPool_PreflightCheckFailed
+    | TokenPool_ReleaseOrMint
+    | TokenPool_PostflightCheckFinished
+    | TokenPool_PostflightCheckFailed
     | TokenPool_ApplyChainUpdates
     | TokenPool_AddRemotePool
     | TokenPool_RemoveRemotePool
@@ -100,11 +131,7 @@ type TokenPool_InMessage =
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
     | TokenPool_SetRMNProxy
-    | TokenPool_UpdateCursedSubjects
-    | TokenPool_ReleaseOrMint
-    | TokenPool_LockOrBurn
-    | TransferNotificationForRecipient; // fwdPayload = TokenPool_LockOrBurnForwardPayload
-    // TODO: add async pre/postflight checks (async hooks) message callbacks here as well
+    | TokenPool_UpdateCursedSubjects;
 
 struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
@@ -118,12 +145,17 @@ struct (0x6c060424) TokenPool_LockOrBurnFinished {
     destTokenAmount: uint256;
 }
 
+struct (0xef0cb360) TokenPool_LockOrBurnFailure {
+    queryId: uint64;
+    errorCode: uint16;
+}
+
 struct (0x78dc2232) TokenPool_ReleaseOrMintFinished {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
 
-struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
+struct (0xef0cb361) TokenPool_ReleaseOrMintFailure {
     queryId: uint64;
     errorCode: uint16;
 }
@@ -131,5 +163,6 @@ struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
 type TokenPool_OutMessage = 
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
+    | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure;
