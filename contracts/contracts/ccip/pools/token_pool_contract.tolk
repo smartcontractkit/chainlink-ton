@@ -18,8 +18,8 @@ contract TokenPool {
     // TODO: should be used in hooks of the core library,
     // but for now we need to register them here.
     forceAbiExport: TokenPool_LockOrBurn
-        | TokenPool_LockOrBurnResponse
-        | TokenPool_ReleaseOrMintResponse
+        | TokenPool_LockOrBurnFinished
+        | TokenPool_ReleaseOrMintFinished
 }
 
 fun onInternalMessage(_: InMessage) {

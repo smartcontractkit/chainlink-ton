@@ -13,7 +13,7 @@ import {
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
   TokenPool_MirroredPolicy,
-  TokenPool_ReleaseOrMintResponse,
+  TokenPool_ReleaseOrMintFinished,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMintInV1,
@@ -455,10 +455,10 @@ describe('LockReleaseTokenPool', () => {
       from: lockReleasePool.address,
       to: deployer.address,
       success: true,
-      op: TokenPool_ReleaseOrMintResponse.PREFIX,
+      op: TokenPool_ReleaseOrMintFinished.PREFIX,
       body(body) {
         if (!body) return false
-        const response = TokenPool_ReleaseOrMintResponse.fromSlice(body.beginParse())
+        const response = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
         return response.queryId === 22n && response.out.ref.destinationAmount === toNano('2')
       },
     })

@@ -117,14 +117,11 @@ fun onLockOrBurnTransfer(
 
     val jettonClient = st.jettonClient.load();
     st.pendingBurns.set(requestMsg.queryId, BurnMintTokenPool_PendingBurn {
-        replyTo: requestMsg.replyTo,
-        request: requestMsg.request,
-        out: prepared.out.toCell(),
-        destTokenAmount: prepared.destTokenAmount,
+        forwardPayload: fwdp,
         expectedSender: jettonClient.masterAddress,
     }.toCell());
 
-    createMessage({
+    val burnMsg = createMessage({
         bounce: true,
         value: BurnMintTokenPool_BURN_VALUE,
         dest: sender,
@@ -134,7 +131,8 @@ fun onLockOrBurnTransfer(
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
         },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    });
+    burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     return st;
 }
@@ -197,30 +195,9 @@ fun onReturnExcessesBack(
         assert(sender == pending.expectedSender, Error.UnexpectedBurnConfirmationSender);
 
         st.pendingBurns.delete(msg.queryId);
-        val request = pending.request.load();
 
-        emit(TOKEN_POOL_LOCKED_OR_BURNED_TOPIC, TokenPool_LockedOrBurned {
-            remoteChainSelector: request.remoteChainSelector,
-            details: TokenPool_LockedOrBurnedDetails {
-                token: request.localToken,
-                sender: request.originalSender,
-                amount: pending.destTokenAmount,
-            }.toCell(),
-        });
-
-        if (pending.replyTo != null) {
-            createMessage({
-                bounce: true,
-                value: BurnMintTokenPool_REPLY_VALUE,
-                dest: pending.replyTo!,
-                body: TokenPool_LockOrBurnResponse {
-                    queryId: msg.queryId,
-                    out: pending.out,
-                    destTokenAmount: pending.destTokenAmount,
-                },
-            }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        }
-        return;
+        var pool = loadPool(st);
+        return pool.onLockOrBurnTransferFinalize(pending.forwardPayload);
     }
 
     val mintEntry = st.pendingMints.get(msg.queryId);
@@ -250,7 +227,7 @@ fun onReturnExcessesBack(
             bounce: true,
             value: BurnMintTokenPool_REPLY_VALUE,
             dest: pending.replyTo!,
-            body: TokenPool_ReleaseOrMintResponse {
+            body: TokenPool_ReleaseOrMintFinished {
                 queryId: msg.queryId,
                 out: pending.out,
             },

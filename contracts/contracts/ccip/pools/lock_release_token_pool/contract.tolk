@@ -77,8 +77,6 @@ fun onLockOrBurnTransfer(
     var isValidPayload = true; // TODO: safely inspect the payload
     val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
     val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
-    val requestMsg = lazy fwdp.requestMsg.load();
-    val prepared = lazy fwdp.prepared.load();
 
     // TODO: can we trust (any) JettonWallet forward payloads?
     // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
@@ -107,29 +105,8 @@ fun onLockOrBurnTransfer(
         return st;
     }
 
-    var request = requestMsg.request.load();
-    emit(TOKEN_POOL_LOCKED_OR_BURNED_TOPIC, TokenPool_LockedOrBurned {
-        remoteChainSelector: request.remoteChainSelector,
-        details: TokenPool_LockedOrBurnedDetails {
-            token: request.localToken,
-            sender: msg.transferInitiator!,
-            amount: prepared.destTokenAmount,
-        }.toCell(),
-    });
-
-    // TODO: we should reply in any case, send a message to the OnRamp to indicate that the lockOrBurn was processed
-    if (requestMsg.replyTo != null) {
-        createMessage({
-            bounce: true,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_LockOrBurnResponse {
-                queryId: requestMsg.queryId,
-                out: prepared.out.toCell(),
-                destTokenAmount: prepared.destTokenAmount,
-            },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
+    var pool = loadPool(st);
+    pool.onLockOrBurnTransferFinalize(fwdp);
 
     return st;
 }
@@ -207,7 +184,7 @@ fun onReturnExcessesBack(
             bounce: true,
             value: LockReleaseTokenPool_REPLY_VALUE,
             dest: pending.replyTo!,
-            body: TokenPool_ReleaseOrMintResponse {
+            body: TokenPool_ReleaseOrMintFinished {
                 queryId: msg.queryId,
                 out: pending.out,
             },

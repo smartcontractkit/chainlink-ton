@@ -1414,91 +1414,91 @@ export const TokenPool_ReleaseOrMint = {
 }
 
 /**
- > struct (0x6c060424) TokenPool_LockOrBurnResponse {
+ > struct (0x6c060424) TokenPool_LockOrBurnFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
  >     destTokenAmount: uint256
  > }
  */
-export interface TokenPool_LockOrBurnResponse {
-    readonly $: 'TokenPool_LockOrBurnResponse'
+export interface TokenPool_LockOrBurnFinished {
+    readonly $: 'TokenPool_LockOrBurnFinished'
     queryId: uint64
     out: CellRef<TokenPool_LockOrBurnOutV1>
     destTokenAmount: uint256
 }
 
-export const TokenPool_LockOrBurnResponse = {
+export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0x6c060424,
 
     create(args: {
         queryId: uint64
         out: CellRef<TokenPool_LockOrBurnOutV1>
         destTokenAmount: uint256
-    }): TokenPool_LockOrBurnResponse {
+    }): TokenPool_LockOrBurnFinished {
         return {
-            $: 'TokenPool_LockOrBurnResponse',
+            $: 'TokenPool_LockOrBurnFinished',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurnResponse {
-        loadAndCheckPrefix32(s, 0x6c060424, 'TokenPool_LockOrBurnResponse');
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
+        loadAndCheckPrefix32(s, 0x6c060424, 'TokenPool_LockOrBurnFinished');
         return {
-            $: 'TokenPool_LockOrBurnResponse',
+            $: 'TokenPool_LockOrBurnFinished',
             queryId: s.loadUintBig(64),
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
             destTokenAmount: s.loadUintBig(256),
         }
     },
-    store(self: TokenPool_LockOrBurnResponse, b: c.Builder): void {
+    store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0x6c060424, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
         b.storeUint(self.destTokenAmount, 256);
     },
-    toCell(self: TokenPool_LockOrBurnResponse): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurnResponse>(self, TokenPool_LockOrBurnResponse.store);
+    toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
     }
 }
 
 /**
- > struct (0x78dc2232) TokenPool_ReleaseOrMintResponse {
+ > struct (0x78dc2232) TokenPool_ReleaseOrMintFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_ReleaseOrMintOutV1>
  > }
  */
-export interface TokenPool_ReleaseOrMintResponse {
-    readonly $: 'TokenPool_ReleaseOrMintResponse'
+export interface TokenPool_ReleaseOrMintFinished {
+    readonly $: 'TokenPool_ReleaseOrMintFinished'
     queryId: uint64
     out: CellRef<TokenPool_ReleaseOrMintOutV1>
 }
 
-export const TokenPool_ReleaseOrMintResponse = {
+export const TokenPool_ReleaseOrMintFinished = {
     PREFIX: 0x78dc2232,
 
     create(args: {
         queryId: uint64
         out: CellRef<TokenPool_ReleaseOrMintOutV1>
-    }): TokenPool_ReleaseOrMintResponse {
+    }): TokenPool_ReleaseOrMintFinished {
         return {
-            $: 'TokenPool_ReleaseOrMintResponse',
+            $: 'TokenPool_ReleaseOrMintFinished',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintResponse {
-        loadAndCheckPrefix32(s, 0x78dc2232, 'TokenPool_ReleaseOrMintResponse');
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFinished {
+        loadAndCheckPrefix32(s, 0x78dc2232, 'TokenPool_ReleaseOrMintFinished');
         return {
-            $: 'TokenPool_ReleaseOrMintResponse',
+            $: 'TokenPool_ReleaseOrMintFinished',
             queryId: s.loadUintBig(64),
             out: loadCellRef<TokenPool_ReleaseOrMintOutV1>(s, TokenPool_ReleaseOrMintOutV1.fromSlice),
         }
     },
-    store(self: TokenPool_ReleaseOrMintResponse, b: c.Builder): void {
+    store(self: TokenPool_ReleaseOrMintFinished, b: c.Builder): void {
         b.storeUint(0x78dc2232, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_ReleaseOrMintOutV1>(self.out, b, TokenPool_ReleaseOrMintOutV1.store);
     },
-    toCell(self: TokenPool_ReleaseOrMintResponse): c.Cell {
-        return makeCellFrom<TokenPool_ReleaseOrMintResponse>(self, TokenPool_ReleaseOrMintResponse.store);
+    toCell(self: TokenPool_ReleaseOrMintFinished): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintFinished>(self, TokenPool_ReleaseOrMintFinished.store);
     }
 }
 

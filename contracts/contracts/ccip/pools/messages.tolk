@@ -110,14 +110,14 @@ struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
 }
 
-struct (0x6c060424) TokenPool_LockOrBurnResponse {
+struct (0x6c060424) TokenPool_LockOrBurnFinished {
     queryId: uint64;
     // TODO: unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
     destTokenAmount: uint256;
 }
 
-struct (0x78dc2232) TokenPool_ReleaseOrMintResponse {
+struct (0x78dc2232) TokenPool_ReleaseOrMintFinished {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
@@ -129,6 +129,6 @@ struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
 
 type TokenPool_OutMessage = 
     | TokenPool_LockOrBurnWithdraw
-    | TokenPool_LockOrBurnResponse
-    | TokenPool_ReleaseOrMintResponse
+    | TokenPool_LockOrBurnFinished
+    | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure;

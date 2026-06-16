@@ -14,12 +14,6 @@ const TOKEN_POOL_RAMP_ACCESS_UPDATED_TOPIC = stringCrc32("TokenPool_RampAccessUp
 const TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC = stringCrc32("TokenPool_CursedSubjectsUpdated");
 const TOKEN_POOL_FINALITY_CONFIG_SET_TOPIC = stringCrc32("TokenPool_FinalityConfigSet");
 
-struct TokenPool_LockedOrBurnedDetails {
-    token: address;
-    sender: address;
-    amount: uint256;
-}
-
 //   event LockedOrBurned(uint64 indexed remoteChainSelector, address token, address sender, uint256 amount);
 //   event ReleasedOrMinted(
 //     uint64 indexed remoteChainSelector, address token, address sender, address recipient, uint256 amount
@@ -29,9 +23,15 @@ struct TokenPool_LockedOrBurned {
     details: Cell<TokenPool_LockedOrBurnedDetails>;
 }
 
-struct TokenPool_ReleasedOrMintedParticipants {
+struct TokenPool_LockedOrBurnedDetails {
+    token: address;
     sender: address;
-    recipient: address;
+    amount: uint256;
+}
+
+struct TokenPool_ReleasedOrMinted {
+    remoteChainSelector: uint64;
+    details: Cell<TokenPool_ReleasedOrMintedDetails>;
 }
 
 struct TokenPool_ReleasedOrMintedDetails {
@@ -40,9 +40,9 @@ struct TokenPool_ReleasedOrMintedDetails {
     participants: Cell<TokenPool_ReleasedOrMintedParticipants>;
 }
 
-struct TokenPool_ReleasedOrMinted {
-    remoteChainSelector: uint64;
-    details: Cell<TokenPool_ReleasedOrMintedDetails>;
+struct TokenPool_ReleasedOrMintedParticipants {
+    sender: address;
+    recipient: address;
 }
 
 struct TokenPool_ChainAdded {

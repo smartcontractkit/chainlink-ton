@@ -639,9 +639,6 @@ fun TokenPool<T>.validateLockOrBurn(
     self.preflightCheck(request, requestedFinalityConfig, tokenArgs, destTokenAmount);
 
     return TokenPool_LockOrBurnPrepared {
-        request: request.toCell(),
-        requestedFinalityConfig,
-        tokenArgs,
         feeAmount,
         destTokenAmount,
         usingFastFinality,
@@ -713,8 +710,41 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     if (self.hooks != null && self.hooks.onLockOrBurnTransfer != null) {
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
     }
+
+    // TODO: 
 }
 
+fun TokenPool<T>.onLockOrBurnTransferFinalize(
+    mutate self,
+    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+): void {
+    val requestMsg = lazy fwdPayload.requestMsg.load();
+    val prepared = lazy fwdPayload.prepared.load();
+
+    var request = requestMsg.request.load();
+    emit(TOKEN_POOL_LOCKED_OR_BURNED_TOPIC, TokenPool_LockedOrBurned {
+        remoteChainSelector: request.remoteChainSelector,
+        details: TokenPool_LockedOrBurnedDetails {
+            token: request.localToken,
+            sender: request.originalSender,
+            amount: prepared.destTokenAmount,
+        }.toCell(),
+    });
+
+    // TODO: we should reply in any case, send a message to the OnRamp to indicate that the lockOrBurn was processed
+    if (requestMsg.replyTo != null) {
+        createMessage({
+            bounce: true,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFinished {
+                queryId: requestMsg.queryId,
+                out: prepared.out.toCell(),
+                destTokenAmount: prepared.destTokenAmount,
+            },
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
 
 // function lockOrBurn(
 //     Pool.LockOrBurnInV1 calldata lockOrBurnIn,

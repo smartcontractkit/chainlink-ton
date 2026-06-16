@@ -8,7 +8,7 @@ const LockReleaseTokenPool_RELEASE_TRANSFER_VALUE = ton("0.05");
 const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
 
 struct LockReleaseTokenPool_PendingRelease {
-    replyTo: address? = null;
+    replyTo: address?;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
     expectedSender: address;

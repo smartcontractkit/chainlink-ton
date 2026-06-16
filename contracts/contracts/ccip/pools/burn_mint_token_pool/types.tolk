@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/jetton_client"
-import "../../rmn_remote/lib"
+import "../messages"
 import "../types"
 
 const BurnMintTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.BurnMintTokenPool".literalSlice();
@@ -11,15 +11,12 @@ const BurnMintTokenPool_MINT_VALUE = ton("0.1");
 const BurnMintTokenPool_REPLY_VALUE = ton("0.01");
 
 struct BurnMintTokenPool_PendingBurn {
-    replyTo: address? = null;
-    request: Cell<TokenPool_LockOrBurnInV1>;
-    out: Cell<TokenPool_LockOrBurnOutV1>;
-    destTokenAmount: uint256;
+    forwardPayload: TokenPool_LockOrBurnForwardPayload;
     expectedSender: address;
 }
 
 struct BurnMintTokenPool_PendingMint {
-    replyTo: address? = null;
+    replyTo: address?;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
     expectedSender: address;

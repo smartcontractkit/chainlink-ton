@@ -19,9 +19,9 @@ import {
   TokenPool_ChainUpdate,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnInV1,
-  TokenPool_LockOrBurnResponse,
+  TokenPool_LockOrBurnFinished,
   TokenPool_ReleaseOrMintInV1,
-  TokenPool_ReleaseOrMintResponse,
+  TokenPool_ReleaseOrMintFinished,
   TokenPool_MirroredPolicy,
   TokenPool_DynamicConfig,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
@@ -399,7 +399,8 @@ describe('BurnMintTokenPool', () => {
         responseDestination: deployer.address,
         customPayload: null,
         forwardTonAmount: toNano('0.2'),
-        forwardPayload: TokenPool_LockOrBurn.toCell( // TODO: fixme, this now requires elaborate context - TokenPool_LockOrBurnForwardPayload
+        forwardPayload: TokenPool_LockOrBurn.toCell(
+          // TODO: fixme, this now requires elaborate context - TokenPool_LockOrBurnForwardPayload
           TokenPool_LockOrBurn.create({
             queryId: 11n,
             request: {
@@ -432,7 +433,7 @@ describe('BurnMintTokenPool', () => {
       from: burnMintPool.address,
       to: deployer.address,
       success: true,
-      op: TokenPool_LockOrBurnResponse.PREFIX,
+      op: TokenPool_LockOrBurnFinished.PREFIX,
     })
   })
 
@@ -477,10 +478,10 @@ describe('BurnMintTokenPool', () => {
       from: burnMintPool.address,
       to: deployer.address,
       success: true,
-      op: TokenPool_ReleaseOrMintResponse.PREFIX,
+      op: TokenPool_ReleaseOrMintFinished.PREFIX,
       body(body) {
         if (!body) return false
-        const response = TokenPool_ReleaseOrMintResponse.fromSlice(body.beginParse())
+        const response = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
         return response.queryId === 22n && response.out.ref.destinationAmount === toNano('2')
       },
     })
@@ -524,7 +525,7 @@ describe('BurnMintTokenPool', () => {
       return (
         tx.inMessage?.info?.src?.equals?.(burnMintPool.address) &&
         tx.inMessage?.body?.beginParse?.().preloadUint?.(32) ===
-          TokenPool_ReleaseOrMintResponse.PREFIX
+          TokenPool_ReleaseOrMintFinished.PREFIX
       )
     })
     expect(releaseResponses.length).toBe(0)
