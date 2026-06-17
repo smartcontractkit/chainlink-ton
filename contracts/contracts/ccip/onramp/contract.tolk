@@ -281,9 +281,9 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
             },
             selfMessage: {
                 value: SendExecutor_Costs.Execute(),
-                body: CCIPSendExecutor_Execute {
+                body: CCIPSendExecutor_ExecuteV2 {
                     onrampSend: payload,
-                    config: CCIPSendExecutor_Config {
+                    config: CCIPSendExecutor_ConfigV2 {
                         feeQuoter: config.feeQuoter,
                         tokenRegistry,
                     }.toCell(),

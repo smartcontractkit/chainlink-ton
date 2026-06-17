@@ -43,7 +43,9 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
     fee: Fee,
 }
 
-//TODO Impl wallet address validation through JettonMinter/ stored wallet code
+// TODO Impl wallet address validation through JettonMinter/ stored wallet code
+// TODO By default, the Executor should JettonWallet address validation via async req/resp with the JettonMinter
+// Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
 }
 
@@ -55,7 +57,12 @@ struct CCIPSendExecutor_State_TokenTransfer {
 struct CCIPSendExecutor_State_Finalized {
 }
 
+//TODO deprecate with tt
 struct CCIPSendExecutor_Config {
+    feeQuoter: address,
+}
+
+struct CCIPSendExecutor_ConfigV2 {
     feeQuoter: address,
     tokenRegistry: address?,
 }

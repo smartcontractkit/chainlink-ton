@@ -11,7 +11,7 @@ import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 import "../common/types"
 import "../token_registry/messages"
-import "../test/tokenPool/messages"
+import "../pools/messages"
 
 tolk 1.4.1
 
@@ -31,12 +31,23 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
     match (msg) {
         // Sender must be this contract (called when initializing the contract)
-        CCIPSendExecutor_Execute => {
-            var this = init(msg.onrampSend, msg.config.load());
+        CCIPSendExecutor_ExecuteV2 => {
+            var this = initV2(msg.onrampSend, msg.config.load());
             assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
             assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute();
         }
+        // TODO: Deprecate when token transfers are released
+        // Sender must be this contract (called when initializing the contract)
+
+        // TODO: Test backwards compatibility when preparing the upgrade sequence for Executor/OnRamp
+        CCIPSendExecutor_Execute => {
+            var this = initV1(msg.onrampSend, msg.config.load());
+            assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
+            assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
+            this.onExecute();
+        }
+
         // Sender must be the Fee Quoter
         FeeQuoter_MessageValidated<RemainingBitsAndRefs> => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
@@ -55,7 +66,7 @@ fun onInternalMessage(in: InMessage) {
             assert(this.addresses.load().tokenRegistry! == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
-        MockTokenPool_NotifySuccessfulLockOrBurn => {
+        TokenPool_NotifySuccessfulLockOrBurn => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.load();
             assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onConfirmLockOrBurn(msg);
@@ -77,13 +88,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-//TODO: Figure out how to maintain backwards compatibility for messages sent between updating the Executor code in the OnRamp and upgrading the OnRamp itself.
-// Option 1: split the initialization in two messages to maintain backwards compatibility.
-// 1. CCIPSendExecutor_Execute stays the same as in 1.6.1 (that means not changing Config)
-// 2. CCIPSendExecutor_InitTokenTransfer passes the token registry address and other necessary configs
-// That way we can upgrade the SendExecutor code in the OnRamp and then upgrade the OnRamp itself, if an executor is deployed by the OnRamp between upgrades the new SendExecutor will still be able to handle the initialization message.
-// Option 2: Create a new message type CCIPSendExecutor_ExecuteV2 which has the new config element. Make the new executor able to handle both this version and the original.
-fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+fun initV2(onrampSend: OnRamp_Send, config: CCIPSendExecutor_ConfigV2): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         id: st.id,
@@ -92,6 +97,22 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
             tokenRegistry: config.tokenRegistry
+        }.toCell(),
+        state: CCIPSendExecutor_State_Initialized{
+        }.toCell(),
+    };
+}
+
+//TODO Deprecate with TT
+fun initV1(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+    val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
+    return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+        id: st.id,
+        onrampSend,
+        addresses: CCIPSendExecutor_Addresses {
+            onramp: st.onramp,
+            feeQuoter: config.feeQuoter,
+            tokenRegistry: null
         }.toCell(),
         state: CCIPSendExecutor_State_Initialized{
         }.toCell(),
@@ -188,7 +209,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     newState.store();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.onConfirmLockOrBurn(mutate self, msg: MockTokenPool_NotifySuccessfulLockOrBurn) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.onConfirmLockOrBurn(mutate self, msg: TokenPool_NotifySuccessfulLockOrBurn) {
     setGasLimitToMaximum();
     self.exitSuccessfully(self.state.load().fee);
 }

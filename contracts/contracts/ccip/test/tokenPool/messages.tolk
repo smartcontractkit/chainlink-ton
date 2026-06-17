@@ -5,6 +5,5 @@ struct (0x7dd8f942) MockTokenPool_LockOrBurn {
 	notify: address,
 }
 
-struct (0x7adb20bb) MockTokenPool_NotifySuccessfulLockOrBurn {}
 
 
