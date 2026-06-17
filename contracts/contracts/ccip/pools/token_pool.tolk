@@ -666,6 +666,10 @@ fun TokenPool<T>.validateLockOrBurn(
         self.consumeOutboundRateLimit(request.remoteChainSelector, destTokenAmount);
     }
 
+    // TODO: use ContextExecutor as `replyTo` target for the preflight check
+    // The CE will forward us the message and the context to continue the operation (async/await)
+
+    // TODO: we should not consume RL if the preflight check fails - if wait, skip consuming; consume on callback
     // TODO: preflightCheck needs to indicate if we can continue or wait for an async trigger (to continue)
     val wait = self.preflightCheck(request, requestedFinalityConfig, tokenArgs, destTokenAmount);
 
@@ -734,6 +738,13 @@ fun TokenPool<T>.onLockOrBurnTransfer(
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
     }
 
+    // We either get this transfer from the Router, in which case we trust the transfer is valid;
+    // Or for a different sender (e.g., per-user deposit account), we need to validate the transfer,
+    // which we can only do with context -> recover from ContextExecutor.
+    // 
+    // The context contains info about the sender, the amount, etc. that we can use to validate the transfer.
+    // If we can't validate the transfer, we try to return the funds.
+
     // TODO: can we generalize more (e.g., return of Jettons to sender on error)
 }
 
@@ -768,31 +779,6 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
         }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
-
-// function lockOrBurn(
-//     Pool.LockOrBurnInV1 calldata lockOrBurnIn,
-//     bytes4 requestedFinalityConfig,
-//     bytes calldata tokenArgs
-//   ) public virtual returns (Pool.LockOrBurnOutV1 memory, uint256 destTokenAmount) {
-//     uint256 feeAmount = _getFee(lockOrBurnIn, requestedFinalityConfig);
-//     _validateLockOrBurn(lockOrBurnIn, requestedFinalityConfig, tokenArgs, feeAmount);
-//     destTokenAmount = lockOrBurnIn.amount - feeAmount;
-//     _lockOrBurn(lockOrBurnIn.remoteChainSelector, destTokenAmount);
-
-//     emit LockedOrBurned({
-//       remoteChainSelector: lockOrBurnIn.remoteChainSelector,
-//       token: lockOrBurnIn.localToken,
-//       sender: msg.sender,
-//       amount: destTokenAmount
-//     });
-
-//     return (
-//       Pool.LockOrBurnOutV1({
-//         destTokenAddress: getRemoteToken(lockOrBurnIn.remoteChainSelector), destPoolData: _encodeLocalDecimals()
-//       }),
-//       destTokenAmount
-//     );
-//   }
 
 fun TokenPool<T>.validateReleaseOrMint(
     mutate self,

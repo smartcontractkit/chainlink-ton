@@ -38,6 +38,12 @@ src = "contracts/ccip/ccipsend_executor/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.ContextExecutor]
+display-name = "link.chain.ton.ccip.ContextExecutor"
+src = "contracts/ccip/executors/context_executor/contract.tolk"
+domain = "ccip"
+depends = []
+
 [contracts.ReceiveExecutor]
 display-name = "link.chain.ton.ccip.ReceiveExecutor"
 src = "contracts/ccip/receive_executor/contract.tolk"
