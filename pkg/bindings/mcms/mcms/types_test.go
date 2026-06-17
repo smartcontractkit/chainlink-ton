@@ -9,6 +9,7 @@ import (
 )
 
 func TestExitCodeCodecAndStringer(t *testing.T) {
+	t.Parallel()
 	valid := []struct {
 		code     int32
 		wantName string

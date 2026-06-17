@@ -9,6 +9,7 @@ import (
 // TestExtractEventTopicFromAddress tests the logic for extracting a topic
 // from the last 4 bytes of a TON address's data.
 func TestExtractEventTopicFromAddress(t *testing.T) {
+	t.Parallel()
 	// Define the test cases
 	testCases := []struct {
 		name          string
@@ -71,6 +72,7 @@ func TestExtractEventTopicFromAddress(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			addr := tc.buildAddr()
 
 			bucket := NewExtOutLogBucket(addr)

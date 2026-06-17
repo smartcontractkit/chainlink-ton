@@ -24,6 +24,7 @@ import (
 )
 
 func TestBalanceMonitor_DirectClient(t *testing.T) {
+	t.Parallel()
 	lggr := logger.Test(t)
 
 	var setupOnce sync.Once
@@ -44,6 +45,7 @@ func TestBalanceMonitor_DirectClient(t *testing.T) {
 }
 
 func TestBalanceMonitor_BalanceChanges(t *testing.T) {
+	t.Parallel()
 	lggr := logger.Test(t)
 
 	var setupOnce sync.Once
@@ -113,6 +115,7 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 }
 
 func TestBalanceMonitor_Polling(t *testing.T) {
+	t.Parallel()
 	lggr := logger.Test(t)
 
 	var setupOnce sync.Once

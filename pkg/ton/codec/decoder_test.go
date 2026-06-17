@@ -101,6 +101,7 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 })
 
 func TestDecodeJSONMapFromCell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		cell      *cell.Cell
@@ -281,6 +282,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			gotType, norm, err := codec.DecodeTLBValToJSON(tt.cell, TLBs)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON")
 
@@ -308,6 +310,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 
 // double decoding test (1) domain TLBs or error, (2) context/payload TLBs
 func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		cell      *cell.Cell
@@ -456,6 +459,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			registry := codec.NewResolverRegistry(
 				codec.NewTypedResolver(resolvers.NewCellToStructResolver(tt.tlbs)),
 				codec.NewTypedResolver(resolvers.NewStructToMapResolver(tt.tlbs)),

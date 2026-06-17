@@ -7,6 +7,7 @@ import (
 )
 
 func TestTreeDescription(t *testing.T) {
+	t.Parallel()
 	tree := treeNode{
 		description: "root",
 		children: &[]treeNode{

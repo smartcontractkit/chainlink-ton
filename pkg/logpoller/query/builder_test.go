@@ -13,6 +13,7 @@ import (
 )
 
 func TestQueryBuilder_BasicQuery(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -44,6 +45,7 @@ func TestQueryBuilder_BasicQuery(t *testing.T) {
 }
 
 func TestQueryBuilder_WithFields(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -75,6 +77,7 @@ func TestQueryBuilder_WithFields(t *testing.T) {
 }
 
 func TestQueryBuilder_WithByteFilters(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -101,6 +104,7 @@ func TestQueryBuilder_WithByteFilters(t *testing.T) {
 }
 
 func TestQueryBuilder_WithBitFilters(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -138,6 +142,7 @@ func TestQueryBuilder_WithBitFilters(t *testing.T) {
 }
 
 func TestQueryBuilder_WithLimitAndSort(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -162,6 +167,7 @@ func TestQueryBuilder_WithLimitAndSort(t *testing.T) {
 }
 
 func TestQueryBuilder_ComplexQuery(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -236,6 +242,7 @@ func TestQueryBuilder_ComplexQuery(t *testing.T) {
 }
 
 func TestQueryBuilder_ValidationErrors(t *testing.T) {
+	t.Parallel()
 	builder := NewQueryBuilder(nil)
 
 	// Test missing address - use Query() instead of Execute() to avoid nil store

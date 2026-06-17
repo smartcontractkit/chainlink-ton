@@ -16,6 +16,7 @@ type encodeStructCase struct {
 }
 
 func TestEncodeArgsDefault(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
 	if err != nil {
 		t.Fatalf("unexpected address parse error: %v", err)
@@ -102,6 +103,7 @@ func TestEncodeArgsDefault(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			got, err := encodeArgsDefault(tc.input)
 			if err != nil {
 				t.Fatalf("encodeArgsDefault returned error: %v", err)

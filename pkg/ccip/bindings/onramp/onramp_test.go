@@ -18,6 +18,7 @@ import (
 )
 
 func TestTopicCRC32Values(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		topic    string
@@ -47,6 +48,7 @@ func TestTopicCRC32Values(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			computed := crc32.ChecksumIEEE([]byte(tt.topic))
 			require.Equal(t, tt.expected, computed, "CRC32 mismatch for %s: expected 0x%08X, got 0x%08X", tt.topic, tt.expected, computed)
 		})
@@ -54,6 +56,7 @@ func TestTopicCRC32Values(t *testing.T) {
 }
 
 func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
+	t.Parallel()
 	orig := GenericExtraArgsV2{
 		GasLimit:                 big.NewInt(123456789),
 		AllowOutOfOrderExecution: true,
@@ -70,6 +73,7 @@ func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
 }
 
 func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
+	t.Parallel()
 	solanaAddr1, err := solana.NewRandomPrivateKey()
 	require.NoError(t, err)
 
@@ -107,6 +111,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 }
 
 func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
+	t.Parallel()
 	// Sui object IDs are 32 bytes, matching Account256's 256-bit expectation
 	suiAddr1 := models.SuiAddress("0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968")
 	suiAddr1Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr1)
@@ -144,6 +149,7 @@ func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 }
 
 func TestOwnable2Step(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
@@ -174,6 +180,7 @@ func TestOwnable2Step(t *testing.T) {
 }
 
 func TestDestChainConfig(t *testing.T) {
+	t.Parallel()
 	routerAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
@@ -214,6 +221,7 @@ func TestDestChainConfig(t *testing.T) {
 }
 
 func TestStorage(t *testing.T) {
+	t.Parallel()
 	dummyAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 

@@ -10,7 +10,9 @@ import (
 )
 
 func TestConfig_ApplyDefaults(t *testing.T) {
+	t.Parallel()
 	t.Run("applies all defaults to empty config", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{}
 		cfg.ApplyDefaults()
 
@@ -24,6 +26,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 	})
 
 	t.Run("preserves custom values and applies defaults to missing fields", func(t *testing.T) {
+		t.Parallel()
 		customBroadcastSize := uint(500)
 		customRetryDelay := config.MustNewDuration(15 * time.Second)
 
@@ -46,6 +49,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 	})
 
 	t.Run("all fields set - nothing should change", func(t *testing.T) {
+		t.Parallel()
 		customConfig := Config{
 			BroadcastChanSize:    999,
 			ConfirmPollInterval:  config.MustNewDuration(1 * time.Second),

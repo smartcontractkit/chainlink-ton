@@ -13,6 +13,7 @@ func bigIntFromHex(s string) *big.Int {
 }
 
 func TestParseLispTuple(t *testing.T) {
+	t.Parallel()
 	// Global curse subject hex from contracts/ccip/rmn_remote/lib.tolk
 	const globalCurseHex = "01000000000000000000000000000001"
 
@@ -121,6 +122,7 @@ func TestParseLispTuple(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseLispTuple[*big.Int](tt.input)
 			if tt.expectErr {
 				if err == nil {
@@ -149,6 +151,7 @@ func TestParseLispTuple(t *testing.T) {
 }
 
 func TestParseLispTupleToUint64(t *testing.T) {
+	t.Parallel()
 	// This test demonstrates the recommended pattern for converting to uint64
 	tests := []struct {
 		name      string
@@ -205,6 +208,7 @@ func TestParseLispTupleToUint64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Parse as *big.Int first
 			bigInts, err := ParseLispTuple[*big.Int](tt.input)
 			if tt.expectErr {

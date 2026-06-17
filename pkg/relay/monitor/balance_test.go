@@ -10,7 +10,9 @@ import (
 )
 
 func TestDecodeHexPublicKey(t *testing.T) {
+	t.Parallel()
 	t.Run("ValidPublicKey", func(t *testing.T) {
+		t.Parallel()
 		testPrivateKey := ed25519.PrivateKey{
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
@@ -35,12 +37,14 @@ func TestDecodeHexPublicKey(t *testing.T) {
 	})
 
 	t.Run("InvalidHexString", func(t *testing.T) {
+		t.Parallel()
 		_, err := DecodeHexPublicKey("not-valid-hex")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid hex-encoded public key")
 	})
 
 	t.Run("InvalidKeySize", func(t *testing.T) {
+		t.Parallel()
 		shortHex := "00112233" // Only 4 bytes, not 32
 		_, err := DecodeHexPublicKey(shortHex)
 		require.Error(t, err)
@@ -49,7 +53,9 @@ func TestDecodeHexPublicKey(t *testing.T) {
 }
 
 func TestHexPublicKeyToWalletAddress(t *testing.T) {
+	t.Parallel()
 	t.Run("ValidPublicKey", func(t *testing.T) {
+		t.Parallel()
 		testPrivateKey := ed25519.PrivateKey{
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
@@ -84,12 +90,14 @@ func TestHexPublicKeyToWalletAddress(t *testing.T) {
 	})
 
 	t.Run("InvalidHexString", func(t *testing.T) {
+		t.Parallel()
 		_, err := hexPublicKeyToWalletAddress("not-valid-hex")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid hex-encoded public key")
 	})
 
 	t.Run("InvalidKeySize", func(t *testing.T) {
+		t.Parallel()
 		shortHex := "00112233" // Only 4 bytes, not 32
 		_, err := hexPublicKeyToWalletAddress(shortHex)
 		require.Error(t, err)

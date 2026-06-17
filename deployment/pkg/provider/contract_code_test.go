@@ -16,6 +16,7 @@ import (
 )
 
 func TestNewCCIPContractProvider_Local(t *testing.T) {
+	t.Parallel()
 	// Use "local" to skip the HTTP download and read from contracts/build/
 	// in the repository root (resolved via git rev-parse).
 	ctx := context.Background()
@@ -28,6 +29,7 @@ func TestNewCCIPContractProvider_Local(t *testing.T) {
 
 	for _, ct := range bindings.AllContractTypes {
 		t.Run(ct.SimpleName, func(t *testing.T) {
+			t.Parallel()
 			meta := opston.ContractMetadata{
 				Package: utils.ContractsVersionLocal,
 				ID:      ct.ContractType,
@@ -43,6 +45,7 @@ func TestNewCCIPContractProvider_Local(t *testing.T) {
 }
 
 func TestContractProvider_GetContract_NotFound(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	lggr, err := logger.New()

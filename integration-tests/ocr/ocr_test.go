@@ -35,6 +35,7 @@ import (
 )
 
 func TestTransmitterLocal(t *testing.T) {
+	t.Parallel()
 	type connection struct {
 		SignedAPIClient tracetracking.SignedAPIClient
 		ConnectionPool  *liteclient.ConnectionPool
@@ -242,6 +243,7 @@ func TestTransmitterLocal(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			tc.test(t, TestSetup{
 				account: accounts[i],
 			})

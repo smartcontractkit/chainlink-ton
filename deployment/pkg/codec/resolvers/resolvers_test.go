@@ -60,6 +60,7 @@ type Bar struct {
 }
 
 func TestResolvingSendMessagesInputs(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name    string
 		input   map[string]any
@@ -544,6 +545,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			selector := uint64(13879075125137744094) // TON Localnet chain selector
 			ds := cldfds.NewMemoryDataStore()
 			err := ds.AddressRefStore.Add(cldfds.AddressRef{

@@ -20,9 +20,11 @@ const (
 )
 
 func TestTxStore_AddUnconfirmed(t *testing.T) {
+	t.Parallel()
 	store := NewTxStore()
 
 	t.Run("adds new unconfirmed transaction", func(t *testing.T) {
+		t.Parallel()
 		tx := &Tx{
 			From:   *address.MustParseAddr(testAddr1),
 			To:     *address.MustParseAddr(testAddr2),
@@ -40,6 +42,7 @@ func TestTxStore_AddUnconfirmed(t *testing.T) {
 	})
 
 	t.Run("returns error when adding duplicate LT to unconfirmed", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		sampleLT := uint64(12345)
 		tx := &Tx{
@@ -57,6 +60,7 @@ func TestTxStore_AddUnconfirmed(t *testing.T) {
 	})
 
 	t.Run("returns error when adding LT that exists in finalized", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		sampleLT := uint64(12345)
 		tx := &Tx{
@@ -79,7 +83,9 @@ func TestTxStore_AddUnconfirmed(t *testing.T) {
 }
 
 func TestTxStore_MarkFinalized(t *testing.T) {
+	t.Parallel()
 	t.Run("marks unconfirmed transaction as finalized", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		sampleLT := uint64(12345)
 		tx := &Tx{
@@ -109,6 +115,7 @@ func TestTxStore_MarkFinalized(t *testing.T) {
 	})
 
 	t.Run("returns error when marking non-existent transaction", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 
 		err := store.MarkFinalized(99999, true, 0)
@@ -117,6 +124,7 @@ func TestTxStore_MarkFinalized(t *testing.T) {
 	})
 
 	t.Run("returns error when marking already finalized transaction", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		sampleLT := uint64(12345)
 		tx := &Tx{
@@ -139,7 +147,9 @@ func TestTxStore_MarkFinalized(t *testing.T) {
 }
 
 func TestTxStore_GetUnconfirmed(t *testing.T) {
+	t.Parallel()
 	t.Run("returns transactions sorted by expiration time", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		tx1 := &Tx{From: *address.MustParseAddr(testAddr1)}
 		tx2 := &Tx{From: *address.MustParseAddr(testAddr1)}
@@ -163,6 +173,7 @@ func TestTxStore_GetUnconfirmed(t *testing.T) {
 	})
 
 	t.Run("returns empty slice when no unconfirmed transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		unconfirmed := store.GetUnconfirmed()
 		assert.Empty(t, unconfirmed)
@@ -170,7 +181,9 @@ func TestTxStore_GetUnconfirmed(t *testing.T) {
 }
 
 func TestTxStore_GetTxState(t *testing.T) {
+	t.Parallel()
 	t.Run("returns cascading status for unconfirmed transaction", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		sampleLT := uint64(12345)
 		tx := &Tx{From: *address.MustParseAddr(testAddr1)}
@@ -187,6 +200,7 @@ func TestTxStore_GetTxState(t *testing.T) {
 	})
 
 	t.Run("returns finalized status for finalized transaction", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		sampleLT := uint64(12345)
 		tx := &Tx{
@@ -210,6 +224,7 @@ func TestTxStore_GetTxState(t *testing.T) {
 	})
 
 	t.Run("returns not found for non-existent transaction", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 
 		status, succeeded, exitCode, fees, found := store.GetTxState(99999)
@@ -222,7 +237,9 @@ func TestTxStore_GetTxState(t *testing.T) {
 }
 
 func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
+	t.Parallel()
 	t.Run("removes all finalized transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 
 		// Add and finalize multiple transactions
@@ -263,6 +280,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 	})
 
 	t.Run("removes expired unconfirmed transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -303,6 +321,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 	})
 
 	t.Run("removes both finalized and expired transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -361,6 +380,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 	})
 
 	t.Run("handles cleanup with no transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -372,6 +392,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 	})
 
 	t.Run("handles cleanup with only non-expired transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -399,7 +420,9 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 }
 
 func TestAccountStore_GetTxStore(t *testing.T) {
+	t.Parallel()
 	t.Run("creates new TxStore for new account", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 
 		store := accountStore.GetTxStore(testAddr1)
@@ -408,6 +431,7 @@ func TestAccountStore_GetTxStore(t *testing.T) {
 	})
 
 	t.Run("returns existing TxStore for existing account", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 
 		store1 := accountStore.GetTxStore(testAddr1)
@@ -422,7 +446,9 @@ func TestAccountStore_GetTxStore(t *testing.T) {
 }
 
 func TestAccountStore_GetTotalInflightCount(t *testing.T) {
+	t.Parallel()
 	t.Run("returns total count across all accounts", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 
 		store1 := accountStore.GetTxStore(testAddr1)
@@ -446,13 +472,16 @@ func TestAccountStore_GetTotalInflightCount(t *testing.T) {
 	})
 
 	t.Run("returns zero when no accounts have transactions", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 		assert.Equal(t, 0, accountStore.GetTotalInflightCount())
 	})
 }
 
 func TestAccountStore_GetAllUnconfirmed(t *testing.T) {
+	t.Parallel()
 	t.Run("returns unconfirmed transactions for all accounts", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 
 		store1 := accountStore.GetTxStore(testAddr1)
@@ -478,7 +507,9 @@ func TestAccountStore_GetAllUnconfirmed(t *testing.T) {
 }
 
 func TestAccountStore_CleanupAll(t *testing.T) {
+	t.Parallel()
 	t.Run("cleans up transactions across all accounts", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -534,6 +565,7 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 	})
 
 	t.Run("returns zero counts when no transactions to cleanup", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -544,6 +576,7 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 	})
 
 	t.Run("only cleans up expired transactions when no finalized exist", func(t *testing.T) {
+		t.Parallel()
 		accountStore := NewAccountStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
@@ -565,7 +598,9 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 }
 
 func TestTxStore_InflightCount(t *testing.T) {
+	t.Parallel()
 	t.Run("returns correct count of unconfirmed transactions", func(t *testing.T) {
+		t.Parallel()
 		store := NewTxStore()
 
 		assert.Equal(t, 0, store.InflightCount())

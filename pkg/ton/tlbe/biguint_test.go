@@ -22,6 +22,7 @@ type typedValues struct {
 }
 
 func TestUintWrappers_MaskSignBit(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		addr          []byte
@@ -47,6 +48,7 @@ func TestUintWrappers_MaskSignBit(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := encodeFixed(tc.addr, tc.root)
 			require.NoError(t, err)
 
@@ -77,6 +79,7 @@ func TestUintWrappers_MaskSignBit(t *testing.T) {
 }
 
 func TestUintWrappers_RoundTrip(t *testing.T) {
+	t.Parallel()
 	addr := leadingBytes(20, 0x80)
 	root := leadingBytes(32, 0x7f)
 

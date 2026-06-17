@@ -447,6 +447,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("StateViewAfterDeployContracts", func(t *testing.T) {
+		t.Parallel()
 		var generatedView tonstate.TONChainView
 		generatedView, err = state[tonSelector].GenerateView(&env, tonSelector, "-1")
 		require.NoError(t, err)
@@ -477,6 +478,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	})
 
 	t.Run("GetConfigAfterSetOCR3Config", func(t *testing.T) {
+		t.Parallel()
 		// Load onchain state to get contract addresses
 		state, err = tonstate.LoadOnchainState(env)
 		require.NoError(t, err)

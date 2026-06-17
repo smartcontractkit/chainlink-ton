@@ -97,6 +97,7 @@ func newTestService(t *testing.T, store *mockFilterStore) *service {
 }
 
 func TestRegisterFilter_CacheHit(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -127,6 +128,7 @@ func TestRegisterFilter_CacheHit(t *testing.T) {
 }
 
 func TestRegisterFilter_ConfigChange(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -152,6 +154,7 @@ func TestRegisterFilter_ConfigChange(t *testing.T) {
 }
 
 func TestRegisterFilter_AddressChange(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -176,6 +179,7 @@ func TestRegisterFilter_AddressChange(t *testing.T) {
 }
 
 func TestHasFilter_UsesCache(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -201,6 +205,7 @@ func TestHasFilter_UsesCache(t *testing.T) {
 }
 
 func TestUnregisterFilter_UpdatesCache(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -230,6 +235,7 @@ func TestUnregisterFilter_UpdatesCache(t *testing.T) {
 }
 
 func TestBuildFilterIndex(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -282,6 +288,7 @@ func TestBuildFilterIndex(t *testing.T) {
 }
 
 func TestGetDistinctAddresses(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -323,6 +330,7 @@ func TestGetDistinctAddresses(t *testing.T) {
 }
 
 func TestLoadFilters_PopulatesCache(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -356,6 +364,7 @@ func TestLoadFilters_PopulatesCache(t *testing.T) {
 }
 
 func TestFilterIndex_SameAddressDifferentEventSig(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)
@@ -393,6 +402,7 @@ func TestFilterIndex_SameAddressDifferentEventSig(t *testing.T) {
 }
 
 func TestFilterIndex_SameKey_MultipleFilters(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	store := newMockFilterStore()
 	svc := newTestService(t, store)

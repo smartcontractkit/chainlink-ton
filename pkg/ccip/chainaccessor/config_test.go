@@ -25,9 +25,11 @@ func bigIntFromHex(s string) *big.Int {
 const globalCurseSubjectHex = "01000000000000000000000000000001"
 
 func TestParseCurseInfo(t *testing.T) {
+	t.Parallel()
 	destChainSelector := ccipocr3.ChainSelector(1234567890)
 
 	t.Run("no curses - empty input", func(t *testing.T) {
+		t.Parallel()
 		cursedSubjects := []*big.Int{}
 
 		result := parseCurseInfo(cursedSubjects, destChainSelector)
@@ -38,6 +40,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("no curses - nil input", func(t *testing.T) {
+		t.Parallel()
 		var cursedSubjects []*big.Int
 
 		result := parseCurseInfo(cursedSubjects, destChainSelector)
@@ -48,6 +51,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("global curse only", func(t *testing.T) {
+		t.Parallel()
 		globalCurse := bigIntFromHex(globalCurseSubjectHex)
 		cursedSubjects := []*big.Int{globalCurse}
 
@@ -59,6 +63,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("destination chain cursed", func(t *testing.T) {
+		t.Parallel()
 		destAsBigInt := new(big.Int).SetUint64(uint64(destChainSelector))
 		cursedSubjects := []*big.Int{destAsBigInt}
 
@@ -70,6 +75,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("single source chain cursed", func(t *testing.T) {
+		t.Parallel()
 		sourceChain := big.NewInt(111111)
 		cursedSubjects := []*big.Int{sourceChain}
 
@@ -82,6 +88,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("multiple source chains cursed", func(t *testing.T) {
+		t.Parallel()
 		sourceChain1 := big.NewInt(111111)
 		sourceChain2 := big.NewInt(222222)
 		sourceChain3 := big.NewInt(333333)
@@ -98,6 +105,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("mixed curses - global, destination, and source chains", func(t *testing.T) {
+		t.Parallel()
 		globalCurse := bigIntFromHex(globalCurseSubjectHex)
 		destAsBigInt := new(big.Int).SetUint64(uint64(destChainSelector))
 		sourceChain1 := big.NewInt(111111)
@@ -115,6 +123,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("global curse with source chains but not destination", func(t *testing.T) {
+		t.Parallel()
 		globalCurse := bigIntFromHex(globalCurseSubjectHex)
 		sourceChain := big.NewInt(999999)
 
@@ -129,6 +138,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("large chain selector values (uint64 max)", func(t *testing.T) {
+		t.Parallel()
 		// Use max uint64 value as chain selector
 		maxUint64 := new(big.Int).SetUint64(^uint64(0))
 		cursedSubjects := []*big.Int{maxUint64}
@@ -142,6 +152,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("value larger than uint64 is ignored (except global curse)", func(t *testing.T) {
+		t.Parallel()
 		// Value that doesn't fit in uint64 (but is not the global curse subject)
 		largeValue := bigIntFromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF") // 128 bits all 1s
 		sourceChain := big.NewInt(111111)
@@ -158,6 +169,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("duplicate curse subjects are handled", func(t *testing.T) {
+		t.Parallel()
 		sourceChain := big.NewInt(111111)
 		// Same chain selector appears twice
 		cursedSubjects := []*big.Int{sourceChain, sourceChain}
@@ -170,6 +182,7 @@ func TestParseCurseInfo(t *testing.T) {
 }
 
 func TestFilterSourceChainConfigs(t *testing.T) {
+	t.Parallel()
 	testAddr := address.MustParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	makeConfig := func(minSeqNr uint64, isEnabled bool) offramp.SourceChainConfig {
 		return offramp.SourceChainConfig{
@@ -182,6 +195,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	}
 
 	t.Run("empty sourceChainSelectors returns all configs", func(t *testing.T) {
+		t.Parallel()
 		sourceConfigsGot := offrampview.SourceChainConfigMap{
 			1001: makeConfig(100, true),
 			1002: makeConfig(200, true),
@@ -198,6 +212,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	})
 
 	t.Run("nil sourceChainSelectors returns all configs", func(t *testing.T) {
+		t.Parallel()
 		sourceConfigsGot := offrampview.SourceChainConfigMap{
 			2001: makeConfig(500, true),
 			2002: makeConfig(600, true),
@@ -212,6 +227,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	})
 
 	t.Run("specific selectors return only matching configs", func(t *testing.T) {
+		t.Parallel()
 		sourceConfigsGot := offrampview.SourceChainConfigMap{
 			3001: makeConfig(100, true),
 			3002: makeConfig(200, true),
@@ -230,6 +246,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	})
 
 	t.Run("non-existent selectors are skipped", func(t *testing.T) {
+		t.Parallel()
 		sourceConfigsGot := offrampview.SourceChainConfigMap{
 			4001: makeConfig(100, true),
 			4002: makeConfig(200, true),
@@ -245,6 +262,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	})
 
 	t.Run("all requested selectors non-existent returns empty map", func(t *testing.T) {
+		t.Parallel()
 		sourceConfigsGot := offrampview.SourceChainConfigMap{
 			5001: makeConfig(100, true),
 		}
@@ -257,6 +275,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	})
 
 	t.Run("empty sourceConfigsGot with selectors returns empty map", func(t *testing.T) {
+		t.Parallel()
 		sourceConfigsGot := offrampview.SourceChainConfigMap{}
 
 		selectors := []ccipocr3.ChainSelector{1001, 1002}
@@ -267,6 +286,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 	})
 
 	t.Run("config fields are correctly converted", func(t *testing.T) {
+		t.Parallel()
 		onRampAddr := common.CrossChainAddress{0xAA, 0xBB, 0xCC}
 		sourceConfigsGot := offrampview.SourceChainConfigMap{
 			6001: {

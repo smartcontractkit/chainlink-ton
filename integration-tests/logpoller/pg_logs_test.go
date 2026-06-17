@@ -64,6 +64,7 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 }
 
 func TestPgLogStore(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
 
@@ -127,6 +128,7 @@ func TestPgLogStore(t *testing.T) {
 	assert.Empty(t, nextCursor) // Should be empty since no more data
 
 	t.Run("QueryLogs - With Limit", func(t *testing.T) {
+		t.Parallel()
 		limitAndSort := commonquery.LimitAndSort{
 			Limit: commonquery.CountLimit(2),
 		}
@@ -155,6 +157,7 @@ func TestPgLogStore(t *testing.T) {
 	})
 
 	t.Run("QueryLogs - With Sorting", func(t *testing.T) {
+		t.Parallel()
 		// Test TxLT sorting (DESC)
 		logs, _, _, err := logStore.QueryLogs(ctx, &query.LogQuery{
 			FieldFilters: []*query.FieldFilter{
@@ -222,6 +225,7 @@ func TestPgLogStore(t *testing.T) {
 	})
 
 	t.Run("QueryLogs - With Byte Filters", func(t *testing.T) {
+		t.Parallel()
 		// Filter for logs with counter value = 200 (second log)
 		// Based on BOC analysis: Value field is at offset 4 in the cell payload
 		// (17 in full BOC - 13 BOC header = 4 in cell payload)
@@ -259,6 +263,7 @@ func TestPgLogStore(t *testing.T) {
 	})
 
 	t.Run("QueryLogs - Cursor Pagination", func(t *testing.T) {
+		t.Parallel()
 		// First page
 		limitAndSort := commonquery.LimitAndSort{
 			Limit:  commonquery.CountLimit(1),
@@ -380,6 +385,7 @@ func TestGetLatestBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if len(tt.logs) > 0 {
 				_, err := logStore.SaveLogs(ctx, tt.logs, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 				require.NoError(t, err)

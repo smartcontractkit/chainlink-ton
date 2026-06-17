@@ -98,6 +98,7 @@ var (
 )
 
 func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
+	t.Parallel()
 	// Basic parsing test using the first BOC
 	messageSentBocHex := CCIPMessageSentSeq1BOC
 	messageSentBocBytes, err := hex.DecodeString(messageSentBocHex)
@@ -122,10 +123,13 @@ func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
 }
 
 func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
+	t.Parallel()
 	// Basic parsing test for all BOCs
 	t.Run("basic_parsing", func(t *testing.T) {
+		t.Parallel()
 		for _, tc := range CCIPMessageSentBOCs {
 			t.Run(tc.Name, func(t *testing.T) {
+				t.Parallel()
 				bocBytes, err := hex.DecodeString(tc.BOCHex)
 				require.NoError(t, err)
 				bocCell, err := cell.FromBOC(bocBytes)
@@ -146,6 +150,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
 }
 
 func Test_TonAccessorCommitEventQueries(t *testing.T) {
+	t.Parallel()
 	// Note: we don't test the API client interaction here, so we return empty client
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return nil, nil
@@ -168,6 +173,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	require.NoError(t, err, "failed to parse BOC from hex")
 
 	t.Run("Analyze BOC structure - MerkleRoot detection", func(t *testing.T) {
+		t.Parallel()
 		// Examine cell data to understand 'maybe' encoding pattern
 		t.Logf("=== MerkleRoot Only BOC Analysis ===")
 		merkleParser := merkleRootOnlyCell.BeginParse()
@@ -222,6 +228,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Test BOC decoding - Merkle Root only", func(t *testing.T) {
+		t.Parallel()
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
 		err = tlb.LoadFromCell(&commitReportAccepted, merkleRootOnlyCell.BeginParse())
@@ -245,6 +252,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Test BOC decoding - Price Updates only", func(t *testing.T) {
+		t.Parallel()
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
 		err = tlb.LoadFromCell(&commitReportAccepted, priceOnlyCell.BeginParse())
@@ -292,6 +300,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
+		t.Parallel()
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
 		err = tlb.LoadFromCell(&commitReportAccepted, bothCell.BeginParse())
@@ -345,6 +354,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
+		t.Parallel()
 		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
 			Config:      logpoller.DefaultConfigSet,
@@ -365,6 +375,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
+		t.Parallel()
 		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
 			Config:      logpoller.DefaultConfigSet,
@@ -385,6 +396,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - WithPostgresStore - Mixed reports", func(t *testing.T) {
+		t.Parallel()
 		if testing.Short() {
 			t.Skip("Skipping postgres test in short mode")
 		}
@@ -425,6 +437,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - WithPostgresStore - Basic", func(t *testing.T) {
+		t.Parallel()
 		if testing.Short() {
 			t.Skip("Skipping postgres test in short mode")
 		}
@@ -658,6 +671,7 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 }
 
 func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
+	t.Parallel()
 	// Test parsing ExecutionStateChanged BOCs with different states
 	testCases := []struct {
 		name     string
@@ -683,6 +697,7 @@ func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			bocBytes, err := hex.DecodeString(tc.bocHex)
 			require.NoError(t, err, "failed to decode hex string")
 			bocCell, err := cell.FromBOC(bocBytes)
@@ -705,6 +720,7 @@ func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
 }
 
 func Test_TonAccessorExecutedMessages(t *testing.T) {
+	t.Parallel()
 	// Note: we don't test the API client interaction here, so we return empty client
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return nil, nil
@@ -732,6 +748,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 
 // Test validation for MsgsBetweenSeqNums sequence number range
 func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
+	t.Parallel()
 	lggr := logger.Test(t)
 
 	// Note: we don't test the API client interaction here, so we return empty client
@@ -758,6 +775,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 	require.NoError(t, aerr)
 
 	t.Run("invalid range where Start > End", func(t *testing.T) {
+		t.Parallel()
 		// Test with invalid range where Start > End
 		invalidRange := ccipocr3.NewSeqNumRange(100, 50)
 		msgs, err := accessor.MsgsBetweenSeqNums(context.Background(), 1, invalidRange)
@@ -770,6 +788,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 	})
 
 	t.Run("valid range where Start <= End returns binding error", func(t *testing.T) {
+		t.Parallel()
 		// Test with valid range where Start <= End
 		validRange := ccipocr3.NewSeqNumRange(50, 100)
 		_, err := accessor.MsgsBetweenSeqNums(context.Background(), 1, validRange)
@@ -781,6 +800,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 	})
 
 	t.Run("valid range where Start == End returns binding error", func(t *testing.T) {
+		t.Parallel()
 		// Test with range where Start == End
 		validRange := ccipocr3.NewSeqNumRange(100, 100)
 		_, err := accessor.MsgsBetweenSeqNums(context.Background(), 1, validRange)
@@ -793,6 +813,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 }
 
 func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
+	t.Parallel()
 	// Skip if no database available
 	if testing.Short() {
 		t.Skip("Skipping postgres test in short mode")

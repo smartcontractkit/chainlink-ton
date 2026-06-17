@@ -69,7 +69,9 @@ func buildTestCalls(t *testing.T) common.SnakedCell[Call] {
 }
 
 func TestCrossImplementationEncoding(t *testing.T) {
+	t.Parallel()
 	t.Run("Call", func(t *testing.T) {
+		t.Parallel()
 		addr1, err := address.ParseAddr(testAddress1)
 		require.NoError(t, err)
 
@@ -88,6 +90,7 @@ func TestCrossImplementationEncoding(t *testing.T) {
 	})
 
 	t.Run("SnakedCell[Call]", func(t *testing.T) {
+		t.Parallel()
 		calls := buildTestCalls(t)
 
 		encoded, err := tlb.ToCell(calls)
@@ -99,6 +102,7 @@ func TestCrossImplementationEncoding(t *testing.T) {
 	})
 
 	t.Run("OperationBatch", func(t *testing.T) {
+		t.Parallel()
 		opBatch := OperationBatch{
 			Calls:       buildTestCalls(t),
 			Predecessor: tlbe.NewUint256(big.NewInt(0)),

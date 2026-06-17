@@ -423,6 +423,7 @@ func Test_LogPoller(t *testing.T) {
 		}, 120*time.Second, 5*time.Second, "log poller did not ingest all events correctly in time")
 
 		t.Run("Stored Block validation", func(t *testing.T) {
+			t.Parallel()
 			// get all logs
 			logs, _, _, qerr := lp.NewQuery().
 				WithSource(emitterA.ContractAddress()).

@@ -241,6 +241,7 @@ func TestDeployCCIP(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("FetchTokenPrice", func(t *testing.T) {
+		t.Parallel()
 		// known token address, price updated during changeset execution
 		var tonAddrBytes []byte
 		var updates map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig
@@ -270,6 +271,7 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
+		t.Parallel()
 		// evm chain selector
 		var feePriceUpdate map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig
 		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
@@ -283,6 +285,7 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
+		t.Parallel()
 		expectedErrStr := fmt.Sprintf("failed to apply changeset at index 0: failed to send or plan messages: failed to send messages: failed to wait for trace: transaction failed with exit code: %d", ocr.ErrorBigFMustBePositive)
 		_, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 			commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
@@ -299,6 +302,7 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("GetConfig", func(t *testing.T) {
+		t.Parallel()
 		// destination
 		config, sourceChainConfigs, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
 		require.NoError(t, err)
@@ -373,18 +377,21 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("GetExpectedNextSequenceNumber", func(t *testing.T) {
+		t.Parallel()
 		seqNum, err := accessor.GetExpectedNextSequenceNumber(ctx, ccipocr3.ChainSelector(evmSelector))
 		require.NoError(t, err)
 		require.Equal(t, ccipocr3.SeqNum(1), seqNum)
 	})
 
 	t.Run("GetTokenPriceUSD", func(t *testing.T) {
+		t.Parallel()
 		timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkAddr)
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(20), timestampedPrice.Value)
 	})
 
 	t.Run("GetFeeQuoterDestChainConfig", func(t *testing.T) {
+		t.Parallel()
 		config, err := accessor.GetFeeQuoterDestChainConfig(ctx, ccipocr3.ChainSelector(evmSelector))
 		require.NoError(t, err)
 		// v1_6.DefaultFeeQuoterDestChainConfig()
@@ -412,6 +419,7 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("StateView", func(t *testing.T) {
+		t.Parallel()
 		generatedView, err := state[chainSelector].GenerateView(&env, chainSelector, "-1")
 		require.NoError(t, err)
 		require.Equal(t, "-1", generatedView.ChainID)

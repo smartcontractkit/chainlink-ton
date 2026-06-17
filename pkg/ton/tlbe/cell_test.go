@@ -11,6 +11,7 @@ import (
 )
 
 func TestCellJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Create a sample InternalMessage
 	addr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
 	body := cell.BeginCell().MustStoreUInt(12345, 32).EndCell()
@@ -62,6 +63,7 @@ func TestCellJSONRoundTrip(t *testing.T) {
 }
 
 func TestCellRejectsPointerTypes(t *testing.T) {
+	t.Parallel()
 	// Attempt to create a Cell with a pointer type parameter
 	addr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
 	body := cell.BeginCell().MustStoreUInt(54321, 32).EndCell()

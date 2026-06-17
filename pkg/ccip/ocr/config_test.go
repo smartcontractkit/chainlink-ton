@@ -8,7 +8,9 @@ import (
 )
 
 func TestConfig_ApplyDefaults(t *testing.T) {
+	t.Parallel()
 	t.Run("applies all defaults when fields are zero", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{}
 		cfg.ApplyDefaults()
 
@@ -18,6 +20,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 	})
 
 	t.Run("preserves custom values", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0.2,
 			CommitPriceAndRootCostTON:    0.3,
@@ -31,6 +34,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 	})
 
 	t.Run("applies defaults for some zero fields", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0.3,
 			ExecuteCostTON:               0.4,
@@ -44,7 +48,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 }
 
 func TestConfig_ValidateConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("valid config passes validation", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0.05,
 			CommitPriceAndRootCostTON:    0.08,
@@ -55,6 +61,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	})
 
 	t.Run("fails when CommitPriceUpdateOnlyCostTON is zero", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0,
 			CommitPriceAndRootCostTON:    0.08,
@@ -66,6 +73,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	})
 
 	t.Run("fails when CommitPriceAndRootCostTON is zero", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0.05,
 			CommitPriceAndRootCostTON:    0,
@@ -77,6 +85,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	})
 
 	t.Run("fails when ExecuteCostTON is zero", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0.05,
 			CommitPriceAndRootCostTON:    0.08,
@@ -88,6 +97,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	})
 
 	t.Run("fails when all fields are zero", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
@@ -98,13 +108,16 @@ func TestConfig_ValidateConfig(t *testing.T) {
 }
 
 func TestDefaultConfigSet(t *testing.T) {
+	t.Parallel()
 	t.Run("default config has non-zero values", func(t *testing.T) {
+		t.Parallel()
 		assert.Greater(t, DefaultConfigSet.CommitPriceUpdateOnlyCostTON, 0.0)
 		assert.Greater(t, DefaultConfigSet.CommitPriceAndRootCostTON, 0.0)
 		assert.Greater(t, DefaultConfigSet.ExecuteCostTON, 0.0)
 	})
 
 	t.Run("default config passes validation", func(t *testing.T) {
+		t.Parallel()
 		err := DefaultConfigSet.ValidateConfig()
 		require.NoError(t, err)
 	})

@@ -16,8 +16,10 @@ import (
 )
 
 func Test_decodeExtraArgs(t *testing.T) {
+	t.Parallel()
 	extraDataDecoder := NewExtraDataDecoder()
 	t.Run("decode dest exec data into map svm", func(t *testing.T) {
+		t.Parallel()
 		destGasAmount := uint32(10000)
 		encoded := make([]byte, 4)
 		binary.BigEndian.PutUint32(encoded, destGasAmount)
@@ -30,6 +32,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 	})
 
 	t.Run("decode extra args into map svm", func(t *testing.T) {
+		t.Parallel()
 		destGasAmount := uint32(10000)
 		bitmap := uint64(5)
 		accountList := common.SnakedCell[onramp.Account256]{
@@ -81,6 +84,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 	})
 
 	t.Run("decode extra args into map evm", func(t *testing.T) {
+		t.Parallel()
 		extraArgs := onramp.GenericExtraArgsV2{
 			GasLimit:                 big.NewInt(5000),
 			AllowOutOfOrderExecution: false,
@@ -103,6 +107,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 	})
 
 	t.Run("decode extra args into map sui", func(t *testing.T) {
+		t.Parallel()
 		gasLimit := big.NewInt(50000)
 		suiAddr1 := models.SuiAddress("0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968")
 		suiAddr1Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr1)

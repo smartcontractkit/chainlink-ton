@@ -10,13 +10,16 @@ import (
 )
 
 func TestTopUpResolver_Key(t *testing.T) {
+	t.Parallel()
 	// Test that the resolver has the correct key
 	resolver := NewTopUpResolver(0, nil, cldf_ton.Chain{})
 	require.Equal(t, "codec.resolvers.top-up-message", resolver.(interface{ Key() string }).Key())
 }
 
 func TestTopUpResolver_InputStructure(t *testing.T) {
+	t.Parallel()
 	t.Run("validates input structure with raw address", func(t *testing.T) {
+		t.Parallel()
 		// This test documents the expected input structure for the resolver
 		// Actual resolution requires a live chain, which should be tested in integration tests
 
@@ -38,6 +41,7 @@ func TestTopUpResolver_InputStructure(t *testing.T) {
 	})
 
 	t.Run("validates input structure with address resolver", func(t *testing.T) {
+		t.Parallel()
 		input := map[string]any{
 			"resolver": "codec.resolvers.top-up-message",
 			"data": map[string]any{
@@ -66,6 +70,7 @@ func TestTopUpResolver_InputStructure(t *testing.T) {
 	})
 
 	t.Run("validates input structure with direct address object", func(t *testing.T) {
+		t.Parallel()
 		testAddr := address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 		input := map[string]any{

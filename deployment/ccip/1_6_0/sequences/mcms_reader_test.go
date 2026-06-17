@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetAddressRefUsesVersionFromQualifier(t *testing.T) {
+	t.Parallel()
 	selector := uint64(123)
 	v003 := semver.MustParse("0.0.3")
 	v004 := semver.MustParse("0.0.4")
@@ -41,6 +42,7 @@ func TestGetAddressRefUsesVersionFromQualifier(t *testing.T) {
 }
 
 func TestGetAddressRefUsesHighestVersionWhenQualifierDoesNotSpecifyVersion(t *testing.T) {
+	t.Parallel()
 	selector := uint64(123)
 	v003 := semver.MustParse("0.0.3")
 	v004 := semver.MustParse("0.0.4")
@@ -89,6 +91,7 @@ func TestGetAddressRefUsesHighestVersionWhenQualifierDoesNotSpecifyVersion(t *te
 }
 
 func TestGetAddressRefDoesNotFilterQualifierWhenEmpty(t *testing.T) {
+	t.Parallel()
 	selector := uint64(123)
 	v003 := semver.MustParse("0.0.3")
 	v004 := semver.MustParse("0.0.4")
@@ -115,6 +118,7 @@ func TestGetAddressRefDoesNotFilterQualifierWhenEmpty(t *testing.T) {
 }
 
 func TestGetAddressRefReturnsEmptyWhenSpecifiedVersionDoesNotMatch(t *testing.T) {
+	t.Parallel()
 	selector := uint64(123)
 	v003 := semver.MustParse("0.0.3")
 	refs := []cldfds.AddressRef{
@@ -133,12 +137,14 @@ func TestGetAddressRefReturnsEmptyWhenSpecifiedVersionDoesNotMatch(t *testing.T)
 }
 
 func TestParseQualifierVersionReturnsInvalidQualifierVersionError(t *testing.T) {
+	t.Parallel()
 	_, _, err := parseQualifierVersion(ccipdutils.CLLQualifier + "@not-a-version")
 
 	require.ErrorContains(t, err, "invalid version in qualifier")
 }
 
 func TestParseQualifierVersionSplitsQualifierAndVersion(t *testing.T) {
+	t.Parallel()
 	qualifier, version, err := parseQualifierVersion(ccipdutils.CLLQualifier + "@0.0.3")
 
 	require.NoError(t, err)
@@ -147,6 +153,7 @@ func TestParseQualifierVersionSplitsQualifierAndVersion(t *testing.T) {
 }
 
 func TestParseQualifierVersionLeavesEmptyQualifierEmpty(t *testing.T) {
+	t.Parallel()
 	qualifier, version, err := parseQualifierVersion("")
 
 	require.NoError(t, err)

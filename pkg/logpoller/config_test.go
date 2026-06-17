@@ -10,7 +10,9 @@ import (
 )
 
 func TestConfig_ApplyDefaults(t *testing.T) {
+	t.Parallel()
 	t.Run("applies all defaults to empty config", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{}
 		cfg.ApplyDefaults()
 
@@ -30,6 +32,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 	})
 
 	t.Run("preserves custom values and applies defaults to missing fields", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{
 			PageSize:        250,
 			BlockTime:       config.MustNewDuration(13 * time.Second),
@@ -50,6 +53,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 	})
 
 	t.Run("all fields set - nothing should change", func(t *testing.T) {
+		t.Parallel()
 		original := Config{
 			PollPeriod:                config.MustNewDuration(1 * time.Second),
 			PageSize:                  50,
@@ -88,11 +92,14 @@ func validConfig() *Config {
 }
 
 func TestConfig_ValidateConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("default config passes", func(t *testing.T) {
+		t.Parallel()
 		require.NoError(t, DefaultConfigSet.ValidateConfig())
 	})
 
 	t.Run("ApplyDefaults then ValidateConfig succeeds", func(t *testing.T) {
+		t.Parallel()
 		cfg := &Config{}
 		cfg.ApplyDefaults()
 		require.NoError(t, cfg.ValidateConfig())
@@ -139,6 +146,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 
 	for _, tc := range invalidTests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := validConfig()
 			tc.modify(cfg)
 			require.Error(t, cfg.ValidateConfig())

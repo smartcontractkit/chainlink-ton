@@ -14,6 +14,7 @@ import (
 )
 
 func TestCrossChainAddress_ToCell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		addr      CrossChainAddress
@@ -27,6 +28,7 @@ func TestCrossChainAddress_ToCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := tt.addr.ToCell()
 			if tt.expectErr {
 				require.Error(t, err)
@@ -39,6 +41,7 @@ func TestCrossChainAddress_ToCell(t *testing.T) {
 }
 
 func TestCrossChainAddress_LoadFromCell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		setupData []byte
@@ -51,6 +54,7 @@ func TestCrossChainAddress_LoadFromCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			builder := cell.BeginCell()
 			err := builder.StoreSlice(tt.setupData, uint(len(tt.setupData))*8)
 			require.NoError(t, err)
@@ -70,6 +74,7 @@ func TestCrossChainAddress_LoadFromCell(t *testing.T) {
 }
 
 func TestCrossChainAddress_RoundTrip_Empty(t *testing.T) {
+	t.Parallel()
 	original := CrossChainAddress{}
 
 	c, err := original.ToCell()
@@ -82,6 +87,7 @@ func TestCrossChainAddress_RoundTrip_Empty(t *testing.T) {
 }
 
 func TestCrossChainAddress_RoundTrip(t *testing.T) {
+	t.Parallel()
 	original := CrossChainAddress{0x05, 0x01, 0x02, 0x03, 0x04, 0x05}
 
 	c, err := original.ToCell()
@@ -96,6 +102,7 @@ func TestCrossChainAddress_RoundTrip(t *testing.T) {
 }
 
 func TestPackAndUnloadCellToByteArray(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		input     []byte
@@ -110,6 +117,7 @@ func TestPackAndUnloadCellToByteArray(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := packByteArrayToCell(tt.input)
 			if tt.expectErr {
 				require.Error(t, err)
@@ -125,6 +133,7 @@ func TestPackAndUnloadCellToByteArray(t *testing.T) {
 }
 
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		input     SnakeRef[SnakeBytes]
@@ -213,6 +222,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Note: ToCell() enforces per-cell data limits (127 bytes) via Builder operations,
 			// but does NOT enforce chain depth limits (512 cells for c4/c5). Cell chains
 			// exceeding depth limits can be created locally but will fail during LoadFromCell
@@ -238,7 +248,9 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 }
 
 func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
+	t.Parallel()
 	t.Run("cell count for large dataset", func(t *testing.T) {
+		t.Parallel()
 		// Create 1000 arrays of 10 bytes each
 		arrays := make(SnakeRef[SnakeBytes], 1000)
 		for i := range arrays {
@@ -263,6 +275,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 	})
 
 	t.Run("cell count for large dataset", func(t *testing.T) {
+		t.Parallel()
 		// Create 1000 arrays of 10 bytes each
 		arrays := make(SnakeRef[SnakeBytes], 1000)
 		for i := range arrays {
@@ -288,6 +301,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 	})
 
 	t.Run("handles cell boundaries correctly", func(t *testing.T) {
+		t.Parallel()
 		// Create arrays that will definitely span multiple cells
 		arrays := SnakeRef[SnakeBytes]{
 			make([]byte, 200), // Forces new cell for data
@@ -319,6 +333,7 @@ type merkleRoot struct {
 }
 
 func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
+	t.Parallel()
 	slice := []tokenPriceUpdate{
 		{
 			UsdPerToken: big.NewInt(1000000),
@@ -357,6 +372,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 }
 
 func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	slice := []tokenPriceUpdate{
@@ -401,6 +417,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 }
 
 func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
+	t.Parallel()
 	merkleRoots, err := packArrayToCell([]merkleRoot{
 		{
 			SourceChainSelector: 1,
@@ -442,6 +459,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 }
 
 func TestLoadArray_AddressTooSmall(t *testing.T) {
+	t.Parallel()
 	// Note: for OnRampAddress that requires 64 bytes length, if the address bytes is smaller than 64, tlb.toCell() will return error, if bytes array is more than 64 bytes, only first 512 bits will be used.
 	_, err := packArrayToCell([]merkleRoot{
 		{
@@ -486,6 +504,7 @@ func getTotalReference(c *cell.Cell) (uint, error) {
 
 // Test validation for LoadCrossChainAddressWithoutPrefix
 func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		setupFunc func() *cell.Slice
@@ -523,6 +542,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			slice := tt.setupFunc()
 			addr, err := LoadCrossChainAddressWithoutPrefix(slice)
 
@@ -540,7 +560,9 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 
 // Test validation for unloadCellToByteArray
 func TestUnloadCellToByteArray_Validation(t *testing.T) {
+	t.Parallel()
 	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
+		t.Parallel()
 		// Create a cell chain that exceeds MaxCellChainDepth
 		builder := cell.BeginCell()
 		_ = builder.StoreSlice([]byte{0x01}, 8)
@@ -561,6 +583,7 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 	})
 
 	t.Run("exceeds platform limits", func(t *testing.T) {
+		t.Parallel()
 		// Create a byte array that would exceed MaxCellChainBytes if cells were infinite
 		// In practice, this will hit the depth limit first since:
 		// MaxCellChainBytes = 512 cells * 127 bytes = 65,024 bytes
@@ -572,6 +595,7 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 	})
 
 	t.Run("valid cell chain within limits", func(t *testing.T) {
+		t.Parallel()
 		// Create a valid cell chain well within limits
 		testData := []byte("test data")
 		c, err := packByteArrayToCell(testData)
@@ -583,6 +607,7 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 	})
 
 	t.Run("rejects cell with multiple refs (hidden data attack)", func(t *testing.T) {
+		t.Parallel()
 		// Create a cell with data and multiple refs - this is a malformed snake cell
 		// that could contain hidden data in the extra refs
 		builder := cell.BeginCell()
@@ -611,7 +636,9 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 
 // Test validation for unpackArrayWithRefChaining
 func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
+	t.Parallel()
 	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
+		t.Parallel()
 		// Create a cell chain that exceeds MaxCellChainDepth by building a deep chain
 		// Start with a valid element cell
 		elemBuilder := cell.BeginCell()
@@ -646,6 +673,7 @@ func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
 	})
 
 	t.Run("valid ref chain within limits", func(t *testing.T) {
+		t.Parallel()
 		// Create a valid array well within limits
 		testArray := SnakeRef[SnakeBytes]{
 			[]byte{0x01, 0x02},
@@ -663,7 +691,9 @@ func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
 
 // Test validation for unpackArrayFromCell
 func TestUnpackArrayWithStaticType_Validation(t *testing.T) {
+	t.Parallel()
 	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
+		t.Parallel()
 		// Create a cell chain that exceeds MaxCellChainDepth using SnakeBytes
 		// which uses the same unpacking function
 		// Create a long byte array that will be split across many cells
@@ -674,6 +704,7 @@ func TestUnpackArrayWithStaticType_Validation(t *testing.T) {
 	})
 
 	t.Run("valid static array within limits", func(t *testing.T) {
+		t.Parallel()
 		// Create a valid array well within limits
 		testArray := []tokenPriceUpdate{
 			{UsdPerToken: big.NewInt(1000000)},
@@ -690,7 +721,9 @@ func TestUnpackArrayWithStaticType_Validation(t *testing.T) {
 
 // Test validation for MaxArrayLength in pack/unpack functions
 func TestMaxArrayLength_Validation(t *testing.T) {
+	t.Parallel()
 	t.Run("packArrayWithRefChaining exceeds max length", func(t *testing.T) {
+		t.Parallel()
 		// Create an array that exceeds MaxArrayLength
 		largeArray := make(SnakeRef[SnakeBytes], MaxArrayLength+1)
 		for i := range largeArray {
@@ -704,6 +737,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 	})
 
 	t.Run("packArrayWithRefChaining at max length succeeds", func(t *testing.T) {
+		t.Parallel()
 		// Create an array at exactly MaxArrayLength
 		maxArray := make(SnakeRef[SnakeBytes], MaxArrayLength)
 		for i := range maxArray {
@@ -716,6 +750,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 	})
 
 	t.Run("unpackArrayWithRefChaining exceeds max length", func(t *testing.T) {
+		t.Parallel()
 		// Create a manually constructed cell chain that would decode to > MaxArrayLength elements
 		// We'll create a chain with 4 refs each, where each ref contains data
 		// This should be caught during unpacking
@@ -747,6 +782,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 	})
 
 	t.Run("packArrayToCell exceeds max length", func(t *testing.T) {
+		t.Parallel()
 		// Create an array that exceeds MaxArrayLength
 		largeArray := make([]tokenPriceUpdate, MaxArrayLength+1)
 		for i := range largeArray {
@@ -760,6 +796,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 	})
 
 	t.Run("packArrayToCell at max length succeeds", func(t *testing.T) {
+		t.Parallel()
 		// Create an array at exactly MaxArrayLength
 		maxArray := make([]tokenPriceUpdate, MaxArrayLength)
 		for i := range maxArray {

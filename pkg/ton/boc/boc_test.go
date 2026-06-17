@@ -80,6 +80,7 @@ func getAllCCIPBOCs() []ccipBOCTestCase {
 
 // TestHeaderLenSimple tests basic functionality with simple synthetic BOCs
 func TestHeaderLenSimple(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		createCell     func() *cell.Cell
@@ -111,6 +112,7 @@ func TestHeaderLenSimple(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			c := tt.createCell()
 			boc := c.ToBOCWithFlags(tt.withCRC)
 
@@ -131,6 +133,7 @@ func TestHeaderLenSimple(t *testing.T) {
 
 // TestHeaderLenErrors tests error conditions
 func TestHeaderLenErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		boc         []byte
@@ -160,6 +163,7 @@ func TestHeaderLenErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := HeaderLen(tt.boc)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tt.expectedErr)
@@ -169,8 +173,10 @@ func TestHeaderLenErrors(t *testing.T) {
 
 // TestCCIPBOCsAreValid verifies all 9 CCIP BOCs can be decoded
 func TestCCIPBOCsAreValid(t *testing.T) {
+	t.Parallel()
 	for _, tc := range getAllCCIPBOCs() {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			bocBytes, err := hex.DecodeString(tc.bocHex)
 			require.NoError(t, err)
 
@@ -184,8 +190,10 @@ func TestCCIPBOCsAreValid(t *testing.T) {
 // TestHeaderLenCorrectness verifies that HeaderLen() correctly
 // splits BOCs and allows proper reconstruction for all 9 CCIP event types
 func TestHeaderLenCorrectness(t *testing.T) {
+	t.Parallel()
 	for _, tc := range getAllCCIPBOCs() {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			originalBOC, err := hex.DecodeString(tc.bocHex)
 			require.NoError(t, err)
 
@@ -217,7 +225,9 @@ func TestHeaderLenCorrectness(t *testing.T) {
 // TestPayloadByteFiltering verifies that we can correctly extract known field values
 // from the payload at calculated byte offsets for CCIP events
 func TestPayloadByteFiltering(t *testing.T) {
+	t.Parallel()
 	t.Run("ExecutionStateChanged_Events", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name                   string
 			bocHex                 string
@@ -250,6 +260,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				bocBytes, err := hex.DecodeString(tc.bocHex)
 				require.NoError(t, err)
 
@@ -286,6 +297,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 
 	// Test CCIPMessageSent events
 	t.Run("CCIPMessageSent_Events", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name            string
 			bocHex          string
@@ -318,6 +330,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				bocBytes, err := hex.DecodeString(tc.bocHex)
 				require.NoError(t, err)
 
@@ -347,6 +360,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 // TestBOCHeaderVariability creates synthetic BOCs with different structures
 // to verify HeaderLen handles variable header sizes correctly
 func TestBOCHeaderVariability(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name               string
 		createCell         func() *cell.Cell
@@ -470,6 +484,7 @@ func TestBOCHeaderVariability(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			testCell := tc.createCell()
 			bocBytes := testCell.ToBOCWithFlags(tc.flags...)
 

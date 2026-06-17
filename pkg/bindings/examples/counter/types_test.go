@@ -9,6 +9,7 @@ import (
 )
 
 func TestSetCount_TlbEncodingDecoding(t *testing.T) {
+	t.Parallel()
 	original := SetCount{
 		QueryID:  123456789,
 		NewCount: 42,
@@ -29,6 +30,7 @@ func TestSetCount_TlbEncodingDecoding(t *testing.T) {
 }
 
 func TestIncreaseCount_TlbEncodingDecoding(t *testing.T) {
+	t.Parallel()
 	original := IncreaseCount{
 		QueryID: 123456789,
 	}

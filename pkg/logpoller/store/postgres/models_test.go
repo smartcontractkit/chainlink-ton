@@ -23,6 +23,7 @@ import (
 )
 
 func TestFilterModel_Conversion(t *testing.T) {
+	t.Parallel()
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -51,6 +52,7 @@ func TestFilterModel_Conversion(t *testing.T) {
 }
 
 func TestFilterModel_InvalidAddress(t *testing.T) {
+	t.Parallel()
 	// Test conversion fails with invalid address string
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, 12345)
@@ -70,6 +72,7 @@ func TestFilterModel_InvalidAddress(t *testing.T) {
 }
 
 func TestLogModel_Conversion(t *testing.T) {
+	t.Parallel()
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -130,6 +133,7 @@ func TestLogModel_Conversion(t *testing.T) {
 
 // TestCalculateBOCHeaderLen verifies dynamic header calculation is type-agnostic
 func TestCalculateBOCHeaderLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		buildCell func() *cell.Cell
@@ -224,6 +228,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			originalCell := tt.buildCell()
 			bocBytes := originalCell.ToBOC()
 
@@ -255,6 +260,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 
 // TestBOCPayloadByteFiltering verifies that split payload enables correct SQL byte filtering
 func TestBOCPayloadByteFiltering(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		buildCell     func() *cell.Cell
@@ -307,6 +313,7 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			originalCell := tt.buildCell()
 			bocBytes := originalCell.ToBOC()
 
@@ -348,6 +355,7 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 }
 
 func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
+	t.Parallel()
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -375,6 +383,7 @@ func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			bocBytes, err := hex.DecodeString(tc.bocHex)
 			require.NoError(t, err)
 

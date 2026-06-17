@@ -14,6 +14,7 @@ import (
 )
 
 func TestLoadNestedEnvelopes_LoadsConcreteNestedEnvelope(t *testing.T) {
+	t.Parallel()
 	payloadValue := ownable2step.TransferOwnership{
 		QueryID:  42,
 		NewOwner: address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"),
@@ -45,6 +46,7 @@ type cycleNode struct {
 }
 
 func TestLoadNestedEnvelopes_HandlesPointerCycles(t *testing.T) {
+	t.Parallel()
 	payloadValue := ownable2step.TransferOwnership{
 		QueryID:  7,
 		NewOwner: address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"),

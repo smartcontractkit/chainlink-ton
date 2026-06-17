@@ -45,6 +45,7 @@ func fastTestConfig(pollPeriod time.Duration) logpoller.Config {
 // Test_LogPoller_LoaderErrorBlocksCheckpoint validates that loader errors (liteserver failures)
 // block checkpoint advancement — no logs saved, lastProcessedBlockSeqNo does not advance.
 func Test_LogPoller_LoaderErrorBlocksCheckpoint(t *testing.T) {
+	t.Parallel()
 	var setupOnce sync.Once
 	tonChain, err := test_utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
 	require.NoError(t, err)

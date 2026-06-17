@@ -19,6 +19,7 @@ func (s sampleImpl) Value() string {
 }
 
 func TestProvideAndResolve(t *testing.T) {
+	t.Parallel()
 	provider, err := NewDependencyProvider(Provide(42))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -35,6 +36,7 @@ func TestProvideAndResolve(t *testing.T) {
 }
 
 func TestProvideAsBindsInterface(t *testing.T) {
+	t.Parallel()
 	impl := sampleImpl{v: "test"}
 
 	provider, err := NewDependencyProvider(ProvideAs[sampleImpl, sampleInterface](impl))
@@ -53,6 +55,7 @@ func TestProvideAsBindsInterface(t *testing.T) {
 }
 
 func TestProvideFactoryIsLazy(t *testing.T) {
+	t.Parallel()
 	var calls int
 
 	provider, err := NewDependencyProvider(
@@ -86,6 +89,7 @@ func TestProvideFactoryIsLazy(t *testing.T) {
 }
 
 func TestProvideFactoryAsCastsInterface(t *testing.T) {
+	t.Parallel()
 	provider, err := NewDependencyProvider(
 		ProvideFactoryAs[sampleImpl, sampleInterface](func(*DependencyProvider) (sampleImpl, error) {
 			return sampleImpl{v: "factory"}, nil
@@ -106,6 +110,7 @@ func TestProvideFactoryAsCastsInterface(t *testing.T) {
 }
 
 func TestWithOverridesParentBinding(t *testing.T) {
+	t.Parallel()
 	base, err := NewDependencyProvider(Provide("base"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -136,6 +141,7 @@ func TestWithOverridesParentBinding(t *testing.T) {
 }
 
 func TestResolveMissingDependency(t *testing.T) {
+	t.Parallel()
 	provider, err := NewDependencyProvider()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -148,6 +154,7 @@ func TestResolveMissingDependency(t *testing.T) {
 }
 
 func TestConcurrentFactoryResolution(t *testing.T) {
+	t.Parallel()
 	var calls int
 	factory := func(*DependencyProvider) (int, error) {
 		calls++

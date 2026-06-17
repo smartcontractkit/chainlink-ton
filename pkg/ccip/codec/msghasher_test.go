@@ -28,6 +28,7 @@ func randomTONMessage(t *testing.T, sourceChainSelector uint64) ccipocr3.Message
 }
 
 func TestMessageHasherV1_TON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
 	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
@@ -45,6 +46,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	hasher := NewMessageHasherV1(lg, edc)
 
 	t.Run("successful hash generation", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		hash, err := hasher.Hash(ctx, msg)
 		require.NoError(t, err)
@@ -53,6 +55,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("consistent hash for same message", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		hash1, err := hasher.Hash(ctx, msg)
 		require.NoError(t, err)
@@ -62,6 +65,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("different hash for different messages", func(t *testing.T) {
+		t.Parallel()
 		msg1 := randomTONMessage(t, 5009297550715157269)
 		msg2 := randomTONMessage(t, 5009297550715157269)
 		msg2.Header.Nonce = msg1.Header.Nonce + 1
@@ -74,6 +78,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("empty token amount", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.TokenAmounts[0].Amount = ccipocr3.BigInt{}
 
@@ -83,6 +88,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("negative token amount", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.TokenAmounts[0].Amount = ccipocr3.NewBigInt(big.NewInt(-100))
 
@@ -92,6 +98,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("invalid dest token address length", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.TokenAmounts[0].DestTokenAddress = []byte("short")
 
@@ -101,6 +108,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("invalid receiver address will be encoded with zero address", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.Receiver = []byte("invalid_address")
 
@@ -109,6 +117,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("message with empty ExtraArgs", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.ExtraArgs = nil
 
@@ -119,6 +128,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 	})
 
 	t.Run("message without token amounts", func(t *testing.T) {
+		t.Parallel()
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.TokenAmounts = nil
 
@@ -129,6 +139,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 }
 
 func TestMessageHasherV1_ErrorCases(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
 	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{})
@@ -137,6 +148,7 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 	hasher := NewMessageHasherV1(lg, edc)
 
 	t.Run("decode dest exec data error", func(t *testing.T) {
+		t.Parallel()
 		mockExtraDataCodec.On("DecodeDestExecDataToMap", mock.Anything).Return(nil, assert.AnError)
 
 		msg := randomTONMessage(t, 5009297550715157269)
@@ -146,6 +158,7 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("decode dest exec data error", func(t *testing.T) {
+		t.Parallel()
 		mockExtraDataCodec.On("DecodeDestExecDataToMap", mock.Anything).Return(map[string]any{
 			"destgasamount": uint32(1000),
 		}, nil)
@@ -162,6 +175,7 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 // serialized as nil (Maybe 0) rather than empty slice (Maybe 1) when there are no tokens.
 // This is critical because the hash depends on how TokenAmounts is serialized.
 func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
 	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
@@ -178,6 +192,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 	executeCodec := NewExecutePluginCodecV1(edc)
 
 	t.Run("tokenAmounts nil preserved through encode/decode", func(t *testing.T) {
+		t.Parallel()
 		// Create a message with NO token amounts
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
@@ -246,6 +261,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 }
 
 func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
+	t.Parallel()
 	// Right now the hash from ts and gobinding Any2TVMRamp message generates different msg hash. Need to fix it before running this test
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
@@ -264,6 +280,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 	hasher := NewMessageHasherV1(lg, edc)
 
 	t.Run("matches TypeScript generateMessageId with simple address encoding", func(t *testing.T) {
+		t.Parallel()
 		// Use exact same TON address from TypeScript test
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
@@ -319,6 +336,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 	})
 
 	t.Run("matches TypeScript generateMessageId with user friendly address encoding", func(t *testing.T) {
+		t.Parallel()
 		// Use exact same TON address from TypeScript test
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)

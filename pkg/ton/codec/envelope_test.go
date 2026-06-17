@@ -12,6 +12,7 @@ import (
 )
 
 func TestMessageEnvelopeMarshalJSONPrefersCell(t *testing.T) {
+	t.Parallel()
 	sample := router.ApplyRampUpdates{}
 
 	env, err := codec.WrapMessage(bindings.PkgCCIP+".Router", sample)

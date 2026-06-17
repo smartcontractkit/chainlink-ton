@@ -16,6 +16,7 @@ import (
 )
 
 func TestCommit_EncodingAndDecoding(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	tokenPriceSlice := []ocr.TokenPriceUpdate{
@@ -105,6 +106,7 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 }
 
 func TestExecute_EncodingAndDecoding(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	dummyCell, err := common.NewDummyCell()
@@ -181,6 +183,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 }
 
 func TestExecuteReport_WithHardCodedTSBytes(t *testing.T) {
+	t.Parallel()
 	// hex string from TypeScript
 	hexStr := "b5ee9c724101030100820002ca00000000000000000000000000000000000000000000000000000000000000010c9f9284461c852bc09c614ab4cba0de00000000000000010000000000000000801da2d2260e0a008e22f73316ac3b1bd05a63f7f092219dadd6bf925ce90bdf14e7312d000102002a141a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a0000d27b54c4"
 

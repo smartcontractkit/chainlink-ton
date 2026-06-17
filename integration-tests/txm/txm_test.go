@@ -37,6 +37,7 @@ import (
 const networkGlobalID int32 = -217
 
 func TestTxmLocal(t *testing.T) {
+	t.Parallel()
 	type connection struct {
 		txmSignedAPIClient tracetracking.SignedAPIClient
 		txmTestingClient   *testingAPIClientWrapped
@@ -335,6 +336,7 @@ func TestTxmLocal(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			tc.test(t, TestSetup{
 				setupClient:      accounts[i].setupClient,
 				txmTestingClient: accounts[i].txmTestingClient,

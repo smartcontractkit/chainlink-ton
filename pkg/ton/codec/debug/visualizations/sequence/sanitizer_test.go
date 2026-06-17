@@ -8,6 +8,7 @@ import (
 )
 
 func TestSanitizeString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -47,6 +48,7 @@ func TestSanitizeString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := sanitizeString(tt.input)
 			assert.Equalf(t, tt.expected, result, "Failed test: %s", tt.name)
 		})
@@ -54,6 +56,7 @@ func TestSanitizeString(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -130,6 +133,7 @@ func TestWrap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := wrap(tt.input, tt.width)
 			assert.Equalf(t, tt.expected, result, "Failed test: %s", tt.name)
 		})

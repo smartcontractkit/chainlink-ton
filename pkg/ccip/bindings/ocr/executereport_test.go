@@ -14,6 +14,7 @@ import (
 )
 
 func TestTokenAmounts(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	dummyCell, err := common.NewDummyCell()
@@ -71,6 +72,7 @@ func TestTokenAmounts(t *testing.T) {
 }
 
 func TestExecute_EncodingAndDecoding(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	dummyCell, err := common.NewDummyCell()

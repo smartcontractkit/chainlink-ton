@@ -25,6 +25,7 @@ type Bar struct {
 }
 
 func TestCellDictionaryEquivalence(t *testing.T) {
+	t.Parallel()
 	foo := Foo{}
 	var err error
 	foo.Dict, err = tvm.MakeDictFrom([]ValWrapper{
@@ -48,6 +49,7 @@ func TestCellDictionaryEquivalence(t *testing.T) {
 }
 
 func TestDictJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	dict := Dict[uint16, testValue]{}
 	dict.Set(2, testValue{Sum: 200})
 	dict.Set(1, testValue{Sum: 100})
@@ -62,6 +64,7 @@ func TestDictJSONRoundTrip(t *testing.T) {
 }
 
 func TestDictCellRoundTrip(t *testing.T) {
+	t.Parallel()
 	dict := Dict[uint16, testValue]{}
 	dict.Set(1, testValue{Sum: 11})
 	dict.Set(5, testValue{Sum: 55})
@@ -90,6 +93,7 @@ func TestDictCellRoundTrip(t *testing.T) {
 }
 
 func TestDictEmptyRoundTrip(t *testing.T) {
+	t.Parallel()
 	var dict Dict[uint16, testValue]
 
 	encoded, err := dict.ToCell()
@@ -106,6 +110,7 @@ func TestDictEmptyRoundTrip(t *testing.T) {
 }
 
 func TestKeyBitSizeDetection(t *testing.T) {
+	t.Parallel()
 	bits, err := keyBitSize[uint16]()
 	require.NoError(t, err)
 	require.Equal(t, uint(16), bits)
@@ -119,6 +124,7 @@ func TestKeyBitSizeDetection(t *testing.T) {
 }
 
 func TestDictRejectsMismatchedKeyWidth(t *testing.T) {
+	t.Parallel()
 	dict := Dict[badKey, testValue]{}
 	dict.Set(badKey{}, testValue{Sum: 10})
 

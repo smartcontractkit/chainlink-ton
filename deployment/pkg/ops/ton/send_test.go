@@ -61,6 +61,7 @@ func getRegistry() tvm.ContractTLBRegistry {
 }
 
 func TestIsSerializable_AllMessages(t *testing.T) {
+	t.Parallel()
 	lggr, _ := logger.New()
 	gen := NewGenerator()
 
@@ -79,6 +80,7 @@ func TestIsSerializable_AllMessages(t *testing.T) {
 }
 
 func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
+	t.Parallel()
 	lggr, _ := logger.New()
 	gen := NewGenerator()
 
@@ -105,6 +107,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 }
 
 func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
+	t.Parallel()
 	writeArtifacts := os.Getenv("WRITE_TEST_ARTIFACTS") == "1"
 	messageEnvelopeRoundTrip(t, 42, 10, writeArtifacts)
 }

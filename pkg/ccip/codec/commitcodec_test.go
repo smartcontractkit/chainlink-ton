@@ -58,6 +58,7 @@ func randomUnknownAddress() cciptypes.UnknownAddress {
 }
 
 func TestCommitPluginCodecV1(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		report func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport
@@ -180,6 +181,7 @@ func TestCommitPluginCodecV1(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			reportToEncode := tc.report(RandomCommitReport())
 			commitCodec := NewCommitPluginCodecV1()
 			encodedReport, err := commitCodec.Encode(t.Context(), reportToEncode)
@@ -256,7 +258,9 @@ func BenchmarkCommitPluginCodecV1_Encode_Decode(b *testing.B) {
 }
 
 func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
+	t.Parallel()
 	t.Run("encode sets PriceUpdates to nil when both slices are empty", func(t *testing.T) {
+		t.Parallel()
 		report := cciptypes.CommitPluginReport{
 			UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
 				{
@@ -288,6 +292,7 @@ func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
 	})
 
 	t.Run("decode handles nil PriceUpdates without panic", func(t *testing.T) {
+		t.Parallel()
 		// Create a report with empty price updates
 		report := cciptypes.CommitPluginReport{
 			UnblessedMerkleRoots: []cciptypes.MerkleRootChain{

@@ -19,6 +19,7 @@ import (
 )
 
 func TestSQLFilterStore(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
 
@@ -42,12 +43,14 @@ func TestSQLFilterStore(t *testing.T) {
 	}
 
 	t.Run("RegisterFilter", func(t *testing.T) {
+		t.Parallel()
 		filterID, err := filterStore.RegisterFilter(ctx, filter)
 		require.NoError(t, err)
 		require.Positive(t, filterID)
 	})
 
 	t.Run("HasFilter", func(t *testing.T) {
+		t.Parallel()
 		exists, err := filterStore.HasFilter(ctx, "test-filter")
 		require.NoError(t, err)
 		assert.True(t, exists)
@@ -58,6 +61,7 @@ func TestSQLFilterStore(t *testing.T) {
 	})
 
 	t.Run("GetFiltersByAddress", func(t *testing.T) {
+		t.Parallel()
 		filters, err := filterStore.GetFiltersByAddress(ctx, testAddr)
 		require.NoError(t, err)
 		require.Len(t, filters, 1)
@@ -68,6 +72,7 @@ func TestSQLFilterStore(t *testing.T) {
 	})
 
 	t.Run("RegisterFilter with retention fields", func(t *testing.T) {
+		t.Parallel()
 		retentionFilter := models.Filter{
 			Name:          "retention-filter",
 			Address:       testAddr,
@@ -100,6 +105,7 @@ func TestSQLFilterStore(t *testing.T) {
 	})
 
 	t.Run("RegisterFilter with zero retention (use default)", func(t *testing.T) {
+		t.Parallel()
 		defaultFilter := models.Filter{
 			Name:          "default-retention-filter",
 			Address:       testAddr,
@@ -131,6 +137,7 @@ func TestSQLFilterStore(t *testing.T) {
 	})
 
 	t.Run("RegisterFilter rejects negative retention", func(t *testing.T) {
+		t.Parallel()
 		negativeFilter := models.Filter{
 			Name:          "invalid-negative-retention",
 			Address:       testAddr,
@@ -147,6 +154,7 @@ func TestSQLFilterStore(t *testing.T) {
 	})
 
 	t.Run("RegisterFilter rejects negative max_logs_kept", func(t *testing.T) {
+		t.Parallel()
 		negativeFilter := models.Filter{
 			Name:          "invalid-negative-maxlogs",
 			Address:       testAddr,
@@ -163,6 +171,7 @@ func TestSQLFilterStore(t *testing.T) {
 	})
 
 	t.Run("UnregisterFilter", func(t *testing.T) {
+		t.Parallel()
 		err := filterStore.UnregisterFilter(ctx, "test-filter")
 		require.NoError(t, err)
 

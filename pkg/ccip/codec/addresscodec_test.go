@@ -14,6 +14,7 @@ import (
 )
 
 func TestTONAddress(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
@@ -60,6 +61,7 @@ func TestTONAddress(t *testing.T) {
 	codec := addressCodec{}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			actual, err := codec.AddressStringToBytes(test.in)
 			if test.expectedErr == nil {
 				require.NoError(t, err)
@@ -72,6 +74,7 @@ func TestTONAddress(t *testing.T) {
 }
 
 func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
+	t.Parallel()
 	codec := addressCodec{}
 
 	testCases := []struct {
@@ -104,6 +107,7 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			actual, err := codec.OracleIDAsAddressBytes(tc.oracleID)
 
 			require.NoError(t, err)
@@ -114,6 +118,7 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 }
 
 func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
+	t.Parallel()
 	codec := addressCodec{}
 
 	// Generate a real ed25519 key for testing
@@ -154,6 +159,7 @@ func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			actual, err := codec.TransmitterBytesToString(tc.input)
 
 			require.NoError(t, err)
@@ -163,6 +169,7 @@ func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
 }
 
 func TestAddressBytesToTONAddressWithBurning(t *testing.T) {
+	t.Parallel()
 	// Valid address
 	validAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
@@ -225,6 +232,7 @@ func TestAddressBytesToTONAddressWithBurning(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := AddressBytesToTONAddressWithBurning(tc.input)
 			require.NotNil(t, result)
 			if tc.wantZero {
@@ -250,6 +258,7 @@ func packOracleID(oracleID uint8) []byte {
 }
 
 func TestValidateWorkchain(t *testing.T) {
+	t.Parallel()
 	codec := addressCodec{}
 
 	tests := []struct {
@@ -301,6 +310,7 @@ func TestValidateWorkchain(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create raw address with the specified workchain
 			rawBytes := make([]byte, 36)
 			binary.BigEndian.PutUint32(rawBytes[0:4], uint32(tc.workchain)) //nolint:gosec // G115: intentional for testing edge cases

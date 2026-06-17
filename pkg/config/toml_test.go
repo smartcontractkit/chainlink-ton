@@ -15,7 +15,9 @@ import (
 )
 
 func TestNewDecodedTOMLConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("parses complete TOML config", func(t *testing.T) {
+		t.Parallel()
 		tomlStr := `
 Enabled = true
 ChainID = '-3'
@@ -91,6 +93,7 @@ URL = 'http://localhost:8081'
 	})
 
 	t.Run("applies defaults for missing sections", func(t *testing.T) {
+		t.Parallel()
 		tomlStr := `
 Enabled = true
 ChainID = '-3'
@@ -133,6 +136,7 @@ URL = 'http://localhost:8081'
 	})
 
 	t.Run("partial configs get field-by-field defaults", func(t *testing.T) {
+		t.Parallel()
 		tomlStr := `
 Enabled = true
 ChainID = '-3'
@@ -183,6 +187,7 @@ URL = 'http://localhost:8081'
 	})
 
 	t.Run("validation errors", func(t *testing.T) {
+		t.Parallel()
 		// Invalid TOML syntax
 		_, err := NewDecodedTOMLConfig("[TransactionManager # missing bracket")
 		require.Error(t, err)
@@ -198,7 +203,9 @@ URL = 'http://localhost:8081'
 }
 
 func TestTOMLConfig_SetDefaults(t *testing.T) {
+	t.Parallel()
 	t.Run("nil configs get full defaults", func(t *testing.T) {
+		t.Parallel()
 		cfg := &TOMLConfig{NetworkName: "testnet"}
 		cfg.SetDefaults()
 
@@ -235,6 +242,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 	})
 
 	t.Run("partial configs get field-by-field defaults applied", func(t *testing.T) {
+		t.Parallel()
 		// Create configs with only some fields set
 		customTxm := &txm.Config{
 			BroadcastChanSize: 999,
@@ -291,6 +299,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 }
 
 func TestSetFromChain(t *testing.T) {
+	t.Parallel()
 	source := &Chain{TransactionManager: &txm.Config{BroadcastChanSize: 500}}
 	target := &Chain{}
 
@@ -306,6 +315,7 @@ func TestSetFromChain(t *testing.T) {
 }
 
 func TestNodeValidation(t *testing.T) {
+	t.Parallel()
 	// Valid node passes
 	name := "test-node"
 	url, _ := config.ParseURL("http://localhost:8081")

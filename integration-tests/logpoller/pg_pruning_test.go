@@ -112,6 +112,7 @@ func softDeleteFilter(ctx context.Context, t *testing.T, filterStore logpoller.F
 // TestPruning exercises the complete pruning workflow combining all three pruning types:
 // time-based, count-based, and deleted filter cleanup.
 func TestPruning(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
 

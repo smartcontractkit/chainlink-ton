@@ -256,6 +256,7 @@ func Test_LogPoller_System(t *testing.T) {
 
 		for _, sc := range allStoreConfigs() {
 			t.Run(sc.name, func(t *testing.T) {
+				t.Parallel()
 				// Setup: create wallet and emitter
 				sender, serr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 				require.NoError(t, serr)

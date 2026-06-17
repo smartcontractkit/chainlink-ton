@@ -5,6 +5,7 @@ import (
 )
 
 func TestParseLiteserverURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		liteserverURL string
@@ -65,6 +66,7 @@ func TestParseLiteserverURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			publicKey, hostPort, err := parseLiteserverURL(tt.liteserverURL)
 
 			if tt.expectError {

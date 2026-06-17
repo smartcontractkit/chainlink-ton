@@ -15,6 +15,7 @@ import (
 )
 
 func TestGetReportTxInfo(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{
 		CommitPriceUpdateOnlyCostTON: 0.05,
 		CommitPriceAndRootCostTON:    0.08,
@@ -22,6 +23,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	}
 
 	t.Run("execute report with gas limit", func(t *testing.T) {
+		t.Parallel()
 		// Create an execute report with 0.5 TON gas limit
 		gasLimit := tlb.MustFromTON("0.5")
 		onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
@@ -71,6 +73,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("execute report with large gas limit", func(t *testing.T) {
+		t.Parallel()
 		gasLimit := tlb.MustFromTON("1.25")
 		onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 		executeReport := ocr.ExecuteReport{
@@ -119,6 +122,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("commit report price only (no merkle roots)", func(t *testing.T) {
+		t.Parallel()
 		commitReport := ocr.CommitReport{
 			PriceUpdates: &ocr.PriceUpdates{
 				TokenPriceUpdates: common.SnakedCell[ocr.TokenPriceUpdate]{
@@ -158,6 +162,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("commit report with one merkle root", func(t *testing.T) {
+		t.Parallel()
 		// Create a commit report with 1 merkle root
 		onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 		commitReport := ocr.CommitReport{
@@ -196,6 +201,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("commit report with three merkle roots", func(t *testing.T) {
+		t.Parallel()
 		// Create a commit report with 3 merkle roots
 		onrampAddr1 := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 		onrampAddr2 := common.CrossChainAddress{0x06, 0x07, 0x08, 0x09, 0x0a}
@@ -250,6 +256,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("commit report with merkle roots and price updates", func(t *testing.T) {
+		t.Parallel()
 		// Create a commit report with both merkle roots and price updates
 		onrampAddr1 := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 		onrampAddr2 := common.CrossChainAddress{0x06, 0x07, 0x08, 0x09, 0x0a}
@@ -310,6 +317,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("invalid BOC data", func(t *testing.T) {
+		t.Parallel()
 		invalidBytes := []byte("not a valid BOC")
 
 		txID, _, _, err := getReportTxInfo(invalidBytes, 50, cfg)
@@ -319,6 +327,7 @@ func TestGetReportTxInfo(t *testing.T) {
 	})
 
 	t.Run("custom config values", func(t *testing.T) {
+		t.Parallel()
 		customCfg := &Config{
 			CommitPriceUpdateOnlyCostTON: 0.2,
 			CommitPriceAndRootCostTON:    0.3,

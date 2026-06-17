@@ -13,6 +13,7 @@ import (
 )
 
 func TestChain_TxManager(t *testing.T) {
+	t.Parallel()
 	customConfig := &txm.Config{BroadcastChanSize: 200}
 	chain := &Chain{TransactionManager: customConfig}
 
@@ -25,6 +26,7 @@ func TestChain_TxManager(t *testing.T) {
 }
 
 func TestChain_LogPollerConfig(t *testing.T) {
+	t.Parallel()
 	customConfig := &logpoller.Config{PageSize: 50}
 	chain := &Chain{LogPoller: customConfig}
 
@@ -37,6 +39,7 @@ func TestChain_LogPollerConfig(t *testing.T) {
 }
 
 func TestChain_ContractTransmitterConfig(t *testing.T) {
+	t.Parallel()
 	customConfig := &ocr.Config{CommitPriceUpdateOnlyCostTON: 0.1}
 	chain := &Chain{ContractTransmitter: customConfig}
 
@@ -49,6 +52,7 @@ func TestChain_ContractTransmitterConfig(t *testing.T) {
 }
 
 func TestDefaultConfigSet(t *testing.T) {
+	t.Parallel()
 	require.NotNil(t, DefaultConfigSet.TransactionManager)
 	require.NotNil(t, DefaultConfigSet.LogPoller)
 	require.NotNil(t, DefaultConfigSet.ContractTransmitter)

@@ -82,6 +82,7 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 }
 
 func TestExecutePluginCodecV1_TON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
 	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
@@ -99,6 +100,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 	codec := NewExecutePluginCodecV1(edc)
 
 	t.Run("encode/decode roundtrip", func(t *testing.T) {
+		t.Parallel()
 		report := randomTONExecuteReport(t, 5009297550715157269) // evm selector for TON
 		encoded, err := codec.Encode(ctx, report)
 		require.NoError(t, err)
@@ -109,12 +111,14 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 	})
 
 	t.Run("empty report", func(t *testing.T) {
+		t.Parallel()
 		encoded, err := codec.Encode(ctx, ccipocr3.ExecutePluginReport{})
 		require.NoError(t, err)
 		assert.Nil(t, encoded)
 	})
 
 	t.Run("proof validation", func(t *testing.T) {
+		t.Parallel()
 		report := randomTONExecuteReport(t, 5009297550715157269)
 
 		// Test with proof that has leading zeros (will be stripped by big.Int.Bytes())
@@ -159,6 +163,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 	})
 
 	t.Run("negative token amount validation", func(t *testing.T) {
+		t.Parallel()
 		// Construct an ExecuteReport directly with a negative token amount
 		// This bypasses Encode validation to test the Decode defensive check
 		addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
@@ -214,6 +219,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 	})
 
 	t.Run("Address validation", func(t *testing.T) {
+		t.Parallel()
 		// Helper: encode a valid report and parse into on-chain struct for field modification
 		baseReport := randomTONExecuteReport(t, 5009297550715157269)
 		encoded, err := codec.Encode(ctx, baseReport)
@@ -237,6 +243,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		onChainReport := parseBOC(t, encoded)
 
 		t.Run("decode fails with NoneAddress receiver", func(t *testing.T) {
+			t.Parallel()
 			modified := onChainReport
 			modified.Message.Receiver = address.NewAddressNone()
 
@@ -246,6 +253,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		})
 
 		t.Run("decode fails with NoneAddress dest pool in token transfer", func(t *testing.T) {
+			t.Parallel()
 			modified := onChainReport
 			tokenAmounts := make(common.SnakedCell[ocr.Any2TVMTokenTransfer], len(onChainReport.Message.TokenAmounts))
 			copy(tokenAmounts, onChainReport.Message.TokenAmounts)
@@ -258,6 +266,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		})
 
 		t.Run("decode fails with ExternalAddress receiver", func(t *testing.T) {
+			t.Parallel()
 			modified := onChainReport
 			addressData := make([]byte, 32)
 			addressData[0] = 0x01
@@ -270,6 +279,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		})
 
 		t.Run("decode fails with ExternalAddress dest pool in token transfer", func(t *testing.T) {
+			t.Parallel()
 			modified := onChainReport
 			tokenAmounts := make(common.SnakedCell[ocr.Any2TVMTokenTransfer], len(onChainReport.Message.TokenAmounts))
 			copy(tokenAmounts, onChainReport.Message.TokenAmounts)

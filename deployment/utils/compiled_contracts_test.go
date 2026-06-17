@@ -27,18 +27,21 @@ const sampleCompiledContractJSON = `{"hash":"1abdc3055251a78f03a2e756a8486c6bb7f
 // --- ParseCompiledContractsPackageRef tests ---
 
 func TestParseCompiledContractsPackageRef_Local(t *testing.T) {
+	t.Parallel()
 	ref, err := ParseCompiledContractsPackageRef("local")
 	require.NoError(t, err)
 	assert.Equal(t, CompiledContractsPackageKindLocal, ref.Kind)
 }
 
 func TestParseCompiledContractsPackageRef_LocalWithWhitespace(t *testing.T) {
+	t.Parallel()
 	ref, err := ParseCompiledContractsPackageRef("  local  ")
 	require.NoError(t, err)
 	assert.Equal(t, CompiledContractsPackageKindLocal, ref.Kind)
 }
 
 func TestParseCompiledContractsPackageRef_AbsPath(t *testing.T) {
+	t.Parallel()
 	ref, err := ParseCompiledContractsPackageRef("/usr/my-contracts-build")
 	require.NoError(t, err)
 	assert.Equal(t, CompiledContractsPackageKindAbsPath, ref.Kind)
@@ -46,6 +49,7 @@ func TestParseCompiledContractsPackageRef_AbsPath(t *testing.T) {
 }
 
 func TestParseCompiledContractsPackageRef_RepoRef(t *testing.T) {
+	t.Parallel()
 	ref, err := ParseCompiledContractsPackageRef("github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0")
 	require.NoError(t, err)
 	assert.Equal(t, CompiledContractsPackageKindRepoRef, ref.Kind)
@@ -56,54 +60,63 @@ func TestParseCompiledContractsPackageRef_RepoRef(t *testing.T) {
 }
 
 func TestParseCompiledContractsPackageRef_Empty(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot be empty")
 }
 
 func TestParseCompiledContractsPackageRef_WhitespaceOnly(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("   ")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot be empty")
 }
 
 func TestParseCompiledContractsPackageRef_NoAtSign(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("not-a-valid-ref")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid contracts package ref")
 }
 
 func TestParseCompiledContractsPackageRef_EmptyRepo(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("@tag")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repo path cannot be empty")
 }
 
 func TestParseCompiledContractsPackageRef_EmptyTag(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("github.com/org/repo@")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag cannot be empty")
 }
 
 func TestParseCompiledContractsPackageRef_RepoWithSpaces(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("github.com/org /repo@tag")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repo path must not contain spaces")
 }
 
 func TestParseCompiledContractsPackageRef_TagWithSpaces(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("github.com/org/repo@tag with spaces")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag must not contain spaces")
 }
 
 func TestParseCompiledContractsPackageRef_TagWithAtSign(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("github.com/org/repo@tag@extra")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag must not contain '@'")
 }
 
 func TestParseCompiledContractsPackageRef_WrongRepoFormat(t *testing.T) {
+	t.Parallel()
 	// Only 2 parts instead of 3
 	_, err := ParseCompiledContractsPackageRef("github.com/repo@tag")
 	require.Error(t, err)
@@ -111,12 +124,14 @@ func TestParseCompiledContractsPackageRef_WrongRepoFormat(t *testing.T) {
 }
 
 func TestParseCompiledContractsPackageRef_TooManyRepoParts(t *testing.T) {
+	t.Parallel()
 	_, err := ParseCompiledContractsPackageRef("github.com/org/repo/extra@tag")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected format")
 }
 
 func TestParseCompiledContractsPackageRef_EmptyHostOrgOrRepo(t *testing.T) {
+	t.Parallel()
 	// Use empty segment in the middle (host//repo)
 	_, err := ParseCompiledContractsPackageRef("host//repo@tag")
 	require.Error(t, err)
@@ -126,6 +141,7 @@ func TestParseCompiledContractsPackageRef_EmptyHostOrgOrRepo(t *testing.T) {
 // --- AssetNameFromReleaseTag tests ---
 
 func TestAssetNameFromReleaseTag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		tag      string
@@ -150,6 +166,7 @@ func TestAssetNameFromReleaseTag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := AssetNameFromReleaseTag(tc.tag)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -159,6 +176,7 @@ func TestAssetNameFromReleaseTag(t *testing.T) {
 // --- isValidRootFile tests ---
 
 func TestIsValidRootFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		filename string
@@ -203,6 +221,7 @@ func TestIsValidRootFile(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := isValidRootFile(tc.filename)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -212,6 +231,7 @@ func TestIsValidRootFile(t *testing.T) {
 // --- readLimited tests ---
 
 func TestReadLimited_WithinLimit(t *testing.T) {
+	t.Parallel()
 	data := []byte("hello world")
 	reader := bytes.NewReader(data)
 	result, err := readLimited(reader, 100, "test")
@@ -220,6 +240,7 @@ func TestReadLimited_WithinLimit(t *testing.T) {
 }
 
 func TestReadLimited_ExceedsLimit(t *testing.T) {
+	t.Parallel()
 	data := []byte("hello world, this is a long string")
 	reader := bytes.NewReader(data)
 	_, err := readLimited(reader, 5, "test")
@@ -228,6 +249,7 @@ func TestReadLimited_ExceedsLimit(t *testing.T) {
 }
 
 func TestReadLimited_ExactlyAtLimit(t *testing.T) {
+	t.Parallel()
 	data := []byte("12345")
 	reader := bytes.NewReader(data)
 	result, err := readLimited(reader, 5, "test")
@@ -236,6 +258,7 @@ func TestReadLimited_ExactlyAtLimit(t *testing.T) {
 }
 
 func TestReadLimited_EmptyReader(t *testing.T) {
+	t.Parallel()
 	reader := bytes.NewReader(nil)
 	result, err := readLimited(reader, 100, "test")
 	require.NoError(t, err)
@@ -268,6 +291,7 @@ func createTarGz(t *testing.T, files map[string][]byte) []byte {
 }
 
 func TestExtractFilesToDir_AllRootFiles(t *testing.T) {
+	t.Parallel()
 	tarGz := createTarGz(t, map[string][]byte{
 		"Router.compiled.json":  []byte(`{"hex":"aa"}`),
 		"OffRamp.compiled.json": []byte(`{"hex":"bb"}`),
@@ -283,6 +307,7 @@ func TestExtractFilesToDir_AllRootFiles(t *testing.T) {
 }
 
 func TestExtractFilesToDir_NestedFilesSkipped(t *testing.T) {
+	t.Parallel()
 	tarGz := createTarGz(t, map[string][]byte{
 		"subdir/Router.compiled.json": []byte(`{"hex":"aa"}`),
 		"Router.compiled.json":        []byte(`{"hex":"bb"}`),
@@ -298,12 +323,14 @@ func TestExtractFilesToDir_NestedFilesSkipped(t *testing.T) {
 }
 
 func TestExtractFilesToDir_InvalidGzip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	err := extractFilesToDir([]byte("not gzip"), dir)
 	require.Error(t, err)
 }
 
 func TestExtractFilesToDir_IncludesPackageMetadataFile(t *testing.T) {
+	t.Parallel()
 	tarGz := createTarGz(t, map[string][]byte{
 		PackageMetadataFile:    []byte(`{"version":"1.0"}`),
 		"Router.compiled.json": []byte(`{"hex":"aa"}`),
@@ -320,6 +347,7 @@ func TestExtractFilesToDir_IncludesPackageMetadataFile(t *testing.T) {
 // --- verifyDeployableCodeHash tests ---
 
 func TestVerifyDeployableCodeHash_NilCell(t *testing.T) {
+	t.Parallel()
 	err := verifyDeployableCodeHash(nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "deployer code cell is nil")
@@ -328,6 +356,7 @@ func TestVerifyDeployableCodeHash_NilCell(t *testing.T) {
 // --- getBytesFromURL tests ---
 
 func TestGetBytesFromURL_Success(t *testing.T) {
+	t.Parallel()
 	expected := []byte("hello server")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -341,6 +370,7 @@ func TestGetBytesFromURL_Success(t *testing.T) {
 }
 
 func TestGetBytesFromURL_ServerError(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("internal error"))
@@ -353,6 +383,7 @@ func TestGetBytesFromURL_ServerError(t *testing.T) {
 }
 
 func TestGetBytesFromURL_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("data"))
@@ -369,6 +400,7 @@ func TestGetBytesFromURL_ContextCancelled(t *testing.T) {
 // --- readPackageMetadata tests ---
 
 func TestReadPackageMetadata_WithValidFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.Router":{"path":"Router.compiled.json","version":"1.6.3"}}}`
 	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(meta), 0o600))
@@ -383,6 +415,7 @@ func TestReadPackageMetadata_WithValidFile(t *testing.T) {
 }
 
 func TestReadPackageMetadata_MissingFileUsesFallback(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	result, err := LoadPackageMetadata(dir)
 	require.NoError(t, err)
@@ -390,6 +423,7 @@ func TestReadPackageMetadata_MissingFileUsesFallback(t *testing.T) {
 }
 
 func TestReadPackageMetadata_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte("not json"), 0o600))
 
@@ -426,6 +460,7 @@ func testReceiverMeta(version string) *ContractPackageMetadata {
 }
 
 func TestReadCompiledContract_ValidContract(t *testing.T) {
+	t.Parallel()
 	dir := writePkgDir(t, testReceiverMeta("1.6.3"))
 
 	contract, err := ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: bindings.TypeTestReceiver}, dir, nil)
@@ -437,6 +472,7 @@ func TestReadCompiledContract_ValidContract(t *testing.T) {
 }
 
 func TestReadCompiledContract_UsesProvidedMetadata(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Write the contract file directly (no contracts-pkg.json needed because we pass meta inline)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "ccip.test.receiver.compiled.json"), []byte(sampleCompiledContractJSON), 0o600))
@@ -448,6 +484,7 @@ func TestReadCompiledContract_UsesProvidedMetadata(t *testing.T) {
 }
 
 func TestReadCompiledContract_UnknownFQN(t *testing.T) {
+	t.Parallel()
 	dir := writePkgDir(t, testReceiverMeta("1.6.3"))
 
 	_, err := ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: "link.chain.ton.ccip.NonExistent"}, dir, nil)
@@ -456,6 +493,7 @@ func TestReadCompiledContract_UnknownFQN(t *testing.T) {
 }
 
 func TestReadCompiledContract_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	meta := testReceiverMeta("1.6.3")
 	metaBytes, err := json.Marshal(meta)
@@ -470,6 +508,7 @@ func TestReadCompiledContract_InvalidJSON(t *testing.T) {
 }
 
 func TestReadCompiledContract_InvalidVersionInMetadata(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	meta := &ContractPackageMetadata{
 		Version: "1.6.3",
@@ -500,6 +539,7 @@ func serveTarGz(t *testing.T, files map[string][]byte) *httptest.Server {
 }
 
 func TestDownloadArtifacts_ExtractsToDisk(t *testing.T) {
+	t.Parallel()
 	server := serveTarGz(t, map[string][]byte{
 		PackageMetadataFile:    []byte(`{"version":"1.0"}`),
 		"Router.compiled.json": []byte(`{"hex":"aa"}`),
@@ -533,6 +573,7 @@ func TestDownloadArtifacts_ExtractsToDisk(t *testing.T) {
 }
 
 func TestDownloadArtifacts_CacheHit(t *testing.T) {
+	t.Parallel()
 	// Pre-create the expected destination directory.
 	pkgsDir := t.TempDir()
 	in := DownloadArtifactsOpts{
@@ -555,6 +596,7 @@ func TestDownloadArtifacts_CacheHit(t *testing.T) {
 }
 
 func TestDownloadArtifacts_InvalidHost(t *testing.T) {
+	t.Parallel()
 	in := DownloadArtifactsOpts{
 		Host:         "evil.example.com",
 		Organization: "org",
@@ -576,6 +618,7 @@ func (e *errorReader) Read(p []byte) (int, error) {
 }
 
 func TestReadLimited_ReaderError(t *testing.T) {
+	t.Parallel()
 	_, err := readLimited(&errorReader{}, 100, "test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error while read")
@@ -584,6 +627,7 @@ func TestReadLimited_ReaderError(t *testing.T) {
 // --- sanitizePackageName tests ---
 
 func TestSanitizePackageName(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "org-repo_contracts_v1.6.0", sanitizePackageName("org-repo_contracts/v1.6.0"))
 	assert.Equal(t, "org_repo_tag", sanitizePackageName("org@repo@tag"))
 }

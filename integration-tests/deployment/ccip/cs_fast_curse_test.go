@@ -127,6 +127,7 @@ func TestFastCurseTON(t *testing.T) {
 	require.False(t, routerAddr.IsAddrNone(), "router address should be set")
 
 	t.Run("FastCurseAPI", func(t *testing.T) {
+		t.Parallel()
 		// Create and initialize the TonCurseAdapter for fast curse
 		adapter := &sequences.TonCurseAdapter{}
 
@@ -136,6 +137,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test SubjectToSelector and SelectorToSubject conversion
 		t.Run("SubjectConversion", func(t *testing.T) {
+			t.Parallel()
 			// Convert EVM selector to subject
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 			require.NotNil(t, evmSubject)
@@ -154,6 +156,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test IsCurseEnabledForChain
 		t.Run("IsCurseEnabledForChain", func(t *testing.T) {
+			t.Parallel()
 			enabled, err := adapter.IsCurseEnabledForChain(env, tonChainSelector)
 			require.NoError(t, err)
 			require.True(t, enabled, "curse should be enabled for TON chain")
@@ -161,6 +164,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test IsChainConnectedToTargetChain
 		t.Run("ChainConnectivity", func(t *testing.T) {
+			t.Parallel()
 			connected, err := adapter.IsChainConnectedToTargetChain(env, tonChainSelector, evmSelector)
 			require.NoError(t, err)
 			require.True(t, connected, "TON chain should be connected to EVM chain")
@@ -168,6 +172,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test ListConnectedChains
 		t.Run("ListConnectedChains", func(t *testing.T) {
+			t.Parallel()
 			connectedChains, err := adapter.ListConnectedChains(env, tonChainSelector)
 			require.NoError(t, err)
 			require.Contains(t, connectedChains, evmSelector, "connected chains should include EVM selector")
@@ -175,6 +180,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test DeriveCurseAdapterVersion
 		t.Run("AdapterVersion", func(t *testing.T) {
+			t.Parallel()
 			version, err := adapter.DeriveCurseAdapterVersion(env, tonChainSelector)
 			require.NoError(t, err)
 			require.Equal(t, "1.6.0", version.String(), "adapter version should be 1.6.0")
@@ -182,6 +188,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test IsSubjectCursedOnChain (should not be cursed initially)
 		t.Run("InitialCurseState", func(t *testing.T) {
+			t.Parallel()
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
 			require.NoError(t, err)
@@ -190,6 +197,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test Curse operation using adapter sequence
 		t.Run("CurseSubject", func(t *testing.T) {
+			t.Parallel()
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 
 			// Create curse configuration
@@ -221,6 +229,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test Uncurse operation using adapter sequence
 		t.Run("UncurseSubject", func(t *testing.T) {
+			t.Parallel()
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 
 			// Create uncurse configuration
@@ -252,6 +261,7 @@ func TestFastCurseTON(t *testing.T) {
 
 		// Test cursing multiple subjects using adapter sequence
 		t.Run("CurseMultipleSubjects", func(t *testing.T) {
+			t.Parallel()
 			// Create subjects for EVM and global curse
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 			globalSubject := fastcurse.GlobalCurseSubject()

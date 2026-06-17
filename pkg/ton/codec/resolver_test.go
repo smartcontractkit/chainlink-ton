@@ -11,6 +11,7 @@ import (
 )
 
 func TestResolverRegistry(t *testing.T) {
+	t.Parallel()
 	type testCase struct {
 		name     string
 		registry func() *codec.ResolverRegistry
@@ -135,6 +136,7 @@ func TestResolverRegistry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := tt.registry().Resolve(tt.input)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)

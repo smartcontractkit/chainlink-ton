@@ -8,6 +8,7 @@ import (
 )
 
 func TestPackUnpackGasPrice(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		execPrice      *big.Int
@@ -56,6 +57,7 @@ func TestPackUnpackGasPrice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Test packing
 			packed, err := PackGasPrice(tt.execPrice, tt.daPrice)
 			require.NoError(t, err)
@@ -76,7 +78,9 @@ func TestPackUnpackGasPrice(t *testing.T) {
 }
 
 func TestUnpackGasPrice_Examples(t *testing.T) {
+	t.Parallel()
 	t.Run("unpack 5192296858534827628530496329220097", func(t *testing.T) {
+		t.Parallel()
 		// This is the value (1 << 112) | 1
 		packed := mustParseBigInt("5192296858534827628530496329220097")
 		exec, da, err := UnpackGasPrice(packed)
@@ -87,6 +91,7 @@ func TestUnpackGasPrice_Examples(t *testing.T) {
 	})
 
 	t.Run("unpack 4919992000 (exec only)", func(t *testing.T) {
+		t.Parallel()
 		packed := big.NewInt(4919992000)
 		exec, da, err := UnpackGasPrice(packed)
 		require.NoError(t, err)
@@ -97,27 +102,33 @@ func TestUnpackGasPrice_Examples(t *testing.T) {
 }
 
 func TestPackGasPrice_Errors(t *testing.T) {
+	t.Parallel()
 	t.Run("nil execution gas price", func(t *testing.T) {
+		t.Parallel()
 		_, err := PackGasPrice(nil, big.NewInt(0))
 		require.ErrorIs(t, err, ErrNilGasPrice)
 	})
 
 	t.Run("nil data availability gas price", func(t *testing.T) {
+		t.Parallel()
 		_, err := PackGasPrice(big.NewInt(0), nil)
 		require.ErrorIs(t, err, ErrNilGasPrice)
 	})
 
 	t.Run("negative execution gas price", func(t *testing.T) {
+		t.Parallel()
 		_, err := PackGasPrice(big.NewInt(-1), big.NewInt(0))
 		require.ErrorIs(t, err, ErrNegativeGasPrice)
 	})
 
 	t.Run("negative data availability gas price", func(t *testing.T) {
+		t.Parallel()
 		_, err := PackGasPrice(big.NewInt(0), big.NewInt(-1))
 		require.ErrorIs(t, err, ErrNegativeGasPrice)
 	})
 
 	t.Run("execution gas price exceeds 112 bits", func(t *testing.T) {
+		t.Parallel()
 		// 2^112 exceeds 112 bits
 		tooBig := new(big.Int).Lsh(big.NewInt(1), 112)
 		_, err := PackGasPrice(tooBig, big.NewInt(0))
@@ -125,6 +136,7 @@ func TestPackGasPrice_Errors(t *testing.T) {
 	})
 
 	t.Run("data availability gas price exceeds 112 bits", func(t *testing.T) {
+		t.Parallel()
 		tooBig := new(big.Int).Lsh(big.NewInt(1), 112)
 		_, err := PackGasPrice(big.NewInt(0), tooBig)
 		require.ErrorIs(t, err, ErrGasPriceExceeds112Bits)
@@ -132,17 +144,21 @@ func TestPackGasPrice_Errors(t *testing.T) {
 }
 
 func TestUnpackGasPrice_Errors(t *testing.T) {
+	t.Parallel()
 	t.Run("nil packed price", func(t *testing.T) {
+		t.Parallel()
 		_, _, err := UnpackGasPrice(nil)
 		require.ErrorIs(t, err, ErrNilPackedPrice)
 	})
 
 	t.Run("negative packed price", func(t *testing.T) {
+		t.Parallel()
 		_, _, err := UnpackGasPrice(big.NewInt(-1))
 		require.ErrorIs(t, err, ErrNegativePackedPrice)
 	})
 
 	t.Run("packed price exceeds 224 bits", func(t *testing.T) {
+		t.Parallel()
 		// 2^224 exceeds 224 bits
 		tooBig := new(big.Int).Lsh(big.NewInt(1), 224)
 		_, _, err := UnpackGasPrice(tooBig)

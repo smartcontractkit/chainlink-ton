@@ -9,6 +9,7 @@ import (
 )
 
 func TestValidateBlockIDExt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		block   *ton.BlockIDExt
@@ -78,6 +79,7 @@ func TestValidateBlockIDExt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateBlockIDExt(tt.block)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
@@ -90,6 +92,7 @@ func TestValidateBlockIDExt(t *testing.T) {
 }
 
 func TestLog_Validate(t *testing.T) {
+	t.Parallel()
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
@@ -133,6 +136,7 @@ func TestLog_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.log.Validate(tt.expectedChainID)
 			if tt.wantErr {
 				require.Error(t, err)

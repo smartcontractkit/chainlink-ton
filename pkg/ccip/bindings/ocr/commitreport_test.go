@@ -13,6 +13,7 @@ import (
 )
 
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
+	t.Parallel()
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	tokenPriceSlice := []TokenPriceUpdate{

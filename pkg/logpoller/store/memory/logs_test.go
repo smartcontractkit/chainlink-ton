@@ -208,6 +208,7 @@ func TestStorageKeyMatchesDBConstraint(t *testing.T) {
 }
 
 func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	lggr := logger.Test(t)
 	store := NewLogStore("test-chain", lggr)
@@ -216,6 +217,7 @@ func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("empty store returns 0 and exists=false", func(t *testing.T) {
+		t.Parallel()
 		latestSeqno, exists, err := store.GetHighestMCBlockSeqno(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, uint32(0), latestSeqno)
@@ -223,6 +225,7 @@ func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 	})
 
 	t.Run("returns highest master block seqno with exists=true", func(t *testing.T) {
+		t.Parallel()
 		// Create test logs with different MCBlockSeqno values
 		logs := []models.Log{
 			{

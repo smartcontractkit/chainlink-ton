@@ -11,6 +11,7 @@ import (
 )
 
 func TestTokenPrice(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		title         string
 		usdPrice      string
@@ -70,6 +71,7 @@ func TestTokenPrice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.usdPrice, func(t *testing.T) {
+			t.Parallel()
 			price, err := config.CCIPTokenPrice(tt.usdPrice, tt.tokenDecimals)
 			if err != nil {
 				t.Fatalf("TokenPrice() error = %v", err)
