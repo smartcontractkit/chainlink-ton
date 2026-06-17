@@ -59,10 +59,16 @@ type TVM2AnyRampMessage struct {
 }
 
 type TVM2AnyRampMessageBody struct {
-	Receiver       common.CrossChainAddress `tlb:"^"`
-	Data           common.SnakeBytes        `tlb:"^"`
-	ExtraArgs      *cell.Cell               `tlb:"^"`
-	TokenAmounts   *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
-	FeeToken       *address.Address         `tlb:"addr"`
-	FeeTokenAmount *big.Int                 `tlb:"## 256"`
+	Receiver       common.CrossChainAddress       `tlb:"^"`
+	Data           common.SnakeBytes              `tlb:"^"`
+	ExtraArgs      *cell.Cell                     `tlb:"^"`
+	TokenAmounts   common.SnakedCell[TokenAmount] `tlb:"^"`
+	FeeToken       *address.Address               `tlb:"addr"`
+	FeeTokenAmount *big.Int                       `tlb:"## 256"`
+}
+
+// TokenAmount mirrors the contract's common TokenAmount { amount: coins, token: address }.
+type TokenAmount struct {
+	Amount tlb.Coins        `tlb:"."`
+	Token  *address.Address `tlb:"addr"`
 }
