@@ -987,6 +987,53 @@ export const TokenPool_AddRemotePool = {
 }
 
 /**
+ > struct (0x17c242d3) TokenPool_RemotePoolAddedNotification {
+ >     queryId: uint64
+ >     remoteChainSelector: uint64
+ >     remotePoolAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_RemotePoolAddedNotification {
+    readonly $: 'TokenPool_RemotePoolAddedNotification'
+    queryId: uint64
+    remoteChainSelector: uint64
+    remotePoolAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_RemotePoolAddedNotification = {
+    PREFIX: 0x17c242d3,
+
+    create(args: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }): TokenPool_RemotePoolAddedNotification {
+        return {
+            $: 'TokenPool_RemotePoolAddedNotification',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RemotePoolAddedNotification {
+        loadAndCheckPrefix32(s, 0x17c242d3, 'TokenPool_RemotePoolAddedNotification');
+        return {
+            $: 'TokenPool_RemotePoolAddedNotification',
+            queryId: s.loadUintBig(64),
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_RemotePoolAddedNotification, b: c.Builder): void {
+        b.storeUint(0x17c242d3, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_RemotePoolAddedNotification): c.Cell {
+        return makeCellFrom<TokenPool_RemotePoolAddedNotification>(self, TokenPool_RemotePoolAddedNotification.store);
+    }
+}
+
+/**
  > struct (0x426b8cc4) TokenPool_RemoveRemotePool {
  >     queryId: uint64
  >     remoteChainSelector: uint64
@@ -1030,6 +1077,53 @@ export const TokenPool_RemoveRemotePool = {
     },
     toCell(self: TokenPool_RemoveRemotePool): c.Cell {
         return makeCellFrom<TokenPool_RemoveRemotePool>(self, TokenPool_RemoveRemotePool.store);
+    }
+}
+
+/**
+ > struct (0x17c242d1) TokenPool_RemotePoolRemovedNotification {
+ >     queryId: uint64
+ >     remoteChainSelector: uint64
+ >     remotePoolAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_RemotePoolRemovedNotification {
+    readonly $: 'TokenPool_RemotePoolRemovedNotification'
+    queryId: uint64
+    remoteChainSelector: uint64
+    remotePoolAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_RemotePoolRemovedNotification = {
+    PREFIX: 0x17c242d1,
+
+    create(args: {
+        queryId: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }): TokenPool_RemotePoolRemovedNotification {
+        return {
+            $: 'TokenPool_RemotePoolRemovedNotification',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RemotePoolRemovedNotification {
+        loadAndCheckPrefix32(s, 0x17c242d1, 'TokenPool_RemotePoolRemovedNotification');
+        return {
+            $: 'TokenPool_RemotePoolRemovedNotification',
+            queryId: s.loadUintBig(64),
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_RemotePoolRemovedNotification, b: c.Builder): void {
+        b.storeUint(0x17c242d1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_RemotePoolRemovedNotification): c.Cell {
+        return makeCellFrom<TokenPool_RemotePoolRemovedNotification>(self, TokenPool_RemotePoolRemovedNotification.store);
     }
 }
 

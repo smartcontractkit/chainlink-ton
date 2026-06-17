@@ -48,13 +48,13 @@ struct TokenPool_ChainRemoved {
     remoteChainSelector: uint64;
 }
 
-// TODO: make reply message
+/// Emitted when a remote pool is added.
 struct TokenPool_RemotePoolAdded {
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-// TODO: make reply message
+/// Emitted when a remote pool is removed.
 struct TokenPool_RemotePoolRemoved {
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;

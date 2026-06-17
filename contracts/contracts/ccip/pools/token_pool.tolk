@@ -239,6 +239,7 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, allowedF
 fun TokenPool<T>.addRemotePool(
     mutate self,
     sender: address,
+    queryId: uint64,
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>,
 ) {
@@ -246,14 +247,20 @@ fun TokenPool<T>.addRemotePool(
     assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.NonExistentChain);
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
-    self._setRemotePool(mutate config, remotePoolAddress);
+    self._setRemotePool(mutate config, remoteChainSelector, remotePoolAddress);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // TODO: reply back to sender with excess
-    emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
-        remoteChainSelector,
-        remotePoolAddress,
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_RemotePoolAddedNotification {
+            queryId,
+            remoteChainSelector,
+            remotePoolAddress,
+        },
     });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Removes the remote pool address for a given chain selector.
@@ -264,6 +271,7 @@ fun TokenPool<T>.addRemotePool(
 fun TokenPool<T>.removeRemotePool(
     mutate self,
     sender: address,
+    queryId: uint64,
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>,
 ) {
@@ -275,11 +283,23 @@ fun TokenPool<T>.removeRemotePool(
     assert(deleted, TokenPool_Error.InvalidRemotePoolForChain);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // TODO: reply back to sender with excess
+    // We emit in addition to reply to sender, to stay consistent with TokenPool_RemotePoolAdded event
     emit(TOKEN_POOL_REMOTE_POOL_REMOVED_TOPIC, TokenPool_RemotePoolRemoved {
         remoteChainSelector,
         remotePoolAddress,
     });
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_RemotePoolRemovedNotification {
+            queryId,
+            remoteChainSelector,
+            remotePoolAddress,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Sets the permissions for a list of chains selectors. Actual senders for these chains
@@ -337,12 +357,7 @@ fun TokenPool<T>.applyChainUpdates(
         var rpAddrIter = newChain.remotePoolAddresses.iter();
         while (!rpAddrIter.empty()) {
             val remotePoolAddress = rpAddrIter.next().toCell();
-            self._setRemotePool(mutate config, remotePoolAddress);
-
-            emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
-                remoteChainSelector,
-                remotePoolAddress,
-            });
+            self._setRemotePool(mutate config, remoteChainSelector, remotePoolAddress);
         }
 
         self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -452,10 +467,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.applyChainUpdates(msgSender, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
         }
         TokenPool_AddRemotePool => {
-            self.addRemotePool(msgSender, msg.remoteChainSelector, msg.remotePoolAddress);
+            self.addRemotePool(msgSender, msg.queryId, msg.remoteChainSelector, msg.remotePoolAddress);
         }
         TokenPool_RemoveRemotePool => {
-            self.removeRemotePool(msgSender, msg.remoteChainSelector, msg.remotePoolAddress);
+            self.removeRemotePool(msgSender, msg.queryId, msg.remoteChainSelector, msg.remotePoolAddress);
         }
         TokenPool_SetDynamicConfig => {
             self.setDynamicConfig(msgSender, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
@@ -1109,12 +1124,23 @@ fun TokenPool<T>.setRateLimitConfig(
 /// Adds a pool address to the allowed remote token pools for a particular chain.
 /// @param remoteChainSelector The remote chain selector for which the remote pool address is being added.
 /// @param remotePoolAddress The address of the new remote pool.
-fun TokenPool<T>._setRemotePool(mutate self, mutate config: TokenPool_RemoteChainConfig, remotePoolAddress: Cell<CrossChainAddress>) {
+fun TokenPool<T>._setRemotePool(
+    mutate self,
+    mutate config: TokenPool_RemoteChainConfig,
+    remoteChainSelector: uint64,
+    remotePoolAddress: Cell<CrossChainAddress>
+) {
     assert(!TokenPool_isEmptyCrossChainAddress(remotePoolAddress), TokenPool_Error.ZeroAddressInvalid);
+    // Check if the pool already exists.
     val poolHash = TokenPool_hashCrossChainAddress(remotePoolAddress);
     assert(!config.remotePools.get(poolHash).isFound, TokenPool_Error.PoolAlreadyAdded);
     // Add the pool to the mapping to be able to un-hash it later.
     config.remotePools.set(poolHash, remotePoolAddress);
+
+    emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
+        remoteChainSelector,
+        remotePoolAddress,
+    });
 }
 
 // TODO: withdrawFeeTokens
