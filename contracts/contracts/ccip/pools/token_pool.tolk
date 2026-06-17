@@ -189,6 +189,7 @@ fun TokenPool<T>.getRemotePools(self, remoteChainSelector: uint64): lisp_list<Ce
 fun TokenPool<T>.setDynamicConfig(
     mutate self,
     sender: address,
+    queryId: uint64,
     router: address,
     rateLimitAdmin: address?,
     feeAdmin: address?,
@@ -205,17 +206,23 @@ fun TokenPool<T>.setDynamicConfig(
     }.toCell();
     self.data.adminConfig = adminConfig.toCell();
 
-    // TODO: reply back to sender with excess
-    emit(TOKEN_POOL_DYNAMIC_CONFIG_SET_TOPIC, TokenPool_DynamicConfigSet {
-        router,
-        rateLimitAdmin,
-        feeAdmin,
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_DynamicConfigSet {
+            queryId,
+            router,
+            rateLimitAdmin,
+            feeAdmin,
+        },
     });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Sets the finality config according to the FinalityCodec library encoding.
 /// @param allowedFinality The finality settings allowed in this pool, according to the FinalityCodec encoding.  
-fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, allowedFinalityConfig: uint32) {
+fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, queryId: uint64, allowedFinalityConfig: uint32) {
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
     // Any bytes4 value is accepted as allowedFinality; the FinalityCodec semantics are enforced when requests are
@@ -223,10 +230,16 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, allowedF
     adminConfig.allowedFinalityConfig = allowedFinalityConfig;
     self.data.adminConfig = adminConfig.toCell();
 
-    // TODO: reply back to sender with excess
-    emit(TOKEN_POOL_FINALITY_CONFIG_SET_TOPIC, TokenPool_FinalityConfigSet {
-        allowedFinalityConfig,
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_FinalityConfigSet {
+            queryId,
+            allowedFinalityConfig,
+        },
     });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // TODO: add updateAdvancedPoolHooks
@@ -473,10 +486,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.removeRemotePool(msgSender, msg.queryId, msg.remoteChainSelector, msg.remotePoolAddress);
         }
         TokenPool_SetDynamicConfig => {
-            self.setDynamicConfig(msgSender, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
+            self.setDynamicConfig(msgSender, msg.queryId, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
         }
         TokenPool_SetAllowedFinalityConfig => {
-            self.setAllowedFinalityConfig(msgSender, msg.allowedFinalityConfig);
+            self.setAllowedFinalityConfig(msgSender, msg.queryId, msg.allowedFinalityConfig);
         }
         TokenPool_SetRateLimitConfig => {
             self.setRateLimitConfig(msgSender, msg.updates);

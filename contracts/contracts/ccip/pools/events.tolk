@@ -60,13 +60,6 @@ struct TokenPool_RemotePoolRemoved {
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-//   event DynamicConfigSet(address router, address rateLimitAdmin, address feeAdmin);
-struct TokenPool_DynamicConfigSet {
-    router: address;
-    rateLimitAdmin: address?;
-    feeAdmin: address?;
-}
-
 // TODO: make used
 struct TokenPool_OutboundRateLimitConsumed {
     remoteChainSelector: uint64;
@@ -90,11 +83,6 @@ struct TokenPool_TokenTransferFeeConfigUpdated {
 // TODO: make used
 struct TokenPool_TokenTransferFeeConfigDeleted {
     remoteChainSelector: uint64;
-}
-
-//   event FinalityConfigSet(bytes4 allowedFinality);
-struct TokenPool_FinalityConfigSet {
-    allowedFinalityConfig: uint32;
 }
 
 //   event FastFinalityOutboundRateLimitConsumed(uint64 indexed remoteChainSelector, address token, uint256 amount);

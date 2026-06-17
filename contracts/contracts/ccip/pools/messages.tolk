@@ -18,21 +18,7 @@ struct (0x17c242dc) TokenPool_AddRemotePool {
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-/// Used as a reply message for `TokenPool_AddRemotePool` to confirm and return excess to sender.
-struct (0x17c242d3) TokenPool_RemotePoolAddedNotification {
-    queryId: uint64;
-    remoteChainSelector: uint64;
-    remotePoolAddress: Cell<CrossChainAddress>;
-}
-
 struct (0x426b8cc4) TokenPool_RemoveRemotePool {
-    queryId: uint64;
-    remoteChainSelector: uint64;
-    remotePoolAddress: Cell<CrossChainAddress>;
-}
-
-/// Used as a reply message for `TokenPool_RemoveRemotePool` to confirm and return excess to sender.
-struct (0x17c242d1) TokenPool_RemotePoolRemovedNotification {
     queryId: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
@@ -174,6 +160,32 @@ struct (0xef0cb361) TokenPool_ReleaseOrMintFailure {
     errorCode: uint16;
 }
 
+/// Replied on `TokenPool_AddRemotePool` to confirm tx and return excess to sender.
+struct (0x17c242d3) TokenPool_RemotePoolAddedNotification {
+    queryId: uint64;
+    remoteChainSelector: uint64;
+    remotePoolAddress: Cell<CrossChainAddress>;
+}
+
+/// Replied on `TokenPool_RemoveRemotePool` to confirm tx and return excess to sender.
+struct (0x17c242d1) TokenPool_RemotePoolRemovedNotification {
+    queryId: uint64;
+    remoteChainSelector: uint64;
+    remotePoolAddress: Cell<CrossChainAddress>;
+}
+
+struct (0x3c50a39c) TokenPool_FinalityConfigSet {
+    queryId: uint64;
+    allowedFinalityConfig: uint32;
+}
+
+struct (0x3c50a39d) TokenPool_DynamicConfigSet {
+    queryId: uint64;
+    router: address;
+    rateLimitAdmin: address?;
+    feeAdmin: address?;
+}
+
 type TokenPool_OutMessage = 
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
@@ -181,5 +193,7 @@ type TokenPool_OutMessage =
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
     | TokenPool_RemotePoolAddedNotification
-    | TokenPool_RemotePoolRemovedNotification;
+    | TokenPool_RemotePoolRemovedNotification
+    | TokenPool_FinalityConfigSet
+    | TokenPool_DynamicConfigSet;
     // TODO: add more outgoing reply messages
