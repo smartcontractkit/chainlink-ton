@@ -1,11 +1,8 @@
-// SPDX-License-Identifier: BUSL-1.1
 import "types"
-
 import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../token_registry/messages"
-import "../common/types"
-import "../test/tokenPool/messages"
+import "../pools/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
@@ -13,7 +10,7 @@ type CCIPSendExecutor_InMessage =
     | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
     | TokenRegistry_ReturnTokenInfo
-    | MockTokenPool_NotifySuccessfulLockOrBurn
+    | TokenPool_NotifySuccessfulLockOrBurn
     ;
 
 // crc32('CCIPSendExecutor_ExecuteV2')
