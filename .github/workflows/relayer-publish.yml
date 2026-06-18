@@ -1,6 +1,12 @@
 # TON Relayer Docker Publishing Workflow
 # Builds and publishes Docker images for the TON relayer,
 # including the base Chainlink core image and the combined core+relayer image
+#
+# NOTE: both jobs pin a fork of reusable-docker-build-publish (6fb1587) that adds latest's
+# free-disk-space on top of the DOCKER_BUILD_ARGS *secret* channel. The secret is required to
+# pass the sensitive AWS account ID in BASE_IMAGE without it being redacted (masked job outputs
+# become *** downstream, and `secrets` can't be referenced from a non-secret build-args input).
+# No published version supports both, so this is tracked upstream in DX-1765 to drop the fork.
 
 name: TON - Relayer - Publish Docker Image
 
@@ -73,19 +79,28 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@a3959a064356bde13839ab7f656bd84e5fb071e1
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6fb158757c9537d3fbecfe3b357b30199fc37fad
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
-      dockerfile: core/chainlink.Dockerfile
-      docker-build-context: .
+      free-disk-space: "true"
+      # The reusable workflow checks out chainlink-ton; clone chainlink core separately.
+      docker-pre-build-commands: |
+        set -euo pipefail
+        rm -rf core-src
+        git init core-src
+        git -C core-src remote add origin https://github.com/smartcontractkit/chainlink.git
+        git -C core-src fetch --depth 1 origin ${{ needs.determine-core-image.outputs.core_ref }}
+        git -C core-src checkout FETCH_HEAD
+      dockerfile: core-src/core/chainlink.Dockerfile
+      docker-build-context: core-src
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ needs.determine-core-image.outputs.core_ref }}
       docker-manifest-sign: false
       docker-image-tag-override: ${{ needs.determine-core-image.outputs.base_image_tag }}
-      git-sha: ${{ needs.determine-core-image.outputs.core_ref }}
+      git-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
@@ -112,11 +127,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@a3959a064356bde13839ab7f656bd84e5fb071e1
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6fb158757c9537d3fbecfe3b357b30199fc37fad
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
+      free-disk-space: "true"
       dockerfile: scripts/build/Dockerfile.build.nix
       docker-build-context: .
       docker-manifest-sign: true

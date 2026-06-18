@@ -158,8 +158,8 @@ const (
 )
 
 var (
-	OpcodeRoleGranted = tvm.MustExtractMagic(reflect.TypeOf(RoleGranted{}))
-	OpcodeRoleRevoked = tvm.MustExtractMagic(reflect.TypeOf(RoleRevoked{}))
+	OpcodeRoleGranted = tvm.MustExtractMagic(reflect.TypeFor[RoleGranted]())
+	OpcodeRoleRevoked = tvm.MustExtractMagic(reflect.TypeFor[RoleRevoked]())
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode

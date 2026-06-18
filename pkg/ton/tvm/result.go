@@ -53,7 +53,7 @@ func FetchResult(
 	block *ton.BlockIDExt,
 	contractAddr *address.Address,
 	sourceStruct ResultGetter,
-	opts []interface{},
+	opts []any,
 ) error {
 	methodName := sourceStruct.GetterMethodName()
 	var result *ton.ExecutionResult

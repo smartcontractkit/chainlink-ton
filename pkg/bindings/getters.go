@@ -14,7 +14,7 @@ import (
 
 // GetterMap is a map of getter method names to their Getter definitions.
 // This allows generic access to contract getters by name.
-type GetterMap map[string]interface{}
+type GetterMap map[string]any
 
 // TypeToGetterMap is a registry mapping contract types to their available getters.
 // The outer map keys are contract type identifiers (e.g., "link.chain.ton.ccip.Router").

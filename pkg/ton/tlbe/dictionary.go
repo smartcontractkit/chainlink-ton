@@ -291,10 +291,10 @@ type DictKey interface {
 	BitsLen() uint
 }
 
-var dictKeyType = reflect.TypeOf((*DictKey)(nil)).Elem()
+var dictKeyType = reflect.TypeFor[DictKey]()
 
 func keyBitSize[K any]() (uint, error) {
-	typ := reflect.TypeOf((*K)(nil)).Elem()
+	typ := reflect.TypeFor[K]()
 	if bits := lookupDictKeyBits(typ); bits != 0 {
 		return bits, nil
 	}

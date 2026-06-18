@@ -159,7 +159,7 @@ func DecodeTLBValToJSON(v any, tlbs tvm.TLBMap) (string, any, error) {
 			reflect.ValueOf(ptr).Elem().Set(rv)
 
 			// if there is a json.Marshaler (either on the value or the pointer), prefer it.
-			jmType := reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+			jmType := reflect.TypeFor[json.Marshaler]()
 			if rv.CanAddr() && rv.Addr().Type().Implements(jmType) || rv.Type().Implements(jmType) {
 				return "", v, nil
 			}

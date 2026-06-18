@@ -144,7 +144,7 @@ func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 		return fmt.Errorf("numberOfMessages %d too large for shift computation", numberOfMessages)
 	}
 
-	for i := uint64(0); i < numberOfMessages; i++ {
+	for i := range numberOfMessages {
 		shiftU64 := i * 2
 		shift := uint(shiftU64)
 

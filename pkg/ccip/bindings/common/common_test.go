@@ -547,7 +547,7 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 		root := builder.EndCell()
 
 		// Build a chain longer than MaxCellChainDepth
-		for i := 0; i < MaxCellChainDepth+1; i++ {
+		for range MaxCellChainDepth + 1 {
 			builder = cell.BeginCell()
 			_ = builder.StoreSlice([]byte{0x01}, 8)
 			_ = builder.StoreRef(root)
@@ -631,9 +631,9 @@ func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
 		root := builder.EndCell()
 
 		// Now extend the chain beyond MaxCellChainDepth
-		for i := 0; i < MaxCellChainDepth; i++ {
+		for range MaxCellChainDepth {
 			builder = cell.BeginCell()
-			for j := 0; j < 3; j++ {
+			for range 3 {
 				_ = builder.StoreRef(elemCell)
 			}
 			_ = builder.StoreRef(root)
@@ -732,7 +732,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 		_ = builder.StoreRef(elemCell)
 
 		root := builder.EndCell()
-		for i := 0; i < MaxArrayLength/3+2; i++ {
+		for range MaxArrayLength/3 + 2 {
 			builder = cell.BeginCell()
 			_ = builder.StoreRef(elemCell)
 			_ = builder.StoreRef(elemCell)

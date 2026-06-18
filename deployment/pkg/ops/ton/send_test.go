@@ -141,7 +141,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				builder.WriteString("[\n")
 			}
 
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				sample, err := gen.Generate(proto)
 				require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
 

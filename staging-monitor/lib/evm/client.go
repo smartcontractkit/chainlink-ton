@@ -232,10 +232,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				continue
 			}
 
-			toBlock := startBlock + lib.EVMLogQuerySpan - 1
-			if toBlock > head {
-				toBlock = head
-			}
+			toBlock := min(startBlock+lib.EVMLogQuerySpan-1, head)
 
 			q := ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(startBlock),

@@ -275,9 +275,9 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, txPerBatch, msgPerTx int) ([]TestEventRes, error) {
 	var txs []TestEventRes
 	// Send transactions in batches with block waits
-	for batchIdx := 0; batchIdx < batchCount; batchIdx++ {
+	for batchIdx := range batchCount {
 		// Send multiple transactions in this batch
-		for txIdx := 0; txIdx < txPerBatch; txIdx++ {
+		for txIdx := range txPerBatch {
 			// Send transaction with multiple messages
 			tx, block, err := e.sendManyIncreaseCountMsgs(ctx, msgPerTx)
 			if err != nil {
@@ -335,7 +335,7 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 
 func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count int) (*tlb.Transaction, *ton.BlockIDExt, error) {
 	messages := make([]*wallet.Message, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		body, err := tlb.ToCell(counter.IncreaseCount{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create cell: %w", err)
