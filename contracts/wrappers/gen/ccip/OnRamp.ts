@@ -1059,6 +1059,58 @@ export const Router_MessageRejected = {
 }
 
 /**
+ > struct (0x6f2d00df) Router_LockOrBurn {
+ >     tokenPool: address
+ >     tokenAmount: TokenAmount
+ >     destChainSelector: uint64
+ >     executorAddress: address
+ > }
+ */
+export interface Router_LockOrBurn {
+    readonly $: 'Router_LockOrBurn'
+    tokenPool: c.Address
+    tokenAmount: TokenAmount
+    destChainSelector: uint64
+    executorAddress: c.Address
+}
+
+export const Router_LockOrBurn = {
+    PREFIX: 0x6f2d00df,
+
+    create(args: {
+        tokenPool: c.Address
+        tokenAmount: TokenAmount
+        destChainSelector: uint64
+        executorAddress: c.Address
+    }): Router_LockOrBurn {
+        return {
+            $: 'Router_LockOrBurn',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_LockOrBurn {
+        loadAndCheckPrefix32(s, 0x6f2d00df, 'Router_LockOrBurn');
+        return {
+            $: 'Router_LockOrBurn',
+            tokenPool: s.loadAddress(),
+            tokenAmount: TokenAmount.fromSlice(s),
+            destChainSelector: s.loadUintBig(64),
+            executorAddress: s.loadAddress(),
+        }
+    },
+    store(self: Router_LockOrBurn, b: c.Builder): void {
+        b.storeUint(0x6f2d00df, 32);
+        b.storeAddress(self.tokenPool);
+        TokenAmount.store(self.tokenAmount, b);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeAddress(self.executorAddress);
+    },
+    toCell(self: Router_LockOrBurn): c.Cell {
+        return makeCellFrom<Router_LockOrBurn>(self, Router_LockOrBurn.store);
+    }
+}
+
+/**
  > struct (0x7496ff56) FeeQuoter_GetValidatedFee<T> {
  >     msg: Cell<Router_CCIPSend>
  >     context: T
@@ -1633,7 +1685,7 @@ export const TVM2AnyRampMessage = {
  >     receiver: Cell<CrossChainAddress>
  >     data: cell
  >     extraArgs: cell
- >     tokenAmounts: cell
+ >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address
  >     feeTokenAmount: uint256
  > }
@@ -1643,7 +1695,7 @@ export interface TVM2AnyRampMessageBody {
     receiver: CellRef<CrossChainAddress>
     data: c.Cell
     extraArgs: c.Cell
-    tokenAmounts: c.Cell
+    tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address
     feeTokenAmount: uint256
 }
@@ -1653,7 +1705,7 @@ export const TVM2AnyRampMessageBody = {
         receiver: CellRef<CrossChainAddress>
         data: c.Cell
         extraArgs: c.Cell
-        tokenAmounts: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address
         feeTokenAmount: uint256
     }): TVM2AnyRampMessageBody {
@@ -1694,6 +1746,7 @@ export const TVM2AnyRampMessageBody = {
  >     config: Cell<OnRamp_DynamicConfig>
  >     destChainConfigs: map<uint64, OnRamp_DestChainConfig>
  >     executor: ExecutorDeployment
+ >     tokenRegistry: address?
  > }
  */
 export interface OnRamp_Storage {
@@ -1704,6 +1757,7 @@ export interface OnRamp_Storage {
     config: CellRef<OnRamp_DynamicConfig>
     destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
     executor: ExecutorDeployment
+    tokenRegistry: c.Address | null
 }
 
 export const OnRamp_Storage = {
@@ -1714,6 +1768,7 @@ export const OnRamp_Storage = {
         config: CellRef<OnRamp_DynamicConfig>
         destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
+        tokenRegistry: c.Address | null
     }): OnRamp_Storage {
         return {
             $: 'OnRamp_Storage',
@@ -1729,6 +1784,7 @@ export const OnRamp_Storage = {
             config: loadCellRef<OnRamp_DynamicConfig>(s, OnRamp_DynamicConfig.fromSlice),
             destChainConfigs: c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s),
             executor: ExecutorDeployment.fromSlice(s),
+            tokenRegistry: s.loadMaybeAddress(),
         }
     },
     store(self: OnRamp_Storage, b: c.Builder): void {
@@ -1738,6 +1794,7 @@ export const OnRamp_Storage = {
         storeCellRef<OnRamp_DynamicConfig>(self.config, b, OnRamp_DynamicConfig.store);
         b.storeDict<uint64, OnRamp_DestChainConfig>(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
         ExecutorDeployment.store(self.executor, b);
+        b.storeAddress(self.tokenRegistry);
     },
     toCell(self: OnRamp_Storage): c.Cell {
         return makeCellFrom<OnRamp_Storage>(self, OnRamp_Storage.store);
@@ -1810,6 +1867,58 @@ export const OnRamp_GetValidatedFee = {
             ...args
         }
     },
+}
+
+/**
+ > struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
+ >     tokenAmount: TokenAmount
+ >     tokenPool: address
+ >     destChainSelector: uint64
+ >     executorID: CCIPSendExecutor_ID
+ > }
+ */
+export interface OnRamp_ExecutorRequestsLockOrBurn {
+    readonly $: 'OnRamp_ExecutorRequestsLockOrBurn'
+    tokenAmount: TokenAmount
+    tokenPool: c.Address
+    destChainSelector: uint64
+    executorID: CCIPSendExecutor_ID
+}
+
+export const OnRamp_ExecutorRequestsLockOrBurn = {
+    PREFIX: 0x9be1fb61,
+
+    create(args: {
+        tokenAmount: TokenAmount
+        tokenPool: c.Address
+        destChainSelector: uint64
+        executorID: CCIPSendExecutor_ID
+    }): OnRamp_ExecutorRequestsLockOrBurn {
+        return {
+            $: 'OnRamp_ExecutorRequestsLockOrBurn',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OnRamp_ExecutorRequestsLockOrBurn {
+        loadAndCheckPrefix32(s, 0x9be1fb61, 'OnRamp_ExecutorRequestsLockOrBurn');
+        return {
+            $: 'OnRamp_ExecutorRequestsLockOrBurn',
+            tokenAmount: TokenAmount.fromSlice(s),
+            tokenPool: s.loadAddress(),
+            destChainSelector: s.loadUintBig(64),
+            executorID: CCIPSendExecutor_ID.fromSlice(s),
+        }
+    },
+    store(self: OnRamp_ExecutorRequestsLockOrBurn, b: c.Builder): void {
+        b.storeUint(0x9be1fb61, 32);
+        TokenAmount.store(self.tokenAmount, b);
+        b.storeAddress(self.tokenPool);
+        b.storeUint(self.destChainSelector, 64);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+    },
+    toCell(self: OnRamp_ExecutorRequestsLockOrBurn): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorRequestsLockOrBurn>(self, OnRamp_ExecutorRequestsLockOrBurn.store);
+    }
 }
 
 /**
@@ -2236,7 +2345,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRamp implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECRQEAC9MAART/APSkE/S88sgLAQIBYgIDAgLGIiMCASAEBQIBIAYHAgEgFBUCASAICQIBIA4PAgFYCgsCASAMDQBNrK/Gg02NLc1lzG0MLS3Fzo3txcxsbS4Fye3KTC2uEEWpiXGxcYxAAJmugXaiaGmPmP0kGP0oGOmfmOoY+gLAmiwswCB6BzfQiXl6fSQY6Z+Y6QAY+gJotpDAgIX6QTfSmUiAzykBN4EoiUCAhfo6N9KZdBgYwAAZs4ogTRYoCCED7vyhIABfsVX7UTQ0x8x+kgx+lAx0z8x1DH0BYE0WFmAQPQOb6ES8vT6SDHTP9IAMfQEMdGkgAgJxEBECASASEwAVpjvaiaGmPmP0kGEACaULAgENACOwNDtRNDTHzH6SDH6UDHXCz+AAHbK6+1E0NMfMfpIMfpQMIAAruFDTDtRNDXTND6SPpIMfpIMfoAMdGAIBIBYXAgFIGBkCASAaGwApr2Z2omhrpmh9JBj9JBj9JBj9AGjAACOs0vaiaGumaH0kfSR9JH0AaMACAUgcHQIBSB4fADaoee1E0NMfMfpIMfpQMdM/MdQx9AHUMddM+QAAVqvl7UTQ0x8x+kgx+lAx0z8x1DH0BYE0WFmAQPQOb6ES8vT6SNM/0gD0BNEAOKru7UTQ0x8x+kgx+lAx0z8x1DH0BYBA9A5voTECAVggIQAxoRu1E0NMfMfpIMfpQMdM/MdQx9AHUMddMgBhoJ+1E0NMfMfpIMfpQMdM/MdQx9AVtIYBA9IZvpTKRAZ1SAm8CURKAQPR8b6Uy6DAxgIBzyQlAgOj0kNEAgEgJicB9U7aLt+zUDjmxSIoEBC/QKb6GzkjB/ltIA0bPDAOKOUzJsYzMzAtDXLCGLtGys8r/TP9M/0wchwUHyhQGqAtcYMdQx1DH6UDHUMdHIz5IriURSEss/yz/6UoE0Ws8L/8nIz4UIEvpScc8LbszJgED7ANsx4DOSNDDiJtCEEEyz4kfJAINcsJOFmY/SONDHU+JLtRNDXTND6SPpIMfpIMfoAMdHIz5HSW/1aFMz6Us7JyM+FiBL6UnHPC27MyYBA+wDg1ywg/TAbpOMC1ywl54VYfOMC1ywm58yeFOMC1ywmfTWZtICgpKisBqTtou371ywnkNvtDI5E1ywnzxTyVJRbcNsx4YIAwoojbrPy9CGCAMKKBMcFE/L0IG0D1ws/iwIByMs/FfpSEvpSycjPhyAUznHPC2ETzMlw+wDjDX+BAAIwx7UTQ10zQ+kj6SDH6SDH6ADHRgTRZ+JJYxwXy9PoA018x1PpIyM+Qq+xG9lAE+gISzBLOycjPhQgS+lJxzwtuzMmAQPsAAIQx7UTQ10zQ+kj6SDH6SDH6ADHRgTRZ+JJYxwXy9NP/1PpIyM+SsHdEuhTL/xLMEs7JyM+FCBL6UnHPC27MyYBA+wAB/jHtRNAB1PpI+gAwItDXLCGLtGys8r/TP9M/0wchwUHyhQGqAtcYMdQx1DH6UDHUMdEF0x/6SPpQ0z/U9ATU10xTwoBA9A5voY4vEJpfCjL4ksjPkiuJRFITyz8Tyz8S+lKBNFjPC//JyM+FCBL6UnHPC27MyYBA+wDhOTwH+kgsBDbjAtcsJiA0cQzjAtcsJQvGMXTjAtcsINEjW2QtLi8wAELTP9IA9ATRgTRZ+JIlxwXy9BCeEI0QfBBrEFoQSVUl8AIB/DHtRNAB09/6ANNf1PpIMAXTH/pI+lDTP9T0BNTXTIE0WfgoyPpSz5AAAAACHcvfySLIz4TQzMz5FsjPigBAy//PUPiSxwUc8vQH0NcsIYu0bKzyv9M/0z/TByHBQfKFAaoC1xjU1PpQ1NGBNFhTaIBA9A5voRLy9PpI0z/SADEB/jHtRNAB09/T/9T6SDAE0x8x+kgx+lAx0z8x1DH0BNdMgTRZ+CjI+lLPkAAAAAIWy9/JAcjPhNDMzPkWyM+KAEDL/89Q+JLHBRTy9NDXLCGLtGys8r/TP9M/0wchwUHyhQGqAtcYMdQx1DH6UDHUMdEggTRYBYBA9A5voRXy9AM1AO4x7UTQ0x/6SPpQ0z/UMfQE1NdM+JKCAMKIURfHBfL0B/pI+kj6SPoAMCPI+lJSMPpSUiD6UiH6AsknyMs/FfpSE/pS+lIB+gLJyM+PGAAEghAeMiIszwv3cc8LYczJcPsABsjLHxX6UhP6VMs/E8wS9ADMzMntVAS0jr4x7UTQ0x/6SPpQ0z/U9ATU10z4koIAwohRGMcF8vQI10zQlCDHALOK6DAGyMsfFfpSE/pUyz/M9ADMzMntVODXLCTuAwws4wLXLCQUgOIs4wLXLCOCluOsNjc4OQP89ATRAqQjyPpSIc8LPxLKABL0AFQgi4BA9EMOyMsfHfpSG/pUKc8LPxjMG/QAG8wdzMntVMgs10kgqTgC8kWrAiDBQfKFzwsHHM7JyMwYzBTMFcwU+lImzwv/yVRzeMiJzxYXyz8qzws/+CgB+lL5FonIzsv/UmD6UiTPCz9wMjM0AEA2ua4DugBaUtwCfe1aLn194qsTivQegpP6SfOLEZ+tdABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAws8LPyPPFPkWIMjL/xPLP8s/E8s/cM8LPxT6UhPMFMtfycjPjxgABIIQpF0pPM8L93HPC2HMyXD7AMjPkZRP44YSyz/L/xPLPxP6UsnIz4UIEvpScc8LbszJAXT7AoMG+wAAYvpI0z8x0gAx9AQx0cjPkiuJRFISyz8Tyz8T+lISy//JyM+FCBL6UnHPC27MyYBA+wAB/iDXSwGRMJuBNLwBwAHy9NdM0OLTP/pI0gBTNYBA9A5voY4j+kgx0z/SADH0BNEkyPpSIs8LPyTPCgBSEPQAVCBpgED0SzCONTBwbSTI+lJwzws/JM8KAFIQ9ABUIGmAQPRDyM+PGAAEghDT0QT/zwv3cM8LYSbPCz/JIvsA4sg6AaQx7UTQ0x/6SPpQ0z/U9ATU10z4kiTQ+kgx+kgx+kj6ADHRxwWc+JKCAMKIURjHBfL03wjXTNCUIMcAs4roMAbIyx8V+lIT+lTLP8z0AMzMye1UPABmMe1E0NYf+kj6UNY/1PQE10z4koIAwohRF8cF8vQH10wGyM4V+lIT+lTOzPQAEszMye1UAu6OwTGBNF34l4IQBU4IQLzy9NdM0IE0XAHHAPL07UTQ10zQ+kgx+kj6SDH6ANFy+wKIyM+FiBL6UnHPC27MyYEAkPsA4NcsIFVAj2zjAjDtRNDWH/pI+lD4kkMwJfABnjQCyM4S+lIS+lTOye1U4F8EhA8BxwDy9D4/AUaJzxaCEDqiXPHPC/dwzwthFss/FPpSE8s/ygAU9ADJcPsAAjsABcYAAQH+INdLAZEwm4E0vAHAAfL010zQ4tM/1NSBNFhTRoBA9A5voRLy9PpI0z/SAPQE0QbQlCDHALOOICDXSwGRMJuBNLwBwAHy9NdM0OL6SMjPg0AIgQEL9EEG6DAE0JQgxwCzjh0g10sBkTCbgTS8AcAB8vTXTNDi+kgGgQEL9FkwBT0AKugwAcj6Uss/EsoAEvQAQASAQPRDAgAAALox7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAQLIzMv/zsnIz48YAASCEKM7SY7PC/dxzwthzMlw+wAAZmwS0z/6SDCCAMKIUTTHBRPy9IIAwolTI8cFs/L0IYsCyM+HIM5wzwthEss/EvpSyXD7AAH8+kj6SDH6SDH6ADHR+CX4FfgQqx/4KMj6Us+QAAAAAiHPC9/JJ/goyPpSE8vfyYIQBV1KgIIQBOM4gIILwU3AtgmgBMj6UsnIi4rzxis9z5k8KM8WGMwV+lJQBfoCFczJyM+Sw7FFXibPFBPMAfoCzMnIz4mIAVMjyM+E0MzMQgBS+RbPC/+BAI3PC3QTzMzMyYBA+wAHyMsfFvpSFPpUEss/zPQAzMzJ7VQAHyBTbwBi1MS42LjCMcF8vSAADyLUxLjYuMYg');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -2281,6 +2390,7 @@ export class OnRamp implements c.Contract {
         config: CellRef<OnRamp_DynamicConfig>
         destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
+        tokenRegistry: c.Address | null
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? OnRamp.CodeCell,
@@ -2332,6 +2442,15 @@ export class OnRamp implements c.Contract {
             storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
             OnRamp_GetValidatedFeeContext.store(v.context, b); }
         );
+    }
+
+    static createCellOfOnRampExecutorRequestsLockOrBurn(body: {
+        tokenAmount: TokenAmount
+        tokenPool: c.Address
+        destChainSelector: uint64
+        executorID: CCIPSendExecutor_ID
+    }) {
+        return OnRamp_ExecutorRequestsLockOrBurn.toCell(OnRamp_ExecutorRequestsLockOrBurn.create(body));
     }
 
     static createCellOfOnRampExecutorFinishedSuccessfully(body: {
@@ -2453,6 +2572,19 @@ export class OnRamp implements c.Contract {
                 storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
                 OnRamp_GetValidatedFeeContext.store(v.context, b); }
             ),
+            ...extraOptions
+        });
+    }
+
+    async sendOnRampExecutorRequestsLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        tokenAmount: TokenAmount
+        tokenPool: c.Address
+        destChainSelector: uint64
+        executorID: CCIPSendExecutor_ID
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OnRamp_ExecutorRequestsLockOrBurn.toCell(OnRamp_ExecutorRequestsLockOrBurn.create(body)),
             ...extraOptions
         });
     }

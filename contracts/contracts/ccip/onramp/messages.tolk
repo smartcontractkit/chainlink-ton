@@ -7,12 +7,14 @@ import "../ccipsend_executor/messages"
 import "../fee_quoter/messages"
 import "../ccipsend_executor/types"
 import "../fee_quoter/types"
+import "../common/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
     | OnRamp_GetValidatedFee<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
     | FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
+    | OnRamp_ExecutorRequestsLockOrBurn
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -36,6 +38,13 @@ struct (0xdcf993c2) OnRamp_Send {
 struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
     ccipSend: Cell<Router_CCIPSend>;
     context: T;
+}
+
+struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
+    tokenAmount: TokenAmount,
+    tokenPool: address,
+    destChainSelector: uint64,
+    executorID: CCIPSendExecutor_ID,
 }
 
 struct OnRamp_GetValidatedFeeContext {

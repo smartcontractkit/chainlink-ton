@@ -48,9 +48,16 @@ export type Data = {
 export type Addresses = {
   onramp: Address
   feeQuoter: Address
+  // Null when the send carries no token transfers.
+  tokenRegistry?: Address | null
 }
 
-export type State = Initialized | OnGoingFeeValidation
+export type State =
+  | Initialized
+  | OnGoingFeeValidation
+  | TokenRegistryAccess
+  | TokenTransfer
+  | Finalized
 
 export type Initialized = {
   kind: 'initialized'
@@ -60,10 +67,38 @@ export type OnGoingFeeValidation = {
   kind: 'on-going-fee-validation'
 }
 
+export type TokenRegistryAccess = {
+  kind: 'token-registry-access'
+  fee: fq.Fee
+}
+
+export type TokenTransfer = {
+  kind: 'token-transfer'
+  tokenPool: Address
+  fee: fq.Fee
+}
+
+export type Finalized = {
+  kind: 'finalized'
+}
+
+export type ConfigV2 = {
+  feeQuoter: Address
+  // Null when the send carries no token transfers.
+  tokenRegistry?: Address | null
+}
+
+//TODO deprecate with Token Transfers
 export type Config = {
   feeQuoter: Address
 }
 
+export type ExecuteV2 = {
+  onrampSend: or.OnRampSend
+  config: ConfigV2
+}
+
+// TODO deprecate with Token Transfers
 export type Execute = {
   onrampSend: or.OnRampSend
   config: Config
@@ -85,12 +120,16 @@ export const builder = (() => {
 
     const addresses: CellCodec<Addresses> = {
       encode: (data: Addresses): Builder => {
-        return beginCell().storeAddress(data.onramp).storeAddress(data.feeQuoter)
+        return beginCell()
+          .storeAddress(data.onramp)
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.tokenRegistry ?? null)
       },
       load: (src: Slice): Addresses => {
         return {
           onramp: src.loadAddress(),
           feeQuoter: src.loadAddress(),
+          tokenRegistry: src.loadMaybeAddress(),
         }
       },
     }
@@ -99,24 +138,57 @@ export const builder = (() => {
       encode: function (data: State): Builder {
         switch (data.kind) {
           case 'initialized':
-            return beginCell().storeUint(0, 1)
+            return beginCell().storeUint(0b000, 3).storeRef(beginCell().endCell())
           case 'on-going-fee-validation':
-            return beginCell().storeUint(1, 1)
+            return beginCell().storeUint(0b001, 3).storeRef(beginCell().endCell())
+          case 'token-registry-access':
+            return beginCell()
+              .storeUint(0b010, 3)
+              .storeRef(fq.builder.data.fee.encode(data.fee).endCell())
+          case 'token-transfer':
+            return beginCell()
+              .storeUint(0b011, 3)
+              .storeRef(
+                beginCell()
+                  .storeAddress(data.tokenPool)
+                  .storeBuilder(fq.builder.data.fee.encode(data.fee))
+                  .endCell(),
+              )
+          case 'finalized':
+            return beginCell().storeUint(0b100, 3).storeRef(beginCell().endCell())
         }
       },
       load: function (src: Slice): State {
-        const kind = src.loadUint(1)
-        switch (kind) {
-          case 0:
+        const tag = src.loadUint(3)
+        switch (tag) {
+          case 0b000:
+            src.loadRef()
             return { kind: 'initialized' }
-          case 1:
+          case 0b001:
+            src.loadRef()
             return { kind: 'on-going-fee-validation' }
+          case 0b010: {
+            const feeSlice = src.loadRef().beginParse()
+            return { kind: 'token-registry-access', fee: fq.builder.data.fee.load(feeSlice) }
+          }
+          case 0b011: {
+            const inner = src.loadRef().beginParse()
+            return {
+              kind: 'token-transfer',
+              tokenPool: inner.loadAddress(),
+              fee: fq.builder.data.fee.load(inner),
+            }
+          }
+          case 0b100:
+            src.loadRef()
+            return { kind: 'finalized' }
           default:
-            throw new Error(`Unknown State kind: ${kind}`)
+            throw new Error(`Unknown State tag: ${tag}`)
         }
       },
     }
 
+    //TODO deprecate with TT
     const config: CellCodec<Config> = {
       encode: (data: Config): Builder => {
         return beginCell().storeAddress(data.feeQuoter)
@@ -124,6 +196,20 @@ export const builder = (() => {
       load: (src: Slice): Config => {
         return {
           feeQuoter: src.loadAddress(),
+        }
+      },
+    }
+
+    const configV2: CellCodec<ConfigV2> = {
+      encode: (data: ConfigV2): Builder => {
+        return beginCell()
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.tokenRegistry ?? null)
+      },
+      load: (src: Slice): ConfigV2 => {
+        return {
+          feeQuoter: src.loadAddress(),
+          tokenRegistry: src.loadMaybeAddress(),
         }
       },
     }
@@ -152,11 +238,13 @@ export const builder = (() => {
       contractData,
       state,
       config,
+      configV2,
     }
   })()
 
   const message = {
     in: (() => {
+      //TODO deprecate when token transfers are avaliable
       const execute: CellCodec<Execute> = {
         encode: (data: Execute): Builder => {
           return beginCell()
@@ -172,9 +260,25 @@ export const builder = (() => {
           }
         },
       }
+      const executeV2: CellCodec<ExecuteV2> = {
+        encode: (data: ExecuteV2): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.executeV2, 32)
+            .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
+            .storeRef(dataBuilder.configV2.encode(data.config).asCell())
+        },
+        load: (src: Slice): ExecuteV2 => {
+          src.skip(32) // opcode
+          return {
+            onrampSend: or.builder.messages.in.onrampSend.load(src),
+            config: dataBuilder.configV2.load(src.loadRef().beginParse()),
+          }
+        },
+      }
 
       return {
         execute,
+        executeV2,
         messageValidated: fq.builder.message.out.messageValidated,
         messageValidationFailed: fq.builder.message.out.messageValidationFailed,
       }
@@ -191,8 +295,11 @@ export abstract class Params {}
 export const opcodes = {
   in: {
     execute: 0xaf3c62b3,
+    executeV2: 0x09bbeb9e,
     messageValidated: fq.opcodes.out.messageValidated,
     messageValidationFailed: fq.opcodes.out.messageValidationFailed,
+    tokenRegistryReturnTokenInfo: 0xddccddb5,
+    mockTokenPoolNotifySuccessfulLockOrBurn: 0x7adb20bb,
   },
 }
 
@@ -225,6 +332,18 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
+    })
+  }
+
+  async sendExecuteV2(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint | string,
+    body: ExecuteV2,
+  ) {
+    return provider.internal(via, {
+      value,
+      body: builder.message.in.executeV2.encode(body).asCell(),
     })
   }
 

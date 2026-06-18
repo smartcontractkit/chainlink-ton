@@ -72,6 +72,7 @@ export const opcodes = {
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
     getValidatedFee: 0x4dd6aa82,
+    lockOrBurn: 0x6f2d00df,
     rmnOwnableMessage: 0xaf7a9ac6,
   },
   out: {

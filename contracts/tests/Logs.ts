@@ -7,6 +7,7 @@ import * as offRamp from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
 import { crc32 } from 'zlib'
 import * as onramp from '../wrappers/ccip/OnRamp'
+import * as router from '../wrappers/ccip/Router'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -226,11 +227,23 @@ export const testLogCCIPMessageSent = (
     const msg: onramp.CCIPMessageSent = onramp.builder.events.ccipMessageSent.load(x.beginParse())
     const sender = msg.message.sender
 
+    // Decode tokenAmounts from its raw Cell into an array so matches can use plain objects.
+    const decodedMessage = {
+      ...msg.message,
+      body: {
+        ...msg.message.body,
+        tokenAmounts: fromSnakeData(
+          msg.message.body.tokenAmounts,
+          router.builder.data.tokenAmount.load,
+        ),
+      },
+    }
+
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)
-    const { sender: _, ...messageWithoutSender } = msg.message
+    const { sender: _, ...messageWithoutSender } = decodedMessage
     const { sender: __, ...matchWithoutSender } = match.message || {}
 
-    matchesObject(messageWithoutSender, matchWithoutSender)
+    matchesObject(messageWithoutSender, matchWithoutSender as object)
 
     // Check sender address using .equals() if specified in match
     if (match.message?.sender && match.message.sender instanceof Address) {

@@ -197,6 +197,8 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				ExecutorCode:   tonCompiledContracts[bindings.TypeSendExecutor].Code,
 				CurrentID:      big.NewInt(0),
 			},
+			// TODO: TokenRegistry needs to be deployed and configured with the TokenPool for the token transfer test to run .
+			TokenRegistry: address.NewAddressNone(),
 		}
 
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin)

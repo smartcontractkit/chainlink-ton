@@ -194,7 +194,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 							Receiver:       common.CrossChainAddress{0x01, 0x02},
 							Data:           common.SnakeBytes{0xAA, 0xBB, 0xCC},
 							ExtraArgs:      tvm.EmptyCell,
-							TokenAmounts:   tvm.EmptyCell,
+							TokenAmounts:   common.SnakedCell[ocr.TokenAmount]{},
 							FeeToken:       feeToken,
 							FeeTokenAmount: big.NewInt(1000000),
 						},

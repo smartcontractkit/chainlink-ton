@@ -41,6 +41,7 @@ describe('SendExecutor - TypeAndVersion Tests', () => {
 describe('SendExecutor - Opcodes', () => {
   it('should match in opcodes', () => {
     expect(sx.opcodes.in.execute).toBe(crc32('CCIPSendExecutor_Execute'))
+    expect(sx.opcodes.in.executeV2).toBe(crc32('CCIPSendExecutor_ExecuteV2'))
   })
 })
 
@@ -52,6 +53,9 @@ describe('SendExecutor - Unit tests', () => {
   let onrampSend: or.OnRampSend
   let onRampMock: SandboxContract<TreasuryContract>
   let feeQuoterMock: SandboxContract<TreasuryContract>
+  let tokenRegistryMock: SandboxContract<TreasuryContract>
+  // onrampSend that carries a token transfer (non-empty tokenAmounts).
+  let tokenOnrampSend: or.OnRampSend
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -66,6 +70,7 @@ describe('SendExecutor - Unit tests', () => {
     deployer = await blockchain.treasury('deployer')
     onRampMock = await blockchain.treasury('onrampMock')
     feeQuoterMock = await blockchain.treasury('feeQuoterMock')
+    tokenRegistryMock = await blockchain.treasury('tokenRegistryMock')
     sender = await blockchain.treasury('sender')
 
     onrampSend = {
@@ -81,6 +86,19 @@ describe('SendExecutor - Unit tests', () => {
       metadata: {
         sender: sender.address,
         value: toNano('0.6'),
+      },
+    }
+
+    tokenOnrampSend = {
+      msg: {
+        ...onrampSend.msg,
+        tokenAmounts: [{ amount: toNano('1'), token: WRAPPED_NATIVE }],
+      },
+      metadata: {
+        sender: sender.address,
+        // Must comfortably exceed fee + Router_Costs.CCIPSend() so the executor proceeds to the
+        // token-transfer path instead of exiting with InsufficientFunds.
+        value: toNano('5'),
       },
     }
   })
@@ -152,6 +170,45 @@ describe('SendExecutor - Unit tests', () => {
     return { sendExecutor, result }
   }
 
+  // Deploys and runs the V2 execute self-message. The config can optionally carry a tokenRegistry,
+  // and the onrampSend can optionally carry a token transfer.
+  async function afterExecuteV2(opts?: {
+    tokenRegistry?: SandboxContract<TreasuryContract>
+    send?: or.OnRampSend
+  }): Promise<{
+    sendExecutor: SandboxContract<sx.ContractClient>
+    result: SendMessageResult & {
+      result: void
+    }
+  }> {
+    const send = opts?.send ?? onrampSend
+    const { sendExecutor, result } = await sendDeploy({
+      value: toNano('0.3'),
+      body: sx.builder.message.in.executeV2
+        .encode({
+          onrampSend: send,
+          config: {
+            feeQuoter: feeQuoterMock.address,
+            tokenRegistry: opts?.tokenRegistry ? opts.tokenRegistry.address : null,
+          },
+        })
+        .asCell(),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: sendExecutor.address,
+      success: true,
+      op: sx.opcodes.in.executeV2,
+      body(x) {
+        if (!x) return false
+        const msg = sx.builder.message.in.executeV2.load(x.beginParse())
+        return msg.onrampSend.metadata.sender.equals(sender.address)
+      },
+    })
+    return { sendExecutor, result }
+  }
+
   it('should handle execute from self', async () => {
     const { sendExecutor, result } = await afterExecute()
 
@@ -196,6 +253,123 @@ describe('SendExecutor - Unit tests', () => {
       to: sendExecutor.address,
       success: false,
       exitCode: 9, // Tries to load different state
+    })
+  })
+
+  it('should throw executeV2 from non-self', async () => {
+    const { sendExecutor, result } = await sendDeploy()
+
+    const execResult = await sendExecutor.sendExecuteV2(sender.getSender(), toNano('0.3'), {
+      onrampSend,
+      config: {
+        feeQuoter: feeQuoterMock.address,
+      },
+    })
+
+    expect(execResult.transactions).toHaveTransaction({
+      from: sender.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.error.Unauthorized,
+    })
+  })
+
+  it('should throw on executeV2 after execute', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const execResult = await sendExecutor.sendExecuteV2(deployer.getSender(), toNano('0.3'), {
+      onrampSend,
+      config: {
+        feeQuoter: feeQuoterMock.address,
+      },
+    })
+    expect(execResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: 9, // Tries to load different state
+    })
+  })
+
+  it('should handle executeV2 from self with a tokenRegistry in the config', async () => {
+    const { sendExecutor, result } = await afterExecuteV2({ tokenRegistry: tokenRegistryMock })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: feeQuoterMock.address,
+      success: true,
+      op: fq.opcodes.in.getValidatedFee,
+    })
+  })
+
+  it('should handle executeV2 from self without a tokenRegistry in the config', async () => {
+    const { sendExecutor, result } = await afterExecuteV2()
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: feeQuoterMock.address,
+      success: true,
+      op: fq.opcodes.in.getValidatedFee,
+    })
+  })
+
+  it('should query the configured tokenRegistry on validated fee for a token transfer (executeV2)', async () => {
+    // V2 config carries a tokenRegistry and the message carries a token transfer:
+    // on a successful fee validation the executor must query that tokenRegistry.
+    const { sendExecutor } = await afterExecuteV2({
+      tokenRegistry: tokenRegistryMock,
+      send: tokenOnrampSend,
+    })
+
+    const result = await sendExecutor.sendMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        fee: { feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') },
+        msg: tokenOnrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    // The query must be addressed to the tokenRegistry from the V2 config (proving it was stored).
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: tokenRegistryMock.address,
+      success: true,
+    })
+    // And it must NOT have already finished the send back to the OnRamp.
+    expect(result.transactions).not.toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.opcodes.in.executorFinishedSuccessfully,
+    })
+  })
+
+  it('should exit successfully on validated fee for executeV2 without a token transfer or tokenRegistry', async () => {
+    // V2 config without a tokenRegistry and a message without token transfers behaves like the
+    // plain messaging flow: it finishes successfully without touching any registry.
+    const { sendExecutor } = await afterExecuteV2()
+
+    const result = await sendExecutor.sendMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        fee: { feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedSuccessfully,
+      body(x) {
+        if (!x) return false
+        const finished = or.builder.messages.in.executorFinishedSuccessfully.load(x.beginParse())
+        return finished.fee.feeTokenAmount === toNano('0.1')
+      },
     })
   })
 
