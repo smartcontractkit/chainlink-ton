@@ -36,6 +36,7 @@ fun LockReleaseTokenPool_initialStorage(config: LockReleaseTokenPool_Config): St
                     feeAdmin: null,
                 }.toCell(),
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
+                advancedPoolHooks: createAddressNone() as address,
             }.toCell(),
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),

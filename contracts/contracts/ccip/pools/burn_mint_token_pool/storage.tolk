@@ -37,6 +37,7 @@ fun BurnMintTokenPool_initialStorage(config: BurnMintTokenPool_Config): Storage 
                     feeAdmin: null,
                 }.toCell(),
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
+                advancedPoolHooks: createAddressNone() as address,
             }.toCell(),
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),

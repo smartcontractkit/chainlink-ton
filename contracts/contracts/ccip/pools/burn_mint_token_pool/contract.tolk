@@ -218,8 +218,8 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue,
             onReleaseOrMint: null,
-            onReleaseOrMintContinue,
             postflightCheck: null,
+            onReleaseOrMintContinue,
         },
     };
 }

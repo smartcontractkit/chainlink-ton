@@ -17,9 +17,14 @@ import "rate_limiter"
 
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
+    // Address 
     rmnProxy: address;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
+    /// Allowed finality config for fast finality transfers (see `FinalityCodec`).
+    /// FinalityCodec.WAIT_FOR_FINALITY_FLAG means wait for finality.
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
+    /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
+    advancedPoolHooks: address?;
 }
 
 struct TokenPool_Data {
@@ -117,11 +122,10 @@ fun TokenPool<T>.getAllowedFinalityConfig(self): uint32 {
     return self.data.adminConfig.load().allowedFinalityConfig;
 }
 
-// TODO: implement me
 /// Gets the advanced pool hook contract address used by this pool.
 @inline
 fun TokenPool<T>.getAdvancedPoolHooks(self): address? {
-    return null;
+    return self.data.advancedPoolHooks;
 }
 
 @inline
@@ -148,6 +152,17 @@ fun TokenPool<T>.isSupportedChain(self, remoteChainSelector: uint64): bool {
     return self.data.remoteChainConfigs.get(remoteChainSelector).isFound;
 }
 
+/// Get list of allowed chains
+fun TokenPool<T>.getSupportedChains(self): lisp_list<uint64> {
+    var list: lisp_list<uint64> = [];
+    var entry = self.data.remoteChainConfigs.findFirst();
+    while (entry.isFound) {
+        list.prependHead(entry.loadKey());
+        entry = self.data.remoteChainConfigs.iterateNext(entry);
+    }
+    return list;
+}
+
 /// Checks if the pool address is configured on the remote chain.
 /// @param remoteChainSelector Remote chain selector.
 /// @param remotePoolAddress The address of the remote pool.
@@ -158,7 +173,7 @@ fun TokenPool<T>.isRemotePool(self, remoteChainSelector: uint64, remotePoolAddre
     }
 
     val config = entry.loadValue();
-    return config.remotePools.get(TokenPool_hashCrossChainAddress(remotePoolAddress)).isFound;
+    return config.remotePools.get(remotePoolAddress.hash()).isFound;
 }
 
 /// Gets the token address on the remote chain.
@@ -243,7 +258,29 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, queryId:
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-// TODO: add updateAdvancedPoolHooks
+fun TokenPool<T>.updateAdvancedPoolHooks(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    advancedPoolHooks: address?
+) {
+    var adminConfig = self.data.adminConfig.load();
+    adminConfig.ownable.load().requireOwner(sender);
+
+    adminConfig.advancedPoolHooks = advancedPoolHooks;
+    self.data.adminConfig = adminConfig.toCell();
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_AdvancedPoolHooksUpdated {
+            queryId,
+            advancedPoolHooks,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
 
 /// Adds a remote pool for a given chain selector. This could be due to a pool being upgraded on the remote
 /// chain. We don't simply want to replace the old pool as there could still be valid inflight messages from the old
@@ -293,7 +330,7 @@ fun TokenPool<T>.removeRemotePool(
     assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.NonExistentChain);
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
-    val deleted = config.remotePools.delete(TokenPool_hashCrossChainAddress(remotePoolAddress));
+    val deleted = config.remotePools.delete(remotePoolAddress.hash());
     assert(deleted, TokenPool_Error.InvalidRemotePoolForChain);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
@@ -434,15 +471,22 @@ fun TokenPool<T>.setRMNProxy(mutate self, sender: address, rmnProxy: address) {
 fun TokenPool<T>.setCursedSubjects(
     mutate self,
     sender: address,
+    queryId: uint64,
     cursedSubjects: CursedSubjects,
 ) {
-    assert(sender == self.data.adminConfig.load().rmnProxy, TokenPool_Error.Unauthorized);
+    self.onlyOwnerOrRMNProxy(sender);
 
     var mirroredPolicy = self.data.mirroredPolicy.load();
     mirroredPolicy.cursedSubjects = cursedSubjects;
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 
-    emit(TOPIC_TOKEN_POOL_CURSED_SUBJECTS_UPDATED, TokenPool_CursedSubjectsUpdated {})
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_CursedSubjectsUpdated { queryId, cursedSubjects },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice): bool {
@@ -502,7 +546,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.setRMNProxy(msgSender, msg.rmnProxy);
         }
         TokenPool_UpdateCursedSubjects => {
-            self.setCursedSubjects(msgSender, msg.cursedSubjects);
+            self.setCursedSubjects(msgSender, msg.queryId, msg.cursedSubjects);
         }
         else => {
             var adminConfig = self.data.adminConfig.load();
@@ -967,9 +1011,22 @@ fun TokenPool<T>.onlyOwnerOrRateLimitAdmin(self, sender: address) {
     val adminConfig = self.data.adminConfig.load();
     val dynamicConfig = adminConfig.dynamicConfig.load();
     val ownable = adminConfig.ownable.load();
+    val senderIsRateLimitAdmin = fun () {
+        return dynamicConfig.rateLimitAdmin != null
+            && sender == dynamicConfig.rateLimitAdmin;
+    };
     assert(
-        (dynamicConfig.rateLimitAdmin != null && sender == dynamicConfig.rateLimitAdmin)
-        || sender == ownable.owner,
+        sender == ownable.owner || senderIsRateLimitAdmin(),
+        TokenPool_Error.Unauthorized
+    );
+}
+
+/// Checks whether the msg.sender is either the owner or the RMN proxy.
+fun TokenPool<T>.onlyOwnerOrRMNProxy(self, sender: address) {
+    val adminConfig = self.data.adminConfig.load();
+    val ownable = adminConfig.ownable.load();
+    assert(
+        sender == ownable.owner || sender == adminConfig.rmnProxy,
         TokenPool_Error.Unauthorized
     );
 }
@@ -1212,7 +1269,7 @@ fun TokenPool<T>._setRemotePool(
 ) {
     assert(!TokenPool_isEmptyCrossChainAddress(remotePoolAddress), TokenPool_Error.ZeroAddressInvalid);
     // Check if the pool already exists.
-    val poolHash = TokenPool_hashCrossChainAddress(remotePoolAddress);
+    val poolHash = remotePoolAddress.hash();
     assert(!config.remotePools.get(poolHash).isFound, TokenPool_Error.PoolAlreadyAdded);
     // Add the pool to the mapping to be able to un-hash it later.
     config.remotePools.set(poolHash, remotePoolAddress);
@@ -1230,13 +1287,6 @@ fun TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32, al
         return;
     }
     assert(allowedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG && requestedFinalityConfig == allowedFinalityConfig, TokenPool_Error.InvalidRequestedFinality);
-}
-
-fun TokenPool_hashCrossChainAddress(value: Cell<CrossChainAddress>): uint256 {
-    var cs = value.beginParse();
-    val addressBytes = CrossChainAddress.unpackFromSlice(mutate cs);
-    cs.assertEnd();
-    return keccak256(beginCell().storeSlice(addressBytes));
 }
 
 fun TokenPool_isEmptyCrossChainAddress(value: Cell<CrossChainAddress>): bool {

@@ -2103,6 +2103,90 @@ export const TokenPool_RateLimitConfiguredNotification = {
 }
 
 /**
+ > struct (0x3c50a39f) TokenPool_CursedSubjectsUpdated {
+ >     queryId: uint64
+ >     cursedSubjects: CursedSubjects
+ > }
+ */
+export interface TokenPool_CursedSubjectsUpdated {
+    readonly $: 'TokenPool_CursedSubjectsUpdated'
+    queryId: uint64
+    cursedSubjects: CursedSubjects
+}
+
+export const TokenPool_CursedSubjectsUpdated = {
+    PREFIX: 0x3c50a39f,
+
+    create(args: {
+        queryId: uint64
+        cursedSubjects: CursedSubjects
+    }): TokenPool_CursedSubjectsUpdated {
+        return {
+            $: 'TokenPool_CursedSubjectsUpdated',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_CursedSubjectsUpdated {
+        loadAndCheckPrefix32(s, 0x3c50a39f, 'TokenPool_CursedSubjectsUpdated');
+        return {
+            $: 'TokenPool_CursedSubjectsUpdated',
+            queryId: s.loadUintBig(64),
+            cursedSubjects: CursedSubjects.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_CursedSubjectsUpdated, b: c.Builder): void {
+        b.storeUint(0x3c50a39f, 32);
+        b.storeUint(self.queryId, 64);
+        CursedSubjects.store(self.cursedSubjects, b);
+    },
+    toCell(self: TokenPool_CursedSubjectsUpdated): c.Cell {
+        return makeCellFrom<TokenPool_CursedSubjectsUpdated>(self, TokenPool_CursedSubjectsUpdated.store);
+    }
+}
+
+/**
+ > struct (0x3c50a39a) TokenPool_AdvancedPoolHooksUpdated {
+ >     queryId: uint64
+ >     advancedPoolHooks: address?
+ > }
+ */
+export interface TokenPool_AdvancedPoolHooksUpdated {
+    readonly $: 'TokenPool_AdvancedPoolHooksUpdated'
+    queryId: uint64
+    advancedPoolHooks: c.Address | null
+}
+
+export const TokenPool_AdvancedPoolHooksUpdated = {
+    PREFIX: 0x3c50a39a,
+
+    create(args: {
+        queryId: uint64
+        advancedPoolHooks: c.Address | null
+    }): TokenPool_AdvancedPoolHooksUpdated {
+        return {
+            $: 'TokenPool_AdvancedPoolHooksUpdated',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksUpdated {
+        loadAndCheckPrefix32(s, 0x3c50a39a, 'TokenPool_AdvancedPoolHooksUpdated');
+        return {
+            $: 'TokenPool_AdvancedPoolHooksUpdated',
+            queryId: s.loadUintBig(64),
+            advancedPoolHooks: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_AdvancedPoolHooksUpdated, b: c.Builder): void {
+        b.storeUint(0x3c50a39a, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.advancedPoolHooks);
+    },
+    toCell(self: TokenPool_AdvancedPoolHooksUpdated): c.Cell {
+        return makeCellFrom<TokenPool_AdvancedPoolHooksUpdated>(self, TokenPool_AdvancedPoolHooksUpdated.store);
+    }
+}
+
+/**
  > struct TokenPool_ChainAdded {
  >     remoteChainSelector: uint64
  >     remoteTokenAddress: Cell<CrossChainAddress>
@@ -2257,6 +2341,7 @@ export const TokenPool_RampAccessUpdated = {
  >     rmnProxy: address
  >     dynamicConfig: Cell<TokenPool_DynamicConfig>
  >     allowedFinalityConfig: uint32
+ >     advancedPoolHooks: address?
  > }
  */
 export interface TokenPool_AdminConfig {
@@ -2265,6 +2350,7 @@ export interface TokenPool_AdminConfig {
     rmnProxy: c.Address
     dynamicConfig: CellRef<TokenPool_DynamicConfig>
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
+    advancedPoolHooks: c.Address | null
 }
 
 export const TokenPool_AdminConfig = {
@@ -2273,6 +2359,7 @@ export const TokenPool_AdminConfig = {
         rmnProxy: c.Address
         dynamicConfig: CellRef<TokenPool_DynamicConfig>
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
+        advancedPoolHooks: c.Address | null
     }): TokenPool_AdminConfig {
         return {
             $: 'TokenPool_AdminConfig',
@@ -2287,6 +2374,7 @@ export const TokenPool_AdminConfig = {
             rmnProxy: s.loadAddress(),
             dynamicConfig: loadCellRef<TokenPool_DynamicConfig>(s, TokenPool_DynamicConfig.fromSlice),
             allowedFinalityConfig: s.loadUintBig(32),
+            advancedPoolHooks: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_AdminConfig, b: c.Builder): void {
@@ -2294,6 +2382,7 @@ export const TokenPool_AdminConfig = {
         b.storeAddress(self.rmnProxy);
         storeCellRef<TokenPool_DynamicConfig>(self.dynamicConfig, b, TokenPool_DynamicConfig.store);
         b.storeUint(self.allowedFinalityConfig, 32);
+        b.storeAddress(self.advancedPoolHooks);
     },
     toCell(self: TokenPool_AdminConfig): c.Cell {
         return makeCellFrom<TokenPool_AdminConfig>(self, TokenPool_AdminConfig.store);

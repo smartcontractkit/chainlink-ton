@@ -11,7 +11,6 @@ const TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED = stringCrc32("TokenPool_RemotePoolAdde
 const TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED = stringCrc32("TokenPool_RemotePoolRemoved");
 const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = stringCrc32("TokenPool_DynamicConfigSet");
 const TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED = stringCrc32("TokenPool_RampAccessUpdated");
-const TOPIC_TOKEN_POOL_CURSED_SUBJECTS_UPDATED = stringCrc32("TokenPool_CursedSubjectsUpdated");
 const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = stringCrc32("TokenPool_FinalityConfigSet");
 const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = stringCrc32("TokenPool_RateLimitConfigured");
 
@@ -106,8 +105,6 @@ struct TokenPool_RampAccessUpdated {
     onRamp: address? = null;
     offRamp: address? = null;
 }
-
-struct TokenPool_CursedSubjectsUpdated {}
 
 type TokenPool_Events = 
     | TokenPool_ChainAdded

@@ -192,6 +192,16 @@ struct (0x3c50a39e) TokenPool_RateLimitConfiguredNotification {
     queryId: uint64;
 }
 
+struct (0x3c50a39f) TokenPool_CursedSubjectsUpdated {
+    queryId: uint64;
+    cursedSubjects: CursedSubjects;
+}
+
+struct (0x3c50a39a) TokenPool_AdvancedPoolHooksUpdated {
+    queryId: uint64;
+    advancedPoolHooks: address?;
+}
+
 type TokenPool_OutMessage = 
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
@@ -202,5 +212,6 @@ type TokenPool_OutMessage =
     | TokenPool_RemotePoolRemovedNotification
     | TokenPool_FinalityConfigSet
     | TokenPool_DynamicConfigSet
-    | TokenPool_RateLimitConfiguredNotification;
-    // TODO: add more outgoing reply messages
+    | TokenPool_RateLimitConfiguredNotification
+    | TokenPool_CursedSubjectsUpdated
+    | TokenPool_AdvancedPoolHooksUpdated;

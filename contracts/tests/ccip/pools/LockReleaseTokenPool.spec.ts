@@ -120,6 +120,7 @@ describe('LockReleaseTokenPool', () => {
                   }),
                 },
                 allowedFinalityConfig: 0n,
+                advancedPoolHooks: null,
               }),
             },
             mirroredPolicy: {

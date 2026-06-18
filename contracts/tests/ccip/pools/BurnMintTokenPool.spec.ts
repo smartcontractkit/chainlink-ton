@@ -107,6 +107,7 @@ describe('BurnMintTokenPool', () => {
                   }),
                 },
                 allowedFinalityConfig: 0n,
+                advancedPoolHooks: null,
               }),
             },
             mirroredPolicy: {
