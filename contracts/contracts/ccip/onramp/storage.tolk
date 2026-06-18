@@ -16,7 +16,8 @@ struct OnRamp_Storage {
     executor: ExecutorDeployment;
 
     // Address of the TokenRegistry queried by the CCIPSendExecutor during token transfers.
-    // Null until token transfers are configured. TODO: replace with per-token registry resolution.
+    // Null until token transfers are configured.
+    // TODO: replace with per-token registry resolution.
     tokenRegistry: address?;
 }
 

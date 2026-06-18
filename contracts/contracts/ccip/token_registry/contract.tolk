@@ -6,7 +6,7 @@ tolk 1.4.1
 
 contract TokenRegistry {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.6.0"
     description: "link.chain.ton.ccip.TokenRegistry"
 
     storage: TokenRegistry_Storage
@@ -21,10 +21,20 @@ fun onInternalMessage(in: InMessage) {
             //TODO: min value assertion
             onGetTokenInfo(msg, in.senderAddress);
         }
+        TokenRegistry_SetTokenInfo => {
+            onSetTokenInfo(msg, in.senderAddress);
+        }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
+}
+
+fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
+    //TODO access control
+    var st = TokenRegistry_Storage.load();
+    st.info = msg.info;
+    st.store();
 }
 
 fun onGetTokenInfo(msg: TokenRegistry_GetTokenInfo, sender: address) {

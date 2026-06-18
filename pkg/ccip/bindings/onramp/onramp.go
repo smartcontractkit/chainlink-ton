@@ -103,8 +103,7 @@ type Storage struct {
 	Config           DynamicConfig        `tlb:"^"`
 	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
 	Executor         ExecutorDeployment   `tlb:"."`
-	// TokenRegistry queried by the CCIPSendExecutor during token transfers.
-	// Optional (address?): addr_none until token transfers are configured.
+	//TODO: Remove when TokenRegistry is sharded
 	TokenRegistry *address.Address `tlb:"addr"`
 }
 
