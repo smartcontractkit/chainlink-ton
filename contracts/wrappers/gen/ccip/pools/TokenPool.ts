@@ -2066,6 +2066,43 @@ export const TokenPool_DynamicConfigSet = {
 }
 
 /**
+ > struct (0x3c50a39e) TokenPool_RateLimitConfiguredNotification {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_RateLimitConfiguredNotification {
+    readonly $: 'TokenPool_RateLimitConfiguredNotification'
+    queryId: uint64
+}
+
+export const TokenPool_RateLimitConfiguredNotification = {
+    PREFIX: 0x3c50a39e,
+
+    create(args: {
+        queryId: uint64
+    }): TokenPool_RateLimitConfiguredNotification {
+        return {
+            $: 'TokenPool_RateLimitConfiguredNotification',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RateLimitConfiguredNotification {
+        loadAndCheckPrefix32(s, 0x3c50a39e, 'TokenPool_RateLimitConfiguredNotification');
+        return {
+            $: 'TokenPool_RateLimitConfiguredNotification',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_RateLimitConfiguredNotification, b: c.Builder): void {
+        b.storeUint(0x3c50a39e, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_RateLimitConfiguredNotification): c.Cell {
+        return makeCellFrom<TokenPool_RateLimitConfiguredNotification>(self, TokenPool_RateLimitConfiguredNotification.store);
+    }
+}
+
+/**
  > struct TokenPool_ChainAdded {
  >     remoteChainSelector: uint64
  >     remoteTokenAddress: Cell<CrossChainAddress>
@@ -2133,6 +2170,39 @@ export const TokenPool_ChainRemoved = {
     },
     toCell(self: TokenPool_ChainRemoved): c.Cell {
         return makeCellFrom<TokenPool_ChainRemoved>(self, TokenPool_ChainRemoved.store);
+    }
+}
+
+/**
+ > struct TokenPool_RateLimitConfigured {
+ >     args: TokenPool_RateLimitConfigArgs
+ > }
+ */
+export interface TokenPool_RateLimitConfigured {
+    readonly $: 'TokenPool_RateLimitConfigured'
+    args: TokenPool_RateLimitConfigArgs
+}
+
+export const TokenPool_RateLimitConfigured = {
+    create(args: {
+        args: TokenPool_RateLimitConfigArgs
+    }): TokenPool_RateLimitConfigured {
+        return {
+            $: 'TokenPool_RateLimitConfigured',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RateLimitConfigured {
+        return {
+            $: 'TokenPool_RateLimitConfigured',
+            args: TokenPool_RateLimitConfigArgs.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_RateLimitConfigured, b: c.Builder): void {
+        TokenPool_RateLimitConfigArgs.store(self.args, b);
+    },
+    toCell(self: TokenPool_RateLimitConfigured): c.Cell {
+        return makeCellFrom<TokenPool_RateLimitConfigured>(self, TokenPool_RateLimitConfigured.store);
     }
 }
 

@@ -3,16 +3,17 @@ import "../common/types"
 
 import "types"
 
-const TOKEN_POOL_LOCKED_OR_BURNED_TOPIC = stringCrc32("TokenPool_LockedOrBurned");
-const TOKEN_POOL_RELEASED_OR_MINTED_TOPIC = stringCrc32("TokenPool_ReleasedOrMinted");
-const TOKEN_POOL_CHAIN_ADDED_TOPIC = stringCrc32("TokenPool_ChainAdded");
-const TOKEN_POOL_CHAIN_REMOVED_TOPIC = stringCrc32("TokenPool_ChainRemoved");
-const TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC = stringCrc32("TokenPool_RemotePoolAdded");
-const TOKEN_POOL_REMOTE_POOL_REMOVED_TOPIC = stringCrc32("TokenPool_RemotePoolRemoved");
-const TOKEN_POOL_DYNAMIC_CONFIG_SET_TOPIC = stringCrc32("TokenPool_DynamicConfigSet");
-const TOKEN_POOL_RAMP_ACCESS_UPDATED_TOPIC = stringCrc32("TokenPool_RampAccessUpdated");
-const TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC = stringCrc32("TokenPool_CursedSubjectsUpdated");
-const TOKEN_POOL_FINALITY_CONFIG_SET_TOPIC = stringCrc32("TokenPool_FinalityConfigSet");
+const TOPIC_TOKEN_POOL_LOCKED_OR_BURNED = stringCrc32("TokenPool_LockedOrBurned");
+const TOPIC_TOKEN_POOL_RELEASED_OR_MINTED = stringCrc32("TokenPool_ReleasedOrMinted");
+const TOPIC_TOKEN_POOL_CHAIN_ADDED = stringCrc32("TokenPool_ChainAdded");
+const TOPIC_TOKEN_POOL_CHAIN_REMOVED = stringCrc32("TokenPool_ChainRemoved");
+const TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED = stringCrc32("TokenPool_RemotePoolAdded");
+const TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED = stringCrc32("TokenPool_RemotePoolRemoved");
+const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = stringCrc32("TokenPool_DynamicConfigSet");
+const TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED = stringCrc32("TokenPool_RampAccessUpdated");
+const TOPIC_TOKEN_POOL_CURSED_SUBJECTS_UPDATED = stringCrc32("TokenPool_CursedSubjectsUpdated");
+const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = stringCrc32("TokenPool_FinalityConfigSet");
+const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = stringCrc32("TokenPool_RateLimitConfigured");
 
 struct TokenPool_LockedOrBurned {
     remoteChainSelector: uint64;
@@ -87,6 +88,11 @@ struct TokenPool_TokenTransferFeeConfigDeleted {
 
 //   event FastFinalityOutboundRateLimitConsumed(uint64 indexed remoteChainSelector, address token, uint256 amount);
 //   event FastFinalityInboundRateLimitConsumed(uint64 indexed remoteChainSelector, address token, uint256 amount);
+
+struct TokenPool_RateLimitConfigured {
+    args: TokenPool_RateLimitConfigArgs;
+}
+
 //   event RateLimitConfigured(
 //     uint64 indexed remoteChainSelector,
 //     bool fastFinality,
@@ -106,4 +112,5 @@ struct TokenPool_CursedSubjectsUpdated {}
 type TokenPool_Events = 
     | TokenPool_ChainAdded
     | TokenPool_ChainRemoved
+    | TokenPool_RateLimitConfigured
     | TokenPool_RampAccessUpdated;

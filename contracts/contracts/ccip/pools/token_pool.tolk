@@ -297,7 +297,7 @@ fun TokenPool<T>.removeRemotePool(
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     // We emit in addition to reply to sender, to stay consistent with TokenPool_RemotePoolAdded event
-    emit(TOKEN_POOL_REMOTE_POOL_REMOVED_TOPIC, TokenPool_RemotePoolRemoved {
+    emit(TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED, TokenPool_RemotePoolRemoved {
         remoteChainSelector,
         remotePoolAddress,
     });
@@ -335,7 +335,7 @@ fun TokenPool<T>.applyChainUpdates(
         val deleted = self.data.remoteChainConfigs.delete(remoteChainSelector);
         assert(deleted, TokenPool_Error.NonExistentChain);
 
-        emit(TOKEN_POOL_CHAIN_REMOVED_TOPIC, TokenPool_ChainRemoved { remoteChainSelector });
+        emit(TOPIC_TOKEN_POOL_CHAIN_REMOVED, TokenPool_ChainRemoved { remoteChainSelector });
     }
 
     var addIter = chainsToAdd.iter();
@@ -375,7 +375,7 @@ fun TokenPool<T>.applyChainUpdates(
 
         self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-        emit(TOKEN_POOL_CHAIN_ADDED_TOPIC, TokenPool_ChainAdded {
+        emit(TOPIC_TOKEN_POOL_CHAIN_ADDED, TokenPool_ChainAdded {
             remoteChainSelector,
             remoteTokenAddress,
         });
@@ -412,7 +412,7 @@ fun TokenPool<T>.applyRampAccessUpdates(
             mirroredPolicy.offRamps.delete(update.remoteChainSelector);
         }
 
-        emit(TOKEN_POOL_RAMP_ACCESS_UPDATED_TOPIC, TokenPool_RampAccessUpdated {
+        emit(TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED, TokenPool_RampAccessUpdated {
             remoteChainSelector: update.remoteChainSelector,
             onRamp: update.onRamp,
             offRamp: update.offRamp,
@@ -441,7 +441,7 @@ fun TokenPool<T>.setCursedSubjects(
     mirroredPolicy.cursedSubjects = cursedSubjects;
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 
-    emit(TOKEN_POOL_CURSED_SUBJECTS_UPDATED_TOPIC, TokenPool_CursedSubjectsUpdated {})
+    emit(TOPIC_TOKEN_POOL_CURSED_SUBJECTS_UPDATED, TokenPool_CursedSubjectsUpdated {})
 }
 
 fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice): bool {
@@ -492,7 +492,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.setAllowedFinalityConfig(msgSender, msg.queryId, msg.allowedFinalityConfig);
         }
         TokenPool_SetRateLimitConfig => {
-            self.setRateLimitConfig(msgSender, msg.updates);
+            self.setRateLimitConfig(msgSender, msg.queryId, msg.updates);
         }
         TokenPool_ApplyTokenTransferFeeConfigUpdates => {
             self.applyTokenTransferFeeConfigUpdates(msgSender, msg.updates, msg.disableChainSelectors);
@@ -756,7 +756,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     val prepared = lazy fwdPayload.prepared.load();
 
     var request = requestMsg.request.load();
-    emit(TOKEN_POOL_LOCKED_OR_BURNED_TOPIC, TokenPool_LockedOrBurned {
+    emit(TOPIC_TOKEN_POOL_LOCKED_OR_BURNED, TokenPool_LockedOrBurned {
         remoteChainSelector: request.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
             token: request.localToken,
@@ -882,14 +882,16 @@ fun TokenPool<T>.requireSupportedChain(self, remoteChainSelector: uint64) {
     assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.ChainNotAllowed);
 }
 
-fun TokenPool<T>.requireOwnerOrRateLimitAdmin(self, sender: address) {
+/// Checks whether the msg.sender is either the owner or the rate limit admin.
+fun TokenPool<T>.onlyOwnerOrRateLimitAdmin(self, sender: address) {
     val adminConfig = self.data.adminConfig.load();
-    val ownable = adminConfig.ownable.load();
-    if (sender == ownable.owner) {
-        return;
-    }
     val dynamicConfig = adminConfig.dynamicConfig.load();
-    assert(dynamicConfig.rateLimitAdmin != null && sender == dynamicConfig.rateLimitAdmin, TokenPool_Error.Unauthorized);
+    val ownable = adminConfig.ownable.load();
+    assert(
+        (dynamicConfig.rateLimitAdmin != null && sender == dynamicConfig.rateLimitAdmin)
+        || sender == ownable.owner,
+        TokenPool_Error.Unauthorized
+    );
 }
 
 fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
@@ -1085,9 +1087,10 @@ fun TokenPool<T>.getCurrentRateLimiterState(
 fun TokenPool<T>.setRateLimitConfig(
     mutate self,
     sender: address,
+    queryId: uint64,
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>,
 ) {
-    self.requireOwnerOrRateLimitAdmin(sender);
+    self.onlyOwnerOrRateLimitAdmin(sender);
 
     var iter = updates.iter();
     while (!iter.empty()) {
@@ -1108,16 +1111,16 @@ fun TokenPool<T>.setRateLimitConfig(
         }
         self.data.remoteChainConfigs.set(update.remoteChainSelector, config);
 
-        // TODO: emit event with updated rate limiter config
-        // emit RateLimitConfigured(
-        //     remoteChainSelector,
-        //     configArgs.fastFinality,
-        //     configArgs.outboundRateLimiterConfig,
-        //     configArgs.inboundRateLimiterConfig
-        // );
+        emit(TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED, TokenPool_RateLimitConfigured { args: update });
     }
 
-    // TODO: reply back to sender with excess
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_RateLimitConfiguredNotification { queryId },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Adds a pool address to the allowed remote token pools for a particular chain.
@@ -1136,7 +1139,7 @@ fun TokenPool<T>._setRemotePool(
     // Add the pool to the mapping to be able to un-hash it later.
     config.remotePools.set(poolHash, remotePoolAddress);
 
-    emit(TOKEN_POOL_REMOTE_POOL_ADDED_TOPIC, TokenPool_RemotePoolAdded {
+    emit(TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED, TokenPool_RemotePoolAdded {
         remoteChainSelector,
         remotePoolAddress,
     });

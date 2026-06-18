@@ -170,7 +170,7 @@ fun onReturnExcessesBack(
     val request = pending.request.load();
     val out = pending.out.load();
 
-    emit(TOKEN_POOL_RELEASED_OR_MINTED_TOPIC, TokenPool_ReleasedOrMinted {
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: request.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
             token: request.localToken,

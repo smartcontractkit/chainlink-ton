@@ -179,11 +179,17 @@ struct (0x3c50a39c) TokenPool_FinalityConfigSet {
     allowedFinalityConfig: uint32;
 }
 
+/// Replied on `TokenPool_SetDynamicConfig` to confirm tx and return excess to sender.
 struct (0x3c50a39d) TokenPool_DynamicConfigSet {
     queryId: uint64;
     router: address;
     rateLimitAdmin: address?;
     feeAdmin: address?;
+}
+
+/// Replied on `TokenPool_SetRateLimitConfig` to confirm tx and return excess to sender.
+struct (0x3c50a39e) TokenPool_RateLimitConfiguredNotification {
+    queryId: uint64;
 }
 
 type TokenPool_OutMessage = 
@@ -195,5 +201,6 @@ type TokenPool_OutMessage =
     | TokenPool_RemotePoolAddedNotification
     | TokenPool_RemotePoolRemovedNotification
     | TokenPool_FinalityConfigSet
-    | TokenPool_DynamicConfigSet;
+    | TokenPool_DynamicConfigSet
+    | TokenPool_RateLimitConfiguredNotification;
     // TODO: add more outgoing reply messages
