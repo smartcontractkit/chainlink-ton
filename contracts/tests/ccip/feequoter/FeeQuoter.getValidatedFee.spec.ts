@@ -313,6 +313,60 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
+
+  it.skip('should revert when too many tokens', async () => {
+    const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
+
+    const message: rt.CCIPSend = {
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      receiver: FeeQuoterSetup.DEST_ADDRESS,
+      data: beginCell().endCell(),
+      tokenAmounts: tooManyTokens.map((token) => ({
+        token: token.token,
+        amount: toNano('100'),
+      })),
+      feeToken: FeeQuoterSetup.NATIVE_TON.token,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          allowOutOfOrderExecution: false,
+        })
+        .endCell(),
+    }
+
+    const result = await setup.bind.feeQuoter.sendGetValidatedFee(
+      setup.acc.externalCaller.getSender(),
+      {
+        value: toNano('1'),
+        msg: { msg: message, context: beginCell().asSlice() },
+      },
+    )
+
+    // Should return failure - destination chain not configured
+    expect(result.transactions).toHaveTransaction({
+      from: setup.acc.externalCaller.getSender().address,
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      op: sx.opcodes.in.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+          x,
+          sx.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(feeQuoter.errors.UnsupportedNumberOfTokens)
+            },
+          ],
+        )
+      },
+    })
+  })
+
   it('accepts a token transfer and prices it like a token-less message', async () => {
     // Token transfers are now allowed; the extra token-transfer fee is currently ignored,
     // so a single-token message is priced exactly like the equivalent token-less message.
