@@ -657,7 +657,15 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
     nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-//TODO Should be a jetton transfer to the TokenPool wallet, and the LockOrBurn message should go in the forwardPayload of that jetton transfer
+//TODO: Sending LockOrBurn to the TokenPool should trigger a withdraw pattern to get the tokens to the TP
+/*
+The thing is at this point we still didn't go through all the preflight checks - (1) gas check for TP processing - unique per TP/Jetton, (2) rate limiter check, (3) advanced hooks check
+
+We don't want to move funds then return if any of those fail, but ideally we do all the checks and withdraw funds sequentially.
+*/
+/*
+withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
+*/
 fun onLockOrBurn(msg: Router_LockOrBurn) {
     val tokenPoolLockOrBurn = createMessage({
         bounce: true,
