@@ -26,13 +26,12 @@ contract LockReleaseTokenPool {
     storage: Storage
     incomingMessages:
         | TokenPool_InMessage
-        | LockReleaseTokenPool_InMessage // TODO: all incoming messages should be registered
-    outgoingMessages: TokenPool_OutMessage
+        | LockReleaseTokenPool_InMessage
+    outgoingMessages:
+        | TokenPool_OutMessage
+        | LockReleaseTokenPool_OutMessage
+    emittedEvents: TokenPool_Events
 }
-
-// TODO:
-// _lockOrBurn -> after async checks, (1) does nothing, or (2) deposits to the Lockbox
-// _releaseOrMint -> after async checks, (1) transfers from own wallet, or (2) withdraws from the Lockbox
 
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
@@ -48,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         ReturnExcessesBack => {
-            onReturnExcessesBack(mutate st, msg, in.senderAddress);
+            onReturnExcessesBack(mutate st, in.senderAddress, msg);
             st.store();
         }
         else => {
@@ -111,8 +110,8 @@ fun onReleaseOrMintContinue(
 
 fun onReturnExcessesBack(
     mutate st: Storage,
-    msg: ReturnExcessesBack,
     sender: address,
+    msg: ReturnExcessesBack,
 ) {
     val pendingEntry = st.pendingReleases.get(msg.queryId);
     assert(pendingEntry.isFound, Error.PendingReleaseNotFound);

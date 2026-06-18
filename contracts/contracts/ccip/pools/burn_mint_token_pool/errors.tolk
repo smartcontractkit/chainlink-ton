@@ -3,9 +3,8 @@
 const BurnMintTokenPool_FACILITY_NAME = "link.chain.ton.ccip.BurnMintTokenPool";
 const BurnMintTokenPool_FACILITY_ID = 412;  // (crc32(<facility>) % 640) + 10
 
-enum Error {
-    IncorrectJettonSender = BurnMintTokenPool_FACILITY_ID * 100
-    PendingBurnAlreadyExists
+enum BurnMintTokenPool_Error {
+    PendingBurnAlreadyExists = BurnMintTokenPool_FACILITY_ID * 100
     PendingBurnNotFound
     PendingMintAlreadyExists
     PendingMintNotFound

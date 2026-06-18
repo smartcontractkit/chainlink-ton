@@ -9,3 +9,8 @@ struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
 type BurnMintTokenPool_InMessage =
     | BurnMintTokenPool_ClaimMinterAdmin
     | ReturnExcessesBack;
+
+type BurnMintTokenPool_OutMessage =
+    | ClaimMinterAdmin
+    | MintNewJettons
+    | AskToBurn;

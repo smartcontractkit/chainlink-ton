@@ -5,4 +5,8 @@ import "../messages"
 type LockReleaseTokenPool_InMessage =
     | ReturnExcessesBack;
 
-type LockReleaseTokenPool_BouncedMessage = AskToTransfer;
+type LockReleaseTokenPool_OutMessage =
+    | AskToTransfer;
+
+type LockReleaseTokenPool_BouncedMessage =
+    | AskToTransfer;

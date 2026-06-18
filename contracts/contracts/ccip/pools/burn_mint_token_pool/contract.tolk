@@ -25,8 +25,11 @@ contract BurnMintTokenPool {
     storage: Storage
     incomingMessages:
         | TokenPool_InMessage
-        | BurnMintTokenPool_InMessage // TODO: all incoming messages should be registered
-    outgoingMessages: TokenPool_OutMessage
+        | BurnMintTokenPool_InMessage
+    outgoingMessages:
+        | TokenPool_OutMessage
+        | BurnMintTokenPool_OutMessage
+    emittedEvents: TokenPool_Events
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -43,34 +46,17 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
-            onClaimMinterAdmin(mutate st, in.senderAddress, msg);
+            onClaimMinterAdmin(mutate st, in.senderAddress, msg.queryId);
             st.store();
         }
         ReturnExcessesBack => {
-            onReturnExcessesBack(mutate st, msg, in.senderAddress);
+            onReturnExcessesBack(mutate st, in.senderAddress, msg);
             st.store();
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
     }
-}
-
-fun onClaimMinterAdmin(
-    mutate st: Storage,
-    sender: address,
-    msg: BurnMintTokenPool_ClaimMinterAdmin,
-) {
-    st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
-
-    createMessage({
-        bounce: true,
-        value: BurnMintTokenPool_CLAIM_ADMIN_VALUE,
-        dest: st.jettonClient.load().masterAddress,
-        body: ClaimMinterAdmin {
-            queryId: msg.queryId,
-        },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Token pool used for burn and mint tokens. This uses a burn and mint mechanism.
@@ -83,7 +69,7 @@ fun onLockOrBurnTransferContinue(
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val prepared = lazy fwdPayload.prepared.load();
 
-    assert(!st.pendingBurns.get(requestMsg.queryId).isFound, Error.PendingBurnAlreadyExists);
+    assert(!st.pendingBurns.get(requestMsg.queryId).isFound, BurnMintTokenPool_Error.PendingBurnAlreadyExists);
 
     val jettonClient = st.jettonClient.load();
     st.pendingBurns.set(requestMsg.queryId, BurnMintTokenPool_PendingBurn {
@@ -98,7 +84,7 @@ fun onLockOrBurnTransferContinue(
         body: AskToBurn {
             queryId: requestMsg.queryId,
             jettonAmount: prepared.destTokenAmount as coins,
-            sendExcessesTo: contract.getAddress(),
+            sendExcessesTo: contract.getAddress(), // TODO: use ContextExecutor addr as proxy
             customPayload: null,
         },
     });
@@ -115,7 +101,7 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    assert(!st.pendingMints.get(msg.queryId).isFound, Error.PendingMintAlreadyExists);
+    assert(!st.pendingMints.get(msg.queryId).isFound, BurnMintTokenPool_Error.PendingMintAlreadyExists);
     val jettonClient = st.jettonClient.load();
     val request = lazy prepared.request.load();
 
@@ -155,15 +141,31 @@ fun onReleaseOrMintContinue(
     return st;
 }
 
+fun onClaimMinterAdmin(
+    mutate st: Storage,
+    sender: address,
+    queryId: uint64,
+) {
+    st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
+
+    val claim = createMessage({
+        bounce: BounceMode.Only256BitsOfBody,
+        value: BurnMintTokenPool_CLAIM_ADMIN_VALUE,
+        dest: st.jettonClient.load().masterAddress,
+        body: ClaimMinterAdmin { queryId },
+    });
+    claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 fun onReturnExcessesBack(
     mutate st: Storage,
-    msg: ReturnExcessesBack,
     sender: address,
+    msg: ReturnExcessesBack,
 ) {
     val burnEntry = st.pendingBurns.get(msg.queryId);
     if (burnEntry.isFound) {
         val pending = burnEntry.loadValue().load();
-        assert(sender == pending.expectedSender, Error.UnexpectedBurnConfirmationSender);
+        assert(sender == pending.expectedSender, BurnMintTokenPool_Error.UnexpectedBurnConfirmationSender);
 
         st.pendingBurns.delete(msg.queryId);
 
@@ -172,10 +174,10 @@ fun onReturnExcessesBack(
     }
 
     val mintEntry = st.pendingMints.get(msg.queryId);
-    assert(mintEntry.isFound, Error.PendingMintNotFound);
+    assert(mintEntry.isFound, BurnMintTokenPool_Error.PendingMintNotFound);
 
     val pending = mintEntry.loadValue().load();
-    assert(sender == pending.expectedSender, Error.UnexpectedMintConfirmationSender);
+    assert(sender == pending.expectedSender, BurnMintTokenPool_Error.UnexpectedMintConfirmationSender);
 
     st.pendingMints.delete(msg.queryId);
     val request = pending.request.load();
@@ -192,15 +194,16 @@ fun onReturnExcessesBack(
     });
 
     if (pending.replyTo != null) {
-        createMessage({
-            bounce: true,
+        val notify = createMessage({
+            bounce: BounceMode.NoBounce,
             value: BurnMintTokenPool_REPLY_VALUE,
             dest: pending.replyTo!,
             body: TokenPool_ReleaseOrMintFinished {
                 queryId: msg.queryId,
                 out: pending.out,
             },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        });
+        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 
