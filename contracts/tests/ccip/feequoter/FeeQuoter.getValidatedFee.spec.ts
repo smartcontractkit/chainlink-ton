@@ -313,7 +313,6 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-
   it.skip('should revert when too many tokens', async () => {
     const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
 
