@@ -102,6 +102,7 @@ var AllContractTypes = []struct {
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
 	{ShortMockTokenPool, TypeTestTokenPool},
+	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
