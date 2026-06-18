@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  CONFIG_URL: https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
+  CONFIG_URL: https://raw.githubusercontent.com/smartcontractkit/chainlink/5638f1698966509af1265aec46a438af04755ea0/.golangci.yml
 
 jobs:
   discover-modules:
