@@ -170,6 +170,9 @@ fun onInternalMessage(in: InMessage) {
             // - We either need to return them (do we have enough gas to return?)
             // - Or we need to store state and mark them invalid to be able to withdraw
             // - Or we need a per-user deposit account which would do the checks and allow the user to withdraw
+            // Issue with returning/notifying is that we could fail down the line on any contract involved.
+            // Trying to catch every single error to notify failure could be very hard so a deposit account that always allows withdrawals
+            // could be the best solutuion. As long as we are able to guarantee we won't consume already withdrawn tokens
 
             // TODO minValue is probably higher for a tokenTransfer as it needs more hops.
             // We should revisit our entire min gas assertion model anyway

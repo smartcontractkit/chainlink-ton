@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: BUSL-1.1
 import "types"
 import "messages"
 import "storage"
@@ -181,7 +180,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenRegistry_ReturnTokenInfo) {
     //TODO validate sender wallet address by querying the jettonMinter
-    assert(msg.tokenInfo.enabled) throw CCIPSendExecutor_Error.TokenNotEnabled;
+    //TODO instead of throw maybe this should exit with error?
+    assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
     val onrampSend = lazy self.onrampSend.msg.load();
     val tokenAmount = onrampSend.tokenAmounts.iter().next();
     val addresses = lazy self.addresses.load();
@@ -191,7 +191,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             tokenAmount,
-            tokenPool: msg.tokenInfo.tokenPool,
+            tokenPool: msg.tokenPool,
             destChainSelector: onrampSend.destChainSelector,
             executorID: self.id,
         }
@@ -202,7 +202,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenTransfer {
-            tokenPool: msg.tokenInfo.tokenPool,
+            tokenPool: msg.tokenPool,
             fee: self.state.load().fee,
         }.toCell(),
     };

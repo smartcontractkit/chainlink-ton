@@ -29,13 +29,17 @@ fun onInternalMessage(in: InMessage) {
 
 fun onGetTokenInfo(msg: TokenRegistry_GetTokenInfo, sender: address) {
     val st = TokenRegistry_Storage.load();
-    //TODO we might want to send a different message than ReturnTokenInfo when the token is not enabled
+    var tokenPool: address? = null;
+    if (st.info.enabled) {
+        tokenPool = st.info.tokenPool;
+    }
     val response = createMessage({
         dest: sender,
         value: 0,
         bounce: false,
         body: TokenRegistry_ReturnTokenInfo {
-            tokenInfo: st.info,
+            minterAddress: st.info.minterAddress,
+            tokenPool,
         }
     });
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
