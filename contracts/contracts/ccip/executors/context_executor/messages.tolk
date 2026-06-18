@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
 
-struct (0x3c50a300) ContextExecutor_Init<T> {
+struct (0x3c50a300) ContextExecutor_Set<T> {
     queryId: uint64;
     context: Cell<T>;
     forwardFrom: array<address>;
@@ -12,10 +12,13 @@ struct (0x3c50a301) ContextExecutor_Ask {
 
     // Per request context
     forwardPayload: cell;
+
+    // Close the context executor after this request is processed.
+    done: bool;
 }
 
 type ContextExecutor_InMessage<T> =
-    | ContextExecutor_Init<T>
+    | ContextExecutor_Set<T>
     | ContextExecutor_Ask;
 
 struct (0x3c50a302) ContextExecutor_Reply<T> {
@@ -27,6 +30,9 @@ struct (0x3c50a302) ContextExecutor_Reply<T> {
 
     // Per request context
     forwardPayload: cell;
+
+    // Whether the context executor was closed.
+    done: bool;
 }
 
 struct (0x3c50a303) ContextExecutor_ForwardNotification<T> {

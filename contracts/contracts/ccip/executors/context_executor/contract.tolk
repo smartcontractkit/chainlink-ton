@@ -15,6 +15,27 @@ contract ContextExecutor {
     incomingMessages: ContextExecutor_InMessage<cell>
 }
 
+@inline
+fun ContextExecutor_Data<T>.fromContractData() {
+	return ContextExecutor_Data<T>.fromCell(contract.getData());
+}
+
+@inline
+fun ContextExecutor_Data<T>.storeAsContractData(self) {
+	contract.setData(self.toCell());
+}
+
+@inline
+fun ContextExecutor<T>.load(): ContextExecutor<T> {
+	return ContextExecutor<T> {
+        data: ContextExecutor_Data<T>.fromContractData(),
+    };
+}
+
+fun ContextExecutor<T>.store(self) {
+	self.data.storeAsContractData();
+}
+
 fun onInternalMessage(in: InMessage) {
 	var executor = ContextExecutor<cell>.load();
     val handled = executor.onInternalMessage(ContextExecutor_InMessageForward {
@@ -37,4 +58,20 @@ fun onInternalMessage(in: InMessage) {
 
 get fun typeAndVersion(): (slice, slice) {
     return ("link.chain.ton.ccip.ContextExecutor".literalSlice(), "0.1.0".literalSlice());
+}
+
+get fun id(): uint64 {
+    return ContextExecutor<cell>.load().data.id;
+}
+
+get fun owner(): address {
+    return ContextExecutor<cell>.load().data.owner;
+}
+
+get fun context(): Cell<cell> {
+    return ContextExecutor<cell>.load().data.context;
+}
+
+get fun forwardFrom(): array<address> {
+    return ContextExecutor<cell>.load().data.forwardFrom;
 }

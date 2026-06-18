@@ -151,6 +151,25 @@ class StackReader {
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
     }
+
+    readArrayOf<T>(readFn_T: (nestedReader: StackReader) => T): T[] {
+        const subItems = this.popExpecting<c.Tuple>('tuple').items;
+        const subReader = new StackReader(subItems);
+        // array len N => N subItems => N calls to readFn_T
+        return [...subItems].map(_ => readFn_T(subReader));
+    }
+
+    readTuple<T>(expectedN: number, readFn_T: (nestedReader: StackReader) => T): T {
+        const subItems = this.popExpecting<c.Tuple>('tuple').items;
+        if (subItems.length !== expectedN) {
+            throw new Error(`expected ${expectedN} items in a tuple, got ${subItems.length}`);
+        }
+        return readFn_T(new StackReader(subItems));
+    }
+
+    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
+        return { ref: loadFn_T(this.readCell().beginParse()) };
+    }
 }
 
 // ————————————————————————————————————————————
@@ -190,29 +209,29 @@ export const ExtraCurrenciesMap = {
 }
 
 /**
- > struct (0x3c50a300) ContextExecutor_Init<T> {
+ > struct (0x3c50a300) ContextExecutor_Set<T> {
  >     queryId: uint64
  >     context: Cell<T>
  >     forwardFrom: array<address>
  > }
  */
-export interface ContextExecutor_Init<T> {
-    readonly $: 'ContextExecutor_Init'
+export interface ContextExecutor_Set<T> {
+    readonly $: 'ContextExecutor_Set'
     queryId: uint64
     context: CellRef<T>
     forwardFrom: array<c.Address>
 }
 
-export const ContextExecutor_Init = {
+export const ContextExecutor_Set = {
     PREFIX: 0x3c50a300,
 
     create<T>(args: {
         queryId: uint64
         context: CellRef<T>
         forwardFrom: array<c.Address>
-    }): ContextExecutor_Init<T> {
+    }): ContextExecutor_Set<T> {
         return {
-            $: 'ContextExecutor_Init',
+            $: 'ContextExecutor_Set',
             ...args
         }
     },
@@ -222,12 +241,14 @@ export const ContextExecutor_Init = {
  > struct (0x3c50a301) ContextExecutor_Ask {
  >     queryId: uint64
  >     forwardPayload: cell
+ >     done: bool
  > }
  */
 export interface ContextExecutor_Ask {
     readonly $: 'ContextExecutor_Ask'
     queryId: uint64
     forwardPayload: c.Cell
+    done: boolean
 }
 
 export const ContextExecutor_Ask = {
@@ -236,6 +257,7 @@ export const ContextExecutor_Ask = {
     create(args: {
         queryId: uint64
         forwardPayload: c.Cell
+        done: boolean
     }): ContextExecutor_Ask {
         return {
             $: 'ContextExecutor_Ask',
@@ -248,12 +270,14 @@ export const ContextExecutor_Ask = {
             $: 'ContextExecutor_Ask',
             queryId: s.loadUintBig(64),
             forwardPayload: s.loadRef(),
+            done: s.loadBoolean(),
         }
     },
     store(self: ContextExecutor_Ask, b: c.Builder): void {
         b.storeUint(0x3c50a301, 32);
         b.storeUint(self.queryId, 64);
         b.storeRef(self.forwardPayload);
+        b.storeBit(self.done);
     },
     toCell(self: ContextExecutor_Ask): c.Cell {
         return makeCellFrom<ContextExecutor_Ask>(self, ContextExecutor_Ask.store);
@@ -267,6 +291,7 @@ export const ContextExecutor_Ask = {
  >     context: Cell<T>
  >     forwardFrom: array<address>
  >     forwardPayload: cell
+ >     done: bool
  > }
  */
 export interface ContextExecutor_Reply<T> {
@@ -276,6 +301,7 @@ export interface ContextExecutor_Reply<T> {
     context: CellRef<T>
     forwardFrom: array<c.Address>
     forwardPayload: c.Cell
+    done: boolean
 }
 
 export const ContextExecutor_Reply = {
@@ -287,6 +313,7 @@ export const ContextExecutor_Reply = {
         context: CellRef<T>
         forwardFrom: array<c.Address>
         forwardPayload: c.Cell
+        done: boolean
     }): ContextExecutor_Reply<T> {
         return {
             $: 'ContextExecutor_Reply',
@@ -459,9 +486,10 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ContextExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDQEAAoQAART/APSkE/S88sgLAQIBYgIDAgLOBAUAX6AivxoRtjS3NZcxtDC0txc6N7cXMbG0uBcht7c6Mrw6Irwysbq6N7lBFqYFxiXGEQIBIAYHAElO2i7ftsIjJwIW+Ikly5jhAhpFIzb4EkxwWVXwR/2zHg6F8EcIAas+JHyQO1E0NM/+kjUbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidH4kviX+Jj4k3D4OviU+JUqyM7J8AHjAl8EhA8BxwDy9IAgD9wg0NcsIeKFGATjAtcsIeKFGAyOWmxh0z/XTMjPkPFCjAoSyz8mzws/JM8UI2+Ic21UciGpBo4bAcj0AFMhtghRIqEimVOAb4FY+lIBpOQByQKh5DAxAssH9ADMycjPhYgS+lJxzwtuzMmAQPsAf+AwVHqYU6nwAuMCbGGAJCgsAdjQCyMs/+lLMIW+Ic21UciGpBo4bAcj0AFMhtghRIqEimVNgb4FY+lIBpOQByQKh5DAxM88LB/QAye1UAf44XwYy0z/UbwAB0wf0BZMgbrOOEND0BJr6SFBEb4wjxwAU5jDoMCFviLryiXDIyz/JyM+Q8UKMChTLPybPCz8izxQhb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU2BvgVj6UgGk5AHJAqHkMDECywf0ABPMycjPhYgU+lJxzwtuDADKJsj6UlAG+gIU9ABY+gLLP8sfzMnIz5DxQowOJs8LPyTPFCNviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTgG+BWPpSAaTkAckCoeQwMQLLB/QAzMnIz4UIEvpScc8LbszJgED7AH8ABtDHAAAQE8zJgED7AH8=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFAEAA5AAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASAMDQIBIAYHAElO2i7ftsIjJwIW+Ikly5jhAhpFIzb4EkxwWVXwR/2zHg6F8EcIAas+JHyQO1E0NM/+kjUbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidH4kviX+Jj4k3D4OviU+JUqyM7J8AHjAl8EhA8BxwDy9IAgC9wg0NcsIeKFGATjAtcsIeKFGAyOZmxh0z/U1woAyM+Q8UKMChPLPyfPCz8lzxQkb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU5BvgVj6UgGk5AHJAqHkMDECywf0AMwhzwoAycjPhQgT+lJxzwtuEszJAYMGgEDjBPsAf+CAJCgB2NALIyz/6Uswhb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU2BvgVj6UgGk5AHJAqHkMDEzzwsH9ADJ7VQB/jhfBjKCAKpQXccF8vTTP9RvAAHTB/QFkyBus44Q0PQEmvpIUERvjCPHABTmMOgwIW+IuvKJcMjLP8nIz5DxQowKFMs/Js8LPyLPFCFviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTYG+BWPpSAaTkAckCoeQwMQLLB/QAE8zPgckLAOwwVHqYU6nwAo5mBsj6UlAF+gIT9AAB+gLLP8sfzMnIz5DxQowOJc8LPyPPFCJviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTcG+BWPpSAaTkAckCoeQwMQLLB/QAzMnIz4UIUkD6UnHPC27MyYBA+wB/4Gxh0McAACbIz4UIFPpScc8LbhPMyYBA+wB/AgEgDg8Abbzsh2omhpn/0kGOoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowCAnIQEQIBIBITAF6pX40I2xpbmsuY2hhaW4udG9uLmNjaXAuQ29udGV4dEV4ZWN1dG9ygi1MC4xLjCABsqFrtRNDTPzH6SDHUMW8AAdMH9ASTIW6zjhIB0PQEmvpIUFVvjCTHABXmMAHoMSJviFi68onRAG20o72omhpn5j9JGoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowAG20AX2omhpn5j9JBjqN4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTow');
 
     static Errors = {
+        'ContextExecutor_Error.OnlyCallableByOwner': 43600,
     }
 
     readonly address: c.Address
@@ -499,12 +527,12 @@ export class ContextExecutor implements c.Contract {
         return new ContextExecutor(address, initialState);
     }
 
-    static createCellOfContextExecutorInitCell_(body: {
+    static createCellOfContextExecutorSetCell_(body: {
         queryId: uint64
         context: CellRef<c.Cell>
         forwardFrom: array<c.Address>
     }) {
-        return makeCellFrom<ContextExecutor_Init<c.Cell>>(ContextExecutor_Init.create<c.Cell>(body),
+        return makeCellFrom<ContextExecutor_Set<c.Cell>>(ContextExecutor_Set.create<c.Cell>(body),
             (v,b) => { b.storeUint(0x3c50a300, 32);
             b.storeUint(v.queryId, 64);
             storeCellRef<c.Cell>(v.context, b,
@@ -519,6 +547,7 @@ export class ContextExecutor implements c.Contract {
     static createCellOfContextExecutorAsk(body: {
         queryId: uint64
         forwardPayload: c.Cell
+        done: boolean
     }) {
         return ContextExecutor_Ask.toCell(ContextExecutor_Ask.create(body));
     }
@@ -531,14 +560,14 @@ export class ContextExecutor implements c.Contract {
         });
     }
 
-    async sendContextExecutorInitCell_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendContextExecutorSetCell_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         context: CellRef<c.Cell>
         forwardFrom: array<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<ContextExecutor_Init<c.Cell>>(ContextExecutor_Init.create<c.Cell>(body),
+            body: makeCellFrom<ContextExecutor_Set<c.Cell>>(ContextExecutor_Set.create<c.Cell>(body),
                 (v,b) => { b.storeUint(0x3c50a300, 32);
                 b.storeUint(v.queryId, 64);
                 storeCellRef<c.Cell>(v.context, b,
@@ -555,6 +584,7 @@ export class ContextExecutor implements c.Contract {
     async sendContextExecutorAsk(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         forwardPayload: c.Cell
+        done: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -572,5 +602,29 @@ export class ContextExecutor implements c.Contract {
             r.readSlice(),
             r.readSlice(),
         ];
+    }
+
+    async getId(provider: ContractProvider): Promise<uint64> {
+        const r = StackReader.fromGetMethod(1, await provider.get('id', []));
+        return r.readBigInt();
+    }
+
+    async getOwner(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('owner', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getContext(provider: ContractProvider): Promise<CellRef<c.Cell>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('context', []));
+        return r.readCellRef<c.Cell>(
+            (s) => s.loadRef()
+        );
+    }
+
+    async getForwardFrom(provider: ContractProvider): Promise<array<c.Address>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('forwardFrom', []));
+        return r.readArrayOf<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 }
