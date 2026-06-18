@@ -81,7 +81,7 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint while chain is cursed', async () => {
       const ctx = await setup()
 
-      await ctx.pool.sendTokenPoolUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
         cursedSubjects: CursedSubjects.create({
           data: loadMap(
@@ -177,7 +177,7 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects cursed-subject updates from non-rmn sender', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendTokenPoolUpdateCursedSubjects(
+      const result = await ctx.pool.sendTokenPoolSetCursedSubjects(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
@@ -201,7 +201,7 @@ export function runTokenPoolBehaviorTests(
 
     it('can clear cursed subject back to not cursed', async () => {
       const ctx = await setup()
-      await ctx.pool.sendTokenPoolUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
         cursedSubjects: CursedSubjects.create({
           data: loadMap(
@@ -213,7 +213,7 @@ export function runTokenPoolBehaviorTests(
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
-      await ctx.pool.sendTokenPoolUpdateCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 902n,
         cursedSubjects: CursedSubjects.create({
           data: Dictionary.empty(Dictionary.Keys.BigInt(128)),

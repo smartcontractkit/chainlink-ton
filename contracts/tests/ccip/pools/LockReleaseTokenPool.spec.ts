@@ -466,7 +466,7 @@ describe('LockReleaseTokenPool', () => {
   })
 
   it('mirrors cursed state locally and blocks release while cursed', async () => {
-    const curseUpdate = await lockReleasePool.sendTokenPoolUpdateCursedSubjects(
+    const curseUpdate = await lockReleasePool.sendTokenPoolSetCursedSubjects(
       deployer.getSender(),
       toNano('0.2'),
       {

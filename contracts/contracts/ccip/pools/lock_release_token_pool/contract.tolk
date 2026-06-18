@@ -56,12 +56,14 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+// TODO: implement me
 fun onBouncedMessage(in: InMessageBounced) {
+    // TODO: use TokenPool.onBouncedMessage (lib) handler
     val msg = lazy LockReleaseTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
         AskToTransfer => {
             var st = Storage.load();
-            onReleaseTransferBounced(mutate st, msg, in.senderAddress);
+            onReleaseTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
     }
@@ -93,17 +95,28 @@ fun onReleaseOrMintContinue(
         expectedSender: recipientWallet,
     }.toCell());
 
-    jettonClient.sendSimple(
-        JettonMessageOptions {
-            bounce: true,
-            value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
-        },
-        SEND_MODE_PAY_FEES_SEPARATELY,
-        msg.queryId,
-        prepared.localAmount as coins,
-        request.receiver,
+    val ownWallet = calcAddressOfJettonWallet(
         contract.getAddress(),
+        jettonClient.masterAddress,
+        jettonClient.jettonWalletCode,
     );
+
+    val transfer = createMessage({
+        bounce: BounceMode.RichBounce, // used to recover forwardPayload (context)
+        value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
+        dest: ownWallet,
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: prepared.localAmount as coins,
+            transferRecipient: request.receiver,
+            sendExcessesTo: contract.getAddress(), // TODO: ContextExecutor
+            customPayload: null,
+            forwardTonAmount: 0, // TODO: add fwdp amount
+            // TODO: add fwdp
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    });
+    transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     return st;
 }
@@ -134,22 +147,23 @@ fun onReturnExcessesBack(
     });
 
     if (pending.replyTo != null) {
-        createMessage({
-            bounce: true,
-            value: LockReleaseTokenPool_REPLY_VALUE,
+        val notify = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
             dest: pending.replyTo!,
             body: TokenPool_ReleaseOrMintFinished {
                 queryId: msg.queryId,
                 out: pending.out,
             },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        });
+        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 
 fun onReleaseTransferBounced(
     mutate st: Storage,
-    msg: AskToTransfer,
     sender: address,
+    msg: AskToTransfer,
 ) {
     val jettonClient = st.jettonClient.load();
     assert(jettonClient.isWallet(sender), Error.UnexpectedReleaseBounce);
@@ -161,15 +175,16 @@ fun onReleaseTransferBounced(
     st.pendingReleases.delete(msg.queryId);
 
     if (pending.replyTo != null) {
-        createMessage({
-            bounce: true,
-            value: LockReleaseTokenPool_REPLY_VALUE,
+        val fail = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
             dest: pending.replyTo!,
             body: TokenPool_ReleaseOrMintFailure {
                 queryId: msg.queryId,
                 errorCode: Error.UnexpectedReleaseBounce as uint16,
             },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        });
+        fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 

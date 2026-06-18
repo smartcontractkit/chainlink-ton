@@ -581,6 +581,8 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
     return true; // default
 }
 
+// TODO: implement onBouncedMessage (lib) handler
+
 fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     mutate self,
     sender: address,

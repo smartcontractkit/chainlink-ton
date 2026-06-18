@@ -59,6 +59,11 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+// TODO: implement me
+fun onBouncedMessage(in: InMessageBounced) {
+    // TODO: use TokenPool.onBouncedMessage (lib) handler
+}
+
 /// @notice Token pool used for burn and mint tokens. This uses a burn and mint mechanism.
 /// @dev One token per BurnMintTokenPool. In this variant the pool contract owns the Jetton wallet and the Jetton minter admin role.
 fun onLockOrBurnTransferContinue(
@@ -78,7 +83,7 @@ fun onLockOrBurnTransferContinue(
     }.toCell());
 
     val burnMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce, // used to recover sendExcessesTo address (context)
         value: BurnMintTokenPool_BURN_VALUE,
         dest: sender,
         body: AskToBurn {
@@ -119,7 +124,7 @@ fun onReleaseOrMintContinue(
     }.toCell());
 
     val mint = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce, // used to recover sendExcessesTo address (context)
         value: BurnMintTokenPool_MINT_VALUE,
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
@@ -196,7 +201,7 @@ fun onReturnExcessesBack(
     if (pending.replyTo != null) {
         val notify = createMessage({
             bounce: BounceMode.NoBounce,
-            value: BurnMintTokenPool_REPLY_VALUE,
+            value: 0,
             dest: pending.replyTo!,
             body: TokenPool_ReleaseOrMintFinished {
                 queryId: msg.queryId,

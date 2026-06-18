@@ -8,7 +8,6 @@ const BurnMintTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
 const BurnMintTokenPool_BURN_VALUE = ton("0.05");
 const BurnMintTokenPool_MINT_VALUE = ton("0.1");
-const BurnMintTokenPool_REPLY_VALUE = ton("0.01");
 
 struct BurnMintTokenPool_PendingBurn {
     forwardPayload: TokenPool_LockOrBurnForwardPayload;

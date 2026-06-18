@@ -10,6 +10,7 @@ import "types"
 struct Storage {
     poolData: Cell<TokenPool_Data>;
     jettonClient: Cell<JettonClient>;
+    // TODO: replace with sharded ContextExecutor per message
     pendingBurns: map<uint64, Cell<BurnMintTokenPool_PendingBurn>>;
     pendingMints: map<uint64, Cell<BurnMintTokenPool_PendingMint>>;
 }
