@@ -4,6 +4,7 @@ import "@stdlib/lisp-lists"
 import "../../lib/math"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
+import "../../lib/jetton/jetton_client"
 import "../../lib/access/ownable_2step"
 import "../common/types"
 import "../rmn_remote/lib"
@@ -59,6 +60,7 @@ struct TokenPool_Hooks<T> {
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurnInV1, uint32, cell?) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
     preflightCheck: ((T?, TokenPool_LockOrBurnInV1, uint32, cell?, uint256) -> bool)?;
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
+    onLockOrBurnTransferContinue: ((T, address, TokenPool_LockOrBurnForwardPayload) -> T)?;
 }
 
 struct TokenPool<T> {
@@ -745,7 +747,61 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     // The context contains info about the sender, the amount, etc. that we can use to validate the transfer.
     // If we can't validate the transfer, we try to return the funds.
 
-    // TODO: can we generalize more (e.g., return of Jettons to sender on error)
+    // TODO: check message value is enough to cover full flow, or error
+    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
+    if (fwdps == null) {
+        self.returnTransfer(sender, msg);
+        return;
+    }
+    val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
+
+    // TODO: can we trust (any) JettonWallet forward payloads?
+    // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+
+    // Continue if transfer initiator is the Router, otherwise try to validate the transfer
+    val router = self.data.adminConfig.load().dynamicConfig.load().router;
+    if (msg.transferInitiator != null && msg.transferInitiator! == router) {
+        self.onLockOrBurnTransferContinue(sender, fwdp);
+        return;
+    }
+
+    // TODO: check if this is a registered deposit account
+    // ContextExecutor_Ask(fwdp: msg + fwdp) -> ContextExecutor_Reply(ctx, fwdp)
+    // if reply is valid, continue, else return transfer
+}
+
+fun TokenPool<T>.onLockOrBurnTransferContinue(
+    mutate self,
+    sender: address,
+    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+): void {
+    if (self.hooks != null && self.hooks.onLockOrBurnTransferContinue != null) {
+        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, fwdPayload);
+
+        return;
+    }
+
+    return self.onLockOrBurnTransferFinalize(fwdPayload);
+}
+
+fun TokenPool<T>.returnTransfer(self, sender: address, msg: TransferNotificationForRecipient): void {
+    // TODO: check available gas, we don't want to drain the contract with return transfers
+    // send back the tokens, we don't support direct transfers to the pool
+    val returnTransfer = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender, // the wallet we own which sent us the notification
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: msg.jettonAmount,
+            transferRecipient: msg.transferInitiator!,
+            sendExcessesTo: msg.transferInitiator,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    });
+    returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.onLockOrBurnTransferFinalize(
@@ -767,7 +823,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
 
     // TODO: we should reply in any case, send a message to the OnRamp to indicate that the lockOrBurn was processed
     if (requestMsg.replyTo != null) {
-        createMessage({
+        val finished = createMessage({
             bounce: true,
             value: 0,
             dest: requestMsg.replyTo!,
@@ -776,7 +832,8 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
                 out: prepared.out.toCell(),
                 destTokenAmount: prepared.destTokenAmount,
             },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        });
+        finished.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 
@@ -1067,18 +1124,16 @@ fun TokenPool<T>.getCurrentRateLimiterState(
     val config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     if (fastFinality) {
         val rateLimiters = config.fastFinalityRateLimiters.load();
-        // TODO: recompute with _currentTokenBucketState
         return TokenPool_RateLimiterPair {
-            outbound: rateLimiters.outbound,
-            inbound: rateLimiters.inbound,
+            outbound: rateLimiters.outbound._currentTokenBucketState(),
+            inbound: rateLimiters.inbound._currentTokenBucketState(),
         };
     }
 
     val rateLimiters = config.rateLimiters.load();
-    // TODO: recompute with _currentTokenBucketState
     return TokenPool_RateLimiterPair {
-        outbound: rateLimiters.outbound,
-        inbound: rateLimiters.inbound,
+        outbound: rateLimiters.outbound._currentTokenBucketState(),
+        inbound: rateLimiters.inbound._currentTokenBucketState(),
     };
 }
 

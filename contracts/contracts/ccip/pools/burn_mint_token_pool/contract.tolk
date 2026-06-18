@@ -76,51 +76,19 @@ fun onClaimMinterAdmin(
 
 /// @notice Token pool used for burn and mint tokens. This uses a burn and mint mechanism.
 /// @dev One token per BurnMintTokenPool. In this variant the pool contract owns the Jetton wallet and the Jetton minter admin role.
-fun onLockOrBurnTransfer(
+fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
-    msg: TransferNotificationForRecipient,
+    fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-
-    // TODO: duplicated code with lock/release TP 
-    var isValidPayload = true; // TODO: safely inspect the payload
-    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
-    val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
-    val requestMsg = lazy fwdp.requestMsg.load();
-    val prepared = lazy fwdp.prepared.load();
-
-    // TODO: can we trust (any) JettonWallet forward payloads?
-    // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
-
-    // TODO: check msg.transferInitiator is Router (or best effort return)
-    val router = msg.transferInitiator!; // TODO: fixme, should be stored router address
-    if (msg.transferInitiator == null || msg.transferInitiator! != router || !isValidPayload) {
-        // TODO: check available gas, we don't want to drain the contract with return transfers
-        // send back the tokens, we don't support direct transfers to the pool
-        val returnTransfer = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: sender,
-            body: AskToTransfer {
-                queryId: msg.queryId,
-                jettonAmount: msg.jettonAmount,
-                transferRecipient: msg.transferInitiator!,
-                sendExcessesTo: msg.transferInitiator,
-                customPayload: null,
-                forwardTonAmount: 0,
-                forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-            },
-        });
-        returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-        return st;
-    }
+    val requestMsg = lazy fwdPayload.requestMsg.load();
+    val prepared = lazy fwdPayload.prepared.load();
 
     assert(!st.pendingBurns.get(requestMsg.queryId).isFound, Error.PendingBurnAlreadyExists);
 
     val jettonClient = st.jettonClient.load();
     st.pendingBurns.set(requestMsg.queryId, BurnMintTokenPool_PendingBurn {
-        forwardPayload: fwdp,
+        forwardPayload: fwdPayload,
         expectedSender: jettonClient.masterAddress,
     }.toCell());
 
@@ -250,7 +218,8 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             applyReleaseOrMint: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
-            onLockOrBurnTransfer,
+            onLockOrBurnTransfer: null,
+            onLockOrBurnTransferContinue,
             handleReleaseOrMintMessage,
         },
     };

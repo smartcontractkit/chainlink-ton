@@ -68,52 +68,6 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-/// @notice Token pool used for tokens on their native chain. This uses a lock and release mechanism.
-/// @dev One token per LockReleaseTokenPool. In this non-lockbox variant the pool contract's Jetton wallet holds custody directly.
-fun onLockOrBurnTransfer(
-    st: Storage, // TODO: should be TokenPool<Storage> so I get access to hooks and context
-    sender: address,
-    msg: TransferNotificationForRecipient,
-): Storage {
-
-    // TODO: duplicated code with burn/mint TP 
-    var isValidPayload = true; // TODO: safely inspect the payload
-    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
-    val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
-
-    // TODO: can we trust (any) JettonWallet forward payloads?
-    // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
-
-    // TODO: check msg.transferInitiator is Router (or best effort return)
-    val router = createAddressNone();
-    if (msg.transferInitiator == null || msg.transferInitiator! != router || !isValidPayload) {
-        // TODO: check available gas, we don't want to drain the contract with return transfers
-        // send back the tokens, we don't support direct transfers to the pool
-        val returnTransfer = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: sender,
-            body: AskToTransfer {
-                queryId: msg.queryId,
-                jettonAmount: msg.jettonAmount,
-                transferRecipient: msg.transferInitiator!,
-                sendExcessesTo: msg.transferInitiator,
-                customPayload: null,
-                forwardTonAmount: 0,
-                forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-            },
-        });
-        returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-        return st;
-    }
-
-    var pool = loadPool(st);
-    pool.onLockOrBurnTransferFinalize(fwdp);
-
-    return st;
-}
-
 fun handleReleaseOrMintMessage(
     ctx: Storage?,
     sender: address,
@@ -234,7 +188,8 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             applyReleaseOrMint: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
-            onLockOrBurnTransfer,
+            onLockOrBurnTransfer: null,
+            onLockOrBurnTransferContinue: null,
             handleReleaseOrMintMessage,
         },
     };
