@@ -16,7 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenRegistry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 )
 
 const (
@@ -142,7 +142,7 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeOffRamp:      offramp.TLBs,
 	TypeFeeQuoter:    feequoter.TLBs,
 	TypeSendExecutor: ccipsendexecutor.TLBs,
-	TypeTokenRegistry: tokenRegistry.TLBs,
+	TypeTokenRegistry: tokenregistry.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

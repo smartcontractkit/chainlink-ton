@@ -1,4 +1,4 @@
-package tokenRegistry
+package tokenregistry
 
 import (
 	"reflect"
