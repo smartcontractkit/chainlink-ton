@@ -48,10 +48,9 @@ struct TokenPool_Hooks<T> {
     ensureOutboundAccess: ((T?, address, uint64) -> void)?;
     ensureInboundAccess: ((T?, address, uint64) -> void)?;
     ensureNotCursed: ((T?, uint64) -> void)?;
-    applyLockOrBurn: ((T?, TokenPool_LockOrBurnPrepared) -> void)?;
-    applyReleaseOrMint: ((T?, TokenPool_ReleaseOrMintPrepared) -> void)?;
 
     // ReleaseOrMint flow
+    onReleaseOrMint: ((T, TokenPool_ReleaseOrMint) -> T)?;
     postflightCheck: ((T?, TokenPool_ReleaseOrMintInV1, uint256, uint32) -> bool)?;
     handleReleaseOrMintMessage: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
@@ -464,13 +463,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         //
         // In the worst case, not enough funds, received Jettons are burned.
         TransferNotificationForRecipient => {
-            // TODO: how do we know this transfer is allowed - easiest to just accept transfers from the Router (static)
             self.onLockOrBurnTransfer(msgSender, msg);
         }
         TokenPool_ReleaseOrMint => {
-            val (_wait, prepared) = self.validateReleaseOrMint(msgSender, msg.request.load(), msg.requestedFinalityConfig);
-            assert(self.hooks != null && self.hooks.handleReleaseOrMintMessage != null, TokenPool_Error.UnsupportedOperation);
-            self.context = self.hooks.handleReleaseOrMintMessage(self.context, msgSender, msg, prepared);
+            self.onReleaseOrMint(msgSender, msg);
         }
         TokenPool_PostflightCheckFinished => {
             // TODO: implement me
@@ -871,17 +867,20 @@ fun TokenPool<T>.validateReleaseOrMint(
     });
 }
 
-fun TokenPool<T>.releaseOrMint(
+fun TokenPool<T>.onReleaseOrMint(
     mutate self,
     sender: address,
-    request: TokenPool_ReleaseOrMintInV1,
-    requestedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY,
-): TokenPool_ReleaseOrMintPrepared {
-    val (_wait, prepared) = self.validateReleaseOrMint(sender, request, requestedFinalityConfig);
-    if (self.hooks != null && self.hooks.applyReleaseOrMint != null) {
-        self.hooks.applyReleaseOrMint(self.context, prepared);
+    msg: TokenPool_ReleaseOrMint,
+): void {
+     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
+        self.context = self.hooks.onReleaseOrMint(self.context!, msg);
     }
-    return prepared;
+
+    val (_wait, prepared) = self.validateReleaseOrMint(sender, msg.request.load(), msg.requestedFinalityConfig);
+    // TODO: move to specific fn call
+    if (self.hooks != null && self.hooks.handleReleaseOrMintMessage != null) {
+        self.context = self.hooks.handleReleaseOrMintMessage(self.context, sender, msg, prepared);
+    }
 }
 
 fun TokenPool<T>.encodeLocalDecimals(self): cell {

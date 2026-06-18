@@ -212,15 +212,14 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             ensureOutboundAccess: null,
             ensureInboundAccess: null,
             ensureNotCursed: null,
-            preflightCheck: null,
+            onReleaseOrMint: null,
+            handleReleaseOrMintMessage,
             postflightCheck: null,
-            applyLockOrBurn: null,
-            applyReleaseOrMint: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
+            preflightCheck: null,
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue,
-            handleReleaseOrMintMessage,
         },
     };
 }
