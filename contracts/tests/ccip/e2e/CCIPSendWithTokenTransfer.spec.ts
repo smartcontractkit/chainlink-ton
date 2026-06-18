@@ -10,8 +10,8 @@ import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
-import { TokenRegistry } from '../../../wrappers/ccip/TokenRegistry'
-import { MockTokenPool } from '../../../wrappers/ccip/MockTokenPool'
+import { TokenRegistry } from '../../../wrappers/gen/ccip/TokenRegistry'
+import { MockTokenPool } from '../../../wrappers/gen/ccip/MockTokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
 import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
@@ -94,23 +94,18 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
 
     // 3. Deploy the MockTokenPool that performs the (mock) lock/burn.
-    const mockTokenPoolCode = await MockTokenPool.code()
-    mockTokenPool = blockchain.openContract(MockTokenPool.createFromConfig(mockTokenPoolCode))
+    mockTokenPool = blockchain.openContract(MockTokenPool.fromStorage({}))
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     // 4. Deploy the TokenRegistry, hard-coded to return the MockTokenPool address.
-    const tokenRegistryCode = await TokenRegistry.code()
     tokenRegistry = blockchain.openContract(
-      TokenRegistry.createFromConfig(
-        {
-          info: {
-            tokenPool: mockTokenPool.address,
-            minterAddress: minter.address,
-            enabled: true,
-          },
+      TokenRegistry.fromStorage({
+        info: {
+          tokenPool: mockTokenPool.address,
+          minterAddress: minter.address,
+          enabled: true,
         },
-        tokenRegistryCode,
-      ),
+      }),
     )
     await tokenRegistry.sendDeploy(deployer.getSender(), toNano('0.05'))
 
