@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { toNano, Cell, Address, beginCell } from '@ton/core'
+import { toNano, Cell, Address, beginCell, contractAddress } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
@@ -10,13 +10,32 @@ import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
-import { TokenRegistry } from '../../../wrappers/gen/ccip/TokenRegistry'
-import { MockTokenPool } from '../../../wrappers/gen/ccip/MockTokenPool'
+import * as exe from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as deployable from '../../../wrappers/libraries/Deployable'
+import {
+  TokenRegistry,
+  TokenRegistry_GetTokenInfo,
+  TokenRegistry_ReturnTokenInfo,
+  TokenRegistry_TokenInfo,
+} from '../../../wrappers/gen/ccip/TokenRegistry'
+import {
+  MockTokenPool,
+  MockTokenPool_LockOrBurn,
+  TokenPool_NotifySuccessfulLockOrBurn,
+} from '../../../wrappers/gen/ccip/MockTokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
-import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
+import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
 
 import { setup, CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
+
+// The gen wrapper's constructor is protected and has no fromStorage (no storage fields).
+class DeployableMockTokenPool extends MockTokenPool {
+  static create() {
+    const init = { code: MockTokenPool.CodeCell, data: Cell.EMPTY }
+    return new DeployableMockTokenPool(contractAddress(0, init), init)
+  }
+}
 
 const JETTON_CONTENT = beginCell().storeStringTail('wton.e2e').endCell()
 
@@ -94,17 +113,17 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
 
     // 3. Deploy the MockTokenPool that performs the (mock) lock/burn.
-    mockTokenPool = blockchain.openContract(MockTokenPool.fromStorage({}))
+    mockTokenPool = blockchain.openContract(DeployableMockTokenPool.create())
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     // 4. Deploy the TokenRegistry, hard-coded to return the MockTokenPool address.
     tokenRegistry = blockchain.openContract(
       TokenRegistry.fromStorage({
-        info: {
+        info: TokenRegistry_TokenInfo.create({
           tokenPool: mockTokenPool.address,
           minterAddress: minter.address,
           enabled: true,
-        },
+        }),
       }),
     )
     await tokenRegistry.sendDeploy(deployer.getSender(), toNano('0.05'))
@@ -139,7 +158,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
     const routerWalletAddress = await minter.getWalletAddress(router.address)
     const senderWallet = blockchain.openContract(
-      JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
+      jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
     )
 
     // User transfers wTON to the router-owned wallet, carrying the CCIPSend payload.
@@ -177,12 +196,14 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
       to: senderWallet.address,
+      op: jw.opcodes.in.TRANSFER,
       success: true,
     })
     // user wallet -> router wallet (deploys it)
     expect(result.transactions).toHaveTransaction({
       from: senderWallet.address,
       to: routerWalletAddress,
+      op: jw.opcodes.in.INTERNAL_TRANSFER,
       deploy: true,
       success: true,
     })
@@ -190,6 +211,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: routerWalletAddress,
       to: router.address,
+      op: jw.opcodes.in.TRANSFER_NOTIFICATION,
       success: true,
     })
 
@@ -198,64 +220,82 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: onRamp.address,
+      op: or.opcodes.in.onrampSend,
       success: true,
     })
     // onRamp deploys the executor
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
       to: executorAddress,
+      op: deployable.opcodes.in.initializeAndSend,
       deploy: true,
+      success: true,
+    })
+    // executor runs itself (Deployable self-message pattern)
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: executorAddress,
+      op: exe.opcodes.in.executeV2,
       success: true,
     })
     // executor -> feeQuoter and back
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: feeQuoter.address,
+      op: fq.opcodes.in.getValidatedFee,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: feeQuoter.address,
       to: executorAddress,
+      op: fq.opcodes.out.messageValidated,
       success: true,
     })
     // executor -> tokenRegistry and back
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: tokenRegistry.address,
+      op: TokenRegistry_GetTokenInfo.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: tokenRegistry.address,
       to: executorAddress,
+      op: TokenRegistry_ReturnTokenInfo.PREFIX,
       success: true,
     })
     // executor -> onRamp (requests lock/burn)
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: onRamp.address,
+      op: or.opcodes.in.executorRequestsLockOrBurn,
       success: true,
     })
     // onRamp -> router (forwards lock/burn)
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
       to: router.address,
+      op: rt.opcodes.in.lockOrBurn,
       success: true,
     })
     // router -> mockTokenPool (lock/burn) and back to the executor (confirmation)
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: mockTokenPool.address,
+      op: MockTokenPool_LockOrBurn.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: mockTokenPool.address,
       to: executorAddress,
+      op: TokenPool_NotifySuccessfulLockOrBurn.PREFIX,
       success: true,
     })
     // executor -> onRamp (finished successfully) and self-destructs
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: onRamp.address,
+      op: or.opcodes.in.executorFinishedSuccessfully,
       success: true,
     })
 
