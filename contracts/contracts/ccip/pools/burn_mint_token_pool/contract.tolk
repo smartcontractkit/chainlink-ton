@@ -3,7 +3,6 @@ tolk 1.4.1
 
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
-import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../rmn_remote/lib"
@@ -108,7 +107,7 @@ fun onLockOrBurnTransferContinue(
     return st;
 }
 
-fun handleReleaseOrMintMessage(
+fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
     msg: TokenPool_ReleaseOrMint,
@@ -133,7 +132,7 @@ fun handleReleaseOrMintMessage(
         expectedSender: recipientWallet,
     }.toCell());
 
-    createMessage({
+    val mint = createMessage({
         bounce: true,
         value: BurnMintTokenPool_MINT_VALUE,
         dest: jettonClient.masterAddress,
@@ -150,7 +149,8 @@ fun handleReleaseOrMintMessage(
                 forwardPayload: beginCell().storeUint(0, 1).endCell().beginParse(),
             }.toCell(),
         },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    });
+    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     return st;
 }
@@ -212,14 +212,14 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             ensureOutboundAccess: null,
             ensureInboundAccess: null,
             ensureNotCursed: null,
-            onReleaseOrMint: null,
-            handleReleaseOrMintMessage,
-            postflightCheck: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
             preflightCheck: null,
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue,
+            onReleaseOrMint: null,
+            onReleaseOrMintContinue,
+            postflightCheck: null,
         },
     };
 }

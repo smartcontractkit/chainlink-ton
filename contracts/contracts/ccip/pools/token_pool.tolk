@@ -52,7 +52,7 @@ struct TokenPool_Hooks<T> {
     // ReleaseOrMint flow
     onReleaseOrMint: ((T, TokenPool_ReleaseOrMint) -> T)?;
     postflightCheck: ((T?, TokenPool_ReleaseOrMintInV1, uint256, uint32) -> bool)?;
-    handleReleaseOrMintMessage: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
+    onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
     // LockOrBurn flow
     onLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> T)?;
@@ -709,6 +709,16 @@ fun TokenPool<T>.onLockOrBurn(
         return;
     }
 
+    self.onLockOrBurnWithdraw(transferInitiator, msg, prepared);
+}
+
+fun TokenPool<T>.onLockOrBurnWithdraw(
+    mutate self,
+    sender: address,
+    msg: TokenPool_LockOrBurn,
+    prepared: TokenPool_LockOrBurnPrepared,
+): void {
+    // TODO: expose as a hook
     val withdrawalMsg = createMessage({
         bounce: true,
         value: 0,
@@ -876,10 +886,24 @@ fun TokenPool<T>.onReleaseOrMint(
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
     }
 
-    val (_wait, prepared) = self.validateReleaseOrMint(sender, msg.request.load(), msg.requestedFinalityConfig);
-    // TODO: move to specific fn call
-    if (self.hooks != null && self.hooks.handleReleaseOrMintMessage != null) {
-        self.context = self.hooks.handleReleaseOrMintMessage(self.context, sender, msg, prepared);
+    val (wait, prepared) = self.validateReleaseOrMint(sender, msg.request.load(), msg.requestedFinalityConfig);
+    if (wait) {
+        // Return early, wait for the postflight check to trigger the release or mint,
+        // or report error if the postflight check fails (bounce or error).
+        return;
+    }
+
+    self.onReleaseOrMintContinue(sender, msg, prepared);
+}
+
+fun TokenPool<T>.onReleaseOrMintContinue(
+    mutate self,
+    sender: address,
+    msg: TokenPool_ReleaseOrMint,
+    prepared: TokenPool_ReleaseOrMintPrepared,
+): void {
+    if (self.hooks != null && self.hooks.onReleaseOrMintContinue != null) {
+        self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msg, prepared);
     }
 }
 

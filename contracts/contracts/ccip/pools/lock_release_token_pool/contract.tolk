@@ -68,7 +68,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-fun handleReleaseOrMintMessage(
+fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
     msg: TokenPool_ReleaseOrMint,
@@ -182,14 +182,14 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             ensureOutboundAccess: null,
             ensureInboundAccess: null,
             ensureNotCursed: null,
-            onReleaseOrMint: null,
-            postflightCheck: null,
-            handleReleaseOrMintMessage,
             onLockOrBurn: null,
             validateLockOrBurn: null,
             preflightCheck: null,
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue: null,
+            onReleaseOrMint: null,
+            postflightCheck: null,
+            onReleaseOrMintContinue,
         },
     };
 }
