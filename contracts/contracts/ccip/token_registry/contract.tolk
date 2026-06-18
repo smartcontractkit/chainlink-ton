@@ -13,6 +13,8 @@ contract TokenRegistry {
     incomingMessages: TokenRegistry_InMessage
 }
 
+const CONTRACT_VERSION = "1.6.0";
+
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenRegistry_InMessage.fromSlice(in.body);
 
