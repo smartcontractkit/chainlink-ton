@@ -1130,6 +1130,48 @@ export const TokenPool_SetAllowedFinalityConfig = {
 }
 
 /**
+ > struct (0x3c50a311) TokenPool_SetAdvancedPoolHooks {
+ >     queryId: uint64
+ >     advancedPoolHooks: address?
+ > }
+ */
+export interface TokenPool_SetAdvancedPoolHooks {
+    readonly $: 'TokenPool_SetAdvancedPoolHooks'
+    queryId: uint64
+    advancedPoolHooks: c.Address | null
+}
+
+export const TokenPool_SetAdvancedPoolHooks = {
+    PREFIX: 0x3c50a311,
+
+    create(args: {
+        queryId: uint64
+        advancedPoolHooks: c.Address | null
+    }): TokenPool_SetAdvancedPoolHooks {
+        return {
+            $: 'TokenPool_SetAdvancedPoolHooks',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetAdvancedPoolHooks {
+        loadAndCheckPrefix32(s, 0x3c50a311, 'TokenPool_SetAdvancedPoolHooks');
+        return {
+            $: 'TokenPool_SetAdvancedPoolHooks',
+            queryId: s.loadUintBig(64),
+            advancedPoolHooks: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_SetAdvancedPoolHooks, b: c.Builder): void {
+        b.storeUint(0x3c50a311, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.advancedPoolHooks);
+    },
+    toCell(self: TokenPool_SetAdvancedPoolHooks): c.Cell {
+        return makeCellFrom<TokenPool_SetAdvancedPoolHooks>(self, TokenPool_SetAdvancedPoolHooks.store);
+    }
+}
+
+/**
  > struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
  >     queryId: uint64
  >     updates: SnakedCell<TokenPool_RateLimitConfigArgs>
@@ -1303,44 +1345,44 @@ export const TokenPool_SetRMNProxy = {
 }
 
 /**
- > struct (0x2c906eb7) TokenPool_UpdateCursedSubjects {
+ > struct (0x2c906eb7) TokenPool_SetCursedSubjects {
  >     queryId: uint64
  >     cursedSubjects: CursedSubjects
  > }
  */
-export interface TokenPool_UpdateCursedSubjects {
-    readonly $: 'TokenPool_UpdateCursedSubjects'
+export interface TokenPool_SetCursedSubjects {
+    readonly $: 'TokenPool_SetCursedSubjects'
     queryId: uint64
     cursedSubjects: CursedSubjects
 }
 
-export const TokenPool_UpdateCursedSubjects = {
+export const TokenPool_SetCursedSubjects = {
     PREFIX: 0x2c906eb7,
 
     create(args: {
         queryId: uint64
         cursedSubjects: CursedSubjects
-    }): TokenPool_UpdateCursedSubjects {
+    }): TokenPool_SetCursedSubjects {
         return {
-            $: 'TokenPool_UpdateCursedSubjects',
+            $: 'TokenPool_SetCursedSubjects',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_UpdateCursedSubjects {
-        loadAndCheckPrefix32(s, 0x2c906eb7, 'TokenPool_UpdateCursedSubjects');
+    fromSlice(s: c.Slice): TokenPool_SetCursedSubjects {
+        loadAndCheckPrefix32(s, 0x2c906eb7, 'TokenPool_SetCursedSubjects');
         return {
-            $: 'TokenPool_UpdateCursedSubjects',
+            $: 'TokenPool_SetCursedSubjects',
             queryId: s.loadUintBig(64),
             cursedSubjects: CursedSubjects.fromSlice(s),
         }
     },
-    store(self: TokenPool_UpdateCursedSubjects, b: c.Builder): void {
+    store(self: TokenPool_SetCursedSubjects, b: c.Builder): void {
         b.storeUint(0x2c906eb7, 32);
         b.storeUint(self.queryId, 64);
         CursedSubjects.store(self.cursedSubjects, b);
     },
-    toCell(self: TokenPool_UpdateCursedSubjects): c.Cell {
-        return makeCellFrom<TokenPool_UpdateCursedSubjects>(self, TokenPool_UpdateCursedSubjects.store);
+    toCell(self: TokenPool_SetCursedSubjects): c.Cell {
+        return makeCellFrom<TokenPool_SetCursedSubjects>(self, TokenPool_SetCursedSubjects.store);
     }
 }
 
@@ -2103,86 +2145,86 @@ export const TokenPool_RateLimitConfiguredNotification = {
 }
 
 /**
- > struct (0x3c50a39f) TokenPool_CursedSubjectsUpdated {
+ > struct (0x3c50a39f) TokenPool_CursedSubjectsSet {
  >     queryId: uint64
  >     cursedSubjects: CursedSubjects
  > }
  */
-export interface TokenPool_CursedSubjectsUpdated {
-    readonly $: 'TokenPool_CursedSubjectsUpdated'
+export interface TokenPool_CursedSubjectsSet {
+    readonly $: 'TokenPool_CursedSubjectsSet'
     queryId: uint64
     cursedSubjects: CursedSubjects
 }
 
-export const TokenPool_CursedSubjectsUpdated = {
+export const TokenPool_CursedSubjectsSet = {
     PREFIX: 0x3c50a39f,
 
     create(args: {
         queryId: uint64
         cursedSubjects: CursedSubjects
-    }): TokenPool_CursedSubjectsUpdated {
+    }): TokenPool_CursedSubjectsSet {
         return {
-            $: 'TokenPool_CursedSubjectsUpdated',
+            $: 'TokenPool_CursedSubjectsSet',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_CursedSubjectsUpdated {
-        loadAndCheckPrefix32(s, 0x3c50a39f, 'TokenPool_CursedSubjectsUpdated');
+    fromSlice(s: c.Slice): TokenPool_CursedSubjectsSet {
+        loadAndCheckPrefix32(s, 0x3c50a39f, 'TokenPool_CursedSubjectsSet');
         return {
-            $: 'TokenPool_CursedSubjectsUpdated',
+            $: 'TokenPool_CursedSubjectsSet',
             queryId: s.loadUintBig(64),
             cursedSubjects: CursedSubjects.fromSlice(s),
         }
     },
-    store(self: TokenPool_CursedSubjectsUpdated, b: c.Builder): void {
+    store(self: TokenPool_CursedSubjectsSet, b: c.Builder): void {
         b.storeUint(0x3c50a39f, 32);
         b.storeUint(self.queryId, 64);
         CursedSubjects.store(self.cursedSubjects, b);
     },
-    toCell(self: TokenPool_CursedSubjectsUpdated): c.Cell {
-        return makeCellFrom<TokenPool_CursedSubjectsUpdated>(self, TokenPool_CursedSubjectsUpdated.store);
+    toCell(self: TokenPool_CursedSubjectsSet): c.Cell {
+        return makeCellFrom<TokenPool_CursedSubjectsSet>(self, TokenPool_CursedSubjectsSet.store);
     }
 }
 
 /**
- > struct (0x3c50a39a) TokenPool_AdvancedPoolHooksUpdated {
+ > struct (0x3c50a39a) TokenPool_AdvancedPoolHooksSet {
  >     queryId: uint64
  >     advancedPoolHooks: address?
  > }
  */
-export interface TokenPool_AdvancedPoolHooksUpdated {
-    readonly $: 'TokenPool_AdvancedPoolHooksUpdated'
+export interface TokenPool_AdvancedPoolHooksSet {
+    readonly $: 'TokenPool_AdvancedPoolHooksSet'
     queryId: uint64
     advancedPoolHooks: c.Address | null
 }
 
-export const TokenPool_AdvancedPoolHooksUpdated = {
+export const TokenPool_AdvancedPoolHooksSet = {
     PREFIX: 0x3c50a39a,
 
     create(args: {
         queryId: uint64
         advancedPoolHooks: c.Address | null
-    }): TokenPool_AdvancedPoolHooksUpdated {
+    }): TokenPool_AdvancedPoolHooksSet {
         return {
-            $: 'TokenPool_AdvancedPoolHooksUpdated',
+            $: 'TokenPool_AdvancedPoolHooksSet',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksUpdated {
-        loadAndCheckPrefix32(s, 0x3c50a39a, 'TokenPool_AdvancedPoolHooksUpdated');
+    fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksSet {
+        loadAndCheckPrefix32(s, 0x3c50a39a, 'TokenPool_AdvancedPoolHooksSet');
         return {
-            $: 'TokenPool_AdvancedPoolHooksUpdated',
+            $: 'TokenPool_AdvancedPoolHooksSet',
             queryId: s.loadUintBig(64),
             advancedPoolHooks: s.loadMaybeAddress(),
         }
     },
-    store(self: TokenPool_AdvancedPoolHooksUpdated, b: c.Builder): void {
+    store(self: TokenPool_AdvancedPoolHooksSet, b: c.Builder): void {
         b.storeUint(0x3c50a39a, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.advancedPoolHooks);
     },
-    toCell(self: TokenPool_AdvancedPoolHooksUpdated): c.Cell {
-        return makeCellFrom<TokenPool_AdvancedPoolHooksUpdated>(self, TokenPool_AdvancedPoolHooksUpdated.store);
+    toCell(self: TokenPool_AdvancedPoolHooksSet): c.Cell {
+        return makeCellFrom<TokenPool_AdvancedPoolHooksSet>(self, TokenPool_AdvancedPoolHooksSet.store);
     }
 }
 
@@ -2890,6 +2932,13 @@ export class TokenPool implements c.Contract {
         return TokenPool_SetAllowedFinalityConfig.toCell(TokenPool_SetAllowedFinalityConfig.create(body));
     }
 
+    static createCellOfTokenPoolSetAdvancedPoolHooks(body: {
+        queryId: uint64
+        advancedPoolHooks: c.Address | null
+    }) {
+        return TokenPool_SetAdvancedPoolHooks.toCell(TokenPool_SetAdvancedPoolHooks.create(body));
+    }
+
     static createCellOfTokenPoolSetRateLimitConfig(body: {
         queryId: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
@@ -2919,11 +2968,11 @@ export class TokenPool implements c.Contract {
         return TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body));
     }
 
-    static createCellOfTokenPoolUpdateCursedSubjects(body: {
+    static createCellOfTokenPoolSetCursedSubjects(body: {
         queryId: uint64
         cursedSubjects: CursedSubjects
     }) {
-        return TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body));
+        return TokenPool_SetCursedSubjects.toCell(TokenPool_SetCursedSubjects.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -3078,6 +3127,17 @@ export class TokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolSetAdvancedPoolHooks(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        advancedPoolHooks: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetAdvancedPoolHooks.toCell(TokenPool_SetAdvancedPoolHooks.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendTokenPoolSetRateLimitConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
@@ -3123,13 +3183,13 @@ export class TokenPool implements c.Contract {
         });
     }
 
-    async sendTokenPoolUpdateCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenPoolSetCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         cursedSubjects: CursedSubjects
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenPool_UpdateCursedSubjects.toCell(TokenPool_UpdateCursedSubjects.create(body)),
+            body: TokenPool_SetCursedSubjects.toCell(TokenPool_SetCursedSubjects.create(body)),
             ...extraOptions
         });
     }

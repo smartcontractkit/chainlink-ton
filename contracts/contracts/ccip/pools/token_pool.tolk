@@ -258,7 +258,7 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, queryId:
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun TokenPool<T>.updateAdvancedPoolHooks(
+fun TokenPool<T>.setAdvancedPoolHooks(
     mutate self,
     sender: address,
     queryId: uint64,
@@ -274,7 +274,7 @@ fun TokenPool<T>.updateAdvancedPoolHooks(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_AdvancedPoolHooksUpdated {
+        body: TokenPool_AdvancedPoolHooksSet {
             queryId,
             advancedPoolHooks,
         },
@@ -460,12 +460,25 @@ fun TokenPool<T>.applyRampAccessUpdates(
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 }
 
-fun TokenPool<T>.setRMNProxy(mutate self, sender: address, rmnProxy: address) {
+fun TokenPool<T>.setRMNProxy(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    rmnProxy: address
+) {
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
     adminConfig.rmnProxy = rmnProxy;
     self.data.adminConfig = adminConfig.toCell();
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_RMNProxySet { queryId, rmnProxy },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.setCursedSubjects(
@@ -484,7 +497,7 @@ fun TokenPool<T>.setCursedSubjects(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_CursedSubjectsUpdated { queryId, cursedSubjects },
+        body: TokenPool_CursedSubjectsSet { queryId, cursedSubjects },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -533,6 +546,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_SetAllowedFinalityConfig => {
             self.setAllowedFinalityConfig(msgSender, msg.queryId, msg.allowedFinalityConfig);
         }
+        TokenPool_SetAdvancedPoolHooks => {
+            self.setAdvancedPoolHooks(msgSender, msg.queryId, msg.advancedPoolHooks);
+        }
         TokenPool_SetRateLimitConfig => {
             self.setRateLimitConfig(msgSender, msg.queryId, msg.updates);
         }
@@ -543,9 +559,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.applyRampAccessUpdates(msgSender, msg.updates);
         }
         TokenPool_SetRMNProxy => {
-            self.setRMNProxy(msgSender, msg.rmnProxy);
+            self.setRMNProxy(msgSender, msg.queryId, msg.rmnProxy);
         }
-        TokenPool_UpdateCursedSubjects => {
+        TokenPool_SetCursedSubjects => {
             self.setCursedSubjects(msgSender, msg.queryId, msg.cursedSubjects);
         }
         else => {
@@ -1067,7 +1083,12 @@ fun TokenPool<T>.preflightCheck(
         return self.hooks.preflightCheck(self.context, request, requestedFinalityConfig, tokenArgs, amountPostFee);
     }
 
-    // TODO: by default, we should call async hooks if configured, return true (wait)
+    val hooks = self.data.adminConfig.load().advancedPoolHooks;
+    if (hooks != null) {
+        // TODO: send AdvancedPoolHooks_PreflightCheck(fwdp) message to hooks, wait for callback
+
+        return true; // wait for async callback
+    }
 
     return false; // do we need to wait for an async callback
 }
@@ -1082,7 +1103,12 @@ fun TokenPool<T>.postflightCheck(
         return self.hooks.postflightCheck(self.context, request, localAmount, requestedFinalityConfig);
     }
 
-    // TODO: by default, we should call async hooks if configured, return true (wait)
+    val hooks = self.data.adminConfig.load().advancedPoolHooks;
+    if (hooks != null) {
+        // TODO: send AdvancedPoolHooks_PostflightCheck(fwdp) message to hooks, wait for callback
+
+        return true; // wait for async callback
+    }
 
     return false;
 }

@@ -36,6 +36,11 @@ struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
     allowedFinalityConfig: uint32;
 }
 
+struct (0x3c50a311) TokenPool_SetAdvancedPoolHooks {
+    queryId: uint64;
+    advancedPoolHooks: address?;
+}
+
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
     queryId: uint64;
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>;
@@ -58,7 +63,7 @@ struct (0x9929b642) TokenPool_SetRMNProxy {
     rmnProxy: address;
 }
 
-struct (0x2c906eb7) TokenPool_UpdateCursedSubjects {
+struct (0x2c906eb7) TokenPool_SetCursedSubjects {
     queryId: uint64;
     cursedSubjects: CursedSubjects;
 }
@@ -127,11 +132,12 @@ type TokenPool_InMessage =
     | TokenPool_RemoveRemotePool
     | TokenPool_SetDynamicConfig
     | TokenPool_SetAllowedFinalityConfig
+    | TokenPool_SetAdvancedPoolHooks
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
     | TokenPool_SetRMNProxy
-    | TokenPool_UpdateCursedSubjects;
+    | TokenPool_SetCursedSubjects;
 
 struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
@@ -192,12 +198,19 @@ struct (0x3c50a39e) TokenPool_RateLimitConfiguredNotification {
     queryId: uint64;
 }
 
-struct (0x3c50a39f) TokenPool_CursedSubjectsUpdated {
+/// Replied on `TokenPool_SetRMNProxy` to confirm tx and return excess to sender.
+struct (0x9929b642) TokenPool_RMNProxySet {
+    queryId: uint64;
+    rmnProxy: address;
+}
+
+/// Replied on `TokenPool_SetCursedSubjects` to confirm tx and return excess to sender.
+struct (0x3c50a39f) TokenPool_CursedSubjectsSet {
     queryId: uint64;
     cursedSubjects: CursedSubjects;
 }
 
-struct (0x3c50a39a) TokenPool_AdvancedPoolHooksUpdated {
+struct (0x3c50a39a) TokenPool_AdvancedPoolHooksSet {
     queryId: uint64;
     advancedPoolHooks: address?;
 }
@@ -213,5 +226,5 @@ type TokenPool_OutMessage =
     | TokenPool_FinalityConfigSet
     | TokenPool_DynamicConfigSet
     | TokenPool_RateLimitConfiguredNotification
-    | TokenPool_CursedSubjectsUpdated
-    | TokenPool_AdvancedPoolHooksUpdated;
+    | TokenPool_CursedSubjectsSet
+    | TokenPool_AdvancedPoolHooksSet;
