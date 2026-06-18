@@ -278,7 +278,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
     val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
-    // NOTE: token transfers are currently priced as if the message carried no tokens
+    // TODO: token transfers are currently priced as if the message carried no tokens
     // (the extra token-transfer fee is ignored). The blocking empty-tokens assert was removed
     // to enable the token-transfer send flow.
 
