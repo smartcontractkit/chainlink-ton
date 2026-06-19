@@ -15,7 +15,7 @@ var (
 )
 
 type Storage struct {
-	Id   uint32    `tlb:"## 32"`
+	ID   uint32    `tlb:"## 32"`
 	Info TokenInfo `tlb:"."`
 }
 

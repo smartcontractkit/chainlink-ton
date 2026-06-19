@@ -183,7 +183,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	if tokenRegistryAddr.IsAddrNone() {
 		// storage initialized with default values, config will be set later when the token and TokenPool are ready
 		tokenRegistryStorage := tokenregistry.Storage {
-			Id: in.CCIPConfig.TokenRegistryParams.ID,
+			ID: in.CCIPConfig.TokenRegistryParams.ID,
 			Info: tokenregistry.TokenInfo {},
 		}
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTokenRegistry], tokenRegistryStorage, nil, in.CCIPConfig.TokenRegistryParams.Coin)
