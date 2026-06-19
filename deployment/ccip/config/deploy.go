@@ -13,11 +13,11 @@ import (
 type TokenSymbol string
 
 type ChainContractParams struct {
-	FeeQuoterParams     FeeQuoterParams
-	OffRampParams       OffRampParams
-	OnRampParams        OnRampParams
-	RouterParams        RouterParams
-	ReceiverParams      ReceiverParams
+	FeeQuoterParams FeeQuoterParams
+	OffRampParams   OffRampParams
+	OnRampParams    OnRampParams
+	RouterParams    RouterParams
+	ReceiverParams  ReceiverParams
 	//TODO: remove when TokenRegistry is sharded and admin on-chain
 	TokenRegistryParams TokenRegistryParams
 }
@@ -125,7 +125,7 @@ func (r ReceiverParams) Validate() error {
 }
 
 type TokenRegistryParams struct {
-	ID uint32
+	ID   uint32
 	Coin string
 }
 

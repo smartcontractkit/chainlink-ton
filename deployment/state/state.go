@@ -63,7 +63,7 @@ type CCIPChainState struct {
 	OnRamp           address.Address
 	FeeQuoter        address.Address
 	ReceiverAddress  address.Address
-	TokenRegistry    address.Address //TODO remove when toenRegistry is sharded
+	TokenRegistry    address.Address // TODO remove when toenRegistry is sharded
 }
 
 type TONChainView struct {
