@@ -84,6 +84,7 @@ describe('wTON', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 1 // stop automatic time progression to prevent storage fees being charged
 
     deployer = await blockchain.treasury('deployer')
     alice = await blockchain.treasury('alice')

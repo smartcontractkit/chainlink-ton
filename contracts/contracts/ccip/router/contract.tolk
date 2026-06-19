@@ -13,6 +13,8 @@ import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
 import "../offramp/types"
+import "../common/messages"
+import "../test/tokenPool/messages"
 
 import "types"
 import "messages"
@@ -53,6 +55,8 @@ fun onInternalMessage(in: InMessage) {
         Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            // Token transfer messages can only come in through jetton transfer notifications
+            assert(msg.tokenAmounts.empty()) throw Router_Error.TokenTransferNotThroughNotification; //TBD shuold this be sendMessageRejected instead of throw?
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
         // Permissionless
@@ -154,6 +158,40 @@ fun onInternalMessage(in: InMessage) {
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
 
             onSendNACK(msg)
+        }
+        Router_LockOrBurn => {
+            val st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onLockOrBurn(msg);
+        }
+        // Sender must be a Jetton Wallet owned by the Router
+        Common_JettonTransferNotification => {
+            // TODO we can't just throw errors in the Router on JettonTransferNotification - this will burn the tokens.
+            // - We either need to return them (do we have enough gas to return?)
+            // - Or we need to store state and mark them invalid to be able to withdraw
+            // - Or we need a per-user deposit account which would do the checks and allow the user to withdraw
+            // Issue with returning/notifying is that we could fail down the line on any contract involved.
+            // Trying to catch every single error to notify failure could be very hard so a deposit account that always allows withdrawals
+            // could be the best solutuion. As long as we are able to guarantee we won't consume already withdrawn tokens
+
+            // TODO minValue is probably higher for a tokenTransfer as it needs more hops.
+            // We should revisit our entire min gas assertion model anyway
+            val minValue = Router_Costs.CCIPSend();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+
+            assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
+
+            //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
+            val sendMsg = lazy Router_CCIPSend.fromCell(msg.forwardPayload);
+
+            var tokenAmounts = sendMsg.tokenAmounts.iter();
+            assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
+
+            val transferedJetton = tokenAmounts.next();
+            assert (transferedJetton.amount == msg.amount) throw Router_Error.TokenAmountMismatch;
+            assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
+
+            onCCIPSend(sendMsg, msg.sender, in.valueCoins);
         }
         else => {
             // attempt to handle Ownable messages
@@ -618,6 +656,28 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
 
     nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
+
+//TODO: Sending LockOrBurn to the TokenPool should trigger a withdraw pattern to get the tokens to the TP
+/*
+The thing is at this point we still didn't go through all the preflight checks - (1) gas check for TP processing - unique per TP/Jetton, (2) rate limiter check, (3) advanced hooks check
+
+We don't want to move funds then return if any of those fail, but ideally we do all the checks and withdraw funds sequentially.
+*/
+/*
+withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
+*/
+fun onLockOrBurn(msg: Router_LockOrBurn) {
+    val tokenPoolLockOrBurn = createMessage({
+        bounce: true,
+        value: 0,
+        dest: msg.tokenPool,
+        body: MockTokenPool_LockOrBurn {
+            tokenAmount: msg.tokenAmount,
+            notify: msg.executorAddress,
+        }
+    });
+    tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+} 
 
 /*
 Handles contract upgrade requests using the Upgradeable pattern. Invokes the

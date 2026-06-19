@@ -72,6 +72,12 @@ fun onInternalMessage(in: InMessage) {
             assert(destChainConfig.router == in.senderAddress, Error.Unauthorized);
             onSend(st, destChainConfig, msg)
         }
+        OnRamp_ExecutorRequestsLockOrBurn => {
+        // Sender must be Send Executor
+            var st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, Error.Unauthorized);
+            onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
+        }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             val st = lazy OnRamp_Storage.load();
@@ -252,6 +258,14 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 
     val config = st.config.load();
 
+    var tokenRegistry: address? = null;
+
+    val msg = payload.msg.load();
+    var tokenAmounts = msg.tokenAmounts.iter();
+    if (!tokenAmounts.empty()) {
+        tokenRegistry = calculateTokenRegistryAddress(st, tokenAmounts.next().token);
+    }
+
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
         bounce: true,
@@ -267,10 +281,11 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
             },
             selfMessage: {
                 value: SendExecutor_Costs.Execute(),
-                body: CCIPSendExecutor_Execute {
+                body: CCIPSendExecutor_ExecuteV2 {
                     onrampSend: payload,
-                    config: CCIPSendExecutor_Config {
+                    config: CCIPSendExecutor_ConfigV2 {
                         feeQuoter: config.feeQuoter,
+                        tokenRegistry,
                     }.toCell(),
                 }.toCell(),
             },
@@ -280,6 +295,28 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     st.store();
+}
+
+fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
+    // TODO: resolve a per-token registry address. For now the OnRamp stores a single
+    // TokenRegistry address that is used for every token transfer.
+    return st.tokenRegistry!
+}
+
+fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
+    var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
+    val routerLockOrBurn = createMessage({
+        bounce: true,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_LockOrBurn {
+            tokenPool: msg.tokenPool,
+            tokenAmount: msg.tokenAmount,
+            destChainSelector: msg.destChainSelector,
+            executorAddress: sender,
+        }
+    });
+    routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*

@@ -72,6 +72,16 @@ depends = []
 display-name = "link.chain.ton.ccip.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint_token_pool/contract.tolk"
 domain = "ccip/pools"
+[contracts.MockTokenPool]
+display-name = "link.chain.ton.ccip.test.TokenPool"
+src = "contracts/ccip/test/tokenPool/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.TokenRegistry]
+display-name = "link.chain.ton.ccip.TokenRegistry"
+src = "contracts/ccip/token_registry/contract.tolk"
+domain = "ccip"
 depends = []
 
 [contracts.Timelock]

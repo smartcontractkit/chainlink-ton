@@ -277,18 +277,21 @@ export const CCIPSendExecutor_Data = {
  > struct CCIPSendExecutor_Addresses {
  >     onramp: address
  >     feeQuoter: address
+ >     tokenRegistry: address?
  > }
  */
 export interface CCIPSendExecutor_Addresses {
     readonly $: 'CCIPSendExecutor_Addresses'
     onramp: c.Address
     feeQuoter: c.Address
+    tokenRegistry: c.Address | null
 }
 
 export const CCIPSendExecutor_Addresses = {
     create(args: {
         onramp: c.Address
         feeQuoter: c.Address
+        tokenRegistry: c.Address | null
     }): CCIPSendExecutor_Addresses {
         return {
             $: 'CCIPSendExecutor_Addresses',
@@ -300,11 +303,13 @@ export const CCIPSendExecutor_Addresses = {
             $: 'CCIPSendExecutor_Addresses',
             onramp: s.loadAddress(),
             feeQuoter: s.loadAddress(),
+            tokenRegistry: s.loadMaybeAddress(),
         }
     },
     store(self: CCIPSendExecutor_Addresses, b: c.Builder): void {
         b.storeAddress(self.onramp);
         b.storeAddress(self.feeQuoter);
+        b.storeAddress(self.tokenRegistry);
     },
     toCell(self: CCIPSendExecutor_Addresses): c.Cell {
         return makeCellFrom<CCIPSendExecutor_Addresses>(self, CCIPSendExecutor_Addresses.store);
@@ -312,32 +317,44 @@ export const CCIPSendExecutor_Addresses = {
 }
 
 /**
- > type CCIPSendExecutor_State = Cell<CCIPSendExecutor_State_Initialized> | Cell<CCIPSendExecutor_State_OnGoingFeeValidation> | Cell<CCIPSendExecutor_State_Finalized>
+ > type CCIPSendExecutor_State = Cell<CCIPSendExecutor_State_Initialized> | Cell<CCIPSendExecutor_State_OnGoingFeeValidation> | Cell<CCIPSendExecutor_State_TokenRegistryAccess> | Cell<CCIPSendExecutor_State_TokenTransfer> | Cell<CCIPSendExecutor_State_Finalized>
  */
 export type CCIPSendExecutor_State =
     | { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: CellRef<CCIPSendExecutor_State_Initialized> }
     | { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: CellRef<CCIPSendExecutor_State_OnGoingFeeValidation> }
+    | { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: CellRef<CCIPSendExecutor_State_TokenRegistryAccess> }
+    | { $: 'Cell<CCIPSendExecutor_State_TokenTransfer>', value: CellRef<CCIPSendExecutor_State_TokenTransfer> }
     | { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: CellRef<CCIPSendExecutor_State_Finalized> }
 
 export const CCIPSendExecutor_State = {
     fromSlice(s: c.Slice): CCIPSendExecutor_State {
-        return lookupPrefixAndEat(s, 0b00, 2) ? { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: loadCellRef<CCIPSendExecutor_State_Initialized>(s, CCIPSendExecutor_State_Initialized.fromSlice) } :
-            lookupPrefixAndEat(s, 0b01, 2) ? { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: loadCellRef<CCIPSendExecutor_State_OnGoingFeeValidation>(s, CCIPSendExecutor_State_OnGoingFeeValidation.fromSlice) } :
-            lookupPrefixAndEat(s, 0b10, 2) ? { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: loadCellRef<CCIPSendExecutor_State_Finalized>(s, CCIPSendExecutor_State_Finalized.fromSlice) } :
+        return lookupPrefixAndEat(s, 0b000, 3) ? { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: loadCellRef<CCIPSendExecutor_State_Initialized>(s, CCIPSendExecutor_State_Initialized.fromSlice) } :
+            lookupPrefixAndEat(s, 0b001, 3) ? { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: loadCellRef<CCIPSendExecutor_State_OnGoingFeeValidation>(s, CCIPSendExecutor_State_OnGoingFeeValidation.fromSlice) } :
+            lookupPrefixAndEat(s, 0b010, 3) ? { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: loadCellRef<CCIPSendExecutor_State_TokenRegistryAccess>(s, CCIPSendExecutor_State_TokenRegistryAccess.fromSlice) } :
+            lookupPrefixAndEat(s, 0b011, 3) ? { $: 'Cell<CCIPSendExecutor_State_TokenTransfer>', value: loadCellRef<CCIPSendExecutor_State_TokenTransfer>(s, CCIPSendExecutor_State_TokenTransfer.fromSlice) } :
+            lookupPrefixAndEat(s, 0b100, 3) ? { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: loadCellRef<CCIPSendExecutor_State_Finalized>(s, CCIPSendExecutor_State_Finalized.fromSlice) } :
             throwNonePrefixMatch('CCIPSendExecutor_State');
     },
     store(self: CCIPSendExecutor_State, b: c.Builder): void {
         switch (self.$) {
             case 'Cell<CCIPSendExecutor_State_Initialized>':
-                b.storeUint(0b00, 2);
+                b.storeUint(0b000, 3);
                 storeCellRef<CCIPSendExecutor_State_Initialized>(self.value, b, CCIPSendExecutor_State_Initialized.store);
                 break;
             case 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>':
-                b.storeUint(0b01, 2);
+                b.storeUint(0b001, 3);
                 storeCellRef<CCIPSendExecutor_State_OnGoingFeeValidation>(self.value, b, CCIPSendExecutor_State_OnGoingFeeValidation.store);
                 break;
+            case 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>':
+                b.storeUint(0b010, 3);
+                storeCellRef<CCIPSendExecutor_State_TokenRegistryAccess>(self.value, b, CCIPSendExecutor_State_TokenRegistryAccess.store);
+                break;
+            case 'Cell<CCIPSendExecutor_State_TokenTransfer>':
+                b.storeUint(0b011, 3);
+                storeCellRef<CCIPSendExecutor_State_TokenTransfer>(self.value, b, CCIPSendExecutor_State_TokenTransfer.store);
+                break;
             case 'Cell<CCIPSendExecutor_State_Finalized>':
-                b.storeUint(0b10, 2);
+                b.storeUint(0b100, 3);
                 storeCellRef<CCIPSendExecutor_State_Finalized>(self.value, b, CCIPSendExecutor_State_Finalized.store);
                 break;
         }
@@ -400,6 +417,77 @@ export const CCIPSendExecutor_State_OnGoingFeeValidation = {
 }
 
 /**
+ > struct CCIPSendExecutor_State_TokenRegistryAccess {
+ >     fee: Fee
+ > }
+ */
+export interface CCIPSendExecutor_State_TokenRegistryAccess {
+    readonly $: 'CCIPSendExecutor_State_TokenRegistryAccess'
+    fee: Fee
+}
+
+export const CCIPSendExecutor_State_TokenRegistryAccess = {
+    create(args: {
+        fee: Fee
+    }): CCIPSendExecutor_State_TokenRegistryAccess {
+        return {
+            $: 'CCIPSendExecutor_State_TokenRegistryAccess',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CCIPSendExecutor_State_TokenRegistryAccess {
+        return {
+            $: 'CCIPSendExecutor_State_TokenRegistryAccess',
+            fee: Fee.fromSlice(s),
+        }
+    },
+    store(self: CCIPSendExecutor_State_TokenRegistryAccess, b: c.Builder): void {
+        Fee.store(self.fee, b);
+    },
+    toCell(self: CCIPSendExecutor_State_TokenRegistryAccess): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_State_TokenRegistryAccess>(self, CCIPSendExecutor_State_TokenRegistryAccess.store);
+    }
+}
+
+/**
+ > struct CCIPSendExecutor_State_TokenTransfer {
+ >     tokenPool: address
+ >     fee: Fee
+ > }
+ */
+export interface CCIPSendExecutor_State_TokenTransfer {
+    readonly $: 'CCIPSendExecutor_State_TokenTransfer'
+    tokenPool: c.Address
+    fee: Fee
+}
+
+export const CCIPSendExecutor_State_TokenTransfer = {
+    create(args: {
+        tokenPool: c.Address
+        fee: Fee
+    }): CCIPSendExecutor_State_TokenTransfer {
+        return {
+            $: 'CCIPSendExecutor_State_TokenTransfer',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CCIPSendExecutor_State_TokenTransfer {
+        return {
+            $: 'CCIPSendExecutor_State_TokenTransfer',
+            tokenPool: s.loadAddress(),
+            fee: Fee.fromSlice(s),
+        }
+    },
+    store(self: CCIPSendExecutor_State_TokenTransfer, b: c.Builder): void {
+        b.storeAddress(self.tokenPool);
+        Fee.store(self.fee, b);
+    },
+    toCell(self: CCIPSendExecutor_State_TokenTransfer): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_State_TokenTransfer>(self, CCIPSendExecutor_State_TokenTransfer.store);
+    }
+}
+
+/**
  > struct CCIPSendExecutor_State_Finalized {
  > }
  */
@@ -455,6 +543,86 @@ export const CCIPSendExecutor_Config = {
     },
     toCell(self: CCIPSendExecutor_Config): c.Cell {
         return makeCellFrom<CCIPSendExecutor_Config>(self, CCIPSendExecutor_Config.store);
+    }
+}
+
+/**
+ > struct CCIPSendExecutor_ConfigV2 {
+ >     feeQuoter: address
+ >     tokenRegistry: address?
+ > }
+ */
+export interface CCIPSendExecutor_ConfigV2 {
+    readonly $: 'CCIPSendExecutor_ConfigV2'
+    feeQuoter: c.Address
+    tokenRegistry: c.Address | null
+}
+
+export const CCIPSendExecutor_ConfigV2 = {
+    create(args: {
+        feeQuoter: c.Address
+        tokenRegistry: c.Address | null
+    }): CCIPSendExecutor_ConfigV2 {
+        return {
+            $: 'CCIPSendExecutor_ConfigV2',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CCIPSendExecutor_ConfigV2 {
+        return {
+            $: 'CCIPSendExecutor_ConfigV2',
+            feeQuoter: s.loadAddress(),
+            tokenRegistry: s.loadMaybeAddress(),
+        }
+    },
+    store(self: CCIPSendExecutor_ConfigV2, b: c.Builder): void {
+        b.storeAddress(self.feeQuoter);
+        b.storeAddress(self.tokenRegistry);
+    },
+    toCell(self: CCIPSendExecutor_ConfigV2): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_ConfigV2>(self, CCIPSendExecutor_ConfigV2.store);
+    }
+}
+
+/**
+ > struct (0x09bbeb9e) CCIPSendExecutor_ExecuteV2 {
+ >     onrampSend: OnRamp_Send
+ >     config: Cell<CCIPSendExecutor_ConfigV2>
+ > }
+ */
+export interface CCIPSendExecutor_ExecuteV2 {
+    readonly $: 'CCIPSendExecutor_ExecuteV2'
+    onrampSend: OnRamp_Send
+    config: CellRef<CCIPSendExecutor_ConfigV2>
+}
+
+export const CCIPSendExecutor_ExecuteV2 = {
+    PREFIX: 0x09bbeb9e,
+
+    create(args: {
+        onrampSend: OnRamp_Send
+        config: CellRef<CCIPSendExecutor_ConfigV2>
+    }): CCIPSendExecutor_ExecuteV2 {
+        return {
+            $: 'CCIPSendExecutor_ExecuteV2',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CCIPSendExecutor_ExecuteV2 {
+        loadAndCheckPrefix32(s, 0x09bbeb9e, 'CCIPSendExecutor_ExecuteV2');
+        return {
+            $: 'CCIPSendExecutor_ExecuteV2',
+            onrampSend: OnRamp_Send.fromSlice(s),
+            config: loadCellRef<CCIPSendExecutor_ConfigV2>(s, CCIPSendExecutor_ConfigV2.fromSlice),
+        }
+    },
+    store(self: CCIPSendExecutor_ExecuteV2, b: c.Builder): void {
+        b.storeUint(0x09bbeb9e, 32);
+        OnRamp_Send.store(self.onrampSend, b);
+        storeCellRef<CCIPSendExecutor_ConfigV2>(self.config, b, CCIPSendExecutor_ConfigV2.store);
+    },
+    toCell(self: CCIPSendExecutor_ExecuteV2): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_ExecuteV2>(self, CCIPSendExecutor_ExecuteV2.store);
     }
 }
 
@@ -623,6 +791,58 @@ export const OnRamp_Send = {
     },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
+    }
+}
+
+/**
+ > struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
+ >     tokenAmount: TokenAmount
+ >     tokenPool: address
+ >     destChainSelector: uint64
+ >     executorID: CCIPSendExecutor_ID
+ > }
+ */
+export interface OnRamp_ExecutorRequestsLockOrBurn {
+    readonly $: 'OnRamp_ExecutorRequestsLockOrBurn'
+    tokenAmount: TokenAmount
+    tokenPool: c.Address
+    destChainSelector: uint64
+    executorID: CCIPSendExecutor_ID
+}
+
+export const OnRamp_ExecutorRequestsLockOrBurn = {
+    PREFIX: 0x9be1fb61,
+
+    create(args: {
+        tokenAmount: TokenAmount
+        tokenPool: c.Address
+        destChainSelector: uint64
+        executorID: CCIPSendExecutor_ID
+    }): OnRamp_ExecutorRequestsLockOrBurn {
+        return {
+            $: 'OnRamp_ExecutorRequestsLockOrBurn',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OnRamp_ExecutorRequestsLockOrBurn {
+        loadAndCheckPrefix32(s, 0x9be1fb61, 'OnRamp_ExecutorRequestsLockOrBurn');
+        return {
+            $: 'OnRamp_ExecutorRequestsLockOrBurn',
+            tokenAmount: TokenAmount.fromSlice(s),
+            tokenPool: s.loadAddress(),
+            destChainSelector: s.loadUintBig(64),
+            executorID: CCIPSendExecutor_ID.fromSlice(s),
+        }
+    },
+    store(self: OnRamp_ExecutorRequestsLockOrBurn, b: c.Builder): void {
+        b.storeUint(0x9be1fb61, 32);
+        TokenAmount.store(self.tokenAmount, b);
+        b.storeAddress(self.tokenPool);
+        b.storeUint(self.destChainSelector, 64);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+    },
+    toCell(self: OnRamp_ExecutorRequestsLockOrBurn): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorRequestsLockOrBurn>(self, OnRamp_ExecutorRequestsLockOrBurn.store);
     }
 }
 
@@ -858,44 +1078,6 @@ export const Fee = {
 }
 
 /**
- > struct Metadata {
- >     sender: address
- >     value: coins
- > }
- */
-export interface Metadata {
-    readonly $: 'Metadata'
-    sender: c.Address
-    value: coins
-}
-
-export const Metadata = {
-    create(args: {
-        sender: c.Address
-        value: coins
-    }): Metadata {
-        return {
-            $: 'Metadata',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Metadata {
-        return {
-            $: 'Metadata',
-            sender: s.loadAddress(),
-            value: s.loadCoins(),
-        }
-    },
-    store(self: Metadata, b: c.Builder): void {
-        b.storeAddress(self.sender);
-        b.storeCoins(self.value);
-    },
-    toCell(self: Metadata): c.Cell {
-        return makeCellFrom<Metadata>(self, Metadata.store);
-    }
-}
-
-/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice
@@ -1103,6 +1285,146 @@ export const TokenAmount = {
     }
 }
 
+/**
+ > struct (0xdd5d5127) TokenRegistry_GetTokenInfo {
+ > }
+ */
+export interface TokenRegistry_GetTokenInfo {
+    readonly $: 'TokenRegistry_GetTokenInfo'
+}
+
+export const TokenRegistry_GetTokenInfo = {
+    PREFIX: 0xdd5d5127,
+
+    create(): TokenRegistry_GetTokenInfo {
+        return {
+            $: 'TokenRegistry_GetTokenInfo',
+        }
+    },
+    fromSlice(s: c.Slice): TokenRegistry_GetTokenInfo {
+        loadAndCheckPrefix32(s, 0xdd5d5127, 'TokenRegistry_GetTokenInfo');
+        return {
+            $: 'TokenRegistry_GetTokenInfo',
+        }
+    },
+    store(self: TokenRegistry_GetTokenInfo, b: c.Builder): void {
+        b.storeUint(0xdd5d5127, 32);
+    },
+    toCell(self: TokenRegistry_GetTokenInfo): c.Cell {
+        return makeCellFrom<TokenRegistry_GetTokenInfo>(self, TokenRegistry_GetTokenInfo.store);
+    }
+}
+
+/**
+ > struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
+ >     minterAddress: address
+ >     tokenPool: address?
+ > }
+ */
+export interface TokenRegistry_ReturnTokenInfo {
+    readonly $: 'TokenRegistry_ReturnTokenInfo'
+    minterAddress: c.Address
+    tokenPool: c.Address | null
+}
+
+export const TokenRegistry_ReturnTokenInfo = {
+    PREFIX: 0xddccddb5,
+
+    create(args: {
+        minterAddress: c.Address
+        tokenPool: c.Address | null
+    }): TokenRegistry_ReturnTokenInfo {
+        return {
+            $: 'TokenRegistry_ReturnTokenInfo',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenRegistry_ReturnTokenInfo {
+        loadAndCheckPrefix32(s, 0xddccddb5, 'TokenRegistry_ReturnTokenInfo');
+        return {
+            $: 'TokenRegistry_ReturnTokenInfo',
+            minterAddress: s.loadAddress(),
+            tokenPool: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenRegistry_ReturnTokenInfo, b: c.Builder): void {
+        b.storeUint(0xddccddb5, 32);
+        b.storeAddress(self.minterAddress);
+        b.storeAddress(self.tokenPool);
+    },
+    toCell(self: TokenRegistry_ReturnTokenInfo): c.Cell {
+        return makeCellFrom<TokenRegistry_ReturnTokenInfo>(self, TokenRegistry_ReturnTokenInfo.store);
+    }
+}
+
+/**
+ > struct (0x4c700579) TokenPool_NotifySuccessfulLockOrBurn {
+ > }
+ */
+export interface TokenPool_NotifySuccessfulLockOrBurn {
+    readonly $: 'TokenPool_NotifySuccessfulLockOrBurn'
+}
+
+export const TokenPool_NotifySuccessfulLockOrBurn = {
+    PREFIX: 0x4c700579,
+
+    create(): TokenPool_NotifySuccessfulLockOrBurn {
+        return {
+            $: 'TokenPool_NotifySuccessfulLockOrBurn',
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_NotifySuccessfulLockOrBurn {
+        loadAndCheckPrefix32(s, 0x4c700579, 'TokenPool_NotifySuccessfulLockOrBurn');
+        return {
+            $: 'TokenPool_NotifySuccessfulLockOrBurn',
+        }
+    },
+    store(self: TokenPool_NotifySuccessfulLockOrBurn, b: c.Builder): void {
+        b.storeUint(0x4c700579, 32);
+    },
+    toCell(self: TokenPool_NotifySuccessfulLockOrBurn): c.Cell {
+        return makeCellFrom<TokenPool_NotifySuccessfulLockOrBurn>(self, TokenPool_NotifySuccessfulLockOrBurn.store);
+    }
+}
+
+/**
+ > struct Metadata {
+ >     sender: address
+ >     value: coins
+ > }
+ */
+export interface Metadata {
+    readonly $: 'Metadata'
+    sender: c.Address
+    value: coins
+}
+
+export const Metadata = {
+    create(args: {
+        sender: c.Address
+        value: coins
+    }): Metadata {
+        return {
+            $: 'Metadata',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Metadata {
+        return {
+            $: 'Metadata',
+            sender: s.loadAddress(),
+            value: s.loadCoins(),
+        }
+    },
+    store(self: Metadata, b: c.Builder): void {
+        b.storeAddress(self.sender);
+        b.storeCoins(self.value);
+    },
+    toCell(self: Metadata): c.Cell {
+        return makeCellFrom<Metadata>(self, Metadata.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class CCIPSendExecutor
 //
@@ -1142,12 +1464,15 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFwEAA+cAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgTFARdPiRjo/THzHXLCOkt/q0MeMC8j/gINcsJXnjFZzjAtcsIP0wG6TjAtcsJeeFWHyAGBwgJA/cW4IJMS0AggnZBcCCEAVdSoCCEATjOICCC8FNwLYJoKCgIqAlvOMC+ACIVHh2U4cEyMvfz5Nz5k8KE8z6UgH6AszPhoDMye1UI9D6SPpIMdHIz5M+mszaKc8L31AD+gLLXybPFFJQ+lIk+gLJyM+FiBL6UnHPC27MyYMGgEBIRA/ztRNDT39csJufMnhTyv9T6SPoA1NcsAZQwgQCHjhXXLAOUMIEAiJvXLAUxkvI/4YEAieLigUWIgQCIWLry9IhUdUNTVATIy9/Pk3PmTwoTzPpSAfoCzM+GgMzJ7VTQ+kj6SDHRyM+TEBo4hhXL34FFjM8L/xPM+lIB+gLJyIkSCgsC/jHXLCbnzJ4U8r/U+kj6ANdM0PpI0e1E0PpI1wvfAcj6UhL6UsmBRYn4kvgoxwXy9IFFi/iXghAFXUqAghAE4ziAggvBTcC2CaC+8vQg0PpIMfpI0YIQBBzbQIsIyM+R0lv9WijPFM7JyM+FiBP6UgH6AnHPC2rMyXH7AIhUclQSDADOMe1E0NPf1ywm58yeFPK/1PpI+gDU1ywBlddMgQCHjhfXLAOV10yBAIic1ywFkvI/4ddMgQCJ4uKBRYiBAIhYuvL0gUWJItD6SDH6SNH4kscF8vQG+gDTX9QQiRB4EGcQVhBF8AFfBgEU4wIwhA8BxwDy9A0AAWIAHs8WEvpScc8LbszJgwb7AAA+JjY2NjYFyMvfz5Nz5k8KFMwS+lIB+gLMz4WAzMntVAP+Me1E0NPf1ywm58yeFPK/1PpI+gDU1ywBlDCBAIeOFdcsA5QwgQCIm9csBTGS8j/hgQCJ4uKBRYiBAIhYuvL0gUWJIdD6SDH6SNH4kscF8vQF1wv/iFR1Q1NZBMjL38+Tc+ZPChPM+lIB+gLMz4aAzMntVCXQNgX6SPpIMdHIiRIODwAIxAaOIQBWzxYlzwvfNVBUy/8izxQyUgL6UjEi+gJsEsnIz4WIEvpScc8LbszJgwb7AAGqW4hUdlRTZQTIy9/Pk3PmTwoTzPpSAfoCzM+GgMzJ7VQh0PpI+kgx0cjPkxAaOIYnzwvfgUWKzwv/Js8UUlD6UiT6AsnIz4WIEvpScc8LbszJgwb7ABIABPsAAAACASAVFgALuGhYEAsoAGG2K/GhI2NLc1lzG0MLS3Fzo3txcxsbS4FyGhpKgpsrcyIrwysbq6N7lBFqYlxsXGMQABm1xRAosRQEEIH3flCQ');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
+        'Common_Error.CrossChainAddressOutOfRange': 5,
+        'Utils_Error.InvalidData': 13500,
         'CCIPSendExecutor_Error.StateNotExpected': 17800,
         'CCIPSendExecutor_Error.Unauthorized': 17801,
         'CCIPSendExecutor_Error.InsufficientFee': 17803,
+        'CCIPSendExecutor_Error.TokenNotEnabled': 17805,
     }
 
     readonly address: c.Address
@@ -1192,6 +1517,13 @@ export class CCIPSendExecutor implements c.Contract {
         return CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body));
     }
 
+    static createCellOfCCIPSendExecutorExecuteV2(body: {
+        onrampSend: OnRamp_Send
+        config: CellRef<CCIPSendExecutor_ConfigV2>
+    }) {
+        return CCIPSendExecutor_ExecuteV2.toCell(CCIPSendExecutor_ExecuteV2.create(body));
+    }
+
     static createCellOfFeeQuoterMessageValidatedRemainingBitsAndRefs_(body: {
         fee: Fee
         msg: CellRef<Router_CCIPSend>
@@ -1218,6 +1550,18 @@ export class CCIPSendExecutor implements c.Contract {
         );
     }
 
+    static createCellOfTokenRegistryReturnTokenInfo(body: {
+        minterAddress: c.Address
+        tokenPool: c.Address | null
+    }) {
+        return TokenRegistry_ReturnTokenInfo.toCell(TokenRegistry_ReturnTokenInfo.create(body));
+    }
+
+    static createCellOfTokenPoolNotifySuccessfulLockOrBurn(body: {
+    }) {
+        return TokenPool_NotifySuccessfulLockOrBurn.toCell(TokenPool_NotifySuccessfulLockOrBurn.create());
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1233,6 +1577,17 @@ export class CCIPSendExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendCCIPSendExecutorExecuteV2(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        onrampSend: OnRamp_Send
+        config: CellRef<CCIPSendExecutor_ConfigV2>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: CCIPSendExecutor_ExecuteV2.toCell(CCIPSendExecutor_ExecuteV2.create(body)),
             ...extraOptions
         });
     }
@@ -1267,6 +1622,26 @@ export class CCIPSendExecutor implements c.Contract {
                 storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
                 storeTolkRemaining(v.context, b); }
             ),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenRegistryReturnTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        minterAddress: c.Address
+        tokenPool: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenRegistry_ReturnTokenInfo.toCell(TokenRegistry_ReturnTokenInfo.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolNotifySuccessfulLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_NotifySuccessfulLockOrBurn.toCell(TokenPool_NotifySuccessfulLockOrBurn.create()),
             ...extraOptions
         });
     }
