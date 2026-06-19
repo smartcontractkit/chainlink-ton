@@ -34,14 +34,14 @@ type GetTokenInfo struct {
 // SetTokenInfo message to set token information in the registry.
 // crc32('TokenRegistry_SetTokenInfo')
 type SetTokenInfo struct {
-	_ tlb.Magic `tlb:"#d24387a4" json:"-"` //nolint:revive // Ignore opcode tag
+	_    tlb.Magic `tlb:"#d24387a4" json:"-"` //nolint:revive // Ignore opcode tag
 	Info TokenInfo `tlb:"."`
 }
 
 // ReturnTokenInfo message returned by the contract when token info is queried.
 // crc32('TokenRegistry_ReturnTokenInfo')
 type ReturnTokenInfo struct {
-	_ tlb.Magic        `tlb:"#ddccddb5" json:"-"` //nolint:revive // Ignore opcode tag
+	_             tlb.Magic        `tlb:"#ddccddb5" json:"-"` //nolint:revive // Ignore opcode tag
 	MinterAddress *address.Address `tlb:"addr"`
 	TokenPool     *address.Address `tlb:"maybe addr"`
 }

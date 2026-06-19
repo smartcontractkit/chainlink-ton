@@ -138,11 +138,11 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeTimelock: timelock.TLBs,
 
 	// CCIP contract types
-	TypeRouter:       router.TLBs,
-	TypeOnRamp:       onramp.TLBs,
-	TypeOffRamp:      offramp.TLBs,
-	TypeFeeQuoter:    feequoter.TLBs,
-	TypeSendExecutor: ccipsendexecutor.TLBs,
+	TypeRouter:        router.TLBs,
+	TypeOnRamp:        onramp.TLBs,
+	TypeOffRamp:       offramp.TLBs,
+	TypeFeeQuoter:     feequoter.TLBs,
+	TypeSendExecutor:  ccipsendexecutor.TLBs,
 	TypeTokenRegistry: tokenregistry.TLBs,
 
 	// Jetton contract types
