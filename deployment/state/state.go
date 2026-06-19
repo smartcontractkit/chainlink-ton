@@ -219,6 +219,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 			state.OnRamp = *contractAddress
 		case FeeQuoter:
 			state.FeeQuoter = *contractAddress
+		case TokenRegistry:
+			state.TokenRegistry = *contractAddress
 		default:
 			continue
 		}
