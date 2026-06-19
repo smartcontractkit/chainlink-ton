@@ -64,13 +64,13 @@ depends = []
 
 [contracts.LockReleaseTokenPool]
 display-name = "link.chain.ton.ccip.LockReleaseTokenPool"
-src = "contracts/ccip/pools/lock_release_token_pool/contract.tolk"
+src = "contracts/ccip/pools/lock_release/contract.tolk"
 domain = "ccip/pools"
 depends = []
 
 [contracts.BurnMintTokenPool]
 display-name = "link.chain.ton.ccip.BurnMintTokenPool"
-src = "contracts/ccip/pools/burn_mint_token_pool/contract.tolk"
+src = "contracts/ccip/pools/burn_mint/contract.tolk"
 domain = "ccip/pools"
 [contracts.MockTokenPool]
 display-name = "link.chain.ton.ccip.test.TokenPool"
