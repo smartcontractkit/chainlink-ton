@@ -21,8 +21,8 @@ import {
 import {
   MockTokenPool,
   MockTokenPool_LockOrBurn,
-  TokenPool_NotifySuccessfulLockOrBurn,
 } from '../../../wrappers/gen/ccip/MockTokenPool'
+import { TokenPool_LockOrBurnFinished } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
@@ -154,7 +154,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     }
 
     // The CCIPSend payload travels as the forward payload of the jetton transfer.
-    const forwardPayload = rt.builder.message.in.ccipSend.encode(ccipSend).endCell()
+    const forwardPayload = rt.builder.message.in.ccipSend.encode(ccipSend).asCell()
 
     const routerWalletAddress = await minter.getWalletAddress(router.address)
     const senderWallet = blockchain.openContract(
@@ -288,7 +288,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: mockTokenPool.address,
       to: executorAddress,
-      op: TokenPool_NotifySuccessfulLockOrBurn.PREFIX,
+      op: TokenPool_LockOrBurnFinished.PREFIX,
       success: true,
     })
     // executor -> onRamp (finished successfully) and self-destructs

@@ -568,6 +568,75 @@ export const Upgradeable_UpgradedEvent = {
 }
 
 /**
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
+ */
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
+
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
+    },
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
+    },
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
+    }
+}
+
+/**
+ > struct (0x7362d09c) TransferNotificationForRecipient {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferInitiator: address?
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface TransferNotificationForRecipient {
+    readonly $: 'TransferNotificationForRecipient'
+    queryId: uint64
+    jettonAmount: coins
+    transferInitiator: c.Address | null
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const TransferNotificationForRecipient = {
+    PREFIX: 0x7362d09c,
+
+    create(args: {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }): TransferNotificationForRecipient {
+        return {
+            $: 'TransferNotificationForRecipient',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TransferNotificationForRecipient {
+        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
+        return {
+            $: 'TransferNotificationForRecipient',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferInitiator: s.loadMaybeAddress(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: TransferNotificationForRecipient, b: c.Builder): void {
+        b.storeUint(0x7362d09c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferInitiator);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: TransferNotificationForRecipient): c.Cell {
+        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
+    }
+}
+
+/**
  > struct Any2TVMMessage {
  >     messageId: uint256
  >     sourceChainSelector: uint64
@@ -661,45 +730,6 @@ export const Receiver_CCIPReceive = {
     },
     toCell(self: Receiver_CCIPReceive): c.Cell {
         return makeCellFrom<Receiver_CCIPReceive>(self, Receiver_CCIPReceive.store);
-    }
-}
-
-/**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
- > }
- */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: c.Dictionary<uint128, []>
-}
-
-export const CursedSubjects = {
-    create(args: {
-        data: c.Dictionary<uint128, []>
-    }): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
-        }
-    },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
     }
 }
 
@@ -1006,56 +1036,41 @@ export const ReceiveExecutorId = {
 }
 
 /**
- > struct (0x7362d09c) Common_JettonTransferNotification {
- >     queryId: uint64
- >     amount: coins
- >     sender: address
- >     forwardPayload: cell?
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
  > }
  */
-export interface Common_JettonTransferNotification {
-    readonly $: 'Common_JettonTransferNotification'
-    queryId: uint64
-    amount: coins
-    sender: c.Address
-    forwardPayload: c.Cell | null
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: c.Dictionary<uint128, []>
 }
 
-export const Common_JettonTransferNotification = {
-    PREFIX: 0x7362d09c,
-
+export const CursedSubjects = {
     create(args: {
-        queryId: uint64
-        amount: coins
-        sender: c.Address
-        forwardPayload: c.Cell | null
-    }): Common_JettonTransferNotification {
+        data: c.Dictionary<uint128, []>
+    }): CursedSubjects {
         return {
-            $: 'Common_JettonTransferNotification',
+            $: 'CursedSubjects',
             ...args
         }
     },
-    fromSlice(s: c.Slice): Common_JettonTransferNotification {
-        loadAndCheckPrefix32(s, 0x7362d09c, 'Common_JettonTransferNotification');
+    fromSlice(s: c.Slice): CursedSubjects {
         return {
-            $: 'Common_JettonTransferNotification',
-            queryId: s.loadUintBig(64),
-            amount: s.loadCoins(),
-            sender: s.loadAddress(),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            $: 'CursedSubjects',
+            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                (s) => [],
+                (v,b) => { {} }
+            ), s),
         }
     },
-    store(self: Common_JettonTransferNotification, b: c.Builder): void {
-        b.storeUint(0x7362d09c, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeCoins(self.amount);
-        b.storeAddress(self.sender);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
     },
-    toCell(self: Common_JettonTransferNotification): c.Cell {
-        return makeCellFrom<Common_JettonTransferNotification>(self, Common_JettonTransferNotification.store);
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
     }
 }
 
@@ -2691,7 +2706,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -2700,12 +2715,12 @@ export class Router implements c.Contract {
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
-        'Router_Error.DestChainNotEnabled': 57100,
         'Withdrawable_Error.InsufficientBalance': 57100,
-        'Router_Error.SourceChainNotEnabled': 57101,
+        'Router_Error.DestChainNotEnabled': 57100,
         'Withdrawable_Error.HitReserve': 57101,
-        'Router_Error.SenderIsNotOffRamp': 57102,
+        'Router_Error.SourceChainNotEnabled': 57101,
         'Withdrawable_Error.InvalidRequest': 57102,
+        'Router_Error.SenderIsNotOffRamp': 57102,
         'Router_Error.OffRampNotSetForSelector': 57103,
         'Router_Error.OffRampAddressMismatch': 57104,
         'Router_Error.SubjectCursed': 57105,
@@ -2876,13 +2891,13 @@ export class Router implements c.Contract {
         return Router_RMNOwnableMessage.toCell(Router_RMNOwnableMessage.create(body));
     }
 
-    static createCellOfCommonJettonTransferNotification(body: {
+    static createCellOfTransferNotificationForRecipient(body: {
         queryId: uint64
-        amount: coins
-        sender: c.Address
-        forwardPayload: c.Cell | null
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
     }) {
-        return Common_JettonTransferNotification.toCell(Common_JettonTransferNotification.create(body));
+        return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -3076,15 +3091,15 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendCommonJettonTransferNotification(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        amount: coins
-        sender: c.Address
-        forwardPayload: c.Cell | null
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Common_JettonTransferNotification.toCell(Common_JettonTransferNotification.create(body)),
+            body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
             ...extraOptions
         });
     }

@@ -4,12 +4,12 @@ import "../common/types.tolk"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable.tolk";
 import "../../lib/versioning/upgradeable"
+import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
-import "../common/messages"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -28,8 +28,7 @@ type Router_InMsg =
     | Router_MessageRejected
     | Router_LockOrBurn
     | Router_RMNOwnableMessage
-    | Common_JettonTransferNotification
-    ;
+    | TransferNotificationForRecipient;
 
 type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
 type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
