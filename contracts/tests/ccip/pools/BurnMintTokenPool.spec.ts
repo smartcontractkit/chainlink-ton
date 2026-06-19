@@ -24,6 +24,8 @@ import {
   TokenPool_ReleaseOrMintFinished,
   TokenPool_MirroredPolicy,
   TokenPool_DynamicConfig,
+  TokenPool_Transfer,
+  TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
@@ -326,11 +328,18 @@ describe('BurnMintTokenPool', () => {
             queryId: 303n,
             request: {
               ref: TokenPool_LockOrBurnInV1.create({
-                receiver: { ref: receiverAddress },
-                remoteChainSelector,
-                originalSender: unauthorized.address,
-                amount: toNano('1'),
-                localToken: cctMinter.address,
+                transfer: TokenPool_Transfer.create({
+                  id: 303n,
+                  details: {
+                    ref: TokenPool_TransferDetails.create({
+                      receiver: { ref: receiverAddress },
+                      remoteChainSelector,
+                      originalSender: unauthorized.address,
+                      amount: toNano('1'),
+                      localToken: cctMinter.address,
+                    }),
+                  },
+                }),
               }),
             },
             requestedFinalityConfig: 0n,
@@ -365,11 +374,18 @@ describe('BurnMintTokenPool', () => {
             queryId: 304n,
             request: {
               ref: TokenPool_LockOrBurnInV1.create({
-                receiver: { ref: receiverAddress },
-                remoteChainSelector,
-                originalSender: deployer.address,
-                amount: toNano('1'),
-                localToken: cctMinter.address,
+                transfer: TokenPool_Transfer.create({
+                  id: 304n,
+                  details: {
+                    ref: TokenPool_TransferDetails.create({
+                      receiver: { ref: receiverAddress },
+                      remoteChainSelector,
+                      originalSender: deployer.address,
+                      amount: toNano('1'),
+                      localToken: cctMinter.address,
+                    }),
+                  },
+                }),
               }),
             },
             requestedFinalityConfig: 0n,
@@ -406,11 +422,18 @@ describe('BurnMintTokenPool', () => {
             queryId: 11n,
             request: {
               ref: TokenPool_LockOrBurnInV1.create({
-                receiver: { ref: receiverAddress },
-                remoteChainSelector,
-                originalSender: deployer.address,
-                amount: toNano('3'),
-                localToken: cctMinter.address,
+                transfer: TokenPool_Transfer.create({
+                  id: 11n,
+                  details: {
+                    ref: TokenPool_TransferDetails.create({
+                      receiver: { ref: receiverAddress },
+                      remoteChainSelector,
+                      originalSender: deployer.address,
+                      amount: toNano('3'),
+                      localToken: cctMinter.address,
+                    }),
+                  },
+                }),
               }),
             },
             requestedFinalityConfig: 0n,
@@ -446,11 +469,18 @@ describe('BurnMintTokenPool', () => {
         queryId: 22n,
         request: {
           ref: TokenPool_ReleaseOrMintInV1.create({
-            originalSender: { ref: sourcePoolAddress },
-            remoteChainSelector,
-            receiver: recipient.address,
-            sourceDenominatedAmount: toNano('2'),
-            localToken: cctMinter.address,
+            transfer: TokenPool_Transfer.create({
+              id: 22n,
+              details: {
+                ref: TokenPool_TransferDetails.create({
+                  originalSender: { ref: sourcePoolAddress },
+                  remoteChainSelector,
+                  receiver: recipient.address,
+                  amount: toNano('2'),
+                  localToken: cctMinter.address,
+                }),
+              },
+            }),
             sourcePoolAddress: { ref: sourcePoolAddress },
             sourcePoolData: null,
             offchainTokenData: null,
@@ -496,11 +526,18 @@ describe('BurnMintTokenPool', () => {
         queryId: 305n,
         request: {
           ref: TokenPool_ReleaseOrMintInV1.create({
-            originalSender: { ref: sourcePoolAddress },
-            remoteChainSelector,
-            receiver: recipient.address,
-            sourceDenominatedAmount: toNano('1'),
-            localToken: cctMinter.address,
+            transfer: TokenPool_Transfer.create({
+              id: 305n,
+              details: {
+                ref: TokenPool_TransferDetails.create({
+                  originalSender: { ref: sourcePoolAddress },
+                  remoteChainSelector,
+                  receiver: recipient.address,
+                  amount: toNano('1'),
+                  localToken: cctMinter.address,
+                }),
+              },
+            }),
             sourcePoolAddress: { ref: sourcePoolAddress },
             sourcePoolData: null,
             offchainTokenData: null,

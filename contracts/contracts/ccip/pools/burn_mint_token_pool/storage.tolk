@@ -10,6 +10,8 @@ import "types"
 struct Storage {
     poolData: Cell<TokenPool_Data>;
     jettonClient: Cell<JettonClient>;
+    // Local storage used for MVP, won't scale to high volume of concurrent messages
+    // with 65,536 cells per contract limit.
     // TODO: replace with sharded ContextExecutor per message
     pendingBurns: map<uint64, Cell<BurnMintTokenPool_PendingBurn>>;
     pendingMints: map<uint64, Cell<BurnMintTokenPool_PendingMint>>;

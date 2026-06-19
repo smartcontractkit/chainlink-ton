@@ -33,8 +33,8 @@ struct TokenPool_ReleasedOrMinted {
 struct TokenPool_ReleasedOrMintedDetails {
     token: address;
     sender: address;
-    recipient: Cell<address>;
     amount: uint256;
+    recipient: Cell<address>;
 }
 
 struct TokenPool_ChainAdded {

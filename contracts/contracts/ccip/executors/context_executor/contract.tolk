@@ -13,6 +13,7 @@ contract ContextExecutor {
     // TODO: generic not supported here
     storage: ContextExecutor_Data<cell>
     incomingMessages: ContextExecutor_InMessage<cell>
+    outgoingMessages: ContextExecutor_OutMessage<cell>
 }
 
 @inline

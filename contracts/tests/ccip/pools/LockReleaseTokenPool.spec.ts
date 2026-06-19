@@ -21,6 +21,10 @@ import {
   TokenPool_RampUpdate,
   TokenPool_ChainUpdate,
   Ownable2Step,
+  TokenPool_TransferDetails,
+  TokenPool_LockOrBurnTransfer,
+  TokenPool_Transfer,
+  TokenPool_ReleaseOrMintTransfer,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import {
   JettonClient,
@@ -286,11 +290,18 @@ describe('LockReleaseTokenPool', () => {
             queryId: 44n,
             request: {
               ref: TokenPool_LockOrBurnInV1.create({
-                receiver: { ref: receiverAddress },
-                remoteChainSelector,
-                originalSender: deployer.address,
-                amount: toNano('2'),
-                localToken: jettonMinter.address,
+                transfer: TokenPool_Transfer.create({
+                  id: 44n,
+                  details: {
+                    ref: TokenPool_TransferDetails.create({
+                      receiver: { ref: receiverAddress },
+                      remoteChainSelector,
+                      originalSender: deployer.address,
+                      amount: toNano('2'),
+                      localToken: jettonMinter.address,
+                    }),
+                  },
+                }),
               }),
             },
             requestedFinalityConfig: 0n,
@@ -339,11 +350,18 @@ describe('LockReleaseTokenPool', () => {
         queryId: 46n,
         request: {
           ref: TokenPool_ReleaseOrMintInV1.create({
-            originalSender: { ref: sourcePoolAddress },
-            remoteChainSelector,
-            receiver: recipient.address,
-            sourceDenominatedAmount: toNano('999999'),
-            localToken: jettonMinter.address,
+            transfer: TokenPool_Transfer.create({
+              id: 46n,
+              details: {
+                ref: TokenPool_TransferDetails.create({
+                  originalSender: { ref: sourcePoolAddress },
+                  remoteChainSelector,
+                  receiver: recipient.address,
+                  amount: toNano('999999'),
+                  localToken: jettonMinter.address,
+                }),
+              },
+            }),
             sourcePoolAddress: { ref: sourcePoolAddress },
             sourcePoolData: null,
             offchainTokenData: null,
@@ -379,11 +397,18 @@ describe('LockReleaseTokenPool', () => {
             queryId: 11n,
             request: {
               ref: TokenPool_LockOrBurnInV1.create({
-                receiver: { ref: receiverAddress },
-                remoteChainSelector,
-                originalSender: deployer.address,
-                amount: toNano('3'),
-                localToken: jettonMinter.address,
+                transfer: TokenPool_Transfer.create({
+                  id: 11n,
+                  details: {
+                    ref: TokenPool_TransferDetails.create({
+                      receiver: { ref: receiverAddress },
+                      remoteChainSelector,
+                      originalSender: deployer.address,
+                      amount: toNano('3'),
+                      localToken: jettonMinter.address,
+                    }),
+                  },
+                }),
               }),
             },
             requestedFinalityConfig: 0n,
@@ -427,11 +452,18 @@ describe('LockReleaseTokenPool', () => {
         queryId: 22n,
         request: {
           ref: TokenPool_ReleaseOrMintInV1.create({
-            originalSender: { ref: sourcePoolAddress },
-            remoteChainSelector,
-            receiver: recipient.address,
-            sourceDenominatedAmount: toNano('2'),
-            localToken: jettonMinter.address,
+            transfer: TokenPool_Transfer.create({
+              id: 46n,
+              details: {
+                ref: TokenPool_TransferDetails.create({
+                  originalSender: { ref: sourcePoolAddress },
+                  remoteChainSelector,
+                  receiver: recipient.address,
+                  amount: toNano('2'),
+                  localToken: jettonMinter.address,
+                }),
+              },
+            }),
             sourcePoolAddress: { ref: sourcePoolAddress },
             sourcePoolData: null,
             offchainTokenData: null,
@@ -496,11 +528,18 @@ describe('LockReleaseTokenPool', () => {
         queryId: 33n,
         request: {
           ref: TokenPool_ReleaseOrMintInV1.create({
-            originalSender: { ref: sourcePoolAddress },
-            remoteChainSelector,
-            receiver: recipient.address,
-            sourceDenominatedAmount: toNano('1'),
-            localToken: jettonMinter.address,
+            transfer: TokenPool_Transfer.create({
+              id: 33n,
+              details: {
+                ref: TokenPool_TransferDetails.create({
+                  originalSender: { ref: sourcePoolAddress },
+                  remoteChainSelector,
+                  receiver: recipient.address,
+                  amount: toNano('1'),
+                  localToken: jettonMinter.address,
+                }),
+              },
+            }),
             sourcePoolAddress: { ref: sourcePoolAddress },
             sourcePoolData: null,
             offchainTokenData: null,

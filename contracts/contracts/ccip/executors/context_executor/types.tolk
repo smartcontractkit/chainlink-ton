@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 struct ContextExecutor_Data<C> {
-    id: uint64;
+    id: uint64; // 64bit addr space for a unique identity, for more use context C
     owner: address;
     context: Cell<C>;
     forwardFrom: array<address>;

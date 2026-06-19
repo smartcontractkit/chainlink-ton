@@ -635,35 +635,35 @@ export const TokenPool_LockOrBurnPrepared = {
 
 /**
  > struct TokenPool_TokenTransferFeeConfig {
- >     isEnabled: bool
- >     finalityFeeUSDCents: uint256
- >     fastFinalityFeeUSDCents: uint256
  >     destGasOverhead: uint32
  >     destBytesOverhead: uint32
+ >     finalityFeeUSDCents: uint256
+ >     fastFinalityFeeUSDCents: uint256
  >     finalityTransferFeeBps: uint16
  >     fastFinalityTransferFeeBps: uint16
+ >     isEnabled: bool
  > }
  */
 export interface TokenPool_TokenTransferFeeConfig {
     readonly $: 'TokenPool_TokenTransferFeeConfig'
-    isEnabled: boolean
-    finalityFeeUSDCents: uint256
-    fastFinalityFeeUSDCents: uint256
     destGasOverhead: uint32
     destBytesOverhead: uint32
+    finalityFeeUSDCents: uint256
+    fastFinalityFeeUSDCents: uint256
     finalityTransferFeeBps: uint16
     fastFinalityTransferFeeBps: uint16
+    isEnabled: boolean
 }
 
 export const TokenPool_TokenTransferFeeConfig = {
     create(args: {
-        isEnabled: boolean
-        finalityFeeUSDCents: uint256
-        fastFinalityFeeUSDCents: uint256
         destGasOverhead: uint32
         destBytesOverhead: uint32
+        finalityFeeUSDCents: uint256
+        fastFinalityFeeUSDCents: uint256
         finalityTransferFeeBps: uint16
         fastFinalityTransferFeeBps: uint16
+        isEnabled: boolean
     }): TokenPool_TokenTransferFeeConfig {
         return {
             $: 'TokenPool_TokenTransferFeeConfig',
@@ -673,23 +673,23 @@ export const TokenPool_TokenTransferFeeConfig = {
     fromSlice(s: c.Slice): TokenPool_TokenTransferFeeConfig {
         return {
             $: 'TokenPool_TokenTransferFeeConfig',
-            isEnabled: s.loadBoolean(),
-            finalityFeeUSDCents: s.loadUintBig(256),
-            fastFinalityFeeUSDCents: s.loadUintBig(256),
             destGasOverhead: s.loadUintBig(32),
             destBytesOverhead: s.loadUintBig(32),
+            finalityFeeUSDCents: s.loadUintBig(256),
+            fastFinalityFeeUSDCents: s.loadUintBig(256),
             finalityTransferFeeBps: s.loadUintBig(16),
             fastFinalityTransferFeeBps: s.loadUintBig(16),
+            isEnabled: s.loadBoolean(),
         }
     },
     store(self: TokenPool_TokenTransferFeeConfig, b: c.Builder): void {
-        b.storeBit(self.isEnabled);
-        b.storeUint(self.finalityFeeUSDCents, 256);
-        b.storeUint(self.fastFinalityFeeUSDCents, 256);
         b.storeUint(self.destGasOverhead, 32);
         b.storeUint(self.destBytesOverhead, 32);
+        b.storeUint(self.finalityFeeUSDCents, 256);
+        b.storeUint(self.fastFinalityFeeUSDCents, 256);
         b.storeUint(self.finalityTransferFeeBps, 16);
         b.storeUint(self.fastFinalityTransferFeeBps, 16);
+        b.storeBit(self.isEnabled);
     },
     toCell(self: TokenPool_TokenTransferFeeConfig): c.Cell {
         return makeCellFrom<TokenPool_TokenTransferFeeConfig>(self, TokenPool_TokenTransferFeeConfig.store);
@@ -697,30 +697,157 @@ export const TokenPool_TokenTransferFeeConfig = {
 }
 
 /**
- > struct TokenPool_LockOrBurnInV1 {
- >     receiver: Cell<CrossChainAddress>
+ > struct TokenPool_Transfer<S, R> {
+ >     id: uint256
+ >     details: Cell<TokenPool_TransferDetails<S, R>>
+ > }
+ */
+export interface TokenPool_Transfer<S, R> {
+    readonly $: 'TokenPool_Transfer'
+    id: uint256
+    details: CellRef<TokenPool_TransferDetails<S, R>>
+}
+
+export const TokenPool_Transfer = {
+    create<S, R>(args: {
+        id: uint256
+        details: CellRef<TokenPool_TransferDetails<S, R>>
+    }): TokenPool_Transfer<S, R> {
+        return {
+            $: 'TokenPool_Transfer',
+            ...args
+        }
+    },
+}
+
+/**
+ > struct TokenPool_TransferDetails<S, R> {
+ >     receiver: R
  >     remoteChainSelector: uint64
- >     originalSender: address
+ >     originalSender: S
  >     amount: uint256
  >     localToken: address
  > }
  */
-export interface TokenPool_LockOrBurnInV1 {
-    readonly $: 'TokenPool_LockOrBurnInV1'
-    receiver: CellRef<CrossChainAddress>
+export interface TokenPool_TransferDetails<S, R> {
+    readonly $: 'TokenPool_TransferDetails'
+    receiver: R
     remoteChainSelector: uint64
-    originalSender: c.Address
+    originalSender: S
     amount: uint256
     localToken: c.Address
 }
 
-export const TokenPool_LockOrBurnInV1 = {
-    create(args: {
-        receiver: CellRef<CrossChainAddress>
+export const TokenPool_TransferDetails = {
+    create<S, R>(args: {
+        receiver: R
         remoteChainSelector: uint64
-        originalSender: c.Address
+        originalSender: S
         amount: uint256
         localToken: c.Address
+    }): TokenPool_TransferDetails<S, R> {
+        return {
+            $: 'TokenPool_TransferDetails',
+            ...args
+        }
+    },
+}
+
+/**
+ > type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<address, Cell<CrossChainAddress>>
+ */
+export type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<c.Address, CellRef<CrossChainAddress>>
+
+export const TokenPool_LockOrBurnTransfer = {
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnTransfer {
+        return (() => {
+            return {
+                $: 'TokenPool_Transfer',
+                id: s.loadUintBig(256),
+                details: loadCellRef<TokenPool_TransferDetails<c.Address, CellRef<CrossChainAddress>>>(s,
+                    (s) => (() => {
+                        return {
+                            $: 'TokenPool_TransferDetails',
+                            receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+                            remoteChainSelector: s.loadUintBig(64),
+                            originalSender: s.loadAddress(),
+                            amount: s.loadUintBig(256),
+                            localToken: s.loadAddress(),
+                        }
+                    })()
+                ),
+            }
+        })();
+    },
+    store(self: TokenPool_LockOrBurnTransfer, b: c.Builder): void {
+        b.storeUint(self.id, 256);
+        storeCellRef<TokenPool_TransferDetails<c.Address, CellRef<CrossChainAddress>>>(self.details, b,
+            (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
+            b.storeUint(v.remoteChainSelector, 64);
+            b.storeAddress(v.originalSender);
+            b.storeUint(v.amount, 256);
+            b.storeAddress(v.localToken); }
+        );
+    },
+    toCell(self: TokenPool_LockOrBurnTransfer): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnTransfer>(self, TokenPool_LockOrBurnTransfer.store);
+    }
+}
+
+/**
+ > type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<Cell<CrossChainAddress>, address>
+ */
+export type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<CellRef<CrossChainAddress>, c.Address>
+
+export const TokenPool_ReleaseOrMintTransfer = {
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintTransfer {
+        return (() => {
+            return {
+                $: 'TokenPool_Transfer',
+                id: s.loadUintBig(256),
+                details: loadCellRef<TokenPool_TransferDetails<CellRef<CrossChainAddress>, c.Address>>(s,
+                    (s) => (() => {
+                        return {
+                            $: 'TokenPool_TransferDetails',
+                            receiver: s.loadAddress(),
+                            remoteChainSelector: s.loadUintBig(64),
+                            originalSender: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+                            amount: s.loadUintBig(256),
+                            localToken: s.loadAddress(),
+                        }
+                    })()
+                ),
+            }
+        })();
+    },
+    store(self: TokenPool_ReleaseOrMintTransfer, b: c.Builder): void {
+        b.storeUint(self.id, 256);
+        storeCellRef<TokenPool_TransferDetails<CellRef<CrossChainAddress>, c.Address>>(self.details, b,
+            (v,b) => { b.storeAddress(v.receiver);
+            b.storeUint(v.remoteChainSelector, 64);
+            storeCellRef<CrossChainAddress>(v.originalSender, b, CrossChainAddress.store);
+            b.storeUint(v.amount, 256);
+            b.storeAddress(v.localToken); }
+        );
+    },
+    toCell(self: TokenPool_ReleaseOrMintTransfer): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintTransfer>(self, TokenPool_ReleaseOrMintTransfer.store);
+    }
+}
+
+/**
+ > struct TokenPool_LockOrBurnInV1 {
+ >     transfer: TokenPool_LockOrBurnTransfer
+ > }
+ */
+export interface TokenPool_LockOrBurnInV1 {
+    readonly $: 'TokenPool_LockOrBurnInV1'
+    transfer: TokenPool_LockOrBurnTransfer
+}
+
+export const TokenPool_LockOrBurnInV1 = {
+    create(args: {
+        transfer: TokenPool_LockOrBurnTransfer
     }): TokenPool_LockOrBurnInV1 {
         return {
             $: 'TokenPool_LockOrBurnInV1',
@@ -730,19 +857,11 @@ export const TokenPool_LockOrBurnInV1 = {
     fromSlice(s: c.Slice): TokenPool_LockOrBurnInV1 {
         return {
             $: 'TokenPool_LockOrBurnInV1',
-            receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            remoteChainSelector: s.loadUintBig(64),
-            originalSender: s.loadAddress(),
-            amount: s.loadUintBig(256),
-            localToken: s.loadAddress(),
+            transfer: TokenPool_LockOrBurnTransfer.fromSlice(s),
         }
     },
     store(self: TokenPool_LockOrBurnInV1, b: c.Builder): void {
-        storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
-        b.storeUint(self.remoteChainSelector, 64);
-        b.storeAddress(self.originalSender);
-        b.storeUint(self.amount, 256);
-        b.storeAddress(self.localToken);
+        TokenPool_LockOrBurnTransfer.store(self.transfer, b);
     },
     toCell(self: TokenPool_LockOrBurnInV1): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnInV1>(self, TokenPool_LockOrBurnInV1.store);
@@ -789,11 +908,7 @@ export const TokenPool_LockOrBurnOutV1 = {
 
 /**
  > struct TokenPool_ReleaseOrMintInV1 {
- >     originalSender: Cell<CrossChainAddress>
- >     remoteChainSelector: uint64
- >     receiver: address
- >     sourceDenominatedAmount: uint256
- >     localToken: address
+ >     transfer: TokenPool_ReleaseOrMintTransfer
  >     sourcePoolAddress: Cell<CrossChainAddress>
  >     sourcePoolData: cell?
  >     offchainTokenData: cell?
@@ -801,11 +916,7 @@ export const TokenPool_LockOrBurnOutV1 = {
  */
 export interface TokenPool_ReleaseOrMintInV1 {
     readonly $: 'TokenPool_ReleaseOrMintInV1'
-    originalSender: CellRef<CrossChainAddress>
-    remoteChainSelector: uint64
-    receiver: c.Address
-    sourceDenominatedAmount: uint256
-    localToken: c.Address
+    transfer: TokenPool_ReleaseOrMintTransfer
     sourcePoolAddress: CellRef<CrossChainAddress>
     sourcePoolData: c.Cell | null
     offchainTokenData: c.Cell | null
@@ -813,11 +924,7 @@ export interface TokenPool_ReleaseOrMintInV1 {
 
 export const TokenPool_ReleaseOrMintInV1 = {
     create(args: {
-        originalSender: CellRef<CrossChainAddress>
-        remoteChainSelector: uint64
-        receiver: c.Address
-        sourceDenominatedAmount: uint256
-        localToken: c.Address
+        transfer: TokenPool_ReleaseOrMintTransfer
         sourcePoolAddress: CellRef<CrossChainAddress>
         sourcePoolData: c.Cell | null
         offchainTokenData: c.Cell | null
@@ -830,22 +937,14 @@ export const TokenPool_ReleaseOrMintInV1 = {
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintInV1 {
         return {
             $: 'TokenPool_ReleaseOrMintInV1',
-            originalSender: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            remoteChainSelector: s.loadUintBig(64),
-            receiver: s.loadAddress(),
-            sourceDenominatedAmount: s.loadUintBig(256),
-            localToken: s.loadAddress(),
+            transfer: TokenPool_ReleaseOrMintTransfer.fromSlice(s),
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             sourcePoolData: s.loadBoolean() ? s.loadRef() : null,
             offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_ReleaseOrMintInV1, b: c.Builder): void {
-        storeCellRef<CrossChainAddress>(self.originalSender, b, CrossChainAddress.store);
-        b.storeUint(self.remoteChainSelector, 64);
-        b.storeAddress(self.receiver);
-        b.storeUint(self.sourceDenominatedAmount, 256);
-        b.storeAddress(self.localToken);
+        TokenPool_ReleaseOrMintTransfer.store(self.transfer, b);
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
         storeTolkNullable<c.Cell>(self.sourcePoolData, b,
             (v,b) => b.storeRef(v)

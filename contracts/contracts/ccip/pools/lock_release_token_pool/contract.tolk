@@ -80,10 +80,11 @@ fun onReleaseOrMintContinue(
     assert(!st.pendingReleases.get(msg.queryId).isFound, Error.PendingReleaseAlreadyExists);
     val jettonClient = st.jettonClient.load();
 
-    val request = prepared.request.load();
+    val request = lazy prepared.request.load();
+    val details = lazy request.transfer.details.load();
 
     val recipientWallet = calcAddressOfJettonWallet(
-        request.receiver,
+        details.receiver,
         jettonClient.masterAddress,
         jettonClient.jettonWalletCode,
     );
@@ -108,7 +109,7 @@ fun onReleaseOrMintContinue(
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: prepared.localAmount as coins,
-            transferRecipient: request.receiver,
+            transferRecipient: details.receiver,
             sendExcessesTo: contract.getAddress(), // TODO: ContextExecutor
             customPayload: null,
             forwardTonAmount: 0, // TODO: add fwdp amount
@@ -133,16 +134,17 @@ fun onReturnExcessesBack(
     assert(sender == pending.expectedSender, Error.UnexpectedReleaseConfirmationSender);
 
     st.pendingReleases.delete(msg.queryId);
-    val request = pending.request.load();
-    val out = pending.out.load();
+    val request = lazy pending.request.load();
+    val details = lazy request.transfer.details.load();
+    val out = lazy pending.out.load();
 
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: request.remoteChainSelector,
+        remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
-            token: request.localToken,
-            sender: contract.getAddress(),
-            recipient: request.receiver.toCell(),
+            token: details.localToken,
+            sender: contract.getAddress(), // TODO: who should we put as sender? (msg.sender on EVM)
             amount: out.destinationAmount,
+            recipient: details.receiver.toCell(),
         }.toCell(),
     });
 

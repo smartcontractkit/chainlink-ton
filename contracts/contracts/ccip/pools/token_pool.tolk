@@ -664,10 +664,12 @@ fun TokenPool<T>.getFee(
 /// Returns the fee amount.
 fun TokenPool<T>.getFeeAmount(
     self,
-    request: TokenPool_LockOrBurnInV1,
+    transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
 ): uint256 {
-    val entry = self.data.tokenTransferFeeConfigs.get(request.remoteChainSelector);
+    // TODO: register as an available hook
+    val details = lazy transfer.details.load();
+    val entry = self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector);
     if (!entry.isFound) {
         return 0;
     }
@@ -678,10 +680,10 @@ fun TokenPool<T>.getFeeAmount(
     }
 
     if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        return (request.amount * (feeConfig.fastFinalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
+        return (details.amount * (feeConfig.fastFinalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
     }
 
-    return (request.amount * (feeConfig.finalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
+    return (details.amount * (feeConfig.finalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
 }
 
 /// Validates the lock or burn input for correctness on
@@ -711,19 +713,20 @@ fun TokenPool<T>.validateLockOrBurn(
         return (wait, prepared);
     }
 
-    assert(self.isSupportedToken(request.localToken), TokenPool_Error.InvalidToken);
-    self.requireSupportedChain(request.remoteChainSelector);
-    self.ensureNotCursed(request.remoteChainSelector);
-    self.ensureOutboundAccess(sender, request.remoteChainSelector);
+    val details = lazy request.transfer.details.load();
+    assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
+    self.requireSupportedChain(details.remoteChainSelector);
+    self.ensureNotCursed(details.remoteChainSelector);
+    self.ensureOutboundAccess(sender, details.remoteChainSelector);
 
-    val feeAmount = self.getFeeAmount(request, requestedFinalityConfig);
-    val destTokenAmount = request.amount - feeAmount;
+    val feeAmount = self.getFeeAmount(request.transfer, requestedFinalityConfig);
+    val destTokenAmount = details.amount - feeAmount;
     // If FTF is requested, validate against the allowed and apply the custom rate limit.
     if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
         TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
-        self.consumeFastFinalityOutboundRateLimit(request.remoteChainSelector, destTokenAmount);
+        self.consumeFastFinalityOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     } else {
-        self.consumeOutboundRateLimit(request.remoteChainSelector, destTokenAmount);
+        self.consumeOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     }
 
     // TODO: use ContextExecutor as `replyTo` target for the preflight check
@@ -737,7 +740,7 @@ fun TokenPool<T>.validateLockOrBurn(
         feeAmount,
         destTokenAmount,
         out: TokenPool_LockOrBurnOutV1 {
-            destTokenAddress: self.getRemoteToken(request.remoteChainSelector),
+            destTokenAddress: self.getRemoteToken(details.remoteChainSelector),
             destPoolData: self.encodeLocalDecimals(),
         },
     });
@@ -879,12 +882,13 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val prepared = lazy fwdPayload.prepared.load();
 
-    var request = requestMsg.request.load();
+    val request = requestMsg.request.load();
+    val details = request.transfer.details.load();
     emit(TOPIC_TOKEN_POOL_LOCKED_OR_BURNED, TokenPool_LockedOrBurned {
-        remoteChainSelector: request.remoteChainSelector,
+        remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
-            token: request.localToken,
-            sender: request.originalSender,
+            token: details.localToken,
+            sender: details.originalSender,
             amount: prepared.destTokenAmount,
         }.toCell(),
     });
@@ -911,20 +915,21 @@ fun TokenPool<T>.validateReleaseOrMint(
     request: TokenPool_ReleaseOrMintInV1,
     requestedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY,
 ): (bool, TokenPool_ReleaseOrMintPrepared) {
-    assert(self.isSupportedToken(request.localToken), TokenPool_Error.InvalidToken);
-    self.requireSupportedChain(request.remoteChainSelector);
-    self.ensureNotCursed(request.remoteChainSelector);
-    self.ensureInboundAccess(sender, request.remoteChainSelector);
-    assert(self.isRemotePool(request.remoteChainSelector, request.sourcePoolAddress), TokenPool_Error.InvalidRemotePoolForChain);
+    val details = request.transfer.details.load();
+    assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
+    self.requireSupportedChain(details.remoteChainSelector);
+    self.ensureNotCursed(details.remoteChainSelector);
+    self.ensureInboundAccess(sender, details.remoteChainSelector);
+    assert(self.isRemotePool(details.remoteChainSelector, request.sourcePoolAddress), TokenPool_Error.InvalidRemotePoolForChain);
 
     val remoteDecimals = self.parseRemoteDecimals(request.sourcePoolData);
-    val localAmount = self.calculateLocalAmount(request.sourceDenominatedAmount, remoteDecimals);
+    val localAmount = self.calculateLocalAmount(details.amount, remoteDecimals);
     val usingFastFinality = requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG;
     if (usingFastFinality) {
         TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
-        self.consumeFastFinalityInboundRateLimit(request.remoteChainSelector, localAmount);
+        self.consumeFastFinalityInboundRateLimit(details.remoteChainSelector, localAmount);
     } else {
-        self.consumeInboundRateLimit(request.remoteChainSelector, localAmount);
+        self.consumeInboundRateLimit(details.remoteChainSelector, localAmount);
     }
 
     val wait = self.postflightCheck(request, localAmount, requestedFinalityConfig);

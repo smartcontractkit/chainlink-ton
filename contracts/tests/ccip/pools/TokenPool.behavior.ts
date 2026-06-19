@@ -10,6 +10,8 @@ import {
   TokenPool_RateLimitConfigPair,
   TokenPool_ReleaseOrMintInV1,
   RateLimiter_Config,
+  TokenPool_Transfer,
+  TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
 import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
@@ -32,11 +34,18 @@ function releaseRequest(
   overrides: Partial<TokenPool_ReleaseOrMintInV1> = {},
 ): TokenPool_ReleaseOrMintInV1 {
   return TokenPool_ReleaseOrMintInV1.create({
-    originalSender: { ref: ctx.sourcePoolAddress },
-    remoteChainSelector: ctx.remoteChainSelector,
-    receiver: ctx.recipient.address,
-    sourceDenominatedAmount: 1n,
-    localToken: ctx.localToken,
+    transfer: TokenPool_Transfer.create({
+      id: 1n,
+      details: {
+        ref: TokenPool_TransferDetails.create({
+          originalSender: { ref: ctx.sourcePoolAddress },
+          remoteChainSelector: ctx.remoteChainSelector,
+          receiver: ctx.recipient.address,
+          amount: 1n,
+          localToken: ctx.localToken,
+        }),
+      },
+    }),
     sourcePoolAddress: { ref: ctx.sourcePoolAddress },
     sourcePoolData: null,
     offchainTokenData: null,
@@ -393,7 +402,22 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 913n,
-          request: { ref: releaseRequest(ctx, { localToken: wrongLocalToken }) },
+          request: {
+            ref: releaseRequest(ctx, {
+              transfer: TokenPool_Transfer.create({
+                id: 1n,
+                details: {
+                  ref: TokenPool_TransferDetails.create({
+                    originalSender: { ref: ctx.sourcePoolAddress },
+                    remoteChainSelector: ctx.remoteChainSelector,
+                    receiver: ctx.recipient.address,
+                    amount: 1n,
+                    localToken: wrongLocalToken,
+                  }),
+                },
+              }),
+            }),
+          },
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },

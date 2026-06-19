@@ -109,12 +109,15 @@ fun onReleaseOrMintContinue(
     assert(!st.pendingMints.get(msg.queryId).isFound, BurnMintTokenPool_Error.PendingMintAlreadyExists);
     val jettonClient = st.jettonClient.load();
     val request = lazy prepared.request.load();
+    val details = lazy request.transfer.details.load();
 
     val recipientWallet = calcAddressOfJettonWallet(
-        request.receiver,
+        details.receiver,
         jettonClient.masterAddress,
         jettonClient.jettonWalletCode,
     );
+
+    // TODO: use transfer.id
 
     st.pendingMints.set(msg.queryId, BurnMintTokenPool_PendingMint {
         replyTo: msg.replyTo,
@@ -129,7 +132,7 @@ fun onReleaseOrMintContinue(
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
             queryId: msg.queryId,
-            mintRecipient: request.receiver,
+            mintRecipient: details.receiver,
             tonAmount: BurnMintTokenPool_MINT_VALUE,
             internalTransferMsg: InternalTransferStep {
                 queryId: msg.queryId,
@@ -186,15 +189,16 @@ fun onReturnExcessesBack(
 
     st.pendingMints.delete(msg.queryId);
     val request = pending.request.load();
+    val details = request.transfer.details.load();
     val out = pending.out.load();
 
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: request.remoteChainSelector,
+        remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
-            token: request.localToken,
-            sender: contract.getAddress(),
-            recipient: request.receiver.toCell(),
+            token: details.localToken,
+            sender: contract.getAddress(), // TODO: who should we put as sender? (msg.sender on EVM)
             amount: out.destinationAmount,
+            recipient: details.receiver.toCell(),
         }.toCell(),
     });
 

@@ -92,26 +92,15 @@ struct TokenPool_ReleaseOrMintPrepared {
 
 // IPoolV2
 
-// TODO: reorder the fields in the struct
-// struct TokenTransferFeeConfig {
-//     uint32 destGasOverhead; // ──────────╮ Gas charged to execute the token transfer on the destination chain.
-//     uint32 destBytesOverhead; //         │ Data availability bytes.
-//     uint32 finalityFeeUSDCents; //       │ Fee to charge for token transfer with default (wait-for-finality) finality, multiples of 0.01 USD.
-//     uint32 fastFinalityFeeUSDCents; //   │ Fee to charge for token transfer with fast finality (FTF), multiples of 0.01 USD.
-//     //                                   │ The following two fee is deducted from the transferred asset, not added on top.
-//     uint16 finalityTransferFeeBps; //    │ Fee in basis points for default finality transfers [0-10_000].
-//     uint16 fastFinalityTransferFeeBps; //│ Fee in basis points for custom finality transfers [0-10_000].
-//     bool isEnabled; // ──────────────────╯ Whether this config is enabled.
-// }
-
 struct TokenPool_TokenTransferFeeConfig {
-    isEnabled: bool;
-    finalityFeeUSDCents: uint256;
-    fastFinalityFeeUSDCents: uint256;
-    destGasOverhead: uint32;
-    destBytesOverhead: uint32;
-    finalityTransferFeeBps: uint16;
-    fastFinalityTransferFeeBps: uint16;
+    destGasOverhead: uint32;            // Gas charged to execute the token transfer on the destination chain.
+    destBytesOverhead: uint32;          // Data availability bytes.
+    finalityFeeUSDCents: uint256;       // Fee to charge for token transfer with default (wait-for-finality) finality, multiples of 0.01 USD.
+    fastFinalityFeeUSDCents: uint256;   // Fee to charge for token transfer with fast finality (FTF), multiples of 0.01 USD.
+                                        // The following two fee is deducted from the transferred asset, not added on top.
+    finalityTransferFeeBps: uint16;     // Fee in basis points for default finality transfers [0-10_000].
+    fastFinalityTransferFeeBps: uint16; // Fee in basis points for custom finality transfers [0-10_000].
+    isEnabled: bool;                    // Whether this config is enabled.
 }
 
 enum TokenPool_MessageDirection: uint8 {
@@ -119,12 +108,31 @@ enum TokenPool_MessageDirection: uint8 {
     Inbound = 1
 }
 
+struct TokenPool_Transfer<S, R> {
+    id : uint256;                                   // Unique transfer ID for this TP operation.
+    details: Cell<TokenPool_TransferDetails<S, R>>; // Details of the transfer.
+}
+
+struct TokenPool_TransferDetails<S, R> {
+    receiver: R;                 // The recipient of the tokens on the destination chain. For EVM source chains, this is abi-encoded (32 bytes).
+    remoteChainSelector: uint64; // ─╮ The chain ID of the destination chain.
+    originalSender: S;           // ─╯ The original sender of the tx on the source chain.
+    amount: uint256;             // The amount of tokens to process, denominated in the source token's decimals.
+    localToken: address;         // The address on this chain of the token to process.
+}
+
+// Typed transfers for both directions
+type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<
+    address,                 // sender addr
+    Cell<CrossChainAddress>, // receiver addr
+>;
+type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<
+    Cell<CrossChainAddress>, // sender addr
+    address                  // receiver addr
+>;
+
 struct TokenPool_LockOrBurnInV1 {
-    receiver: Cell<CrossChainAddress>; // The recipient of the tokens on the destination chain. For EVM source chains, this is abi-encoded (32 bytes).
-    remoteChainSelector: uint64;       // ─╮ The chain ID of the destination chain.
-    originalSender: address;           // ─╯ The original sender of the tx on the source chain.
-    amount: uint256;                   // The amount of tokens to lock or burn, denominated in the source token's decimals.
-    localToken: address;               // The address on this chain of the token to lock or burn.
+    transfer: TokenPool_LockOrBurnTransfer; // The transfer id/details for the lock or burn operation.
 }
 
 struct TokenPool_LockOrBurnOutV1 {
@@ -138,11 +146,7 @@ struct TokenPool_LockOrBurnOutV1 {
 }
 
 struct TokenPool_ReleaseOrMintInV1 {
-    originalSender: Cell<CrossChainAddress>;    // The original sender of the tx on the source chain, abi encoded in the case of EVM chains.
-    remoteChainSelector: uint64;                // ──╮ The chain ID of the source chain.
-    receiver: address;                          // -─╯ The recipient of the tokens on the destination chain.
-    sourceDenominatedAmount: uint256;           // The amount of tokens to release or mint, denominated in the source token's decimals.
-    localToken: address;                        // The address on this chain of the token to release or mint.
+    transfer: TokenPool_ReleaseOrMintTransfer;  // The transfer id/details for the release or mint operation.
     /// @dev WARNING: sourcePoolAddress should be checked prior to any processing of funds. Make sure it matches the
     /// expected pool address for the given remoteChainSelector.
     sourcePoolAddress: Cell<CrossChainAddress>; // The address of the source pool, abi encoded in the case of EVM chains.
