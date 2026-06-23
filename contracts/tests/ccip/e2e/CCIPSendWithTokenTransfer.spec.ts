@@ -25,7 +25,7 @@ import {
 } from '../../../wrappers/gen/ccip/MockTokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
-import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
+import { WTON_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup, CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
 
