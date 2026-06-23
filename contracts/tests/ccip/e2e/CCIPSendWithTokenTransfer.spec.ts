@@ -18,10 +18,7 @@ import {
   TokenRegistry_ReturnTokenInfo,
   TokenRegistry_TokenInfo,
 } from '../../../wrappers/gen/ccip/TokenRegistry'
-import {
-  MockTokenPool,
-  MockTokenPool_LockOrBurn,
-} from '../../../wrappers/gen/ccip/MockTokenPool'
+import { MockTokenPool, MockTokenPool_LockOrBurn } from '../../../wrappers/gen/ccip/MockTokenPool'
 import { TokenPool_LockOrBurnFinished } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'

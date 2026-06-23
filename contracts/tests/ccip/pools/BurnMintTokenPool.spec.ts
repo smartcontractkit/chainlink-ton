@@ -20,6 +20,9 @@ import {
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnInV1,
   TokenPool_LockOrBurnFinished,
+  TokenPool_LockOrBurnForwardPayload,
+  TokenPool_LockOrBurnPrepared,
+  TokenPool_LockOrBurnOutV1,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintFinished,
   TokenPool_MirroredPolicy,
@@ -27,6 +30,7 @@ import {
   TokenPool_Transfer,
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 
@@ -404,56 +408,131 @@ describe('BurnMintTokenPool', () => {
   })
 
   it('burns tokens on lockOrBurn path and clears pending burn on confirmation', async () => {
-    const onRampWallet = await userWallet(deployer.address)
+    const deployerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(burnMintPool.address)
 
-    const result = await onRampWallet.sendTransfer(deployer.getSender(), {
-      value: toNano('2'),
+    const queryId = 11n
+    const jettonAmount = toNano('3')
+
+    // === Step 0: Mint jettons to deployer ===
+    await cctMinterRuntime.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      mintOpcode: 0x00000015,
       message: {
-        queryId: 11,
-        jettonAmount: toNano('3'),
-        destination: burnMintPool.address,
+        queryId: 100n,
+        destination: deployer.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('10'),
+        from: deployer.address,
         responseDestination: deployer.address,
-        customPayload: null,
-        forwardTonAmount: toNano('0.2'),
-        forwardPayload: TokenPool_LockOrBurn.toCell(
-          // TODO: fixme, this now requires elaborate context - TokenPool_LockOrBurnForwardPayload
-          TokenPool_LockOrBurn.create({
-            queryId: 11n,
-            request: {
-              ref: TokenPool_LockOrBurnInV1.create({
-                transfer: TokenPool_Transfer.create({
-                  id: 11n,
-                  details: {
-                    ref: TokenPool_TransferDetails.create({
-                      receiver: { ref: receiverAddress },
-                      remoteChainSelector,
-                      originalSender: deployer.address,
-                      amount: toNano('3'),
-                      localToken: cctMinter.address,
-                    }),
-                  },
-                }),
-              }),
-            },
-            requestedFinalityConfig: 0n,
-            tokenArgs: null,
-            replyTo: deployer.address,
-          }),
-        ),
+        forwardTonAmount: 0n,
       },
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: onRampWallet.address,
-      success: true,
+    // === Step 1: Send LockOrBurn to the pool ===
+    // Pool validates → sends TokenPool_LockOrBurnWithdraw with forward payload back to deployer
+    const lockOrBurn = TokenPool_LockOrBurn.create({
+      queryId,
+      request: {
+        ref: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: {
+              ref: TokenPool_TransferDetails.create({
+                receiver: { ref: receiverAddress },
+                remoteChainSelector,
+                originalSender: deployer.address,
+                amount: jettonAmount,
+                localToken: cctMinter.address,
+              }),
+            },
+          }),
+        }),
+      },
+      requestedFinalityConfig: 0n,
+      tokenArgs: null,
+      replyTo: deployer.address,
     })
 
-    expect(await burnMintPool.getHasPendingBurn(11n)).toBe(false)
+    const result1 = await burnMintPool.sendTokenPoolLockOrBurn(
+      deployer.getSender(),
+      toNano('1'),
+      lockOrBurn,
+    )
+
+    // Confirm pool sent TokenPool_LockOrBurnWithdraw back
+    expect(result1.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: deployer.address,
+      success: true,
+      op: TokenPool_LockOrBurnWithdraw.PREFIX,
+    })
+
+    // Extract forward payload from the withdraw message sent by the pool
+    const withdrawEvent = result1.events.find(
+      (e) =>
+        e.type === 'message_sent' &&
+        e.from.equals(burnMintPool.address) &&
+        e.to.equals(deployer.address),
+    ) as { type: 'message_sent'; body: Cell } | undefined
+    expect(withdrawEvent).toBeDefined()
+
+    const withdrawBody = TokenPool_LockOrBurnWithdraw.fromSlice(withdrawEvent!.body.beginParse())
+    expect(withdrawBody.queryId).toBe(queryId)
+
+    // Build expected forward payload (matching what pool creates in validateLockOrBurn)
+    const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+      requestMsg: { ref: lockOrBurn },
+      prepared: {
+        ref: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: jettonAmount,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: { ref: destTokenAddress },
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      },
+    })
+
+    // Verify pool's forward payload matches our expected one
+    expect(withdrawBody.forwardPayload.requestMsg.ref.queryId).toBe(
+      expectedForwardPayload.requestMsg.ref.queryId,
+    )
+    expect(withdrawBody.forwardPayload.prepared.ref.feeAmount).toBe(
+      expectedForwardPayload.prepared.ref.feeAmount,
+    )
+    expect(withdrawBody.forwardPayload.prepared.ref.destTokenAmount).toBe(
+      expectedForwardPayload.prepared.ref.destTokenAmount,
+    )
+
+    // === Step 2: Send jettons from deployer wallet to pool with the pool's forward payload ===
+    const forwardPayloadCell = TokenPool_LockOrBurnForwardPayload.toCell(
+      withdrawBody.forwardPayload,
+    )
+
+    // Jetton wallet sends TransferNotificationForRecipient to pool
+    // Pool receives notification → validates forward payload → creates pending burn → sends AskToBurn to minter
+    // Minter receives AskToBurn → burns → sends ReturnExcessesBack to pool
+    // Pool receives ReturnExcessesBack → clears pending burn → finalizes → TokenPool_LockOrBurnFinished
+    const result2 = await deployerWallet.sendTransfer(deployer.getSender(), {
+      value: toNano('0.5'),
+      message: {
+        queryId: Number(queryId),
+        jettonAmount,
+        destination: burnMintPool.address,
+        responseDestination: null,
+        customPayload: null,
+        forwardTonAmount: toNano('0.3'),
+        forwardPayload: forwardPayloadCell,
+      },
+    })
+
+    // Verify full async flow completed
+    expect(await burnMintPool.getHasPendingBurn(queryId)).toBe(false)
     expect(await poolWallet.getJettonBalance()).toEqual(0n)
 
-    expect(result.transactions).toHaveTransaction({
+    expect(result2.transactions).toHaveTransaction({
       from: burnMintPool.address,
       to: deployer.address,
       success: true,

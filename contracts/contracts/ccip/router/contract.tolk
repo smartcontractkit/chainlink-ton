@@ -179,10 +179,12 @@ fun onInternalMessage(in: InMessage) {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
 
-            assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
+            // TODO: this doesn't compile
+            // assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
 
             //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
-            val sendMsg = lazy Router_CCIPSend.fromCell(msg.forwardPayload.loadRef());
+            var forwardPayload = msg.forwardPayload;
+            val sendMsg = lazy Router_CCIPSend.fromCell(forwardPayload.loadRef());
 
             var tokenAmounts = sendMsg.tokenAmounts.iter();
             assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;

@@ -1804,7 +1804,7 @@ export const TokenPool_PostflightCheckFailed = {
 }
 
 /**
- > struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
+ > struct (0xfa7da445) TokenPool_LockOrBurnWithdraw {
  >     queryId: uint64
  >     forwardPayload: TokenPool_LockOrBurnForwardPayload
  > }
@@ -1816,7 +1816,7 @@ export interface TokenPool_LockOrBurnWithdraw {
 }
 
 export const TokenPool_LockOrBurnWithdraw = {
-    PREFIX: 0xfa7da444,
+    PREFIX: 0xfa7da445,
 
     create(args: {
         queryId: uint64
@@ -1828,7 +1828,7 @@ export const TokenPool_LockOrBurnWithdraw = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
-        loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurnWithdraw');
+        loadAndCheckPrefix32(s, 0xfa7da445, 'TokenPool_LockOrBurnWithdraw');
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
             queryId: s.loadUintBig(64),
@@ -1836,7 +1836,7 @@ export const TokenPool_LockOrBurnWithdraw = {
         }
     },
     store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
-        b.storeUint(0xfa7da444, 32);
+        b.storeUint(0xfa7da445, 32);
         b.storeUint(self.queryId, 64);
         TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
     },

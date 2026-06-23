@@ -139,7 +139,7 @@ type TokenPool_InMessage =
     | TokenPool_SetRMNProxy
     | TokenPool_SetCursedSubjects;
 
-struct (0xfa7da444) TokenPool_LockOrBurnWithdraw {
+struct (0xfa7da445) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
@@ -199,7 +199,7 @@ struct (0x3c50a39e) TokenPool_RateLimitConfiguredNotification {
 }
 
 /// Replied on `TokenPool_SetRMNProxy` to confirm tx and return excess to sender.
-struct (0x9929b642) TokenPool_RMNProxySet {
+struct (0x9929b643) TokenPool_RMNProxySet {
     queryId: uint64;
     rmnProxy: address;
 }
