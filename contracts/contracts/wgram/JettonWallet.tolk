@@ -17,7 +17,7 @@ contract JettonWallet {
     incomingMessages: AllowedMessageToWallet
 }
 
-// Lets the wallet owner withdraw any TON surplus sitting above the strict `jettonBalance + storage_fee`
+// Lets the wallet owner withdraw any GRAM surplus sitting above the strict `jettonBalance + storage_fee`
 struct (0xf2ff646f) AskToWithdrawExcess {
     queryId: uint64
     sendExcessesTo: address
@@ -39,8 +39,8 @@ fun reserveModeExactFail() {
     return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 }
 
-fun requiredWalletReserve(backedTonAmount: coins) {
-    return backedTonAmount + calculateJettonWalletMinStorageFee() + contract.getStorageDuePayment();
+fun requiredWalletReserve(backedAmount: coins) {
+    return backedAmount + calculateJettonWalletMinStorageFee() + contract.getStorageDuePayment();
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
@@ -70,7 +70,7 @@ fun onInternalMessage(in: InMessage) {
             // Hard reserve check: the inbound transfer must fund the full post-credit backing floor
             // before we credit wGRAM or allow any forward / excess action to run.
             assert (contract.getOriginalBalance() >= requiredReserve + msg.forwardTonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
-            // Soft reserve check: keep TON that was already on the wallet before this message from
+            // Soft reserve check: keep GRAM that was already on the wallet before this message from
             // being reclassified as outbound excess. This surplus is best-effort under RESERVE_MODE_AT_MOST.
             // `requiredWalletReserve(x)` is linear in `x` within this transaction, so subtracting the
             // credited jetton amount gives the pre-credit reserve without recomputing the helper.
@@ -152,13 +152,13 @@ fun onInternalMessage(in: InMessage) {
             var storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
-            // Burn must name a refund destination so the minter can return the withdrawn TON instead of trapping it
+            // Burn must name a refund destination so the minter can return the withdrawn GRAM instead of trapping it
             assert (msg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
             assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
-            // Preserve the remaining backing exactly before sending the withdrawn TON to the minter.
+            // Preserve the remaining backing exactly before sending the withdrawn GRAM to the minter.
             reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val notifyMinterMsg = createMessage({
@@ -183,7 +183,7 @@ fun onInternalMessage(in: InMessage) {
             var storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
-            // Preserve the strict TON backing for the current jetton balance; anything above
+            // Preserve the strict GRAM backing for the current jetton balance; anything above
             // is owner-recoverable surplus (top-ups, bounced-transfer leftovers, mint overfunding).
             reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
