@@ -47,7 +47,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
 
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
-      to: config.feeAggregator,
+      to: config.addresses.feeAggregator,
       value(x) {
         if (!x) return false
         return x > balanceBefore - reserve

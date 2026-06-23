@@ -61,7 +61,7 @@ describe('OnRamp - Send', () => {
 
     executorCode = Cell.EMPTY
     ;({ deployer, onramp } = await setup(blockchain, {
-      config: {
+      addresses: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
       executor: {

@@ -52,7 +52,7 @@ describe('OnRamp - Get Fee', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
     ;({ deployer, onramp } = await setup(blockchain, {
-      config: {
+      addresses: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
     }))
