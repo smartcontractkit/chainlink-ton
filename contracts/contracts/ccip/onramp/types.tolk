@@ -15,12 +15,25 @@ struct OnRamp_DestChainConfig {
     allowedSenders: map<address, bool>;
 }
 
-struct OnRamp_DynamicConfig {
+struct OnRamp_Addresses {
     feeQuoter: address;
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;
     allowlistAdmin: address;
+}
+
+struct OnRamp_DynamicConfig {
+    addresses: Cell<OnRamp_Addresses>;
+    tokenRegistryDeployment: Cell<OnRamp_TokenRegistryDeployment>;
     reserve: coins;
+}
+
+//TODO: Shard entries using the Deployable library.
+//TODO: Routing to deployed registries and deploying new ones should be done by the Router or an independent contract.
+struct OnRamp_TokenRegistryDeployment {
+    //TODO: deployableCode: cell;
+    //      tokenRegistryCode: cell;
+    tokenRegistry: address;
 }
 
 struct OnRampUpdateDestChainConfig {
