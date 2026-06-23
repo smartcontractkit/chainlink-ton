@@ -144,7 +144,7 @@ type uint64 = bigint
 type uint256 = bigint
 
 /**
- > struct (0x6c060424) TokenPool_LockOrBurnFinished {
+ > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
  >     destTokenAmount: uint256
@@ -158,7 +158,7 @@ export interface TokenPool_LockOrBurnFinished {
 }
 
 export const TokenPool_LockOrBurnFinished = {
-    PREFIX: 0x6c060424,
+    PREFIX: 0xf432a4e3,
 
     create(args: {
         queryId: uint64
@@ -171,7 +171,7 @@ export const TokenPool_LockOrBurnFinished = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
-        loadAndCheckPrefix32(s, 0x6c060424, 'TokenPool_LockOrBurnFinished');
+        loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
         return {
             $: 'TokenPool_LockOrBurnFinished',
             queryId: s.loadUintBig(64),
@@ -180,7 +180,7 @@ export const TokenPool_LockOrBurnFinished = {
         }
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
-        b.storeUint(0x6c060424, 32);
+        b.storeUint(0xf432a4e3, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
         b.storeUint(self.destTokenAmount, 256);
@@ -364,7 +364,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockTokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAWgABFP8A9KQT9LzyyAsBAZDT+JHyQNcsI+7HyhTyv/oAMfpIMfpIMIjIz4UIEvpSjQaAAAAAAAAAAAAAAAAAADYDAhIAAAAAAAAAAEDPFsxwzwv/yYMG+wACAAA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAWgABFP8A9KQT9LzyyAsBAZDT+JHyQNcsI+7HyhTyv/oAMfpIMfpIMIjIz4UIEvpSjQaAAAAAAAAAAAAAAAAAAHoZUnGAAAAAAAAAAEDPFsxwzwv/yYMG+wACAAA=');
 
     static Errors = {
     }

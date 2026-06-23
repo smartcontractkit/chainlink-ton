@@ -169,7 +169,7 @@ type LockOrBurnInV1 struct {
 // LockOrBurnOutV1 holds the output data for a lock/burn operation.
 type LockOrBurnOutV1 struct {
 	DestTokenAddress common.CrossChainAddress `tlb:"^"`
-	DestPoolData     common.CrossChainAddress `tlb:"^"`
+	DestPoolData     *cell.Cell               `tlb:"^"`
 }
 
 // ReleaseOrMintInV1 holds the input data for a release/mint operation.
@@ -269,7 +269,7 @@ type SetAllowedFinalityConfig struct {
 
 // SetAdvancedPoolHooks sets the advanced pool hooks address.
 type SetAdvancedPoolHooks struct {
-	_                 tlb.Magic        `tlb:"#3c50a311" json:"-"`
+	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"`
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
@@ -305,7 +305,7 @@ type SetRMNProxy struct {
 
 // SetCursedSubjects sets the cursed subjects list.
 type SetCursedSubjects struct {
-	_              tlb.Magic      `tlb:"#2c906eb7" json:"-"`
+	_              tlb.Magic      `tlb:"#9da4da09" json:"-"`
 	QueryID        uint64         `tlb:"## 64"`
 	CursedSubjects CursedSubjects `tlb:"."`
 }
@@ -331,28 +331,28 @@ type ReleaseOrMint struct {
 
 // PreflightCheckFinished notifies preflight check success.
 type PreflightCheckFinished struct {
-	_              tlb.Magic                `tlb:"#fa7da440" json:"-"`
+	_              tlb.Magic                `tlb:"#08f2ffb7" json:"-"`
 	QueryID        uint64                   `tlb:"## 64"`
 	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
 }
 
 // PreflightCheckFailed notifies preflight check failure.
 type PreflightCheckFailed struct {
-	_              tlb.Magic                `tlb:"#fa7da441" json:"-"`
+	_              tlb.Magic                `tlb:"#a6dfa623" json:"-"`
 	QueryID        uint64                   `tlb:"## 64"`
 	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
 }
 
 // PostflightCheckFinished notifies postflight check success.
 type PostflightCheckFinished struct {
-	_              tlb.Magic                `tlb:"#fa7da442" json:"-"`
+	_              tlb.Magic                `tlb:"#9e2a6b66" json:"-"`
 	QueryID        uint64                   `tlb:"## 64"`
 	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
 }
 
 // PostflightCheckFailed notifies postflight check failure.
 type PostflightCheckFailed struct {
-	_              tlb.Magic                `tlb:"#fa7da443" json:"-"`
+	_              tlb.Magic                `tlb:"#21e71d87" json:"-"`
 	QueryID        uint64                   `tlb:"## 64"`
 	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
 }
@@ -361,14 +361,14 @@ type PostflightCheckFailed struct {
 
 // LockOrBurnWithdraw requests token withdrawal from the on-ramp.
 type LockOrBurnWithdraw struct {
-	_              tlb.Magic                `tlb:"#fa7da444" json:"-"`
+	_              tlb.Magic                `tlb:"#e7a35041" json:"-"`
 	QueryID        uint64                   `tlb:"## 64"`
 	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
 }
 
 // LockOrBurnFinished notifies that a lock/burn operation finished.
 type LockOrBurnFinished struct {
-	_               tlb.Magic       `tlb:"#6c060424" json:"-"`
+	_               tlb.Magic       `tlb:"#f432a4e3" json:"-"`
 	QueryID         uint64          `tlb:"## 64"`
 	Out             LockOrBurnOutV1 `tlb:"^"`
 	DestTokenAmount *big.Int        `tlb:"## 256"`
@@ -376,28 +376,28 @@ type LockOrBurnFinished struct {
 
 // LockOrBurnFailure notifies that a lock/burn operation failed.
 type LockOrBurnFailure struct {
-	_         tlb.Magic `tlb:"#ef0cb360" json:"-"`
+	_         tlb.Magic `tlb:"#3476ea72" json:"-"`
 	QueryID   uint64    `tlb:"## 64"`
 	ErrorCode uint16    `tlb:"## 16"`
 }
 
 // ReleaseOrMintFinished notifies that a release/mint operation finished.
 type ReleaseOrMintFinished struct {
-	_       tlb.Magic          `tlb:"#78dc2232" json:"-"`
+	_       tlb.Magic          `tlb:"#e0e882f5" json:"-"`
 	QueryID uint64             `tlb:"## 64"`
 	Out     ReleaseOrMintOutV1 `tlb:"^"`
 }
 
 // ReleaseOrMintFailure notifies that a release/mint operation failed.
 type ReleaseOrMintFailure struct {
-	_         tlb.Magic `tlb:"#ef0cb361" json:"-"`
+	_         tlb.Magic `tlb:"#ef0cb36e" json:"-"`
 	QueryID   uint64    `tlb:"## 64"`
 	ErrorCode uint16    `tlb:"## 16"`
 }
 
 // RemotePoolAddedNotification confirms a remote pool was added.
 type RemotePoolAddedNotification struct {
-	_                   tlb.Magic                `tlb:"#17c242d3" json:"-"`
+	_                   tlb.Magic                `tlb:"#12cc4985" json:"-"`
 	QueryID             uint64                   `tlb:"## 64"`
 	RemoteChainSelector uint64                   `tlb:"## 64"`
 	RemotePoolAddress   common.CrossChainAddress `tlb:"^"`
@@ -405,7 +405,7 @@ type RemotePoolAddedNotification struct {
 
 // RemotePoolRemovedNotification confirms a remote pool was removed.
 type RemotePoolRemovedNotification struct {
-	_                   tlb.Magic                `tlb:"#17c242d1" json:"-"`
+	_                   tlb.Magic                `tlb:"#e17bf3cc" json:"-"`
 	QueryID             uint64                   `tlb:"## 64"`
 	RemoteChainSelector uint64                   `tlb:"## 64"`
 	RemotePoolAddress   common.CrossChainAddress `tlb:"^"`
@@ -413,14 +413,14 @@ type RemotePoolRemovedNotification struct {
 
 // FinalityConfigSet confirms the finality config was set.
 type FinalityConfigSet struct {
-	_                     tlb.Magic `tlb:"#3c50a39c" json:"-"`
+	_                     tlb.Magic `tlb:"#426a713b" json:"-"`
 	QueryID               uint64    `tlb:"## 64"`
 	AllowedFinalityConfig uint32    `tlb:"## 32"`
 }
 
 // DynamicConfigSet confirms the dynamic config was set.
 type DynamicConfigSet struct {
-	_              tlb.Magic        `tlb:"#3c50a39d" json:"-"`
+	_              tlb.Magic        `tlb:"#b735e30c" json:"-"`
 	QueryID        uint64           `tlb:"## 64"`
 	Router         *address.Address `tlb:"addr"`
 	RateLimitAdmin *address.Address `tlb:"addr"`
@@ -429,27 +429,27 @@ type DynamicConfigSet struct {
 
 // RateLimitConfiguredNotification confirms rate limits were configured.
 type RateLimitConfiguredNotification struct {
-	_       tlb.Magic `tlb:"#3c50a39e" json:"-"`
+	_       tlb.Magic `tlb:"#dd7b0c71" json:"-"`
 	QueryID uint64    `tlb:"## 64"`
 }
 
 // RMNProxySet confirms the RMN proxy was set.
 type RMNProxySet struct {
-	_        tlb.Magic        `tlb:"#9929b642" json:"-"`
+	_        tlb.Magic        `tlb:"#e5d08b2e" json:"-"`
 	QueryID  uint64           `tlb:"## 64"`
 	RMNProxy *address.Address `tlb:"addr"`
 }
 
 // CursedSubjectsSet confirms the cursed subjects were set.
 type CursedSubjectsSet struct {
-	_              tlb.Magic      `tlb:"#3c50a39f" json:"-"`
+	_              tlb.Magic      `tlb:"#15800161" json:"-"`
 	QueryID        uint64         `tlb:"## 64"`
 	CursedSubjects CursedSubjects `tlb:"."`
 }
 
 // AdvancedPoolHooksSet confirms the advanced pool hooks were set.
 type AdvancedPoolHooksSet struct {
-	_                 tlb.Magic        `tlb:"#3c50a39a" json:"-"`
+	_                 tlb.Magic        `tlb:"#3c869d80" json:"-"`
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }

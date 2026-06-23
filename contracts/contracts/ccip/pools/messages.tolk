@@ -36,7 +36,7 @@ struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
     allowedFinalityConfig: uint32;
 }
 
-struct (0x3c50a311) TokenPool_SetAdvancedPoolHooks {
+struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
     queryId: uint64;
     advancedPoolHooks: address?;
 }
@@ -63,7 +63,7 @@ struct (0x9929b642) TokenPool_SetRMNProxy {
     rmnProxy: address;
 }
 
-struct (0x2c906eb7) TokenPool_SetCursedSubjects {
+struct (0x9da4da09) TokenPool_SetCursedSubjects {
     queryId: uint64;
     cursedSubjects: CursedSubjects;
 }
@@ -96,25 +96,25 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
 }
 
 /// Sent by advanced hooks contract to notify preflight check success
-struct (0xfa7da440) TokenPool_PreflightCheckFinished {
+struct (0x08f2ffb7) TokenPool_PreflightCheckFinished {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
 /// Sent by advanced hooks contract to notify preflight check failure
-struct (0xfa7da441) TokenPool_PreflightCheckFailed {
+struct (0xa6dfa623) TokenPool_PreflightCheckFailed {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
 /// Sent by advanced hooks contract to notify postflight check success
-struct (0xfa7da442) TokenPool_PostflightCheckFinished {
+struct (0x9e2a6b66) TokenPool_PostflightCheckFinished {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
 /// Sent by advanced hooks contract to notify postflight check failure
-struct (0xfa7da443) TokenPool_PostflightCheckFailed {
+struct (0x21e71d87) TokenPool_PostflightCheckFailed {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
@@ -139,54 +139,54 @@ type TokenPool_InMessage =
     | TokenPool_SetRMNProxy
     | TokenPool_SetCursedSubjects;
 
-struct (0xfa7da445) TokenPool_LockOrBurnWithdraw {
+struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
-struct (0x6c060424) TokenPool_LockOrBurnFinished {
+struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
     // TODO: unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
     destTokenAmount: uint256;
 }
 
-struct (0xef0cb360) TokenPool_LockOrBurnFailure {
+struct (0x3476ea72) TokenPool_LockOrBurnFailure {
     queryId: uint64;
     errorCode: uint16;
 }
 
-struct (0x78dc2232) TokenPool_ReleaseOrMintFinished {
+struct (0xe0e882f5) TokenPool_ReleaseOrMintFinished {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
 
-struct (0xef0cb361) TokenPool_ReleaseOrMintFailure {
+struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
     queryId: uint64;
     errorCode: uint16;
 }
 
 /// Replied on `TokenPool_AddRemotePool` to confirm tx and return excess to sender.
-struct (0x17c242d3) TokenPool_RemotePoolAddedNotification {
+struct (0x12cc4985) TokenPool_RemotePoolAddedNotification {
     queryId: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
 /// Replied on `TokenPool_RemoveRemotePool` to confirm tx and return excess to sender.
-struct (0x17c242d1) TokenPool_RemotePoolRemovedNotification {
+struct (0xe17bf3cc) TokenPool_RemotePoolRemovedNotification {
     queryId: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-struct (0x3c50a39c) TokenPool_FinalityConfigSet {
+struct (0x426a713b) TokenPool_FinalityConfigSet {
     queryId: uint64;
     allowedFinalityConfig: uint32;
 }
 
 /// Replied on `TokenPool_SetDynamicConfig` to confirm tx and return excess to sender.
-struct (0x3c50a39d) TokenPool_DynamicConfigSet {
+struct (0xb735e30c) TokenPool_DynamicConfigSet {
     queryId: uint64;
     router: address;
     rateLimitAdmin: address?;
@@ -194,23 +194,23 @@ struct (0x3c50a39d) TokenPool_DynamicConfigSet {
 }
 
 /// Replied on `TokenPool_SetRateLimitConfig` to confirm tx and return excess to sender.
-struct (0x3c50a39e) TokenPool_RateLimitConfiguredNotification {
+struct (0xdd7b0c71) TokenPool_RateLimitConfiguredNotification {
     queryId: uint64;
 }
 
 /// Replied on `TokenPool_SetRMNProxy` to confirm tx and return excess to sender.
-struct (0x9929b643) TokenPool_RMNProxySet {
+struct (0xe5d08b2e) TokenPool_RMNProxySet {
     queryId: uint64;
     rmnProxy: address;
 }
 
 /// Replied on `TokenPool_SetCursedSubjects` to confirm tx and return excess to sender.
-struct (0x3c50a39f) TokenPool_CursedSubjectsSet {
+struct (0x15800161) TokenPool_CursedSubjectsSet {
     queryId: uint64;
     cursedSubjects: CursedSubjects;
 }
 
-struct (0x3c50a39a) TokenPool_AdvancedPoolHooksSet {
+struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
     queryId: uint64;
     advancedPoolHooks: address?;
 }

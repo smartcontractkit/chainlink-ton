@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
 
-struct (0x3c50a300) ContextExecutor_Set<T> {
+struct (0x44e61eec) ContextExecutor_Set<T> {
     queryId: uint64;
     context: Cell<T>;
     forwardFrom: array<address>;
 }
 
-struct (0x3c50a301) ContextExecutor_Ask {
+struct (0xcad4d1d0) ContextExecutor_Ask {
     queryId: uint64;
 
     // Per request context
@@ -21,7 +21,7 @@ type ContextExecutor_InMessage<T> =
     | ContextExecutor_Set<T>
     | ContextExecutor_Ask;
 
-struct (0x3c50a302) ContextExecutor_Reply<T> {
+struct (0x93e5bbc5) ContextExecutor_Reply<T> {
     queryId: uint64;
 
     id: uint64;
@@ -35,7 +35,7 @@ struct (0x3c50a302) ContextExecutor_Reply<T> {
     done: bool;
 }
 
-struct (0x3c50a303) ContextExecutor_ForwardNotification<T> {
+struct (0x55b412b9) ContextExecutor_ForwardNotification<T> {
     // Notice: no queryId here, because it's not a reply to a specific request
 
     id: uint64;

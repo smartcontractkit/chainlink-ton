@@ -209,7 +209,7 @@ export const ExtraCurrenciesMap = {
 }
 
 /**
- > struct (0x3c50a300) ContextExecutor_Set<T> {
+ > struct (0x44e61eec) ContextExecutor_Set<T> {
  >     queryId: uint64
  >     context: Cell<T>
  >     forwardFrom: array<address>
@@ -223,7 +223,7 @@ export interface ContextExecutor_Set<T> {
 }
 
 export const ContextExecutor_Set = {
-    PREFIX: 0x3c50a300,
+    PREFIX: 0x44e61eec,
 
     create<T>(args: {
         queryId: uint64
@@ -238,7 +238,7 @@ export const ContextExecutor_Set = {
 }
 
 /**
- > struct (0x3c50a301) ContextExecutor_Ask {
+ > struct (0xcad4d1d0) ContextExecutor_Ask {
  >     queryId: uint64
  >     forwardPayload: cell
  >     done: bool
@@ -252,7 +252,7 @@ export interface ContextExecutor_Ask {
 }
 
 export const ContextExecutor_Ask = {
-    PREFIX: 0x3c50a301,
+    PREFIX: 0xcad4d1d0,
 
     create(args: {
         queryId: uint64
@@ -265,7 +265,7 @@ export const ContextExecutor_Ask = {
         }
     },
     fromSlice(s: c.Slice): ContextExecutor_Ask {
-        loadAndCheckPrefix32(s, 0x3c50a301, 'ContextExecutor_Ask');
+        loadAndCheckPrefix32(s, 0xcad4d1d0, 'ContextExecutor_Ask');
         return {
             $: 'ContextExecutor_Ask',
             queryId: s.loadUintBig(64),
@@ -274,7 +274,7 @@ export const ContextExecutor_Ask = {
         }
     },
     store(self: ContextExecutor_Ask, b: c.Builder): void {
-        b.storeUint(0x3c50a301, 32);
+        b.storeUint(0xcad4d1d0, 32);
         b.storeUint(self.queryId, 64);
         b.storeRef(self.forwardPayload);
         b.storeBit(self.done);
@@ -285,7 +285,7 @@ export const ContextExecutor_Ask = {
 }
 
 /**
- > struct (0x3c50a302) ContextExecutor_Reply<T> {
+ > struct (0x93e5bbc5) ContextExecutor_Reply<T> {
  >     queryId: uint64
  >     id: uint64
  >     context: Cell<T>
@@ -305,7 +305,7 @@ export interface ContextExecutor_Reply<T> {
 }
 
 export const ContextExecutor_Reply = {
-    PREFIX: 0x3c50a302,
+    PREFIX: 0x93e5bbc5,
 
     create<T>(args: {
         queryId: uint64
@@ -323,7 +323,7 @@ export const ContextExecutor_Reply = {
 }
 
 /**
- > struct (0x3c50a303) ContextExecutor_ForwardNotification<T> {
+ > struct (0x55b412b9) ContextExecutor_ForwardNotification<T> {
  >     id: uint64
  >     context: Cell<T>
  >     forwardFrom: array<address>
@@ -339,7 +339,7 @@ export interface ContextExecutor_ForwardNotification<T> {
 }
 
 export const ContextExecutor_ForwardNotification = {
-    PREFIX: 0x3c50a303,
+    PREFIX: 0x55b412b9,
 
     create<T>(args: {
         id: uint64
@@ -486,7 +486,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ContextExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFAEAA5AAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASAMDQIBIAYHAElO2i7ftsIjJwIW+Ikly5jhAhpFIzb4EkxwWVXwR/2zHg6F8EcIAas+JHyQO1E0NM/+kjUbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidH4kviX+Jj4k3D4OviU+JUqyM7J8AHjAl8EhA8BxwDy9IAgC9wg0NcsIeKFGATjAtcsIeKFGAyOZmxh0z/U1woAyM+Q8UKMChPLPyfPCz8lzxQkb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU5BvgVj6UgGk5AHJAqHkMDECywf0AMwhzwoAycjPhQgT+lJxzwtuEszJAYMGgEDjBPsAf+CAJCgB2NALIyz/6Uswhb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU2BvgVj6UgGk5AHJAqHkMDEzzwsH9ADJ7VQB/jhfBjKCAKpQXccF8vTTP9RvAAHTB/QFkyBus44Q0PQEmvpIUERvjCPHABTmMOgwIW+IuvKJcMjLP8nIz5DxQowKFMs/Js8LPyLPFCFviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTYG+BWPpSAaTkAckCoeQwMQLLB/QAE8zPgckLAOwwVHqYU6nwAo5mBsj6UlAF+gIT9AAB+gLLP8sfzMnIz5DxQowOJc8LPyPPFCJviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTcG+BWPpSAaTkAckCoeQwMQLLB/QAzMnIz4UIUkD6UnHPC27MyYBA+wB/4Gxh0McAACbIz4UIFPpScc8LbhPMyYBA+wB/AgEgDg8Abbzsh2omhpn/0kGOoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowCAnIQEQIBIBITAF6pX40I2xpbmsuY2hhaW4udG9uLmNjaXAuQ29udGV4dEV4ZWN1dG9ygi1MC4xLjCABsqFrtRNDTPzH6SDHUMW8AAdMH9ASTIW6zjhIB0PQEmvpIUFVvjCTHABXmMAHoMSJviFi68onRAG20o72omhpn5j9JGoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowAG20AX2omhpn5j9JBjqN4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTow');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFAEAA5AAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASAMDQIBIAYHAElO2i7ftsIjJwIW+Ikly5jhAhpFIzb4EkxwWVXwR/2zHg6F8EcIAas+JHyQO1E0NM/+kjUbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidH4kviX+Jj4k3D4OviU+JUqyM7J8AHjAl8EhA8BxwDy9IAgC9wg0NcsIicw92TjAtcsJlamjoSOZmxh0z/U1woAyM+ST5bvFhPLPyfPCz8lzxQkb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU5BvgVj6UgGk5AHJAqHkMDECywf0AMwhzwoAycjPhQgT+lJxzwtuEszJAYMGgEDjBPsAf+CAJCgB2NALIyz/6Uswhb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU2BvgVj6UgGk5AHJAqHkMDEzzwsH9ADJ7VQB/jhfBjKCAKpQXccF8vTTP9RvAAHTB/QFkyBus44Q0PQEmvpIUERvjCPHABTmMOgwIW+IuvKJcMjLP8nIz5JPlu8WFMs/Js8LPyLPFCFviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTYG+BWPpSAaTkAckCoeQwMQLLB/QAE8zPgckLAOwwVHqYU6nwAo5mBsj6UlAF+gIT9AAB+gLLP8sfzMnIz5FW0ErmJc8LPyPPFCJviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTcG+BWPpSAaTkAckCoeQwMQLLB/QAzMnIz4UIUkD6UnHPC27MyYBA+wB/4Gxh0McAACbIz4UIFPpScc8LbhPMyYBA+wB/AgEgDg8Abbzsh2omhpn/0kGOoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowCAnIQEQIBIBITAF6pX40I2xpbmsuY2hhaW4udG9uLmNjaXAuQ29udGV4dEV4ZWN1dG9ygi1MC4xLjCABsqFrtRNDTPzH6SDHUMW8AAdMH9ASTIW6zjhIB0PQEmvpIUFVvjCTHABXmMAHoMSJviFi68onRAG20o72omhpn5j9JGoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowAG20AX2omhpn5j9JBjqN4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTow');
 
     static Errors = {
         'ContextExecutor_Error.OnlyCallableByOwner': 43600,
@@ -533,7 +533,7 @@ export class ContextExecutor implements c.Contract {
         forwardFrom: array<c.Address>
     }) {
         return makeCellFrom<ContextExecutor_Set<c.Cell>>(ContextExecutor_Set.create<c.Cell>(body),
-            (v,b) => { b.storeUint(0x3c50a300, 32);
+            (v,b) => { b.storeUint(0x44e61eec, 32);
             b.storeUint(v.queryId, 64);
             storeCellRef<c.Cell>(v.context, b,
                 (v,b) => b.storeRef(v)
@@ -568,7 +568,7 @@ export class ContextExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: makeCellFrom<ContextExecutor_Set<c.Cell>>(ContextExecutor_Set.create<c.Cell>(body),
-                (v,b) => { b.storeUint(0x3c50a300, 32);
+                (v,b) => { b.storeUint(0x44e61eec, 32);
                 b.storeUint(v.queryId, 64);
                 storeCellRef<c.Cell>(v.context, b,
                     (v,b) => b.storeRef(v)
