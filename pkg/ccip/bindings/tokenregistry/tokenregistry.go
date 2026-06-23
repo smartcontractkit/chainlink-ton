@@ -43,7 +43,7 @@ type SetTokenInfo struct {
 type ReturnTokenInfo struct {
 	_             tlb.Magic        `tlb:"#ddccddb5" json:"-"` //nolint:revive // Ignore opcode tag
 	MinterAddress *address.Address `tlb:"addr"`
-	TokenPool     *address.Address `tlb:"maybe addr"`
+	TokenPool     *address.Address `tlb:"addr"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
