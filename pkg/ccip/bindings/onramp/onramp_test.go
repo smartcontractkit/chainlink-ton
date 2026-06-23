@@ -259,9 +259,14 @@ func TestStorage(t *testing.T) {
 		},
 		ChainSelector: 42,
 		Config: DynamicConfig{
-			FeeAggregator:  dummyAddr,
-			FeeQuoter:      dummyAddr,
-			AllowListAdmin: dummyAddr,
+			Addresses: Addresses{
+				FeeAggregator:  dummyAddr,
+				FeeQuoter:      dummyAddr,
+				AllowListAdmin: dummyAddr,
+			},
+			TokenRegistryDeployment: TokenRegistryDeployment{
+				TokenRegistry: dummyAddr,
+			},
 			Reserve:        tlb.MustFromTON("0.05"),
 		},
 		DestChainConfigs: destConfigMap,

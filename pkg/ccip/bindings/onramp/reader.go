@@ -54,40 +54,47 @@ var GetDynamicConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[DynamicConfig]{
 	Name: dynamicConfigGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (DynamicConfig, error) {
 		var cfg DynamicConfig
-		feeQuoterAddressSlice, err := r.Slice(0)
+		addresses, err := r.Cell(0)
 		if err != nil {
 			return cfg, err
 		}
-		feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
+		cs := addresses.BeginParse()
+		feeQuoterAddress, err := cs.LoadAddr()
 		if err != nil {
 			return cfg, err
 		}
-		feeAggregatorAddressSlice, err := r.Slice(1)
+		feeAggregatorAddress, err := cs.LoadAddr()
 		if err != nil {
 			return cfg, err
 		}
-		feeAggregatorAddress, err := feeAggregatorAddressSlice.LoadAddr()
+		allowlistAdminAddress, err := cs.LoadAddr()
 		if err != nil {
 			return cfg, err
 		}
-		allowlistAdminAddressSlice, err := r.Slice(2)
+		tokenRegistryDeployment, err := r.Cell(1)
 		if err != nil {
 			return cfg, err
 		}
-		allowlistAdminAddress, err := allowlistAdminAddressSlice.LoadAddr()
+		cs = tokenRegistryDeployment.BeginParse()
+		tokenRegistry, err := cs.LoadAddr()
 		if err != nil {
 			return cfg, err
 		}
-		reserveValue, err := r.Int(3)
+		reserveValue, err := r.Int(2)
 		if err != nil {
 			return cfg, err
 		}
 		reserve := tlb.FromNanoTON(reserveValue)
 
 		return DynamicConfig{
-			FeeQuoter:      feeQuoterAddress,
-			FeeAggregator:  feeAggregatorAddress,
-			AllowListAdmin: allowlistAdminAddress,
+			Addresses: Addresses{
+				FeeQuoter:      feeQuoterAddress,
+				FeeAggregator:  feeAggregatorAddress,
+				AllowListAdmin: allowlistAdminAddress,
+			},
+			TokenRegistryDeployment: TokenRegistryDeployment{
+				TokenRegistry: tokenRegistry,
+			},
 			Reserve:        reserve,
 		}, nil
 	}),

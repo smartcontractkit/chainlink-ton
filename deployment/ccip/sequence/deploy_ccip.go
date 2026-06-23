@@ -206,9 +206,14 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 			ChainSelector: in.ChainSelector,
 			Config: onramp.DynamicConfig{
-				FeeQuoter:      &feeQuoterAddress,
-				FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
-				AllowListAdmin: chain.WalletAddress,
+				Addresses: onramp.Addresses{
+					FeeQuoter:      &feeQuoterAddress,
+					FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
+					AllowListAdmin: chain.WalletAddress,
+				},
+				TokenRegistryDeployment: onramp.TokenRegistryDeployment {
+					TokenRegistry: &tokenRegistryAddr,
+				},
 				Reserve:        reserve,
 			},
 			DestChainConfigs: nil,
@@ -217,8 +222,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				ExecutorCode:   tonCompiledContracts[bindings.TypeSendExecutor].Code,
 				CurrentID:      big.NewInt(0),
 			},
-			// TODO: TokenRegistry needs to be deployed and configured with the TokenPool for the token transfer test to run .
-			TokenRegistry: &tokenRegistryAddr,
 		}
 
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin)
