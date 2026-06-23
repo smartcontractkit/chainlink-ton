@@ -49,6 +49,7 @@ const (
 	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
 	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
 	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
+	TypeTestTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -68,6 +69,7 @@ const (
 	ShortMerkleRoot      = "MerkleRoot"
 	ShortReceiveExecutor = "ReceiveExecutor"
 	ShortReceiver        = "Receiver"
+	ShortMockTokenPool   = "MockTokenPool"
 	ShortTimelock        = "RBACTimelock"
 	ShortMCMS            = "MCMS"
 
@@ -96,6 +98,7 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
+	{ShortMockTokenPool, TypeTestTokenPool},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }

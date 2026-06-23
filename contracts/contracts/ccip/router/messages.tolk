@@ -9,6 +9,7 @@ import "../../lib/receiver/messages"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
+import "../common/messages"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -25,7 +26,9 @@ type Router_InMsg =
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
+    | Router_LockOrBurn
     | Router_RMNOwnableMessage
+    | Common_JettonTransferNotification
     ;
 
 type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
@@ -121,6 +124,13 @@ struct (0x5a45d434) Router_CCIPSendNACK {
 struct (0x4dd6aa82) Router_GetValidatedFee<T> {
     ccipSend: Cell<Router_CCIPSend>;
     context: T;
+}
+
+struct (0x6f2d00df) Router_LockOrBurn {
+    tokenPool: address,
+    tokenAmount: TokenAmount,
+    destChainSelector: uint64,
+    executorAddress: address,
 }
 
 struct Router_GetValidatedFeeContext {

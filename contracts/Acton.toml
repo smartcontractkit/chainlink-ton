@@ -50,6 +50,18 @@ src = "contracts/ccip/merkle_root/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.MockTokenPool]
+display-name = "link.chain.ton.ccip.test.TokenPool"
+src = "contracts/ccip/test/tokenPool/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.TokenRegistry]
+display-name = "link.chain.ton.ccip.TokenRegistry"
+src = "contracts/ccip/token_registry/contract.tolk"
+domain = "ccip"
+depends = []
+
 [contracts.Timelock]
 display-name = "link.chain.ton.mcms.Timelock"
 src = "contracts/mcms/rbac_timelock.tolk"

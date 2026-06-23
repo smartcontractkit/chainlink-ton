@@ -42,6 +42,8 @@ export type OnRampStorage = {
   config: DynamicConfig
   destChainConfigs: Dictionary<bigint, Cell>
   executor: ExecutorDeployment
+  // Address of the TokenRegistry queried during token transfers. Null when not configured.
+  tokenRegistry?: Address | null
 }
 
 export type ExecutorDeployment = {
@@ -229,6 +231,7 @@ export const builder = (() => {
           .storeRef(dynamicConfig.encode(data.config).asCell())
           .storeDict(data.destChainConfigs)
           .storeBuilder(executor.encode(data.executor))
+          .storeAddress(data.tokenRegistry ?? null)
       },
       load: function (src: Slice): OnRampStorage {
         const id = src.loadUintBig(32)
@@ -237,6 +240,7 @@ export const builder = (() => {
         const config = dynamicConfig.load(src.loadRef().beginParse())
         const destChainConfigs = src.loadDict(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
         const executorData = executor.load(src)
+        const tokenRegistry = src.loadMaybeAddress()
         return {
           id,
           ownable,
@@ -244,6 +248,7 @@ export const builder = (() => {
           config,
           destChainConfigs,
           executor: executorData,
+          tokenRegistry,
         }
       },
     }
@@ -646,6 +651,7 @@ export const opcodes = {
     get messageValidationFailed() {
       return fq.opcodes.out.messageValidationFailed
     },
+    executorRequestsLockOrBurn: 0x9be1fb61,
     executorFinishedSuccessfully: 0xcfa6b336,
     executorFinishedWithError: 0xc4068e21,
     setDynamicConfig: 0xa178c62e,

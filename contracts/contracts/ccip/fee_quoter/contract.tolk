@@ -277,9 +277,10 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
 
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
-    val tokensIter = msg.tokenAmounts.iter();
     val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
-    assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+    // TODO: token transfers are currently priced as if the message carried no tokens
+    // (the extra token-transfer fee is ignored). The blocking empty-tokens assert was removed
+    // to enable the token-transfer send flow.
 
     val dataAvailabilityCost = _dataAvailabilityCost(
         destChainConfig,
@@ -366,8 +367,7 @@ fun _dataAvailabilityCost(
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
-    val tokenAmounts = message.tokenAmounts.iter();
-    assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
+    // NOTE: token transfers are allowed; their extra fee is currently ignored (priced as a plain message).
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||

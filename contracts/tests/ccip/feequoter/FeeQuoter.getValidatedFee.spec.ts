@@ -313,7 +313,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-  it('should revert when too many tokens', async () => {
+  it.skip('should revert when too many tokens', async () => {
     const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
 
     const message: rt.CCIPSend = {
@@ -364,6 +364,25 @@ describe('FeeQuoter GetValidatedFee', () => {
         )
       },
     })
+  })
+
+  it('accepts a token transfer and prices it like a token-less message', async () => {
+    // Token transfers are now allowed; the extra token-transfer fee is currently ignored,
+    // so a single-token message is priced exactly like the equivalent token-less message.
+    const feeToken = FeeQuoterSetup.NATIVE_TON.token
+
+    const withToken = setup.generateSingleTokenMessage({
+      token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+      amount: toNano('100'),
+      feeToken,
+    })
+    const withoutToken = setup.generateEmptyMessage({ feeToken })
+
+    // getValidatedFee throws if validation fails, so reaching the assertion proves acceptance.
+    const tokenFee = await setup.getValidatedFee(withToken)
+    const emptyFee = await setup.getValidatedFee(withoutToken)
+
+    expect(tokenFee.fee.feeTokenAmount).toEqual(emptyFee.fee.feeTokenAmount)
   })
 
   it('should revert when gas limit too high', async () => {
