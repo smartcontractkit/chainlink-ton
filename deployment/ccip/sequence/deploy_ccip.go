@@ -211,10 +211,10 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 					FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
 					AllowListAdmin: chain.WalletAddress,
 				},
-				TokenRegistryDeployment: onramp.TokenRegistryDeployment {
+				TokenRegistryDeployment: onramp.TokenRegistryDeployment{
 					TokenRegistry: &tokenRegistryAddr,
 				},
-				Reserve:        reserve,
+				Reserve: reserve,
 			},
 			DestChainConfigs: nil,
 			Executor: onramp.ExecutorDeployment{

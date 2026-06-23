@@ -95,7 +95,7 @@ var GetDynamicConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[DynamicConfig]{
 			TokenRegistryDeployment: TokenRegistryDeployment{
 				TokenRegistry: tokenRegistry,
 			},
-			Reserve:        reserve,
+			Reserve: reserve,
 		}, nil
 	}),
 })

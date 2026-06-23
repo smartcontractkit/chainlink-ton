@@ -218,16 +218,15 @@ func (c *DestChainConfig) GetterMethodName() string {
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type DynamicConfig struct {
-	Addresses               Addresses        `tlb:"^"`
+	Addresses               Addresses               `tlb:"^"`
 	TokenRegistryDeployment TokenRegistryDeployment `tlb:"^"`
-	Reserve                 tlb.Coins        `tlb:"."`
+	Reserve                 tlb.Coins               `tlb:"."`
 }
 
 type Addresses struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
 	FeeAggregator  *address.Address `tlb:"addr"`
 	AllowListAdmin *address.Address `tlb:"addr"`
-
 }
 
 type TokenRegistryDeployment struct {
