@@ -176,6 +176,7 @@ struct JettonDataReply {
     jettonWalletCode: cell
 }
 
+// nolint:opcode
 struct (0x00) OnchainMetadataReply {
     contentDict: map<uint256, string_prefixed0x>
 }

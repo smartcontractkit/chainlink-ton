@@ -80,24 +80,24 @@ type RateLimiterTokenBucket struct {
 
 // RateLimiterPair holds outbound and inbound rate limiter token buckets.
 type RateLimiterPair struct {
-	Outbound RateLimiterTokenBucket `tlb:"."`
-	Inbound  RateLimiterTokenBucket `tlb:"."`
+	Outbound RateLimiterTokenBucket `tlb:"^"`
+	Inbound  RateLimiterTokenBucket `tlb:"^"`
 }
 
 // ChainUpdate represents a chain update with remote pool addresses and token info.
 type ChainUpdate struct {
-	RemoteChainSelector uint64                                    `tlb:"## 64"`
-	RemotePoolAddresses common.SnakeRef[common.CrossChainAddress] `tlb:"^"`
-	RemoteTokenAddress  *tlbe.Cell[common.CrossChainAddress]      `tlb:"^"`
-	RateLimitConfigs    RateLimitConfigPair                       `tlb:"."`
+	RemoteChainSelector uint64                                      `tlb:"## 64"`
+	RemotePoolAddresses common.SnakedCell[common.CrossChainAddress] `tlb:"^"`
+	RemoteTokenAddress  *tlbe.Cell[common.CrossChainAddress]        `tlb:"^"`
+	RateLimitConfigs    RateLimitConfigPair                         `tlb:"."`
 }
 
 // RemoteChainConfig holds the configuration for a remote chain.
 type RemoteChainConfig struct {
 	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress]  `tlb:"."`
 	RemotePools              *tlbe.Dict[*tlbe.Uint256, *cell.Cell] `tlb:"."`
-	RateLimiters             RateLimiterPair                       `tlb:"."`
-	FastFinalityRateLimiters RateLimiterPair                       `tlb:"."`
+	RateLimiters             RateLimiterPair                       `tlb:"^"`
+	FastFinalityRateLimiters RateLimiterPair                       `tlb:"^"`
 }
 
 // RateLimitConfigArgs holds arguments for setting rate limit configs.
@@ -146,19 +146,14 @@ type ReleaseOrMintTransferDetails struct {
 
 // LockOrBurnTransfer represents a lock/burn transfer.
 type LockOrBurnTransfer struct {
-	ID      uint256                    `tlb:"."`
+	ID      *big.Int                   `tlb:"## 256"`
 	Details *LockOrBurnTransferDetails `tlb:"^"`
 }
 
 // ReleaseOrMintTransfer represents a release/mint transfer.
 type ReleaseOrMintTransfer struct {
-	ID      uint256                       `tlb:"."`
+	ID      *big.Int                      `tlb:"## 256"`
 	Details *ReleaseOrMintTransferDetails `tlb:"^"`
-}
-
-// uint256 wrapper for TLB serialization.
-type uint256 struct {
-	Value *big.Int `tlb:"."`
 }
 
 // LockOrBurnInV1 holds the input data for a lock/burn operation.
@@ -314,7 +309,7 @@ type SetCursedSubjects struct {
 type LockOrBurn struct {
 	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"`
 	QueryID                 uint64           `tlb:"## 64"`
-	Request                 *cell.Cell       `tlb:"^"`
+	Request                 LockOrBurnInV1   `tlb:"^"`
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
 	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
 	ReplyTo                 *address.Address `tlb:"addr"`
@@ -322,11 +317,11 @@ type LockOrBurn struct {
 
 // ReleaseOrMint releases or mints tokens on the destination chain.
 type ReleaseOrMint struct {
-	_                       tlb.Magic        `tlb:"#351f77e3" json:"-"`
-	QueryID                 uint64           `tlb:"## 64"`
-	Request                 *cell.Cell       `tlb:"^"`
-	RequestedFinalityConfig uint32           `tlb:"## 32"`
-	ReplyTo                 *address.Address `tlb:"addr"`
+	_                       tlb.Magic         `tlb:"#351f77e3" json:"-"`
+	QueryID                 uint64            `tlb:"## 64"`
+	Request                 ReleaseOrMintInV1 `tlb:"^"`
+	RequestedFinalityConfig uint32            `tlb:"## 32"`
+	ReplyTo                 *address.Address  `tlb:"addr"`
 }
 
 // PreflightCheckFinished notifies preflight check success.

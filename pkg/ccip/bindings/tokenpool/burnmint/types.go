@@ -50,7 +50,7 @@ type ReturnExcessesBack struct {
 // Storage represents the BurnMintTokenPool contract storage.
 // Extends the common TokenPool storage with burn/mint specific state.
 type Storage struct {
-	PoolData     *cell.Cell                     `tlb:"^"`       // Cell<TokenPool_Data>
+	PoolData     tokenpool.Storage              `tlb:"^"`
 	JettonClient *cell.Cell                     `tlb:"^"`       // Cell<JettonClient> - TODO: define JettonClient type in common/jetton bindings
 	PendingBurns *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingBurn>>
 	PendingMints *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingMint>>

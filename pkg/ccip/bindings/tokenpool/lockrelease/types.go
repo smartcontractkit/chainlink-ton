@@ -47,7 +47,7 @@ type ReturnExcessesBack struct {
 // Storage represents the LockReleaseTokenPool contract storage.
 // Extends the common TokenPool storage with lock/release specific state.
 type Storage struct {
-	PoolData        *tokenpool.Storage             `tlb:"^"`       // Cell<TokenPool_Data>
+	PoolData        tokenpool.Storage              `tlb:"^"`
 	JettonClient    *cell.Cell                     `tlb:"^"`       // Cell<JettonClient> - TODO: define JettonClient type in common/jetton bindings
 	PendingReleases *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingRelease>>
 }
