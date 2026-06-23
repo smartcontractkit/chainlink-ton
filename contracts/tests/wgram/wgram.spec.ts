@@ -13,12 +13,12 @@ import { JettonWallet, builder as walletBuilder } from '../../wrappers/jetton/Je
 import {
   ERROR_INVALID_EXCESSES_DESTINATION,
   ERROR_INVALID_RECIPIENT,
-  WTON_MINT_OPCODE,
-  WTON_WITHDRAW_EXCESS_OPCODE,
-} from '../../wrappers/wton'
+  WGRAM_MINT_OPCODE,
+  WGRAM_WITHDRAW_EXCESS_OPCODE,
+} from '../../wrappers/wgram'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
-const JETTON_DATA_URI = 'wton.test'
+const JETTON_DATA_URI = 'wgram.test'
 const MASTERCHAIN_ZERO_ADDRESS = Address.parse(`-1:${'0'.repeat(64)}`)
 
 type MintOptions = {
@@ -34,7 +34,7 @@ type MintOptions = {
   value?: bigint
 }
 
-describe('wTON', () => {
+describe('wGRAM', () => {
   let blockchain: Blockchain
 
   let minterCode: Cell
@@ -50,8 +50,8 @@ describe('wTON', () => {
   let nextQueryId: bigint
 
   beforeAll(async () => {
-    minterCode = await compile('wton.JettonMinter')
-    walletCode = await compile('wton.JettonWallet')
+    minterCode = await compile('wgram.JettonMinter')
+    walletCode = await compile('wgram.JettonWallet')
     bouncerCode = await compile('tests.mock.Bouncer')
   })
 
@@ -60,7 +60,7 @@ describe('wTON', () => {
     const contract = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
-          // wTON has no admin runtime path; deploy storage matches the get_jetton_data null admin.
+          // wGRAM has no admin runtime path; deploy storage matches the get_jetton_data null admin.
           admin: null,
           transferAdmin: null,
           walletCode: customWalletCode,
@@ -203,7 +203,7 @@ describe('wTON', () => {
     const queryId = nextQueryId++
     const result = await minterContract.sendMint(sender.getSender(), {
       value: value ?? jettonAmount + tonAmount + toNano('0.3'),
-      mintOpcode: WTON_MINT_OPCODE,
+      mintOpcode: WGRAM_MINT_OPCODE,
       message: {
         queryId,
         destination,
@@ -310,7 +310,7 @@ describe('wTON', () => {
     const wallet = await userWallet(owner.address)
     const result = await wallet.sendWithdrawExcess(owner.getSender(), {
       value,
-      opcode: WTON_WITHDRAW_EXCESS_OPCODE,
+      opcode: WGRAM_WITHDRAW_EXCESS_OPCODE,
       message: {
         queryId: nextQueryId++,
         sendExcessesTo,
@@ -495,7 +495,7 @@ describe('wTON', () => {
   })
 
   describe('minting', () => {
-    it('mints wTON into a backed wallet', async () => {
+    it('mints wGRAM into a backed wallet', async () => {
       const mintAmount = toNano('1')
       await mintTo(alice.address, { jettonAmount: mintAmount })
 
@@ -793,7 +793,7 @@ describe('wTON', () => {
 
     it('rejects malformed internal transfer payloads', async () => {
       const body = beginCell()
-        .storeUint(WTON_MINT_OPCODE, 32)
+        .storeUint(WGRAM_MINT_OPCODE, 32)
         .storeUint(nextQueryId++, 64)
         .storeAddress(alice.address)
         .storeCoins(toNano('0.2'))
@@ -815,12 +815,12 @@ describe('wTON', () => {
       expect(await totalSupply()).toEqual(0n)
     })
 
-    it('rejects metadata changes because wTON has no admin opcode surface', async () => {
+    it('rejects metadata changes because wGRAM has no admin opcode surface', async () => {
       const dataBefore = await minter.getJettonData()
       const result = await minter.sendChangeContent(deployer.getSender(), {
         message: {
           queryId: nextQueryId++,
-          content: beginCell().storeStringTail('wton.changed').endCell(),
+          content: beginCell().storeStringTail('wgram.changed').endCell(),
         },
       })
 
@@ -837,7 +837,7 @@ describe('wTON', () => {
   })
 
   describe('transferring', () => {
-    it('transfers wTON between wallets', async () => {
+    it('transfers wGRAM between wallets', async () => {
       const mintAmount = toNano('2')
       const transferAmount = toNano('0.75')
       await mintTo(alice.address, { jettonAmount: mintAmount })
@@ -1173,7 +1173,7 @@ describe('wTON', () => {
 
       const result = await aliceWallet.sendWithdrawExcess(deployer.getSender(), {
         value: toNano('0.05'),
-        opcode: WTON_WITHDRAW_EXCESS_OPCODE,
+        opcode: WGRAM_WITHDRAW_EXCESS_OPCODE,
         message: {
           queryId: nextQueryId++,
           sendExcessesTo: recipient.address,
@@ -1265,7 +1265,7 @@ describe('wTON', () => {
       expect(await walletBalance(alice.address)).toEqual(mintAmount)
     })
 
-    it('burns wTON and pays the nominated recipient', async () => {
+    it('burns wGRAM and pays the nominated recipient', async () => {
       const mintAmount = toNano('1')
       await mintTo(alice.address, { jettonAmount: mintAmount })
 
@@ -1793,7 +1793,7 @@ describe('wTON', () => {
       }
     }
 
-    // For wTON solvency we care about two invariants: supply matches wallet balances, and the
+    // For wGRAM solvency we care about two invariants: supply matches wallet balances, and the
     // minter plus all wallet backings still cover that supply with the minter reserve on top.
     async function assertCoreInvariants(owners: Address[]) {
       const supply = await totalSupply()

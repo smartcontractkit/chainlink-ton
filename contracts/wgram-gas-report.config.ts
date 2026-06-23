@@ -3,7 +3,7 @@ import type { Config } from 'jest'
 const config: Config = {
   preset: 'ts-jest',
   testEnvironment: '@ton/sandbox/jest-environment',
-  testMatch: ['**/tests/gas-report/wton/**/*.spec.ts'],
+  testMatch: ['**/tests/gas-report/wgram/**/*.spec.ts'],
   modulePathIgnorePatterns: ['/node_modules/', '/dist/', '/vendor/'],
   testTimeout: 120000,
   reporters: [
@@ -13,7 +13,7 @@ const config: Config = {
       {
         snapshotDir: '.snapshot',
         contractDatabase: 'contract.abi.json',
-        reportName: 'wton-gas-report',
+        reportName: 'wgram-gas-report',
         depthCompare: 2,
         removeRawResult: true,
       },

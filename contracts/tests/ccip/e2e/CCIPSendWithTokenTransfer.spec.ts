@@ -25,7 +25,7 @@ import {
 } from '../../../wrappers/gen/ccip/MockTokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
-import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
+import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup, CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
 
@@ -37,9 +37,9 @@ class DeployableMockTokenPool extends MockTokenPool {
   }
 }
 
-const JETTON_CONTENT = beginCell().storeStringTail('wton.e2e').endCell()
+const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
-// Amount of wTON the user transfers (also the CCIP tokenAmount). Deliberately different from
+// Amount of wGRAM the user transfers (also the CCIP tokenAmount). Deliberately different from
 // FORWARD_TON_AMOUNT so the test can prove metadata.value is the attached native TON, not the
 // transferred token amount (fees are paid in native TON, not in the transferred token).
 const TOKEN_AMOUNT = toNano('5')
@@ -65,8 +65,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
   let onRamp: SandboxContract<or.OnRamp>
 
   beforeAll(async () => {
-    minterCode = await compile('wton.JettonMinter')
-    walletCode = await compile('wton.JettonWallet')
+    minterCode = await compile('wgram.JettonMinter')
+    walletCode = await compile('wgram.JettonWallet')
   })
 
   beforeEach(async () => {
@@ -81,7 +81,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 
-    // 1. Deploy the wTON jetton minter.
+    // 1. Deploy the wGRAM jetton minter.
     minter = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
@@ -96,10 +96,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
     )
     await minter.sendTopUpTons(deployer.getSender(), toNano('0.01'))
 
-    // 2. Mint wTON to the user (deploys the user's wallet with a balance).
+    // 2. Mint wGRAM to the user (deploys the user's wallet with a balance).
     await minter.sendMint(deployer.getSender(), {
       value: TOKEN_AMOUNT + toNano('1') + toNano('0.3'),
-      mintOpcode: WTON_MINT_OPCODE,
+      mintOpcode: WGRAM_MINT_OPCODE,
       message: {
         queryId: 0n,
         destination: sender.address,
@@ -162,7 +162,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
     )
 
-    // User transfers wTON to the router-owned wallet, carrying the CCIPSend payload.
+    // User transfers wGRAM to the router-owned wallet, carrying the CCIPSend payload.
     const result = await senderWallet.sendTransfer(sender.getSender(), {
       value: FORWARD_TON_AMOUNT + toNano('2'),
       message: {
@@ -300,7 +300,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
     })
 
-    // OnRamp emits the CCIPMessageSent log. Verify the token-transfer amount equals TOKEN_AMOUNT (wTON).
+    // OnRamp emits the CCIPMessageSent log. Verify the token-transfer amount equals TOKEN_AMOUNT (wGRAM).
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
         header: {
