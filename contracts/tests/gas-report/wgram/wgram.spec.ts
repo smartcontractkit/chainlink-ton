@@ -8,7 +8,7 @@ import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } f
 
 import { JettonMinter, builder as minterBuilder } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet, builder as walletBuilder } from '../../../wrappers/jetton/JettonWallet'
-import { WTON_MINT_OPCODE } from '../../../wrappers/wgram'
+import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 const JETTON_DATA_URI = 'wgram.gas'
 
@@ -182,7 +182,7 @@ describe('wGRAM gas calibration', () => {
   ) {
     const queryId = nextQueryId++
     const body = minterBuilder.messages.in
-      .mintNewJettons({ opcode: WTON_MINT_OPCODE })
+      .mintNewJettons({ opcode: WGRAM_MINT_OPCODE })
       .encode({
         queryId,
         destination,
@@ -369,7 +369,7 @@ describe('wGRAM gas calibration', () => {
 
     const mintNewJettonsBodyStats = cellStats(
       minterBuilder.messages.in
-        .mintNewJettons({ opcode: WTON_MINT_OPCODE })
+        .mintNewJettons({ opcode: WGRAM_MINT_OPCODE })
         .encode({
           queryId: 1n,
           destination: alice.address,

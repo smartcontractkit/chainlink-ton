@@ -13,8 +13,8 @@ import { JettonWallet, builder as walletBuilder } from '../../wrappers/jetton/Je
 import {
   ERROR_INVALID_EXCESSES_DESTINATION,
   ERROR_INVALID_RECIPIENT,
-  WTON_MINT_OPCODE,
-  WTON_WITHDRAW_EXCESS_OPCODE,
+  WGRAM_MINT_OPCODE,
+  WGRAM_WITHDRAW_EXCESS_OPCODE,
 } from '../../wrappers/wgram'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
@@ -203,7 +203,7 @@ describe('wGRAM', () => {
     const queryId = nextQueryId++
     const result = await minterContract.sendMint(sender.getSender(), {
       value: value ?? jettonAmount + tonAmount + toNano('0.3'),
-      mintOpcode: WTON_MINT_OPCODE,
+      mintOpcode: WGRAM_MINT_OPCODE,
       message: {
         queryId,
         destination,
@@ -310,7 +310,7 @@ describe('wGRAM', () => {
     const wallet = await userWallet(owner.address)
     const result = await wallet.sendWithdrawExcess(owner.getSender(), {
       value,
-      opcode: WTON_WITHDRAW_EXCESS_OPCODE,
+      opcode: WGRAM_WITHDRAW_EXCESS_OPCODE,
       message: {
         queryId: nextQueryId++,
         sendExcessesTo,
@@ -793,7 +793,7 @@ describe('wGRAM', () => {
 
     it('rejects malformed internal transfer payloads', async () => {
       const body = beginCell()
-        .storeUint(WTON_MINT_OPCODE, 32)
+        .storeUint(WGRAM_MINT_OPCODE, 32)
         .storeUint(nextQueryId++, 64)
         .storeAddress(alice.address)
         .storeCoins(toNano('0.2'))
@@ -1173,7 +1173,7 @@ describe('wGRAM', () => {
 
       const result = await aliceWallet.sendWithdrawExcess(deployer.getSender(), {
         value: toNano('0.05'),
-        opcode: WTON_WITHDRAW_EXCESS_OPCODE,
+        opcode: WGRAM_WITHDRAW_EXCESS_OPCODE,
         message: {
           queryId: nextQueryId++,
           sendExcessesTo: recipient.address,
