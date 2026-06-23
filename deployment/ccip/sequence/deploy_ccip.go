@@ -178,7 +178,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	}
 
 	// TokenRegistry, deployed before ramps
-	// TODO: Remove when TokenRegistry is sharded and adminitrated on-chain.
+	// TODO: Remove when TokenRegistry is sharded and administered on-chain.
 	tokenRegistryAddr := stateCCIP.TokenRegistry
 	if tokenRegistryAddr.IsAddrNone() {
 		// storage initialized with default values, config will be set later when the token and TokenPool are ready
