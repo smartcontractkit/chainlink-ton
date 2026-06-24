@@ -17,11 +17,19 @@ enum JettonLockbox_Error {
     TokenAmountCannotBeZero = JettonLockbox_ERROR_CODE
     RecipientCannotBeZeroAddress
     UnsupportedToken
+
+    /// Thrown when trying to initialize the contract more than once.
+    ContractAlreadyInitialized
+
+    /// Thrown when trying to call a function on an uninitialized contract.
+    ContractNotInitialized
 }
 
 struct Storage {
+    id: uint64;
+
     minterAddress: address;
-    walletAddress: address;
+    walletAddress: address?;
 
     rbac: AccessControl_Data;
 }
@@ -32,4 +40,10 @@ fun Storage.load(): Storage {
 
 fun Storage.store(self) {
     contract.setData(self.toCell());
+}
+
+/// Returns whether the contract storage is initialized.
+fun Storage.isInitialized(self): bool {
+    // Should be set during init
+    return self.walletAddress != null;
 }

@@ -72,6 +72,19 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
     }
 }
 
+function createDictionaryValue<V>(loadFn_V: LoadCallback<V>, storeFn_V: StoreCallback<V>): c.DictionaryValue<V> {
+    return {
+        serialize(self: V, b: c.Builder) {
+            storeFn_V(self, b);
+        },
+        parse(s: c.Slice): V {
+            const value = loadFn_V(s);
+            s.endParse();
+            return value;
+        }
+    }
+}
+
 // ————————————————————————————————————————————
 //   parse get methods result from a TVM stack
 //
@@ -168,175 +181,184 @@ export const ForwardPayloadRemainder = {
 }
 
 /**
- > struct (0x0f8a7ea5) AskToTransfer {
+ > struct (0x7362d09c) TransferNotificationForRecipient {
  >     queryId: uint64
  >     jettonAmount: coins
- >     transferRecipient: address
- >     sendExcessesTo: address?
- >     customPayload: cell?
- >     forwardTonAmount: coins
+ >     transferInitiator: address?
  >     forwardPayload: ForwardPayloadRemainder
  > }
  */
-export interface AskToTransfer {
-    readonly $: 'AskToTransfer'
+export interface TransferNotificationForRecipient {
+    readonly $: 'TransferNotificationForRecipient'
     queryId: uint64
     jettonAmount: coins
-    transferRecipient: c.Address
-    sendExcessesTo: c.Address | null
-    customPayload: c.Cell | null
-    forwardTonAmount: coins
+    transferInitiator: c.Address | null
     forwardPayload: ForwardPayloadRemainder
 }
 
-export const AskToTransfer = {
-    PREFIX: 0x0f8a7ea5,
+export const TransferNotificationForRecipient = {
+    PREFIX: 0x7362d09c,
 
     create(args: {
         queryId: uint64
         jettonAmount: coins
-        transferRecipient: c.Address
-        sendExcessesTo: c.Address | null
-        customPayload: c.Cell | null
-        forwardTonAmount: coins
+        transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
-    }): AskToTransfer {
+    }): TransferNotificationForRecipient {
         return {
-            $: 'AskToTransfer',
+            $: 'TransferNotificationForRecipient',
             ...args
         }
     },
-    fromSlice(s: c.Slice): AskToTransfer {
-        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
+    fromSlice(s: c.Slice): TransferNotificationForRecipient {
+        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
         return {
-            $: 'AskToTransfer',
+            $: 'TransferNotificationForRecipient',
             queryId: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
-            transferRecipient: s.loadAddress(),
-            sendExcessesTo: s.loadMaybeAddress(),
-            customPayload: s.loadBoolean() ? s.loadRef() : null,
-            forwardTonAmount: s.loadCoins(),
+            transferInitiator: s.loadMaybeAddress(),
             forwardPayload: ForwardPayloadRemainder.fromSlice(s),
         }
     },
-    store(self: AskToTransfer, b: c.Builder): void {
-        b.storeUint(0x0f8a7ea5, 32);
+    store(self: TransferNotificationForRecipient, b: c.Builder): void {
+        b.storeUint(0x7362d09c, 32);
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.jettonAmount);
-        b.storeAddress(self.transferRecipient);
-        b.storeAddress(self.sendExcessesTo);
-        storeTolkNullable<c.Cell>(self.customPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-        b.storeCoins(self.forwardTonAmount);
+        b.storeAddress(self.transferInitiator);
         ForwardPayloadRemainder.store(self.forwardPayload, b);
     },
-    toCell(self: AskToTransfer): c.Cell {
-        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
+    toCell(self: TransferNotificationForRecipient): c.Cell {
+        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
     }
 }
 
 /**
- > struct (0xcf3ca837) AccessControl_RoleGranted {
- >     queryId: uint64
- >     role: uint256
- >     account: address
- >     sender: address
+ > struct AccessControl_Data {
+ >     roles: map<uint256, Cell<AccessControl_RoleData>>
  > }
  */
-export interface AccessControl_RoleGranted {
-    readonly $: 'AccessControl_RoleGranted'
-    queryId: uint64
-    role: uint256
-    account: c.Address
-    sender: c.Address
+export interface AccessControl_Data {
+    readonly $: 'AccessControl_Data'
+    roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
 }
 
-export const AccessControl_RoleGranted = {
-    PREFIX: 0xcf3ca837,
-
+export const AccessControl_Data = {
     create(args: {
-        queryId: uint64
-        role: uint256
-        account: c.Address
-        sender: c.Address
-    }): AccessControl_RoleGranted {
+        roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+    }): AccessControl_Data {
         return {
-            $: 'AccessControl_RoleGranted',
+            $: 'AccessControl_Data',
             ...args
         }
     },
-    fromSlice(s: c.Slice): AccessControl_RoleGranted {
-        loadAndCheckPrefix32(s, 0xcf3ca837, 'AccessControl_RoleGranted');
+    fromSlice(s: c.Slice): AccessControl_Data {
         return {
-            $: 'AccessControl_RoleGranted',
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            account: s.loadAddress(),
-            sender: s.loadAddress(),
+            $: 'AccessControl_Data',
+            roles: c.Dictionary.load<uint256, CellRef<AccessControl_RoleData>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+                (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+            ), s),
         }
     },
-    store(self: AccessControl_RoleGranted, b: c.Builder): void {
-        b.storeUint(0xcf3ca837, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeUint(self.role, 256);
-        b.storeAddress(self.account);
-        b.storeAddress(self.sender);
+    store(self: AccessControl_Data, b: c.Builder): void {
+        b.storeDict<uint256, CellRef<AccessControl_RoleData>>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+        ));
     },
-    toCell(self: AccessControl_RoleGranted): c.Cell {
-        return makeCellFrom<AccessControl_RoleGranted>(self, AccessControl_RoleGranted.store);
+    toCell(self: AccessControl_Data): c.Cell {
+        return makeCellFrom<AccessControl_Data>(self, AccessControl_Data.store);
     }
 }
 
 /**
- > struct (0x990fe1c7) AccessControl_RoleRevoked {
- >     queryId: uint64
- >     role: uint256
- >     account: address
- >     sender: address
+ > struct AccessControl_RoleData {
+ >     adminRole: uint256
+ >     membersLen: uint64
+ >     hasRole: map<address, bool>
  > }
  */
-export interface AccessControl_RoleRevoked {
-    readonly $: 'AccessControl_RoleRevoked'
-    queryId: uint64
-    role: uint256
-    account: c.Address
-    sender: c.Address
+export interface AccessControl_RoleData {
+    readonly $: 'AccessControl_RoleData'
+    adminRole: uint256
+    membersLen: uint64
+    hasRole: c.Dictionary<c.Address, boolean>
 }
 
-export const AccessControl_RoleRevoked = {
-    PREFIX: 0x990fe1c7,
-
+export const AccessControl_RoleData = {
     create(args: {
-        queryId: uint64
-        role: uint256
-        account: c.Address
-        sender: c.Address
-    }): AccessControl_RoleRevoked {
+        adminRole: uint256
+        membersLen: uint64
+        hasRole: c.Dictionary<c.Address, boolean>
+    }): AccessControl_RoleData {
         return {
-            $: 'AccessControl_RoleRevoked',
+            $: 'AccessControl_RoleData',
             ...args
         }
     },
-    fromSlice(s: c.Slice): AccessControl_RoleRevoked {
-        loadAndCheckPrefix32(s, 0x990fe1c7, 'AccessControl_RoleRevoked');
+    fromSlice(s: c.Slice): AccessControl_RoleData {
         return {
-            $: 'AccessControl_RoleRevoked',
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            account: s.loadAddress(),
-            sender: s.loadAddress(),
+            $: 'AccessControl_RoleData',
+            adminRole: s.loadUintBig(256),
+            membersLen: s.loadUintBig(64),
+            hasRole: c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s),
         }
     },
-    store(self: AccessControl_RoleRevoked, b: c.Builder): void {
-        b.storeUint(0x990fe1c7, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeUint(self.role, 256);
-        b.storeAddress(self.account);
-        b.storeAddress(self.sender);
+    store(self: AccessControl_RoleData, b: c.Builder): void {
+        b.storeUint(self.adminRole, 256);
+        b.storeUint(self.membersLen, 64);
+        b.storeDict<c.Address, boolean>(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
     },
-    toCell(self: AccessControl_RoleRevoked): c.Cell {
-        return makeCellFrom<AccessControl_RoleRevoked>(self, AccessControl_RoleRevoked.store);
+    toCell(self: AccessControl_RoleData): c.Cell {
+        return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
+    }
+}
+
+/**
+ > struct Storage {
+ >     id: uint64
+ >     minterAddress: address
+ >     walletAddress: address?
+ >     rbac: AccessControl_Data
+ > }
+ */
+export interface Storage {
+    readonly $: 'Storage'
+    id: uint64
+    minterAddress: c.Address
+    walletAddress: c.Address | null
+    rbac: AccessControl_Data
+}
+
+export const Storage = {
+    create(args: {
+        id: uint64
+        minterAddress: c.Address
+        walletAddress: c.Address | null
+        rbac: AccessControl_Data
+    }): Storage {
+        return {
+            $: 'Storage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Storage {
+        return {
+            $: 'Storage',
+            id: s.loadUintBig(64),
+            minterAddress: s.loadAddress(),
+            walletAddress: s.loadMaybeAddress(),
+            rbac: AccessControl_Data.fromSlice(s),
+        }
+    },
+    store(self: Storage, b: c.Builder): void {
+        b.storeUint(self.id, 64);
+        b.storeAddress(self.minterAddress);
+        b.storeAddress(self.walletAddress);
+        AccessControl_Data.store(self.rbac, b);
+    },
+    toCell(self: Storage): c.Cell {
+        return makeCellFrom<Storage>(self, Storage.store);
     }
 }
 
@@ -501,6 +523,162 @@ export const JettonLockbox_Deposited = {
     }
 }
 
+/**
+ > struct (0x17c24005) JettonLockbox_Init {
+ >     queryId: uint64
+ >     minterAddress: address
+ >     walletAddress: address
+ >     admin: address?
+ > }
+ */
+export interface JettonLockbox_Init {
+    readonly $: 'JettonLockbox_Init'
+    queryId: uint64
+    minterAddress: c.Address
+    walletAddress: c.Address
+    admin: c.Address | null
+}
+
+export const JettonLockbox_Init = {
+    PREFIX: 0x17c24005,
+
+    create(args: {
+        queryId: uint64
+        minterAddress: c.Address
+        walletAddress: c.Address
+        admin: c.Address | null
+    }): JettonLockbox_Init {
+        return {
+            $: 'JettonLockbox_Init',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockbox_Init {
+        loadAndCheckPrefix32(s, 0x17c24005, 'JettonLockbox_Init');
+        return {
+            $: 'JettonLockbox_Init',
+            queryId: s.loadUintBig(64),
+            minterAddress: s.loadAddress(),
+            walletAddress: s.loadAddress(),
+            admin: s.loadMaybeAddress(),
+        }
+    },
+    store(self: JettonLockbox_Init, b: c.Builder): void {
+        b.storeUint(0x17c24005, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.minterAddress);
+        b.storeAddress(self.walletAddress);
+        b.storeAddress(self.admin);
+    },
+    toCell(self: JettonLockbox_Init): c.Cell {
+        return makeCellFrom<JettonLockbox_Init>(self, JettonLockbox_Init.store);
+    }
+}
+
+/**
+ > struct (0x17c24006) JettonLockbox_Initialized {
+ >     queryId: uint64
+ >     minterAddress: address
+ >     walletAddress: address
+ >     admin: address
+ > }
+ */
+export interface JettonLockbox_Initialized {
+    readonly $: 'JettonLockbox_Initialized'
+    queryId: uint64
+    minterAddress: c.Address
+    walletAddress: c.Address
+    admin: c.Address
+}
+
+export const JettonLockbox_Initialized = {
+    PREFIX: 0x17c24006,
+
+    create(args: {
+        queryId: uint64
+        minterAddress: c.Address
+        walletAddress: c.Address
+        admin: c.Address
+    }): JettonLockbox_Initialized {
+        return {
+            $: 'JettonLockbox_Initialized',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockbox_Initialized {
+        loadAndCheckPrefix32(s, 0x17c24006, 'JettonLockbox_Initialized');
+        return {
+            $: 'JettonLockbox_Initialized',
+            queryId: s.loadUintBig(64),
+            minterAddress: s.loadAddress(),
+            walletAddress: s.loadAddress(),
+            admin: s.loadAddress(),
+        }
+    },
+    store(self: JettonLockbox_Initialized, b: c.Builder): void {
+        b.storeUint(0x17c24006, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.minterAddress);
+        b.storeAddress(self.walletAddress);
+        b.storeAddress(self.admin);
+    },
+    toCell(self: JettonLockbox_Initialized): c.Cell {
+        return makeCellFrom<JettonLockbox_Initialized>(self, JettonLockbox_Initialized.store);
+    }
+}
+
+/**
+ > struct (0x17c24004) JettonLockbox_WithdrawFailed {
+ >     queryId: uint64
+ >     token: address
+ >     amount: coins
+ >     recipientWallet: address
+ > }
+ */
+export interface JettonLockbox_WithdrawFailed {
+    readonly $: 'JettonLockbox_WithdrawFailed'
+    queryId: uint64
+    token: c.Address
+    amount: coins
+    recipientWallet: c.Address
+}
+
+export const JettonLockbox_WithdrawFailed = {
+    PREFIX: 0x17c24004,
+
+    create(args: {
+        queryId: uint64
+        token: c.Address
+        amount: coins
+        recipientWallet: c.Address
+    }): JettonLockbox_WithdrawFailed {
+        return {
+            $: 'JettonLockbox_WithdrawFailed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockbox_WithdrawFailed {
+        loadAndCheckPrefix32(s, 0x17c24004, 'JettonLockbox_WithdrawFailed');
+        return {
+            $: 'JettonLockbox_WithdrawFailed',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadCoins(),
+            recipientWallet: s.loadAddress(),
+        }
+    },
+    store(self: JettonLockbox_WithdrawFailed, b: c.Builder): void {
+        b.storeUint(0x17c24004, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeCoins(self.amount);
+        b.storeAddress(self.recipientWallet);
+    },
+    toCell(self: JettonLockbox_WithdrawFailed): c.Cell {
+        return makeCellFrom<JettonLockbox_WithdrawFailed>(self, JettonLockbox_WithdrawFailed.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class JettonLockbox
 //
@@ -540,12 +718,14 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockbox implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECPAEAB0IAART/APSkE/S88sgLAQIBYgIDAgLLBAUCASAoKQIBIAYHADHRsUQGDB/QOb6Ga1NHQgQFA1yH0BZIwbeKAgEgCAkCASAYGQIBIAoLAgEgDxAC9U7aLt+/iR8kDtRND6SPpI9ATRI9csI5sWhOSOEjQD0z/6APpQ+JIQZxBWVTDwBI7A1ywgvhIAFI40MG1tbW1wJfiS+JcrEDgQNxA2EDUQNPAHbFGfMTMByPpS+lL0AMntVNsx4DCEDwTHABTy9OMNWOICyPpS+lL0AMmAwNAF9CDAAZ4w+Cj6RDCBdTAB+DarAODAA534KPpEMIF1MAH4NqoA4Pgo+kQwgXUwAfg2gB/jQD0z/6SNM/+gD6SDD4km1tbW1wLQaCEKJ3HQQB8AWBakAiwgDy9IFqQYsCIscFs/L0+ChtiwTIz5A+KfqWKM8LPyX6AlJA+lIT+lT0AM+EIM7JyM+FiFJw+lLPhBBz+gJxzwtlzMmAUPsAyM+QXwkAChXLPxP6Uss/AfoC+lIOAATtVAAyycjPjxgABIIQ4Gj5W88L93HPC2HMyXD7AAIBIBESAgEgFRYB9wzJG1tbW1wghCidx0EJ/AFgWpAAsIAEvL0gWpCUTXHBRPy9PQEIW6YMSDHAJIwbeCS0dDiIG6RW+DXLCC+EgAM8r/TP/pI0z/6ANHIz5BfCQAGJM8LP1Iw+lIizws/IfoCycjPjxgABIIQGAJMts8L93HPC2HMyXD7AMiATAC0VVFTdvAGkVvgyPpSy//PUIIAuSjy8YAFAic8WFMs/EvpSyz8B+gLJyM+FCBL6UnHPC27MyYBA+wAUAAgXwkADAD8bFICgwf0Dm+hkltw4dTR0IEBQNch9AWBAQv0Cm+hMYAHnI7w7aLt+zFUd2VUd2V/UYfwCAHXLCSuaqB8jlPXLCS02G3MjiHTP9P/+kgwVHqYVHqYJ/AJVGuwVGuwVGuwKvAFQQTwCzCOJtcsIcopYjSVXwNw2zHh0z/T//pIMFMDxwWWggC5KfLw4UEE8Asw4uMNf9iAXAELTP9P/+kgwVHqYVHqYJ/AJVGuwVGuwVGuwKvAFQQTwCjACASAaGwIBICIjAgEgHB0CASAeHwAvDMzNQTDAJUhbrPDAJFw4pRAM9ox4GwxgACcbFEBgwf0Dm+hkjBw4dTR0NcL/4AH3CXDAJUnbrPDAJFw4pdUeUJTStpA3lGiUwGDB/QOb6GbMdTR0NP/0z/0BNGOGTBwIG1wyMv/cM8LP1IQ9ADJQEWDB/QXQTPiU0CBAQv0Cm+hMZYQN18HNnDgyM+DUlKBAQv0QQGkAsjL/xLLP/QAyVIygwf0F3HwAlRyQoCAB9QlwwCVJm6zwwCRcOKXVHlCU0naQN5RolMBgwf0Dm+hmzHU0dDT/9M/9ATRjhkwcCBtcMjL/3DPCz9SEPQAyUBFgwf0F0Ez4lNAgQEL9ApvoTGWEDdfBzZw4VJAgQEL9FkwAaUCyMv/Ess/9ADJUjKDB/QXcfACVHJCJ4CEA0ifHBZE0jizIz5M88qDeKM8LPybPC/9SIPpSUhD6UsnIz4UIFvpSI/oCcc8LahXMyXH7AOJwVE0T4wTIz5M88qDeF8s/FMv/E/pS+lLJyM+FCBP6UlAD+gJxzwtqzMkHkoBAkXHiF/sAfwDQxwWRNI4syM+SZD+HHijPCz8mzwv/UiD6UlIQ+lLJyM+FCBb6UiP6AnHPC2oVzMlx+wDicFRNE+MEyM+SZD+HHhfLPxTL/xP6UvpSycjPhQgT+lJQA/oCcc8LaszJB5KAQJFx4hf7AH8CASAkJQIBICYnAC8bFEBgwf0Dm+hmdTR0NP/MdcLP5IwcOKAAlxsUgKDB/QOb6GOPNTR0NP/MdM/9AVSIr6SW23gcCGBAQv0gm+lMppTJLmTIcMAkXDinTEigQEL9HRvpTICpALobCIykjBt35JbbeKAATxsUQGDB/QOb6GOGNTR0NP/MdM/9AUBkjBt4YEBC/SCb6UwMZIwbeKAATRsUgKDB/QOb6GOF9TR0IEBQNch9AWBAQv0dG+lbBKSMG3hkltt4oAIBICorAgEgNDUCAUgsLQIBSDIzAgEgLi8AW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAuSmV0dG9uTG9ja2JveIItTAuMS4wiAAMawLdqJofSQY/SQY+gK2rDa2tqwBuAD4BMACASAwMQAQq5HtRND6SDAAFqh27UTQ+kgx+kgwABWyH7tRND6SDDHBYAAxsFH7UTQ+kgx+kgx9AVtWG1tbVgDcAHwDIAIBIDY3AgEgOjsAMbaC3aiaH0kGP0kGPoCgTa2rTa2rTgBeANACAUg4OQAxrpt2omh9JBj9JBj6ArasNra2rAG4APgHQAAxrY72omh9JBj9JBj6ArasNra2rAG4APgIQAAxtK2dqJofSQY/SQY+gKBNratNratOAF4BsAAxtEq9qJofSQY/SQY+gKBNratNratOAF4B8A==');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'JettonLockbox_Error.TokenAmountCannotBeZero': 27200,
         'JettonLockbox_Error.RecipientCannotBeZeroAddress': 27201,
         'JettonLockbox_Error.UnsupportedToken': 27202,
+        'JettonLockbox_Error.ContractAlreadyInitialized': 27203,
+        'JettonLockbox_Error.ContractNotInitialized': 27204,
         'AccessControl_Error.UnauthorizedAccount': 47400,
         'AccessControl_Error.BadConfirmation': 47401,
     }
@@ -562,10 +742,92 @@ export class JettonLockbox implements c.Contract {
         return new JettonLockbox(address);
     }
 
+    static fromStorage(emptyStorage: {
+        id: uint64
+        minterAddress: c.Address
+        walletAddress: c.Address | null
+        rbac: AccessControl_Data
+    }, deployedOptions?: DeployedAddrOptions) {
+        const initialState = {
+            code: deployedOptions?.overrideContractCode ?? JettonLockbox.CodeCell,
+            data: Storage.toCell(Storage.create(emptyStorage)),
+        };
+        const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
+        return new JettonLockbox(address, initialState);
+    }
+
+    static createCellOfJettonLockboxInit(body: {
+        queryId: uint64
+        minterAddress: c.Address
+        walletAddress: c.Address
+        admin: c.Address | null
+    }) {
+        return JettonLockbox_Init.toCell(JettonLockbox_Init.create(body));
+    }
+
+    static createCellOfJettonLockboxWithdraw(body: {
+        queryId: uint64
+        token: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        recipientWallet: c.Address
+    }) {
+        return JettonLockbox_Withdraw.toCell(JettonLockbox_Withdraw.create(body));
+    }
+
+    static createCellOfTransferNotificationForRecipient(body: {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }) {
+        return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    async sendJettonLockboxInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        minterAddress: c.Address
+        walletAddress: c.Address
+        admin: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: JettonLockbox_Init.toCell(JettonLockbox_Init.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendJettonLockboxWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        token: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        recipientWallet: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: JettonLockbox_Withdraw.toCell(JettonLockbox_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
             ...extraOptions
         });
     }
@@ -575,9 +837,11 @@ export class JettonLockbox implements c.Contract {
         return r.readSlice().loadAddress();
     }
 
-    async getWallet(provider: ContractProvider): Promise<c.Address> {
+    async getWallet(provider: ContractProvider): Promise<c.Address | null> {
         const r = StackReader.fromGetMethod(1, await provider.get('wallet', []));
-        return r.readSlice().loadAddress();
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

@@ -2,6 +2,7 @@
 tolk 1.4.1
 
 import "@stdlib/common.tolk"
+
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/access/access_control"
@@ -9,6 +10,18 @@ import "../../../lib/utils"
 
 import "types"
 import "messages"
+
+
+contract JettonLockbox {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.1.0"
+    description: "link.chain.ton.ccip.JettonLockbox"
+
+    storage: Storage
+    incomingMessages: JettonLockbox_InMessage // TODO: all incoming messages should be registered
+    outgoingMessages: JettonLockbox_OutMessage
+    // emittedEvents: JettonLockbox_Events // TODO:
+}
 
 // Contract metadata.
 const CONTRACT_NAME = "link.chain.ton.ccip.JettonLockbox".literalSlice();
@@ -18,6 +31,9 @@ const CONTRACT_VERSION = "0.1.0".literalSlice();
 const TOPIC_DEPOSIT = stringCrc32("JettonLockbox_Deposit");
 const TOPIC_WITHDRAWAL = stringCrc32("JettonLockbox_Withdrawal");
 
+/// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
+const MIN_GRAM_TO_RESERVE: int = ton("0.05");
+
 // --- Contract entry point ---
 
 /// Deposits tokens into this contract. This eases the process of migrating tokens
@@ -25,10 +41,6 @@ const TOPIC_WITHDRAWAL = stringCrc32("JettonLockbox_Withdrawal");
 /// would need to be manually withdrawn and re-deposited into the new token pool from a legacy pool, which is a
 /// time-consuming and error-prone process.
 
-// TODO: add Init where we add access control setup (like rbac_timelock.tolk)
-// rbac._setRoleAdmin(queryId, sender, ADMIN_ROLE, ADMIN_ROLE);
-// rbac._setRoleAdmin(queryId, sender, OPERATOR_ROLE, ADMIN_ROLE);
-// rbac._grantRole(queryId, sender, ADMIN_ROLE, admin);
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
 
@@ -41,6 +53,9 @@ fun onInternalMessage(in: InMessage) {
         }
         JettonLockbox_Withdraw => {
             onWithdraw(mutate st, in.senderAddress, msg);
+        }
+        JettonLockbox_Init => {
+            onInit(mutate st, in.senderAddress, msg);
         }
         else => {
             var rbac = hookTrait__AccessControl(st);
@@ -62,10 +77,63 @@ fun onInternalMessage(in: InMessage) {
     st.store();
 }
 
-// --- Deposit handler ---
+// --- Handlers ---
+
+/// Initialize the lockbox with jetton addresses and grant admin role to owner.
+fun onInit(mutate st: Storage, sender: address, msg: JettonLockbox_Init) {
+    // @dev: anyone can call init, but only once. The deployer should send init message
+    // with stateInit (deployment). We check that the contract is not already initialized
+    assert(!st.isInitialized(), JettonLockbox_Error.ContractAlreadyInitialized);
+
+    // Validate addresses are not zero
+    assert(msg.minterAddress != createAddressNone(), JettonLockbox_Error.UnsupportedToken);
+    assert(msg.walletAddress != createAddressNone(), JettonLockbox_Error.UnsupportedToken);
+
+    // Set storage addresses
+    st.minterAddress = msg.minterAddress;
+    st.walletAddress = msg.walletAddress;
+
+    // Initialize AccessControl roles
+    var rbac = hookTrait__AccessControl(st);
+    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
+    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE);
+
+    val adminAddress = msg.admin != null ? msg.admin! : sender;
+    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress);
+
+    // TODO: add operators on init
+    // var oo = operators.iter();
+    // while (!oo.empty()) {
+    //     rbac._grantRole(queryId, sender, OPERATOR_ROLE, oo.next());
+    // }
+
+    // Map from underlying trait storage to contract storage
+    st.rbac = rbac.data;
+
+    // // TODO: why is this causing 37 'Not Enough Toncoin'
+    // // We reserve some GRAM coins on the balance for rent
+    // val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
+    // reserveToncoinsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
+
+    // // Emit initialization event
+    // val reply = createMessage({
+    //     bounce: BounceMode.NoBounce,
+    //     value: 0,
+    //     dest: sender,
+    //     body: JettonLockbox_Initialized {
+    //         queryId: msg.queryId,
+    //         minterAddress: msg.minterAddress,
+    //         walletAddress: msg.walletAddress,
+    //         admin: adminAddress,
+    //     },
+    // });
+    // reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
 
 /// Handle incoming jetton TransferNotificationForRecipient (deposit).
 fun onDepositNotification(mutate st: Storage, sender: address, msg: TransferNotificationForRecipient) {
+    assert(st.isInitialized(), JettonLockbox_Error.ContractNotInitialized);
+
     // Check authorization (transfer initiator must have OPERATOR_ROLE).
     val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!); // TODO: nullable? do/how we handle mint?
@@ -74,7 +142,8 @@ fun onDepositNotification(mutate st: Storage, sender: address, msg: TransferNoti
     assert(msg.jettonAmount > 0, JettonLockbox_Error.TokenAmountCannotBeZero);
 
     // Validate sender is our jetton wallet.
-    assert(sender == st.walletAddress, JettonLockbox_Error.UnsupportedToken);
+    assert(st.walletAddress != null, JettonLockbox_Error.UnsupportedToken);
+    assert(sender == st.walletAddress!, JettonLockbox_Error.UnsupportedToken);
 
     // TODO: check message value is enough to cover full flow, or error
     val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
@@ -104,10 +173,10 @@ fun onDepositNotification(mutate st: Storage, sender: address, msg: TransferNoti
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-// --- Withdraw handler ---
-
 /// Handle withdraw message from authorized caller.
 fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockbox_Withdraw) {
+    assert(st.isInitialized(), JettonLockbox_Error.ContractNotInitialized);
+
     // Check authorization (caller must have OPERATOR_ROLE).
     val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(OPERATOR_ROLE, sender);
@@ -118,27 +187,73 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockbox_Withdraw)
     // Validate recipient is not zero address.
     assert(msg.recipientWallet != createAddressNone(), JettonLockbox_Error.RecipientCannotBeZeroAddress);
 
+    // Store withdraw initiator in forward payload for error reporting on bounce.
+    val fwdPayload = beginCell()
+        .storeBool(true)
+        .storeUint(0x17c24007, 32) // JettonLockbox_WithdrawRequest marker
+        .storeUint(msg.queryId, 64)
+        .storeAddress(sender)
+        .endCell()
+        .beginParse();
+
+    // Validate wallet is initialized.
+    assert(st.walletAddress != null, JettonLockbox_Error.UnsupportedToken);
+
     // Send AskToTransfer to our jetton wallet (rich bounce on failure).
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: st.walletAddress,
+        dest: st.walletAddress!,
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.amount,
             transferRecipient: msg.recipientWallet,
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
-            // TODO: how do we handle fwdp amount?
             forwardTonAmount: 0,
-             // TODO: fwd add payload `JettonLockbox_Withdrawn`
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+            forwardPayload: fwdPayload,
         },
     });
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // Emit withdrawal event.
     emit<JettonLockbox_Withdraw>(TOPIC_WITHDRAWAL, msg);
+}
+
+/// Handle bounced AskToTransfer (withdraw failed) - send error message to initiator.
+fun onBouncedMessage(in: InMessageBounced) {
+    val st = lazy Storage.load();
+
+    // Parse the bounced message body
+    val msg = lazy JettonLockbox_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+
+    match (msg) {
+        AskToTransfer => {
+            // Extract withdraw initiator from forward payload
+            var fwdPayloadCell = msg.forwardPayload;
+            val hasPayload = fwdPayloadCell.loadUint(1) > 0;
+            if (!hasPayload) {
+                return; // No initiator to notify
+            }
+            val marker = fwdPayloadCell.loadUint(32);
+            val queryId = fwdPayloadCell.loadUint(64);
+            val withdrawInitiator = fwdPayloadCell.loadAddress();
+
+            // Send error message to withdraw initiator
+            val errorMsg = createMessage({
+                bounce: BounceMode.NoBounce,
+                value: 0,
+                dest: withdrawInitiator,
+                body: JettonLockbox_WithdrawFailed {
+                    queryId: queryId,
+                    token: st.minterAddress,
+                    amount: msg.jettonAmount,
+                    recipientWallet: msg.transferRecipient,
+                },
+            });
+            errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
+    }
 }
 
 // --- AccessControl hook ---
@@ -156,7 +271,7 @@ get fun token(): address {
 }
 
 /// Returns the jetton wallet address used by this lockbox.
-get fun wallet(): address {
+get fun wallet(): address? {
     val st = lazy Storage.load();
     return st.walletAddress;
 }

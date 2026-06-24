@@ -102,6 +102,13 @@ src = "contracts/mcms/mcms.tolk"
 domain = "mcms"
 depends = []
 
+# TODO: gen lib bindings
+# [contracts.AccessControl]
+# display-name = "link.chain.ton.lib.access.AccessControl"
+# src = "contracts/lib/access/access_control.tolk"
+# domain = "mcms"
+# depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100
