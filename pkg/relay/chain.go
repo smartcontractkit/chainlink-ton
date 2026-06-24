@@ -26,7 +26,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
-	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -76,7 +75,6 @@ type cachedClient struct {
 type chain struct {
 	commontypes.UnimplementedChainService
 	services.StateMachine
-	starter commonutils.StartStopOnce
 
 	id   string
 	cfg  *config.TOMLConfig
@@ -194,7 +192,7 @@ func (c *chain) Name() string {
 }
 
 func (c *chain) Start(ctx context.Context) error {
-	return c.starter.StartOnce("Chain", func() error {
+	return c.StartOnce("Chain", func() error {
 		c.lggr.Debug("Starting txm, log poller, and balance monitor")
 		var ms services.MultiStart
 
@@ -212,7 +210,7 @@ func (c *chain) Start(ctx context.Context) error {
 }
 
 func (c *chain) Close() error {
-	return c.starter.StopOnce("Chain", func() error {
+	return c.StopOnce("Chain", func() error {
 		c.lggr.Debug("Stopping txm, log poller, and balance monitor")
 		err := services.CloseAll(c.txm, c.lp, c.bm)
 
@@ -231,11 +229,11 @@ func (c *chain) Close() error {
 }
 
 func (c *chain) Ready() error {
-	return errors.Join(c.starter.Ready(), c.txm.Ready())
+	return errors.Join(c.StateMachine.Ready(), c.txm.Ready())
 }
 
 func (c *chain) HealthReport() map[string]error {
-	report := map[string]error{c.Name(): c.starter.Healthy()}
+	report := map[string]error{c.Name(): c.Healthy()}
 	services.CopyHealth(report, c.txm.HealthReport())
 	services.CopyHealth(report, c.lp.HealthReport())
 	services.CopyHealth(report, c.bm.HealthReport())
