@@ -123,6 +123,50 @@ func TestClientRotation(t *testing.T) {
 	requireAlways(t, txmResolvesHealthyClient, 5*time.Second, 100*time.Millisecond)
 }
 
+// Verify that cached ConnectionPool can recover from a broken connection
+func TestHealsFromBrokenConnection(t *testing.T) {
+	var unstableRPC *proxy.Proxy
+
+	tonChain, _ := setupChain(t, nil, func(chainURL string) config.Nodes {
+		unstableRPC = proxy.New(t, chainURL, proxy.BehaviourEnabled)
+
+		return config.Nodes{
+			{
+				Name: new("unstable-rpc"),
+				URL:  commonconfig.MustParseURL(unstableRPC.URL()),
+			},
+		}
+	})
+
+	// Should give us a client based on the healthy RPC (rpcA)
+	// wait for the initial client to be created
+	txmClientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		signed, err := tonChain.TxManager().GetClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return signed.Client, nil
+	}
+
+	clientTime := time.Now()
+	require.Eventually(t, getClient(t, txmClientProvider, requireHealthyClient), 5*time.Second, 200*time.Millisecond)
+
+	// Now disconnect unstableRPC while keeping its listener alive, so the same
+	// endpoint can later recover.
+	unstableRPC.SetBehaviour(proxy.BehaviourDisconnected)
+	unstableRPC.DropConnections()
+
+	// relay.Chain will keep giving us a client based on the unstable RPC, which is now broken
+	require.Eventually(t, getClient(t, tonChain.GetClient, requireUnhealthyClient), 5*time.Second, 200*time.Millisecond)
+	require.Less(t, time.Since(clientTime), ClientTTL, "Client should have been cached and not expired yet")
+
+	// Now enable unstableRPC again, which should enable getClient to return a healthy client again
+	unstableRPC.SetBehaviour(proxy.BehaviourEnabled)
+
+	// relay.Chain should now give us a client based on the healthy RPC (unstableRPC)
+	require.Eventually(t, getClient(t, tonChain.GetClient, requireHealthyClient), 2*ClientTTL+relay.ConnectionTimeout, 2*time.Second)
+}
+
 func TestDontStallOnConnection(t *testing.T) {
 	// The log poller persists its resume checkpoint and ingested logs, so it
 	// needs a real DataSource with the log poller tables created.
