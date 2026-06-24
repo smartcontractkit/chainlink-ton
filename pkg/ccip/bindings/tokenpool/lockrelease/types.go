@@ -38,7 +38,7 @@ type PendingRelease struct {
 // ReturnExcessesBack is sent by the jetton wallet after a transfer operation.
 // TODO: move to shared jetton bindings package, shared opcode 0xd53276db
 type ReturnExcessesBack struct {
-	_       tlb.Magic `tlb:"#d53276db" json:"-"`
+	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 

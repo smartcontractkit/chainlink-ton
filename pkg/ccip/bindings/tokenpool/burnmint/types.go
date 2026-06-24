@@ -34,14 +34,14 @@ type PendingMint struct {
 
 // ClaimMinterAdmin requests the pool to claim the jetton minter admin role.
 type ClaimMinterAdmin struct {
-	_       tlb.Magic `tlb:"#39898e4d" json:"-"`
+	_       tlb.Magic `tlb:"#39898e4d" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
 // ReturnExcessesBack is sent by the jetton minter/wallet after a burn or mint operation.
 // TODO: move to shared jetton bindings package, shared opcode 0xd53276db
 type ReturnExcessesBack struct {
-	_       tlb.Magic `tlb:"#d53276db" json:"-"`
+	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
