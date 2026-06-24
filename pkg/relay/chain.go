@@ -46,6 +46,8 @@ import (
 const (
 	balancePollPeriod          = 1 * time.Minute
 	defaultTONClientRetryCount = 5
+	// Max time stablishing a connection to a TON node before giving up. This is used when creating a new connection pool.
+	ConnectionTimeout = 1 * time.Second
 )
 
 type Chain interface {
@@ -466,7 +468,9 @@ func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient
 	}
 
 	liteServerURL := c.cfg.Nodes[nodeIndex].URL.String()
-	pool, err := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
+	ctxTimeout, cancel := context.WithTimeout(ctx, ConnectionTimeout)
+	defer cancel()
+	pool, err := tonchain.CreateLiteserverConnectionPool(ctxTimeout, liteServerURL)
 	if err != nil {
 		return nil, err
 	}
