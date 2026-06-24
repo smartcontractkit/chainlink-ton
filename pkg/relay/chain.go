@@ -137,25 +137,17 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON TXM for chain ID %s: %w", cfg.ChainID, err)
 	}
-
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		signedClient, cerr := signedClientProvider(ctx)
-		if cerr != nil {
-			return nil, cerr
-		}
-		return signedClient.Client, nil
-	}
 	lggr.Infow("Creating new chain", "chainID", ch.ID())
 
 	orm := lppgstore.NewORM(ch.ID(), ds, lggr)
 	lgOpts := &logpoller.ServiceOptions{
 		Config:      *ch.cfg.LogPollerConfig(), // get LogPoller configuration from chain config
-		TxLoader:    txloader.New(lggr, clientProvider),
+		TxLoader:    txloader.New(lggr, ch.GetClient),
 		FilterStore: lppgstore.NewFilterStore(ch.ID(), orm, lggr),
 		LogStore:    lppgstore.NewLogStore(ch.ID(), orm, lggr),
 	}
 
-	ch.lp, err = logpoller.NewService(lggr, ch.ID(), clientProvider, lgOpts)
+	ch.lp, err = logpoller.NewService(lggr, ch.ID(), ch.GetClient, lgOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logpoller service: %w", err)
 	}
