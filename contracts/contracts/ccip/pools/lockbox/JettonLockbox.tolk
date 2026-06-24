@@ -187,12 +187,20 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockbox_Withdraw)
     // Validate recipient is not zero address.
     assert(msg.recipientWallet != createAddressNone(), JettonLockbox_Error.RecipientCannotBeZeroAddress);
 
-    // Store withdraw initiator in forward payload for error reporting on bounce.
-    val fwdPayload = beginCell()
-        .storeBool(true)
+    // Store withdraw initiator in forwardPayload (cell ref) for error reporting on bounce.
+    // forwardPayload is of type RemainingBitsAndRefs (slice), which takes remaining inline bits
+    // AND refs. We put the bounce data in a cell ref so only ~1 bit goes inline:
+    // - inline: 1-bit flag (has_bounce_data)
+    // - ref:    cell with marker + queryId + sender address (~355 bits)
+    val bounceDataCell = beginCell()
         .storeUint(0x17c24007, 32) // JettonLockbox_WithdrawRequest marker
         .storeUint(msg.queryId, 64)
         .storeAddress(sender)
+        .endCell();
+
+    val fwdPayload = beginCell()
+        .storeBool(true)  // flag: bounce data present
+        .storeRef(bounceDataCell)  // goes to refs, not inline bits
         .endCell()
         .beginParse();
 
@@ -229,15 +237,20 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     match (msg) {
         AskToTransfer => {
-            // Extract withdraw initiator from forward payload
-            var fwdPayloadCell = msg.forwardPayload;
-            val hasPayload = fwdPayloadCell.loadUint(1) > 0;
-            if (!hasPayload) {
+            // Extract withdraw initiator from forwardPayload cell ref.
+            // The forwardPayload slice has: 1-bit flag + optional ref with bounce data.
+            var fwdPayload = msg.forwardPayload;
+            val hasBounceData = fwdPayload.loadUint(1) > 0;
+            if (!hasBounceData) {
                 return; // No initiator to notify
             }
-            val marker = fwdPayloadCell.loadUint(32);
-            val queryId = fwdPayloadCell.loadUint(64);
-            val withdrawInitiator = fwdPayloadCell.loadAddress();
+            if (!fwdPayload.remainingRefs) {
+                return; // Flag set but no ref attached
+            }
+            var bounceData = fwdPayload.loadRef().beginParse();
+            val marker = bounceData.loadUint(32);
+            val queryId = bounceData.loadUint(64);
+            val withdrawInitiator = bounceData.loadAddress();
 
             // Send error message to withdraw initiator
             val errorMsg = createMessage({
