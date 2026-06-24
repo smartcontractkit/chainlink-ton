@@ -8,14 +8,18 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
+const dialTimeout = time.Second
+
 type Proxy struct {
 	lggr      logger.Logger
+	cancel    context.CancelFunc
 	url       string
 	target    string
 	ln        net.Listener
@@ -24,11 +28,6 @@ type Proxy struct {
 	// serverConns is a set of active connections that are being proxied. We keep track of them so we can close them when the proxy is closed.
 	serverConns  map[net.Conn]struct{}
 	stalledConns map[net.Conn]context.CancelFunc
-}
-
-type stalledConn struct {
-	conn   net.Conn
-	cancel context.CancelFunc
 }
 
 type Behaviour int
@@ -50,11 +49,14 @@ func New(t *testing.T, rawURL string, behaviour Behaviour) *Proxy {
 	publicKey, hostPort, err := splitLiteserverURL(rawURL)
 	require.NoError(t, err)
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ctx, cancel := context.WithCancel(t.Context())
+	var listenConfig net.ListenConfig
+	ln, err := listenConfig.Listen(ctx, "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	proxy := &Proxy{
 		lggr:         logger.Named(logger.Test(t), "proxy"),
+		cancel:       cancel,
 		url:          fmt.Sprintf("liteserver://%s@%s", publicKey, ln.Addr().String()),
 		target:       hostPort,
 		ln:           ln,
@@ -64,7 +66,7 @@ func New(t *testing.T, rawURL string, behaviour Behaviour) *Proxy {
 	}
 	t.Cleanup(proxy.Close)
 
-	go proxy.acceptLoop()
+	go proxy.acceptLoop(ctx)
 
 	return proxy
 }
@@ -96,6 +98,8 @@ func (p *Proxy) SetBehaviour(behaviour Behaviour) {
 
 // Close closes the proxy and all active connections to it (including listener).
 func (p *Proxy) Close() {
+	p.cancel()
+
 	p.mu.Lock()
 	err := p.ln.Close()
 	if err != nil {
@@ -116,7 +120,7 @@ func (p *Proxy) DropConnections() {
 	closeConnections(serverConns, stalledConns)
 }
 
-func (p *Proxy) acceptLoop() {
+func (p *Proxy) acceptLoop(ctx context.Context) {
 	for {
 		clientConn, err := p.ln.Accept()
 		if err != nil {
@@ -124,8 +128,8 @@ func (p *Proxy) acceptLoop() {
 		}
 
 		var (
-			ctx    context.Context
-			cancel context.CancelFunc
+			connCtx    context.Context
+			connCancel context.CancelFunc
 		)
 		p.mu.Lock()
 		behaviour := p.behaviour
@@ -133,28 +137,32 @@ func (p *Proxy) acceptLoop() {
 		case BehaviourEnabled:
 			p.serverConns[clientConn] = struct{}{}
 		case BehaviourStall:
-			ctx, cancel = context.WithCancel(context.Background()) //nolint:gosec // cancel is stored in p.stalledConns and called when the connection is closed
-			p.stalledConns[clientConn] = cancel
+			connCtx, connCancel = context.WithCancel(ctx) //nolint:gosec // connCancel is stored in p.stalledConns and called when the connection is closed
+			p.stalledConns[clientConn] = connCancel
 		default:
 		}
 		p.mu.Unlock()
 
 		switch behaviour {
 		case BehaviourEnabled:
-			go p.handle(clientConn)
+			go p.handle(ctx, clientConn)
 		case BehaviourDisconnected:
 			closeWithReset(clientConn)
 			continue
 		case BehaviourStall:
-			go p.handleStall(ctx, clientConn)
+			go p.handleStall(connCtx, clientConn)
 		}
 	}
 }
 
-func (p *Proxy) handle(clientConn net.Conn) {
+func (p *Proxy) handle(ctx context.Context, clientConn net.Conn) {
 	defer p.forgetAndClose(clientConn)
 
-	serverConn, err := net.Dial("tcp", p.target)
+	var dialer net.Dialer
+	dialCtx, cancel := context.WithTimeout(ctx, dialTimeout)
+	defer cancel()
+
+	serverConn, err := dialer.DialContext(dialCtx, "tcp", p.target)
 	if err != nil {
 		return
 	}
@@ -197,30 +205,23 @@ func (p *Proxy) forgetAndClose(conn net.Conn) {
 	closeWithReset(conn)
 }
 
-func (p *Proxy) drainConnectionsLocked() ([]net.Conn, []stalledConn) {
-	serverConns := make([]net.Conn, 0, len(p.serverConns))
-	for conn := range p.serverConns {
-		serverConns = append(serverConns, conn)
-	}
-
-	stalledConns := make([]stalledConn, 0, len(p.stalledConns))
-	for conn, cancel := range p.stalledConns {
-		stalledConns = append(stalledConns, stalledConn{conn: conn, cancel: cancel})
-	}
+func (p *Proxy) drainConnectionsLocked() (server map[net.Conn]struct{}, stalled map[net.Conn]context.CancelFunc) {
+	server = p.serverConns
+	stalled = p.stalledConns
 
 	p.serverConns = make(map[net.Conn]struct{})
 	p.stalledConns = make(map[net.Conn]context.CancelFunc)
 
-	return serverConns, stalledConns
+	return
 }
 
-func closeConnections(serverConns []net.Conn, stalledConns []stalledConn) {
-	for _, conn := range serverConns {
+func closeConnections(serverConns map[net.Conn]struct{}, stalledConns map[net.Conn]context.CancelFunc) {
+	for conn := range serverConns {
 		closeWithReset(conn)
 	}
-	for _, stalledConn := range stalledConns {
-		stalledConn.cancel()
-		closeWithReset(stalledConn.conn)
+	for stalledConn, cancel := range stalledConns {
+		cancel()
+		closeWithReset(stalledConn)
 	}
 }
 
