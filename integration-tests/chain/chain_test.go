@@ -102,7 +102,7 @@ func TestClientRotation(t *testing.T) {
 	}
 
 	txmResolvesHealthyClient := getClient(t, txmClientProvider, requireHealthyClient)
-	require.Eventually(t, txmResolvesHealthyClient, 5*time.Second, 100*time.Millisecond)
+	require.Eventually(t, txmResolvesHealthyClient, relay.ConnectionTimeout*2, 100*time.Millisecond)
 	// Once we get a healthy client for the first time, we should get it every time. Checking multiple times due to round robin.
 	requireAlways(t, txmResolvesHealthyClient, 5*time.Second, 100*time.Millisecond)
 
@@ -116,7 +116,7 @@ func TestClientRotation(t *testing.T) {
 	time.Sleep(ClientTTL) // Wait for the cached client to expire, which should cause the relay to switch to initiallyDisconnectedRPC
 
 	// relay.Chain gives us a client connected to initiallyDisconnectedRPC after cached client expires
-	require.Eventually(t, getClient(t, tonChain.GetClient, requireHealthyClient), 5*time.Second, 100*time.Millisecond)
+	require.Eventually(t, getClient(t, tonChain.GetClient, requireHealthyClient), relay.ConnectionTimeout*2, 100*time.Millisecond)
 	requireAlways(t, getClient(t, tonChain.GetClient, requireHealthyClient), 5*time.Second, 100*time.Millisecond)
 
 	// TXM should have also switched to initiallyDisconnectedRPC
