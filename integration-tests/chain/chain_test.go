@@ -2,6 +2,8 @@ package chain
 
 import (
 	"context"
+	"math/big"
+	"math/rand/v2"
 	"strconv"
 	"sync"
 	"testing"
@@ -9,6 +11,8 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
@@ -18,10 +22,16 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
+	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/proxy"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/relay"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const ClientTTL = 30 * time.Second
@@ -111,6 +121,93 @@ func TestClientRotation(t *testing.T) {
 
 	// TXM should have also switched to initiallyDisconnectedRPC
 	requireAlways(t, txmResolvesHealthyClient, 5*time.Second, 100*time.Millisecond)
+}
+
+func TestDontStallOnConnection(t *testing.T) {
+	// The log poller persists its resume checkpoint and ingested logs, so it
+	// needs a real DataSource with the log poller tables created.
+	ds := pgtest.SetupTestDB(t)
+	require.NoError(t, pgtest.ExecuteSQL(t.Context(), ds, testdata.CreateLogPollerTables))
+
+	// Two RPCs, both initially unusable: stalled-rpc accepts the TCP connection
+	// but never finishes the ADNL handshake; unstable-rpc refuses connections.
+	// The bug: the poller wedges forever on stalled-rpc's handshake and never
+	// rotates, so enabling unstable-rpc below never helps. With a connection
+	// timeout the poller gives up on stalled-rpc and rotates to unstable-rpc.
+	var unstableRPC *proxy.Proxy
+	relayChain, tonChain := setupChain(t, ds, func(chainURL string) config.Nodes {
+		stalledRPC := proxy.New(t, chainURL, proxy.BehaviourStall)
+		unstableRPC = proxy.New(t, chainURL, proxy.BehaviourDisconnected)
+		return config.Nodes{
+			{
+				Name: new("stalled-rpc"),
+				URL:  commonconfig.MustParseURL(stalledRPC.URL()),
+			},
+			{
+				Name: new("unstable-rpc"),
+				URL:  commonconfig.MustParseURL(unstableRPC.URL()),
+			},
+		}
+	})
+
+	// Deploy an event-emitting contract using the chain's direct, always-healthy
+	// client. The emitter must work regardless of the poller's RPC state.
+	sender, err := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
+	require.NoError(t, err)
+	require.NoError(t, test_utils.FundWallets(
+		t, tonChain.Client,
+		[]*address.Address{sender.Address()},
+		[]tlb.Coins{tlb.MustFromTON("1000")},
+	))
+	emitter, err := helper.NewTestEventSource(t.Context(), tonChain.Client, sender, "emitter", rand.Uint32(), logger.Test(t))
+	require.NoError(t, err)
+
+	// Register a filter for the emitter's events on the poller, whose RPCs are
+	// both currently unusable.
+	lp := relayChain.LogPoller()
+	_, err = lp.RegisterFilter(t.Context(), models.Filter{
+		Name:     "emitter",
+		Address:  emitter.ContractAddress(),
+		MsgType:  tlb.MsgTypeExternalOut,
+		EventSig: counter.TopicCountIncreased,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, lp.Start(t.Context()))
+	t.Cleanup(func() { _ = lp.Close() })
+
+	// Give the poller time to attempt (and, with the fix, time out on) the stalled
+	// RPC before the other one recovers. With the bug the first attempt wedges the
+	// run loop forever, so enabling unstable-rpc never helps.
+	time.Sleep(2 * time.Second)
+
+	// unstable-rpc recovers; the poller must rotate to it past the stalled one.
+	t.Log("Enabling unstable-rpc; poller must rotate to it past the stalled RPC")
+	unstableRPC.SetBehaviour(proxy.BehaviourEnabled)
+
+	// Emit a known number of events through the direct client.
+	const targetCounter = 3
+	evctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	defer cancel()
+	require.NoError(t, emitter.Start(evctx, time.Second, big.NewInt(targetCounter)))
+	t.Cleanup(func() { _ = emitter.Wait() })
+
+	// The proof that the poller recovered is behavioral: it ingests every event
+	// emitted after the RPC became healthy. Had it permanently stalled on the
+	// first connection (the bug), it would never ingest anything.
+	require.Eventually(t, func() bool {
+		logs, _, _, qerr := lp.NewQuery().
+			WithSource(emitter.ContractAddress()).
+			WithEventSig(counter.TopicCountIncreased).
+			Execute(t.Context())
+		if qerr != nil {
+			t.Logf("query failed, retrying: %v", qerr)
+			return false
+		}
+		t.Logf("poller ingested %d/%d events", len(logs), targetCounter)
+		return len(logs) >= targetCounter
+	}, 120*time.Second, 2*time.Second,
+		"log poller never ingested the emitted events after the RPC recovered")
 }
 
 func getClient(
