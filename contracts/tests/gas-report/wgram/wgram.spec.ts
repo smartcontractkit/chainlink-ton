@@ -8,9 +8,9 @@ import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } f
 
 import { JettonMinter, builder as minterBuilder } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet, builder as walletBuilder } from '../../../wrappers/jetton/JettonWallet'
-import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
+import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
-const JETTON_DATA_URI = 'wton.gas'
+const JETTON_DATA_URI = 'wgram.gas'
 
 type ConfiguredGasConstants = {
   GAS_CONSUMPTION_JettonTransfer: number
@@ -35,7 +35,7 @@ function readFeesManagementConstant(source: string, name: string) {
 }
 
 function readFeesManagementSource() {
-  const feesFile = path.join(__dirname, '../../../contracts/wton/fees-management.tolk')
+  const feesFile = path.join(__dirname, '../../../contracts/wgram/fees-management.tolk')
   return fs.readFileSync(feesFile, 'utf8')
 }
 
@@ -118,7 +118,7 @@ function internalTxTo(result: { transactions: Array<any> }, destination: Address
   return tx
 }
 
-describe('wTON gas calibration', () => {
+describe('wGRAM gas calibration', () => {
   let blockchain: Blockchain
   let minterCode: Cell
   let walletCode: Cell
@@ -132,8 +132,8 @@ describe('wTON gas calibration', () => {
   let nextQueryId: bigint
 
   beforeAll(async () => {
-    minterCode = await compile('wton.JettonMinter')
-    walletCode = await compile('wton.JettonWallet')
+    minterCode = await compile('wgram.JettonMinter')
+    walletCode = await compile('wgram.JettonWallet')
   })
 
   beforeEach(async () => {
@@ -182,7 +182,7 @@ describe('wTON gas calibration', () => {
   ) {
     const queryId = nextQueryId++
     const body = minterBuilder.messages.in
-      .mintNewJettons({ opcode: WTON_MINT_OPCODE })
+      .mintNewJettons({ opcode: WGRAM_MINT_OPCODE })
       .encode({
         queryId,
         destination,
@@ -205,10 +205,10 @@ describe('wTON gas calibration', () => {
   it('keeps fee-management gas constants aligned with measured wallet and minter execution', async () => {
     const configured = readConfiguredGasConstants()
     // Exercise the highest live receive branch: notify recipient owner and still send excesses.
-    const transferForwardPayload = beginCell().storeStringTail('wton.gas.forward').endCell()
-    const transferCustomPayload = beginCell().storeStringTail('wton.gas.custom').endCell()
-    const burnCustomPayload = beginCell().storeStringTail('wton.gas.burn').endCell()
-    const mintForwardPayload = beginCell().storeStringTail('wton.gas.mint-forward').endCell()
+    const transferForwardPayload = beginCell().storeStringTail('wgram.gas.forward').endCell()
+    const transferCustomPayload = beginCell().storeStringTail('wgram.gas.custom').endCell()
+    const burnCustomPayload = beginCell().storeStringTail('wgram.gas.burn').endCell()
+    const mintForwardPayload = beginCell().storeStringTail('wgram.gas.mint-forward').endCell()
 
     const mintResult = await mintTo(alice.address, toNano('1.5'), {
       tonAmount: toNano('0.3'),
@@ -277,7 +277,7 @@ describe('wTON gas calibration', () => {
 
   it('keeps fee-shape constants aligned with live transfer and burn message bodies', () => {
     const configured = readConfiguredShapeConstants()
-    const forwardPayload = beginCell().storeStringTail('wton.gas.shape').endCell()
+    const forwardPayload = beginCell().storeStringTail('wgram.gas.shape').endCell()
     const maxCoins = (1n << 120n) - 1n
 
     const transferBodyStats = cellStats(
@@ -369,13 +369,13 @@ describe('wTON gas calibration', () => {
 
     const mintNewJettonsBodyStats = cellStats(
       minterBuilder.messages.in
-        .mintNewJettons({ opcode: WTON_MINT_OPCODE })
+        .mintNewJettons({ opcode: WGRAM_MINT_OPCODE })
         .encode({
           queryId: 1n,
           destination: alice.address,
           tonAmount: toNano('0.3'),
           jettonAmount: toNano('0.7'),
-          // The wTON minter enforces transferInitiator == null on mint, so the actual outgoing
+          // The wGRAM minter enforces transferInitiator == null on mint, so the actual outgoing
           // InternalTransferStep is smaller than transferBodyStats. We use transferBodyStats as
           // a strict upper bound for the outgoing — if that bound fits inside the incoming,
           // the real outgoing fits too.

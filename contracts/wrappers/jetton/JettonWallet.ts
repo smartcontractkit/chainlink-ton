@@ -108,7 +108,7 @@ export type WithdrawTonsMessage = {
   queryId: bigint
 }
 
-// wTON-specific extension: lets the wallet owner withdraw any TON surplus
+// wGRAM-specific extension: lets the wallet owner withdraw any GRAM surplus
 // sitting above the strict `jettonBalance + storage_fee`
 export type AskToWithdrawExcess = {
   queryId: bigint

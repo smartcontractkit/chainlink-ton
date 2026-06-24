@@ -27,7 +27,7 @@
     "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write .",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
-    "wton-gas-report": "blueprint test --gas-report -- --config wton-gas-report.config.ts",
+    "wgram-gas-report": "blueprint test --gas-report -- --config wgram-gas-report.config.ts",
     "get-key-pair": "ts-node scripts/getKeyPair.ts"
   },
   "dependencies": {

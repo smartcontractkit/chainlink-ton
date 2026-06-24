@@ -12,7 +12,7 @@ sidebar_position: 1
 - [CCIP](./ccip/index.md)
 - [Deployable](./deployable.md)
 - [MCMS](./mcms/index.md)
-- [wTON](./wton/index.md)
+- [wGRAM](./wgram/index.md)
 
 ### Examples
 

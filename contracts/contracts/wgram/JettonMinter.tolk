@@ -12,7 +12,7 @@ import "fees-management"
 contract JettonMinter {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.0.1"
-    description: "link.chain.ton.wton.JettonMinter"
+    description: "link.chain.ton.wgram.JettonMinter"
 
     storage: MinterStorage
     incomingMessages: AllowedMessageToMinter
@@ -37,14 +37,14 @@ fun requiredMinterReserve() {
 }
 
 /// Refund the mint on bounce, reuses sendExcessesTo as the bounce refund destination,
-/// so a failed wallet deploy/credit returns TON.
+/// so a failed wallet deploy/credit returns GRAM.
 fun refundMintBounce(msg: InternalTransferStep) {
     // We're already in the mint recovery path after supply rollback, so keep the minter reserve
     // if possible but never fail the bounce handler itself.
     reserveToncoinsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST);
 
     val refundMsg = createMessage({
-        // The mint-bounce refund is a forced TON deposit to the caller-chosen refund address.
+        // The mint-bounce refund is a forced GRAM deposit to the caller-chosen refund address.
         bounce: BounceMode.NoBounce,
         dest: msg.sendExcessesTo!, // safe to unwrap as it is required and validated in the minting path
         value: 0,
@@ -78,17 +78,17 @@ fun onInternalMessage(in: InMessage) {
             var storage = lazy MinterStorage.load();
             val calcAddress = calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode);
             assert (in.senderAddress == calcAddress) throw ERROR_NOT_VALID_WALLET;
-            // Reject burns without a refund destination so the withdrawn TON never gets stranded here.
+            // Reject burns without a refund destination so the withdrawn GRAM never gets stranded here.
             assert (msg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
             assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
-            // Keep only the minter rent reserve before withdrawing TON.
+            // Keep only the minter rent reserve before withdrawing GRAM.
             reserveToncoinsOnBalance(requiredMinterReserve(), reserveModeExactFail());
 
             val excessesMsg = createMessage({
-                // Burn payout sends native TON to the recipient as a non-bounceable withdrawal (forced deposit).
+                // Burn payout sends native GRAM to the recipient as a non-bounceable withdrawal (forced deposit).
                 bounce: BounceMode.NoBounce,
                 dest: msg.sendExcessesTo!,
                 value: 0,
@@ -96,7 +96,7 @@ fun onInternalMessage(in: InMessage) {
                     queryId: msg.queryId
                 }
             });
-            // If the send action cannot be executed, the tx must fail and bounce back to the wallet to restore wTON.
+            // If the send action cannot be executed, the tx must fail and bounce back to the wallet to restore wGRAM.
             excessesMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
@@ -142,13 +142,13 @@ fun onInternalMessage(in: InMessage) {
             assert (internalTransferMsg.sendExcessesTo! != contract.getAddress()) throw ERROR_INVALID_RECIPIENT;
             // Minting must not impersonate a peer wallet transfer initiator.
             assert (internalTransferMsg.transferInitiator == null) throw ERROR_INVALID_OP;
-            // The caller must fund the hosted TON backing, the extra transfer budget, and the
+            // The caller must fund the hosted GRAM backing, the extra transfer budget, and the
             // minter's own outbound deploy/forward fee rather than borrowing it from minter surplus.
             checkAmountIsEnoughToMint(in.valueCoins, jettonAmount, msg.tonAmount, in.originalForwardFee);
 
             // The extra mint budget must independently cover the receiver-side transfer/forward flow.
             checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, in.originalForwardFee);
-            // Keep the minter rent reserve intact so minting cannot drain operational TON.
+            // Keep the minter rent reserve intact so minting cannot drain operational GRAM.
             val requiredReserve = requiredMinterReserve();
             assert (contract.getOriginalBalance() >= requiredReserve + jettonAmount + msg.tonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
 
@@ -169,7 +169,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         TopUpTons => {
-            // Accept TONs
+            // Accept GRAMs
         }
 
         else => throw 0xFFFF
@@ -193,7 +193,7 @@ struct (0x00) OnchainMetadataReply {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.wton.JettonMinter".literalSlice(), "0.0.1".literalSlice());
+    return ("link.chain.ton.wgram.JettonMinter".literalSlice(), "0.0.1".literalSlice());
 }
 
 get fun get_jetton_data(): JettonDataReply {
