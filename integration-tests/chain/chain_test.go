@@ -72,6 +72,23 @@ func setupChain(t *testing.T, ds sqlutil.DataSource, nodes func(string) config.N
 	return tonRelayChain, tonChain
 }
 
+// Verify that relay.NewChain can be called with a broken RPC and that it does not block service initialization.
+// Verify that context is not canceled.
+func TestServiceInitializationIsNotBlockedByBrokenRPC(t *testing.T) {
+	var disconnectedRPC *proxy.Proxy
+
+	setupChain(t, nil, func(chainURL string) config.Nodes {
+		disconnectedRPC = proxy.New(t, chainURL, proxy.BehaviourDisconnected)
+
+		return config.Nodes{
+			{
+				Name: new("disconnected-rpc"),
+				URL:  commonconfig.MustParseURL(disconnectedRPC.URL()),
+			},
+		}
+	})
+}
+
 func TestClientRotation(t *testing.T) {
 	var initiallyHealthyRPC, initiallyDisconnectedRPC *proxy.Proxy
 
