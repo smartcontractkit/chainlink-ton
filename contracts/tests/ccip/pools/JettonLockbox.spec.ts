@@ -16,6 +16,7 @@ import {
 } from '../../../wrappers/gen/ccip/pools/JettonLockbox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { setupGenBindings } from '../../../wrappers/gen'
+import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool';
 import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool';
 
 // Role constants
@@ -30,13 +31,6 @@ const ErrorCodes = {
   ContractAlreadyInitialized: 27203,
   ContractNotInitialized: 27204,
   UnauthorizedAccount: 47400,
-}
-
-// Message opcodes
-const OPS = {
-  AskToTransfer: 0x0f8a7ea5n,
-  JettonLockbox_Deposited: 0x17c24003n,
-  JettonLockbox_WithdrawFailed: 0x17c24004n,
 }
 
 // Create an empty AccessControl_Data (no roles initialized yet)
@@ -113,9 +107,9 @@ describe('JettonLockbox', () => {
     // walletAddress starts as null — will be set via init message
     lockbox = blockchain.openContract(
       JettonLockbox.fromStorage({
+        id: 0n,
         minterAddress: jettonMinter.address,
         walletAddress: null,
-        id: 0n,
         rbac: emptyAccessControlData(),
       }),
     )
@@ -127,7 +121,7 @@ describe('JettonLockbox', () => {
     // Deploy lockbox with init message (StateInit attached via fromStorage)
     const deployResult = await lockbox.sendJettonLockboxInit(
       deployer.getSender(),
-      toNano('10'), // Extra TON for init reply message
+      toNano('1'),
       JettonLockbox_Init.create({
           queryId: 100n,
           minterAddress: jettonMinter.address,
@@ -135,6 +129,7 @@ describe('JettonLockbox', () => {
           admin: deployer.address,
         }),
     )
+
     expect(deployResult.transactions).toHaveTransaction({
       from: deployer.address,
       to: lockbox.address,
@@ -204,6 +199,7 @@ describe('JettonLockbox', () => {
       }))
 
       // Operator transfers jettons TO lockbox via jetton wallet.
+      //
       // The jetton flow:
       // 1. Operator sends Transfer to operatorWallet
       // 2. operatorWallet sends InternalTransfer to lockboxWallet
@@ -233,6 +229,7 @@ describe('JettonLockbox', () => {
         from: lockboxWallet.address,
         to: lockbox.address,
         success: true,
+        op: TransferNotificationForRecipient.PREFIX,
       })
 
       // Verify lockbox sent JettonLockbox_Deposited reply to operator
@@ -275,6 +272,7 @@ describe('JettonLockbox', () => {
       expect(result.transactions).toHaveTransaction({
         from: lockboxWallet.address,
         to: lockbox.address,
+        // TODO: ?
         success: true, // The message itself succeeds (no bounce), but deposit is silently skipped
       })
     })
@@ -331,16 +329,6 @@ describe('JettonLockbox', () => {
 
   describe('withdraw', () => {
     it('should reject withdraw from unauthorized caller', async () => {
-      // External messages on TON have no real sender (zero address),
-      // so any RBAC check will fail. This tests that the handler properly rejects.
-      const withdrawMsg = JettonLockbox_Withdraw.toCell(JettonLockbox_Withdraw.create({
-        queryId: 300n,
-        token: jettonMinter.address,
-        remoteChainSelector,
-        amount: toNano('5'),
-        recipientWallet: recipient.address,
-      }))
-
       // Send as internal from unauthorized account instead (more realistic test)
       const result = await lockbox.sendJettonLockboxWithdraw(
         unauthorized.getSender(),

@@ -244,9 +244,9 @@ fun onBouncedMessage(in: InMessageBounced) {
             if (!hasBounceData) {
                 return; // No initiator to notify
             }
-            if (!fwdPayload.remainingRefs) {
-                return; // Flag set but no ref attached
-            }
+            // if (!fwdPayload.remainingRefs) {
+            //     return; // Flag set but no ref attached
+            // }
             var bounceData = fwdPayload.loadRef().beginParse();
             val marker = bounceData.loadUint(32);
             val queryId = bounceData.loadUint(64);

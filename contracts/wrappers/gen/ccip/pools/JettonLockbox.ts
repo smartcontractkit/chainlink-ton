@@ -363,7 +363,7 @@ export const Storage = {
 }
 
 /**
- > struct (0x17c24001) JettonLockbox_Deposit {
+ > struct (0x18024cb6) JettonLockbox_Deposit {
  >     queryId: uint64
  >     token: address
  >     remoteChainSelector: uint64
@@ -379,7 +379,7 @@ export interface JettonLockbox_Deposit {
 }
 
 export const JettonLockbox_Deposit = {
-    PREFIX: 0x17c24001,
+    PREFIX: 0x18024cb6,
 
     create(args: {
         queryId: uint64
@@ -393,7 +393,7 @@ export const JettonLockbox_Deposit = {
         }
     },
     fromSlice(s: c.Slice): JettonLockbox_Deposit {
-        loadAndCheckPrefix32(s, 0x17c24001, 'JettonLockbox_Deposit');
+        loadAndCheckPrefix32(s, 0x18024cb6, 'JettonLockbox_Deposit');
         return {
             $: 'JettonLockbox_Deposit',
             queryId: s.loadUintBig(64),
@@ -403,7 +403,7 @@ export const JettonLockbox_Deposit = {
         }
     },
     store(self: JettonLockbox_Deposit, b: c.Builder): void {
-        b.storeUint(0x17c24001, 32);
+        b.storeUint(0x18024cb6, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
@@ -415,7 +415,7 @@ export const JettonLockbox_Deposit = {
 }
 
 /**
- > struct (0x17c24002) JettonLockbox_Withdraw {
+ > struct (0xc85418fe) JettonLockbox_Withdraw {
  >     queryId: uint64
  >     token: address
  >     remoteChainSelector: uint64
@@ -433,7 +433,7 @@ export interface JettonLockbox_Withdraw {
 }
 
 export const JettonLockbox_Withdraw = {
-    PREFIX: 0x17c24002,
+    PREFIX: 0xc85418fe,
 
     create(args: {
         queryId: uint64
@@ -448,7 +448,7 @@ export const JettonLockbox_Withdraw = {
         }
     },
     fromSlice(s: c.Slice): JettonLockbox_Withdraw {
-        loadAndCheckPrefix32(s, 0x17c24002, 'JettonLockbox_Withdraw');
+        loadAndCheckPrefix32(s, 0xc85418fe, 'JettonLockbox_Withdraw');
         return {
             $: 'JettonLockbox_Withdraw',
             queryId: s.loadUintBig(64),
@@ -459,7 +459,7 @@ export const JettonLockbox_Withdraw = {
         }
     },
     store(self: JettonLockbox_Withdraw, b: c.Builder): void {
-        b.storeUint(0x17c24002, 32);
+        b.storeUint(0xc85418fe, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
@@ -472,7 +472,7 @@ export const JettonLockbox_Withdraw = {
 }
 
 /**
- > struct (0x17c24003) JettonLockbox_Deposited {
+ > struct (0xde7934db) JettonLockbox_Deposited {
  >     queryId: uint64
  >     token: address
  >     remoteChainSelector: uint64
@@ -488,7 +488,7 @@ export interface JettonLockbox_Deposited {
 }
 
 export const JettonLockbox_Deposited = {
-    PREFIX: 0x17c24003,
+    PREFIX: 0xde7934db,
 
     create(args: {
         queryId: uint64
@@ -502,7 +502,7 @@ export const JettonLockbox_Deposited = {
         }
     },
     fromSlice(s: c.Slice): JettonLockbox_Deposited {
-        loadAndCheckPrefix32(s, 0x17c24003, 'JettonLockbox_Deposited');
+        loadAndCheckPrefix32(s, 0xde7934db, 'JettonLockbox_Deposited');
         return {
             $: 'JettonLockbox_Deposited',
             queryId: s.loadUintBig(64),
@@ -512,7 +512,7 @@ export const JettonLockbox_Deposited = {
         }
     },
     store(self: JettonLockbox_Deposited, b: c.Builder): void {
-        b.storeUint(0x17c24003, 32);
+        b.storeUint(0xde7934db, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
@@ -524,7 +524,7 @@ export const JettonLockbox_Deposited = {
 }
 
 /**
- > struct (0x17c24005) JettonLockbox_Init {
+ > struct (0x06d08cef) JettonLockbox_Init {
  >     queryId: uint64
  >     minterAddress: address
  >     walletAddress: address
@@ -540,7 +540,7 @@ export interface JettonLockbox_Init {
 }
 
 export const JettonLockbox_Init = {
-    PREFIX: 0x17c24005,
+    PREFIX: 0x06d08cef,
 
     create(args: {
         queryId: uint64
@@ -554,7 +554,7 @@ export const JettonLockbox_Init = {
         }
     },
     fromSlice(s: c.Slice): JettonLockbox_Init {
-        loadAndCheckPrefix32(s, 0x17c24005, 'JettonLockbox_Init');
+        loadAndCheckPrefix32(s, 0x06d08cef, 'JettonLockbox_Init');
         return {
             $: 'JettonLockbox_Init',
             queryId: s.loadUintBig(64),
@@ -564,7 +564,7 @@ export const JettonLockbox_Init = {
         }
     },
     store(self: JettonLockbox_Init, b: c.Builder): void {
-        b.storeUint(0x17c24005, 32);
+        b.storeUint(0x06d08cef, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.walletAddress);
@@ -576,7 +576,7 @@ export const JettonLockbox_Init = {
 }
 
 /**
- > struct (0x17c24006) JettonLockbox_Initialized {
+ > struct (0x6131dd8f) JettonLockbox_Initialized {
  >     queryId: uint64
  >     minterAddress: address
  >     walletAddress: address
@@ -592,7 +592,7 @@ export interface JettonLockbox_Initialized {
 }
 
 export const JettonLockbox_Initialized = {
-    PREFIX: 0x17c24006,
+    PREFIX: 0x6131dd8f,
 
     create(args: {
         queryId: uint64
@@ -606,7 +606,7 @@ export const JettonLockbox_Initialized = {
         }
     },
     fromSlice(s: c.Slice): JettonLockbox_Initialized {
-        loadAndCheckPrefix32(s, 0x17c24006, 'JettonLockbox_Initialized');
+        loadAndCheckPrefix32(s, 0x6131dd8f, 'JettonLockbox_Initialized');
         return {
             $: 'JettonLockbox_Initialized',
             queryId: s.loadUintBig(64),
@@ -616,7 +616,7 @@ export const JettonLockbox_Initialized = {
         }
     },
     store(self: JettonLockbox_Initialized, b: c.Builder): void {
-        b.storeUint(0x17c24006, 32);
+        b.storeUint(0x6131dd8f, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.walletAddress);
@@ -628,7 +628,7 @@ export const JettonLockbox_Initialized = {
 }
 
 /**
- > struct (0x17c24004) JettonLockbox_WithdrawFailed {
+ > struct (0x3dfc5d66) JettonLockbox_WithdrawFailed {
  >     queryId: uint64
  >     token: address
  >     amount: coins
@@ -644,7 +644,7 @@ export interface JettonLockbox_WithdrawFailed {
 }
 
 export const JettonLockbox_WithdrawFailed = {
-    PREFIX: 0x17c24004,
+    PREFIX: 0x3dfc5d66,
 
     create(args: {
         queryId: uint64
@@ -658,7 +658,7 @@ export const JettonLockbox_WithdrawFailed = {
         }
     },
     fromSlice(s: c.Slice): JettonLockbox_WithdrawFailed {
-        loadAndCheckPrefix32(s, 0x17c24004, 'JettonLockbox_WithdrawFailed');
+        loadAndCheckPrefix32(s, 0x3dfc5d66, 'JettonLockbox_WithdrawFailed');
         return {
             $: 'JettonLockbox_WithdrawFailed',
             queryId: s.loadUintBig(64),
@@ -668,7 +668,7 @@ export const JettonLockbox_WithdrawFailed = {
         }
     },
     store(self: JettonLockbox_WithdrawFailed, b: c.Builder): void {
-        b.storeUint(0x17c24004, 32);
+        b.storeUint(0x3dfc5d66, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
         b.storeCoins(self.amount);
@@ -676,6 +676,58 @@ export const JettonLockbox_WithdrawFailed = {
     },
     toCell(self: JettonLockbox_WithdrawFailed): c.Cell {
         return makeCellFrom<JettonLockbox_WithdrawFailed>(self, JettonLockbox_WithdrawFailed.store);
+    }
+}
+
+/**
+ > struct (0x17c24008) JettonLockbox_WithdrawCompleted {
+ >     queryId: uint64
+ >     token: address
+ >     amount: coins
+ >     recipientWallet: address
+ > }
+ */
+export interface JettonLockbox_WithdrawCompleted {
+    readonly $: 'JettonLockbox_WithdrawCompleted'
+    queryId: uint64
+    token: c.Address
+    amount: coins
+    recipientWallet: c.Address
+}
+
+export const JettonLockbox_WithdrawCompleted = {
+    PREFIX: 0x17c24008,
+
+    create(args: {
+        queryId: uint64
+        token: c.Address
+        amount: coins
+        recipientWallet: c.Address
+    }): JettonLockbox_WithdrawCompleted {
+        return {
+            $: 'JettonLockbox_WithdrawCompleted',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockbox_WithdrawCompleted {
+        loadAndCheckPrefix32(s, 0x17c24008, 'JettonLockbox_WithdrawCompleted');
+        return {
+            $: 'JettonLockbox_WithdrawCompleted',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadCoins(),
+            recipientWallet: s.loadAddress(),
+        }
+    },
+    store(self: JettonLockbox_WithdrawCompleted, b: c.Builder): void {
+        b.storeUint(0x17c24008, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeCoins(self.amount);
+        b.storeAddress(self.recipientWallet);
+    },
+    toCell(self: JettonLockbox_WithdrawCompleted): c.Cell {
+        return makeCellFrom<JettonLockbox_WithdrawCompleted>(self, JettonLockbox_WithdrawCompleted.store);
     }
 }
 
@@ -718,7 +770,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockbox implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'JettonLockbox_Error.TokenAmountCannotBeZero': 27200,
