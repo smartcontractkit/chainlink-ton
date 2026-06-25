@@ -42,6 +42,10 @@ func (m *mockAPIClient) Client() ton.LiteClient {
 	return m.liteClient
 }
 
+func (m *mockAPIClient) WaitForBlock(seqno uint32) ton.APIClientWrapped {
+	return m
+}
+
 // mockLiteClient mocks the LiteClient interface for testing liteserver queries
 type mockLiteClient struct {
 	ton.LiteClient

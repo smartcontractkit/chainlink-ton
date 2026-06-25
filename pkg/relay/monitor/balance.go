@@ -187,7 +187,7 @@ func GetAccountBalance(ctx context.Context, client ton.APIClientWrapped, addrStr
 		return -1, fmt.Errorf("failed to parse address [%s]: %w", addrString, err)
 	}
 
-	acc, err := client.GetAccount(ctx, block, addr)
+	acc, err := client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
 	if err != nil {
 		return -1, fmt.Errorf("failed to get account: %w", err)
 	}

@@ -105,7 +105,8 @@ func (lp *service) lookupBlock(ctx context.Context, seqNo uint32, currentMasterc
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
-	return client.LookupBlock(ctx, currentMasterchainBlock.Workchain, currentMasterchainBlock.Shard, seqNo)
+	// TBD do we need to use this seqNo or currentMasterchainBlock.SeqNo?
+	return client.WaitForBlock(seqNo).LookupBlock(ctx, currentMasterchainBlock.Workchain, currentMasterchainBlock.Shard, seqNo)
 }
 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
@@ -183,6 +184,7 @@ func (lp *service) fetchMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockI
 	}
 
 	var resp tl.Serializable
+	// TBD do we need to call .WaitForBlock(shardBlock.SeqNo) here?
 	err = client.Client().QueryLiteserver(ctx, ton.GetShardBlockProof{
 		ID: shardBlock,
 	}, &resp)

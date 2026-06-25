@@ -181,7 +181,7 @@ func CallGetter[A any, R any](
 	}
 
 	if len(input) == 0 {
-		result, err := client.RunGetMethod(ctx, block, contractAddr, getter.Name)
+		result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, contractAddr, getter.Name)
 		if err != nil {
 			return zero, fmt.Errorf("tvm: failed to run get method %q: %w", getter.Name, err)
 		}

@@ -245,7 +245,7 @@ func (c *chain) LatestHead(ctx context.Context) (commontypes.Head, error) {
 	}
 
 	// Load the full block to get timestamp and hash
-	block, err := client.GetBlockData(ctx, blockID)
+	block, err := client.WaitForBlock(blockID.SeqNo).GetBlockData(ctx, blockID)
 	if err != nil {
 		return commontypes.Head{}, fmt.Errorf("failed to get block data: %w", err)
 	}

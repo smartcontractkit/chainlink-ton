@@ -140,7 +140,7 @@ func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *mo
 	case blockRange.Prev == nil:
 		startLT = 0
 	case blockRange.FromSeqNo() > 0:
-		accPrev, accErr := client.GetAccount(ctx, blockRange.Prev, addr)
+		accPrev, accErr := client.WaitForBlock(blockRange.Prev.SeqNo).GetAccount(ctx, blockRange.Prev, addr)
 		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
 		} else {
@@ -221,6 +221,7 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 	if cerr != nil {
 		return nil, nil, fmt.Errorf("failed to get client: %w", cerr)
 	}
+	// TBD do we need to call .WaitForBlock(seqNum?) here?
 	err := client.Client().QueryLiteserver(ctx, ton.GetTransactions{
 		Limit: int32(limit),
 		AccID: &ton.AccountID{
