@@ -415,12 +415,46 @@ export const JettonLockbox_Deposit = {
 }
 
 /**
+ > struct JettonLockbox_WithdrawExtra {
+ >     sendExcessesTo: address?
+ > }
+ */
+export interface JettonLockbox_WithdrawExtra {
+    readonly $: 'JettonLockbox_WithdrawExtra'
+    sendExcessesTo: c.Address | null
+}
+
+export const JettonLockbox_WithdrawExtra = {
+    create(args: {
+        sendExcessesTo: c.Address | null
+    }): JettonLockbox_WithdrawExtra {
+        return {
+            $: 'JettonLockbox_WithdrawExtra',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockbox_WithdrawExtra {
+        return {
+            $: 'JettonLockbox_WithdrawExtra',
+            sendExcessesTo: s.loadMaybeAddress(),
+        }
+    },
+    store(self: JettonLockbox_WithdrawExtra, b: c.Builder): void {
+        b.storeAddress(self.sendExcessesTo);
+    },
+    toCell(self: JettonLockbox_WithdrawExtra): c.Cell {
+        return makeCellFrom<JettonLockbox_WithdrawExtra>(self, JettonLockbox_WithdrawExtra.store);
+    }
+}
+
+/**
  > struct (0xc85418fe) JettonLockbox_Withdraw {
  >     queryId: uint64
  >     token: address
  >     remoteChainSelector: uint64
  >     amount: coins
  >     recipientWallet: address
+ >     extra: Cell<JettonLockbox_WithdrawExtra>?
  > }
  */
 export interface JettonLockbox_Withdraw {
@@ -430,6 +464,7 @@ export interface JettonLockbox_Withdraw {
     remoteChainSelector: uint64
     amount: coins
     recipientWallet: c.Address
+    extra: CellRef<JettonLockbox_WithdrawExtra> | null
 }
 
 export const JettonLockbox_Withdraw = {
@@ -441,6 +476,7 @@ export const JettonLockbox_Withdraw = {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
+        extra: CellRef<JettonLockbox_WithdrawExtra> | null
     }): JettonLockbox_Withdraw {
         return {
             $: 'JettonLockbox_Withdraw',
@@ -456,6 +492,7 @@ export const JettonLockbox_Withdraw = {
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
             recipientWallet: s.loadAddress(),
+            extra: s.loadBoolean() ? loadCellRef<JettonLockbox_WithdrawExtra>(s, JettonLockbox_WithdrawExtra.fromSlice) : null,
         }
     },
     store(self: JettonLockbox_Withdraw, b: c.Builder): void {
@@ -465,6 +502,9 @@ export const JettonLockbox_Withdraw = {
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
         b.storeAddress(self.recipientWallet);
+        storeTolkNullable<CellRef<JettonLockbox_WithdrawExtra>>(self.extra, b,
+            (v,b) => storeCellRef<JettonLockbox_WithdrawExtra>(v, b, JettonLockbox_WithdrawExtra.store)
+        );
     },
     toCell(self: JettonLockbox_Withdraw): c.Cell {
         return makeCellFrom<JettonLockbox_Withdraw>(self, JettonLockbox_Withdraw.store);
@@ -679,58 +719,6 @@ export const JettonLockbox_WithdrawFailed = {
     }
 }
 
-/**
- > struct (0x17c24008) JettonLockbox_WithdrawCompleted {
- >     queryId: uint64
- >     token: address
- >     amount: coins
- >     recipientWallet: address
- > }
- */
-export interface JettonLockbox_WithdrawCompleted {
-    readonly $: 'JettonLockbox_WithdrawCompleted'
-    queryId: uint64
-    token: c.Address
-    amount: coins
-    recipientWallet: c.Address
-}
-
-export const JettonLockbox_WithdrawCompleted = {
-    PREFIX: 0x17c24008,
-
-    create(args: {
-        queryId: uint64
-        token: c.Address
-        amount: coins
-        recipientWallet: c.Address
-    }): JettonLockbox_WithdrawCompleted {
-        return {
-            $: 'JettonLockbox_WithdrawCompleted',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): JettonLockbox_WithdrawCompleted {
-        loadAndCheckPrefix32(s, 0x17c24008, 'JettonLockbox_WithdrawCompleted');
-        return {
-            $: 'JettonLockbox_WithdrawCompleted',
-            queryId: s.loadUintBig(64),
-            token: s.loadAddress(),
-            amount: s.loadCoins(),
-            recipientWallet: s.loadAddress(),
-        }
-    },
-    store(self: JettonLockbox_WithdrawCompleted, b: c.Builder): void {
-        b.storeUint(0x17c24008, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.token);
-        b.storeCoins(self.amount);
-        b.storeAddress(self.recipientWallet);
-    },
-    toCell(self: JettonLockbox_WithdrawCompleted): c.Cell {
-        return makeCellFrom<JettonLockbox_WithdrawCompleted>(self, JettonLockbox_WithdrawCompleted.store);
-    }
-}
-
 // ————————————————————————————————————————————
 //    class JettonLockbox
 //
@@ -770,7 +758,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockbox implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'JettonLockbox_Error.TokenAmountCannotBeZero': 27200,
@@ -823,6 +811,7 @@ export class JettonLockbox implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
+        extra: CellRef<JettonLockbox_WithdrawExtra> | null
     }) {
         return JettonLockbox_Withdraw.toCell(JettonLockbox_Withdraw.create(body));
     }
@@ -863,6 +852,7 @@ export class JettonLockbox implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
+        extra: CellRef<JettonLockbox_WithdrawExtra> | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

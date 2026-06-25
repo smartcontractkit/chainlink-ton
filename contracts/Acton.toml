@@ -56,6 +56,18 @@ src = "contracts/ccip/merkle_root/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.JettonMinter]
+display-name = "link.chain.ton.ccip.cct.JettonMinter"
+src = "contracts/ccip/cct/JettonMinter.tolk"
+domain = "ccip/cct"
+depends = []
+
+[contracts.JettonWallet]
+display-name = "link.chain.ton.ccip.cct.JettonWallet"
+src = "contracts/ccip/cct/JettonWallet.tolk"
+domain = "ccip/cct"
+depends = []
+
 [contracts.TokenPool]
 display-name = "link.chain.ton.ccip.TokenPool"
 src = "contracts/ccip/pools/token_pool_contract.tolk"
@@ -78,6 +90,13 @@ depends = []
 display-name = "link.chain.ton.ccip.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"
 domain = "ccip/pools"
+
+[contracts.LockReleaseLockboxTokenPool]
+display-name = "link.chain.ton.ccip.LockReleaseLockboxTokenPool"
+src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
+domain = "ccip/pools"
+depends = []
+
 [contracts.MockTokenPool]
 display-name = "link.chain.ton.ccip.test.TokenPool"
 src = "contracts/ccip/test/tokenPool/contract.tolk"

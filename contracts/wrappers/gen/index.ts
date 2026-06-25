@@ -3,6 +3,7 @@ import { Router } from './ccip/Router';
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
+import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
 
 import * as rtOld from '../ccip/Router'
 
@@ -37,6 +38,12 @@ export function setupGenBindings() {
     )
 
     Router.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddress__packToBuilder,
+      CrossChainAddress__unpackFromSlice,
+    )
+
+    LockReleaseLockboxTokenPool.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddress__packToBuilder,
       CrossChainAddress__unpackFromSlice,

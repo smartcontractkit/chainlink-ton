@@ -831,11 +831,14 @@ fun TokenPool<T>.onLockOrBurnTransfer(
 
     // Continue if transfer initiator is the Router, otherwise try to validate the transfer
     val router = self.data.adminConfig.load().dynamicConfig.load().router;
-    if (msg.transferInitiator != null && msg.transferInitiator! == router) {
+    // TODO: should check if transferInitiator == walletAddress(router) - missing info for now
+    // if (msg.transferInitiator != null && msg.transferInitiator! == router) {
+    if (msg.transferInitiator != null) {
         self.onLockOrBurnTransferContinue(sender, fwdp);
         return;
     }
 
+    // TODO: should throw as unsupported for now
     // TODO: check if this is a registered deposit account
     // ContextExecutor_Ask(fwdp: msg + fwdp) -> ContextExecutor_Reply(ctx, fwdp)
     // if reply is valid, continue, else return transfer

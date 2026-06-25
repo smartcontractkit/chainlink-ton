@@ -207,6 +207,13 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockbox_Withdraw)
     // Validate wallet is initialized.
     assert(st.walletAddress != null, JettonLockbox_Error.UnsupportedToken);
 
+    // Determine where to send ReturnExcessesBack (from extra cell or default to self).
+    val sendExcessesToAddr = msg.extra != null
+        ? msg.extra!.load().sendExcessesTo != null
+            ? msg.extra!.load().sendExcessesTo!
+            : contract.getAddress()
+        : contract.getAddress();
+
     // Send AskToTransfer to our jetton wallet (rich bounce on failure).
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -216,7 +223,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockbox_Withdraw)
             queryId: msg.queryId,
             jettonAmount: msg.amount,
             transferRecipient: msg.recipientWallet,
-            sendExcessesTo: contract.getAddress(),
+            sendExcessesTo: sendExcessesToAddr,
             customPayload: null,
             forwardTonAmount: 0,
             forwardPayload: fwdPayload,
@@ -229,6 +236,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockbox_Withdraw)
 }
 
 /// Handle bounced AskToTransfer (withdraw failed) - send error message to initiator.
+/// The pool stores pending releases by queryId and restores context on JettonLockbox_WithdrawFailed.
 fun onBouncedMessage(in: InMessageBounced) {
     val st = lazy Storage.load();
 
@@ -244,9 +252,6 @@ fun onBouncedMessage(in: InMessageBounced) {
             if (!hasBounceData) {
                 return; // No initiator to notify
             }
-            // if (!fwdPayload.remainingRefs) {
-            //     return; // Flag set but no ref attached
-            // }
             var bounceData = fwdPayload.loadRef().beginParse();
             val marker = bounceData.loadUint(32);
             val queryId = bounceData.loadUint(64);

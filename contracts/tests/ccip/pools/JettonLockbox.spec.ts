@@ -339,6 +339,7 @@ describe('JettonLockbox', () => {
           remoteChainSelector,
           amount: toNano('5'),
           recipientWallet: recipient.address,
+          extra: null,
         },
       )
 
@@ -383,6 +384,7 @@ describe('JettonLockbox', () => {
           remoteChainSelector,
           amount: toNano('5'),
           recipientWallet: recipient.address,
+          extra: null,
         },
       )
 
@@ -416,6 +418,7 @@ describe('JettonLockbox', () => {
           remoteChainSelector,
           amount: 0n,
           recipientWallet: recipient.address,
+          extra: null,
         },
       )
 
@@ -444,6 +447,7 @@ describe('JettonLockbox', () => {
           remoteChainSelector,
           amount: toNano('5'),
           recipientWallet: zeroHashAddress,
+          extra: null,
         },
       )
 
@@ -514,6 +518,7 @@ describe('JettonLockbox', () => {
           remoteChainSelector,
           amount: toNano('5'),
           recipientWallet: recipient.address,
+          extra: null,
         },
       )
 
