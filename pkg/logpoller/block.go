@@ -187,7 +187,6 @@ func (lp *service) fetchMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockI
 	}
 
 	var resp tl.Serializable
-	// TBD do we need to call .WaitForBlock(shardBlock.SeqNo) here?
 	err = client.Client().QueryLiteserver(ctx, ton.GetShardBlockProof{
 		ID: shardBlock,
 	}, &resp)
