@@ -14,3 +14,8 @@ struct OffRamps {
     sourceChainSelectors: SnakedCell<uint64>;
     offRamp: address;
 }
+
+struct Router_TokenRegistryDeployment {
+    deployableCode: cell;
+    tokenRegistryCode: cell;
+}

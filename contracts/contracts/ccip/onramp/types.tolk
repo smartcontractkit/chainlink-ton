@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
+import "../router/types"
 import "../ccipsend_executor/types"
 import "../../lib/utils"
 import "../../lib/deployable/namespace"
@@ -24,16 +25,8 @@ struct OnRamp_Addresses {
 
 struct OnRamp_DynamicConfig {
     addresses: Cell<OnRamp_Addresses>;
-    tokenRegistryDeployment: Cell<OnRamp_TokenRegistryDeployment>;
+    tokenRegistryDeployment: Cell<Router_TokenRegistryDeployment>;
     reserve: coins;
-}
-
-//TODO: Shard entries using the Deployable library.
-//TODO: Routing to deployed registries and deploying new ones should be done by the Router or an independent contract.
-struct OnRamp_TokenRegistryDeployment {
-    //TODO: deployableCode: cell;
-    //      tokenRegistryCode: cell;
-    tokenRegistry: address;
 }
 
 struct OnRampUpdateDestChainConfig {
@@ -102,4 +95,3 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .endCell()
         .hash()
 }
-

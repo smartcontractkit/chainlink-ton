@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/access/ownable_2step"
 import "../../ccip/rmn_remote/lib"
+import "types"
 
 struct RMNRemote {
     admin: Ownable2Step;
@@ -19,6 +20,8 @@ struct Storage {
     offRamps: map<uint64, address>; // sourceChainSelector -> offRamp address
 
     rmnRemote: Cell<RMNRemote>,
+
+    tokenRegistryDeployment: Cell<Router_TokenRegistryDeployment>;
 }
 
 fun Storage.load(): Storage {

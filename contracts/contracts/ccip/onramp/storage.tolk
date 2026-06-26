@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
+import "../router/types"
 import "../../lib/access/ownable_2step"
 
 struct OnRamp_Storage {
@@ -14,7 +15,7 @@ struct OnRamp_Storage {
 
     destChainConfigs: map<uint64, OnRamp_DestChainConfig>; // chainSelector -> DestChainConfig
     executor: ExecutorDeployment;
-
+    tokenRegistryDeployment: Cell<Router_TokenRegistryDeployment>;
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

@@ -4,6 +4,7 @@ import "types"
 const DeployableNamespace_CCIPSendExecutor: Namespace = 0;
 const DeployableNamespace_ReceiveExecutor: Namespace = 1;
 const DeployableNamespace_MerkleRoot: Namespace = 2;
+const DeployableNamespace_TokenRegistry: Namespace = 3;
 
 struct Namespaced<T> {
     namespace: Namespace;

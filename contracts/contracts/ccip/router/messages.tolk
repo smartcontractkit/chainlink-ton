@@ -10,6 +10,7 @@ import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
 import "../common/messages"
+import "../token_registry/types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -29,6 +30,7 @@ type Router_InMsg =
     | Router_LockOrBurn
     | Router_RMNOwnableMessage
     | Common_JettonTransferNotification
+    | Router_TokenRegistrySetTokenInfo
     ;
 
 type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
@@ -133,6 +135,12 @@ struct (0x6f2d00df) Router_LockOrBurn {
     executorAddress: address,
 }
 
+struct (0xfed7cfba) Router_TokenRegistrySetTokenInfo {
+    tokenAddress: address,
+    tokenInfo: TokenRegistry_TokenInfo,
+    isNewEntry: bool,
+}
+ 
 struct Router_GetValidatedFeeContext {
     routerContext: address; // sender
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,

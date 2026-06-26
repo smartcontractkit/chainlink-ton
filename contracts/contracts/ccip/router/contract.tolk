@@ -21,6 +21,10 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
+import "../../lib/deployable/namespace"
+import "../token_registry/storage"
+import "../token_registry/messages"
+import "../../lib/deployable/types"
 
 tolk 1.4.1
 
@@ -192,6 +196,36 @@ fun onInternalMessage(in: InMessage) {
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
             onCCIPSend(sendMsg, msg.sender, in.valueCoins);
+        }
+        Router_TokenRegistrySetTokenInfo => {
+            val st = Storage.load();
+            val registryAddress = getTokenRegistryDeployAddress(st, msg.tokenAddress);
+            if (msg.isNewEntry) {
+                val deployMsg = createMessage({
+                    bounce: false,
+                    value: ton("0.015"),
+                    dest: registryAddress,
+                    body: Deployable_Initialize {
+                        stateInit: {
+                            code: st.tokenRegistryDeployment.load().tokenRegistryCode,
+                            data: TokenRegistry_Storage {
+                                tokenAddress: msg.tokenAddress,
+                                tokenInfo: msg.tokenInfo
+                            }.toCell(),
+                        }
+                    },
+                });
+                deployMsg.send(SEND_MODE_REGULAR);
+            }
+            val setTokenInfoMsg = createMessage({
+                bounce: false,
+                value: ton("0.015"),
+                dest: registryAddress,
+                body: TokenRegistry_SetTokenInfo {
+                    info: msg.tokenInfo
+                }
+            });
+            setTokenInfoMsg.send(SEND_MODE_REGULAR); //TODO check send_mode
         }
         else => {
             // attempt to handle Ownable messages
@@ -693,6 +727,22 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
+}
+
+/*
+Derives the token registry contract address from the token address
+*/
+fun getTokenRegistryDeployAddress(st: Storage, tokenAddress: address): AutoDeployAddress {
+    return {
+        stateInit: {
+            code: st.tokenRegistryDeployment.load().deployableCode,
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_TokenRegistry,
+                owner: contract.getAddress(),
+                id: tokenAddress,
+            }),
+        }
+    }
 }
 
 @method_id(1000)
