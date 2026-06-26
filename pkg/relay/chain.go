@@ -106,6 +106,14 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
 
+	// Randomize node order to avoid always hitting the same node first
+	nodes := make([]*config.Node, len(cfg.Nodes))
+	indexes := rand.Perm(len(nodes))
+	for i, idx := range indexes {
+		nodes[i] = cfg.Nodes[idx]
+	}
+	cfg.Nodes = nodes
+
 	ch := &chain{
 		id:          cfg.ChainID,
 		cfg:         cfg,
@@ -341,11 +349,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 		return nil, errors.New("no nodes available")
 	}
 
-	indexes := rand.Perm(len(nodes))
-
-	for _, i := range indexes {
-		node := nodes[i]
-
+	for i, node := range nodes {
 		// Check cache
 		c.cacheMu.RLock()
 		entry, ok := c.clientCache[i]
