@@ -136,19 +136,10 @@ export type SetDynamicConfig = {
 }
 
 export type DynamicConfig = {
-  addresses: Addresses //ref
-  tokenRegistryDeployment: TokenRegistryDeployment //ref
-  reserve: bigint
-}
-
-export type Addresses = {
   feeQuoter: Address
   feeAggregator: Address
   allowlistAdmin: Address
-}
-
-export type TokenRegistryDeployment = {
-  tokenRegistry: Address
+  reserve: bigint
 }
 
 export type GetValidatedFee = {
@@ -202,44 +193,17 @@ export const builder = (() => {
     const dynamicConfig: CellCodec<DynamicConfig> = {
       encode: (data: DynamicConfig): Builder => {
         return beginCell()
-          .storeRef(builder.data.addresses.encode(data.addresses).asCell())
-          .storeRef(
-            builder.data.tokenRegistryDeployment.encode(data.tokenRegistryDeployment).asCell(),
-          )
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.feeAggregator)
+          .storeAddress(data.allowlistAdmin)
           .storeCoins(data.reserve)
       },
       load: (src: Slice): DynamicConfig => {
         return {
-          addresses: builder.data.addresses.load(src.loadRef().beginParse()),
-          tokenRegistryDeployment: builder.data.tokenRegistryDeployment.load(
-            src.loadRef().beginParse(),
-          ),
-          reserve: src.loadCoins(),
-        }
-      },
-    }
-    const addresses: CellCodec<Addresses> = {
-      encode: (data: Addresses): Builder => {
-        return beginCell()
-          .storeAddress(data.feeQuoter)
-          .storeAddress(data.feeAggregator)
-          .storeAddress(data.allowlistAdmin)
-      },
-      load: (src: Slice): Addresses => {
-        return {
           feeQuoter: src.loadAddress(),
           feeAggregator: src.loadAddress(),
           allowlistAdmin: src.loadAddress(),
-        }
-      },
-    }
-    const tokenRegistryDeployment: CellCodec<TokenRegistryDeployment> = {
-      encode: (data: TokenRegistryDeployment): Builder => {
-        return beginCell().storeAddress(data.tokenRegistry)
-      },
-      load: (src: Slice): TokenRegistryDeployment => {
-        return {
-          tokenRegistry: src.loadAddress(),
+          reserve: src.loadCoins(),
         }
       },
     }
@@ -267,6 +231,7 @@ export const builder = (() => {
           .storeRef(dynamicConfig.encode(data.config).asCell())
           .storeDict(data.destChainConfigs)
           .storeBuilder(executor.encode(data.executor))
+          .storeAddress(data.tokenRegistry ?? null)
       },
       load: function (src: Slice): OnRampStorage {
         const id = src.loadUintBig(32)
@@ -275,6 +240,7 @@ export const builder = (() => {
         const config = dynamicConfig.load(src.loadRef().beginParse())
         const destChainConfigs = src.loadDict(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
         const executorData = executor.load(src)
+        const tokenRegistry = src.loadMaybeAddress()
         return {
           id,
           ownable,
@@ -282,6 +248,7 @@ export const builder = (() => {
           config,
           destChainConfigs,
           executor: executorData,
+          tokenRegistry,
         }
       },
     }
@@ -411,8 +378,6 @@ export const builder = (() => {
       rampMessageHeader,
       tvm2AnyRampMessageBody,
       tvm2AnyRampMessage,
-      addresses,
-      tokenRegistryDeployment,
     }
   })()
   const messages = (() => {
@@ -1007,10 +972,9 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
   async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
     const { stack } = await provider.get('dynamicConfig', [])
     return {
-      addresses: builder.data.addresses.load(stack.readCell().beginParse()),
-      tokenRegistryDeployment: builder.data.tokenRegistryDeployment.load(
-        stack.readCell().beginParse(),
-      ),
+      feeQuoter: stack.readAddress(),
+      feeAggregator: stack.readAddress(),
+      allowlistAdmin: stack.readAddress(),
       reserve: stack.readBigNumber(),
     }
   }

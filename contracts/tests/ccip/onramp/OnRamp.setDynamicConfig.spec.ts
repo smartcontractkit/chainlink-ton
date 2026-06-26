@@ -29,14 +29,9 @@ describe('OnRamp - set Dynamic Config', () => {
 
   it('should allow owner to set dynamic config', async () => {
     const newConfig = {
-      addresses: {
-        feeQuoter: randomAddress(),
-        feeAggregator: randomAddress(),
-        allowlistAdmin: randomAddress(),
-      },
-      tokenRegistryDeployment: {
-        tokenRegistry: randomAddress(),
-      },
+      feeQuoter: randomAddress(),
+      feeAggregator: randomAddress(),
+      allowlistAdmin: randomAddress(),
       reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
@@ -52,26 +47,18 @@ describe('OnRamp - set Dynamic Config', () => {
     })
 
     const dynamicConfig = await onramp.getDynamicConfig()
-    expect(dynamicConfig.addresses.feeQuoter).toEqual(newConfig.addresses.feeQuoter)
-    expect(dynamicConfig.addresses.feeAggregator).toEqual(newConfig.addresses.feeAggregator)
-    expect(dynamicConfig.addresses.allowlistAdmin).toEqual(newConfig.addresses.allowlistAdmin)
-    expect(dynamicConfig.tokenRegistryDeployment.tokenRegistry).toEqual(
-      newConfig.tokenRegistryDeployment.tokenRegistry,
-    )
+    expect(dynamicConfig.feeQuoter).toEqual(newConfig.feeQuoter)
+    expect(dynamicConfig.feeAggregator).toEqual(newConfig.feeAggregator)
+    expect(dynamicConfig.allowlistAdmin).toEqual(newConfig.allowlistAdmin)
     expect(dynamicConfig.reserve).toBe(newConfig.reserve)
   })
 
   it('should fail on non-owner setting dynamic config', async () => {
     const nonOwner = await blockchain.treasury('nonOwner')
     const newConfig = {
-      addresses: {
-        feeQuoter: randomAddress(),
-        feeAggregator: randomAddress(),
-        allowlistAdmin: randomAddress(),
-      },
-      tokenRegistryDeployment: {
-        tokenRegistry: randomAddress(),
-      },
+      feeQuoter: randomAddress(),
+      feeAggregator: randomAddress(),
+      allowlistAdmin: randomAddress(),
       reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(nonOwner.getSender(), {

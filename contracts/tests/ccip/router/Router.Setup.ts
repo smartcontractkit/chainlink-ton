@@ -13,7 +13,6 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as of from '../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
-import { randomAddress } from '@ton/test-utils'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
@@ -282,14 +281,9 @@ async function deployOnRampInstance(
     },
     chainSelector: CHAINSEL_TON,
     config: {
-      addresses: {
-        feeQuoter,
-        feeAggregator: deployer.address,
-        allowlistAdmin: deployer.address,
-      },
-      tokenRegistryDeployment: {
-        tokenRegistry: tokenRegistry ?? randomAddress(),
-      },
+      feeQuoter,
+      feeAggregator: deployer.address,
+      allowlistAdmin: deployer.address,
       reserve: toNano('10'),
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),

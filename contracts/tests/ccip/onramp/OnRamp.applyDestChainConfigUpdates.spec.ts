@@ -30,7 +30,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   beforeEach(async () => {
     allowlistAdmin = await blockchain.treasury('allowlistAdmin')
     ;({ deployer, onramp, config } = await setup(blockchain, {
-      addresses: { allowlistAdmin: allowlistAdmin.address },
+      config: { allowlistAdmin: allowlistAdmin.address },
     }))
 
     mockRouter = await blockchain.treasury('mockRouter')

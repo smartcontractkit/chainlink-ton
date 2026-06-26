@@ -33,9 +33,9 @@ describe('FiredrillOnRamp - Unit Tests', () => {
 
   it('getDynamicConfig should return configuration', async () => {
     const result = await onramp.getDynamicConfig()
-    expect(result.addresses.feeQuoter).toEqual(deployer.address)
-    expect(result.addresses.feeAggregator).toEqual(deployer.address)
-    expect(result.addresses.allowlistAdmin).toEqual(deployer.address)
+    expect(result.feeQuoter).toEqual(deployer.address)
+    expect(result.feeAggregator).toEqual(deployer.address)
+    expect(result.allowlistAdmin).toEqual(deployer.address)
     expect(result.reserve).toBe(0n)
   })
 

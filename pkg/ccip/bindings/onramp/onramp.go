@@ -103,7 +103,8 @@ type Storage struct {
 	Config           DynamicConfig        `tlb:"^"`
 	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
 	Executor         ExecutorDeployment   `tlb:"."`
-	//TODO: Remove when TokenRegistry is sharded
+	// TokenRegistry queried by the CCIPSendExecutor during token transfers.
+	// Optional (address?): addr_none until token transfers are configured.
 	TokenRegistry *address.Address `tlb:"addr"`
 }
 
@@ -218,19 +219,10 @@ func (c *DestChainConfig) GetterMethodName() string {
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type DynamicConfig struct {
-	Addresses               Addresses               `tlb:"^"`
-	TokenRegistryDeployment TokenRegistryDeployment `tlb:"^"`
-	Reserve                 tlb.Coins               `tlb:"."`
-}
-
-type Addresses struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
 	FeeAggregator  *address.Address `tlb:"addr"`
 	AllowListAdmin *address.Address `tlb:"addr"`
-}
-
-type TokenRegistryDeployment struct {
-	TokenRegistry *address.Address `tlb:"addr"`
+	Reserve        tlb.Coins        `tlb:"."`
 }
 
 // Deprecated: Use GetDynamicConfig getter instead.

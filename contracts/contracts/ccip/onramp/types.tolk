@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
-import "../router/types"
 import "../ccipsend_executor/types"
 import "../../lib/utils"
 import "../../lib/deployable/namespace"
@@ -16,16 +15,11 @@ struct OnRamp_DestChainConfig {
     allowedSenders: map<address, bool>;
 }
 
-struct OnRamp_Addresses {
+struct OnRamp_DynamicConfig {
     feeQuoter: address;
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;
     allowlistAdmin: address;
-}
-
-struct OnRamp_DynamicConfig {
-    addresses: Cell<OnRamp_Addresses>;
-    tokenRegistryDeployment: Cell<Router_TokenRegistryDeployment>;
     reserve: coins;
 }
 
@@ -95,3 +89,4 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .endCell()
         .hash()
 }
+

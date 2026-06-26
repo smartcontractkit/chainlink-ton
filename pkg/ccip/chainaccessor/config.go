@@ -295,15 +295,15 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
-	feeQuoterBytes, err := addrToBytes(cfg.Addresses.FeeQuoter)
+	feeQuoterBytes, err := addrToBytes(cfg.FeeQuoter)
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("convert fee quoter address: %w", err)
 	}
-	feeAggregatorBytes, err := addrToBytes(cfg.Addresses.FeeAggregator)
+	feeAggregatorBytes, err := addrToBytes(cfg.FeeAggregator)
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("convert fee aggregator address: %w", err)
 	}
-	allowListAdminBytes, err := addrToBytes(cfg.Addresses.AllowListAdmin)
+	allowListAdminBytes, err := addrToBytes(cfg.AllowListAdmin)
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("convert allow list admin address: %w", err)
 	}

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
-import "../router/types"
 import "../../lib/access/ownable_2step"
 
 struct OnRamp_Storage {
@@ -15,7 +14,10 @@ struct OnRamp_Storage {
 
     destChainConfigs: map<uint64, OnRamp_DestChainConfig>; // chainSelector -> DestChainConfig
     executor: ExecutorDeployment;
-    tokenRegistryDeployment: Cell<Router_TokenRegistryDeployment>;
+
+    // Address of the TokenRegistry queried by the CCIPSendExecutor during token transfers.
+    // Null until token transfers are configured. TODO: replace with per-token registry resolution.
+    tokenRegistry: address?;
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

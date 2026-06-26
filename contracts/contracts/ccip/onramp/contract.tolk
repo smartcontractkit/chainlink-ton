@@ -46,16 +46,14 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the FeeQuoter
         FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext> => {
             val st = lazy OnRamp_Storage.load();
-            val addresses = st.config.load().addresses.load();
-            val feeQuoterAddress = addresses.feeQuoter;
+            val feeQuoterAddress = st.config.load().feeQuoter;
             assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
             onMessageValidated(msg)
         }
         // Sender must be the FeeQuoter
         FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext> => {
             val st = lazy OnRamp_Storage.load();
-            val addresses = st.config.load().addresses.load();
-            val feeQuoterAddress = addresses.feeQuoter;
+            val feeQuoterAddress = st.config.load().feeQuoter;
             assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
             onMessageValidationFailed(msg)
         }
@@ -109,8 +107,7 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner
         OnRamp_UpdateAllowlists => {
             var st = lazy OnRamp_Storage.load();
-            val addresses = st.config.load().addresses.load();
-            if (in.senderAddress != addresses.allowlistAdmin) {
+            if (in.senderAddress != st.config.load().allowlistAdmin) {
                 st.ownable.requireOwner(in.senderAddress);
             }
             onApplyAllowlistUpdates(mutate st, msg.updates);
@@ -163,9 +160,8 @@ fun onInternalMessage(in: InMessage) {
 fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
-    val addresses = config.addresses.load();
 
-    val feeQuoter = addresses.feeQuoter;
+    val feeQuoter = config.feeQuoter;
 
     val getFeeMsg = createMessage({
         bounce: true,
@@ -261,7 +257,6 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     }
 
     val config = st.config.load();
-    val addresses = config.addresses.load();
 
     var tokenRegistry: address? = null;
 
@@ -289,7 +284,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 body: CCIPSendExecutor_ExecuteV2 {
                     onrampSend: payload,
                     config: CCIPSendExecutor_ConfigV2 {
-                        feeQuoter: addresses.feeQuoter,
+                        feeQuoter: config.feeQuoter,
                         tokenRegistry,
                     }.toCell(),
                 }.toCell(),
@@ -305,9 +300,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
     // TODO: resolve a per-token registry address. For now the OnRamp stores a single
     // TokenRegistry address that is used for every token transfer.
-    val cfg: OnRamp_DynamicConfig = st.config.load();
-    val tokenRegistryDeployment = cfg.tokenRegistryDeployment.load();
-    return tokenRegistryDeployment.tokenRegistry!
+    return st.tokenRegistry!
 }
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
@@ -520,13 +513,13 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     assert (feeTokens.empty()) throw Error.UnknownToken;
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
-    val addresses = config.addresses.load();
+
     reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: addresses.feeAggregator,
+        dest: config.feeAggregator,
         body: createEmptyCell(),
     });
     withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -564,8 +557,7 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 get fun feeQuoter(_destChainSelector: int): address {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
-    val addresses = config.addresses.load();
-    return addresses.feeQuoter;
+    return config.feeQuoter;
 }
 
 // vec<address>
