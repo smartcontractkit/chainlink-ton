@@ -96,14 +96,9 @@ get fun staticConfig(): uint64 {
 get fun dynamicConfig(): OnRamp_DynamicConfig {
 	val st = lazy FiredrillOnRamp_Storage.load();
 	return OnRamp_DynamicConfig {
-		addresses: OnRamp_Addresses {
-			feeQuoter: st.controlAddress,
-			feeAggregator: st.controlAddress,
-			allowlistAdmin: st.controlAddress,
-		}.toCell(),
-		tokenRegistryDeployment: OnRamp_TokenRegistryDeployment {
-			tokenRegistry: st.controlAddress,
-		}.toCell(),
+		feeQuoter: st.controlAddress,
+		feeAggregator: st.controlAddress,
+		allowlistAdmin: st.controlAddress,
 		reserve: ton("0")
 	};
 }
