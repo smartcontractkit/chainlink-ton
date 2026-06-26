@@ -458,6 +458,8 @@ fun TokenPool<T>.applyRampAccessUpdates(
     }
 
     self.data.mirroredPolicy = mirroredPolicy.toCell();
+
+    // TODO: reply back to sender with excess
 }
 
 fun TokenPool<T>.setRMNProxy(

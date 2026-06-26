@@ -176,6 +176,7 @@ fun onReleaseTransferBounced(
     val pending = pendingEntry.loadValue().load();
     st.pendingReleases.delete(msg.queryId);
 
+    // TODO: we should always reply back
     if (pending.replyTo != null) {
         val fail = createMessage({
             bounce: BounceMode.NoBounce,

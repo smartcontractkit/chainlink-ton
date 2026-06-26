@@ -32,16 +32,16 @@ import {
   LockReleaseLockboxTokenPool,
 } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import {
-  JettonLockbox,
-  JettonLockbox_WithdrawExtra,
-} from '../../../wrappers/gen/ccip/pools/JettonLockbox'
+  JettonLockBox,
+  JettonLockBox_WithdrawExtra,
+} from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { setupGenBindings } from '../../../wrappers/gen'
 
 import * as rtOld from '../../../wrappers/ccip/Router'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
-import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockbox'
+import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -63,7 +63,7 @@ describe('LockReleaseLockboxTokenPool', () => {
   let lockboxOperator: SandboxContract<TreasuryContract>
 
   let jettonMinter: SandboxContract<JettonMinter>
-  let jettonLockbox: SandboxContract<JettonLockbox>
+  let jettonLockBox: SandboxContract<JettonLockBox>
   let lockReleaseLockboxPool: SandboxContract<LockReleaseLockboxTokenPool>
   let pool: SandboxContract<TokenPool>
   let jettonWalletCode: Cell
@@ -109,20 +109,20 @@ describe('LockReleaseLockboxTokenPool', () => {
     )
     await jettonMinter.sendDeploy(deployer.getSender(), toNano('1'))
 
-    // Deploy JettonLockbox
-    jettonLockbox = blockchain.openContract(
-      JettonLockbox.fromStorage({
+    // Deploy JettonLockBox
+    jettonLockBox = blockchain.openContract(
+      JettonLockBox.fromStorage({
         id: 1n,
         minterAddress: jettonMinter.address,
         walletAddress: null,
         rbac: emptyAccessControlData(),
       }),
     )
-    await jettonLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+    await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
 
     // Initialize lockbox
-    const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockbox.address)
-    const initResult = await jettonLockbox.sendJettonLockboxInit(deployer.getSender(), toNano('0.2'), {
+    const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
+    const initResult = await jettonLockBox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.2'), {
       queryId: 1n,
       minterAddress: jettonMinter.address,
       walletAddress: lockboxWalletAddress,
@@ -130,7 +130,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     })
     expect(initResult.transactions).toHaveTransaction({
       from: deployer.address,
-      to: jettonLockbox.address,
+      to: jettonLockBox.address,
       success: true,
       exitCode: 0,
     })
@@ -178,7 +178,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             jettonWalletCode,
           }),
         },
-        lockbox: jettonLockbox.address,
+        lockbox: jettonLockBox.address,
         pendingLocks: Dictionary.empty(Dictionary.Keys.BigUint(64)),
         pendingReleases: Dictionary.empty(Dictionary.Keys.BigUint(64)),
       }),
@@ -189,7 +189,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     const { crc32 } = require('zlib')
     const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'))
     const acClient = blockchain.openContract(
-      AccessControlClient.createFromAddress(jettonLockbox.address),
+      AccessControlClient.createFromAddress(jettonLockBox.address),
     )
     const grantRoleResult = await acClient.sendGrantRole(
       deployer.getSender(),
@@ -202,7 +202,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     )
     expect(grantRoleResult.transactions).toHaveTransaction({
       from: deployer.address,
-      to: jettonLockbox.address,
+      to: jettonLockBox.address,
       success: true,
       exitCode: 0,
     })
@@ -326,7 +326,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
   describe('getters', () => {
     it('should return correct lockbox address', async () => {
-      expect(await lockReleaseLockboxPool.getLockbox()).toEqualAddress(jettonLockbox.address)
+      expect(await lockReleaseLockboxPool.getLockbox()).toEqualAddress(jettonLockBox.address)
     })
 
     it('should return correct token and decimals', async () => {
@@ -469,9 +469,9 @@ describe('LockReleaseLockboxTokenPool', () => {
   })
 
   describe('release flow (lockbox withdrawal)', () => {
-    it('should store pending release and send JettonLockbox_Withdraw to lockbox', async () => {
+    it('should store pending release and send JettonLockBox_Withdraw to lockbox', async () => {
       // First mint tokens directly to the lockbox wallet (simulating prior locks)
-      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockbox.address)
+      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('1'),
         message: {
@@ -524,18 +524,18 @@ describe('LockReleaseLockboxTokenPool', () => {
       // Pool should have a pending release
       expect(await lockReleaseLockboxPool.getHasPendingRelease(200n)).toBe(true)
 
-      // Pool sends JettonLockbox_Withdraw to the lockbox (lockbox will handle the jetton transfer)
+      // Pool sends JettonLockBox_Withdraw to the lockbox (lockbox will handle the jetton transfer)
       expect(result.transactions).toHaveTransaction({
         from: lockReleaseLockboxPool.address,
-        to: jettonLockbox.address,
-        op: 0xc85418fe, // JettonLockbox_Withdraw
+        to: jettonLockBox.address,
+        op: 0xc85418fe, // JettonLockBox_Withdraw
         success: true,
       })
     })
 
     it('should reject duplicate release requests with PendingReleaseAlreadyExists', async () => {
       // Fund lockbox first
-      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockbox.address)
+      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('1'),
         message: {
@@ -672,7 +672,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         value: toNano('1'),
         message: {
           queryId: 0n,
-          destination: jettonLockbox.address,
+          destination: jettonLockBox.address,
           tonAmount: toNano('0.05'),
           jettonAmount: toNano('1'),
           from: deployer.address,
@@ -681,7 +681,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         },
       })
 
-      const lockboxWallet = await userWallet(jettonLockbox.address)
+      const lockboxWallet = await userWallet(jettonLockBox.address)
       const initialLockboxBalance = await lockboxWallet.getJettonBalance()
 
       // Send jettons to pool via on-ramp jetton wallet (triggers the full lock flow)
@@ -765,9 +765,9 @@ describe('LockReleaseLockboxTokenPool', () => {
       expect(await lockReleaseLockboxPool.getHasPendingLock(300n)).toBe(true)
 
       // The pool computes the lockbox wallet address and sends AskToTransfer to forward jettons
-      // In the sandbox, the lockbox wallet is a standard jetton wallet (not JettonLockbox contract).
-      // It returns excesses but does NOT send JettonLockbox_Deposited back to finalize.
-      // In production, the JettonLockbox contract would process the deposit and send the callback,
+      // In the sandbox, the lockbox wallet is a standard jetton wallet (not JettonLockBox contract).
+      // It returns excesses but does NOT send JettonLockBox_Deposited back to finalize.
+      // In production, the JettonLockBox contract would process the deposit and send the callback,
       // clearing the pending lock and emitting TokenPool_LockedOrBurned.
     })
 
@@ -882,12 +882,12 @@ describe('LockReleaseLockboxTokenPool', () => {
   describe('full release flow (end-to-end through lockbox)', () => {
     it('should complete full release flow: offRamp -> pool -> lockbox -> lockbox wallet -> ReturnExcessesBack -> pool finalize', async () => {
       // Fund lockbox wallet with jettons (simulating prior locks)
-      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockbox.address)
+      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
       const mintResult = await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('2'),
         message: {
           queryId: 0n,
-          destination: jettonLockbox.address,
+          destination: jettonLockBox.address,
           tonAmount: toNano('0.5'),
           jettonAmount: toNano('50'),
           from: deployer.address,
@@ -941,16 +941,16 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: true,
       })
 
-      // Pool sends JettonLockbox_Withdraw to lockbox
+      // Pool sends JettonLockBox_Withdraw to lockbox
       expect(result.transactions).toHaveTransaction({
         from: lockReleaseLockboxPool.address,
-        to: jettonLockbox.address,
+        to: jettonLockBox.address,
         success: true,
       })
 
       // Lockbox sends AskToTransfer to its jetton wallet
       expect(result.transactions).toHaveTransaction({
-        from: jettonLockbox.address,
+        from: jettonLockBox.address,
         to: lockboxWalletAddress,
         success: true,
       })

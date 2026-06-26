@@ -74,9 +74,9 @@ src = "contracts/ccip/pools/token_pool_contract.tolk"
 domain = "ccip/pools"
 depends = []
 
-[contracts.JettonLockbox]
-display-name = "link.chain.ton.ccip.JettonLockbox"
-src = "contracts/ccip/pools/lockbox/JettonLockbox.tolk"
+[contracts.JettonLockBox]
+display-name = "link.chain.ton.ccip.JettonLockBox"
+src = "contracts/ccip/pools/lockbox/JettonLockBox.tolk"
 domain = "ccip/pools"
 depends = []
 

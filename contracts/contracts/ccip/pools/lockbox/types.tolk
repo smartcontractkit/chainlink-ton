@@ -4,17 +4,17 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/access/access_control"
 
 /// Facility for error codes.
-const JettonLockbox_FACILITY_NAME = "link.chain.ton.ccip.pools.JettonLockbox";
-const JettonLockbox_FACILITY_ID = JettonLockbox_FACILITY_NAME.crc32() % 640 + 10;
+const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pools.JettonLockBox";
+const JettonLockBox_FACILITY_ID = JettonLockBox_FACILITY_NAME.crc32() % 640 + 10;
 
-const JettonLockbox_ERROR_CODE = JettonLockbox_FACILITY_ID * 100;
+const JettonLockBox_ERROR_CODE = JettonLockBox_FACILITY_ID * 100;
 
 /// Role that can deposit/withdraw (the "authorized caller").
 const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
 
-enum JettonLockbox_Error {
+enum JettonLockBox_Error {
 	// InsufficientBalance // not supported on TVM
-    TokenAmountCannotBeZero = JettonLockbox_ERROR_CODE
+    TokenAmountCannotBeZero = JettonLockBox_ERROR_CODE
     RecipientCannotBeZeroAddress
     UnsupportedToken
 

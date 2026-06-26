@@ -8,7 +8,7 @@ const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockRelea
 const LockReleaseLockboxTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 
 // Pending lock context stored by queryId until lockbox confirms deposit.
-// On JettonLockbox_Deposited, pool restores this and finalizes the lock flow.
+// On JettonLockBox_Deposited, pool restores this and finalizes the lock flow.
 struct LockReleaseLockboxTokenPool_PendingLock {
     queryId: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
