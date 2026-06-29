@@ -1,158 +1,87 @@
 # TON Lint Invariants
 
-This file defines TON/Tolk static-analysis categories that should guide reviews
-and future tooling. It does not add or require new lint rules.
+These invariants define TON/Tolk properties that static analysis and review
+preserve. They are not a list of new Acton rules.
 
-The Acton linter is the current Tolk linter, but it does not support custom lint
-rules. `scripts/oplint` is a separate standalone tool that checks only whether
-Tolk struct opcodes match the CRC32 checksum of the struct name, with
-`nolint:opcode` support for intentional exceptions.
+Implementation context: [TON contract invariant context](../../docs/contracts/invariants.md).
 
-## Current Tool Coverage
+Current tooling boundaries:
 
-### Acton Linter
+- `contracts/Acton.toml` configures Acton. `unauthorized-access` (`E013`) is
+  configured as `deny` and already covers storage mutations reachable without a
+  preceding admin sender check.
+- `scripts/oplint` checks only that Tolk struct opcodes match CRC32 struct-name
+  values, except documented `nolint:opcode` cases.
 
-Acton provides general Tolk linting. The current configured rules and their
-explanations are listed in `contracts/Acton.toml`.
+## Invariants
 
-`unauthorized-access` (`E013`) is set to `deny` and detects storage mutations
-such as `contract.setData(...)` and `*.save()` that are reachable without a
-preceding admin sender check. Because this is already enforced by Acton, this
-document does not duplicate it as a separate lint invariant category.
+### TON-LINT-1 - Permissionless Entry Points Are Declared
 
-Acton does not currently support custom lint rules, so TON CCIP-specific checks
-below are review categories and future analyzer candidates rather than Acton
-rules.
-
-### `scripts/oplint`
-
-`oplint` validates opcode-name consistency for Tolk structs:
-
-```bash
-go run main.go <file pattern> [<file pattern> ...]
-go run main.go --fix <file pattern> [<file pattern> ...]
-```
-
-`oplint` does not check Go bindings, generated TypeScript wrappers, serialization
-compatibility, authorization, or broader Tolk safety properties.
-
-## Invariant Categories
-
-### TON-LINT-1 - Permissionless Handler Documentation
-
-Any handler that intentionally allows arbitrary senders must use the standardized
-comment:
+Every handler reachable by an arbitrary sender has a nearby `PERMISSIONLESS`
+annotation explaining why caller identity is not required.
 
 ```tolk
 // PERMISSIONLESS: <reason this message is safe for any sender>
 ```
 
-The comment should be close to the match arm or handler it documents.
+### TON-LINT-2 - Authorized Entry Points Are Declared
 
-### TON-LINT-2 - Unsafe Casts And Integer Truncation
+Every sender-authorized handler has a nearby `AUTHORIZED` annotation identifying
+the authorized sender or trust root and the check mechanism.
 
-Static analysis and review should focus on casts at serialization boundaries.
-Runtime casts between integer types do not change the TVM stack representation:
-all integer values are stack `int` values. Integer width becomes security
-relevant when a value is serialized into a typed struct for storage or for an
-outbound message.
+```tolk
+// AUTHORIZED: <authorized sender or trust root>; check=<authorization mechanism>
+```
 
-High-risk examples include:
+### TON-LINT-3 - Serialization Casts Preserve Value Domains
 
-- narrowing from `uint256` or `int` to smaller unsigned fields before storage or
-  message serialization
-- converting CCIP common amounts into TON `coins`
-- packed gas price fields
-- executor IDs and message IDs with non-standard widths
-- TypeScript `number` use for values that may exceed safe integer range
+Every integer cast whose result is serialized into storage, an outbound message,
+an event, or a getter result preserves the semantic domain of the source value.
 
-### TON-LINT-3 - Unsafe Parsing And Lazy Message Decoding
+Values outside the destination width or signedness are rejected before the typed
+serialization boundary.
 
-Message parsing must distinguish user-controlled input from fields populated by
-trusted contracts. A message can enter through a permissionless handler, be
-wrapped or enriched by a trusted contract, and then be forwarded to another
-contract where the sender check succeeds.
+### TON-LINT-4 - User-Controlled Parsing Is Bounded
 
-For example, `CCIPSend` is handled permissionlessly by Router. Router then sends
-the message to OnRamp, and OnRamp can trust that the immediate sender is Router.
-At that point the envelope is trusted, but the original user-controlled fields
-inside the message may still be malformed. It is a security risk if malformed
-user-controlled data can shift parsing, consume unexpected bits or refs, or
-otherwise manipulate fields that were supposed to be populated by the trusted
-Router.
+Every user-controlled slice, cell, dictionary, and remaining-bits/refs payload is
+fully bounded and validated before trusted fields are appended, interpreted,
+stored, emitted, or forwarded.
 
-Parsing invariants must therefore ensure that user input is fully bounded and
-validated before trusted fields are appended, interpreted, stored, emitted, or
-forwarded.
+Trusted envelopes do not make embedded user-controlled fields trusted.
 
-Review areas include:
+### TON-LINT-5 - Lazy Decoding Cannot Shift Trusted Fields
 
-- `lazy <Union>.fromSlice(...)`
-- inlined user-controlled fields in trusted messages
-- fallback `else` match arms
-- empty-message handling
-- bounced body parsing
-- custom pack/unpack logic
-- `RemainingBitsAndRefs` and unchecked remaining data
+Every decode of a union, nested cell, or fallback message body preserves the
+intended field boundary between user-controlled data and trusted contract-added
+data.
 
-### TON-LINT-4 - Bounce Handling Safety
+Unexpected opcodes, extra bits, extra refs, empty bodies, and malformed bounced
+bodies resolve to the intended error path.
 
-Bounced messages are generated by the TON runtime when a sent message causes the
-destination to exit with a nonzero code while handling it. A bounced message
-cannot be forged, and its bounced contents cannot be tampered with by an
-attacker.
+### TON-LINT-6 - Bounce Effects Are Correlated
 
-Bounce handlers should therefore be reviewed for correct interpretation and
-correlation of runtime-provided bounce data, not for forged bounce payloads.
+Every bounce-driven state update, retry marker, refund, or failure event is
+correlated to the expected outbound message type and flow before the effect
+occurs.
 
-Potential findings include:
+### TON-LINT-7 - Privileged Mutation Ordering Is Stable
 
-- emitting final failure events for the wrong message or execution flow
-- updating retry or failure state without correlating the bounced body to the
-  expected outbound message
-- mishandling expected bounce cases as unexpected fatal failures, or unexpected
-  bounce cases as successful progress
+Every privileged mutation that can be persisted is ordered after authorization,
+message parsing, and precondition checks on successful paths.
 
-### TON-LINT-5 - State Mutation Ordering
+### TON-LINT-8 - Deterministic Address Derivation Is Complete
 
-Handlers should validate authorization, parse required trusted state, and check
-preconditions before mutating storage. State should not be partially changed
-before a later assertion can fail unless the behavior is intentional and safe
-under TON transaction semantics.
+Every deterministic-address check includes all trusted code, deployable wrapper
+data, owner/configuration values, namespace values, and message-specific IDs
+that define the authorized address.
 
-### TON-LINT-6 - Deterministic Address Derivation
+### TON-LINT-9 - Non-CRC Opcodes Are Documented
 
-Any authorization based on deterministic or autodeployed addresses must derive
-the expected address from trusted state and the correct message-specific
-identifier.
+Every opcode that does not match the CRC32 value of its Tolk struct name has a
+nearby `nolint:opcode` comment that identifies the compatibility reason.
 
-Review areas include:
+### TON-LINT-10 - Retry And Replay State Is Monotonic
 
-- send executor addresses
-- receive executor addresses
-- deployable helper addresses
-- MerkleRoot or Router relationships
-- address derivation after code updates
-
-### TON-LINT-7 - Magic Opcode Usage
-
-Struct opcodes should be CRC32-derived unless they intentionally match an
-external CCIP format or compatibility requirement.
-
-Intentional exceptions must use `nolint:opcode` with a reason near the struct.
-Go constants and generated TypeScript wrappers must be checked separately from
-`oplint`.
-
-### TON-LINT-8 - Retry And Replay Logic
-
-Retry, replay, and async execution state must be reviewed to ensure a message
-cannot be executed, failed, retried, or refunded outside the intended lifecycle.
-
-Review areas include:
-
-- message ID uniqueness
-- sequence number handling
-- execution state persistence
-- out-of-order execution flags
-- failed token balance tracking
-- duplicate commit or execute reports
+Every retry, replay, failure, refund, and execution lifecycle state transition
+preserves message uniqueness and prevents the same message from being executed
+or finalized outside its intended lifecycle.
