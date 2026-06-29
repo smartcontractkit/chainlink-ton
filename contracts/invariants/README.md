@@ -4,7 +4,7 @@ This directory contains TON contract invariants that are independent of any
 single product. CCIP-on-TON invariants live in [ccip](ccip/).
 
 General CCIP specifications and chain-agnostic CCIP invariants are maintained in
-the [chainlink-ccip  repository](https://github.com/smartcontractkit/chainlink-ccip/tree/main/chains/evm/contracts/invariants/). The files here cover TON-specific properties
+the [chainlink-ccip repository](https://github.com/smartcontractkit/chainlink-ccip/tree/main/chains/evm/contracts/invariants/). The files here cover TON-specific properties
 that remain true across products, libraries, bindings, and tooling.
 
 Implementation context lives in the contract docs:
