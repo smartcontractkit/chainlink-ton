@@ -35,6 +35,27 @@ let
         mv "$out/bin/golangci-lint" "$out/bin/golangci-lint-ton"
       '';
   });
+
+  upstream-golangci-config = pkgs.fetchurl {
+    url = "https://raw.githubusercontent.com/smartcontractkit/chainlink/5638f1698966509af1265aec46a438af04755ea0/.golangci.yml";
+    hash = "sha256-Y3vg7tW98OqyvRsYXKEFfr49+E6w3rO070+YRpqgV6w=";
+  };
+
+  golangci-lint-config = pkgs.runCommand "golangci-lint-ton.yml" {
+    nativeBuildInputs = [pkgs.yq-go];
+  } ''
+    yq e '
+      .formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"] |
+      .linters.enable = ((.linters.enable // []) + ["tonapiwaitlint"]) |
+      .linters.settings.custom.tonapiwaitlint = {
+        "type": "module",
+        "description": "require WaitForBlock before selected TON API calls",
+        "settings": {
+          "methods": ["GetAccount", "RunGetMethod"]
+        }
+      }
+    ' ${upstream-golangci-config} > "$out"
+  '';
 in
 pkgs.mkShell {
   buildInputs = with pkgs;
@@ -82,7 +103,7 @@ pkgs.mkShell {
 
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
     golint() {
-      golangci-lint-ton run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/5638f1698966509af1265aec46a438af04755ea0/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"] | .linters.enable = ((.linters.enable // []) + ["tonapiwaitlint"]) | .linters.settings.custom.tonapiwaitlint = {"type": "module", "description": "require WaitForBlock before selected TON API calls", "settings": {"methods": ["GetAccount", "RunGetMethod"]}}' -) --path-mode "abs" "$@"
+      golangci-lint-ton run --config ${golangci-lint-config} --path-mode "abs" "$@"
     }
   '';
 }
