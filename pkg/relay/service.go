@@ -83,7 +83,7 @@ func (s *Service) GetAccountBalance(ctx context.Context, address string, block *
 		return nil, fmt.Errorf("failed parsing address %s: %w", address, err)
 	}
 
-	acc, err := client.GetAccount(ctx, blockIDExt, addr)
+	acc, err := client.WaitForBlock(block.SeqNo).GetAccount(ctx, blockIDExt, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account for address %s: %w", address, err)
 	}

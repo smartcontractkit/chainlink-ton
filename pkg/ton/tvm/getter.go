@@ -208,7 +208,7 @@ func CallGetter[A any, R any](
 		return zero, fmt.Errorf("tvm: failed to encode args for getter %q: %w", getter.Name, err)
 	}
 
-	result, err := client.RunGetMethod(ctx, block, contractAddr, getter.Name, params...)
+	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, contractAddr, getter.Name, params...)
 	if err != nil {
 		return zero, fmt.Errorf("tvm: failed to run get method %q: %w", getter.Name, err)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainselectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -134,7 +135,7 @@ func TestUpgradeOperation(t *testing.T) {
 	block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
 	require.NoError(t, err)
 
-	acc, err := tonChain.Client.GetAccount(ctx, block, contract.Address)
+	acc, err := tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, contract.Address)
 	require.NoError(t, err)
 	require.True(t, acc.IsActive, "Contract should be active after deploy")
 	require.Equal(t, cV1.Code.Hash(), acc.Code.Hash(), "On-chain code should match V1")
@@ -189,7 +190,7 @@ func TestUpgradeOperation(t *testing.T) {
 	t.Logf("V2 TypeAndVersion: %s %s", tv.Type, tv.Version)
 
 	// Verify on-chain code matches V2
-	acc, err = tonChain.Client.GetAccount(ctx, block, contract.Address)
+	acc, err = tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, contract.Address)
 	require.NoError(t, err)
 	require.Equal(t, cV2.Code.Hash(), acc.Code.Hash(), "On-chain code should match V2 code after upgrade")
 }
