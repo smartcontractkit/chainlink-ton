@@ -30,5 +30,3 @@ The Acton linter is used for Tolk linting, but it does not currently support
 custom lint rules. The standalone `scripts/oplint` tool checks only that Tolk
 struct opcodes match the CRC32 checksum of the struct name, except where a
 `nolint:opcode` comment documents an intentional exception.
-
-

@@ -58,6 +58,7 @@ relevant when a value is serialized into a typed struct for storage or for an
 outbound message.
 
 High-risk examples include:
+
 - narrowing from `uint256` or `int` to smaller unsigned fields before storage or
   message serialization
 - converting CCIP common amounts into TON `coins`
@@ -85,6 +86,7 @@ validated before trusted fields are appended, interpreted, stored, emitted, or
 forwarded.
 
 Review areas include:
+
 - `lazy <Union>.fromSlice(...)`
 - inlined user-controlled fields in trusted messages
 - fallback `else` match arms
@@ -104,6 +106,7 @@ Bounce handlers should therefore be reviewed for correct interpretation and
 correlation of runtime-provided bounce data, not for forged bounce payloads.
 
 Potential findings include:
+
 - emitting final failure events for the wrong message or execution flow
 - updating retry or failure state without correlating the bounced body to the
   expected outbound message
@@ -124,6 +127,7 @@ the expected address from trusted state and the correct message-specific
 identifier.
 
 Review areas include:
+
 - send executor addresses
 - receive executor addresses
 - deployable helper addresses
@@ -145,6 +149,7 @@ Retry, replay, and async execution state must be reviewed to ensure a message
 cannot be executed, failed, retried, or refunded outside the intended lifecycle.
 
 Review areas include:
+
 - message ID uniqueness
 - sequence number handling
 - execution state persistence

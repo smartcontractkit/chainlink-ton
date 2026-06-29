@@ -57,6 +57,7 @@ target contract code and initial state.
 Every internal message sent on TON carries value, but value forwarding is not
 automatically privileged. A permissionless handler can safely send value without
 draining contract balance in three common patterns:
+
 - Check that `in.valueCoins` covers a fixed outbound `value` plus benchmarked gas
   fees, then send with `SEND_MODE_NORMAL`. The benchmark must account for the
   largest supported message size.
@@ -89,6 +90,7 @@ Every privileged internal message handler must validate `in.senderAddress`
 before executing privileged logic.
 
 Privileged behavior includes:
+
 - calling `store()` or otherwise reaching `contract.setData()`
 - updating owner-controlled or admin-controlled configuration, including
   executor/deployable code configuration
@@ -118,6 +120,7 @@ must validate that the reply came from the expected contract for that flow befor
 using the message contents.
 
 Examples of trust boundaries to document and verify include:
+
 - OnRamp accepting fee validation replies only from the configured FeeQuoter
 - OnRamp accepting executor callbacks only from the deterministic send executor
   address derived from trusted executor code and reconstructed initial state
@@ -141,6 +144,7 @@ bounce must not let an arbitrary sender cause refunds, state transitions, retry
 state, or failure events for unrelated messages.
 
 Expected review areas include:
+
 - use of rich bounce bodies and bounced-message prefixes
 - validation of `in.senderAddress` against the originally targeted contract
 - validation of message IDs, executor IDs, or deployable addresses
@@ -153,6 +157,7 @@ calling upgrade logic. Migration logic must only be reachable through an
 authorized upgrade path and must reject unsupported source versions.
 
 Review should verify:
+
 - `Upgradeable_Upgrade` match arms require authorization before dispatching
 - `Ownable2Step.requireOwner(in.senderAddress)` or equivalent protection
 - calls to `onUpgrade` are only reachable through the authorized upgrade path

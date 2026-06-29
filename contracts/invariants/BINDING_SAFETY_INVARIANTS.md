@@ -1,6 +1,7 @@
 # Binding Safety Invariants - TON
 
 TON CCIP has three relevant ABI surfaces:
+
 - Tolk contracts under `contracts/contracts/ccip`
 - handwritten Go bindings under `pkg/ccip/bindings` and codecs under
   `pkg/ccip/codec`
@@ -43,6 +44,7 @@ Bindings must agree on whether a field is stored inline, stored as a referenced
 cell, stored as `Maybe`, or represented by an empty/null value.
 
 High-risk cases include:
+
 - `Cell<T>` and `cell` fields
 - `Maybe` / optional fields
 - nil slice vs empty slice behavior in Go
@@ -57,6 +59,7 @@ Bindings must use integer widths and signedness that match the Tolk type and the
 CCIP semantic type.
 
 Review must pay special attention to:
+
 - `uint32`, `uint64`, `uint112`, `uint224`, and `uint256`
 - `coins` values
 - Go `uint64` vs `*big.Int`
@@ -83,6 +86,7 @@ TON-native addresses, cross-chain addresses, and external chain addresses must
 not be treated as interchangeable byte strings.
 
 Bindings must preserve:
+
 - TON `address` encoding and `addr_none` behavior
 - CCIP cross-chain address length prefixes
 - fixed-width byte arrays such as message IDs, roots, and proofs
@@ -103,4 +107,3 @@ generated wrapper output changes.
 Any change to a Tolk message, event, storage struct, getter result, or report
 format must be reflected in all relevant bindings and codecs before it is
 considered complete.
-
