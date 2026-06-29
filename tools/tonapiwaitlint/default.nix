@@ -28,21 +28,22 @@
     hash = "sha256-Y3vg7tW98OqyvRsYXKEFfr49+E6w3rO070+YRpqgV6w=";
   };
 
-  golangci-lint-config = pkgs.runCommand "golangci-lint-ton.yml" {
-    nativeBuildInputs = [pkgs.yq-go];
-  } ''
-    yq e '
-      .formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"] |
-      .linters.enable = ((.linters.enable // []) + ["tonapiwaitlint"]) |
-      .linters.settings.custom.tonapiwaitlint = {
-        "type": "module",
-        "description": "require WaitForBlock before selected TON API calls",
-        "settings": {
-          "methods": ["GetAccount", "RunGetMethod"]
+  golangci-lint-config =
+    pkgs.runCommand "golangci-lint-ton.yml" {
+      nativeBuildInputs = [pkgs.yq-go];
+    } ''
+      yq e '
+        .formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"] |
+        .linters.enable = ((.linters.enable // []) + ["tonapiwaitlint"]) |
+        .linters.settings.custom.tonapiwaitlint = {
+          "type": "module",
+          "description": "require WaitForBlock before selected TON API calls",
+          "settings": {
+            "methods": ["GetAccount", "RunGetMethod"]
+          }
         }
-      }
-    ' ${upstream-golangci-config} > "$out"
-  '';
+      ' ${upstream-golangci-config} > "$out"
+    '';
 in {
   inherit golangci-lint-ton golangci-lint-config;
 }
