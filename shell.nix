@@ -37,6 +37,20 @@ let
       export GIT_SSL_CAINFO="$SSL_CERT_FILE"
       export CURL_CA_BUNDLE="$SSL_CERT_FILE"
 
+      golangci_lint_src="$TMPDIR/golangci-lint-src"
+      cp -R "${pkgs.golangci-lint.src}" "$golangci_lint_src"
+      chmod -R u+w "$golangci_lint_src"
+      git -C "$golangci_lint_src" init
+      git -C "$golangci_lint_src" config user.email "nix-builder@example.invalid"
+      git -C "$golangci_lint_src" config user.name "nix-builder"
+      git -C "$golangci_lint_src" add .
+      git -C "$golangci_lint_src" commit -m "local golangci-lint source"
+      git -C "$golangci_lint_src" tag "v${pkgs.golangci-lint.version}"
+
+      git config --global protocol.file.allow always
+      git config --global url."file://$golangci_lint_src".insteadOf "https://github.com/golangci/golangci-lint.git"
+      git config --global --add url."file://$golangci_lint_src".insteadOf "https://github.com/golangci/golangci-lint.git/"
+
       printf '%s\n' \
         'version: v${pkgs.golangci-lint.version}' \
         'name: golangci-lint-ton' \
