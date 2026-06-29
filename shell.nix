@@ -11,6 +11,55 @@ let
       hash = "sha256-LpHrtpR6lulDb7KzkmqIAu/mOm03Xf/sT4Kqnb1v1Ds=";
     };
   });
+
+  golangci-lint-ton = pkgs.stdenv.mkDerivation {
+    pname = "golangci-lint-ton";
+    version = pkgs.golangci-lint.version;
+
+    src = ./.;
+
+    nativeBuildInputs = [
+      go_1_26_2
+      pkgs.golangci-lint
+      pkgs.cacert
+      pkgs.git
+    ];
+
+    buildPhase = ''
+      runHook preBuild
+
+      export HOME="$TMPDIR"
+      export GOCACHE="$TMPDIR/go-cache"
+      export GOPATH="$TMPDIR/go"
+      export GOMODCACHE="$TMPDIR/go/pkg/mod"
+      export GOTOOLCHAIN=local
+      export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+      export GIT_SSL_CAINFO="$SSL_CERT_FILE"
+      export CURL_CA_BUNDLE="$SSL_CERT_FILE"
+
+      printf '%s\n' \
+        'version: v${pkgs.golangci-lint.version}' \
+        'name: golangci-lint-ton' \
+        'destination: ./bin' \
+        'plugins:' \
+        '  - module: github.com/smartcontractkit/chainlink-ton/tools/tonapiwaitlint' \
+        '    path: ./tools/tonapiwaitlint' \
+        > .custom-gcl.yml
+
+      golangci-lint custom -v
+
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+
+      mkdir -p "$out/bin"
+      install -m755 "$(find bin -type f -perm -u+x | head -n 1)" "$out/bin/golangci-lint-ton"
+
+      runHook postInstall
+    '';
+  };
 in
 pkgs.mkShell {
   buildInputs = with pkgs;
@@ -23,6 +72,7 @@ pkgs.mkShell {
       gopls
       delve
       golangci-lint
+      golangci-lint-ton
       gotools
       go-mockery
 
@@ -56,6 +106,8 @@ pkgs.mkShell {
     export GOTOOLCHAIN=local
 
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
-    alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/5638f1698966509af1265aec46a438af04755ea0/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
+    golint() {
+      golangci-lint-ton run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/5638f1698966509af1265aec46a438af04755ea0/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"] | .linters.enable = ((.linters.enable // []) + ["tonapiwaitlint"]) | .linters.settings.custom.tonapiwaitlint = {"type": "module", "description": "require WaitForBlock before selected TON API calls", "settings": {"methods": ["GetAccount", "RunGetMethod"]}}' -) --path-mode "abs" "$@"
+    }
   '';
 }

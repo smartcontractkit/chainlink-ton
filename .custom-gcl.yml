@@ -1,0 +1,8 @@
+# Manual helper only. shell.nix generates the authoritative config with
+# pkgs.golangci-lint.version during the Nix build.
+version: v2.1.6
+name: golangci-lint-ton
+destination: ./bin
+plugins:
+  - module: github.com/smartcontractkit/chainlink-ton/tools/tonapiwaitlint
+    path: ./tools/tonapiwaitlint
