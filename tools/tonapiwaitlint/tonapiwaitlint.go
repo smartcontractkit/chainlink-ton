@@ -15,20 +15,20 @@ const (
 	tonPackagePath = "github.com/xssnick/tonutils-go/ton"
 )
 
-type settings struct {
+type tonAPIWaitLintSettings struct {
 	Methods []string `json:"methods"`
 }
 
-type plugin struct {
+type tonAPIWaitLintPlugin struct {
 	methods map[string]bool
 }
 
 func init() {
-	register.Plugin(linterName, New)
+	register.Plugin(linterName, newTonAPIWaitLintPlugin)
 }
 
-func New(rawSettings any) (register.LinterPlugin, error) {
-	cfg := settings{Methods: []string{"GetAccount", "RunGetMethod"}}
+func newTonAPIWaitLintPlugin(rawSettings any) (register.LinterPlugin, error) {
+	cfg := tonAPIWaitLintSettings{Methods: []string{"GetAccount", "RunGetMethod"}}
 	if rawSettings != nil {
 		payload, err := json.Marshal(rawSettings)
 		if err != nil {
@@ -46,10 +46,10 @@ func New(rawSettings any) (register.LinterPlugin, error) {
 		}
 	}
 
-	return &plugin{methods: methods}, nil
+	return &tonAPIWaitLintPlugin{methods: methods}, nil
 }
 
-func (p *plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
+func (p *tonAPIWaitLintPlugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	return []*analysis.Analyzer{{
 		Name: linterName,
 		Doc:  "checks that selected ton.APIClientWrapped methods are called through WaitForBlock",
@@ -57,11 +57,11 @@ func (p *plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	}}, nil
 }
 
-func (p *plugin) GetLoadMode() string {
+func (p *tonAPIWaitLintPlugin) GetLoadMode() string {
 	return register.LoadModeTypesInfo
 }
 
-func (p *plugin) run(pass *analysis.Pass) (any, error) {
+func (p *tonAPIWaitLintPlugin) run(pass *analysis.Pass) (any, error) {
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(node ast.Node) bool {
 			fn, ok := node.(*ast.FuncDecl)
@@ -111,7 +111,7 @@ func recordWaiterAssignments(pass *analysis.Pass, waiterVars map[types.Object]bo
 	}
 }
 
-func (p *plugin) isFlaggedAPICall(pass *analysis.Pass, call *ast.CallExpr) bool {
+func (p *tonAPIWaitLintPlugin) isFlaggedAPICall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || !p.methods[selector.Sel.Name] {
 		return false

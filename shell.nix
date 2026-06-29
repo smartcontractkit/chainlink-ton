@@ -12,68 +12,29 @@ let
     };
   });
 
-  golangci-lint-ton = pkgs.stdenv.mkDerivation {
+  # Build the stock nixpkgs golangci-lint with our TON analyzer compiled in.
+  # We avoid `golangci-lint custom` here because it clones golangci-lint from GitHub
+  # during the build, which is not reproducible and fails in restricted CI builders.
+  golangci-lint-ton = pkgs.golangci-lint.overrideAttrs (old: {
     pname = "golangci-lint-ton";
-    version = pkgs.golangci-lint.version;
 
-    src = ./.;
+    postPatch =
+      (old.postPatch or "")
+      + ''
+        # Compile the plugin directly into cmd/golangci-lint so its init()
+        # registers `tonapiwaitlint` with golangci-lint's plugin registry.
+        cp ${./tools/tonapiwaitlint/tonapiwaitlint.go} cmd/golangci-lint/tonapiwaitlint_plugin.go
+        substituteInPlace cmd/golangci-lint/tonapiwaitlint_plugin.go \
+          --replace-fail "package tonapiwaitlint" "package main"
+      '';
 
-    nativeBuildInputs = [
-      go_1_26_2
-      pkgs.golangci-lint
-      pkgs.cacert
-      pkgs.git
-    ];
-
-    buildPhase = ''
-      runHook preBuild
-
-      export HOME="$TMPDIR"
-      export GOCACHE="$TMPDIR/go-cache"
-      export GOPATH="$TMPDIR/go"
-      export GOMODCACHE="$TMPDIR/go/pkg/mod"
-      export GOTOOLCHAIN=local
-      export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-      export GIT_SSL_CAINFO="$SSL_CERT_FILE"
-      export CURL_CA_BUNDLE="$SSL_CERT_FILE"
-
-      golangci_lint_src="$TMPDIR/golangci-lint-src"
-      cp -R "${pkgs.golangci-lint.src}" "$golangci_lint_src"
-      chmod -R u+w "$golangci_lint_src"
-      git -C "$golangci_lint_src" init
-      git -C "$golangci_lint_src" config user.email "nix-builder@example.invalid"
-      git -C "$golangci_lint_src" config user.name "nix-builder"
-      git -C "$golangci_lint_src" add .
-      git -C "$golangci_lint_src" commit -m "local golangci-lint source"
-      git -C "$golangci_lint_src" tag "v${pkgs.golangci-lint.version}"
-
-      git config --global protocol.file.allow always
-      git config --global url."file://$golangci_lint_src".insteadOf "https://github.com/golangci/golangci-lint.git"
-      git config --global --add url."file://$golangci_lint_src".insteadOf "https://github.com/golangci/golangci-lint.git/"
-
-      printf '%s\n' \
-        'version: v${pkgs.golangci-lint.version}' \
-        'name: golangci-lint-ton' \
-        'destination: ./bin' \
-        'plugins:' \
-        '  - module: github.com/smartcontractkit/chainlink-ton/tools/tonapiwaitlint' \
-        '    path: ./tools/tonapiwaitlint' \
-        > .custom-gcl.yml
-
-      golangci-lint custom -v
-
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-
-      mkdir -p "$out/bin"
-      install -m755 "$(find bin -type f -perm -u+x | head -n 1)" "$out/bin/golangci-lint-ton"
-
-      runHook postInstall
-    '';
-  };
+    postInstall =
+      (old.postInstall or "")
+      + ''
+        # Keep the upstream binary available separately from our custom one.
+        mv "$out/bin/golangci-lint" "$out/bin/golangci-lint-ton"
+      '';
+  });
 in
 pkgs.mkShell {
   buildInputs = with pkgs;
