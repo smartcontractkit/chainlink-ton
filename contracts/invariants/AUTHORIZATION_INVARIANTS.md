@@ -24,6 +24,31 @@ not. Examples include validation by signed data, validation by message content,
 bounded economic cost, or the fact that the call only returns information and
 does not mutate privileged state.
 
+If a handler is sender-authorized, the contract code should document the expected
+sender and the authorization mechanism with the counterpart convention:
+
+```tolk
+// AUTHORIZED: <authorization mechanism> (<authorized sender or trust root>). [<explanation/rationale>] (optional)
+```
+
+In `authorization mechanism`, use `STORED_ADDRESS` when `in.senderAddress` is compared to an
+address stored in contract state or configuration. Use
+`DERIVED_ADDRESS` when the expected sender is derived from trusted code and
+reconstructed initial state.
+The explanation/rationale is optional but recommended for non-trivial cases, for human and LLM-based review.
+
+Examples:
+
+```tolk
+// AUTHORIZED: STORED_ADDRESS (st.ownable.owner).
+// AUTHORIZED: STORED_ADDRESS (st.config.feeQuoter).
+// AUTHORIZED: DERIVED_ADDRESS (st.executor.deployableCode, executorID, OnRamp owner). SendExecutor can only reach this state through a trusted OnRamp path.
+```
+
+The comment is descriptive only; the authorization is the actual
+`in.senderAddress` check, owner/admin helper, or deterministic address
+derivation in the handler.
+
 ## Sender Check Patterns
 
 TON CCIP uses two main sender authorization patterns:
@@ -87,7 +112,10 @@ covered by an inbound-value check or a prior balance reservation, and any
 ### TON-AUTH-1 - Privileged Messages Validate Sender
 
 Every privileged internal message handler must validate `in.senderAddress`
-before executing privileged logic.
+before executing privileged logic. Sender-authorized handlers should use
+`// AUTHORIZED: <authorized sender or trust root>; check=<authorization mechanism>`
+near the match arm or handler to make the expected authority and check type
+explicit for reviewers and analysis tools.
 
 Privileged behavior includes:
 
