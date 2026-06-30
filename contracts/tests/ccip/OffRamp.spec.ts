@@ -624,7 +624,7 @@ describe('OffRamp - Unit Tests', () => {
         tokenRegistryDeployment: {
           deployableCode: deployerCode,
           tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-        } 
+        },
       }
 
       router = blockchain.openContract(rt.Router.createFromConfig(data, code))

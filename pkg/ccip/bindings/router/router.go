@@ -182,7 +182,7 @@ type RMNRemoteUncurse struct {
 }
 
 type TokenRegistrySetTokenInfo struct {
-	_            tlb.Magic               `tlb:"#fed7cfba" json:"-"`
+	_            tlb.Magic               `tlb:"#fed7cfba" json:"-"` //nolint:revive // Ignore opcode tag
 	TokenAddress *address.Address        `tlb:"addr"`
 	TokenInfo    tokenregistry.TokenInfo `tlb:"."`
 	IsNewEntry   bool                    `tlb:"bool"`
