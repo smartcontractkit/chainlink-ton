@@ -210,6 +210,21 @@ struct (0x15800161) TokenPool_CursedSubjectsSet {
     cursedSubjects: CursedSubjects;
 }
 
+/// Replied on `TokenPool_ApplyChainUpdates` to confirm tx and return excess to sender.
+struct (0x3f5c1a2d) TokenPool_ChainUpdatesApplied {
+    queryId: uint64;
+}
+
+/// Replied on `TokenPool_UpdateRampAccess` to confirm tx and return excess to sender.
+struct (0x8b3e4d17) TokenPool_RampAccessUpdatesApplied {
+    queryId: uint64;
+}
+
+/// Replied on `TokenPool_ApplyTokenTransferFeeConfigUpdates` to confirm tx and return excess to sender.
+struct (0x4a7e2b9c) TokenPool_FeeConfigApplied {
+    queryId: uint64;
+}
+
 struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
     queryId: uint64;
     advancedPoolHooks: address?;
@@ -227,4 +242,7 @@ type TokenPool_OutMessage =
     | TokenPool_DynamicConfigSet
     | TokenPool_RateLimitConfiguredNotification
     | TokenPool_CursedSubjectsSet
-    | TokenPool_AdvancedPoolHooksSet;
+    | TokenPool_AdvancedPoolHooksSet
+    | TokenPool_ChainUpdatesApplied
+    | TokenPool_RampAccessUpdatesApplied
+    | TokenPool_FeeConfigApplied;

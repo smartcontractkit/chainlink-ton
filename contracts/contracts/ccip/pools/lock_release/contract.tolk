@@ -12,6 +12,7 @@ import "../types"
 import "../messages"
 import "../events"
 import "../errors"
+import "../rate_limiter"
 
 import "messages"
 import "types"
@@ -103,7 +104,9 @@ fun onReleaseOrMintContinue(
     );
 
     val transfer = createMessage({
-        bounce: BounceMode.RichBounce, // used to recover forwardPayload (context)
+        // TODO: use RichBounce to recover context, currently breaks with exitCode: 63 b/x
+        // `skipBouncedPrefix` in the handler.
+        bounce: true,
         value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
         dest: ownWallet,
         body: AskToTransfer {
@@ -175,6 +178,17 @@ fun onReleaseTransferBounced(
 
     val pending = pendingEntry.loadValue().load();
     st.pendingReleases.delete(msg.queryId);
+
+    // TODO: should use shared onBouncedMessage handler from TokenPool lib to
+    // reuse the logic across pool implementations.
+    // The release consumed inbound rate-limit capacity at admission, but the transfer
+    // bounced so no tokens were delivered. Return that capacity to the bucket.
+    val request = lazy pending.request.load();
+    val details = lazy request.transfer.details.load();
+    val out = lazy pending.out.load();
+    var pool: TokenPool<Storage> = loadPool(st);
+    pool.releaseInboundRateLimit(details.remoteChainSelector, out.destinationAmount);
+    st.poolData = pool.data.toCell();
 
     // TODO: we should always reply back
     if (pending.replyTo != null) {
@@ -255,4 +269,12 @@ get fun owner(): address {
 
 get fun pendingOwner(): address? {
     return Storage.load().poolData.load().adminConfig.load().ownable.load().get_pendingOwner();
+}
+
+/// Returns the outbound and inbound rate limiter state for the given remote chain at the time of the call.
+/// @param remoteChainSelector The remote chain selector.
+/// @param fastFinality Whether to get the fast finality rate limiter state.
+get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bool): TokenPool_RateLimiterPair {
+    val pool = loadPool(Storage.load());
+    return pool.getCurrentRateLimiterState(remoteChainSelector, fastFinality);
 }

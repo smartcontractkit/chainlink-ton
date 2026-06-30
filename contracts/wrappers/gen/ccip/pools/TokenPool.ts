@@ -2286,6 +2286,117 @@ export const TokenPool_CursedSubjectsSet = {
 }
 
 /**
+ > struct (0x3f5c1a2d) TokenPool_ChainUpdatesApplied {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_ChainUpdatesApplied {
+    readonly $: 'TokenPool_ChainUpdatesApplied'
+    queryId: uint64
+}
+
+export const TokenPool_ChainUpdatesApplied = {
+    PREFIX: 0x3f5c1a2d,
+
+    create(args: {
+        queryId: uint64
+    }): TokenPool_ChainUpdatesApplied {
+        return {
+            $: 'TokenPool_ChainUpdatesApplied',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ChainUpdatesApplied {
+        loadAndCheckPrefix32(s, 0x3f5c1a2d, 'TokenPool_ChainUpdatesApplied');
+        return {
+            $: 'TokenPool_ChainUpdatesApplied',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_ChainUpdatesApplied, b: c.Builder): void {
+        b.storeUint(0x3f5c1a2d, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_ChainUpdatesApplied): c.Cell {
+        return makeCellFrom<TokenPool_ChainUpdatesApplied>(self, TokenPool_ChainUpdatesApplied.store);
+    }
+}
+
+/**
+ > struct (0x8b3e4d17) TokenPool_RampAccessUpdatesApplied {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_RampAccessUpdatesApplied {
+    readonly $: 'TokenPool_RampAccessUpdatesApplied'
+    queryId: uint64
+}
+
+export const TokenPool_RampAccessUpdatesApplied = {
+    PREFIX: 0x8b3e4d17,
+
+    create(args: {
+        queryId: uint64
+    }): TokenPool_RampAccessUpdatesApplied {
+        return {
+            $: 'TokenPool_RampAccessUpdatesApplied',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RampAccessUpdatesApplied {
+        loadAndCheckPrefix32(s, 0x8b3e4d17, 'TokenPool_RampAccessUpdatesApplied');
+        return {
+            $: 'TokenPool_RampAccessUpdatesApplied',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_RampAccessUpdatesApplied, b: c.Builder): void {
+        b.storeUint(0x8b3e4d17, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_RampAccessUpdatesApplied): c.Cell {
+        return makeCellFrom<TokenPool_RampAccessUpdatesApplied>(self, TokenPool_RampAccessUpdatesApplied.store);
+    }
+}
+
+/**
+ > struct (0x4a7e2b9c) TokenPool_FeeConfigApplied {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_FeeConfigApplied {
+    readonly $: 'TokenPool_FeeConfigApplied'
+    queryId: uint64
+}
+
+export const TokenPool_FeeConfigApplied = {
+    PREFIX: 0x4a7e2b9c,
+
+    create(args: {
+        queryId: uint64
+    }): TokenPool_FeeConfigApplied {
+        return {
+            $: 'TokenPool_FeeConfigApplied',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FeeConfigApplied {
+        loadAndCheckPrefix32(s, 0x4a7e2b9c, 'TokenPool_FeeConfigApplied');
+        return {
+            $: 'TokenPool_FeeConfigApplied',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_FeeConfigApplied, b: c.Builder): void {
+        b.storeUint(0x4a7e2b9c, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_FeeConfigApplied): c.Cell {
+        return makeCellFrom<TokenPool_FeeConfigApplied>(self, TokenPool_FeeConfigApplied.store);
+    }
+}
+
+/**
  > struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
  >     queryId: uint64
  >     advancedPoolHooks: address?
@@ -2395,6 +2506,77 @@ export const TokenPool_ChainRemoved = {
     },
     toCell(self: TokenPool_ChainRemoved): c.Cell {
         return makeCellFrom<TokenPool_ChainRemoved>(self, TokenPool_ChainRemoved.store);
+    }
+}
+
+/**
+ > struct TokenPool_TokenTransferFeeConfigUpdated {
+ >     destChainSelector: uint64
+ >     tokenTransferFeeConfig: Cell<TokenPool_TokenTransferFeeConfig>
+ > }
+ */
+export interface TokenPool_TokenTransferFeeConfigUpdated {
+    readonly $: 'TokenPool_TokenTransferFeeConfigUpdated'
+    destChainSelector: uint64
+    tokenTransferFeeConfig: CellRef<TokenPool_TokenTransferFeeConfig>
+}
+
+export const TokenPool_TokenTransferFeeConfigUpdated = {
+    create(args: {
+        destChainSelector: uint64
+        tokenTransferFeeConfig: CellRef<TokenPool_TokenTransferFeeConfig>
+    }): TokenPool_TokenTransferFeeConfigUpdated {
+        return {
+            $: 'TokenPool_TokenTransferFeeConfigUpdated',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_TokenTransferFeeConfigUpdated {
+        return {
+            $: 'TokenPool_TokenTransferFeeConfigUpdated',
+            destChainSelector: s.loadUintBig(64),
+            tokenTransferFeeConfig: loadCellRef<TokenPool_TokenTransferFeeConfig>(s, TokenPool_TokenTransferFeeConfig.fromSlice),
+        }
+    },
+    store(self: TokenPool_TokenTransferFeeConfigUpdated, b: c.Builder): void {
+        b.storeUint(self.destChainSelector, 64);
+        storeCellRef<TokenPool_TokenTransferFeeConfig>(self.tokenTransferFeeConfig, b, TokenPool_TokenTransferFeeConfig.store);
+    },
+    toCell(self: TokenPool_TokenTransferFeeConfigUpdated): c.Cell {
+        return makeCellFrom<TokenPool_TokenTransferFeeConfigUpdated>(self, TokenPool_TokenTransferFeeConfigUpdated.store);
+    }
+}
+
+/**
+ > struct TokenPool_TokenTransferFeeConfigDeleted {
+ >     destChainSelector: uint64
+ > }
+ */
+export interface TokenPool_TokenTransferFeeConfigDeleted {
+    readonly $: 'TokenPool_TokenTransferFeeConfigDeleted'
+    destChainSelector: uint64
+}
+
+export const TokenPool_TokenTransferFeeConfigDeleted = {
+    create(args: {
+        destChainSelector: uint64
+    }): TokenPool_TokenTransferFeeConfigDeleted {
+        return {
+            $: 'TokenPool_TokenTransferFeeConfigDeleted',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_TokenTransferFeeConfigDeleted {
+        return {
+            $: 'TokenPool_TokenTransferFeeConfigDeleted',
+            destChainSelector: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_TokenTransferFeeConfigDeleted, b: c.Builder): void {
+        b.storeUint(self.destChainSelector, 64);
+    },
+    toCell(self: TokenPool_TokenTransferFeeConfigDeleted): c.Cell {
+        return makeCellFrom<TokenPool_TokenTransferFeeConfigDeleted>(self, TokenPool_TokenTransferFeeConfigDeleted.store);
     }
 }
 

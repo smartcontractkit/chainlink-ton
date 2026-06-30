@@ -377,6 +377,52 @@ describe('LockReleaseTokenPool', () => {
     expect(await lockReleasePool.getHasPendingRelease(46n)).toBe(false)
   })
 
+  it('refunds inbound rate-limit capacity when a release bounces (TON-TP/5)', async () => {
+    // Pool wallet is empty (no prior lock), so the release passes admission (within the
+    // rate limit) but the AskToTransfer bounces. The bounce handler must return the
+    // capacity it consumed at admission, leaving the bucket as it started (full).
+    const releaseAmount = toNano('5') // < inbound capacity (100), so admission succeeds
+    const before = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
+    expect(before.inbound.ref.tokens).toEqual(toNano('100'))
+
+    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(offRamp.getSender(), toNano('0.4'), {
+      queryId: 77n,
+      request: {
+        ref: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 77n,
+            details: {
+              ref: TokenPool_TransferDetails.create({
+                originalSender: { ref: sourcePoolAddress },
+                remoteChainSelector,
+                receiver: recipient.address,
+                amount: releaseAmount,
+                localToken: jettonMinter.address,
+              }),
+            },
+          }),
+          sourcePoolAddress: { ref: sourcePoolAddress },
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
+      },
+      requestedFinalityConfig: 0n,
+      replyTo: deployer.address,
+    })
+
+    // The release transfer bounced back to the pool and was handled successfully.
+    expect(result.transactions).toHaveTransaction({
+      to: lockReleasePool.address,
+      inMessageBounced: true,
+      success: true,
+    })
+    expect(await lockReleasePool.getHasPendingRelease(77n)).toBe(false)
+
+    // Consumed capacity (5) was refunded: the bucket is restored to its starting balance.
+    const after = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
+    expect(after.inbound.ref.tokens).toEqual(before.inbound.ref.tokens)
+  })
+
   it('locks tokens through a jetton transfer notification and credits the pool wallet', async () => {
     const onRampWallet = await userWallet(jettonSender.address)
     const poolWallet = await userWallet(lockReleasePool.address)

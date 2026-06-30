@@ -13,6 +13,8 @@ const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = stringCrc32("TokenPool_DynamicConfig
 const TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED = stringCrc32("TokenPool_RampAccessUpdated");
 const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = stringCrc32("TokenPool_FinalityConfigSet");
 const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = stringCrc32("TokenPool_RateLimitConfigured");
+const TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED = stringCrc32("TokenPool_TokenTransferFeeConfigUpdated");
+const TOPIC_TOKEN_POOL_FEE_CONFIG_DELETED = stringCrc32("TokenPool_TokenTransferFeeConfigDeleted");
 
 struct TokenPool_LockedOrBurned {
     remoteChainSelector: uint64;
@@ -74,15 +76,15 @@ struct TokenPool_InboundRateLimitConsumed {
     amount: uint256;
 }
 
-// TODO: make used
+/// Emitted when a token transfer fee configuration is updated for a destination chain.
 struct TokenPool_TokenTransferFeeConfigUpdated {
-    remoteChainSelector: uint64;
+    destChainSelector: uint64;
     tokenTransferFeeConfig: Cell<TokenPool_TokenTransferFeeConfig>;
 }
 
-// TODO: make used
+/// Emitted when a token transfer fee configuration is deleted (disabled) for a destination chain.
 struct TokenPool_TokenTransferFeeConfigDeleted {
-    remoteChainSelector: uint64;
+    destChainSelector: uint64;
 }
 
 //   event FastFinalityOutboundRateLimitConsumed(uint64 indexed remoteChainSelector, address token, uint256 amount);
@@ -110,4 +112,6 @@ type TokenPool_Events =
     | TokenPool_ChainAdded
     | TokenPool_ChainRemoved
     | TokenPool_RateLimitConfigured
-    | TokenPool_RampAccessUpdated;
+    | TokenPool_RampAccessUpdated
+    | TokenPool_TokenTransferFeeConfigUpdated
+    | TokenPool_TokenTransferFeeConfigDeleted;

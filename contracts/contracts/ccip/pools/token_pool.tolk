@@ -382,6 +382,7 @@ fun TokenPool<T>.removeRemotePool(
 fun TokenPool<T>.applyChainUpdates(
     mutate self,
     sender: address,
+    queryId: uint64,
     remoteChainSelectorsToRemove: SnakedCell<uint64>,
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
@@ -439,12 +440,19 @@ fun TokenPool<T>.applyChainUpdates(
         });
     }
 
-    // TODO: reply back to sender with excess
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_ChainUpdatesApplied { queryId },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.applyRampAccessUpdates(
     mutate self,
     sender: address,
+    queryId: uint64,
     updates: SnakedCell<TokenPool_RampUpdate>,
 ) {
     var adminConfig = self.data.adminConfig.load();
@@ -479,7 +487,13 @@ fun TokenPool<T>.applyRampAccessUpdates(
 
     self.data.mirroredPolicy = mirroredPolicy.toCell();
 
-    // TODO: reply back to sender with excess
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_RampAccessUpdatesApplied { queryId },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.setRMNProxy(
@@ -554,7 +568,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             // TODO: propagate error back to sender (executor)
         }
          TokenPool_ApplyChainUpdates => {
-            self.applyChainUpdates(msgSender, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
+            self.applyChainUpdates(msgSender, msg.queryId, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
         }
         TokenPool_AddRemotePool => {
             self.addRemotePool(msgSender, msg.queryId, msg.remoteChainSelector, msg.remotePoolAddress);
@@ -575,10 +589,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.setRateLimitConfig(msgSender, msg.queryId, msg.updates);
         }
         TokenPool_ApplyTokenTransferFeeConfigUpdates => {
-            self.applyTokenTransferFeeConfigUpdates(msgSender, msg.updates, msg.disableChainSelectors);
+            self.applyTokenTransferFeeConfigUpdates(msgSender, msg.queryId, msg.updates, msg.disableChainSelectors);
         }
         TokenPool_UpdateRampAccess => {
-            self.applyRampAccessUpdates(msgSender, msg.updates);
+            self.applyRampAccessUpdates(msgSender, msg.queryId, msg.updates);
         }
         TokenPool_SetRMNProxy => {
             self.setRMNProxy(msgSender, msg.queryId, msg.rmnProxy);
@@ -604,10 +618,15 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
 }
 
 // TODO: implement onBouncedMessage (lib) handler
+//  - use `pool.releaseInboundRateLimit` and `pool.releaseOutboundRateLimit` to return the consumed capacity back on error
 
+/// Updates the token transfer fee configurations for specified destination chains.
+/// @param updates Array of structs containing destination chain selectors and their fee configs.
+/// @param disableChainSelectors Array of destination chain selectors to disable custom fee configs for.
 fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     mutate self,
     sender: address,
+    queryId: uint64,
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>,
     disableChainSelectors: SnakedCell<uint64>,
 ) {
@@ -617,17 +636,35 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     while (!iter.empty()) {
         val update = iter.next();
         assert(self.isSupportedChain(update.destChainSelector), TokenPool_Error.NonExistentChain);
+
+        // Reject configs with isEnabled: false - use disableChainSelectors parameter instead.
         assert(update.tokenTransferFeeConfig.isEnabled, TokenPool_Error.InvalidTokenTransferFeeConfig);
         assert((update.tokenTransferFeeConfig.finalityTransferFeeBps as uint256) < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps);
         assert((update.tokenTransferFeeConfig.fastFinalityTransferFeeBps as uint256) < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps);
+        // Gas overhead must be non-zero for proper fee accounting.
         assert(update.tokenTransferFeeConfig.destGasOverhead > 0, TokenPool_Error.InvalidTokenTransferFeeConfig);
+
         self.data.tokenTransferFeeConfigs.set(update.destChainSelector, update.tokenTransferFeeConfig);
+        emit(TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED, TokenPool_TokenTransferFeeConfigUpdated {
+            destChainSelector: update.destChainSelector,
+            tokenTransferFeeConfig: update.tokenTransferFeeConfig.toCell(),
+        });
     }
 
     var disableIter = disableChainSelectors.iter();
     while (!disableIter.empty()) {
-        self.data.tokenTransferFeeConfigs.delete(disableIter.next());
+        val destChainSelector = disableIter.next();
+        self.data.tokenTransferFeeConfigs.delete(destChainSelector);
+        emit(TOPIC_TOKEN_POOL_FEE_CONFIG_DELETED, TokenPool_TokenTransferFeeConfigDeleted { destChainSelector});
     }
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_FeeConfigApplied { queryId },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
@@ -1202,6 +1239,34 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
     // emit InboundRateLimitConsumed({token: token, remoteChainSelector: remoteChainSelector, amount: amount});
 }
 
+/// Returns previously consumed outbound capacity to the bucket when an outbound operation
+/// fails after admission (e.g. a lock/burn flow bounces). Mirrors `consumeOutboundRateLimit`.
+/// @dev Fast-finality refunds require the requested finality to be recovered from the
+/// pending operation; deferred until FTF is enabled (see TON-TP/16).
+fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    var rateLimiters = config.rateLimiters.load();
+    var bucket = rateLimiters.outbound.load();
+    bucket._refund(amount, self.data.token());
+    rateLimiters.outbound = bucket.toCell();
+    config.rateLimiters = rateLimiters.toCell();
+    self.data.remoteChainConfigs.set(remoteChainSelector, config);
+}
+
+/// Returns previously consumed inbound capacity to the bucket when an inbound operation
+/// fails after admission (e.g. a release transfer bounces). Mirrors `consumeInboundRateLimit`.
+/// @dev Fast-finality refunds require the requested finality to be recovered from the
+/// pending operation; deferred until FTF is enabled (see TON-TP/16).
+fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    var rateLimiters = config.rateLimiters.load();
+    var bucket = rateLimiters.inbound.load();
+    bucket._refund(amount, self.data.token());
+    rateLimiters.inbound = bucket.toCell();
+    config.rateLimiters = rateLimiters.toCell();
+    self.data.remoteChainConfigs.set(remoteChainSelector, config);
+}
+
 /// Consumes fast finality outbound rate limiting capacity in this pool.
 /// @dev If fast finality rate limiter is not enabled for the chain, it will fallback to the default
 /// rate limiter.
@@ -1266,15 +1331,15 @@ fun TokenPool<T>.getCurrentRateLimiterState(
     if (fastFinality) {
         val rateLimiters = config.fastFinalityRateLimiters.load();
         return TokenPool_RateLimiterPair {
-            outbound: rateLimiters.outbound._currentTokenBucketState(),
-            inbound: rateLimiters.inbound._currentTokenBucketState(),
+            outbound: rateLimiters.outbound.load()._currentTokenBucketState().toCell(),
+            inbound: rateLimiters.inbound.load()._currentTokenBucketState().toCell(),
         };
     }
 
     val rateLimiters = config.rateLimiters.load();
     return TokenPool_RateLimiterPair {
-        outbound: rateLimiters.outbound._currentTokenBucketState(),
-        inbound: rateLimiters.inbound._currentTokenBucketState(),
+        outbound: rateLimiters.outbound.load()._currentTokenBucketState().toCell(),
+        inbound: rateLimiters.inbound.load()._currentTokenBucketState().toCell(),
     };
 }
 

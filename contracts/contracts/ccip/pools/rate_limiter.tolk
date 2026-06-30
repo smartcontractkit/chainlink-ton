@@ -84,6 +84,35 @@ fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: uint256, _token
     self.tokens = tokens as uint128;
 }
 
+/// @notice _refund returns previously consumed tokens to the bucket. Used when an async
+/// operation that consumed capacity at admission later fails (e.g. a transfer bounces), so
+/// the reserved capacity must be made available again.
+/// @param refundTokens The number of tokens to return to the bucket.
+/// @dev Refilling for elapsed time is applied first (consistent with _consume), then the
+/// refund is added, capped at capacity so the bucket can never exceed its maximum.
+fun RateLimiter_TokenBucket._refund(mutate self, refundTokens: uint256, _tokenAddress: address) {
+    // If there is nothing to refund or rate limiting is off, skip to reduce gas usage.
+    if (!self.isEnabled || refundTokens == 0) {
+        return;
+    }
+
+    var tokens = self.tokens;
+    val capacity = self.capacity;
+    val timeDiff = blockchain.now() - self.lastUpdated;
+
+    if (timeDiff != 0) {
+        if (tokens > capacity) {
+            throw RateLimiter_Error.BucketOverfilled;
+        }
+        tokens = _calculateRefill(capacity, tokens, timeDiff, self.rate);
+        self.lastUpdated = blockchain.now();
+    }
+
+    val restored = (tokens as uint256) + refundTokens;
+    // Cap at capacity: refunds can never overfill the bucket.
+    self.tokens = (restored > (capacity as uint256) ? capacity : restored as uint128);
+}
+
 /// @notice Gets the token bucket with its values for the block it was requested at.
 /// @return The token bucket.
 fun RateLimiter_TokenBucket._currentTokenBucketState(mutate self): RateLimiter_TokenBucket {

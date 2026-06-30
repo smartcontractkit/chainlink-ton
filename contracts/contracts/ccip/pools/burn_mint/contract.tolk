@@ -282,3 +282,11 @@ get fun verifyNotCursed(subject: uint128): bool {
 get fun owner(): address {
     return Storage.load().poolData.load().adminConfig.load().ownable.load().owner;
 }
+
+/// Returns the outbound and inbound rate limiter state for the given remote chain at the time of the call.
+/// @param remoteChainSelector The remote chain selector.
+/// @param fastFinality Whether to get the fast finality rate limiter state.
+get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bool): TokenPool_RateLimiterPair {
+    val pool = loadPool(Storage.load());
+    return pool.getCurrentRateLimiterState(remoteChainSelector, fastFinality);
+}

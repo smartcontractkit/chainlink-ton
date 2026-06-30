@@ -173,14 +173,27 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
 - **TON-TP/4 — Bounce handling incomplete / unsafe.**
   `burn_mint/contract.tolk:62-65` `onBouncedMessage` is empty. Lockbox lock-bounce
   replies to `createAddressNone()` and performs no token return
-  (`lock_release_lockbox/contract.tolk:197,202`). On bounce, consumed rate-limit and
-  pending entries are not consistently unwound. `TokenPool<T>.onBouncedMessage`
+  (`lock_release_lockbox/contract.tolk:197,202`). `TokenPool<T>.onBouncedMessage`
   library handler is unimplemented (`token_pool.tolk:586`).
-- **TON-TP/5 — Rate limit consumed before async success.**
-  `validateLockOrBurn`/`validateReleaseOrMint` consume the bucket up front
-  (`token_pool.tolk:729-732,935-938`) but never release it on `wait` or downstream
-  failure (`token_pool.tolk:737`). Retries double-count. EVM consumes inside the
-  same atomic call that succeeds or reverts; TON must release on failure.
+  **Finding (from TON-TP/5):** the `RichBounce` mode used by burn_mint/lockbox to
+  "recover the forwardPayload" misaligns `skipBouncedPrefix()` (which expects the
+  standard `0xFFFFFFFF` prefix), so the union `fromSlice` throws TVM exit 63 and the
+  handler reverts. lock_release was fixed by using a standard bounce + reading only
+  op+queryId (its context is in storage). burn_mint/lockbox need the same treatment, or
+  a correct RichBounce decoder if the forwardPayload truly must be recovered from the
+  bounce. Consumed rate-limit + pending entries must be unwound in every fixed handler
+  (see TON-TP/5 refund helpers).
+- **TON-TP/5 — Rate limit consumed before async success.** *(Inbound release path fixed.)*
+  Rate limit is consumed at admission (correct for gating — the check must precede the
+  irreversible transfer; "consume on confirmation" can't reject). The gap was no refund
+  on failure. ✅ **Done:** added `RateLimiter_TokenBucket._refund` +
+  `TokenPool.releaseInbound/OutboundRateLimit`; `lock_release` `onReleaseTransferBounced`
+  now refunds the consumed inbound capacity. Also fixed that handler to use a **standard
+  bounce** (RichBounce misaligned `skipBouncedPrefix` → the handler reverted with TVM
+  exit 63, so it never worked). Added `getCurrentInboundRateLimiterTokens` getter and a
+  test verifying refund-on-bounce. ⏳ **Remaining:** outbound + fast-finality refunds, and
+  the same refund in burn_mint/lockbox failure paths — land with TON-TP/4 (their bounce
+  handlers) and FTF (M4). The async-preflight `wait` path (TON-TP/6) is dead in M1.
 
 ### 🟠 High
 
@@ -253,7 +266,10 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
 ## 6. Current focus
 
 **Critical fund-safety cluster: TON-TP/1–5** (pool-local first; TON-TP/1 deferred
-per §3.3). Progress: **TON-TP/2 single-verification-point landed** (verified).
-Remaining: TON-TP/3 (amount), TON-TP/5 (rate-limit release-on-failure), TON-TP/4
-(bounce handling). The auth model, failure recovery, and accounting integrity must
-be correct before higher-level flows are hardened.
+per §3.3). Progress: **TON-TP/2** (single-verification-point) and **TON-TP/5**
+(rate-limit refund on the inbound release bounce) landed & verified; 114/114 pool +
+lockbox tests green. Remaining: **TON-TP/4** (complete + harden bounce handling across
+burn_mint/lockbox — see the RichBounce finding — and unwind state/rate-limit on every
+path) and **TON-TP/3** (amount check, coupled to §3.3). The auth model, failure
+recovery, and accounting integrity must be correct before higher-level flows are
+hardened.
