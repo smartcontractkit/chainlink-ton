@@ -28,7 +28,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -81,7 +80,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			bindings.TypeMerkleRoot,
 			bindings.TypeReceiveExecutor,
 			bindings.TypeMCMS,
-			bindings.TypeTokenRegistry,
 		},
 	}
 
@@ -175,28 +173,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	reserve, err := tlb.FromTON(in.CCIPConfig.OnRampParams.Reserve)
 	if err != nil {
 		return sequences.OnChainOutput{}, err
-	}
-
-	// TokenRegistry, deployed before ramps
-	// TODO: Remove when TokenRegistry is sharded and administered on-chain.
-	tokenRegistryAddr := stateCCIP.TokenRegistry
-	if tokenRegistryAddr.IsAddrNone() {
-		// storage initialized with default values, config will be set later when the token and TokenPool are ready
-		tokenRegistryStorage := tokenregistry.Storage{
-			ID: in.CCIPConfig.TokenRegistryParams.ID,
-			Info: tokenregistry.TokenInfo{
-				TokenPool:     address.NewAddressNone(),
-				MinterAddress: address.NewAddressNone(),
-				Enabled:       false,
-			},
-		}
-		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTokenRegistry], tokenRegistryStorage, nil, in.CCIPConfig.TokenRegistryParams.Coin)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
-		}
-
-		addresses = append(addresses, *outputAddr)
-		tokenRegistryAddr = *address.MustParseAddr(outputAddr.Address)
 	}
 
 	// OnRamp (has to be deployed after FeeQuoter to have feeQuoter address ready)
