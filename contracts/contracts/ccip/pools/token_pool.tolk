@@ -17,9 +17,11 @@ import "rate_limiter"
 
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
-    // Address 
     rmnProxy: address;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
+    /// The pool's Jetton identity (master + wallet code). Single source of truth used to
+    /// derive and authenticate the pool's own wallet.
+    jettonClient: JettonClient;
     /// Allowed finality config for fast finality transfers (see `FinalityCodec`).
     /// FinalityCodec.WAIT_FOR_FINALITY_FLAG means wait for finality.
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
@@ -30,7 +32,6 @@ struct TokenPool_AdminConfig {
 struct TokenPool_Data {
     adminConfig: Cell<TokenPool_AdminConfig>;
     mirroredPolicy: Cell<TokenPool_MirroredPolicy>;
-    token: address;
     tokenDecimals: uint8;
     remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig>;
     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>;
@@ -83,18 +84,34 @@ fun TokenPool<T>.store(self) {
     self.data.storeAsContractData();
 }
 
+
+/// Return the JettonClient for the pool, which contains the
+/// master address and wallet code for the token.
+@inline
+fun TokenPool_Data.jettonClient(self): JettonClient {
+    val ac = lazy self.adminConfig.load();
+    return ac.jettonClient;
+}
+
+/// The Jetton master address this pool serves.
+@inline
+fun TokenPool_Data.token(self): address {
+    val ac = lazy self.adminConfig.load();
+    return ac.jettonClient.masterAddress;
+}
+
 /// Returns if the token pool supports the given token.
 /// @param token The address of the token.
 @inline
 fun TokenPool<T>.isSupportedToken(self, token: address): bool {
-    return self.data.token == token;
+    return self.data.token() == token;
 }
 
 /// Gets the Jetton token that this pool can lock or burn.
 /// @return token The Jetton token representation.
 @inline
 fun TokenPool<T>.getToken(self): address {
-    return self.data.token;
+    return self.data.token();
 }
 
 /// Gets the Jetton token decimals on the local chain.
@@ -105,13 +122,15 @@ fun TokenPool<T>.getTokenDecimals(self): uint8 {
 
 @inline
 fun TokenPool<T>.getRmnProxy(self): address {
-    return self.data.adminConfig.load().rmnProxy;
+    val ac = lazy self.adminConfig.load();
+    return ac.rmnProxy;
 }
 
 /// Gets the pools dynamic configuration.
 @inline
 fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
-    return self.data.adminConfig.load().dynamicConfig.load();
+    val ac = lazy self.adminConfig.load();
+    return ac.dynamicConfig.load();
 }
 
 /// Gets the finality config as defined in the FinalityCodec library. This value does NOT 1:1 translate to
@@ -119,7 +138,8 @@ fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
 /// FinalityCodec library. Checks must happen by calling `FinalityCodec._ensureRequestedFinalityAllowed`.
 @inline
 fun TokenPool<T>.getAllowedFinalityConfig(self): uint32 {
-    return self.data.adminConfig.load().allowedFinalityConfig;
+    val ac = lazy self.adminConfig.load();
+    return ac.allowedFinalityConfig;
 }
 
 /// Gets the advanced pool hook contract address used by this pool.
@@ -813,6 +833,9 @@ fun TokenPool<T>.onLockOrBurnTransfer(
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
     }
 
+    // Check the notification originates from a valid Jetton wallet
+    assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
+
     // We either get this transfer from the Router, in which case we trust the transfer is valid;
     // Or for a different sender (e.g., per-user deposit account), we need to validate the transfer,
     // which we can only do with context -> recover from ContextExecutor.
@@ -1154,7 +1177,7 @@ fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
-    bucket._consume(amount, self.data.token);
+    bucket._consume(amount, self.data.token());
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -1170,7 +1193,7 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
-    bucket._consume(amount, self.data.token);
+    bucket._consume(amount, self.data.token());
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -1191,11 +1214,11 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.outbound.load();
-        bucket._consume(amount, self.data.token);
+        bucket._consume(amount, self.data.token());
         rateLimiters.outbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket._consume(amount, self.data.token);
+        fastBucket._consume(amount, self.data.token());
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -1217,11 +1240,11 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.inbound.load();
-        bucket._consume(amount, self.data.token);
+        bucket._consume(amount, self.data.token());
         rateLimiters.inbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket._consume(amount, self.data.token);
+        fastBucket._consume(amount, self.data.token());
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }

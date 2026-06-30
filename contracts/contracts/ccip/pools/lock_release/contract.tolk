@@ -78,7 +78,7 @@ fun onReleaseOrMintContinue(
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
     assert(!st.pendingReleases.get(msg.queryId).isFound, Error.PendingReleaseAlreadyExists);
-    val jettonClient = st.jettonClient.load();
+    val jettonClient = st.poolData.load().jettonClient();
 
     val request = lazy prepared.request.load();
     val details = lazy request.transfer.details.load();
@@ -167,7 +167,7 @@ fun onReleaseTransferBounced(
     sender: address,
     msg: AskToTransfer,
 ) {
-    val jettonClient = st.jettonClient.load();
+    val jettonClient = st.poolData.load().jettonClient();
     assert(jettonClient.isWallet(sender), Error.UnexpectedReleaseBounce);
 
     val pendingEntry = st.pendingReleases.get(msg.queryId);
@@ -216,7 +216,7 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun token(): address {
-    return Storage.load().poolData.load().token;
+    return Storage.load().poolData.load().token();
 }
 
 get fun tokenDecimals(): uint8 {

@@ -87,6 +87,31 @@ export function runTokenPoolBehaviorTests(
       })
     })
 
+    it('rejects a token transfer notification from an untrusted sender wallet (TON-TP/2)', async () => {
+      const ctx = await setup()
+
+      // Spoofed deposit: a TransferNotificationForRecipient sent from an address that is NOT
+      // this pool's own Jetton wallet. The base lib's single verification point must reject it
+      // before any custody action, otherwise a forged wallet could fake a deposit.
+      const result = await ctx.pool.sendTransferNotificationForRecipient(
+        ctx.unauthorized.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 920n,
+          jettonAmount: toNano('1'),
+          transferInitiator: ctx.unauthorized.address,
+          forwardPayload: beginCell().endCell().beginParse(),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: 14910, // TokenPool_Error.Unauthorized (facility 149 → base 14900, +10)
+      })
+    })
+
     it('reverts releaseOrMint while chain is cursed', async () => {
       const ctx = await setup()
 

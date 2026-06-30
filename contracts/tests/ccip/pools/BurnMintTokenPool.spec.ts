@@ -112,6 +112,10 @@ describe('BurnMintTokenPool', () => {
                     feeAdmin: null,
                   }),
                 },
+                jettonClient: JettonClient.create({
+                  masterAddress: cctMinter.address,
+                  jettonWalletCode: cctWalletCode,
+                }),
                 allowedFinalityConfig: 0n,
                 advancedPoolHooks: null,
               }),
@@ -125,16 +129,9 @@ describe('BurnMintTokenPool', () => {
                 }),
               }),
             },
-            token: cctMinter.address,
             tokenDecimals: 9n,
             remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
             tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-          }),
-        },
-        jettonClient: {
-          ref: JettonClient.create({
-            masterAddress: cctMinter.address,
-            jettonWalletCode: cctWalletCode,
           }),
         },
         pendingMints: Dictionary.empty(Dictionary.Keys.BigInt(64)),

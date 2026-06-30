@@ -9,7 +9,6 @@ import "types"
 
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    jettonClient: Cell<JettonClient>;
     // TODO: replace with sharded ContextExecutor per message
     pendingReleases: map<uint64, Cell<LockReleaseTokenPool_PendingRelease>>;
 }
@@ -22,7 +21,8 @@ fun Storage.store(self) {
     contract.setData(self.toCell());
 }
 
-fun LockReleaseTokenPool_initialStorage(config: LockReleaseTokenPool_Config): Storage {
+// Initializes the storage with the given configuration.
+fun Storage.init(config: LockReleaseTokenPool_InitConfig): Storage {
     return Storage {
         poolData: TokenPool_Data {
             adminConfig: TokenPool_AdminConfig {
@@ -36,6 +36,7 @@ fun LockReleaseTokenPool_initialStorage(config: LockReleaseTokenPool_Config): St
                     rateLimitAdmin: null,
                     feeAdmin: null,
                 }.toCell(),
+                jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
             }.toCell(),
@@ -46,12 +47,10 @@ fun LockReleaseTokenPool_initialStorage(config: LockReleaseTokenPool_Config): St
                     data: createEmptyMap(),
                 },
             }.toCell(),
-            token: config.token,
             tokenDecimals: config.tokenDecimals,
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        jettonClient: config.jettonClient.toCell(),
         pendingReleases: createEmptyMap(),
     };
 }

@@ -23,12 +23,11 @@ struct LockReleaseLockboxTokenPool_PendingRelease {
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
 
-struct LockReleaseLockboxTokenPool_Config {
+struct LockReleaseLockboxTokenPool_InitConfig {
     owner: address;
-    token: address;
-    tokenDecimals: uint8;
-    rmnProxy: address;
-    router: address;
     jettonClient: JettonClient;
+    tokenDecimals: uint8;
+    router: address;
+    rmnProxy: address;
     lockbox: address;
 }

@@ -21,11 +21,10 @@ struct BurnMintTokenPool_PendingMint {
     expectedSender: address;
 }
 
-struct BurnMintTokenPool_Config {
+struct BurnMintTokenPool_InitConfig {
     owner: address;
-    token: address;
-    tokenDecimals: uint8;
-    rmnProxy: address;
-    router: address;
     jettonClient: JettonClient;
+    tokenDecimals: uint8;
+    router: address;
+    rmnProxy: address;
 }

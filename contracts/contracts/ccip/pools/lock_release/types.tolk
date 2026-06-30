@@ -14,11 +14,10 @@ struct LockReleaseTokenPool_PendingRelease {
     expectedSender: address;
 }
 
-struct LockReleaseTokenPool_Config {
+struct LockReleaseTokenPool_InitConfig {
     owner: address;
-    token: address;
-    tokenDecimals: uint8;
-    rmnProxy: address;
-    router: address;
     jettonClient: JettonClient;
+    tokenDecimals: uint8;
+    router: address;
+    rmnProxy: address;
 }

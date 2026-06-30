@@ -24,12 +24,14 @@ const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).pa
 const DEFAULT_ADMIN_ROLE = 0n
 
 // Error codes (from generated binding)
+// Must match contracts/ccip/pools/lockbox/types.tolk JettonLockBox_Error
+// (facility id 624 → base 62400) and the AccessControl facility (474 → 47400).
 const ErrorCodes = {
-  TokenAmountCannotBeZero: 27200,
-  RecipientCannotBeZeroAddress: 27201,
-  UnsupportedToken: 27202,
-  ContractAlreadyInitialized: 27203,
-  ContractNotInitialized: 27204,
+  TokenAmountCannotBeZero: 62400,
+  RecipientCannotBeZeroAddress: 62401,
+  UnsupportedToken: 62402,
+  ContractAlreadyInitialized: 62403,
+  ContractNotInitialized: 62404,
   UnauthorizedAccount: 47400,
 }
 
@@ -118,10 +120,12 @@ describe('JettonLockBox', () => {
     const lockboxWalletAddress = await jettonMinter.getWalletAddress(lockbox.address)
     lockboxWallet = blockchain.openContract(JettonWallet.createFromAddress(lockboxWalletAddress))
 
-    // Deploy lockbox with init message (StateInit attached via fromStorage)
+    // Deploy the lockbox (StateInit via fromStorage), then initialize it. The init handler
+    // reserves rent and replies carrying remaining value
+    await lockbox.sendDeploy(deployer.getSender(), toNano('3'))
     const deployResult = await lockbox.sendJettonLockBoxInit(
       deployer.getSender(),
-      toNano('1'),
+      toNano('0.2'),
       JettonLockBox_Init.create({
           queryId: 100n,
           minterAddress: jettonMinter.address,
@@ -542,9 +546,10 @@ describe('JettonLockBox', () => {
       const autoAdminWalletAddress = await jettonMinter.getWalletAddress(autoAdminLockbox.address)
 
       // Deploy and init with admin: null → sender should become admin
+      await autoAdminLockbox.sendDeploy(deployer.getSender(), toNano('3'))
       const result = await autoAdminLockbox.sendJettonLockBoxInit(
         operator.getSender(),
-        toNano('10'),
+        toNano('0.2'),
         {
           queryId: 500n,
           minterAddress: jettonMinter.address,

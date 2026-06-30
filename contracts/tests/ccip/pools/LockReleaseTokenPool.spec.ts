@@ -123,6 +123,10 @@ describe('LockReleaseTokenPool', () => {
                     feeAdmin: null,
                   }),
                 },
+                jettonClient: JettonClient.create({
+                  masterAddress: jettonMinter.address,
+                  jettonWalletCode,
+                }),
                 allowedFinalityConfig: 0n,
                 advancedPoolHooks: null,
               }),
@@ -136,16 +140,9 @@ describe('LockReleaseTokenPool', () => {
                 }),
               }),
             },
-            token: jettonMinter.address,
             tokenDecimals: 9n,
             remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
             tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-          }),
-        },
-        jettonClient: {
-          ref: JettonClient.create({
-            masterAddress: jettonMinter.address,
-            jettonWalletCode,
           }),
         },
         pendingReleases: Dictionary.empty(Dictionary.Keys.BigInt(64)),

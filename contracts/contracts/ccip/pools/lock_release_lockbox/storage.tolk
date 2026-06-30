@@ -10,7 +10,6 @@ import "types"
 
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    jettonClient: Cell<JettonClient>;
     lockbox: address;
     // Pending contexts keyed by queryId for async flow completion.
     pendingLocks: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingLock>>;
@@ -25,7 +24,8 @@ fun Storage.store(self) {
     contract.setData(self.toCell());
 }
 
-fun LockReleaseLockboxTokenPool_initialStorage(config: LockReleaseLockboxTokenPool_Config): Storage {
+// Initializes the storage with the given configuration.
+fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
     return Storage {
         poolData: TokenPool_Data {
             adminConfig: TokenPool_AdminConfig {
@@ -39,6 +39,7 @@ fun LockReleaseLockboxTokenPool_initialStorage(config: LockReleaseLockboxTokenPo
                     rateLimitAdmin: null,
                     feeAdmin: null,
                 }.toCell(),
+                jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
             }.toCell(),
@@ -49,12 +50,10 @@ fun LockReleaseLockboxTokenPool_initialStorage(config: LockReleaseLockboxTokenPo
                     data: createEmptyMap(),
                 },
             }.toCell(),
-            token: config.token,
             tokenDecimals: config.tokenDecimals,
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        jettonClient: config.jettonClient.toCell(),
         lockbox: config.lockbox,
         pendingLocks: createEmptyMap(),
         pendingReleases: createEmptyMap(),

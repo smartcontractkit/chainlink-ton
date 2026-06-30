@@ -9,7 +9,6 @@ import "types"
 
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    jettonClient: Cell<JettonClient>;
     // Local storage used for MVP, won't scale to high volume of concurrent messages
     // with 65,536 cells per contract limit.
     // TODO: replace with sharded ContextExecutor per message
@@ -25,7 +24,8 @@ fun Storage.store(self) {
     contract.setData(self.toCell());
 }
 
-fun BurnMintTokenPool_initialStorage(config: BurnMintTokenPool_Config): Storage {
+// Initializes the storage with the given configuration.
+fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
     return Storage {
         poolData: TokenPool_Data {
             adminConfig: TokenPool_AdminConfig {
@@ -39,6 +39,7 @@ fun BurnMintTokenPool_initialStorage(config: BurnMintTokenPool_Config): Storage 
                     rateLimitAdmin: null,
                     feeAdmin: null,
                 }.toCell(),
+                jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
             }.toCell(),
@@ -49,12 +50,10 @@ fun BurnMintTokenPool_initialStorage(config: BurnMintTokenPool_Config): Storage 
                     data: createEmptyMap(),
                 },
             }.toCell(),
-            token: config.token,
             tokenDecimals: config.tokenDecimals,
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        jettonClient: config.jettonClient.toCell(),
         pendingBurns: createEmptyMap(),
         pendingMints: createEmptyMap(),
     };

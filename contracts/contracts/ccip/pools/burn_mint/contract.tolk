@@ -5,6 +5,7 @@ import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
+import "../../../lib/jetton/jetton_client"
 import "../../rmn_remote/lib"
 import "../token_pool"
 import "../types"
@@ -76,7 +77,7 @@ fun onLockOrBurnTransferContinue(
 
     assert(!st.pendingBurns.get(requestMsg.queryId).isFound, BurnMintTokenPool_Error.PendingBurnAlreadyExists);
 
-    val jettonClient = st.jettonClient.load();
+    val jettonClient = st.poolData.load().jettonClient();
     st.pendingBurns.set(requestMsg.queryId, BurnMintTokenPool_PendingBurn {
         forwardPayload: fwdPayload,
         expectedSender: jettonClient.masterAddress,
@@ -107,7 +108,7 @@ fun onReleaseOrMintContinue(
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
     assert(!st.pendingMints.get(msg.queryId).isFound, BurnMintTokenPool_Error.PendingMintAlreadyExists);
-    val jettonClient = st.jettonClient.load();
+    val jettonClient = st.poolData.load().jettonClient();
     val request = lazy prepared.request.load();
     val details = lazy request.transfer.details.load();
 
@@ -159,7 +160,7 @@ fun onClaimMinterAdmin(
     val claim = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value: BurnMintTokenPool_CLAIM_ADMIN_VALUE,
-        dest: st.jettonClient.load().masterAddress,
+        dest: st.poolData.load().token(),
         body: ClaimMinterAdmin { queryId },
     });
     claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -241,7 +242,7 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun token(): address {
-    return Storage.load().poolData.load().token;
+    return Storage.load().poolData.load().token();
 }
 
 get fun tokenDecimals(): uint8 {

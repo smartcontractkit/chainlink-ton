@@ -107,7 +107,7 @@ fun onLockOrBurnTransferContinue(
     }.toCell());
 
     // Calculate addresses.
-    val jettonClient = st.jettonClient.load();
+    val jettonClient = st.poolData.load().jettonClient();
     val ownWallet = calcAddressOfJettonWallet(
         contract.getAddress(),
         jettonClient.masterAddress,
@@ -231,7 +231,7 @@ fun onReleaseOrMintContinue(
     assert(!st.pendingReleases.get(msg.queryId).isFound, LockReleaseLockBoxTokenPool_Error.PendingReleaseAlreadyExists);
     assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockboxNotConfigured);
 
-    val jettonClient = st.jettonClient.load();
+    val jettonClient = st.poolData.load().jettonClient();
 
     val request = lazy prepared.request.load();
     val details = lazy request.transfer.details.load();
@@ -397,7 +397,7 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun token(): address {
-    return Storage.load().poolData.load().token;
+    return Storage.load().poolData.load().token();
 }
 
 get fun tokenDecimals(): uint8 {
