@@ -271,7 +271,6 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
             },
             selfMessage: {
                 value: SendExecutor_Costs.Execute(),
-                // TODO: consider a versioned ExecuteV2/OnRamp_SendV2 path if Executor/OnRamp upgrades need wire compatibility.
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
