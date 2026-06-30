@@ -20,8 +20,6 @@ type RouterSetupOptionsCommon = {
   receiver?: SandboxContract<TreasuryContract>
   router?: SandboxContract<rt.Router>
   skipRouterOnRampConfig?: boolean
-  // Optional TokenRegistry address stored in the OnRamp, used for token-transfer sends.
-  tokenRegistry?: Address
 }
 type RouterSetupOverrides = Partial<{
   feeQuoter: SandboxContract<fq.FeeQuoter> | SandboxContract<TreasuryContract>
@@ -82,13 +80,7 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   const feeQuoter = opts.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
   const onRamp =
     opts.onRamp ??
-    (await deployOnRampInstance(
-      blockchain,
-      deployer,
-      router.address,
-      feeQuoter.address,
-      opts.tokenRegistry,
-    ))
+    (await deployOnRampInstance(blockchain, deployer, router.address, feeQuoter.address))
 
   const offRamp =
     opts.offRamp ??
@@ -138,6 +130,10 @@ async function deployRouterInstance(
     wrappedNative: WRAPPED_NATIVE,
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+    tokenRegistryDeployment: {
+      deployableCode: await contractCode.ccip.local('Deployable'),
+      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+    },
   }
   const router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
   const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
@@ -270,7 +266,6 @@ async function deployOnRampInstance(
   deployer: SandboxContract<TreasuryContract>,
   router: Address,
   feeQuoter: Address,
-  tokenRegistry?: Address,
 ) {
   const code = await contractCode.ccip.local('OnRamp')
   const data: or.OnRampStorage = {
@@ -291,7 +286,6 @@ async function deployOnRampInstance(
       deployableCode: await contractCode.ccip.local('Deployable'),
       executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
     },
-    tokenRegistry: tokenRegistry ?? null,
   }
 
   const onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -457,6 +451,10 @@ export async function deployRouterContract(
     wrappedNative: WRAPPED_NATIVE,
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+    tokenRegistryDeployment: {
+      deployableCode: await contractCode.ccip.local('Deployable'),
+      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+    },
   }
 
   // TODO: use deployable to make deterministic?

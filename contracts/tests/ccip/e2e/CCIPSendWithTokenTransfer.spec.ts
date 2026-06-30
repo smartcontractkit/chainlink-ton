@@ -116,24 +116,44 @@ describe('CCIPSend with token transfer (e2e)', () => {
     mockTokenPool = blockchain.openContract(DeployableMockTokenPool.create())
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
-    // 4. Deploy the TokenRegistry, hard-coded to return the MockTokenPool address.
-    tokenRegistry = blockchain.openContract(
-      TokenRegistry.fromStorage({
-        info: TokenRegistry_TokenInfo.create({
-          tokenPool: mockTokenPool.address,
-          minterAddress: minter.address,
-          enabled: true,
-        }),
-      }),
-    )
-    await tokenRegistry.sendDeploy(deployer.getSender(), toNano('0.05'))
-
-    // 5. Deploy router/feeQuoter/onRamp/offRamp, storing the TokenRegistry in the OnRamp.
+    // Deploy router/feeQuoter/onRamp/offRamp.
     ;({ router, feeQuoter, onRamp } = await setup(blockchain, {
       deployer,
       sender,
-      tokenRegistry: tokenRegistry.address,
     }))
+
+    const setTokenInfoResult = await router.sendTokenRegistrySetTokenInfo(deployer.getSender(), {
+      value: toNano('0.2'),
+      body: {
+        tokenAddress: minter.address,
+        tokenInfo: TokenRegistry_TokenInfo.toCell(
+          TokenRegistry_TokenInfo.create({
+            tokenPool: mockTokenPool.address,
+            minterAddress: minter.address,
+            enabled: true,
+          }),
+        ),
+        isNewEntry: true,
+      },
+    })
+
+    const tokenRegistryAddress = ((): Address => {
+      for (const tx of setTokenInfoResult.transactions) {
+        const inMsg = tx.inMessage
+        if (
+          inMsg?.info.type === 'internal' &&
+          inMsg.info.src instanceof Address &&
+          inMsg.info.src.equals(router.address) &&
+          inMsg.info.dest instanceof Address &&
+          !inMsg.info.dest.equals(router.address)
+        ) {
+          return inMsg.info.dest
+        }
+      }
+      throw new Error('TokenRegistry address not found')
+    })()
+
+    tokenRegistry = blockchain.openContract(TokenRegistry.fromAddress(tokenRegistryAddress))
   })
 
   it('propagates a token-transfer-initiated CCIP send end to end', async () => {
@@ -222,6 +242,11 @@ describe('CCIPSend with token transfer (e2e)', () => {
       to: onRamp.address,
       op: or.opcodes.in.onrampSend,
       success: true,
+      body(x) {
+        if (!x) return false
+        const msg = or.builder.messages.in.onrampSend.load(x.beginParse())
+        return msg.tokenRegistry?.equals(tokenRegistry.address) ?? false
+      },
     })
     // onRamp deploys the executor
     expect(result.transactions).toHaveTransaction({
@@ -235,7 +260,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: executorAddress,
-      op: exe.opcodes.in.executeV2,
+      op: exe.opcodes.in.execute,
       success: true,
     })
     // executor -> feeQuoter and back

@@ -210,15 +210,10 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 			ChainSelector: in.ChainSelector,
 			Config: onramp.DynamicConfig{
-				Addresses: onramp.Addresses{
-					FeeQuoter:      &feeQuoterAddress,
-					FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
-					AllowListAdmin: chain.WalletAddress,
-				},
-				TokenRegistryDeployment: onramp.TokenRegistryDeployment{
-					TokenRegistry: &tokenRegistryAddr,
-				},
-				Reserve: reserve,
+				FeeQuoter:      &feeQuoterAddress,
+				FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
+				AllowListAdmin: chain.WalletAddress,
+				Reserve:        reserve,
 			},
 			DestChainConfigs: nil,
 			Executor: onramp.ExecutorDeployment{

@@ -103,9 +103,6 @@ type Storage struct {
 	Config           DynamicConfig        `tlb:"^"`
 	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
 	Executor         ExecutorDeployment   `tlb:"."`
-	// TokenRegistry queried by the CCIPSendExecutor during token transfers.
-	// Optional (address?): addr_none until token transfers are configured.
-	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 type ExecutorDeployment struct {
@@ -145,9 +142,10 @@ type WithdrawFeeTokens struct {
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_        tlb.Magic  `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
-	Metadata Metadata   `tlb:"."`                  // Cell containing metadata
+	_             tlb.Magic        `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg           *cell.Cell       `tlb:"^"`                  // Cell containing the CCIPSend message
+	Metadata      Metadata         `tlb:"."`                  // Cell containing metadata
+	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 type Metadata struct {

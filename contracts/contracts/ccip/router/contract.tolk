@@ -554,6 +554,15 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         msg.feeToken = st.wrappedNative
     }
 
+    // Calculate the token registry address if there is a token amount.
+    // If the token does not exist then the call to get token info will bounce from the ramps.
+    var tokenRegistry: address? = null;
+    if (!msg.tokenAmounts.empty()) {
+        val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
+        //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
+        tokenRegistry = getTokenRegistryDeployAddress(st, tokenAmount.token).calculateAddress();
+    }
+
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
@@ -562,7 +571,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         bounce: true,
         value: 0,
         dest: onRampResult.loadValue(),
-        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }, tokenRegistry},
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

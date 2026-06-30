@@ -42,8 +42,6 @@ export type OnRampStorage = {
   config: DynamicConfig
   destChainConfigs: Dictionary<bigint, Cell>
   executor: ExecutorDeployment
-  // Address of the TokenRegistry queried during token transfers. Null when not configured.
-  tokenRegistry?: Address | null
 }
 
 export type ExecutorDeployment = {
@@ -54,6 +52,7 @@ export type ExecutorDeployment = {
 export type OnRampSend = {
   msg: rt.CCIPSend
   metadata: Metadata
+  tokenRegistry?: Address | null
 }
 
 export type Metadata = {
@@ -231,7 +230,6 @@ export const builder = (() => {
           .storeRef(dynamicConfig.encode(data.config).asCell())
           .storeDict(data.destChainConfigs)
           .storeBuilder(executor.encode(data.executor))
-          .storeAddress(data.tokenRegistry ?? null)
       },
       load: function (src: Slice): OnRampStorage {
         const id = src.loadUintBig(32)
@@ -240,7 +238,6 @@ export const builder = (() => {
         const config = dynamicConfig.load(src.loadRef().beginParse())
         const destChainConfigs = src.loadDict(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
         const executorData = executor.load(src)
-        const tokenRegistry = src.loadMaybeAddress()
         return {
           id,
           ownable,
@@ -248,7 +245,6 @@ export const builder = (() => {
           config,
           destChainConfigs,
           executor: executorData,
-          tokenRegistry,
         }
       },
     }
@@ -404,12 +400,14 @@ export const builder = (() => {
             .storeUint(opcodes.in.onrampSend, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeBuilder(metadataCodec.encode(data.metadata))
+            .storeAddress(data.tokenRegistry ?? null)
         },
         load: function (src: Slice): OnRampSend {
           src.skip(32)
           return {
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             metadata: metadataCodec.load(src),
+            tokenRegistry: src.loadMaybeAddress(),
           }
         },
       }

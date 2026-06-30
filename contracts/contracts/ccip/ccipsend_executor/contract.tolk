@@ -30,18 +30,8 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
     match (msg) {
         // Sender must be this contract (called when initializing the contract)
-        CCIPSendExecutor_ExecuteV2 => {
-            var this = initV2(msg.onrampSend, msg.config.load());
-            assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
-            assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
-            this.onExecute();
-        }
-        // TODO: Deprecate when token transfers are released
-        // Sender must be this contract (called when initializing the contract)
-
-        // TODO: Test backwards compatibility when preparing the upgrade sequence for Executor/OnRamp
         CCIPSendExecutor_Execute => {
-            var this = initV1(msg.onrampSend, msg.config.load());
+            var this = init(msg.onrampSend, msg.config.load());
             assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
             assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute();
@@ -87,7 +77,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-fun initV2(onrampSend: OnRamp_Send, config: CCIPSendExecutor_ConfigV2): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         id: st.id,
@@ -95,23 +85,7 @@ fun initV2(onrampSend: OnRamp_Send, config: CCIPSendExecutor_ConfigV2): CCIPSend
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
-            tokenRegistry: config.tokenRegistry
-        }.toCell(),
-        state: CCIPSendExecutor_State_Initialized{
-        }.toCell(),
-    };
-}
-
-//TODO Deprecate with TT
-fun initV1(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
-    val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
-    return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
-        id: st.id,
-        onrampSend,
-        addresses: CCIPSendExecutor_Addresses {
-            onramp: st.onramp,
-            feeQuoter: config.feeQuoter,
-            tokenRegistry: null
+            tokenRegistry: onrampSend.tokenRegistry,
         }.toCell(),
         state: CCIPSendExecutor_State_Initialized{
         }.toCell(),
