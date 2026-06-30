@@ -214,7 +214,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
   "Check message value is enough to cover full flow" is TODO in
   `token_pool.tolk:823`, lockbox, and the concrete pools. Underfunded ops can strand
   pending state or drain the contract on best-effort returns.
-- **TON-TP/9 — Admin ops don't reply / return excess.**
+- ✅ (**Done**) **TON-TP/9 — Admin ops don't reply / return excess.**
   `applyChainUpdates` and `applyRampAccessUpdates` have `// TODO: reply back to
 sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsistent
   and leaks gas.
@@ -225,7 +225,7 @@ sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsis
 
 ### 🟡 Medium
 
-- **TON-TP/11 — Rate-limit-consumed events not emitted** (`token_pool.tolk:1162,
+- ✅ (**Done**) **TON-TP/11 — Rate-limit-consumed events not emitted** (`token_pool.tolk:1162,
 1178,1204,1230`); fee-config updated/deleted events defined but unused
   (`events.tolk`).
 - **TON-TP/12 — `setRateLimitConfig` bypasses `_setTokenBucketConfig`.** Rebuilds
