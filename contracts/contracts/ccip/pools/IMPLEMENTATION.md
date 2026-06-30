@@ -18,19 +18,19 @@ diverge only where the TON async execution model requires it.
 
 ## 2. Component map
 
-| File | Role |
-|------|------|
-| `token_pool.tolk` | Generic core lib `TokenPool<T>` (validation, rate limiting, decimals, config, hooks). EVM `TokenPool.sol`. |
-| `token_pool_contract.tolk` | Abstract contract shell / get-method + message-registration template (bindings). |
-| `types.tolk` | IPoolV2 request/response structs, config structs, transfer details. |
-| `messages.tolk` | Inbound/outbound message opcodes (`TokenPool_InMessage` / `TokenPool_OutMessage`). |
-| `events.tolk` | Emitted-event topics and payloads. |
-| `errors.tolk` | `TokenPool_Error` enum (facility-scoped codes). |
-| `rate_limiter.tolk` | Token-bucket rate limiter. EVM `RateLimiter.sol`. |
-| `lock_release/` | `LockReleaseTokenPool` — pool custodies tokens in its own Jetton wallet. |
-| `burn_mint/` | `BurnMintTokenPool` — pool owns minter admin; burns on lock, mints on release. |
-| `lock_release_lockbox/` | `LockReleaseLockboxTokenPool` — custody delegated to a shared `JettonLockBox` (enables pool upgrades). |
-| `lockbox/` | `JettonLockBox` — long-lived per-token custody contract; pools are OPERATORs. |
+| File                       | Role                                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `token_pool.tolk`          | Generic core lib `TokenPool<T>` (validation, rate limiting, decimals, config, hooks). EVM `TokenPool.sol`. |
+| `token_pool_contract.tolk` | Abstract contract shell / get-method + message-registration template (bindings).                           |
+| `types.tolk`               | IPoolV2 request/response structs, config structs, transfer details.                                        |
+| `messages.tolk`            | Inbound/outbound message opcodes (`TokenPool_InMessage` / `TokenPool_OutMessage`).                         |
+| `events.tolk`              | Emitted-event topics and payloads.                                                                         |
+| `errors.tolk`              | `TokenPool_Error` enum (facility-scoped codes).                                                            |
+| `rate_limiter.tolk`        | Token-bucket rate limiter. EVM `RateLimiter.sol`.                                                          |
+| `lock_release/`            | `LockReleaseTokenPool` — pool custodies tokens in its own Jetton wallet.                                   |
+| `burn_mint/`               | `BurnMintTokenPool` — pool owns minter admin; burns on lock, mints on release.                             |
+| `lock_release_lockbox/`    | `LockReleaseLockboxTokenPool` — custody delegated to a shared `JettonLockBox` (enables pool upgrades).     |
+| `lockbox/`                 | `JettonLockBox` — long-lived per-token custody contract; pools are OPERATORs.                              |
 
 ## 3. Core architecture
 
@@ -63,6 +63,7 @@ contract Storage  ──load──▶ TokenPool<Storage>{ data, context: Storage
 ### 3.2 Flow summary (as implemented)
 
 **Outbound `lockOrBurn`** (source chain):
+
 ```
 Executor → (jetton transfer w/ fwdPayload) → Pool wallet
   → TransferNotificationForRecipient → onLockOrBurnTransfer
@@ -73,6 +74,7 @@ Executor → (jetton transfer w/ fwdPayload) → Pool wallet
 ```
 
 **Inbound `releaseOrMint`** (dest chain):
+
 ```
 Executor → TokenPool_ReleaseOrMint → onReleaseOrMint
   → validate (token, chain, curse, access, remotePool, decimals, rate limit, [postflight])
@@ -116,28 +118,28 @@ independently well-defined and can proceed now.
 
 ### 3.4 Per-pool state machines
 
-| Pool | Pending state (keyed by queryId) | Lock/Burn | Release/Mint | Bounce handling |
-|------|----------------------------------|-----------|--------------|-----------------|
-| **LockRelease** | `pendingReleases` | n/a (tokens land in pool wallet) | `AskToTransfer` from pool wallet → recipient; await `ReturnExcessesBack` | release-path `AskToTransfer` bounce → `ReleaseOrMintFailure` (partial) |
-| **BurnMint** | `pendingBurns`, `pendingMints` | `AskToBurn` → wallet → master; await `ReturnExcessesBack` | `MintNewJettons` → master → recipient wallet; await `ReturnExcessesBack` | **none** (empty handler) |
-| **LockReleaseLockbox** | `pendingLocks`, `pendingReleases` | transfer to lockbox wallet w/ `JettonLockBox_Deposit`; await `Deposited` | `JettonLockBox_Withdraw` → lockbox; await `ReturnExcessesBack` | lock-path bounce (partial; wrong dest) |
-| **JettonLockBox** | — | `deposit` via transfer notification (OPERATOR) | `withdraw` → `AskToTransfer` (RichBounce) | withdraw bounce → `WithdrawFailed` (test TODO) |
+| Pool                   | Pending state (keyed by queryId)  | Lock/Burn                                                                | Release/Mint                                                             | Bounce handling                                                        |
+| ---------------------- | --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| **LockRelease**        | `pendingReleases`                 | n/a (tokens land in pool wallet)                                         | `AskToTransfer` from pool wallet → recipient; await `ReturnExcessesBack` | release-path `AskToTransfer` bounce → `ReleaseOrMintFailure` (partial) |
+| **BurnMint**           | `pendingBurns`, `pendingMints`    | `AskToBurn` → wallet → master; await `ReturnExcessesBack`                | `MintNewJettons` → master → recipient wallet; await `ReturnExcessesBack` | **none** (empty handler)                                               |
+| **LockReleaseLockbox** | `pendingLocks`, `pendingReleases` | transfer to lockbox wallet w/ `JettonLockBox_Deposit`; await `Deposited` | `JettonLockBox_Withdraw` → lockbox; await `ReturnExcessesBack`           | lock-path bounce (partial; wrong dest)                                 |
+| **JettonLockBox**      | —                                 | `deposit` via transfer notification (OPERATOR)                           | `withdraw` → `AskToTransfer` (RichBounce)                                | withdraw bounce → `WithdrawFailed` (test TODO)                         |
 
 ## 4. EVM parity status
 
-| Capability | EVM | TON | Notes |
-|------------|-----|-----|-------|
-| Admin config (chains, ramps, RL, fees, RMN, dynamic) | ✅ | ✅ | See `TON-TP/9` (excess reply) |
-| Decimals conversion + overflow guards | ✅ | ✅ | Faithful port; untested (`TON-TP/test`) |
-| Rate limiter token bucket | ✅ | ✅ | See `TON-TP/12,15` |
-| Fast-finality separate buckets | ✅ | ✅ | Fallback to default bucket implemented |
-| Router onRamp/offRamp authorization | sync | mirrored | by design |
-| RMN curse check | sync | mirrored | by design |
-| Caller/Executor authentication | `_onlyOnRamp` | ⚠️ stub | **`TON-TP/1,2`** |
-| Preflight / postflight (AdvancedPoolHooks) | ✅ | ⚠️ stub | **`TON-TP/6`** |
-| Finality codec (full bytes4) | ✅ | partial | `TON-TP/16`; M1 hardcodes default |
-| Bounce / failure recovery | n/a (sync revert) | ⚠️ partial | **`TON-TP/4`** |
-| Sharded custody of pending ops (ContextExecutor) | n/a | ❌ | `TON-TP/7` |
+| Capability                                           | EVM               | TON        | Notes                                   |
+| ---------------------------------------------------- | ----------------- | ---------- | --------------------------------------- |
+| Admin config (chains, ramps, RL, fees, RMN, dynamic) | ✅                | ✅         | See `TON-TP/9` (excess reply)           |
+| Decimals conversion + overflow guards                | ✅                | ✅         | Faithful port; untested (`TON-TP/test`) |
+| Rate limiter token bucket                            | ✅                | ✅         | See `TON-TP/12,15`                      |
+| Fast-finality separate buckets                       | ✅                | ✅         | Fallback to default bucket implemented  |
+| Router onRamp/offRamp authorization                  | sync              | mirrored   | by design                               |
+| RMN curse check                                      | sync              | mirrored   | by design                               |
+| Caller/Executor authentication                       | `_onlyOnRamp`     | ⚠️ stub    | **`TON-TP/1,2`**                        |
+| Preflight / postflight (AdvancedPoolHooks)           | ✅                | ⚠️ stub    | **`TON-TP/6`**                          |
+| Finality codec (full bytes4)                         | ✅                | partial    | `TON-TP/16`; M1 hardcodes default       |
+| Bounce / failure recovery                            | n/a (sync revert) | ⚠️ partial | **`TON-TP/4`**                          |
+| Sharded custody of pending ops (ContextExecutor)     | n/a               | ❌         | `TON-TP/7`                              |
 
 ## 5. Issue register
 
@@ -153,7 +155,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
   message sender. **Entangled with the mock/unbuilt outbound integration (§3.3):**
   the authorized sender of `TokenPool_LockOrBurn` and the `replyTo` Executor are
   ramp-side contract decisions that must be settled first.
-- **TON-TP/2 — Inbound jetton transfer not authenticated.** *(Partially fixed.)*
+- **TON-TP/2 — Inbound jetton transfer not authenticated.** _(Partially fixed.)_
   ✅ **Done:** single-verification-point lives in the **base lib** —
   `onLockOrBurnTransfer` asserts the notification sender is this pool's own Jetton
   wallet, derived from the pool's Jetton identity. The Jetton identity
@@ -183,7 +185,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
   a correct RichBounce decoder if the forwardPayload truly must be recovered from the
   bounce. Consumed rate-limit + pending entries must be unwound in every fixed handler
   (see TON-TP/5 refund helpers).
-- **TON-TP/5 — Rate limit consumed before async success.** *(Inbound release path fixed.)*
+- **TON-TP/5 — Rate limit consumed before async success.** _(Inbound release path fixed.)_
   Rate limit is consumed at admission (correct for gating — the check must precede the
   irreversible transfer; "consume on confirmation" can't reject). The gap was no refund
   on failure. ✅ **Done:** added `RateLimiter_TokenBucket._refund` +
@@ -214,7 +216,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
   pending state or drain the contract on best-effort returns.
 - **TON-TP/9 — Admin ops don't reply / return excess.**
   `applyChainUpdates` and `applyRampAccessUpdates` have `// TODO: reply back to
-  sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsistent
+sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsistent
   and leaks gas.
 - **TON-TP/10 — No always-reply (ack/nack) guarantee.**
   Flows reply only when `replyTo != null` (`lock_release/contract.tolk:179`,
@@ -224,7 +226,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
 ### 🟡 Medium
 
 - **TON-TP/11 — Rate-limit-consumed events not emitted** (`token_pool.tolk:1162,
-  1178,1204,1230`); fee-config updated/deleted events defined but unused
+1178,1204,1230`); fee-config updated/deleted events defined but unused
   (`events.tolk`).
 - **TON-TP/12 — `setRateLimitConfig` bypasses `_setTokenBucketConfig`.** Rebuilds
   via `fromConfig` (`token_pool.tolk:1274-1283`), skipping `Config.validate()`.

@@ -1219,8 +1219,11 @@ fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // TODO: emit event with updated rate limiter state
-    // emit OutboundRateLimitConsumed({token: token, remoteChainSelector: remoteChainSelector, amount: amount});
+    emit(TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_CONSUMED, TokenPool_OutboundRateLimitConsumed {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
 }
 
 /// Consumes inbound rate limiting capacity in this pool.
@@ -1235,8 +1238,11 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // TODO: emit event with updated rate limiter state
-    // emit InboundRateLimitConsumed({token: token, remoteChainSelector: remoteChainSelector, amount: amount});
+    emit(TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_CONSUMED, TokenPool_InboundRateLimitConsumed {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
 }
 
 /// Returns previously consumed outbound capacity to the bucket when an outbound operation
@@ -1251,6 +1257,12 @@ fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
+
+    emit(TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_REFUNDED, TokenPool_OutboundRateLimitRefunded {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
 }
 
 /// Returns previously consumed inbound capacity to the bucket when an inbound operation
@@ -1265,6 +1277,12 @@ fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint6
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
+
+    emit(TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_REFUNDED, TokenPool_InboundRateLimitRefunded {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
 }
 
 /// Consumes fast finality outbound rate limiting capacity in this pool.
@@ -1289,8 +1307,11 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     }
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // TODO: emit event with updated rate limiter state
-    //  emit FastFinalityOutboundRateLimitConsumed({token: token, remoteChainSelector: remoteChainSelector, amount: amount});
+    emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityOutboundRateLimitConsumed {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
 }
 
 /// Consumes fast finality inbound rate limiting capacity in this pool.
@@ -1315,8 +1336,11 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
     }
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // TODO: emit event with updated rate limiter state
-    //  emit FastFinalityInboundRateLimitConsumed({token: token, remoteChainSelector: remoteChainSelector, amount: amount});
+    emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityInboundRateLimitConsumed {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
 }
 
 /// Returns the outbound and inbound rate limiter state for the given remote chain at the time of the call.

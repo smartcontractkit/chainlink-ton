@@ -15,6 +15,12 @@ const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = stringCrc32("TokenPool_FinalityConf
 const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = stringCrc32("TokenPool_RateLimitConfigured");
 const TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED = stringCrc32("TokenPool_TokenTransferFeeConfigUpdated");
 const TOPIC_TOKEN_POOL_FEE_CONFIG_DELETED = stringCrc32("TokenPool_TokenTransferFeeConfigDeleted");
+const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_OutboundRateLimitConsumed");
+const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_InboundRateLimitConsumed");
+const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_FastFinalityOutboundRateLimitConsumed");
+const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_FastFinalityInboundRateLimitConsumed");
+const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_OutboundRateLimitRefunded");
+const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_InboundRateLimitRefunded");
 
 struct TokenPool_LockedOrBurned {
     remoteChainSelector: uint64;
@@ -62,15 +68,47 @@ struct TokenPool_RemotePoolRemoved {
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-// TODO: make used
+/// Emitted when outbound rate-limit capacity is consumed in this pool.
 struct TokenPool_OutboundRateLimitConsumed {
     remoteChainSelector: uint64;
     token: address;
     amount: uint256;
 }
 
-// TODO: make used
+/// Emitted when inbound rate-limit capacity is consumed in this pool.
 struct TokenPool_InboundRateLimitConsumed {
+    remoteChainSelector: uint64;
+    token: address;
+    amount: uint256;
+}
+
+/// Emitted when fast-finality outbound rate-limit capacity is consumed.
+/// Falls back to default bucket event when fast-finality is disabled.
+struct TokenPool_FastFinalityOutboundRateLimitConsumed {
+    remoteChainSelector: uint64;
+    token: address;
+    amount: uint256;
+}
+
+/// Emitted when fast-finality inbound rate-limit capacity is consumed.
+/// Falls back to default bucket event when fast-finality is disabled.
+struct TokenPool_FastFinalityInboundRateLimitConsumed {
+    remoteChainSelector: uint64;
+    token: address;
+    amount: uint256;
+}
+
+/// Emitted when previously consumed outbound rate-limit capacity is refunded.
+/// TON-specific: no EVM equivalent (EVM reverts synchronously, so refund is unnecessary).
+struct TokenPool_OutboundRateLimitRefunded {
+    remoteChainSelector: uint64;
+    token: address;
+    amount: uint256;
+}
+
+/// Emitted when previously consumed inbound rate-limit capacity is refunded.
+/// TON-specific: no EVM equivalent (EVM reverts synchronously, so refund is unnecessary).
+struct TokenPool_InboundRateLimitRefunded {
     remoteChainSelector: uint64;
     token: address;
     amount: uint256;
@@ -86,9 +124,6 @@ struct TokenPool_TokenTransferFeeConfigUpdated {
 struct TokenPool_TokenTransferFeeConfigDeleted {
     destChainSelector: uint64;
 }
-
-//   event FastFinalityOutboundRateLimitConsumed(uint64 indexed remoteChainSelector, address token, uint256 amount);
-//   event FastFinalityInboundRateLimitConsumed(uint64 indexed remoteChainSelector, address token, uint256 amount);
 
 struct TokenPool_RateLimitConfigured {
     args: TokenPool_RateLimitConfigArgs;
@@ -114,4 +149,10 @@ type TokenPool_Events =
     | TokenPool_RateLimitConfigured
     | TokenPool_RampAccessUpdated
     | TokenPool_TokenTransferFeeConfigUpdated
-    | TokenPool_TokenTransferFeeConfigDeleted;
+    | TokenPool_TokenTransferFeeConfigDeleted
+    | TokenPool_OutboundRateLimitConsumed
+    | TokenPool_InboundRateLimitConsumed
+    | TokenPool_FastFinalityOutboundRateLimitConsumed
+    | TokenPool_FastFinalityInboundRateLimitConsumed
+    | TokenPool_OutboundRateLimitRefunded
+    | TokenPool_InboundRateLimitRefunded;

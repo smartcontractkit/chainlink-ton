@@ -385,30 +385,34 @@ describe('LockReleaseTokenPool', () => {
     const before = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
     expect(before.inbound.ref.tokens).toEqual(toNano('100'))
 
-    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(offRamp.getSender(), toNano('0.4'), {
-      queryId: 77n,
-      request: {
-        ref: TokenPool_ReleaseOrMintInV1.create({
-          transfer: TokenPool_Transfer.create({
-            id: 77n,
-            details: {
-              ref: TokenPool_TransferDetails.create({
-                originalSender: { ref: sourcePoolAddress },
-                remoteChainSelector,
-                receiver: recipient.address,
-                amount: releaseAmount,
-                localToken: jettonMinter.address,
-              }),
-            },
+    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.4'),
+      {
+        queryId: 77n,
+        request: {
+          ref: TokenPool_ReleaseOrMintInV1.create({
+            transfer: TokenPool_Transfer.create({
+              id: 77n,
+              details: {
+                ref: TokenPool_TransferDetails.create({
+                  originalSender: { ref: sourcePoolAddress },
+                  remoteChainSelector,
+                  receiver: recipient.address,
+                  amount: releaseAmount,
+                  localToken: jettonMinter.address,
+                }),
+              },
+            }),
+            sourcePoolAddress: { ref: sourcePoolAddress },
+            sourcePoolData: null,
+            offchainTokenData: null,
           }),
-          sourcePoolAddress: { ref: sourcePoolAddress },
-          sourcePoolData: null,
-          offchainTokenData: null,
-        }),
+        },
+        requestedFinalityConfig: 0n,
+        replyTo: deployer.address,
       },
-      requestedFinalityConfig: 0n,
-      replyTo: deployer.address,
-    })
+    )
 
     // The release transfer bounced back to the pool and was handled successfully.
     expect(result.transactions).toHaveTransaction({

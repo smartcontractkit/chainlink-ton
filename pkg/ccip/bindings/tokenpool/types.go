@@ -513,6 +513,61 @@ type RampAccessUpdated struct {
 	OffRamp             *address.Address `tlb:"addr"`
 }
 
+// OutboundRateLimitConsumed is emitted when outbound rate-limit capacity is consumed.
+type OutboundRateLimitConsumed struct {
+	RemoteChainSelector uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`
+	Amount              *big.Int         `tlb:"## 256"`
+}
+
+// InboundRateLimitConsumed is emitted when inbound rate-limit capacity is consumed.
+type InboundRateLimitConsumed struct {
+	RemoteChainSelector uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`
+	Amount              *big.Int         `tlb:"## 256"`
+}
+
+// FastFinalityOutboundRateLimitConsumed is emitted when fast-finality outbound rate-limit capacity is consumed.
+type FastFinalityOutboundRateLimitConsumed struct {
+	RemoteChainSelector uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`
+	Amount              *big.Int         `tlb:"## 256"`
+}
+
+// FastFinalityInboundRateLimitConsumed is emitted when fast-finality inbound rate-limit capacity is consumed.
+type FastFinalityInboundRateLimitConsumed struct {
+	RemoteChainSelector uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`
+	Amount              *big.Int         `tlb:"## 256"`
+}
+
+// OutboundRateLimitRefunded is emitted when previously consumed outbound rate-limit capacity is refunded.
+// TON-specific: no EVM equivalent (EVM reverts synchronously).
+type OutboundRateLimitRefunded struct {
+	RemoteChainSelector uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`
+	Amount              *big.Int         `tlb:"## 256"`
+}
+
+// InboundRateLimitRefunded is emitted when previously consumed inbound rate-limit capacity is refunded.
+// TON-specific: no EVM equivalent (EVM reverts synchronously).
+type InboundRateLimitRefunded struct {
+	RemoteChainSelector uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`
+	Amount              *big.Int         `tlb:"## 256"`
+}
+
+// TokenTransferFeeConfigUpdated is emitted when a token transfer fee configuration is updated.
+type TokenTransferFeeConfigUpdated struct {
+	DestChainSelector      uint64                 `tlb:"## 64"`
+	TokenTransferFeeConfig TokenTransferFeeConfig `tlb:"^"`
+}
+
+// TokenTransferFeeConfigDeleted is emitted when a token transfer fee configuration is deleted (disabled).
+type TokenTransferFeeConfigDeleted struct {
+	DestChainSelector uint64 `tlb:"## 64"`
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	ApplyChainUpdates{},
@@ -555,18 +610,34 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	RemotePoolRemoved{},
 	RateLimitConfigured{},
 	RampAccessUpdated{},
+	OutboundRateLimitConsumed{},
+	InboundRateLimitConsumed{},
+	FastFinalityOutboundRateLimitConsumed{},
+	FastFinalityInboundRateLimitConsumed{},
+	OutboundRateLimitRefunded{},
+	InboundRateLimitRefunded{},
+	TokenTransferFeeConfigUpdated{},
+	TokenTransferFeeConfigDeleted{},
 }).MustWithStorageType(Storage{})
 
 // Opcode constants for events (CRC32 topics)
 const (
-	TopicLockedOrBurned      = "TokenPool_LockedOrBurned"
-	TopicReleasedOrMinted    = "TokenPool_ReleasedOrMinted"
-	TopicChainAdded          = "TokenPool_ChainAdded"
-	TopicChainRemoved        = "TokenPool_ChainRemoved"
-	TopicRemotePoolAdded     = "TokenPool_RemotePoolAdded"
-	TopicRemotePoolRemoved   = "TokenPool_RemotePoolRemoved"
-	TopicDynamicConfigSet    = "TokenPool_DynamicConfigSet"
-	TopicRampAccessUpdated   = "TokenPool_RampAccessUpdated"
-	TopicFinalityConfigSet   = "TokenPool_FinalityConfigSet"
-	TopicRateLimitConfigured = "TokenPool_RateLimitConfigured"
+	TopicLockedOrBurned                        = "TokenPool_LockedOrBurned"
+	TopicReleasedOrMinted                      = "TokenPool_ReleasedOrMinted"
+	TopicChainAdded                            = "TokenPool_ChainAdded"
+	TopicChainRemoved                          = "TokenPool_ChainRemoved"
+	TopicRemotePoolAdded                       = "TokenPool_RemotePoolAdded"
+	TopicRemotePoolRemoved                     = "TokenPool_RemotePoolRemoved"
+	TopicDynamicConfigSet                      = "TokenPool_DynamicConfigSet"
+	TopicRampAccessUpdated                     = "TokenPool_RampAccessUpdated"
+	TopicFinalityConfigSet                     = "TokenPool_FinalityConfigSet"
+	TopicRateLimitConfigured                   = "TokenPool_RateLimitConfigured"
+	TopicOutboundRateLimitConsumed             = "TokenPool_OutboundRateLimitConsumed"
+	TopicInboundRateLimitConsumed              = "TokenPool_InboundRateLimitConsumed"
+	TopicFastFinalityOutboundRateLimitConsumed = "TokenPool_FastFinalityOutboundRateLimitConsumed"
+	TopicFastFinalityInboundRateLimitConsumed  = "TokenPool_FastFinalityInboundRateLimitConsumed"
+	TopicOutboundRateLimitRefunded             = "TokenPool_OutboundRateLimitRefunded"
+	TopicInboundRateLimitRefunded              = "TokenPool_InboundRateLimitRefunded"
+	TopicTokenTransferFeeConfigUpdated         = "TokenPool_TokenTransferFeeConfigUpdated"
+	TopicTokenTransferFeeConfigDeleted         = "TokenPool_TokenTransferFeeConfigDeleted"
 )

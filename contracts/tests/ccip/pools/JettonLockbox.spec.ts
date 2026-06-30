@@ -16,8 +16,8 @@ import {
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { setupGenBindings } from '../../../wrappers/gen'
-import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool';
-import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool';
+import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 
 // Role constants
 const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'))
@@ -127,11 +127,11 @@ describe('JettonLockBox', () => {
       deployer.getSender(),
       toNano('0.2'),
       JettonLockBox_Init.create({
-          queryId: 100n,
-          minterAddress: jettonMinter.address,
-          walletAddress: lockboxWalletAddress,
-          admin: deployer.address,
-        }),
+        queryId: 100n,
+        minterAddress: jettonMinter.address,
+        walletAddress: lockboxWalletAddress,
+        admin: deployer.address,
+      }),
     )
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -142,15 +142,11 @@ describe('JettonLockBox', () => {
 
     // Grant OPERATOR_ROLE to operator using AccessControl client
     const acClient = blockchain.openContract(AccessControlClient.createFromAddress(lockbox.address))
-    await acClient.sendGrantRole(
-      deployer.getSender(),
-      toNano('0.1'),
-      {
-        queryId: 1n,
-        role: OPERATOR_ROLE_VALUE,
-        account: operator.address,
-      },
-    )
+    await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
+      queryId: 1n,
+      role: OPERATOR_ROLE_VALUE,
+      account: operator.address,
+    })
   })
 
   describe('initialization', () => {
@@ -195,12 +191,14 @@ describe('JettonLockBox', () => {
       const queryId = 200n
 
       // Build deposit payload in forward payload
-      const depositPayload = JettonLockBox_Deposit.toCell(JettonLockBox_Deposit.create({
-        queryId,
-        token: jettonMinter.address,
-        remoteChainSelector,
-        amount,
-      }))
+      const depositPayload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount,
+        }),
+      )
 
       // Operator transfers jettons TO lockbox via jetton wallet.
       //
@@ -249,12 +247,14 @@ describe('JettonLockBox', () => {
       const queryId = 210n
 
       // Build deposit payload with zero amount
-      const depositPayload = JettonLockBox_Deposit.toCell(JettonLockBox_Deposit.create({
-        queryId,
-        token: jettonMinter.address,
-        remoteChainSelector,
-        amount: 0n,
-      }))
+      const depositPayload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: 0n,
+        }),
+      )
 
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.2'),
@@ -296,17 +296,21 @@ describe('JettonLockBox', () => {
       })
 
       const unauthorizedWalletAddress = await jettonMinter.getWalletAddress(unauthorized.address)
-      const unauthorizedWallet = blockchain.openContract(JettonWallet.createFromAddress(unauthorizedWalletAddress))
+      const unauthorizedWallet = blockchain.openContract(
+        JettonWallet.createFromAddress(unauthorizedWalletAddress),
+      )
 
       const amount = toNano('5')
       const queryId = 220n
 
-      const depositPayload = JettonLockBox_Deposit.toCell(JettonLockBox_Deposit.create({
-        queryId,
-        token: jettonMinter.address,
-        remoteChainSelector,
-        amount,
-      }))
+      const depositPayload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount,
+        }),
+      )
 
       const result = await unauthorizedWallet.sendTransfer(unauthorized.getSender(), {
         value: toNano('0.2'),
@@ -358,12 +362,14 @@ describe('JettonLockBox', () => {
     it('should send AskToTransfer on authorized withdraw', async () => {
       // First deposit tokens into lockbox so the lockbox wallet has a balance to withdraw
       const depositAmount = toNano('100')
-      const depositPayload = JettonLockBox_Deposit.toCell(JettonLockBox_Deposit.create({
-        queryId: 1000n,
-        token: jettonMinter.address,
-        remoteChainSelector,
-        amount: depositAmount,
-      }))
+      const depositPayload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId: 1000n,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: depositAmount,
+        }),
+      )
 
       await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.3'),
@@ -379,18 +385,14 @@ describe('JettonLockBox', () => {
       })
 
       // Operator sends withdraw via internal message (simulating on-chain off-ramp caller)
-      const result = await lockbox.sendJettonLockBoxWithdraw(
-        operator.getSender(),
-        toNano('0.2'),
-        {
-          queryId: 301n,
-          token: jettonMinter.address,
-          remoteChainSelector,
-          amount: toNano('5'),
-          recipientWallet: recipient.address,
-          extra: null,
-        },
-      )
+      const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
+        queryId: 301n,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: toNano('5'),
+        recipientWallet: recipient.address,
+        extra: null,
+      })
 
       // Verify withdraw message was accepted by the lockbox
       expect(result.transactions).toHaveTransaction({
@@ -413,18 +415,14 @@ describe('JettonLockBox', () => {
     })
 
     it('should reject withdraw with zero amount', async () => {
-      const result = await lockbox.sendJettonLockBoxWithdraw(
-        operator.getSender(),
-        toNano('0.2'),
-        {
-          queryId: 302n,
-          token: jettonMinter.address,
-          remoteChainSelector,
-          amount: 0n,
-          recipientWallet: recipient.address,
-          extra: null,
-        },
-      )
+      const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
+        queryId: 302n,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: 0n,
+        recipientWallet: recipient.address,
+        extra: null,
+      })
 
       expect(result.transactions).toHaveTransaction({
         from: operator.address,
@@ -440,20 +438,18 @@ describe('JettonLockBox', () => {
       // The contract's assert(msg.recipientWallet != createAddressNone()) only rejects null,
       // not zero-hash addresses. This test documents this behavior.
       // To truly reject zero addresses, the contract needs a separate check for zero hash.
-      const zeroHashAddress = Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000')
-
-      const result = await lockbox.sendJettonLockBoxWithdraw(
-        operator.getSender(),
-        toNano('0.2'),
-        {
-          queryId: 303n,
-          token: jettonMinter.address,
-          remoteChainSelector,
-          amount: toNano('5'),
-          recipientWallet: zeroHashAddress,
-          extra: null,
-        },
+      const zeroHashAddress = Address.parse(
+        '0:0000000000000000000000000000000000000000000000000000000000000000',
       )
+
+      const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
+        queryId: 303n,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: toNano('5'),
+        recipientWallet: zeroHashAddress,
+        extra: null,
+      })
 
       // Lockbox accepts the message (zero hash ≠ null address)
       expect(result.transactions).toHaveTransaction({
@@ -475,16 +471,12 @@ describe('JettonLockBox', () => {
     it('should reject re-initialization with ContractAlreadyInitialized error', async () => {
       // Contract is already initialized in beforeEach, try to init again
       const lockboxWalletAddress = await jettonMinter.getWalletAddress(lockbox.address)
-      const result = await lockbox.sendJettonLockBoxInit(
-        deployer.getSender(),
-        toNano('1'),
-        {
-          queryId: 999n,
-          minterAddress: jettonMinter.address,
-          walletAddress: lockboxWalletAddress,
-          admin: deployer.address,
-        },
-      )
+      const result = await lockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('1'), {
+        queryId: 999n,
+        minterAddress: jettonMinter.address,
+        walletAddress: lockboxWalletAddress,
+        admin: deployer.address,
+      })
 
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -591,7 +583,7 @@ describe('JettonLockBox', () => {
 
     it('should reject unknown message opcodes', async () => {
       // Send a message with an unknown opcode via internal message
-      const unknownMsg = beginCell().storeUint(0xDEADBEEF, 32).storeUint(123n, 64).endCell()
+      const unknownMsg = beginCell().storeUint(0xdeadbeef, 32).storeUint(123n, 64).endCell()
 
       const result = await deployer.send({
         to: lockbox.address,
@@ -613,23 +605,23 @@ describe('JettonLockBox', () => {
       const newOperator = await blockchain.treasury('newOperator')
 
       // Use AccessControl client to grant role
-      const acClient = blockchain.openContract(AccessControlClient.createFromAddress(lockbox.address))
-      await acClient.sendGrantRole(
-        deployer.getSender(),
-        toNano('0.1'),
-        {
-          queryId: 2n,
-          role: OPERATOR_ROLE_VALUE,
-          account: newOperator.address,
-        },
+      const acClient = blockchain.openContract(
+        AccessControlClient.createFromAddress(lockbox.address),
       )
+      await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
+        queryId: 2n,
+        role: OPERATOR_ROLE_VALUE,
+        account: newOperator.address,
+      })
 
       const hasRole = await lockbox.getHasRole(OPERATOR_ROLE_VALUE, newOperator.address)
       expect(hasRole).toBe(true)
     })
 
     it('should reject role grant from non-admin', async () => {
-      const acClient = blockchain.openContract(AccessControlClient.createFromAddress(lockbox.address))
+      const acClient = blockchain.openContract(
+        AccessControlClient.createFromAddress(lockbox.address),
+      )
       await acClient.sendGrantRole(
         operator.getSender(), // operator is NOT admin, should fail
         toNano('0.1'),

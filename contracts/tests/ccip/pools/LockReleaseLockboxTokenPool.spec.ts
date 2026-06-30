@@ -122,12 +122,16 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     // Initialize lockbox
     const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
-    const initResult = await jettonLockBox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.2'), {
-      queryId: 1n,
-      minterAddress: jettonMinter.address,
-      walletAddress: lockboxWalletAddress,
-      admin: deployer.address,
-    })
+    const initResult = await jettonLockBox.sendJettonLockBoxInit(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 1n,
+        minterAddress: jettonMinter.address,
+        walletAddress: lockboxWalletAddress,
+        admin: deployer.address,
+      },
+    )
     expect(initResult.transactions).toHaveTransaction({
       from: deployer.address,
       to: jettonLockBox.address,
@@ -188,15 +192,11 @@ describe('LockReleaseLockboxTokenPool', () => {
     const acClient = blockchain.openContract(
       AccessControlClient.createFromAddress(jettonLockBox.address),
     )
-    const grantRoleResult = await acClient.sendGrantRole(
-      deployer.getSender(),
-      toNano('0.1'),
-      {
-        queryId: 0n,
-        role: OPERATOR_ROLE_VALUE,
-        account: lockReleaseLockboxPool.address,
-      },
-    )
+    const grantRoleResult = await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
+      queryId: 0n,
+      role: OPERATOR_ROLE_VALUE,
+      account: lockReleaseLockboxPool.address,
+    })
     expect(grantRoleResult.transactions).toHaveTransaction({
       from: deployer.address,
       to: jettonLockBox.address,
@@ -774,7 +774,6 @@ describe('LockReleaseLockboxTokenPool', () => {
       // The pool should detect this and return the jettons instead of processing.
       // This is tested by verifying that onLockOrBurnTransfer checks transferInitiator != null.
       // The TokenPool library handles this - if transferInitiator is null, it calls returnTransfer().
-
       // In the current test setup, all transfers go through JettonWallet which sets transferInitiator.
       // The onLockOrBurnTransfer hook in token_pool.tolk asserts:
       //   if (msg.transferInitiator != null) { onLockOrBurnTransferContinue(); return; }

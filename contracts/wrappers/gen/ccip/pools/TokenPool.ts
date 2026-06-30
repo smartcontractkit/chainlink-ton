@@ -2510,6 +2510,264 @@ export const TokenPool_ChainRemoved = {
 }
 
 /**
+ > struct TokenPool_OutboundRateLimitConsumed {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_OutboundRateLimitConsumed {
+    readonly $: 'TokenPool_OutboundRateLimitConsumed'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_OutboundRateLimitConsumed = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_OutboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_OutboundRateLimitConsumed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_OutboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_OutboundRateLimitConsumed',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_OutboundRateLimitConsumed, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_OutboundRateLimitConsumed): c.Cell {
+        return makeCellFrom<TokenPool_OutboundRateLimitConsumed>(self, TokenPool_OutboundRateLimitConsumed.store);
+    }
+}
+
+/**
+ > struct TokenPool_InboundRateLimitConsumed {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_InboundRateLimitConsumed {
+    readonly $: 'TokenPool_InboundRateLimitConsumed'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_InboundRateLimitConsumed = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_InboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_InboundRateLimitConsumed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_InboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_InboundRateLimitConsumed',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_InboundRateLimitConsumed, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_InboundRateLimitConsumed): c.Cell {
+        return makeCellFrom<TokenPool_InboundRateLimitConsumed>(self, TokenPool_InboundRateLimitConsumed.store);
+    }
+}
+
+/**
+ > struct TokenPool_FastFinalityOutboundRateLimitConsumed {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_FastFinalityOutboundRateLimitConsumed {
+    readonly $: 'TokenPool_FastFinalityOutboundRateLimitConsumed'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_FastFinalityOutboundRateLimitConsumed = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_FastFinalityOutboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_FastFinalityOutboundRateLimitConsumed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FastFinalityOutboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_FastFinalityOutboundRateLimitConsumed',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_FastFinalityOutboundRateLimitConsumed, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_FastFinalityOutboundRateLimitConsumed): c.Cell {
+        return makeCellFrom<TokenPool_FastFinalityOutboundRateLimitConsumed>(self, TokenPool_FastFinalityOutboundRateLimitConsumed.store);
+    }
+}
+
+/**
+ > struct TokenPool_FastFinalityInboundRateLimitConsumed {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_FastFinalityInboundRateLimitConsumed {
+    readonly $: 'TokenPool_FastFinalityInboundRateLimitConsumed'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_FastFinalityInboundRateLimitConsumed = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_FastFinalityInboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_FastFinalityInboundRateLimitConsumed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FastFinalityInboundRateLimitConsumed {
+        return {
+            $: 'TokenPool_FastFinalityInboundRateLimitConsumed',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_FastFinalityInboundRateLimitConsumed, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_FastFinalityInboundRateLimitConsumed): c.Cell {
+        return makeCellFrom<TokenPool_FastFinalityInboundRateLimitConsumed>(self, TokenPool_FastFinalityInboundRateLimitConsumed.store);
+    }
+}
+
+/**
+ > struct TokenPool_OutboundRateLimitRefunded {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_OutboundRateLimitRefunded {
+    readonly $: 'TokenPool_OutboundRateLimitRefunded'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_OutboundRateLimitRefunded = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_OutboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_OutboundRateLimitRefunded',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_OutboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_OutboundRateLimitRefunded',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_OutboundRateLimitRefunded, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_OutboundRateLimitRefunded): c.Cell {
+        return makeCellFrom<TokenPool_OutboundRateLimitRefunded>(self, TokenPool_OutboundRateLimitRefunded.store);
+    }
+}
+
+/**
+ > struct TokenPool_InboundRateLimitRefunded {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_InboundRateLimitRefunded {
+    readonly $: 'TokenPool_InboundRateLimitRefunded'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_InboundRateLimitRefunded = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_InboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_InboundRateLimitRefunded',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_InboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_InboundRateLimitRefunded',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_InboundRateLimitRefunded, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_InboundRateLimitRefunded): c.Cell {
+        return makeCellFrom<TokenPool_InboundRateLimitRefunded>(self, TokenPool_InboundRateLimitRefunded.store);
+    }
+}
+
+/**
  > struct TokenPool_TokenTransferFeeConfigUpdated {
  >     destChainSelector: uint64
  >     tokenTransferFeeConfig: Cell<TokenPool_TokenTransferFeeConfig>
