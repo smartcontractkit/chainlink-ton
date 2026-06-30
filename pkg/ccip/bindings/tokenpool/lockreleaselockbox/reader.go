@@ -1,4 +1,4 @@
-package lockrelease
+package lockreleaselockbox
 
 import (
 	"fmt"
@@ -12,7 +12,26 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-// --- Getters from lock_release/contract.tolk ---
+// --- Getters from lock_release_lockbox/contract.tolk ---
+// This variant combines lock/release semantics with a JettonLockBox.
+// It re-exports all common getters from the parent tokenpool package,
+// plus variant-specific getters.
+
+// --- Variant-specific getters ---
+
+// GetHasPendingLock checks if there is a pending lock operation for the given query ID.
+//
+// On-chain: get fun hasPendingLock(queryId: uint64): bool
+var GetHasPendingLock = tvm.Getter[uint64, bool]{
+	Name: "hasPendingLock",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return false, fmt.Errorf("error getting Int(0) - hasPendingLock: %w", err)
+		}
+		return v.Cmp(big.NewInt(0)) != 0, nil
+	}),
+}
 
 // GetHasPendingRelease checks if there is a pending release operation for the given query ID.
 //
@@ -28,11 +47,9 @@ var GetHasPendingRelease = tvm.Getter[uint64, bool]{
 	}),
 }
 
-// GetLockbox gets the lockbox address (for lock_release variant with lockbox support).
+// GetLockbox gets the JettonLockBox address used by this token pool.
 //
-// On-chain: matching EVM getLockBox() -> address
-// Note: The base lock_release contract may not expose this, but the lock_release_lockbox variant does.
-// This is provided here for consistency with the EVM LockReleaseTokenPool spec.
+// On-chain: get fun lockbox(): address
 var GetLockbox = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 	Name: "lockbox",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
@@ -49,7 +66,9 @@ var GetLockbox = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 // On-chain: get fun typeAndVersion(): (slice, slice)
 var GetTypeAndVersion = common.GetTypeAndVersion
 
-// Re-export common getters from the parent tokenpool package.
+// --- Re-export all common getters from the parent tokenpool package ---
+// These are shared across all token pool variants (burnmint, lockrelease, lockreleaselockbox).
+
 var (
 	GetOwner                   = tokenpool.GetOwner
 	GetPendingOwner            = tokenpool.GetPendingOwner

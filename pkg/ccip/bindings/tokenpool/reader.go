@@ -28,6 +28,9 @@ var GetOwner = ownable2step.GetOwner
 // GetPendingOwner gets the pending owner address (delegates to ownable2step).
 var GetPendingOwner = ownable2step.GetPendingOwner
 
+// GetTypeAndVersion gets the contract type and version (delegates to common).
+var GetTypeAndVersion = common.GetTypeAndVersion
+
 // GetToken gets the Jetton token address that this pool serves.
 //
 // On-chain: get fun token(): address
@@ -486,4 +489,66 @@ func loadCrossChainAddressFromCell(c *cell.Cell) (common.CrossChainAddress, erro
 
 	cs := c.BeginParse()
 	return common.LoadCrossChainAddressWithoutPrefix(cs)
+}
+
+// --- GetFee getters (matching EVM spec) ---
+
+// GetFeeArgs holds the arguments for the getFee getter.
+type GetFeeArgs struct {
+	LocalToken              *address.Address
+	DestChainSelector       uint64
+	Amount                  *big.Int
+	FeeToken                *address.Address
+	RequestedFinalityConfig uint32
+	TokenArgs               *cell.Cell
+}
+
+// GetFeeResult holds the result of the getFee getter.
+type GetFeeResult struct {
+	FeeUSDCents       *big.Int
+	DestGasOverhead   uint32
+	DestBytesOverhead uint32
+	TokenFeeBps       uint16
+	IsEnabled         bool
+}
+
+// GetFee gets the pool fee parameters that will apply to a transfer.
+//
+// On-chain: fun TokenPool<T>.getFee(self, _localToken: address, destChainSelector: uint64, _amount: uint256, _feeToken: address, requestedFinalityConfig: uint32, _tokenArgs: cell?): (uint256, uint32, uint32, uint16, bool)
+var GetFee = tvm.Getter[GetFeeArgs, GetFeeResult]{
+	Name: "getFee",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (GetFeeResult, error) {
+		feeUSDCents, err := r.Int(0)
+		if err != nil {
+			return GetFeeResult{}, fmt.Errorf("error getting Int(0) - feeUSDCents: %w", err)
+		}
+
+		destGasOverheadVal, err := r.Int(1)
+		if err != nil {
+			return GetFeeResult{}, fmt.Errorf("error getting Int(1) - destGasOverhead: %w", err)
+		}
+
+		destBytesOverheadVal, err := r.Int(2)
+		if err != nil {
+			return GetFeeResult{}, fmt.Errorf("error getting Int(2) - destBytesOverhead: %w", err)
+		}
+
+		tokenFeeBpsVal, err := r.Int(3)
+		if err != nil {
+			return GetFeeResult{}, fmt.Errorf("error getting Int(3) - tokenFeeBps: %w", err)
+		}
+
+		enabledVal, err := r.Int(4)
+		if err != nil {
+			return GetFeeResult{}, fmt.Errorf("error getting Int(4) - isEnabled: %w", err)
+		}
+
+		return GetFeeResult{
+			FeeUSDCents:       feeUSDCents,
+			DestGasOverhead:   uint32(destGasOverheadVal.Uint64()),
+			DestBytesOverhead: uint32(destBytesOverheadVal.Uint64()),
+			TokenFeeBps:       uint16(tokenFeeBpsVal.Uint64()),
+			IsEnabled:         enabledVal.Cmp(big.NewInt(0)) != 0,
+		}, nil
+	}),
 }
