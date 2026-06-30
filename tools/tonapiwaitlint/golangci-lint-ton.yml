@@ -1,0 +1,19 @@
+formatters:
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/smartcontractkit/chainlink-ton
+
+linters:
+  enable:
+    - tonapiwaitlint
+
+  settings:
+    custom:
+      tonapiwaitlint:
+        type: module
+        description: require WaitForBlock before selected TON API calls
+        settings:
+          methods:
+            - GetAccount
+            - RunGetMethod

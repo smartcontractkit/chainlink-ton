@@ -15,20 +15,52 @@ const (
 	tonPackagePath = "github.com/xssnick/tonutils-go/ton"
 )
 
-type tonAPIWaitLintSettings struct {
+// All ton.APIClientWrapped methods that receive a BlockIDExt or seqno and call QueryLiteserver.
+// QueryLiteserver is overwriten by WaiterClient to wait for the block to be applied before calling QueryLiteserver.
+var methods []string = []string{
+	// from tonutils.go/ton/block.go
+	"LookupBlock",
+	"GetBlockHeader",
+	"GetBlockData", // Calls GetBlockDataAsCell
+	"GetBlockTransactionsV2",
+	"GetBlockShardsInfo",
+	"GetBlockProof",
+
+	// from tonutils.go/ton/getconfig.go
+	"GetBlockchainConfig",
+
+	// from tonutils.go/ton/getstate.go
+	"GetAccount",
+
+	// from tonutils.go/ton/liteserver_queue.go
+	"GetBlockOutMsgQueueSize",
+	"GetDispatchQueueInfo",
+	"GetDispatchQueueMessages",
+
+	// from tonutils.go/ton/runmethod.go
+	"RunGetMethod",
+
+	// from tonutils.go/ton/transactions.go
+	"GetTransaction",
+
+	// from tonutils.go/ton/proof.go
+	"VerifyProofChain", // Calls "GetBlockProof"
+}
+
+type settings struct {
 	Methods []string `json:"methods"`
 }
 
-type tonAPIWaitLintPlugin struct {
+type plugin struct {
 	methods map[string]bool
 }
 
 func init() {
-	register.Plugin(linterName, newTonAPIWaitLintPlugin)
+	register.Plugin(linterName, newPlugin)
 }
 
-func newTonAPIWaitLintPlugin(rawSettings any) (register.LinterPlugin, error) {
-	cfg := tonAPIWaitLintSettings{Methods: []string{"GetAccount", "RunGetMethod"}}
+func newPlugin(rawSettings any) (register.LinterPlugin, error) {
+	cfg := settings{Methods: methods}
 	if rawSettings != nil {
 		payload, err := json.Marshal(rawSettings)
 		if err != nil {
@@ -46,10 +78,10 @@ func newTonAPIWaitLintPlugin(rawSettings any) (register.LinterPlugin, error) {
 		}
 	}
 
-	return &tonAPIWaitLintPlugin{methods: methods}, nil
+	return &plugin{methods: methods}, nil
 }
 
-func (p *tonAPIWaitLintPlugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
+func (p *plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	return []*analysis.Analyzer{{
 		Name: linterName,
 		Doc:  "checks that selected ton.APIClientWrapped methods are called through WaitForBlock",
@@ -57,11 +89,11 @@ func (p *tonAPIWaitLintPlugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	}}, nil
 }
 
-func (p *tonAPIWaitLintPlugin) GetLoadMode() string {
+func (p *plugin) GetLoadMode() string {
 	return register.LoadModeTypesInfo
 }
 
-func (p *tonAPIWaitLintPlugin) run(pass *analysis.Pass) (any, error) {
+func (p *plugin) run(pass *analysis.Pass) (any, error) {
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(node ast.Node) bool {
 			fn, ok := node.(*ast.FuncDecl)
@@ -111,7 +143,7 @@ func recordWaiterAssignments(pass *analysis.Pass, waiterVars map[types.Object]bo
 	}
 }
 
-func (p *tonAPIWaitLintPlugin) isFlaggedAPICall(pass *analysis.Pass, call *ast.CallExpr) bool {
+func (p *plugin) isFlaggedAPICall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || !p.methods[selector.Sel.Name] {
 		return false
