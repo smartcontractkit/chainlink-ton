@@ -59,18 +59,24 @@ const (
 )
 
 type Storage struct {
-	ID            uint32               `tlb:"## 32"`
-	Ownable       ownable2step.Storage `tlb:"."`
-	WrappedNative *address.Address     `tlb:"addr"`
-	OnRamps       *cell.Dictionary     `tlb:"dict 64"`
-	OffRamps      *cell.Dictionary     `tlb:"dict 64"`
-	RMNRemote     RMNRemote            `tlb:"^"`
+	ID                      uint32                  `tlb:"## 32"`
+	Ownable                 ownable2step.Storage    `tlb:"."`
+	WrappedNative           *address.Address        `tlb:"addr"`
+	OnRamps                 *cell.Dictionary        `tlb:"dict 64"`
+	OffRamps                *cell.Dictionary        `tlb:"dict 64"`
+	RMNRemote               RMNRemote               `tlb:"^"`
+	TokenRegistryDeployment TokenRegistryDeployment `tlb:"^"`
 }
 
 type RMNRemote struct {
 	Admin          ownable2step.Storage `tlb:"."`
 	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
+}
+
+type TokenRegistryDeployment struct {
+	DeployableCode    *cell.Cell `tlb:"^"`
+	TokenRegistryCode *cell.Cell `tlb:"^"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakedCell encoding.
