@@ -33,7 +33,7 @@ struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata;
-    // TODO: consider introducing OnRamp_SendV2 instead of mutating OnRamp_Send if this layout must remain wire-compatible.
+    // TODO: consider introducing OnRamp_SendV2 instead of mutating OnRamp_Send to maintain backwards compatibility on the OnRamp upgrade path.
     tokenRegistry: address?;
 }
 
