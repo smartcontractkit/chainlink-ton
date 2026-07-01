@@ -58,7 +58,7 @@ func (s *Service) GetBlockData(ctx context.Context, block *tontypes.BlockIDExt) 
 		SeqNo:     block.SeqNo,
 	}
 
-	blockData, err := client.GetBlockData(ctx, blockIDExt)
+	blockData, err := client.WaitForBlock(blockIDExt.SeqNo).GetBlockData(ctx, blockIDExt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block data for chain ID %s: %w", s.chain.ID(), err)
 	}

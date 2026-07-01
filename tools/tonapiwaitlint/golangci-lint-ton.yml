@@ -13,7 +13,3 @@ linters:
       tonapiwaitlint:
         type: module
         description: require WaitForBlock before selected TON API calls
-        settings:
-          methods:
-            - GetAccount
-            - RunGetMethod

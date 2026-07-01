@@ -384,7 +384,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 		// set starting point to verify master block proofs chain
 		client.SetTrustedBlock(blockID)
 
-		block, err := client.GetBlockData(ctx, blockID)
+		block, err := client.WaitForBlock(blockID.SeqNo).GetBlockData(ctx, blockID)
 		if err != nil {
 			lastErr = err
 			c.evictClient(i, *node.Name, "GetBlockData failed")

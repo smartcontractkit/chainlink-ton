@@ -15,9 +15,9 @@ const (
 	tonPackagePath = "github.com/xssnick/tonutils-go/ton"
 )
 
-// All ton.APIClientWrapped methods that receive a BlockIDExt or seqno and call QueryLiteserver.
-// QueryLiteserver is overwriten by WaiterClient to wait for the block to be applied before calling QueryLiteserver.
-var methods = []string{
+// All ton.APIClientWrapped defaultMethods that receive a BlockIDExt or seqno and call QueryLiteserver.
+// QueryLiteserver is overwritten by WaiterClient to wait for the block to be applied before calling QueryLiteserver.
+var defaultMethods = []string{
 	// from tonutils.go/ton/block.go
 	"LookupBlock",
 	"GetBlockHeader",
@@ -60,7 +60,7 @@ func init() {
 }
 
 func newPlugin(rawSettings any) (register.LinterPlugin, error) {
-	cfg := settings{Methods: methods}
+	cfg := settings{Methods: defaultMethods}
 	if rawSettings != nil {
 		payload, err := json.Marshal(rawSettings)
 		if err != nil {

@@ -37,7 +37,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 		return nil, fmt.Errorf("failed to parse OffRamp Config: %w", err)
 	}
 
-	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, latestPriceSequenceNumberGetter)
+	result, err := c.Client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, offRampAddr, latestPriceSequenceNumberGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %w", err)
 	}
