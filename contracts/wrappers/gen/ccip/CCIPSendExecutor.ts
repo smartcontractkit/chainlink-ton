@@ -547,86 +547,6 @@ export const CCIPSendExecutor_Config = {
 }
 
 /**
- > struct CCIPSendExecutor_ConfigV2 {
- >     feeQuoter: address
- >     tokenRegistry: address?
- > }
- */
-export interface CCIPSendExecutor_ConfigV2 {
-    readonly $: 'CCIPSendExecutor_ConfigV2'
-    feeQuoter: c.Address
-    tokenRegistry: c.Address | null
-}
-
-export const CCIPSendExecutor_ConfigV2 = {
-    create(args: {
-        feeQuoter: c.Address
-        tokenRegistry: c.Address | null
-    }): CCIPSendExecutor_ConfigV2 {
-        return {
-            $: 'CCIPSendExecutor_ConfigV2',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CCIPSendExecutor_ConfigV2 {
-        return {
-            $: 'CCIPSendExecutor_ConfigV2',
-            feeQuoter: s.loadAddress(),
-            tokenRegistry: s.loadMaybeAddress(),
-        }
-    },
-    store(self: CCIPSendExecutor_ConfigV2, b: c.Builder): void {
-        b.storeAddress(self.feeQuoter);
-        b.storeAddress(self.tokenRegistry);
-    },
-    toCell(self: CCIPSendExecutor_ConfigV2): c.Cell {
-        return makeCellFrom<CCIPSendExecutor_ConfigV2>(self, CCIPSendExecutor_ConfigV2.store);
-    }
-}
-
-/**
- > struct (0x09bbeb9e) CCIPSendExecutor_ExecuteV2 {
- >     onrampSend: OnRamp_Send
- >     config: Cell<CCIPSendExecutor_ConfigV2>
- > }
- */
-export interface CCIPSendExecutor_ExecuteV2 {
-    readonly $: 'CCIPSendExecutor_ExecuteV2'
-    onrampSend: OnRamp_Send
-    config: CellRef<CCIPSendExecutor_ConfigV2>
-}
-
-export const CCIPSendExecutor_ExecuteV2 = {
-    PREFIX: 0x09bbeb9e,
-
-    create(args: {
-        onrampSend: OnRamp_Send
-        config: CellRef<CCIPSendExecutor_ConfigV2>
-    }): CCIPSendExecutor_ExecuteV2 {
-        return {
-            $: 'CCIPSendExecutor_ExecuteV2',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CCIPSendExecutor_ExecuteV2 {
-        loadAndCheckPrefix32(s, 0x09bbeb9e, 'CCIPSendExecutor_ExecuteV2');
-        return {
-            $: 'CCIPSendExecutor_ExecuteV2',
-            onrampSend: OnRamp_Send.fromSlice(s),
-            config: loadCellRef<CCIPSendExecutor_ConfigV2>(s, CCIPSendExecutor_ConfigV2.fromSlice),
-        }
-    },
-    store(self: CCIPSendExecutor_ExecuteV2, b: c.Builder): void {
-        b.storeUint(0x09bbeb9e, 32);
-        OnRamp_Send.store(self.onrampSend, b);
-        storeCellRef<CCIPSendExecutor_ConfigV2>(self.config, b, CCIPSendExecutor_ConfigV2.store);
-    },
-    toCell(self: CCIPSendExecutor_ExecuteV2): c.Cell {
-        return makeCellFrom<CCIPSendExecutor_ExecuteV2>(self, CCIPSendExecutor_ExecuteV2.store);
-    }
-}
-
-/**
  > struct (0xaf3c62b3) CCIPSendExecutor_Execute {
  >     onrampSend: OnRamp_Send
  >     config: Cell<CCIPSendExecutor_Config>
@@ -756,12 +676,14 @@ export const FeeQuoter_MessageValidationFailed = {
  > struct (0xdcf993c2) OnRamp_Send {
  >     msg: Cell<Router_CCIPSend>
  >     metadata: Metadata
+ >     tokenRegistry: address?
  > }
  */
 export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: CellRef<Router_CCIPSend>
     metadata: Metadata
+    tokenRegistry: c.Address | null
 }
 
 export const OnRamp_Send = {
@@ -770,6 +692,7 @@ export const OnRamp_Send = {
     create(args: {
         msg: CellRef<Router_CCIPSend>
         metadata: Metadata
+        tokenRegistry: c.Address | null
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
@@ -782,12 +705,14 @@ export const OnRamp_Send = {
             $: 'OnRamp_Send',
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
+            tokenRegistry: s.loadMaybeAddress(),
         }
     },
     store(self: OnRamp_Send, b: c.Builder): void {
         b.storeUint(0xdcf993c2, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
+        b.storeAddress(self.tokenRegistry);
     },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
@@ -1464,7 +1389,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECIAEAB54AART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgcHQRdPiRjo/THzHXLCOkt/q0MeMC8j/gINcsIE3fXPTjAtcsJXnjFZzjAtcsIP0wG6SAGBwgJA/MWybQ1ywhi7RsrPK/0z8x0z8x0wchwUHyhQGqAtcYMdQx1PpQMdQx0YIJMS0AggnZBcCCEAVdSoCCEATjOICCC8FNwLYJoKCgI6AmvOMC0McA4wIj0PpIMfpIMfpQ0cjPhYj6UoIQ3V1RJ88LjsmAQPsAyFj6AstfyYBgZGgL87UTQ09/XLCbnzJ4U8r/U+kj6ANTXLAiAlDCBAIeOL9csCYCUMIEAiI4j1ywKgJQwgQCJjhfXLAuAlDCBAIqc1ywMgDGS8j/hgQCL4uLi4oFFiIEAiFi68vSIVHVDU1QEyMvfz5Nz5k8KE8z6UgH6AszPhkDMye1U0PpI+kgxGwoB/jHXLCbnzJ4U8r/U+kj6ANdM0PpI+lDR7UTQ+kjXC98ByPpSE/pS+lTJgUWJ+JL4KMcF8vSBRYv4l4IQBV1KgIIQBOM4gIILwU3AtgmgvvL0IND6SDH6SPpQMdGCEAQc20CLCMjPkdJb/VoozxTOycjPhYgT+lIB+gJxzwtqzMkLAf4x1ywm58yeFPK/1PpI+gDXTND6SNHtRND6SNcL320CyPpSE/pS+lTJgUWJ+JL4KMcF8vSBRYv4l4IQBV1KgIIQBOM4gIILwU3AtgmgvvL0IND6SDH6SPpQMdGCEAQc20CLCMjPkdJb/VoozxTOycjPhYgT+lIB+gJxzwtqzMlxDAQ44wLXLCXnhVh84wLXLCbuZu2s4wLXLCJjgCvMMQ0ODxAAWvpQMdHIz5MQGjiGFcvfgUWMzwv/E8z6UgH6AsnIz4WIEvpScc8LbszJgwb7AAFMcfsAiFRyVCY2NjY2BcjL38+Tc+ZPChTMEvpSAfoCzM+EwMzJ7VQbAUr7AIhUclQmNjY2NgXIy9/Pk3PmTwoUzBL6UgH6AszPhMDMye1UGwH+Me1E0NPf1ywm58yeFPK/1PpI+gDU1ywIgJXXTIEAh44z1ywJgJXXTIEAiI4m1ywKgJXXTIEAiY4Z1ywLgJXXTIEAip3XLAyAkvI/4ddMgQCL4uLi4oFFiIEAiFi68vSBRYki0PpIMfpI+lAx0fiSxwXy9Ab6ANNf1BCJEHgQZxED/jHtRNDT39csJufMnhTyv9T6SPoA1NcsCICUMIEAh44v1ywJgJQwgQCIjiPXLAqAlDCBAImOF9csC4CUMIEAipzXLAyAMZLyP+GBAIvi4uLigUWIgQCIWLry9IFFiSHQ+kgx+kj6UDHR+JLHBfL0BdcL/4hUdUNTWQTIy9+JzxYbEhMB/jHtRNDT39csJufMnhTyv9T6SPoA1NcsCICV10yBAIeOM9csCYCV10yBAIiOJtcsCoCV10yBAImOGdcsC4CV10yBAIqd1ywMgJLyP+HXTIEAi+Li4uKBRYiBAIlYuvL0gUWJItD6SDH6SDH6UNH4kscF8vQG+kgx+lAwgUWNIW4UARLjAoQPAccA8vQWABAQVhBF8AFfBgAI3PmTwgCYE8z6UgH6AszPhkDMye1UJdA2BfpI+kgx+lAx0cjPkxAaOIYlzwvfNVBUy/8izxQyUgL6UjEi+gJsEsnIz4WIEvpScc8LbszJgwb7AAH+s/L0JNDXLCGLtGys8r/TPzHTP9MHIcFB8oUBqgLXGDHUMddM0CDXSwGRMJuBNLwBwAHy9NdM0OL6APpIMCTQ+kgwyM+Sb4fthlAD+gL6UlIw+lISyz8nzwvfycjPhYgS+lJxzwtuzMmAQPsAJtA3BvoA01/RB8j6UgH6AhbLXxUASMlUdDIoBTY2NjYFyMvfz5Nz5k8KFMwS+lIB+gLMz4XAzMntVAH+MO1E0NPf1ywm58yeFPK/1PpI+gDU1ywIgJXXTIEAh44z1ywJgJXXTIEAiI4m1ywKgJXXTIEAiY4Z1ywLgJXXTIEAip3XLAyAkvI/4ddMgQCL4uLi4oFFiIEAili68vSBRYkh0PpI+gAx018x0fiSxwXy9PgAINAx+kgx+gDTXxcBvNGIVHdlU3YEyMvfz5Nz5k8KE8z6UgH6AszPhkDMye1UItAzAvpI+kgx+lAx0cjPkz6azNonzwvfN1Bm+gLLXyPPFDNSE/pSMSH6AjHJyM+FiBL6UnHPC27MyYMG+wAbAbJfA4hUdlRTZQTIy9/Pk3PmTwoTzPpSAfoCzM+GQMzJ7VQh0PpI+kgx+lAx0cjPkxAaOIYnzwvfgUWKzwv/Js8UUlD6UiT6AsnIz4WIEvpScc8LbszJgwb7ABsBsvgAiFR4dlOHBMjL38+Tc+ZPChPM+lIB+gLMz4ZAzMntVCPQ+kj6SDH6UDHRyM+TPprM2inPC99QA/oCy18mzxRSUPpSJPoCycjPhYgS+lJxzwtuzMmDBvsAGwA8VHZUU2UEyMvfz5Nz5k8KE8z6UgH6AszPhUDMye1UAAACASAeHwALuGhYEAsoAGG2K/GhI2NLc1lzG0MLS3Fzo3txcxsbS4FyGhpKgpsrcyIrwysbq6N7lBFqYlxsXGMQABm1xRAosRQEEIH3flCQ');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -1515,13 +1440,6 @@ export class CCIPSendExecutor implements c.Contract {
         config: CellRef<CCIPSendExecutor_Config>
     }) {
         return CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body));
-    }
-
-    static createCellOfCCIPSendExecutorExecuteV2(body: {
-        onrampSend: OnRamp_Send
-        config: CellRef<CCIPSendExecutor_ConfigV2>
-    }) {
-        return CCIPSendExecutor_ExecuteV2.toCell(CCIPSendExecutor_ExecuteV2.create(body));
     }
 
     static createCellOfFeeQuoterMessageValidatedRemainingBitsAndRefs_(body: {
@@ -1577,17 +1495,6 @@ export class CCIPSendExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendCCIPSendExecutorExecuteV2(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        onrampSend: OnRamp_Send
-        config: CellRef<CCIPSendExecutor_ConfigV2>
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: CCIPSendExecutor_ExecuteV2.toCell(CCIPSendExecutor_ExecuteV2.create(body)),
             ...extraOptions
         });
     }

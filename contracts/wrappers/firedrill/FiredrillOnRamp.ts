@@ -9,7 +9,6 @@ import {
   SendMode,
   Dictionary,
 } from '@ton/core'
-import * as or from '../ccip/OnRamp'
 
 export type FiredrillOnRampStorage = {
   id: bigint
@@ -21,6 +20,13 @@ export type FiredrillOnRampStorage = {
 export type EmitCCIPMessageSent = {
   sender: Address
   sequenceNumber: bigint
+}
+
+export type DynamicConfig = {
+  feeQuoter: Address
+  feeAggregator: Address
+  allowlistAdmin: Address
+  reserve: bigint
 }
 
 export type DestChainConfig = {
@@ -92,13 +98,12 @@ export class FiredrillOnRamp implements Contract {
     return result.stack.readBigNumber()
   }
 
-  async getDynamicConfig(provider: ContractProvider): Promise<or.DynamicConfig> {
+  async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
     const result = await provider.get('dynamicConfig', [])
     return {
-      addresses: or.builder.data.addresses.load(result.stack.readCell().beginParse()),
-      tokenRegistryDeployment: or.builder.data.tokenRegistryDeployment.load(
-        result.stack.readCell().beginParse(),
-      ),
+      feeQuoter: result.stack.readAddress(),
+      feeAggregator: result.stack.readAddress(),
+      allowlistAdmin: result.stack.readAddress(),
       reserve: result.stack.readBigNumber(),
     }
   }

@@ -115,8 +115,6 @@ class StackReader {
 
 type coins = bigint
 
-type uint32 = bigint
-
 /**
  > struct (0xdd5d5127) TokenRegistry_GetTokenInfo {
  > }
@@ -228,20 +226,20 @@ export const TokenRegistry_ReturnTokenInfo = {
 
 /**
  > struct TokenRegistry_Storage {
- >     id: uint32
- >     info: TokenRegistry_TokenInfo
+ >     tokenAddress: address
+ >     tokenInfo: TokenRegistry_TokenInfo
  > }
  */
 export interface TokenRegistry_Storage {
     readonly $: 'TokenRegistry_Storage'
-    id: uint32
-    info: TokenRegistry_TokenInfo
+    tokenAddress: c.Address
+    tokenInfo: TokenRegistry_TokenInfo
 }
 
 export const TokenRegistry_Storage = {
     create(args: {
-        id: uint32
-        info: TokenRegistry_TokenInfo
+        tokenAddress: c.Address
+        tokenInfo: TokenRegistry_TokenInfo
     }): TokenRegistry_Storage {
         return {
             $: 'TokenRegistry_Storage',
@@ -251,13 +249,13 @@ export const TokenRegistry_Storage = {
     fromSlice(s: c.Slice): TokenRegistry_Storage {
         return {
             $: 'TokenRegistry_Storage',
-            id: s.loadUintBig(32),
-            info: TokenRegistry_TokenInfo.fromSlice(s),
+            tokenAddress: s.loadAddress(),
+            tokenInfo: TokenRegistry_TokenInfo.fromSlice(s),
         }
     },
     store(self: TokenRegistry_Storage, b: c.Builder): void {
-        b.storeUint(self.id, 32);
-        TokenRegistry_TokenInfo.store(self.info, b);
+        b.storeAddress(self.tokenAddress);
+        TokenRegistry_TokenInfo.store(self.tokenInfo, b);
     },
     toCell(self: TokenRegistry_Storage): c.Cell {
         return makeCellFrom<TokenRegistry_Storage>(self, TokenRegistry_Storage.store);
@@ -346,7 +344,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAiQABFP8A9KQT9LzyyAsBAPTT+JHyQCDXLCbq6ok8jjRb+JLtRNDTHzH6SPpI0gDRbQGRMJEy4sjPk3czdtb6UvpUycjPhQgS+lJxzwtuzMmAQPsA4NcsJpIcPSSOJDH6SPpI1woA7UTQ0x/6SDH6SDHSADHRyMsfE/pS+lLKAMntVOAwhA8BxwDy9A==');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAiQABFP8A9KQT9LzyyAsBAPTT+JHyQCDXLCbq6ok8jjRb+JLtRND6SDH6SPpI0gDRbQGRMJEy4sjPk3czdtb6UvpUycjPhQgS+lJxzwtuzMmAQPsA4NcsJpIcPSSOJDH6SPpI1woA7UTQ+kj6SDH6SDHSADHRyPpSE/pS+lLKAMntVOAwhA8BxwDy9A==');
 
     static Errors = {
     }
@@ -364,8 +362,8 @@ export class TokenRegistry implements c.Contract {
     }
 
     static fromStorage(emptyStorage: {
-        id: uint32
-        info: TokenRegistry_TokenInfo
+        tokenAddress: c.Address
+        tokenInfo: TokenRegistry_TokenInfo
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenRegistry.CodeCell,

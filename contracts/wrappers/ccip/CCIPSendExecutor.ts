@@ -82,23 +82,10 @@ export type Finalized = {
   kind: 'finalized'
 }
 
-export type ConfigV2 = {
-  feeQuoter: Address
-  // Null when the send carries no token transfers.
-  tokenRegistry?: Address | null
-}
-
-//TODO deprecate with Token Transfers
 export type Config = {
   feeQuoter: Address
 }
 
-export type ExecuteV2 = {
-  onrampSend: or.OnRampSend
-  config: ConfigV2
-}
-
-// TODO deprecate with Token Transfers
 export type Execute = {
   onrampSend: or.OnRampSend
   config: Config
@@ -200,20 +187,6 @@ export const builder = (() => {
       },
     }
 
-    const configV2: CellCodec<ConfigV2> = {
-      encode: (data: ConfigV2): Builder => {
-        return beginCell()
-          .storeAddress(data.feeQuoter)
-          .storeAddress(data.tokenRegistry ?? null)
-      },
-      load: (src: Slice): ConfigV2 => {
-        return {
-          feeQuoter: src.loadAddress(),
-          tokenRegistry: src.loadMaybeAddress(),
-        }
-      },
-    }
-
     const contractData: CellCodec<Data> = {
       encode: (data: Data): Builder => {
         let stateBuilder = beginCell()
@@ -238,13 +211,11 @@ export const builder = (() => {
       contractData,
       state,
       config,
-      configV2,
     }
   })()
 
   const message = {
     in: (() => {
-      //TODO deprecate when token transfers are avaliable
       const execute: CellCodec<Execute> = {
         encode: (data: Execute): Builder => {
           return beginCell()
@@ -260,25 +231,9 @@ export const builder = (() => {
           }
         },
       }
-      const executeV2: CellCodec<ExecuteV2> = {
-        encode: (data: ExecuteV2): Builder => {
-          return beginCell()
-            .storeUint(opcodes.in.executeV2, 32)
-            .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
-            .storeRef(dataBuilder.configV2.encode(data.config).asCell())
-        },
-        load: (src: Slice): ExecuteV2 => {
-          src.skip(32) // opcode
-          return {
-            onrampSend: or.builder.messages.in.onrampSend.load(src),
-            config: dataBuilder.configV2.load(src.loadRef().beginParse()),
-          }
-        },
-      }
 
       return {
         execute,
-        executeV2,
         messageValidated: fq.builder.message.out.messageValidated,
         messageValidationFailed: fq.builder.message.out.messageValidationFailed,
       }
@@ -295,7 +250,6 @@ export abstract class Params {}
 export const opcodes = {
   in: {
     execute: 0xaf3c62b3,
-    executeV2: 0x09bbeb9e,
     messageValidated: fq.opcodes.out.messageValidated,
     messageValidationFailed: fq.opcodes.out.messageValidationFailed,
     tokenRegistryReturnTokenInfo: 0xddccddb5,
@@ -332,18 +286,6 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
-    })
-  }
-
-  async sendExecuteV2(
-    provider: ContractProvider,
-    via: Sender,
-    value: bigint | string,
-    body: ExecuteV2,
-  ) {
-    return provider.internal(via, {
-      value,
-      body: builder.message.in.executeV2.encode(body).asCell(),
     })
   }
 

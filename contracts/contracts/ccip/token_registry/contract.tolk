@@ -35,22 +35,22 @@ fun onInternalMessage(in: InMessage) {
 fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
     //TODO access control
     var st = TokenRegistry_Storage.load();
-    st.info = msg.info;
+    st.tokenInfo = msg.info;
     st.store();
 }
 
 fun onGetTokenInfo(msg: TokenRegistry_GetTokenInfo, sender: address) {
     val st = TokenRegistry_Storage.load();
     var tokenPool: address? = null;
-    if (st.info.enabled) {
-        tokenPool = st.info.tokenPool;
+    if (st.tokenInfo.enabled) {
+        tokenPool = st.tokenInfo.tokenPool;
     }
     val response = createMessage({
         dest: sender,
         value: 0,
         bounce: false,
         body: TokenRegistry_ReturnTokenInfo {
-            minterAddress: st.info.minterAddress,
+            minterAddress: st.tokenInfo.minterAddress,
             tokenPool,
         }
     });

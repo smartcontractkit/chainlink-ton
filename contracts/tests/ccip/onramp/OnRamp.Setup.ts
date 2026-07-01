@@ -9,7 +9,6 @@ type OnRampOverrides = Partial<Omit<or.OnRampStorage, 'config' | 'executor' | 'o
   config?: Partial<or.OnRampStorage['config']>
   executor?: Partial<or.OnRampStorage['executor']>
   ownable?: Partial<or.OnRampStorage['ownable']>
-  addresses?: Partial<or.OnRampStorage['config']['addresses']>
 }
 
 export const CHAINSEL_EVM_TEST = 909606746561742123n
@@ -43,14 +42,9 @@ export async function deployOnRampContractW(
     },
     chainSelector: CHAINSEL_TON,
     config: {
-      addresses: {
-        feeQuoter: randomAddress(),
-        feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
-        allowlistAdmin: owner.address,
-      },
-      tokenRegistryDeployment: {
-        tokenRegistry: randomAddress(),
-      },
+      feeQuoter: randomAddress(),
+      feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
+      allowlistAdmin: owner.address,
       reserve: toNano('0.05'),
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
@@ -72,13 +66,7 @@ export async function deployOnRampContractW(
       ...defaults.ownable,
       ...(opt.overrides?.ownable ?? {}),
     },
-    config: {
-      ...defaults.config,
-      addresses: {
-        ...defaults.config.addresses,
-        ...(opt.overrides?.addresses ?? {}),
-      },
-    },
+    config,
     executor: {
       ...defaults.executor,
       ...(opt.overrides?.executor ?? {}),

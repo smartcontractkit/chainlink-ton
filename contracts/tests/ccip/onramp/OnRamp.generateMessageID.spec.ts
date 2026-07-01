@@ -61,7 +61,7 @@ describe('OnRamp - generate message id', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
     ;({ deployer, onramp } = await setup(blockchain, {
-      addresses: {
+      config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
       executor: {

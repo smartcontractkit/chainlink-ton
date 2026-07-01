@@ -56,6 +56,12 @@ export type Storage = {
   wrappedNative: Address
   onRamps: Dictionary<bigint, Address>
   offRamps: Dictionary<bigint, Address>
+  tokenRegistryDeployment: TokenRegistryDeployment
+}
+
+export type TokenRegistryDeployment = {
+  deployableCode: Cell
+  tokenRegistryCode: Cell
 }
 
 export abstract class Params {}
@@ -74,6 +80,7 @@ export const opcodes = {
     getValidatedFee: 0x4dd6aa82,
     lockOrBurn: 0x6f2d00df,
     rmnOwnableMessage: 0xaf7a9ac6,
+    tokenRegistrySetTokenInfo: 0xfed7cfba,
   },
   out: {
     messageValidated: 0x9e2155ec,
@@ -318,6 +325,30 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.messageRejected.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendTokenRegistrySetTokenInfo(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      body: {
+        tokenAddress: Address
+        tokenInfo: Cell
+        isNewEntry: boolean
+      }
+    },
+  ) {
+    return provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(opcodes.in.tokenRegistrySetTokenInfo, 32)
+        .storeAddress(opts.body.tokenAddress)
+        .storeSlice(opts.body.tokenInfo.beginParse())
+        .storeBit(opts.body.isNewEntry)
+        .endCell(),
     })
   }
 
@@ -652,16 +683,26 @@ export const builder = (() => {
               .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128)))
               .storeDict(Dictionary.empty(Dictionary.Keys.Address())),
           )
+          .storeRef(
+            beginCell()
+              .storeRef(config.tokenRegistryDeployment.deployableCode)
+              .storeRef(config.tokenRegistryDeployment.tokenRegistryCode)
+              .endCell(),
+          )
       },
 
       load: (src: Slice): Storage => {
+        const tokenRegistryDeployment = src.loadRef().beginParse()
         return {
           id: src.loadUintBig(32),
-          ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
+          ownable: ownable2step.builder.data.traitData.load(src),
           wrappedNative: src.loadAddress(),
-          onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
-          offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
-          // TODO: rmnRemote loading
+          onRamps: src.loadDict(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+          offRamps: src.loadDict(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+          tokenRegistryDeployment: {
+            deployableCode: tokenRegistryDeployment.loadRef(),
+            tokenRegistryCode: tokenRegistryDeployment.loadRef(),
+          },
         }
       },
     }

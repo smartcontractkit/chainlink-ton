@@ -103,8 +103,6 @@ type Storage struct {
 	Config           DynamicConfig        `tlb:"^"`
 	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
 	Executor         ExecutorDeployment   `tlb:"."`
-	//TODO: Remove when TokenRegistry is sharded
-	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 type ExecutorDeployment struct {
@@ -144,9 +142,10 @@ type WithdrawFeeTokens struct {
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_        tlb.Magic  `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
-	Metadata Metadata   `tlb:"."`                  // Cell containing metadata
+	_             tlb.Magic        `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg           *cell.Cell       `tlb:"^"`                  // Cell containing the CCIPSend message
+	Metadata      Metadata         `tlb:"."`                  // Cell containing metadata
+	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 type Metadata struct {
@@ -218,19 +217,10 @@ func (c *DestChainConfig) GetterMethodName() string {
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type DynamicConfig struct {
-	Addresses               Addresses               `tlb:"^"`
-	TokenRegistryDeployment TokenRegistryDeployment `tlb:"^"`
-	Reserve                 tlb.Coins               `tlb:"."`
-}
-
-type Addresses struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
 	FeeAggregator  *address.Address `tlb:"addr"`
 	AllowListAdmin *address.Address `tlb:"addr"`
-}
-
-type TokenRegistryDeployment struct {
-	TokenRegistry *address.Address `tlb:"addr"`
+	Reserve        tlb.Coins        `tlb:"."`
 }
 
 // Deprecated: Use GetDynamicConfig getter instead.
