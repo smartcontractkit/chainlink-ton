@@ -20,7 +20,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 

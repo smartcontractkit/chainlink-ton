@@ -16,10 +16,10 @@ import (
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -28,7 +28,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
 
 	"github.com/smartcontractkit/mcms/types"
 )

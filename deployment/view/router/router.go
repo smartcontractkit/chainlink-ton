@@ -9,9 +9,9 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	routerview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 type View struct {

@@ -23,7 +23,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"

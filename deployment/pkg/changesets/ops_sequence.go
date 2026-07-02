@@ -12,7 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"

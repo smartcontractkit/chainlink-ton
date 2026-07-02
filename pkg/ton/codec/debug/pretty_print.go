@@ -27,7 +27,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/tree"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	tt "github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 type TypeAndVersion struct {

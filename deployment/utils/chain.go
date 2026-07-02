@@ -20,7 +20,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 const defaultFundAmountTON = "1000"

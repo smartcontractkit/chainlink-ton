@@ -14,10 +14,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 

@@ -18,7 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops

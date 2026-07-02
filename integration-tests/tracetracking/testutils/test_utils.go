@@ -16,7 +16,7 @@ import (
 
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // SetUpTest creates a TON chain using CLDF and sets up funded test accounts

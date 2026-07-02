@@ -20,7 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/relay/monitor"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 func TestBalanceMonitor_DirectClient(t *testing.T) {

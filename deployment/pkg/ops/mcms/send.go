@@ -15,7 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 type Messages struct {

@@ -8,11 +8,11 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // OCR3Config represents the OCR3 configuration stored on-chain

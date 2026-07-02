@@ -26,7 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // storeConfig defines how to create LogStore and FilterStore for parameterized testing.

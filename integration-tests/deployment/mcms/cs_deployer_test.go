@@ -24,9 +24,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
-	toncommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	toncommon "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	cs "github.com/smartcontractkit/chainlink-ton/deployment/pkg/changesets"

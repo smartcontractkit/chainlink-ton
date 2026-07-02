@@ -28,7 +28,7 @@ import (
 	jetton_testing_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/test/examples/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 

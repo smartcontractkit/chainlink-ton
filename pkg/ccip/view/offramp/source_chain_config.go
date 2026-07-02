@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // SourceChainConfigMap represents a map of source chain selectors to their configurations.

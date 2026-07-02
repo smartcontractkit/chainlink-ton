@@ -18,7 +18,7 @@ import (
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 )
 
 func init() {

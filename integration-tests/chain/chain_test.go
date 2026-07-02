@@ -31,7 +31,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/relay"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 const ClientTTL = 30 * time.Second

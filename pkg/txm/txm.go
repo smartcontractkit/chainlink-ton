@@ -24,7 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.

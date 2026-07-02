@@ -3,8 +3,8 @@ package model
 import (
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 )
 
 // ---------- OnRamp Model Struct Definitions ----------

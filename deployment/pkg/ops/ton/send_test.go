@@ -25,10 +25,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 var unsupported = []uint64{

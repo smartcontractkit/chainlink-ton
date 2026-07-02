@@ -22,12 +22,12 @@ import (
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ccip/chainconfig"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/rmn_home"

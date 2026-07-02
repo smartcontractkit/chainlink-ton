@@ -8,7 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 

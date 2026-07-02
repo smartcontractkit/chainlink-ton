@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // OnRampAddressMap represents a map of destination chain selectors to their on-ramp addresses.

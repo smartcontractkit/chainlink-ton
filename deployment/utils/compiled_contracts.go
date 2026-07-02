@@ -19,7 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
