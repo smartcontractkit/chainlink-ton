@@ -81,7 +81,7 @@ fun onReleaseOrMintContinue(
     assert(!st.pendingReleases.get(msg.queryId).isFound, Error.PendingReleaseAlreadyExists);
     val jettonClient = st.poolData.load().jettonClient();
 
-    val request = lazy prepared.request.load();
+    val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
 
     val recipientWallet = calcAddressOfJettonWallet(
@@ -219,6 +219,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue: null,
             onReleaseOrMint: null,
+            validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
         },

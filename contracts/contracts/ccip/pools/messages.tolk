@@ -81,6 +81,7 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
 }
 
 struct TokenPool_LockOrBurnForwardPayload {
+    originalSender: address,
     requestMsg: Cell<TokenPool_LockOrBurn>,
     prepared: Cell<TokenPool_LockOrBurnPrepared>,
 }
@@ -95,28 +96,58 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     replyTo: address? = null;
 }
 
-/// Sent by advanced hooks contract to notify preflight check success
+/// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check success.
 struct (0x08f2ffb7) TokenPool_PreflightCheckFinished {
     queryId: uint64;
-    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-/// Sent by advanced hooks contract to notify preflight check failure
+/// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check failure.
 struct (0xa6dfa623) TokenPool_PreflightCheckFailed {
     queryId: uint64;
-    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+}
+
+/// Forward payload for ReleaseOrMint operations used during async postflight checks.
+struct TokenPool_ReleaseOrMintForwardPayload {
+    originalSender: address,
+    requestMsg: Cell<TokenPool_ReleaseOrMint>,
+    prepared: Cell<TokenPool_ReleaseOrMintPrepared>,
 }
 
 /// Sent by advanced hooks contract to notify postflight check success
 struct (0x9e2a6b66) TokenPool_PostflightCheckFinished {
     queryId: uint64;
-    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+    forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
 /// Sent by advanced hooks contract to notify postflight check failure
 struct (0x21e71d87) TokenPool_PostflightCheckFailed {
     queryId: uint64;
-    forwardPayload: TokenPool_LockOrBurnForwardPayload;
+    forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
+}
+
+/// Sent from TokenPool to AdvancedPoolHooks to request an async preflight check.
+/// Matches EVM `s_advancedPoolHooks.preflightCheck(lockOrBurnIn, finalityConfig, tokenArgs, amountPostFee)`.
+struct (0x13e5c8a2) AdvancedPoolHooks_PreflightCheck {
+    queryId: uint64;
+    request: Cell<TokenPool_LockOrBurnInV1>;
+    requestedFinalityConfig: uint32;
+    tokenArgs: cell?;
+    amountPostFee: uint256;
+    replyTo: address;
+    replyPayload: cell?;
+}
+
+/// Sent from TokenPool to AdvancedPoolHooks to request an async postflight check.
+/// Matches EVM `s_advancedPoolHooks.postflightCheck(releaseOrMintIn, localAmount, finalityConfig)`.
+struct (0xf7d4b9c1) AdvancedPoolHooks_PostflightCheck {
+    queryId: uint64;
+    request: Cell<TokenPool_ReleaseOrMintInV1>;
+    localAmount: uint256;
+    requestedFinalityConfig: uint32;
+    replyTo: address;
+    replyPayload: cell?;
 }
 
 type TokenPool_InMessage =

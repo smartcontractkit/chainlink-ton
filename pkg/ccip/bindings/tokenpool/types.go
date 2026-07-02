@@ -189,7 +189,6 @@ type LockOrBurnPrepared struct {
 
 // ReleaseOrMintPrepared holds the prepared data for a release/mint operation.
 type ReleaseOrMintPrepared struct {
-	Request                 ReleaseOrMintInV1  `tlb:"^"`
 	RequestedFinalityConfig uint32             `tlb:"## 32"`
 	LocalAmount             *big.Int           `tlb:"## 256"`
 	Out                     ReleaseOrMintOutV1 `tlb:"."`
@@ -197,8 +196,16 @@ type ReleaseOrMintPrepared struct {
 
 // LockOrBurnForwardPayload holds the forward payload for lock/burn operations.
 type LockOrBurnForwardPayload struct {
-	RequestMsg LockOrBurn         `tlb:"^"`
-	Prepared   LockOrBurnPrepared `tlb:"^"`
+	OriginalSender *address.Address   `tlb:"addr"`
+	RequestMsg     LockOrBurn         `tlb:"^"`
+	Prepared       LockOrBurnPrepared `tlb:"^"`
+}
+
+// ReleaseOrMintForwardPayload holds the forward payload for release/mint operations.
+type ReleaseOrMintForwardPayload struct {
+	OriginalSender *address.Address      `tlb:"addr"`
+	RequestMsg     ReleaseOrMint         `tlb:"^"`
+	Prepared       ReleaseOrMintPrepared `tlb:"^"`
 }
 
 // AdminConfig holds the admin configuration for the pool.
@@ -328,28 +335,51 @@ type ReleaseOrMint struct {
 type PreflightCheckFinished struct {
 	_              tlb.Magic                `tlb:"#08f2ffb7" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64                   `tlb:"## 64"`
-	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
+	ForwardPayload LockOrBurnForwardPayload `tlb:"^"`
 }
 
 // PreflightCheckFailed notifies preflight check failure.
 type PreflightCheckFailed struct {
 	_              tlb.Magic                `tlb:"#a6dfa623" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64                   `tlb:"## 64"`
-	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
+	ForwardPayload LockOrBurnForwardPayload `tlb:"^"`
 }
 
 // PostflightCheckFinished notifies postflight check success.
 type PostflightCheckFinished struct {
-	_              tlb.Magic                `tlb:"#9e2a6b66" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                   `tlb:"## 64"`
-	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
+	_              tlb.Magic                   `tlb:"#9e2a6b66" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64                      `tlb:"## 64"`
+	ForwardPayload ReleaseOrMintForwardPayload `tlb:"^"`
 }
 
 // PostflightCheckFailed notifies postflight check failure.
 type PostflightCheckFailed struct {
-	_              tlb.Magic                `tlb:"#21e71d87" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                   `tlb:"## 64"`
-	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
+	_              tlb.Magic                   `tlb:"#21e71d87" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64                      `tlb:"## 64"`
+	ForwardPayload ReleaseOrMintForwardPayload `tlb:"^"`
+}
+
+// AdvancedPoolHooks_PreflightCheck requests an async preflight check from the hooks contract.
+type AdvancedPoolHooks_PreflightCheck struct {
+	_                       tlb.Magic        `tlb:"#13e5c8a2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64           `tlb:"## 64"`
+	Request                 LockOrBurnInV1   `tlb:"^"`
+	RequestedFinalityConfig uint32           `tlb:"## 32"`
+	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
+	AmountPostFee           *big.Int         `tlb:"## 256"`
+	ReplyTo                 *address.Address `tlb:"addr"`
+	ReplyPayload            *cell.Cell       `tlb:"maybe ^"`
+}
+
+// AdvancedPoolHooks_PostflightCheck requests an async postflight check from the hooks contract.
+type AdvancedPoolHooks_PostflightCheck struct {
+	_                       tlb.Magic         `tlb:"#f7d4b9c1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64            `tlb:"## 64"`
+	Request                 ReleaseOrMintInV1 `tlb:"^"`
+	LocalAmount             *big.Int          `tlb:"## 256"`
+	RequestedFinalityConfig uint32            `tlb:"## 32"`
+	ReplyTo                 *address.Address  `tlb:"addr"`
+	ReplyPayload            *cell.Cell        `tlb:"maybe ^"`
 }
 
 // --- Messages - outgoing ---
@@ -601,6 +631,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	RMNProxySet{},
 	CursedSubjectsSet{},
 	AdvancedPoolHooksSet{},
+	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
+	AdvancedPoolHooks_PreflightCheck{},
+	AdvancedPoolHooks_PostflightCheck{},
 	// Events
 	LockedOrBurned{},
 	ReleasedOrMinted{},

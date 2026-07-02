@@ -21,6 +21,8 @@ const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED = stringCrc32(
 const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_FastFinalityInboundRateLimitConsumed");
 const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_OutboundRateLimitRefunded");
 const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_InboundRateLimitRefunded");
+const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_FastFinalityOutboundRateLimitRefunded");
+const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_FastFinalityInboundRateLimitRefunded");
 
 struct TokenPool_LockedOrBurned {
     remoteChainSelector: uint64;
@@ -109,6 +111,22 @@ struct TokenPool_OutboundRateLimitRefunded {
 /// Emitted when previously consumed inbound rate-limit capacity is refunded.
 /// TON-specific: no EVM equivalent (EVM reverts synchronously, so refund is unnecessary).
 struct TokenPool_InboundRateLimitRefunded {
+    remoteChainSelector: uint64;
+    token: address;
+    amount: uint256;
+}
+
+/// Emitted when previously consumed fast-finality outbound rate-limit capacity is refunded.
+/// TON-specific: no EVM equivalent (EVM reverts synchronously, so refund is unnecessary).
+struct TokenPool_FastFinalityOutboundRateLimitRefunded {
+    remoteChainSelector: uint64;
+    token: address;
+    amount: uint256;
+}
+
+/// Emitted when previously consumed fast-finality inbound rate-limit capacity is refunded.
+/// TON-specific: no EVM equivalent (EVM reverts synchronously, so refund is unnecessary).
+struct TokenPool_FastFinalityInboundRateLimitRefunded {
     remoteChainSelector: uint64;
     token: address;
     amount: uint256;

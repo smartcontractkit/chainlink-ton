@@ -57,13 +57,14 @@ struct TokenPool_Hooks<T> {
 
     // ReleaseOrMint flow
     onReleaseOrMint: ((T, TokenPool_ReleaseOrMint) -> T)?;
-    postflightCheck: ((T?, TokenPool_ReleaseOrMintInV1, uint256, uint32) -> bool)?;
+    validateReleaseOrMint: ((T, address, TokenPool_ReleaseOrMint) -> (T, bool, TokenPool_ReleaseOrMintPrepared))?;
+    postflightCheck: ((T?, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintForwardPayload) -> bool)?;
     onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
     // LockOrBurn flow
     onLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> T)?;
-    validateLockOrBurn: ((T, address, TokenPool_LockOrBurnInV1, uint32, cell?) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
-    preflightCheck: ((T?, TokenPool_LockOrBurnInV1, uint32, cell?, uint256) -> bool)?;
+    validateLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
+    preflightCheck: ((T?, TokenPool_LockOrBurn, TokenPool_LockOrBurnForwardPayload) -> bool)?;
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
     onLockOrBurnTransferContinue: ((T, address, TokenPool_LockOrBurnForwardPayload) -> T)?;
 }
@@ -546,10 +547,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onLockOrBurn(msgSender, msg);
         }
         TokenPool_PreflightCheckFinished => {
-            // TODO: implement me
+            self.onPreflightCheckFinished(msgSender, msg);
         }
         TokenPool_PreflightCheckFailed => {
-            // TODO: propagate error back to sender (executor)
+            self.onPreflightCheckFailed(msgSender, msg);
         }
         // Once we withdraw via Executor -> OnRamp -> JettonWallet, we will receive a TransferNotificationForRecipient callback,
         // which is only allowed to be called by a valid OnRamp address, otherwise we try a best effort return.
@@ -562,10 +563,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onReleaseOrMint(msgSender, msg);
         }
         TokenPool_PostflightCheckFinished => {
-            // TODO: implement me
+            self.onPostflightCheckFinished(msgSender, msg);
         }
         TokenPool_PostflightCheckFailed => {
-            // TODO: propagate error back to sender (executor)
+            self.onPostflightCheckFailed(msgSender, msg);
         }
          TokenPool_ApplyChainUpdates => {
             self.applyChainUpdates(msgSender, msg.queryId, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
@@ -619,6 +620,112 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
 
 // TODO: implement onBouncedMessage (lib) handler
 //  - use `pool.releaseInboundRateLimit` and `pool.releaseOutboundRateLimit` to return the consumed capacity back on error
+
+// ================================================================
+// │              Async preflight/postflight callbacks              │
+// ================================================================
+
+/// Resumes the LockOrBurn flow after the advanced hooks confirmed the preflight check.
+/// @dev Rate limit was already consumed before the hook check; no need to consume again.
+fun TokenPool<T>.onPreflightCheckFinished(
+    mutate self,
+    sender: address,
+    msg: TokenPool_PreflightCheckFinished,
+): void {
+    val fwdp = msg.forwardPayload.load();
+    val originalSender = fwdp.originalSender;
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val prepared = lazy fwdp.prepared.load();
+
+    // Continue with the withdraw (Jetton transfer into the pool).
+    self.onLockOrBurnWithdraw(originalSender, requestMsg, prepared);
+}
+
+/// Handles preflight check failure from advanced hooks: refund rate limit + propagate error.
+/// @dev Rate limit was consumed before the hook check; refund it here on hook rejection.
+fun TokenPool<T>.onPreflightCheckFailed(
+    mutate self,
+    sender: address,
+    msg: TokenPool_PreflightCheckFailed,
+): void {
+    val fwdp = msg.forwardPayload.load();
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val prepared = lazy fwdp.prepared.load();
+
+    // Refund outbound rate limit that was consumed before the hook check.
+    val request = requestMsg.request.load();
+    val details = request.transfer.details.load();
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        self.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    } else {
+        self.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    }
+
+    // Send failure response back to the executor (replyTo).
+    if (requestMsg.replyTo != null) {
+        val failure = createMessage({
+            bounce: false,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFailure {
+                queryId: requestMsg.queryId,
+                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
+            },
+        });
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check.
+/// @dev Rate limit was already consumed before the hook check; no need to consume again.
+fun TokenPool<T>.onPostflightCheckFinished(
+    mutate self,
+    sender: address,
+    msg: TokenPool_PostflightCheckFinished,
+): void {
+    val fwdp = msg.forwardPayload.load();
+    val originalSender = fwdp.originalSender;
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val prepared = lazy fwdp.prepared.load();
+
+    // Continue with mint/release + finalize.
+    self.onReleaseOrMintContinue(originalSender, requestMsg, prepared);
+}
+
+/// Handles postflight check failure from advanced hooks: refund rate limit + propagate error.
+/// @dev Rate limit was consumed before the hook check; refund it here on hook rejection.
+fun TokenPool<T>.onPostflightCheckFailed(
+    mutate self,
+    sender: address,
+    msg: TokenPool_PostflightCheckFailed,
+): void {
+    val fwdp = msg.forwardPayload.load();
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val prepared = lazy fwdp.prepared.load();
+
+    // Refund inbound rate limit that was consumed before the hook check.
+    val request = requestMsg.request.load();
+    val details = request.transfer.details.load();
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        self.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    } else {
+        self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    }
+
+    // Send failure response back to the executor (replyTo).
+    if (requestMsg.replyTo != null) {
+        val failure = createMessage({
+            bounce: false, // TODO: ?
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_ReleaseOrMintFailure {
+                queryId: requestMsg.queryId,
+                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
+            },
+        });
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
 
 /// Updates the token transfer fee configurations for specified destination chains.
 /// @param updates Array of structs containing destination chain selectors and their fee configs.
@@ -751,58 +858,59 @@ fun TokenPool<T>.getFeeAmount(
 /// - if the sender is a valid onRamp
 /// - rate limiting for either default or FTF transfer messages.
 /// - preflight checks hooks (if enabled)
-/// @param lockOrBurnIn The input to validate.
-/// @param requestedFinality The requested finality speed according to the FinalityCodec encoding.
-/// @param tokenArgs Additional token arguments passed in by the sender of the message.
-/// @param feeAmount The fee amount deducted from the transfer amount.
+/// @param msg The full LockOrBurn message containing all request fields.
 /// @dev This function should always be called before executing a lock or burn. Not doing so would allow
 /// for various exploits.
 fun TokenPool<T>.validateLockOrBurn(
     mutate self,
     sender: address,
-    request: TokenPool_LockOrBurnInV1,
-    requestedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY,
-    tokenArgs: cell? = null,
+    msg: TokenPool_LockOrBurn,
 ): (bool, TokenPool_LockOrBurnPrepared) {
     if (self.hooks != null && self.hooks.validateLockOrBurn != null) {
         val (newContext, wait, prepared)
-            = self.hooks.validateLockOrBurn(self.context!, sender, request, requestedFinalityConfig, tokenArgs);
+            = self.hooks.validateLockOrBurn(self.context!, sender, msg);
         self.context = newContext;
 
         return (wait, prepared);
     }
 
+    val request = msg.request.load();
     val details = lazy request.transfer.details.load();
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
     self.ensureOutboundAccess(sender, details.remoteChainSelector);
 
-    val feeAmount = self.getFeeAmount(request.transfer, requestedFinalityConfig);
+    val feeAmount = self.getFeeAmount(request.transfer, msg.requestedFinalityConfig);
     val destTokenAmount = details.amount - feeAmount;
-    // If FTF is requested, validate against the allowed and apply the custom rate limit.
-    if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+    // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
+    // designed to bounce to the original sender, not to the hooks contract.
+    if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        TokenPool_ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
         self.consumeFastFinalityOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     } else {
         self.consumeOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     }
 
-    // TODO: use ContextExecutor as `replyTo` target for the preflight check
-    // The CE will forward us the message and the context to continue the operation (async/await)
-
-    // TODO: we should not consume RL if the preflight check fails - if wait, skip consuming; consume on callback
-    // TODO: preflightCheck needs to indicate if we can continue or wait for an async trigger (to continue)
-    val wait = self.preflightCheck(request, requestedFinalityConfig, tokenArgs, destTokenAmount);
-
-    return (wait, TokenPool_LockOrBurnPrepared {
+    // Build prepared data (out contains destTokenAddress + destPoolData needed by destination chain).
+    val prepared = TokenPool_LockOrBurnPrepared {
         feeAmount,
         destTokenAmount,
         out: TokenPool_LockOrBurnOutV1 {
             destTokenAddress: self.getRemoteToken(details.remoteChainSelector),
             destPoolData: self.encodeLocalDecimals(),
         },
-    });
+    };
+
+    // Build forward payload using the original message (no reconstruction needed).
+    val fwdPayload = TokenPool_LockOrBurnForwardPayload {
+        originalSender: sender,
+        requestMsg: msg.toCell(),
+        prepared: prepared.toCell(),
+    };
+
+    val wait = self.preflightCheck(sender, msg, fwdPayload);
+    return (wait, prepared);
 }
 
 fun TokenPool<T>.onLockOrBurn(
@@ -812,25 +920,18 @@ fun TokenPool<T>.onLockOrBurn(
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
-        
+
         return;
     }
 
-    // TODO: should validate JettonSender at this point, if not already validated by Executor (TP flag):
-    //  - gets Router JettonWallet address in TokenPool_LockOrBurn from a trusted source
-    //  - validates locally via JettonMinter address + JettonWallet code + Router address
-
-    val request = msg.request.load();
-     // TODO: get actual transfer initiator (msg.request.originalSender)
+    // TODO: get actual transfer initiator (msg.request.originalSender)
     val transferInitiator = sender; // TODO: fixme
 
-    // Result indicates if we need to wait for an async callback before proceeding (e.g., preflight check)
-    val (wait, prepared) = self.validateLockOrBurn(transferInitiator, request, msg.requestedFinalityConfig, msg.tokenArgs);
+    // Validate and call preflightCheck with full message.
+    val (wait, prepared) = self.validateLockOrBurn(transferInitiator, msg);
 
     if (wait) {
-        // Return early, wait for the prefight check to trigger the withdraw,
-        // or report error if the preflight check fails (bounce or error).
-        return;
+        return; // Async hook was triggered; will resume via onPreflightCheckFinished/Failed.
     }
 
     self.onLockOrBurnWithdraw(transferInitiator, msg, prepared);
@@ -850,6 +951,7 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
         body: TokenPool_LockOrBurnWithdraw {
             queryId: msg.queryId,
             forwardPayload: TokenPool_LockOrBurnForwardPayload {
+                originalSender: sender,
                 requestMsg: msg.toCell(),
                 prepared: prepared.toCell(),
             },
@@ -953,7 +1055,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
             token: details.localToken,
-            sender: details.originalSender,
+            sender: fwdPayload.originalSender,
             amount: prepared.destTokenAmount,
         }.toCell(),
     });
@@ -974,12 +1076,22 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     }
 }
 
+/// Validates the release or mint input and calls postflightCheck.
+/// @param msg The full ReleaseOrMint message containing all request fields.
 fun TokenPool<T>.validateReleaseOrMint(
     mutate self,
     sender: address,
-    request: TokenPool_ReleaseOrMintInV1,
-    requestedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY,
+    msg: TokenPool_ReleaseOrMint,
 ): (bool, TokenPool_ReleaseOrMintPrepared) {
+    if (self.hooks != null && self.hooks.validateReleaseOrMint != null) {
+        val (newContext, wait, prepared)
+            = self.hooks.validateReleaseOrMint(self.context!, sender, msg);
+        self.context = newContext;
+
+        return (wait, prepared);
+    }
+
+    val request = msg.request.load();
     val details = request.transfer.details.load();
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
@@ -989,24 +1101,34 @@ fun TokenPool<T>.validateReleaseOrMint(
 
     val remoteDecimals = self.parseRemoteDecimals(request.sourcePoolData);
     val localAmount = self.calculateLocalAmount(details.amount, remoteDecimals);
-    val usingFastFinality = requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG;
-    if (usingFastFinality) {
-        TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+
+    // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
+    // designed to bounce to the original sender, not to the hooks contract.
+    if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        TokenPool_ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
         self.consumeFastFinalityInboundRateLimit(details.remoteChainSelector, localAmount);
     } else {
         self.consumeInboundRateLimit(details.remoteChainSelector, localAmount);
     }
 
-    val wait = self.postflightCheck(request, localAmount, requestedFinalityConfig);
-
-    return (wait, TokenPool_ReleaseOrMintPrepared {
-        request: request.toCell(),
-        requestedFinalityConfig,
+    // Build prepared data.
+    val prepared = TokenPool_ReleaseOrMintPrepared {
+        requestedFinalityConfig: msg.requestedFinalityConfig,
         localAmount,
         out: TokenPool_ReleaseOrMintOutV1 {
             destinationAmount: localAmount,
         },
-    });
+    };
+
+    // Build forward payload using the original message (no reconstruction needed).
+    val fwdPayload = TokenPool_ReleaseOrMintForwardPayload {
+        originalSender: sender,
+        requestMsg: msg.toCell(),
+        prepared: prepared.toCell(),
+    };
+
+    val wait = self.postflightCheck(sender, msg, fwdPayload);
+    return (wait, prepared);
 }
 
 fun TokenPool<T>.onReleaseOrMint(
@@ -1014,15 +1136,15 @@ fun TokenPool<T>.onReleaseOrMint(
     sender: address,
     msg: TokenPool_ReleaseOrMint,
 ): void {
-     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
+    if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
     }
 
-    val (wait, prepared) = self.validateReleaseOrMint(sender, msg.request.load(), msg.requestedFinalityConfig);
+    // Validate and call postflightCheck with full message.
+    val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
+
     if (wait) {
-        // Return early, wait for the postflight check to trigger the release or mint,
-        // or report error if the postflight check fails (bounce or error).
-        return;
+        return; // Async hook was triggered; will resume via onPostflightCheckFinished/Failed.
     }
 
     self.onReleaseOrMintContinue(sender, msg, prepared);
@@ -1036,6 +1158,43 @@ fun TokenPool<T>.onReleaseOrMintContinue(
 ): void {
     if (self.hooks != null && self.hooks.onReleaseOrMintContinue != null) {
         self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msg, prepared);
+        return;
+    }
+
+    self.onReleaseOrMintFinalize(sender, msg, prepared);
+}
+
+/// Finalizes the ReleaseOrMint flow: emits event and sends success notification.
+fun TokenPool<T>.onReleaseOrMintFinalize(
+    self,
+    sender: address,
+    msg: TokenPool_ReleaseOrMint,
+    prepared: TokenPool_ReleaseOrMintPrepared,
+): void {
+    val request = msg.request.load();
+    val details = request.transfer.details.load();
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: details.remoteChainSelector,
+        details: TokenPool_ReleasedOrMintedDetails {
+            token: details.localToken,
+            sender: sender,
+            amount: prepared.localAmount,
+            recipient: details.receiver.toCell(),
+        }.toCell(),
+    });
+
+    // Notify the caller (executor) that the release or mint succeeded.
+    if (msg.replyTo != null) {
+        val finished = createMessage({
+            bounce: true,
+            value: 0,
+            dest: msg.replyTo!,
+            body: TokenPool_ReleaseOrMintFinished {
+                queryId: msg.queryId,
+                out: prepared.out.toCell(),
+            },
+        });
+        finished.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 
@@ -1146,43 +1305,81 @@ fun TokenPool<T>.ensureInboundAccess(self, sender: address, remoteChainSelector:
 
 fun TokenPool<T>.preflightCheck(
     self,
-    request: TokenPool_LockOrBurnInV1,
-    requestedFinalityConfig: uint32,
-    tokenArgs: cell?,
-    amountPostFee: uint256,
+    sender: address,
+    msg: TokenPool_LockOrBurn,
+    fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): bool {
+    // Check inline hooks first (synchronous path).
     if (self.hooks != null && self.hooks.preflightCheck != null) {
-        return self.hooks.preflightCheck(self.context, request, requestedFinalityConfig, tokenArgs, amountPostFee);
+        return self.hooks.preflightCheck(self.context, msg, fwdPayload);
     }
 
+    // Check if on-chain async hooks are configured.
     val hooks = self.data.adminConfig.load().advancedPoolHooks;
     if (hooks != null) {
-        // TODO: send AdvancedPoolHooks_PreflightCheck(fwdp) message to hooks, wait for callback
+        // amountPostFee is already computed in fwdPayload.prepared.destTokenAmount.
+        val prepared = fwdPayload.prepared.load();
+
+        // Send async preflight check to hooks with replyPayload for callback resumption.
+        val hooksMsg = createMessage({
+            bounce: BounceMode.RichBounce,
+            value: 0,
+            dest: hooks!,
+            body: AdvancedPoolHooks_PreflightCheck {
+                queryId: msg.queryId,
+                request: msg.request,
+                requestedFinalityConfig: msg.requestedFinalityConfig,
+                tokenArgs: msg.tokenArgs,
+                amountPostFee: prepared.destTokenAmount,
+                replyTo: contract.getAddress(),
+                replyPayload: fwdPayload.toCell(),
+            },
+        });
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true; // wait for async callback
     }
 
-    return false; // do we need to wait for an async callback
+    return false; // no hooks configured
 }
 
 fun TokenPool<T>.postflightCheck(
     self,
-    request: TokenPool_ReleaseOrMintInV1,
-    localAmount: uint256,
-    requestedFinalityConfig: uint32,
+    sender: address,
+    msg: TokenPool_ReleaseOrMint,
+    fwdPayload: TokenPool_ReleaseOrMintForwardPayload,
 ): bool {
+    // Check inline hooks first (synchronous path).
     if (self.hooks != null && self.hooks.postflightCheck != null) {
-        return self.hooks.postflightCheck(self.context, request, localAmount, requestedFinalityConfig);
+        return self.hooks.postflightCheck(self.context, msg, fwdPayload);
     }
 
+    // Check if on-chain async hooks are configured.
     val hooks = self.data.adminConfig.load().advancedPoolHooks;
     if (hooks != null) {
-        // TODO: send AdvancedPoolHooks_PostflightCheck(fwdp) message to hooks, wait for callback
+        // localAmount is already computed in fwdPayload.prepared.localAmount.
+        val prepared = fwdPayload.prepared.load();
+
+        // Send async postflight check to hooks with replyPayload for callback resumption.
+        val hooksMsg = createMessage({
+            bounce: BounceMode.RichBounce,
+            value: 0,
+            dest: hooks!,
+            body: AdvancedPoolHooks_PostflightCheck {
+                queryId: msg.queryId,
+                request: msg.request,
+                localAmount: prepared.localAmount,
+                requestedFinalityConfig: msg.requestedFinalityConfig,
+                replyTo: contract.getAddress(),
+                replyPayload: fwdPayload.toCell(),
+            },
+        });
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true; // wait for async callback
     }
 
-    return false;
+    return false; // no hooks configured
 }
 
 // ================================================================
@@ -1279,6 +1476,58 @@ fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint6
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_REFUNDED, TokenPool_InboundRateLimitRefunded {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
+}
+
+/// Returns previously consumed fast-finality outbound capacity to the bucket.
+/// Mirrors `consumeFastFinalityOutboundRateLimit` (falls back to default bucket if FTF is disabled).
+fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    var fastRateLimiters = config.fastFinalityRateLimiters.load();
+    var fastBucket = fastRateLimiters.outbound.load();
+    if (!fastBucket.isEnabled) {
+        var rateLimiters = config.rateLimiters.load();
+        var bucket = rateLimiters.outbound.load();
+        bucket._refund(amount, self.data.token());
+        rateLimiters.outbound = bucket.toCell();
+        config.rateLimiters = rateLimiters.toCell();
+    } else {
+        fastBucket._refund(amount, self.data.token());
+        fastRateLimiters.outbound = fastBucket.toCell();
+        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+    }
+    self.data.remoteChainConfigs.set(remoteChainSelector, config);
+
+    emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_REFUNDED, TokenPool_FastFinalityOutboundRateLimitRefunded {
+        remoteChainSelector,
+        token: self.data.token(),
+        amount,
+    });
+}
+
+/// Returns previously consumed fast-finality inbound capacity to the bucket.
+/// Mirrors `consumeFastFinalityInboundRateLimit` (falls back to default bucket if FTF is disabled).
+fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    var fastRateLimiters = config.fastFinalityRateLimiters.load();
+    var fastBucket = fastRateLimiters.inbound.load();
+    if (!fastBucket.isEnabled) {
+        var rateLimiters = config.rateLimiters.load();
+        var bucket = rateLimiters.inbound.load();
+        bucket._refund(amount, self.data.token());
+        rateLimiters.inbound = bucket.toCell();
+        config.rateLimiters = rateLimiters.toCell();
+    } else {
+        fastBucket._refund(amount, self.data.token());
+        fastRateLimiters.inbound = fastBucket.toCell();
+        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+    }
+    self.data.remoteChainConfigs.set(remoteChainSelector, config);
+
+    emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_REFUNDED, TokenPool_FastFinalityInboundRateLimitRefunded {
         remoteChainSelector,
         token: self.data.token(),
         amount,

@@ -33,8 +33,9 @@ import {
 import { setupGenBindings } from '../../../wrappers/gen'
 
 import * as rtOld from '../../../wrappers/ccip/Router'
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
+import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
   const addrSlice = rtOld.builder.data.crossChainAddress.encode(buffer).asSlice()
@@ -209,7 +210,7 @@ describe('LockReleaseTokenPool', () => {
           [
             TokenPool_RampUpdate.create({
               remoteChainSelector,
-              onRamp: jettonSender.address,
+              onRamp: deployer.address,
               offRamp: offRamp.address,
             }),
           ],
@@ -253,18 +254,50 @@ describe('LockReleaseTokenPool', () => {
     pool,
     deployer,
     offRamp,
-    altOffRamp: deployer,
     unauthorized: recipient,
     recipient,
     remoteChainSelector,
-    unsupportedChainSelector: remoteChainSelector + 1n,
-    unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
-    remoteTokenAddress: destTokenAddress,
-    onRampAddress: jettonSender.address,
+    onRampAddress: deployer.address,
     destTokenAddress,
     sourcePoolAddress,
     localToken: jettonMinter.address,
   }))
+
+  // Async hook behavior tests (TON-TP/6)
+  runTokenPoolAsyncHookBehaviorTests('LockReleaseTokenPool', async () => {
+    // Deploy mock hooks
+    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
+
+    // Register hooks on pool
+    const setHooksResult = await pool.sendTokenPoolSetAdvancedPoolHooks(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 9999n,
+        advancedPoolHooks: hooks.address,
+      },
+    )
+    expect(setHooksResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: pool.address,
+      success: true,
+    })
+
+    return {
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+      hooks,
+    }
+  })
 
   it('has no pending release by default', async () => {
     expect(await lockReleasePool.getHasPendingRelease(999n)).toBe(false)

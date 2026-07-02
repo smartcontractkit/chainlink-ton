@@ -101,6 +101,11 @@ depends = []
 display-name = "link.chain.ton.ccip.test.TokenPool"
 src = "contracts/ccip/test/tokenPool/contract.tolk"
 domain = "ccip"
+
+[contracts.MockAdvancedPoolHooks]
+display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
+src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
+domain = "ccip/test"
 depends = []
 
 [contracts.TokenRegistry]

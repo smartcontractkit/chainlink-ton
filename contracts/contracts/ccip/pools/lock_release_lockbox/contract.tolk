@@ -233,7 +233,7 @@ fun onReleaseOrMintContinue(
 
     val jettonClient = st.poolData.load().jettonClient();
 
-    val request = lazy prepared.request.load();
+    val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
 
     // Calculate the recipient's jetton wallet address.
@@ -384,6 +384,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue,
             onReleaseOrMint: null,
+            validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
         },

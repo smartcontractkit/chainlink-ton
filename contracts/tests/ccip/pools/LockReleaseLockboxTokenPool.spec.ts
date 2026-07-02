@@ -39,8 +39,9 @@ import { ContractClient as AccessControlClient } from '../../../wrappers/lib/acc
 import { setupGenBindings } from '../../../wrappers/gen'
 
 import * as rtOld from '../../../wrappers/ccip/Router'
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
+import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 
 function emptyAccessControlData(): AccessControl_Data {
@@ -319,6 +320,42 @@ describe('LockReleaseLockboxTokenPool', () => {
     localToken: jettonMinter.address,
   }))
 
+  // Async hook behavior tests (TON-TP/6)
+  runTokenPoolAsyncHookBehaviorTests('LockReleaseLockboxTokenPool', async () => {
+    // Deploy mock hooks
+    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
+
+    // Register hooks on pool
+    const setHooksResult = await pool.sendTokenPoolSetAdvancedPoolHooks(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 9999n,
+        advancedPoolHooks: hooks.address,
+      },
+    )
+    expect(setHooksResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: pool.address,
+      success: true,
+    })
+
+    return {
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+      hooks,
+    }
+  })
+
   /* === LockReleaseLockboxTokenPool-specific tests === */
 
   describe('getters', () => {
@@ -370,6 +407,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
         requestMsg: { ref: lockOrBurn },
         prepared: {
           ref: TokenPool_LockOrBurnPrepared.create({
@@ -435,6 +473,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
         requestMsg: { ref: lockOrBurn },
         prepared: {
           ref: TokenPool_LockOrBurnPrepared.create({
@@ -709,6 +748,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
         requestMsg: { ref: lockOrBurn },
         prepared: {
           ref: TokenPool_LockOrBurnPrepared.create({
@@ -813,6 +853,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
         requestMsg: { ref: lockOrBurn },
         prepared: {
           ref: TokenPool_LockOrBurnPrepared.create({

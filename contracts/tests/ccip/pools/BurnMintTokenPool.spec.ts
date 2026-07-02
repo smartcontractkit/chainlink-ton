@@ -32,7 +32,8 @@ import {
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
+import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 import * as rtOld from '../../../wrappers/ccip/Router'
 
@@ -293,6 +294,45 @@ describe('BurnMintTokenPool', () => {
     localToken: cctMinter.address,
   }))
 
+  // Async hook behavior tests (TON-TP/6)
+  runTokenPoolAsyncHookBehaviorTests('BurnMintTokenPool', async () => {
+    // Deploy mock hooks
+    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
+
+    // Register hooks on pool
+    const setHooksResult = await pool.sendTokenPoolSetAdvancedPoolHooks(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 9999n,
+        advancedPoolHooks: hooks.address,
+      },
+    )
+    expect(setHooksResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: pool.address,
+      success: true,
+    })
+
+    return {
+      pool,
+      deployer,
+      offRamp,
+      unauthorized,
+      recipient,
+      remoteChainSelector,
+      unsupportedChainSelector: remoteChainSelector + 1n,
+      unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+      remoteTokenAddress: destTokenAddress,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: cctMinter.address,
+      hooks,
+    }
+  })
+
   it('has no pending burn or mint by default', async () => {
     expect(await burnMintPool.getHasPendingBurn(300n)).toBe(false)
     expect(await burnMintPool.getHasPendingMint(301n)).toBe(false)
@@ -479,6 +519,7 @@ describe('BurnMintTokenPool', () => {
 
     // Build expected forward payload (matching what pool creates in validateLockOrBurn)
     const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+      originalSender: unauthorized.address,
       requestMsg: { ref: lockOrBurn },
       prepared: {
         ref: TokenPool_LockOrBurnPrepared.create({
