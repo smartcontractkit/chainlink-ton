@@ -564,7 +564,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       expect(result.transactions).toHaveTransaction({
         from: lockReleaseLockboxPool.address,
         to: jettonLockBox.address,
-        op: 0xc85418fe, // JettonLockBox_Withdraw
+        op: 0xd065c306, // JettonLockBox_Withdraw
         success: true,
       })
     })

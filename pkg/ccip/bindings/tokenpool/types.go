@@ -361,7 +361,7 @@ type PostflightCheckFailed struct {
 
 // AdvancedPoolHooks_PreflightCheck requests an async preflight check from the hooks contract.
 type AdvancedPoolHooks_PreflightCheck struct {
-	_                       tlb.Magic        `tlb:"#13e5c8a2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_                       tlb.Magic        `tlb:"#7b4e3147" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
 	Request                 LockOrBurnInV1   `tlb:"^"`
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
@@ -373,7 +373,7 @@ type AdvancedPoolHooks_PreflightCheck struct {
 
 // AdvancedPoolHooks_PostflightCheck requests an async postflight check from the hooks contract.
 type AdvancedPoolHooks_PostflightCheck struct {
-	_                       tlb.Magic         `tlb:"#f7d4b9c1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_                       tlb.Magic         `tlb:"#e162202f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64            `tlb:"## 64"`
 	Request                 ReleaseOrMintInV1 `tlb:"^"`
 	LocalAmount             *big.Int          `tlb:"## 256"`

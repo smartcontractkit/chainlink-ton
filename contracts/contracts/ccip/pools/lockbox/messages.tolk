@@ -6,7 +6,7 @@ import "../../../lib/jetton/messages"
 /// @param token The address of the token to deposit.
 /// @param remoteChainSelector The chain selector of the remote chain.
 /// @param amount The amount of tokens to deposit.
-struct (0x18024cb6) JettonLockBox_Deposit {
+struct (0x9e9ec361) JettonLockBox_Deposit {
     queryId: uint64;
     token: address;
     remoteChainSelector: uint64;
@@ -24,7 +24,7 @@ struct JettonLockBox_WithdrawExtra {
 /// @param amount The amount of tokens to withdraw.
 /// @param recipientWallet The jetton wallet address of the recipient.
 /// @param extra Optional extra fields (sendExcessesTo for ReturnExcessesBack routing).
-struct (0xc85418fe) JettonLockBox_Withdraw {
+struct (0xd065c306) JettonLockBox_Withdraw {
     queryId: uint64;
     token: address;
     remoteChainSelector: uint64;
@@ -37,7 +37,7 @@ struct (0xc85418fe) JettonLockBox_Withdraw {
 type JettonLockBox_BouncedMessage =
     | AskToTransfer;
 
-struct (0xde7934db) JettonLockBox_Deposited {
+struct (0x6d077f2e) JettonLockBox_Deposited {
     queryId: uint64;
     token: address;
     remoteChainSelector: uint64;
@@ -48,7 +48,7 @@ struct (0xde7934db) JettonLockBox_Deposited {
 /// @param minterAddress The jetton minter address.
 /// @param walletAddress The jetton wallet address for this lockbox.
 /// @param admin The admin address.
-struct (0x06d08cef) JettonLockBox_Init {
+struct (0xffa6eeb9) JettonLockBox_Init {
     queryId: uint64;
     minterAddress: address;
     walletAddress: address;
@@ -59,7 +59,7 @@ struct (0x06d08cef) JettonLockBox_Init {
 /// @param minterAddress The jetton minter address.
 /// @param walletAddress The jetton wallet address.
 /// @param admin The admin address.
-struct (0x6131dd8f) JettonLockBox_Initialized {
+struct (0xe9f4e311) JettonLockBox_Initialized {
     queryId: uint64;
     minterAddress: address;
     walletAddress: address;
@@ -70,7 +70,7 @@ struct (0x6131dd8f) JettonLockBox_Initialized {
 /// @param token The jetton minter address.
 /// @param amount The amount that failed to withdraw.
 /// @param recipientWallet The recipient wallet address.
-struct (0x3dfc5d66) JettonLockBox_WithdrawFailed {
+struct (0x60bae556) JettonLockBox_WithdrawFailed {
     queryId: uint64;
     token: address;
     amount: coins;

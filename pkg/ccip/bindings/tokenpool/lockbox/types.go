@@ -10,7 +10,7 @@ import (
 
 // Deposits the token into the lockbox.
 type Deposit struct {
-	_                   tlb.Magic        `tlb:"#18024cb6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_                   tlb.Magic        `tlb:"#9e9ec361" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
 	Token               *address.Address `tlb:"addr"`   // The address of the token to deposit.
 	RemoteChainSelector uint64           `tlb:"## 64"`  // The chain selector of the remote chain.
@@ -24,7 +24,7 @@ type WithdrawExtra struct {
 
 // Withdraws tokens to a specific recipient.
 type Withdraw struct {
-	_                   tlb.Magic        `tlb:"#c85418fe" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_                   tlb.Magic        `tlb:"#d065c306" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
 	Token               *address.Address `tlb:"addr"`   // The address of the token to withdraw.
 	RemoteChainSelector uint64           `tlb:"## 64"`  // The chain selector of the remote chain.

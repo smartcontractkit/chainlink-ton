@@ -2377,7 +2377,7 @@ export const TokenPool_CursedSubjectsSet = {
 }
 
 /**
- > struct (0x3f5c1a2d) TokenPool_ChainUpdatesApplied {
+ > struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
  >     queryId: uint64
  > }
  */
@@ -2387,7 +2387,7 @@ export interface TokenPool_ChainUpdatesApplied {
 }
 
 export const TokenPool_ChainUpdatesApplied = {
-    PREFIX: 0x3f5c1a2d,
+    PREFIX: 0xad7833d7,
 
     create(args: {
         queryId: uint64
@@ -2398,14 +2398,14 @@ export const TokenPool_ChainUpdatesApplied = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_ChainUpdatesApplied {
-        loadAndCheckPrefix32(s, 0x3f5c1a2d, 'TokenPool_ChainUpdatesApplied');
+        loadAndCheckPrefix32(s, 0xad7833d7, 'TokenPool_ChainUpdatesApplied');
         return {
             $: 'TokenPool_ChainUpdatesApplied',
             queryId: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_ChainUpdatesApplied, b: c.Builder): void {
-        b.storeUint(0x3f5c1a2d, 32);
+        b.storeUint(0xad7833d7, 32);
         b.storeUint(self.queryId, 64);
     },
     toCell(self: TokenPool_ChainUpdatesApplied): c.Cell {
@@ -2414,7 +2414,7 @@ export const TokenPool_ChainUpdatesApplied = {
 }
 
 /**
- > struct (0x8b3e4d17) TokenPool_RampAccessUpdatesApplied {
+ > struct (0xd7f5c563) TokenPool_RampAccessUpdatesApplied {
  >     queryId: uint64
  > }
  */
@@ -2424,7 +2424,7 @@ export interface TokenPool_RampAccessUpdatesApplied {
 }
 
 export const TokenPool_RampAccessUpdatesApplied = {
-    PREFIX: 0x8b3e4d17,
+    PREFIX: 0xd7f5c563,
 
     create(args: {
         queryId: uint64
@@ -2435,14 +2435,14 @@ export const TokenPool_RampAccessUpdatesApplied = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_RampAccessUpdatesApplied {
-        loadAndCheckPrefix32(s, 0x8b3e4d17, 'TokenPool_RampAccessUpdatesApplied');
+        loadAndCheckPrefix32(s, 0xd7f5c563, 'TokenPool_RampAccessUpdatesApplied');
         return {
             $: 'TokenPool_RampAccessUpdatesApplied',
             queryId: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_RampAccessUpdatesApplied, b: c.Builder): void {
-        b.storeUint(0x8b3e4d17, 32);
+        b.storeUint(0xd7f5c563, 32);
         b.storeUint(self.queryId, 64);
     },
     toCell(self: TokenPool_RampAccessUpdatesApplied): c.Cell {
@@ -2451,7 +2451,7 @@ export const TokenPool_RampAccessUpdatesApplied = {
 }
 
 /**
- > struct (0x4a7e2b9c) TokenPool_FeeConfigApplied {
+ > struct (0x28cbcc64) TokenPool_FeeConfigApplied {
  >     queryId: uint64
  > }
  */
@@ -2461,7 +2461,7 @@ export interface TokenPool_FeeConfigApplied {
 }
 
 export const TokenPool_FeeConfigApplied = {
-    PREFIX: 0x4a7e2b9c,
+    PREFIX: 0x28cbcc64,
 
     create(args: {
         queryId: uint64
@@ -2472,14 +2472,14 @@ export const TokenPool_FeeConfigApplied = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_FeeConfigApplied {
-        loadAndCheckPrefix32(s, 0x4a7e2b9c, 'TokenPool_FeeConfigApplied');
+        loadAndCheckPrefix32(s, 0x28cbcc64, 'TokenPool_FeeConfigApplied');
         return {
             $: 'TokenPool_FeeConfigApplied',
             queryId: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_FeeConfigApplied, b: c.Builder): void {
-        b.storeUint(0x4a7e2b9c, 32);
+        b.storeUint(0x28cbcc64, 32);
         b.storeUint(self.queryId, 64);
     },
     toCell(self: TokenPool_FeeConfigApplied): c.Cell {

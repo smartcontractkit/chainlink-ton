@@ -129,7 +129,7 @@ struct (0x21e71d87) TokenPool_PostflightCheckFailed {
 
 /// Sent from TokenPool to AdvancedPoolHooks to request an async preflight check.
 /// Matches EVM `s_advancedPoolHooks.preflightCheck(lockOrBurnIn, finalityConfig, tokenArgs, amountPostFee)`.
-struct (0x13e5c8a2) AdvancedPoolHooks_PreflightCheck {
+struct (0x7b4e3147) AdvancedPoolHooks_PreflightCheck {
     queryId: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
@@ -141,7 +141,7 @@ struct (0x13e5c8a2) AdvancedPoolHooks_PreflightCheck {
 
 /// Sent from TokenPool to AdvancedPoolHooks to request an async postflight check.
 /// Matches EVM `s_advancedPoolHooks.postflightCheck(releaseOrMintIn, localAmount, finalityConfig)`.
-struct (0xf7d4b9c1) AdvancedPoolHooks_PostflightCheck {
+struct (0xe162202f) AdvancedPoolHooks_PostflightCheck {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     localAmount: uint256;
@@ -242,17 +242,17 @@ struct (0x15800161) TokenPool_CursedSubjectsSet {
 }
 
 /// Replied on `TokenPool_ApplyChainUpdates` to confirm tx and return excess to sender.
-struct (0x3f5c1a2d) TokenPool_ChainUpdatesApplied {
+struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
     queryId: uint64;
 }
 
 /// Replied on `TokenPool_UpdateRampAccess` to confirm tx and return excess to sender.
-struct (0x8b3e4d17) TokenPool_RampAccessUpdatesApplied {
+struct (0xd7f5c563) TokenPool_RampAccessUpdatesApplied {
     queryId: uint64;
 }
 
 /// Replied on `TokenPool_ApplyTokenTransferFeeConfigUpdates` to confirm tx and return excess to sender.
-struct (0x4a7e2b9c) TokenPool_FeeConfigApplied {
+struct (0x28cbcc64) TokenPool_FeeConfigApplied {
     queryId: uint64;
 }
 
