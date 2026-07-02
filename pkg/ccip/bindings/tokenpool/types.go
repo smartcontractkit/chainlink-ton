@@ -361,7 +361,7 @@ type PostflightCheckFailed struct {
 
 // PreflightCheck requests an async preflight check from the hooks contract.
 type PreflightCheck struct {
-	_                       tlb.Magic        `tlb:"#7b4e3147" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_                       tlb.Magic        `tlb:"#4129d109" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
 	Request                 LockOrBurnInV1   `tlb:"^"`
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
@@ -373,7 +373,7 @@ type PreflightCheck struct {
 
 // PostflightCheck requests an async postflight check from the hooks contract.
 type PostflightCheck struct {
-	_                       tlb.Magic         `tlb:"#e162202f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_                       tlb.Magic         `tlb:"#703c2b58" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64            `tlb:"## 64"`
 	Request                 ReleaseOrMintInV1 `tlb:"^"`
 	LocalAmount             *big.Int          `tlb:"## 256"`

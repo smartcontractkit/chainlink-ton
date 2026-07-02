@@ -128,7 +128,7 @@ struct (0x21e71d87) TokenPool_PostflightCheckFailed {
 }
 
 /// Sent from TokenPool to AdvancedPoolHooks to request an async preflight check.
-struct (0x7b4e3147) TokenPool_PreflightCheck {
+struct (0x4129d109) TokenPool_PreflightCheck {
     queryId: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
@@ -139,7 +139,7 @@ struct (0x7b4e3147) TokenPool_PreflightCheck {
 }
 
 /// Sent from TokenPool to AdvancedPoolHooks to request an async postflight check.
-struct (0xe162202f) TokenPool_PostflightCheck {
+struct (0x703c2b58) TokenPool_PostflightCheck {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     localAmount: uint256;
