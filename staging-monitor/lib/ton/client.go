@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
@@ -312,7 +313,7 @@ func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error)
 		return "", fmt.Errorf("failed to get masterchain info: %w", err)
 	}
 
-	acc, err := c.client.GetAccount(ctx, mc, addr)
+	acc, err := c.client.WaitForBlock(mc.SeqNo).GetAccount(ctx, mc, addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to get account: %w", err)
 	}

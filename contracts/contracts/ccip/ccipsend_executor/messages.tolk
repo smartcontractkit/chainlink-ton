@@ -6,19 +6,11 @@ import "../pools/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | CCIPSendExecutor_ExecuteV2
     | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
     | TokenRegistry_ReturnTokenInfo
     | TokenPool_LockOrBurnFinished;
 
-// crc32('CCIPSendExecutor_ExecuteV2')
-struct (0x09bbeb9e) CCIPSendExecutor_ExecuteV2 {
-    onrampSend: OnRamp_Send,
-    config: Cell<CCIPSendExecutor_ConfigV2>,
-}
-
-// Deprecated
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
     onrampSend: OnRamp_Send,

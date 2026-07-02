@@ -270,7 +270,6 @@ func TestStorage(t *testing.T) {
 			ExecutorCode:   ExecutorCode,
 			CurrentID:      big.NewInt(123),
 		},
-		TokenRegistry: dummyAddr,
 	}
 
 	c, err = tlb.ToCell(s)
@@ -279,7 +278,6 @@ func TestStorage(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, c.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, s.ID, decoded.ID)
-	require.Equal(t, dummyAddr.String(), decoded.TokenRegistry.String())
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)

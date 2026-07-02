@@ -16,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 )
 
 const (
@@ -48,6 +49,7 @@ const (
 	TypeDeployable      tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
 	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
 	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
+	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
 	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
 	TypeTestTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
 
@@ -72,6 +74,7 @@ const (
 	ShortMockTokenPool   = "MockTokenPool"
 	ShortTimelock        = "RBACTimelock"
 	ShortMCMS            = "MCMS"
+	ShortTokenRegistry   = "TokenAdminRegistry"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
@@ -99,6 +102,7 @@ var AllContractTypes = []struct {
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
 	{ShortMockTokenPool, TypeTestTokenPool},
+	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
@@ -134,11 +138,12 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeTimelock: timelock.TLBs,
 
 	// CCIP contract types
-	TypeRouter:       router.TLBs,
-	TypeOnRamp:       onramp.TLBs,
-	TypeOffRamp:      offramp.TLBs,
-	TypeFeeQuoter:    feequoter.TLBs,
-	TypeSendExecutor: ccipsendexecutor.TLBs,
+	TypeRouter:        router.TLBs,
+	TypeOnRamp:        onramp.TLBs,
+	TypeOffRamp:       offramp.TLBs,
+	TypeFeeQuoter:     feequoter.TLBs,
+	TypeSendExecutor:  ccipsendexecutor.TLBs,
+	TypeTokenRegistry: tokenregistry.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

@@ -19,7 +19,7 @@ var DefaultConfigSet = Chain{
 	TransactionManager:  &txm.DefaultConfigSet,
 	LogPoller:           &logpoller.DefaultConfigSet,
 	ContractTransmitter: &ocr.DefaultConfigSet,
-	ClientTTL:           10 * time.Minute,
+	ClientTTL:           2 * time.Minute,
 }
 
 type Chain struct {

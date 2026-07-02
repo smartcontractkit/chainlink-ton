@@ -621,6 +621,10 @@ describe('OffRamp - Unit Tests', () => {
         wrappedNative: WRAPPED_NATIVE,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+        tokenRegistryDeployment: {
+          deployableCode: deployerCode,
+          tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+        },
       }
 
       router = blockchain.openContract(rt.Router.createFromConfig(data, code))

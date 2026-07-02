@@ -58,10 +58,11 @@ func FetchResult(
 	methodName := sourceStruct.GetterMethodName()
 	var result *ton.ExecutionResult
 	var err error
+	waiterClient := client.WaitForBlock(block.SeqNo)
 	if opts == nil {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, methodName)
+		result, err = waiterClient.RunGetMethod(ctx, block, contractAddr, methodName)
 	} else {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, methodName, opts...)
+		result, err = waiterClient.RunGetMethod(ctx, block, contractAddr, methodName, opts...)
 	}
 
 	if err != nil {

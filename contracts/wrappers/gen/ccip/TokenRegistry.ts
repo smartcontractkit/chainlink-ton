@@ -116,23 +116,6 @@ class StackReader {
 type coins = bigint
 
 /**
- > type TokenRegistry_InMessage = TokenRegistry_GetTokenInfo
- */
-export type TokenRegistry_InMessage = TokenRegistry_GetTokenInfo
-
-export const TokenRegistry_InMessage = {
-    fromSlice(s: c.Slice): TokenRegistry_InMessage {
-        return TokenRegistry_GetTokenInfo.fromSlice(s);
-    },
-    store(self: TokenRegistry_InMessage, b: c.Builder): void {
-        TokenRegistry_GetTokenInfo.store(self, b);
-    },
-    toCell(self: TokenRegistry_InMessage): c.Cell {
-        return makeCellFrom<TokenRegistry_InMessage>(self, TokenRegistry_InMessage.store);
-    }
-}
-
-/**
  > struct (0xdd5d5127) TokenRegistry_GetTokenInfo {
  > }
  */
@@ -159,6 +142,43 @@ export const TokenRegistry_GetTokenInfo = {
     },
     toCell(self: TokenRegistry_GetTokenInfo): c.Cell {
         return makeCellFrom<TokenRegistry_GetTokenInfo>(self, TokenRegistry_GetTokenInfo.store);
+    }
+}
+
+/**
+ > struct (0xd24387a4) TokenRegistry_SetTokenInfo {
+ >     info: TokenRegistry_TokenInfo
+ > }
+ */
+export interface TokenRegistry_SetTokenInfo {
+    readonly $: 'TokenRegistry_SetTokenInfo'
+    info: TokenRegistry_TokenInfo
+}
+
+export const TokenRegistry_SetTokenInfo = {
+    PREFIX: 0xd24387a4,
+
+    create(args: {
+        info: TokenRegistry_TokenInfo
+    }): TokenRegistry_SetTokenInfo {
+        return {
+            $: 'TokenRegistry_SetTokenInfo',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenRegistry_SetTokenInfo {
+        loadAndCheckPrefix32(s, 0xd24387a4, 'TokenRegistry_SetTokenInfo');
+        return {
+            $: 'TokenRegistry_SetTokenInfo',
+            info: TokenRegistry_TokenInfo.fromSlice(s),
+        }
+    },
+    store(self: TokenRegistry_SetTokenInfo, b: c.Builder): void {
+        b.storeUint(0xd24387a4, 32);
+        TokenRegistry_TokenInfo.store(self.info, b);
+    },
+    toCell(self: TokenRegistry_SetTokenInfo): c.Cell {
+        return makeCellFrom<TokenRegistry_SetTokenInfo>(self, TokenRegistry_SetTokenInfo.store);
     }
 }
 
@@ -206,17 +226,20 @@ export const TokenRegistry_ReturnTokenInfo = {
 
 /**
  > struct TokenRegistry_Storage {
- >     info: TokenRegistry_TokenInfo
+ >     tokenAddress: address
+ >     tokenInfo: TokenRegistry_TokenInfo
  > }
  */
 export interface TokenRegistry_Storage {
     readonly $: 'TokenRegistry_Storage'
-    info: TokenRegistry_TokenInfo
+    tokenAddress: c.Address
+    tokenInfo: TokenRegistry_TokenInfo
 }
 
 export const TokenRegistry_Storage = {
     create(args: {
-        info: TokenRegistry_TokenInfo
+        tokenAddress: c.Address
+        tokenInfo: TokenRegistry_TokenInfo
     }): TokenRegistry_Storage {
         return {
             $: 'TokenRegistry_Storage',
@@ -226,11 +249,13 @@ export const TokenRegistry_Storage = {
     fromSlice(s: c.Slice): TokenRegistry_Storage {
         return {
             $: 'TokenRegistry_Storage',
-            info: TokenRegistry_TokenInfo.fromSlice(s),
+            tokenAddress: s.loadAddress(),
+            tokenInfo: TokenRegistry_TokenInfo.fromSlice(s),
         }
     },
     store(self: TokenRegistry_Storage, b: c.Builder): void {
-        TokenRegistry_TokenInfo.store(self.info, b);
+        b.storeAddress(self.tokenAddress);
+        TokenRegistry_TokenInfo.store(self.tokenInfo, b);
     },
     toCell(self: TokenRegistry_Storage): c.Cell {
         return makeCellFrom<TokenRegistry_Storage>(self, TokenRegistry_Storage.store);
@@ -319,7 +344,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAWAABFP8A9KQT9LzyyAsBAJLT+JHyQCDXLCbq6ok8MY4xMPiS7UTQ+kj6SNIA0W0BkTCRMuLIz5N3M3bW+lL6VMnIz4UIEvpScc8LbszJgED7AOCEDwHHAPL0');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAiQABFP8A9KQT9LzyyAsBAPTT+JHyQCDXLCbq6ok8jjRb+JLtRND6SDH6SPpI0gDRbQGRMJEy4sjPk3czdtb6UvpUycjPhQgS+lJxzwtuzMmAQPsA4NcsJpIcPSSOJDH6SPpI1woA7UTQ+kj6SDH6SDHSADHRyPpSE/pS+lLKAMntVOAwhA8BxwDy9A==');
 
     static Errors = {
     }
@@ -337,7 +362,8 @@ export class TokenRegistry implements c.Contract {
     }
 
     static fromStorage(emptyStorage: {
-        info: TokenRegistry_TokenInfo
+        tokenAddress: c.Address
+        tokenInfo: TokenRegistry_TokenInfo
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenRegistry.CodeCell,
@@ -347,8 +373,15 @@ export class TokenRegistry implements c.Contract {
         return new TokenRegistry(address, initialState);
     }
 
-    static createCellOfTokenRegistryInMessage(body: TokenRegistry_InMessage) {
-        return TokenRegistry_InMessage.toCell(body);
+    static createCellOfTokenRegistrySetTokenInfo(body: {
+        info: TokenRegistry_TokenInfo
+    }) {
+        return TokenRegistry_SetTokenInfo.toCell(TokenRegistry_SetTokenInfo.create(body));
+    }
+
+    static createCellOfTokenRegistryGetTokenInfo(body: {
+    }) {
+        return TokenRegistry_GetTokenInfo.toCell(TokenRegistry_GetTokenInfo.create());
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -359,10 +392,21 @@ export class TokenRegistry implements c.Contract {
         });
     }
 
-    async sendTokenRegistryInMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: TokenRegistry_InMessage, extraOptions?: ExtraSendOptions) {
+    async sendTokenRegistrySetTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        info: TokenRegistry_TokenInfo
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenRegistry_InMessage.toCell(body),
+            body: TokenRegistry_SetTokenInfo.toCell(TokenRegistry_SetTokenInfo.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenRegistryGetTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenRegistry_GetTokenInfo.toCell(TokenRegistry_GetTokenInfo.create()),
             ...extraOptions
         });
     }

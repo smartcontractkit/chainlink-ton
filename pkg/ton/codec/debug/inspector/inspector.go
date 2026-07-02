@@ -118,7 +118,7 @@ func readStorage(
 		return nil, fmt.Errorf("get masterchain info: %w", err)
 	}
 
-	account, err := connection.GetAccount(ctx, block, addr)
+	account, err := connection.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
 	if err != nil {
 		return nil, fmt.Errorf("get account: %w", err)
 	}

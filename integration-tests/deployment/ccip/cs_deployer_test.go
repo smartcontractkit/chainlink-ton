@@ -135,7 +135,7 @@ func TestWalletInit(t *testing.T) {
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
 
-	acc, err := tonChain.Client.GetAccount(t.Context(), block, w.Address())
+	acc, err := tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(t.Context(), block, w.Address())
 	require.NoError(t, err)
 	require.Nil(t, acc.Code, "Code should be nil for uninitialized wallet")
 
@@ -151,7 +151,7 @@ func TestWalletInit(t *testing.T) {
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
 
-	acc, err = tonChain.Client.GetAccount(t.Context(), block, w.Address())
+	acc, err = tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(t.Context(), block, w.Address())
 	require.NoError(t, err)
 	require.NotNil(t, acc.Code, "Code should not be nil after wallet initialization")
 

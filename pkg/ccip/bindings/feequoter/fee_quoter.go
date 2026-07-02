@@ -336,7 +336,7 @@ type DestChainConfigMap map[uint64]DestChainConfig
 
 // Fetch retrieves all destination chain configurations from the fee quoter contract.
 func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) error {
-	result, err := client.RunGetMethod(ctx, block, feeQuoter, DestChainsGetter)
+	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, feeQuoter, DestChainsGetter)
 	if err != nil {
 		return err
 	}

@@ -36,6 +36,7 @@ var (
 	MerkleRoot      ds.ContractType = bindings.ShortMerkleRoot
 	SendExecutor    ds.ContractType = bindings.ShortSendExecutor
 	ReceiveExecutor ds.ContractType = bindings.ShortReceiveExecutor
+	TokenRegistry   ds.ContractType = bindings.ShortTokenRegistry
 	// Utilities
 	TonReceiver ds.ContractType = bindings.ShortReceiver
 	Counter     ds.ContractType = "Counter"
@@ -62,6 +63,7 @@ type CCIPChainState struct {
 	OnRamp           address.Address
 	FeeQuoter        address.Address
 	ReceiverAddress  address.Address
+	TokenRegistry    address.Address // TODO remove when TokenRegistry is sharded
 }
 
 type TONChainView struct {
@@ -217,6 +219,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 			state.OnRamp = *contractAddress
 		case FeeQuoter:
 			state.FeeQuoter = *contractAddress
+		case TokenRegistry:
+			state.TokenRegistry = *contractAddress
 		default:
 			continue
 		}

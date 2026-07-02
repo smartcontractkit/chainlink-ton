@@ -21,6 +21,10 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
+import "../../lib/deployable/namespace"
+import "../token_registry/storage"
+import "../token_registry/messages"
+import "../../lib/deployable/types"
 
 tolk 1.4.1
 
@@ -194,6 +198,36 @@ fun onInternalMessage(in: InMessage) {
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
             onCCIPSend(sendMsg, msg.transferInitiator!, in.valueCoins);
+        }
+        Router_TokenRegistrySetTokenInfo => {
+            val st = Storage.load();
+            val registryAddress = getTokenRegistryDeployAddress(st, msg.tokenAddress);
+            if (msg.isNewEntry) {
+                val deployMsg = createMessage({
+                    bounce: false,
+                    value: ton("0.015"),
+                    dest: registryAddress,
+                    body: Deployable_Initialize {
+                        stateInit: {
+                            code: st.tokenRegistryDeployment.load().tokenRegistryCode,
+                            data: TokenRegistry_Storage {
+                                tokenAddress: msg.tokenAddress,
+                                tokenInfo: msg.tokenInfo
+                            }.toCell(),
+                        }
+                    },
+                });
+                deployMsg.send(SEND_MODE_REGULAR);
+            }
+            val setTokenInfoMsg = createMessage({
+                bounce: false,
+                value: ton("0.015"),
+                dest: registryAddress,
+                body: TokenRegistry_SetTokenInfo {
+                    info: msg.tokenInfo
+                }
+            });
+            setTokenInfoMsg.send(SEND_MODE_REGULAR); //TODO check send_mode
         }
         else => {
             // attempt to handle Ownable messages
@@ -522,6 +556,15 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         msg.feeToken = st.wrappedNative
     }
 
+    // Calculate the token registry address if there is a token amount.
+    // If the token does not exist then the call to get token info will bounce from the ramps.
+    var tokenRegistry: address? = null;
+    if (!msg.tokenAmounts.empty()) {
+        val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
+        //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
+        tokenRegistry = getTokenRegistryDeployAddress(st, tokenAmount.token).calculateAddress();
+    }
+
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
@@ -530,7 +573,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         bounce: true,
         value: 0,
         dest: onRampResult.loadValue(),
-        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }, tokenRegistry},
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -695,6 +738,22 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
+}
+
+/*
+Derives the token registry contract address from the token address
+*/
+fun getTokenRegistryDeployAddress(st: Storage, tokenAddress: address): AutoDeployAddress {
+    return {
+        stateInit: {
+            code: st.tokenRegistryDeployment.load().deployableCode,
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_TokenRegistry,
+                owner: contract.getAddress(),
+                id: tokenAddress,
+            }),
+        }
+    }
 }
 
 @method_id(1000)

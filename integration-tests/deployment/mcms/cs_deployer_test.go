@@ -145,7 +145,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify timelock is initialized
-	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
+	isInitializedResponse, err := chain.Client.WaitForBlock(mc.SeqNo).RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
 	require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify timelock is still initialized
-	isInitializedResponse, err = chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
+	isInitializedResponse, err = chain.Client.WaitForBlock(mc.SeqNo).RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err = isInitializedResponse.Int(0)
 	require.NoError(t, err)

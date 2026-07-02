@@ -1,7 +1,8 @@
 import "types"
 
 struct TokenRegistry_Storage {
-    info: TokenRegistry_TokenInfo
+    tokenAddress: address
+    tokenInfo: TokenRegistry_TokenInfo
 }
 
 fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
@@ -10,6 +11,7 @@ fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
 
 fun TokenRegistry_Storage.store(self) {
     contract.setData(TokenRegistry_Storage{
-        info: self.info,
+        tokenAddress: self.tokenAddress,
+        tokenInfo: self.tokenInfo,
     }.toCell());
 }

@@ -57,14 +57,6 @@ struct CCIPSendExecutor_State_TokenTransfer {
 struct CCIPSendExecutor_State_Finalized {
 }
 
-//TODO deprecate with tt
 struct CCIPSendExecutor_Config {
     feeQuoter: address,
 }
-
-struct CCIPSendExecutor_ConfigV2 {
-    feeQuoter: address,
-    tokenRegistry: address?,
-}
-
-

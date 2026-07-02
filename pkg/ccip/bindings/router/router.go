@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -58,18 +59,24 @@ const (
 )
 
 type Storage struct {
-	ID            uint32               `tlb:"## 32"`
-	Ownable       ownable2step.Storage `tlb:"."`
-	WrappedNative *address.Address     `tlb:"addr"`
-	OnRamps       *cell.Dictionary     `tlb:"dict 64"`
-	OffRamps      *cell.Dictionary     `tlb:"dict 64"`
-	RMNRemote     RMNRemote            `tlb:"^"`
+	ID                      uint32                  `tlb:"## 32"`
+	Ownable                 ownable2step.Storage    `tlb:"."`
+	WrappedNative           *address.Address        `tlb:"addr"`
+	OnRamps                 *cell.Dictionary        `tlb:"dict 64"`
+	OffRamps                *cell.Dictionary        `tlb:"dict 64"`
+	RMNRemote               RMNRemote               `tlb:"^"`
+	TokenRegistryDeployment TokenRegistryDeployment `tlb:"^"`
 }
 
 type RMNRemote struct {
 	Admin          ownable2step.Storage `tlb:"."`
 	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
+}
+
+type TokenRegistryDeployment struct {
+	DeployableCode    *cell.Cell `tlb:"^"`
+	TokenRegistryCode *cell.Cell `tlb:"^"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakedCell encoding.
@@ -174,6 +181,13 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
+type TokenRegistrySetTokenInfo struct {
+	_            tlb.Magic               `tlb:"#fed7cfba" json:"-"` //nolint:revive // Ignore opcode tag
+	TokenAddress *address.Address        `tlb:"addr"`
+	TokenInfo    tokenregistry.TokenInfo `tlb:"."`
+	IsNewEntry   bool                    `tlb:"bool"`
+}
+
 type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#af7a9ac6" json:"-"` //nolint:revive // Ignore opcode tag
 	Content *codec.MessageEnvelope[T] `tlb:"."`
@@ -190,6 +204,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
+	TokenRegistrySetTokenInfo{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})
