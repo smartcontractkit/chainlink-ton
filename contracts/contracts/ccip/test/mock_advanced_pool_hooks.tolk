@@ -20,17 +20,17 @@ struct MockAdvancedPoolHooks_Data {
 }
 
 type MockAdvancedPoolHooks_InMessage =
-  | AdvancedPoolHooks_PreflightCheck
-  | AdvancedPoolHooks_PostflightCheck;
+  | TokenPool_PreflightCheck
+  | TokenPool_PostflightCheck;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MockAdvancedPoolHooks_InMessage.fromSlice(in.body);
 
     match (msg) {
-        AdvancedPoolHooks_PreflightCheck => {
+        TokenPool_PreflightCheck => {
             replyPreflight(msg);
         }
-        AdvancedPoolHooks_PostflightCheck => {
+        TokenPool_PostflightCheck => {
             replyPostflight(msg);
         }
         else => {
@@ -40,7 +40,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun replyPreflight(msg: AdvancedPoolHooks_PreflightCheck) {
+fun replyPreflight(msg: TokenPool_PreflightCheck) {
     val queryId = msg.queryId;
     val fwd = msg.replyPayload!;
 
@@ -66,7 +66,7 @@ fun replyPreflight(msg: AdvancedPoolHooks_PreflightCheck) {
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun replyPostflight(msg: AdvancedPoolHooks_PostflightCheck) {
+fun replyPostflight(msg: TokenPool_PostflightCheck) {
     val queryId = msg.queryId;
     val fwd = msg.replyPayload!;
 

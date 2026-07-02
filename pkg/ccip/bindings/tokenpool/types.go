@@ -359,8 +359,8 @@ type PostflightCheckFailed struct {
 	ForwardPayload ReleaseOrMintForwardPayload `tlb:"^"`
 }
 
-// AdvancedPoolHooks_PreflightCheck requests an async preflight check from the hooks contract.
-type AdvancedPoolHooks_PreflightCheck struct {
+// PreflightCheck requests an async preflight check from the hooks contract.
+type PreflightCheck struct {
 	_                       tlb.Magic        `tlb:"#7b4e3147" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
 	Request                 LockOrBurnInV1   `tlb:"^"`
@@ -371,8 +371,8 @@ type AdvancedPoolHooks_PreflightCheck struct {
 	ReplyPayload            *cell.Cell       `tlb:"maybe ^"`
 }
 
-// AdvancedPoolHooks_PostflightCheck requests an async postflight check from the hooks contract.
-type AdvancedPoolHooks_PostflightCheck struct {
+// PostflightCheck requests an async postflight check from the hooks contract.
+type PostflightCheck struct {
 	_                       tlb.Magic         `tlb:"#e162202f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64            `tlb:"## 64"`
 	Request                 ReleaseOrMintInV1 `tlb:"^"`
@@ -632,8 +632,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	CursedSubjectsSet{},
 	AdvancedPoolHooksSet{},
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
-	AdvancedPoolHooks_PreflightCheck{},
-	AdvancedPoolHooks_PostflightCheck{},
+	PreflightCheck{},
+	PostflightCheck{},
 	// Events
 	LockedOrBurned{},
 	ReleasedOrMinted{},

@@ -1335,7 +1335,7 @@ fun TokenPool<T>.preflightCheck(
             bounce: BounceMode.RichBounce,
             value: 0,
             dest: hooks!,
-            body: AdvancedPoolHooks_PreflightCheck {
+            body: TokenPool_PreflightCheck {
                 queryId: msg.queryId,
                 request: msg.request,
                 requestedFinalityConfig: msg.requestedFinalityConfig,
@@ -1375,7 +1375,7 @@ fun TokenPool<T>.postflightCheck(
             bounce: BounceMode.RichBounce,
             value: 0,
             dest: hooks!,
-            body: AdvancedPoolHooks_PostflightCheck {
+            body: TokenPool_PostflightCheck {
                 queryId: msg.queryId,
                 request: msg.request,
                 localAmount: prepared.localAmount,

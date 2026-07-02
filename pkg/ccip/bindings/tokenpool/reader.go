@@ -181,6 +181,7 @@ var GetDynamicConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[DynamicConfig]{
 			return cfg, fmt.Errorf("error checking IsNil(1) - rateLimitAdmin: %w", err)
 		}
 		if !isNil {
+			//nolint:govet // allow shadowing
 			sAddr, err := r.Slice(1)
 			if err != nil {
 				return cfg, fmt.Errorf("error getting Slice(1) - rateLimitAdmin: %w", err)
