@@ -11,6 +11,9 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 
 type RemainingBitsAndRefs = c.Slice
 
+// TypeScript wrappers flatten a TVM linked list `[1 [2 [3 null]]]` to `[1 2 3]`
+type lisp_list<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -70,6 +73,29 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeLispListOf<T>(v: lisp_list<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    let tail = c.Cell.EMPTY;
+    for (let i = 0; i < v.length; ++i) {
+        let itemB = beginCell();
+        storeFn_T(v[i], itemB);
+        tail = itemB.storeRef(tail).endCell();
+    }
+    b.storeRef(tail);
+}
+
+function loadLispListOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): lisp_list<T> {
+    let outArr = [] as lisp_list<T>;
+    let head = s.loadRef().beginParse();
+    while (head.remainingRefs) {
+        let tailSnaked = head.loadRef();
+        let headValue = loadFn_T(head);
+        head.endParse();    // ensure no data is present besides T
+        outArr.unshift(headValue);
+        head = tailSnaked.beginParse();
+    }
+    return outArr;
 }
 
 function createDictionaryValue<V>(loadFn_V: LoadCallback<V>, storeFn_V: StoreCallback<V>): c.DictionaryValue<V> {
@@ -136,12 +162,65 @@ class StackReader {
         return this.popCellLike().beginParse();
     }
 
+    readLispListOf<T>(readFn_T: (nestedReader: StackReader) => T): T[] {
+        // read `[1 [2 [3 null]]]` to `[1 2 3]`
+        let pairReader: StackReader = this;
+        let outArr = [] as T[];
+        while (true) {
+            if (pairReader.tuple[0].type === 'null') {
+                pairReader.tuple.shift();
+                break;
+            }
+            let headAndTail = pairReader.popExpecting<c.Tuple>('tuple').items;
+            if (headAndTail.length !== 2) {
+                throw new Error(`malformed lisp_list, expected 2 stack width, got ${headAndTail.length}`);
+            }
+            pairReader = new StackReader(headAndTail);
+            outArr.push(readFn_T(pairReader));
+        }
+        return outArr;
+    }
+
+    readTuple<T>(expectedN: number, readFn_T: (nestedReader: StackReader) => T): T {
+        const subItems = this.popExpecting<c.Tuple>('tuple').items;
+        if (subItems.length !== expectedN) {
+            throw new Error(`expected ${expectedN} items in a tuple, got ${subItems.length}`);
+        }
+        return readFn_T(new StackReader(subItems));
+    }
+
     readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
         if (this.tuple[0].type === 'null') {
             this.tuple.shift();
             return null;
         }
         return readFn_T(this);
+    }
+
+    readWideNullable<T>(stackW: number, readFn_T: (r: StackReader) => T): T | null {
+        const slotTypeId = this.tuple[stackW - 1];
+        if (slotTypeId?.type !== 'int') {
+            throw new Error(`not 'int' on a stack`);
+        }
+        if (slotTypeId.value === 0n) {
+            this.tuple = this.tuple.slice(stackW);
+            return null;
+        }
+        const valueT = readFn_T(this);
+        this.tuple.shift();
+        return valueT;
+    }
+
+    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
+        return { ref: loadFn_T(this.readCell().beginParse()) };
+    }
+
+    readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+        }
+        return c.Dictionary.loadDirect<K, V>(keySerializer, valueSerializer, this.readCell());
     }
 }
 
@@ -182,6 +261,23 @@ type uint32 = bigint
 type uint64 = bigint
 type uint128 = bigint
 type uint256 = bigint
+
+/**
+ > type CrossChainAddress = slice
+ */
+export type CrossChainAddress = c.Slice
+
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+    },
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    },
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
 
 /**
  > struct TokenPool_DynamicConfig {
@@ -3125,23 +3221,6 @@ export const TokenPool_Data = {
 export type SnakedCell<T> = c.Cell
 
 /**
- > type CrossChainAddress = slice
- */
-export type CrossChainAddress = c.Slice
-
-export const CrossChainAddress = {
-    fromSlice(s: c.Slice): CrossChainAddress {
-        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
-    },
-    store(self: CrossChainAddress, b: c.Builder): void {
-        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
-    },
-    toCell(self: CrossChainAddress): c.Cell {
-        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
-    }
-}
-
-/**
  > struct CursedSubjects {
  >     data: map<uint128, ()>
  > }
@@ -3460,7 +3539,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBGAEArgABFP8A9KQT9LzyyAsBAgFiAgMAFNAw+JHyQIQP8vACASAEBQIBIAYHAgEgEhMCASAICQIBIA4PAgEgCgsADbW1EIH+XhACAWoMDQANsFfhA/y8IAALpXUIH+XhAAunIwgf5eEADbSjsIH+XhACA3tgEBEAC6OuED/LwgALohoQP8vCAA24PthA/y8IAgFYFBUADbLgYQP8vCACAVgWFwAMqHGED/LwAAyqqIQP8vA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECNAEAAWkAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICgpAgEgCAkCASAWFwIBIAoLAgEgEhMCASAMDQANsFfhA/y8IAIBZg4PAgFIEBEAC6BeED/LwgALocYQP8vCAAuldQgf5eEAC6cjCB/l4QANs2ohA/y8IAIBIBQVAA2sPkIH+XhAAA2sgMIH+XhAAgEgGBkCASAiIwIBIBobAgEgICECASAcHQIBYh4fAAyqh4QP8vAADKkdhA/y8AALofoQP8vCAAugfhA/y8IADa9FQgf5eEAADazjQgf5eEACAVgkJQICdSYnAAypeoQP8vAADKq2hA/y8AALo64QP8vCAAuiGhA/y8ICASAqKwIBICwtAA20fbCB/l4QAA233PCB/l4QAA20jbCB/l4QAgEgLi8CAWowMQIBIDIzAAulXwgf5eEAC6cDCB/l4QANrGvCB/l4QAANrDjCB/l4QA==');
 
     static Errors = {
     }
@@ -3907,13 +3986,6 @@ export class TokenPool implements c.Contract {
         );
     }
 
-    async getHasPendingRelease(provider: ContractProvider, queryId: uint64): Promise<boolean> {
-        const r = StackReader.fromGetMethod(1, await provider.get('hasPendingRelease', [
-            { type: 'int', value: queryId },
-        ]));
-        return r.readBoolean();
-    }
-
     async getRMNProxy(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
         return r.readSlice().loadAddress();
@@ -3936,5 +4008,195 @@ export class TokenPool implements c.Contract {
         return r.readNullable<c.Address>(
             (r) => r.readSlice().loadAddress()
         );
+    }
+
+    async getSupportedChains(provider: ContractProvider): Promise<lisp_list<uint64>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getSupportedChains', []));
+        return r.readLispListOf<uint64>(
+            (r) => r.readBigInt()
+        );
+    }
+
+    async getDynamicConfig(provider: ContractProvider): Promise<TokenPool_DynamicConfig> {
+        const r = StackReader.fromGetMethod(3, await provider.get('getDynamicConfig', []));
+        return ({
+            $: 'TokenPool_DynamicConfig',
+            router: r.readSlice().loadAddress(),
+            rateLimitAdmin: r.readNullable<c.Address>(
+                (r) => r.readSlice().loadAddress()
+            ),
+            feeAdmin: r.readNullable<c.Address>(
+                (r) => r.readSlice().loadAddress()
+            ),
+        });
+    }
+
+    async getAllowedFinalityConfig(provider: ContractProvider): Promise<uint32> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getAllowedFinalityConfig', []));
+        return r.readBigInt();
+    }
+
+    async getAdvancedPoolHooks(provider: ContractProvider): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getAdvancedPoolHooks', []));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
+    }
+
+    async getIsRemotePool(provider: ContractProvider, remoteChainSelector: uint64, remotePoolAddress: CellRef<CrossChainAddress>): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('isRemotePool', [
+            { type: 'int', value: remoteChainSelector },
+            { type: 'cell', cell: CrossChainAddress.toCell(remotePoolAddress.ref) },
+        ]));
+        return r.readBoolean();
+    }
+
+    async getRemoteToken(provider: ContractProvider, remoteChainSelector: uint64): Promise<CellRef<CrossChainAddress>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getRemoteToken', [
+            { type: 'int', value: remoteChainSelector },
+        ]));
+        return r.readCellRef<CrossChainAddress>(CrossChainAddress.fromSlice);
+    }
+
+    async getRemotePools(provider: ContractProvider, remoteChainSelector: uint64): Promise<lisp_list<CellRef<CrossChainAddress>>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getRemotePools', [
+            { type: 'int', value: remoteChainSelector },
+        ]));
+        return r.readLispListOf<CellRef<CrossChainAddress>>(
+            (r) => r.readCellRef<CrossChainAddress>(CrossChainAddress.fromSlice)
+        );
+    }
+
+    async getTokenTransferFeeConfig(provider: ContractProvider, destChainSelector: uint64): Promise<TokenPool_TokenTransferFeeConfig | null> {
+        const r = StackReader.fromGetMethod(8, await provider.get('getTokenTransferFeeConfig', [
+            { type: 'int', value: destChainSelector },
+        ]));
+        return r.readWideNullable<TokenPool_TokenTransferFeeConfig>(8,
+            (r) => ({
+                $: 'TokenPool_TokenTransferFeeConfig',
+                destGasOverhead: r.readBigInt(),
+                destBytesOverhead: r.readBigInt(),
+                finalityFeeUSDCents: r.readBigInt(),
+                fastFinalityFeeUSDCents: r.readBigInt(),
+                finalityTransferFeeBps: r.readBigInt(),
+                fastFinalityTransferFeeBps: r.readBigInt(),
+                isEnabled: r.readBoolean(),
+            })
+        );
+    }
+
+    async getCurrentRateLimiterState(provider: ContractProvider, remoteChainSelector: uint64, fastFinality: boolean): Promise<TokenPool_RateLimiterPair> {
+        const r = StackReader.fromGetMethod(2, await provider.get('getCurrentRateLimiterState', [
+            { type: 'int', value: remoteChainSelector },
+            { type: 'int', value: (fastFinality ? -1n : 0n) },
+        ]));
+        return ({
+            $: 'TokenPool_RateLimiterPair',
+            outbound: r.readCellRef<RateLimiter_TokenBucket>(RateLimiter_TokenBucket.fromSlice),
+            inbound: r.readCellRef<RateLimiter_TokenBucket>(RateLimiter_TokenBucket.fromSlice),
+        });
+    }
+
+    async getCursedSubjects(provider: ContractProvider): Promise<lisp_list<uint128>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('cursedSubjects', []));
+        return r.readLispListOf<uint128>(
+            (r) => r.readBigInt()
+        );
+    }
+
+    async getAdminConfig(provider: ContractProvider): Promise<TokenPool_AdminConfig> {
+        const r = StackReader.fromGetMethod(7, await provider.get('getAdminConfig', []));
+        return ({
+            $: 'TokenPool_AdminConfig',
+            ownable: r.readCellRef<Ownable2Step>(Ownable2Step.fromSlice),
+            rmnProxy: r.readSlice().loadAddress(),
+            dynamicConfig: r.readCellRef<TokenPool_DynamicConfig>(TokenPool_DynamicConfig.fromSlice),
+            jettonClient: ({
+                $: 'JettonClient',
+                masterAddress: r.readSlice().loadAddress(),
+                jettonWalletCode: r.readCell(),
+            }),
+            allowedFinalityConfig: r.readBigInt(),
+            advancedPoolHooks: r.readNullable<c.Address>(
+                (r) => r.readSlice().loadAddress()
+            ),
+        });
+    }
+
+    async getMirroredPolicy(provider: ContractProvider): Promise<TokenPool_MirroredPolicy> {
+        const r = StackReader.fromGetMethod(3, await provider.get('getMirroredPolicy', []));
+        return ({
+            $: 'TokenPool_MirroredPolicy',
+            onRamps: r.readDictionary<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                (s) => s.loadAddress(),
+                (v,b) => b.storeAddress(v)
+            )),
+            offRamps: r.readDictionary<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                (s) => s.loadAddress(),
+                (v,b) => b.storeAddress(v)
+            )),
+            cursedSubjects: ({
+                $: 'CursedSubjects',
+                data: r.readDictionary<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                    (s) => [],
+                    (v,b) => { {} }
+                )),
+            }),
+        });
+    }
+
+    async getRemoteChainConfig(provider: ContractProvider, remoteChainSelector: uint64): Promise<TokenPool_RemoteChainConfig | null> {
+        const r = StackReader.fromGetMethod(5, await provider.get('getRemoteChainConfig', [
+            { type: 'int', value: remoteChainSelector },
+        ]));
+        return r.readWideNullable<TokenPool_RemoteChainConfig>(5,
+            (r) => ({
+                $: 'TokenPool_RemoteChainConfig',
+                remoteTokenAddress: r.readCellRef<CrossChainAddress>(CrossChainAddress.fromSlice),
+                remotePools: r.readDictionary<uint256, CellRef<CrossChainAddress>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<CrossChainAddress>>(
+                    (s) => loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+                    (v,b) => storeCellRef<CrossChainAddress>(v, b, CrossChainAddress.store)
+                )),
+                rateLimiters: r.readCellRef<TokenPool_RateLimiterPair>(TokenPool_RateLimiterPair.fromSlice),
+                fastFinalityRateLimiters: r.readCellRef<TokenPool_RateLimiterPair>(TokenPool_RateLimiterPair.fromSlice),
+            })
+        );
+    }
+
+    async getFee(provider: ContractProvider, localToken: c.Address, destChainSelector: uint64, amount: uint256, feeToken: c.Address, requestedFinalityConfig: uint32, tokenArgs: c.Cell | null): Promise<[
+        uint256,
+        uint32,
+        uint32,
+        uint16,
+        boolean,
+    ]> {
+        const r = StackReader.fromGetMethod(5, await provider.get('getFee', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(localToken,
+                (v,b) => b.storeAddress(v)
+            ) },
+            { type: 'int', value: destChainSelector },
+            { type: 'int', value: amount },
+            { type: 'slice', cell: makeCellFrom<c.Address>(feeToken,
+                (v,b) => b.storeAddress(v)
+            ) },
+            { type: 'int', value: requestedFinalityConfig },
+            tokenArgs === null ? { type: 'null' } : { type: 'cell', cell: tokenArgs },
+        ]));
+        return [
+            r.readBigInt(),
+            r.readBigInt(),
+            r.readBigInt(),
+            r.readBigInt(),
+            r.readBoolean(),
+        ];
+    }
+
+    async getIsSupportedToken(provider: ContractProvider, token: c.Address): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('isSupportedToken', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(token,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return r.readBoolean();
     }
 }
