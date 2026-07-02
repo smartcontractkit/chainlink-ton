@@ -420,7 +420,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, fmt.Errorf("failed to get TON client: %w", err)
 	}
-	result, err := client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
+	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest)) // TODO refactor to use tvm.CallGetter
 	if err != nil {
 		return 0, err
 	}
@@ -857,7 +857,7 @@ func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (ccipocr3.SeqNum,
 	if err != nil {
 		return 0, fmt.Errorf("failed to get TON client: %w", err)
 	}
-	result, err := client.RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber")
+	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber") // TODO refactor to use tvm.CallGetter
 	if err != nil {
 		return 0, err
 	}

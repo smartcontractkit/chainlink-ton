@@ -26,7 +26,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
-	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -46,6 +45,8 @@ import (
 const (
 	balancePollPeriod          = 1 * time.Minute
 	defaultTONClientRetryCount = 5
+	// Max time stablishing a connection to a TON node before giving up. This is used when creating a new connection pool.
+	ConnectionTimeout = 1 * time.Second
 )
 
 type Chain interface {
@@ -74,7 +75,6 @@ type cachedClient struct {
 type chain struct {
 	commontypes.UnimplementedChainService
 	services.StateMachine
-	starter commonutils.StartStopOnce
 
 	id   string
 	cfg  *config.TOMLConfig
@@ -106,6 +106,14 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
 
+	// Randomize node order to avoid always hitting the same node first
+	nodes := make([]*config.Node, len(cfg.Nodes))
+	indexes := rand.Perm(len(nodes))
+	for i, idx := range indexes {
+		nodes[i] = cfg.Nodes[idx]
+	}
+	cfg.Nodes = nodes
+
 	ch := &chain{
 		id:          cfg.ChainID,
 		cfg:         cfg,
@@ -116,7 +124,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 	}
 
 	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
-	signedClientProvider := commonutils.NewLazyLoadCtx(func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+	signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
 		tonClient, err1 := ch.GetClient(ctx)
 		if err1 != nil {
 			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err1)
@@ -131,31 +139,23 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 			Client: tonClient,
 			Wallet: *signerWallet,
 		}, nil
-	})
-
-	ch.txm, err = txm.New(lggr, ch.id, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TON TXM for chain ID %s: %w", cfg.ChainID, err)
 	}
 
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		signedClient, cerr := signedClientProvider.Get(ctx)
-		if cerr != nil {
-			return nil, cerr
-		}
-		return signedClient.Client, nil
+	ch.txm, err = txm.New(lggr, ch.id, loopKs, signedClientProvider, *ch.cfg.TxManager())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TON TXM for chain ID %s: %w", cfg.ChainID, err)
 	}
 	lggr.Infow("Creating new chain", "chainID", ch.ID())
 
 	orm := lppgstore.NewORM(ch.ID(), ds, lggr)
 	lgOpts := &logpoller.ServiceOptions{
 		Config:      *ch.cfg.LogPollerConfig(), // get LogPoller configuration from chain config
-		TxLoader:    txloader.New(lggr, clientProvider),
+		TxLoader:    txloader.New(lggr, ch.GetClient),
 		FilterStore: lppgstore.NewFilterStore(ch.ID(), orm, lggr),
 		LogStore:    lppgstore.NewLogStore(ch.ID(), orm, lggr),
 	}
 
-	ch.lp, err = logpoller.NewService(lggr, ch.ID(), clientProvider, lgOpts)
+	ch.lp, err = logpoller.NewService(lggr, ch.ID(), ch.GetClient, lgOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logpoller service: %w", err)
 	}
@@ -192,7 +192,7 @@ func (c *chain) Name() string {
 }
 
 func (c *chain) Start(ctx context.Context) error {
-	return c.starter.StartOnce("Chain", func() error {
+	return c.StartOnce("Chain", func() error {
 		c.lggr.Debug("Starting txm, log poller, and balance monitor")
 		var ms services.MultiStart
 
@@ -210,7 +210,7 @@ func (c *chain) Start(ctx context.Context) error {
 }
 
 func (c *chain) Close() error {
-	return c.starter.StopOnce("Chain", func() error {
+	return c.StopOnce("Chain", func() error {
 		c.lggr.Debug("Stopping txm, log poller, and balance monitor")
 		err := services.CloseAll(c.txm, c.lp, c.bm)
 
@@ -229,11 +229,11 @@ func (c *chain) Close() error {
 }
 
 func (c *chain) Ready() error {
-	return errors.Join(c.starter.Ready(), c.txm.Ready())
+	return errors.Join(c.StateMachine.Ready(), c.txm.Ready())
 }
 
 func (c *chain) HealthReport() map[string]error {
-	report := map[string]error{c.Name(): c.starter.Healthy()}
+	report := map[string]error{c.Name(): c.Healthy()}
 	services.CopyHealth(report, c.txm.HealthReport())
 	services.CopyHealth(report, c.lp.HealthReport())
 	services.CopyHealth(report, c.bm.HealthReport())
@@ -253,7 +253,7 @@ func (c *chain) LatestHead(ctx context.Context) (commontypes.Head, error) {
 	}
 
 	// Load the full block to get timestamp and hash
-	block, err := client.GetBlockData(ctx, blockID)
+	block, err := client.WaitForBlock(blockID.SeqNo).GetBlockData(ctx, blockID)
 	if err != nil {
 		return commontypes.Head{}, fmt.Errorf("failed to get block data: %w", err)
 	}
@@ -349,11 +349,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 		return nil, errors.New("no nodes available")
 	}
 
-	indexes := rand.Perm(len(nodes))
-
-	for _, i := range indexes {
-		node := nodes[i]
-
+	for i, node := range nodes {
 		// Check cache
 		c.cacheMu.RLock()
 		entry, ok := c.clientCache[i]
@@ -388,7 +384,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 		// set starting point to verify master block proofs chain
 		client.SetTrustedBlock(blockID)
 
-		block, err := client.GetBlockData(ctx, blockID)
+		block, err := client.WaitForBlock(blockID.SeqNo).GetBlockData(ctx, blockID)
 		if err != nil {
 			lastErr = err
 			c.evictClient(i, *node.Name, "GetBlockData failed")
@@ -466,7 +462,9 @@ func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient
 	}
 
 	liteServerURL := c.cfg.Nodes[nodeIndex].URL.String()
-	pool, err := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
+	ctxTimeout, cancel := context.WithTimeout(ctx, ConnectionTimeout)
+	defer cancel()
+	pool, err := tonchain.CreateLiteserverConnectionPool(ctxTimeout, liteServerURL)
 	if err != nil {
 		return nil, err
 	}

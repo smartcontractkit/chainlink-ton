@@ -90,7 +90,7 @@ func waitForAirdropCompletion(ctx context.Context, client ton.APIClientWrapped, 
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
 	for _, addr := range recipients {
-		if acc, err := client.GetAccount(ctx, currentBlock, addr); err == nil {
+		if acc, err := client.WaitForBlock(currentBlock.SeqNo).GetAccount(ctx, currentBlock, addr); err == nil {
 			if acc.State != nil {
 				initialBalances[addr.String()] = acc.State.Balance
 			} else {
@@ -120,7 +120,7 @@ func waitForAirdropCompletion(ctx context.Context, client ton.APIClientWrapped, 
 					if err != nil {
 						continue
 					}
-					acc, err := client.GetAccount(ctx, block, addr)
+					acc, err := client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
 					if err != nil || !acc.IsActive {
 						continue
 					}

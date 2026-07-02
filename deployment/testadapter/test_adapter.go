@@ -543,7 +543,8 @@ func SendCCIPMessage(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
-	getResult, err := clientConn.RunGetMethod(ctx, block, feeQuoterAddr, "validatedFeeCell", ccipSendCell)
+	waiterClient := clientConn.WaitForBlock(block.SeqNo)
+	getResult, err := waiterClient.RunGetMethod(ctx, block, feeQuoterAddr, "validatedFeeCell", ccipSendCell)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get validatedFee: %w", err)
 	}
@@ -560,7 +561,7 @@ func SendCCIPMessage(
 	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
 
 	// Check sender balance before sending
-	senderAccount, err := clientConn.GetAccount(ctx, block, senderAddr)
+	senderAccount, err := waiterClient.GetAccount(ctx, block, senderAddr)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get sender account: %w", err)
 	}

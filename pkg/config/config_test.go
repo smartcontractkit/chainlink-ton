@@ -52,5 +52,5 @@ func TestDefaultConfigSet(t *testing.T) {
 	require.NotNil(t, DefaultConfigSet.TransactionManager)
 	require.NotNil(t, DefaultConfigSet.LogPoller)
 	require.NotNil(t, DefaultConfigSet.ContractTransmitter)
-	assert.Equal(t, 10*time.Minute, DefaultConfigSet.ClientTTL)
+	assert.Equal(t, 2*time.Minute, DefaultConfigSet.ClientTTL)
 }

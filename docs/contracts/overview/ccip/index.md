@@ -52,6 +52,3 @@ graph LR
 
 - [Flow Overview](./flow.md)
 - [Token Transfer Notation Convention](./token-transfer-notation-convention.md)
-
-## Topics
-

@@ -128,7 +128,7 @@ func (a *TonCurseAdapter) IsChainConnectedToTargetChain(e cldf.Environment, sele
 	// Call isChainSupported(targetSel) to check if connection exists
 	// If it returns a valid address, the chains are connected
 	// TODO check if we should call onramp isChainSupported() or router onRamp()
-	result, err := chain.Client.RunGetMethod(e.GetContext(), block, &onramp, "isChainSupported", targetSel)
+	result, err := chain.Client.WaitForBlock(block.SeqNo).RunGetMethod(e.GetContext(), block, &onramp, "isChainSupported", targetSel)
 	if err != nil {
 		return false, fmt.Errorf("failed to call isChainSupported: %w", err)
 	}
@@ -179,7 +179,7 @@ func (a *TonCurseAdapter) ListConnectedChains(e cldf.Environment, selector uint6
 
 	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call destChainSelectors() to get all destination chains
-	result, err := chain.Client.RunGetMethod(e.GetContext(), block, &router, "destChainSelectors")
+	result, err := chain.Client.WaitForBlock(block.SeqNo).RunGetMethod(e.GetContext(), block, &router, "destChainSelectors")
 	if err != nil {
 		return nil, fmt.Errorf("failed to call destChainSelectors: %w", err)
 	}
