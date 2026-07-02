@@ -15,6 +15,29 @@ import "messages"
 import "events"
 import "rate_limiter"
 
+/// @notice Base abstract class with common functions for all token pools.
+/// A token pool serves as isolated place for holding tokens and token specific logic
+/// that may execute as tokens move across the bridge.
+/// @dev This pool supports different decimals on different chains but using this feature could impact the total number
+/// of tokens in circulation. Since all of the tokens are locked/burned on the source, and a rounded amount is
+/// minted/released on the destination, the number of tokens minted/released could be less than the number of tokens
+/// burned/locked. This is because the source chain does not know about the destination token decimals. This is not a
+/// problem if the decimals are the same on both chains.
+///
+/// Example:
+/// Assume there is a token with 6 decimals on chain A and 3 decimals on chain B.
+/// - 1.234567 tokens are burned on chain A.
+/// - 1.234    tokens are minted on chain B.
+/// When sending the 1.234 tokens back to chain A, you will receive 1.234000 tokens on chain A, effectively losing
+/// 0.000567 tokens.
+/// In the case of a burnMint pool on chain A, these funds are burned in the pool on chain A.
+/// In the case of a lockRelease pool on chain A, these funds accumulate in the pool on chain A.
+struct TokenPool<T> {
+    data: TokenPool_Data;
+    context: T? = null;
+    hooks: TokenPool_Hooks<T>? = null;
+}
+
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
     rmnProxy: address;
@@ -69,12 +92,6 @@ struct TokenPool_Hooks<T> {
     onLockOrBurnTransferContinue: ((T, address, TokenPool_LockOrBurnForwardPayload) -> T)?;
 }
 
-struct TokenPool<T> {
-    data: TokenPool_Data;
-    context: T? = null;
-    hooks: TokenPool_Hooks<T>? = null;
-}
-
 @inline
 fun TokenPool<T>.load(context: T? = null, hooks: TokenPool_Hooks<T>? = null): TokenPool<T> {
     val data = TokenPool_Data.fromContractData();
@@ -84,7 +101,6 @@ fun TokenPool<T>.load(context: T? = null, hooks: TokenPool_Hooks<T>? = null): To
 fun TokenPool<T>.store(self) {
     self.data.storeAsContractData();
 }
-
 
 /// Return the JettonClient for the pool, which contains the
 /// master address and wallet code for the token.
@@ -123,14 +139,14 @@ fun TokenPool<T>.getTokenDecimals(self): uint8 {
 
 @inline
 fun TokenPool<T>.getRmnProxy(self): address {
-    val ac = lazy self.adminConfig.load();
+    val ac = lazy self.data.adminConfig.load();
     return ac.rmnProxy;
 }
 
 /// Gets the pools dynamic configuration.
 @inline
 fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
-    val ac = lazy self.adminConfig.load();
+    val ac = lazy self.data.adminConfig.load();
     return ac.dynamicConfig.load();
 }
 
@@ -139,14 +155,14 @@ fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
 /// FinalityCodec library. Checks must happen by calling `FinalityCodec._ensureRequestedFinalityAllowed`.
 @inline
 fun TokenPool<T>.getAllowedFinalityConfig(self): uint32 {
-    val ac = lazy self.adminConfig.load();
+    val ac = lazy self.data.adminConfig.load();
     return ac.allowedFinalityConfig;
 }
 
 /// Gets the advanced pool hook contract address used by this pool.
 @inline
 fun TokenPool<T>.getAdvancedPoolHooks(self): address? {
-    return self.data.advancedPoolHooks;
+    return self.data.adminConfig.load().advancedPoolHooks;
 }
 
 @inline
@@ -175,13 +191,7 @@ fun TokenPool<T>.isSupportedChain(self, remoteChainSelector: uint64): bool {
 
 /// Get list of allowed chains
 fun TokenPool<T>.getSupportedChains(self): lisp_list<uint64> {
-    var list: lisp_list<uint64> = [];
-    var entry = self.data.remoteChainConfigs.findFirst();
-    while (entry.isFound) {
-        list.prependHead(entry.loadKey());
-        entry = self.data.remoteChainConfigs.iterateNext(entry);
-    }
-    return list;
+    return keysLispList(self.data.remoteChainConfigs);
 }
 
 /// Checks if the pool address is configured on the remote chain.

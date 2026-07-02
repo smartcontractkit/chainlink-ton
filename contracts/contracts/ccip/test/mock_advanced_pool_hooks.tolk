@@ -8,10 +8,12 @@ import "../pools/messages"
 
 contract MockAdvancedPoolHooks {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "0.1.0"
     description: "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
     storage: MockAdvancedPoolHooks_Data
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 struct MockAdvancedPoolHooks_Data {
     id: uint8;

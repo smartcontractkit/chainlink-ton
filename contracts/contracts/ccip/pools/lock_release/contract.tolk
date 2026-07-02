@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.1
 
+import "@stdlib/lisp-lists"
+
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
+import "../../common/types"
 import "../../rmn_remote/lib"
 import "../token_pool"
 import "../types"
@@ -278,4 +281,86 @@ get fun pendingOwner(): address? {
 get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bool): TokenPool_RateLimiterPair {
     val pool = loadPool(Storage.load());
     return pool.getCurrentRateLimiterState(remoteChainSelector, fastFinality);
+}
+
+/// Returns whether the given token address is supported by this pool.
+get fun isSupportedToken(token: address): bool {
+    val pool = loadPool(Storage.load());
+    return pool.isSupportedToken(token);
+}
+
+/// Returns the pool's dynamic configuration (router, rateLimitAdmin, feeAdmin).
+get fun getDynamicConfig(): TokenPool_DynamicConfig {
+    val pool = loadPool(Storage.load());
+    return pool.getDynamicConfig();
+}
+
+/// Returns the finality config as defined in the FinalityCodec library.
+get fun getAllowedFinalityConfig(): uint32 {
+    val pool = loadPool(Storage.load());
+    return pool.getAllowedFinalityConfig();
+}
+
+/// Returns the advanced pool hooks contract address, or null if not set.
+get fun getAdvancedPoolHooks(): address? {
+    val pool = loadPool(Storage.load());
+    return pool.getAdvancedPoolHooks()  ;
+}
+
+/// Returns the list of supported remote chain selectors.
+get fun getSupportedChains(): lisp_list<uint64> {
+    val pool = loadPool(Storage.load());
+    return pool.getSupportedChains();
+}
+
+/// Checks if the given remote pool address is configured for the given remote chain.
+get fun isRemotePool(remoteChainSelector: uint64, remotePoolAddress: Cell<CrossChainAddress>): bool {
+    val pool = loadPool(Storage.load());
+    return pool.isRemotePool(remoteChainSelector, remotePoolAddress);
+}
+
+/// Returns the remote token address for the given remote chain.
+get fun getRemoteToken(remoteChainSelector: uint64): Cell<CrossChainAddress> {
+    val pool = loadPool(Storage.load());
+    return pool.getRemoteToken(remoteChainSelector);
+}
+
+/// Returns the list of remote pool addresses for the given remote chain.
+get fun getRemotePools(remoteChainSelector: uint64): lisp_list<Cell<CrossChainAddress>> {
+    val pool = loadPool(Storage.load());
+    return pool.getRemotePools(remoteChainSelector);
+}
+
+/// Returns the token transfer fee configuration for the given destination chain selector.
+get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
+    val pool = loadPool(Storage.load());
+    return pool.getTokenTransferFeeConfig(destChainSelector);
+}
+
+/// Returns the fee parameters that will apply to a transfer to the given destination chain.
+/// @param localToken The local token address.
+/// @param destChainSelector The destination chain selector.
+/// @param amount The transfer amount.
+/// @param feeToken The fee token address.
+/// @param requestedFinalityConfig The requested finality encoding.
+/// @param tokenArgs Optional token-specific arguments.
+get fun getFee(
+    localToken: address,
+    destChainSelector: uint64,
+    amount: uint256,
+    feeToken: address,
+    requestedFinalityConfig: uint32,
+    tokenArgs: cell?,
+): (uint256, uint32, uint32, uint16, bool) {
+    val pool = loadPool(Storage.load());
+    return pool.getFee(localToken, destChainSelector, amount, feeToken, requestedFinalityConfig, tokenArgs);
+}
+
+/// Calculates the fee amount based on the transfer details and finality config.
+get fun getFeeAmount(
+    transfer: TokenPool_LockOrBurnTransfer,
+    requestedFinalityConfig: uint32,
+): uint256 {
+    val pool = loadPool(Storage.load());
+    return pool.getFeeAmount(transfer, requestedFinalityConfig);
 }
