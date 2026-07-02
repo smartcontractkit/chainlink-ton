@@ -1,6 +1,7 @@
 package sequences
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -44,7 +45,7 @@ const (
 	defaultJettonDecimals uint8 = 9
 
 	// Some contract packages still expose the mock pool under this older identifier.
-	alternateTestTokenPoolKey ton_tvm.FullyQualifiedName = "link.chain.ton.ccip.test.TokenPool"
+	alternateTestTokenPoolKey ton_tvm.FullyQualifiedName = "link.chain.ton.ccip.test.MockTokenPool"
 )
 
 // TonTokenAdapter implements tokensapi.TokenAdapter for TON at CCIP v1.6.0.
@@ -132,6 +133,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to load jetton wallet code: %w", err)
 			}
 			minterCode, err := minter.Code()
+			b.Logger.Debugf("Deploying jetton minter with wallet code hash %s and minter code hash %s", hex.EncodeToString(walletCode.Hash()), hex.EncodeToString(minterCode.Hash()))
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to load jetton minter code: %w", err)
 			}
