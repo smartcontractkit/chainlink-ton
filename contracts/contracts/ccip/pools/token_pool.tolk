@@ -466,11 +466,8 @@ fun TokenPool<T>.applyRampAccessUpdates(
     queryId: uint64,
     updates: SnakedCell<TokenPool_RampUpdate>,
 ) {
-    var adminConfig = self.data.adminConfig.load();
-    var ownable = adminConfig.ownable.load();
-    ownable.requireOwner(sender);
-    adminConfig.ownable = ownable.toCell();
-    self.data.adminConfig = adminConfig.toCell();
+    val adminConfig = self.data.adminConfig.load();
+    adminConfig.ownable.load().requireOwner(sender);
 
     var mirroredPolicy = self.data.mirroredPolicy.load();
     var iter = updates.iter();

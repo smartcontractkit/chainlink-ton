@@ -338,6 +338,16 @@ export const Ramp = {
 }
 
 /**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = c.Cell
+
+/**
+ > type RemainingBitsOrRef<T> = T
+ */
+export type RemainingBitsOrRef<T> = T
+
+/**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
  >     queryId: uint64
  >     destination: address
@@ -516,14 +526,41 @@ export const Ownable2Step_OwnershipTransferred = {
 }
 
 /**
- > type SnakedCell<T> = cell
+ > struct (0xba466447) Deployable_Initialize {
+ >     stateInit: ContractState
+ > }
  */
-export type SnakedCell<T> = c.Cell
+export interface Deployable_Initialize {
+    readonly $: 'Deployable_Initialize'
+    stateInit: ContractState
+}
 
-/**
- > type RemainingBitsOrRef<T> = T
- */
-export type RemainingBitsOrRef<T> = T
+export const Deployable_Initialize = {
+    PREFIX: 0xba466447,
+
+    create(args: {
+        stateInit: ContractState
+    }): Deployable_Initialize {
+        return {
+            $: 'Deployable_Initialize',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Deployable_Initialize {
+        loadAndCheckPrefix32(s, 0xba466447, 'Deployable_Initialize');
+        return {
+            $: 'Deployable_Initialize',
+            stateInit: ContractState.fromSlice(s),
+        }
+    },
+    store(self: Deployable_Initialize, b: c.Builder): void {
+        b.storeUint(0xba466447, 32);
+        ContractState.store(self.stateInit, b);
+    },
+    toCell(self: Deployable_Initialize): c.Cell {
+        return makeCellFrom<Deployable_Initialize>(self, Deployable_Initialize.store);
+    }
+}
 
 /**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
@@ -1114,6 +1151,43 @@ export const CursedSubjects = {
     },
     toCell(self: CursedSubjects): c.Cell {
         return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
+    }
+}
+
+/**
+ > struct (0xd24387a4) TokenRegistry_SetTokenInfo {
+ >     info: TokenRegistry_TokenInfo
+ > }
+ */
+export interface TokenRegistry_SetTokenInfo {
+    readonly $: 'TokenRegistry_SetTokenInfo'
+    info: TokenRegistry_TokenInfo
+}
+
+export const TokenRegistry_SetTokenInfo = {
+    PREFIX: 0xd24387a4,
+
+    create(args: {
+        info: TokenRegistry_TokenInfo
+    }): TokenRegistry_SetTokenInfo {
+        return {
+            $: 'TokenRegistry_SetTokenInfo',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenRegistry_SetTokenInfo {
+        loadAndCheckPrefix32(s, 0xd24387a4, 'TokenRegistry_SetTokenInfo');
+        return {
+            $: 'TokenRegistry_SetTokenInfo',
+            info: TokenRegistry_TokenInfo.fromSlice(s),
+        }
+    },
+    store(self: TokenRegistry_SetTokenInfo, b: c.Builder): void {
+        b.storeUint(0xd24387a4, 32);
+        TokenRegistry_TokenInfo.store(self.info, b);
+    },
+    toCell(self: TokenRegistry_SetTokenInfo): c.Cell {
+        return makeCellFrom<TokenRegistry_SetTokenInfo>(self, TokenRegistry_SetTokenInfo.store);
     }
 }
 
@@ -2593,80 +2667,6 @@ export const MessageToOffRampBounced = {
 }
 
 /**
- > struct (0xd24387a4) TokenRegistry_SetTokenInfo {
- >     info: TokenRegistry_TokenInfo
- > }
- */
-export interface TokenRegistry_SetTokenInfo {
-    readonly $: 'TokenRegistry_SetTokenInfo'
-    info: TokenRegistry_TokenInfo
-}
-
-export const TokenRegistry_SetTokenInfo = {
-    PREFIX: 0xd24387a4,
-
-    create(args: {
-        info: TokenRegistry_TokenInfo
-    }): TokenRegistry_SetTokenInfo {
-        return {
-            $: 'TokenRegistry_SetTokenInfo',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenRegistry_SetTokenInfo {
-        loadAndCheckPrefix32(s, 0xd24387a4, 'TokenRegistry_SetTokenInfo');
-        return {
-            $: 'TokenRegistry_SetTokenInfo',
-            info: TokenRegistry_TokenInfo.fromSlice(s),
-        }
-    },
-    store(self: TokenRegistry_SetTokenInfo, b: c.Builder): void {
-        b.storeUint(0xd24387a4, 32);
-        TokenRegistry_TokenInfo.store(self.info, b);
-    },
-    toCell(self: TokenRegistry_SetTokenInfo): c.Cell {
-        return makeCellFrom<TokenRegistry_SetTokenInfo>(self, TokenRegistry_SetTokenInfo.store);
-    }
-}
-
-/**
- > struct (0xba466447) Deployable_Initialize {
- >     stateInit: ContractState
- > }
- */
-export interface Deployable_Initialize {
-    readonly $: 'Deployable_Initialize'
-    stateInit: ContractState
-}
-
-export const Deployable_Initialize = {
-    PREFIX: 0xba466447,
-
-    create(args: {
-        stateInit: ContractState
-    }): Deployable_Initialize {
-        return {
-            $: 'Deployable_Initialize',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Deployable_Initialize {
-        loadAndCheckPrefix32(s, 0xba466447, 'Deployable_Initialize');
-        return {
-            $: 'Deployable_Initialize',
-            stateInit: ContractState.fromSlice(s),
-        }
-    },
-    store(self: Deployable_Initialize, b: c.Builder): void {
-        b.storeUint(0xba466447, 32);
-        ContractState.store(self.stateInit, b);
-    },
-    toCell(self: Deployable_Initialize): c.Cell {
-        return makeCellFrom<Deployable_Initialize>(self, Deployable_Initialize.store);
-    }
-}
-
-/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice
@@ -2969,8 +2969,8 @@ export class Router implements c.Contract {
         'Router_Error.DestChainNotEnabled': 57100,
         'Router_Error.SourceChainNotEnabled': 57101,
         'Withdrawable_Error.HitReserve': 57101,
-        'Withdrawable_Error.InvalidRequest': 57102,
         'Router_Error.SenderIsNotOffRamp': 57102,
+        'Withdrawable_Error.InvalidRequest': 57102,
         'Router_Error.OffRampNotSetForSelector': 57103,
         'Router_Error.OffRampAddressMismatch': 57104,
         'Router_Error.SubjectCursed': 57105,

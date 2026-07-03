@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
-import "../../lib/funding/withdrawable.tolk"
-import "../../lib/access/ownable_2step"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable"
+import "../../lib/access/ownable_2step"
+import "../../lib/deployable/namespace"
+import "../../lib/deployable/types"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
@@ -13,7 +15,9 @@ import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
 import "../offramp/types"
-import "../rmn_remote/lib.tolk"
+import "../rmn_remote/lib"
+import "../token_registry/storage"
+import "../token_registry/messages"
 import "../test/tokenPool/messages"
 
 import "types"
@@ -21,10 +25,6 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
-import "../../lib/deployable/namespace"
-import "../token_registry/storage"
-import "../token_registry/messages"
-import "../../lib/deployable/types"
 
 tolk 1.4.1
 

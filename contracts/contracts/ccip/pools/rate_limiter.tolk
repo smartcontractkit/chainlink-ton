@@ -51,16 +51,8 @@ fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: uint256, _token
     val capacity = self.capacity;
     val timeDiff = blockchain.now() - self.lastUpdated;
 
-    if (timeDiff != 0) {
-        if (tokens > capacity) {
-            throw RateLimiter_Error.BucketOverfilled;
-        }
-
-        // Refill tokens when arriving at a new block time.
-        tokens = _calculateRefill(capacity, tokens, timeDiff, self.rate);
-
-        self.lastUpdated = blockchain.now();
-    }
+    // Refill tokens for elapsed time.
+    tokens = self._applyElapsedRefill(tokens, capacity, timeDiff);
 
     if (capacity < requestTokens) {
         throw RateLimiter_Error.TokenMaxCapacityExceeded;
@@ -100,13 +92,8 @@ fun RateLimiter_TokenBucket._refund(mutate self, refundTokens: uint256, _tokenAd
     val capacity = self.capacity;
     val timeDiff = blockchain.now() - self.lastUpdated;
 
-    if (timeDiff != 0) {
-        if (tokens > capacity) {
-            throw RateLimiter_Error.BucketOverfilled;
-        }
-        tokens = _calculateRefill(capacity, tokens, timeDiff, self.rate);
-        self.lastUpdated = blockchain.now();
-    }
+    // Refill tokens for elapsed time.
+    tokens = self._applyElapsedRefill(tokens, capacity, timeDiff);
 
     val restored = (tokens as uint256) + refundTokens;
     // Cap at capacity: refunds can never overfill the bucket.
@@ -139,6 +126,27 @@ fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimit
     self.capacity = config.capacity;
     self.rate = config.rate;
     self.lastUpdated = blockchain.now();
+}
+
+/// @notice Refills tokens for elapsed time and updates lastUpdated on the bucket.
+/// @param bucket The token bucket to update.
+/// @param tokens The current (stale) token count.
+/// @param capacity The bucket capacity.
+/// @param timeDiff Seconds elapsed since the last update.
+/// @return The token count after refill.
+fun RateLimiter_TokenBucket._applyElapsedRefill(mutate self, tokens: uint128, capacity: uint128, timeDiff: uint256): uint128 {
+    if (timeDiff != 0) {
+        if (tokens > capacity) {
+            throw RateLimiter_Error.BucketOverfilled;
+        }
+
+        val newTokens = _calculateRefill(capacity, tokens, timeDiff, self.rate);
+        self.lastUpdated = blockchain.now();
+
+        return newTokens;
+    }
+
+    return tokens;
 }
 
 /// @notice Validates the token bucket config.
