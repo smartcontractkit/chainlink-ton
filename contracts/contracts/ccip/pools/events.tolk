@@ -3,26 +3,26 @@ import "../common/types"
 
 import "types"
 
-const TOPIC_TOKEN_POOL_LOCKED_OR_BURNED = stringCrc32("TokenPool_LockedOrBurned");
-const TOPIC_TOKEN_POOL_RELEASED_OR_MINTED = stringCrc32("TokenPool_ReleasedOrMinted");
-const TOPIC_TOKEN_POOL_CHAIN_ADDED = stringCrc32("TokenPool_ChainAdded");
-const TOPIC_TOKEN_POOL_CHAIN_REMOVED = stringCrc32("TokenPool_ChainRemoved");
-const TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED = stringCrc32("TokenPool_RemotePoolAdded");
-const TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED = stringCrc32("TokenPool_RemotePoolRemoved");
-const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = stringCrc32("TokenPool_DynamicConfigSet");
-const TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED = stringCrc32("TokenPool_RampAccessUpdated");
-const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = stringCrc32("TokenPool_FinalityConfigSet");
-const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = stringCrc32("TokenPool_RateLimitConfigured");
-const TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED = stringCrc32("TokenPool_TokenTransferFeeConfigUpdated");
-const TOPIC_TOKEN_POOL_FEE_CONFIG_DELETED = stringCrc32("TokenPool_TokenTransferFeeConfigDeleted");
-const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_OutboundRateLimitConsumed");
-const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_InboundRateLimitConsumed");
-const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_FastFinalityOutboundRateLimitConsumed");
-const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED = stringCrc32("TokenPool_FastFinalityInboundRateLimitConsumed");
-const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_OutboundRateLimitRefunded");
-const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_InboundRateLimitRefunded");
-const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_FastFinalityOutboundRateLimitRefunded");
-const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_REFUNDED = stringCrc32("TokenPool_FastFinalityInboundRateLimitRefunded");
+const TOPIC_TOKEN_POOL_LOCKED_OR_BURNED = "TokenPool_LockedOrBurned".crc32();
+const TOPIC_TOKEN_POOL_RELEASED_OR_MINTED = "TokenPool_ReleasedOrMinted".crc32();
+const TOPIC_TOKEN_POOL_CHAIN_ADDED = "TokenPool_ChainAdded".crc32();
+const TOPIC_TOKEN_POOL_CHAIN_REMOVED = "TokenPool_ChainRemoved".crc32();
+const TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED = "TokenPool_RemotePoolAdded".crc32();
+const TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED = "TokenPool_RemotePoolRemoved".crc32();
+const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = "TokenPool_DynamicConfigSet".crc32();
+const TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED = "TokenPool_RampAccessUpdated".crc32();
+const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = "TokenPool_FinalityConfigSet".crc32();
+const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = "TokenPool_RateLimitConfigured".crc32();
+const TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED = "TokenPool_TokenTransferFeeConfigUpdated".crc32();
+const TOPIC_TOKEN_POOL_FEE_CONFIG_DELETED = "TokenPool_TokenTransferFeeConfigDeleted".crc32();
+const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_CONSUMED = "TokenPool_OutboundRateLimitConsumed".crc32();
+const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_CONSUMED = "TokenPool_InboundRateLimitConsumed".crc32();
+const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED = "TokenPool_FastFinalityOutboundRateLimitConsumed".crc32();
+const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED = "TokenPool_FastFinalityInboundRateLimitConsumed".crc32();
+const TOPIC_TOKEN_POOL_OUTBOUND_RATE_LIMIT_REFUNDED = "TokenPool_OutboundRateLimitRefunded".crc32();
+const TOPIC_TOKEN_POOL_INBOUND_RATE_LIMIT_REFUNDED = "TokenPool_InboundRateLimitRefunded".crc32();
+const TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_REFUNDED = "TokenPool_FastFinalityOutboundRateLimitRefunded".crc32();
+const TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_REFUNDED = "TokenPool_FastFinalityInboundRateLimitRefunded".crc32();
 
 struct TokenPool_LockedOrBurned {
     remoteChainSelector: uint64;

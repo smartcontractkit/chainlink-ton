@@ -34,5 +34,5 @@ enum TokenPool_Error {
 
 @inline
 fun TokenPool_errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.TokenPool"), local);
+    return getErrorCode("link.chain.ton.ccip.TokenPool".crc32(), local);
 }

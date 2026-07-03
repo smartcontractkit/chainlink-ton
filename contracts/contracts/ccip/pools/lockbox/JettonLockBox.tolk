@@ -28,8 +28,8 @@ const CONTRACT_NAME = "link.chain.ton.ccip.JettonLockBox".literalSlice();
 const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 /// Event topics.
-const TOPIC_DEPOSIT = stringCrc32("JettonLockBox_Deposit");
-const TOPIC_WITHDRAWAL = stringCrc32("JettonLockBox_Withdrawal");
+const TOPIC_DEPOSIT = "JettonLockBox_Deposit".crc32();
+const TOPIC_WITHDRAWAL = "JettonLockBox_Withdrawal".crc32();
 
 /// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
 const MIN_GRAM_TO_RESERVE: int = ton("0.05");
