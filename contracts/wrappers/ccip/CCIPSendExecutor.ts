@@ -53,7 +53,11 @@ export type Addresses = {
 }
 
 export type State =
-  Initialized | OnGoingFeeValidation | TokenRegistryAccess | TokenTransfer | Finalized
+  | Initialized
+  | OnGoingFeeValidation
+  | TokenRegistryAccess
+  | TokenTransfer
+  | Finalized
 
 export type Initialized = {
   kind: 'initialized'
