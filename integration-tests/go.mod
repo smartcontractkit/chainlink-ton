@@ -31,7 +31,7 @@ require (
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260422202036-5de86080ceb5
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260422202036-5de86080ceb5
 	github.com/smartcontractkit/libocr v0.0.0-20260403184524-b6409238958d
-	github.com/smartcontractkit/mcms v0.47.1-0.20260609163952-0b2bf692ba6a
+	github.com/smartcontractkit/mcms v0.50.2-0.20260702224611-9afa7f9eea3e
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	go.uber.org/zap v1.28.0
@@ -39,10 +39,14 @@ require (
 )
 
 require (
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/quic-go/quic-go v0.59.1 // indirect
 	github.com/smartcontractkit/chainlink-canton v0.0.0-20260615233851-4e78e7c23a58 // indirect
 	github.com/smartcontractkit/go-daml v0.0.0-20260615231356-88c6ee9b5774 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 )
 
 require (
@@ -509,5 +513,3 @@ require (
 )
 
 replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
-
-replace github.com/smartcontractkit/mcms => ../../mcms

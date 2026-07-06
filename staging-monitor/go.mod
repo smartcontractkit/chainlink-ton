@@ -195,7 +195,7 @@ require (
 	github.com/smartcontractkit/freeport v0.1.3-0.20250828155247-add56fa28aad // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20260304194147-a03701e2c02e // indirect
-	github.com/smartcontractkit/mcms v0.47.1-0.20260609163952-0b2bf692ba6a // indirect
+	github.com/smartcontractkit/mcms v0.50.2-0.20260702224611-9afa7f9eea3e // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stellar/go-stellar-sdk v0.5.0 // indirect
@@ -274,5 +274,3 @@ require (
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d
 
 replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
-
-replace github.com/smartcontractkit/mcms => ../../mcms

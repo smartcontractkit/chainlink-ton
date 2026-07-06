@@ -54,3 +54,6 @@ cmd/chainlink-ton/chainlink-ton
 
 # Experimental files
 pkg/ton/codec/jsoncodec/
+
+# Cursor
+.cursor/

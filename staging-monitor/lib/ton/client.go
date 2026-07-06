@@ -341,7 +341,7 @@ type mapStateProvider struct {
 	addresses map[datastore.ContractType]string
 }
 
-func (p *mapStateProvider) GetAddress(ty datastore.ContractType) (string, error) {
+func (p *mapStateProvider) GetAddress(ty datastore.ContractType, _ ...string) (string, error) {
 	addr, ok := p.addresses[ty]
 	if !ok {
 		return "", fmt.Errorf("address not found for contract type: %s", ty)

@@ -16,7 +16,7 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.110.0
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.18.0
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260514223130-48bc90aca745
-	github.com/smartcontractkit/mcms v0.47.1-0.20260609163952-0b2bf692ba6a
+	github.com/smartcontractkit/mcms v0.50.2-0.20260702224611-9afa7f9eea3e
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/sync v0.21.0
@@ -269,5 +269,3 @@ require (
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d
 
 replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
-
-replace github.com/smartcontractkit/mcms => ../../mcms
