@@ -1,7 +1,7 @@
 ---
-id: contracts-ccip-token-registry
-title: Token Registry
-sidebar_label: Token Registry
+id: contracts-ccip-pools-lockrelease-lockbox-token-pool
+title: LockRelease Lockbox TokenPool
+sidebar_label: LockRelease Lockbox TokenPool
 sidebar_position: 3
 ---
 
