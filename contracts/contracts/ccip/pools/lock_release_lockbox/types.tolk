@@ -2,7 +2,7 @@
 
 import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/types"
-import "../messages"
+import "../lib/token_pool/messages"
 
 const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool".literalSlice();
 const LockReleaseLockboxTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
