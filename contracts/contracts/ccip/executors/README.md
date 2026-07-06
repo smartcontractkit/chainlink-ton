@@ -1,6 +1,3 @@
-# Executors
-
-CCIP per-message sharded contracts which manage the context and state of the on-ramp and off-ramp flows.
 
 ## TODO
 

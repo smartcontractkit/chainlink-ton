@@ -9,7 +9,7 @@ sidebar_position: 4
 
 > Before you read, see [Jetton Transfer Notation Convention](../token-transfer-notation-convention.md)
 
-> See also [how CCIPSend works](./send-executor.md) and [how the Token Registry is implemented](../token-registry.md).
+> See also [how CCIPSend works](./send-executor.md) and [how the Token Registry is implemented](../token-pools/token-registry.md).
 
 _The message flow for **Reject CCIPSend** is collapsed to a Note. You can find more details below._
 
