@@ -298,6 +298,87 @@ export const Ownable2Step = {
 }
 
 /**
+ > struct Ownable2Step_OwnershipTransferRequested {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_OwnershipTransferRequested {
+    readonly $: 'Ownable2Step_OwnershipTransferRequested'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_OwnershipTransferRequested = {
+    create(args: {
+        queryId: uint64
+        newOwner: c.Address
+    }): Ownable2Step_OwnershipTransferRequested {
+        return {
+            $: 'Ownable2Step_OwnershipTransferRequested',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
+        return {
+            $: 'Ownable2Step_OwnershipTransferRequested',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_OwnershipTransferRequested, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_OwnershipTransferRequested): c.Cell {
+        return makeCellFrom<Ownable2Step_OwnershipTransferRequested>(self, Ownable2Step_OwnershipTransferRequested.store);
+    }
+}
+
+/**
+ > struct Ownable2Step_OwnershipTransferred {
+ >     queryId: uint64
+ >     oldOwner: address
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_OwnershipTransferred {
+    readonly $: 'Ownable2Step_OwnershipTransferred'
+    queryId: uint64
+    oldOwner: c.Address
+    newOwner: c.Address
+}
+
+export const Ownable2Step_OwnershipTransferred = {
+    create(args: {
+        queryId: uint64
+        oldOwner: c.Address
+        newOwner: c.Address
+    }): Ownable2Step_OwnershipTransferred {
+        return {
+            $: 'Ownable2Step_OwnershipTransferred',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
+        return {
+            $: 'Ownable2Step_OwnershipTransferred',
+            queryId: s.loadUintBig(64),
+            oldOwner: s.loadAddress(),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_OwnershipTransferred, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.oldOwner);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_OwnershipTransferred): c.Cell {
+        return makeCellFrom<Ownable2Step_OwnershipTransferred>(self, Ownable2Step_OwnershipTransferred.store);
+    }
+}
+
+/**
  > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
 export type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -2352,6 +2433,141 @@ export const TokenPool_PostflightCheckFailed = {
 }
 
 /**
+ > struct (0x4129d109) TokenPool_PreflightCheck {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_LockOrBurnInV1>
+ >     requestedFinalityConfig: uint32
+ >     tokenArgs: cell?
+ >     amountPostFee: uint256
+ >     replyTo: address
+ >     replyPayload: cell?
+ > }
+ */
+export interface TokenPool_PreflightCheck {
+    readonly $: 'TokenPool_PreflightCheck'
+    queryId: uint64
+    request: CellRef<TokenPool_LockOrBurnInV1>
+    requestedFinalityConfig: uint32
+    tokenArgs: c.Cell | null
+    amountPostFee: uint256
+    replyTo: c.Address
+    replyPayload: c.Cell | null
+}
+
+export const TokenPool_PreflightCheck = {
+    PREFIX: 0x4129d109,
+
+    create(args: {
+        queryId: uint64
+        request: CellRef<TokenPool_LockOrBurnInV1>
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        amountPostFee: uint256
+        replyTo: c.Address
+        replyPayload: c.Cell | null
+    }): TokenPool_PreflightCheck {
+        return {
+            $: 'TokenPool_PreflightCheck',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PreflightCheck {
+        loadAndCheckPrefix32(s, 0x4129d109, 'TokenPool_PreflightCheck');
+        return {
+            $: 'TokenPool_PreflightCheck',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
+            requestedFinalityConfig: s.loadUintBig(32),
+            tokenArgs: s.loadBoolean() ? s.loadRef() : null,
+            amountPostFee: s.loadUintBig(256),
+            replyTo: s.loadAddress(),
+            replyPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_PreflightCheck, b: c.Builder): void {
+        b.storeUint(0x4129d109, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        storeTolkNullable<c.Cell>(self.tokenArgs, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeUint(self.amountPostFee, 256);
+        b.storeAddress(self.replyTo);
+        storeTolkNullable<c.Cell>(self.replyPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_PreflightCheck): c.Cell {
+        return makeCellFrom<TokenPool_PreflightCheck>(self, TokenPool_PreflightCheck.store);
+    }
+}
+
+/**
+ > struct (0x703c2b58) TokenPool_PostflightCheck {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_ReleaseOrMintInV1>
+ >     localAmount: uint256
+ >     requestedFinalityConfig: uint32
+ >     replyTo: address
+ >     replyPayload: cell?
+ > }
+ */
+export interface TokenPool_PostflightCheck {
+    readonly $: 'TokenPool_PostflightCheck'
+    queryId: uint64
+    request: CellRef<TokenPool_ReleaseOrMintInV1>
+    localAmount: uint256
+    requestedFinalityConfig: uint32
+    replyTo: c.Address
+    replyPayload: c.Cell | null
+}
+
+export const TokenPool_PostflightCheck = {
+    PREFIX: 0x703c2b58,
+
+    create(args: {
+        queryId: uint64
+        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        localAmount: uint256
+        requestedFinalityConfig: uint32
+        replyTo: c.Address
+        replyPayload: c.Cell | null
+    }): TokenPool_PostflightCheck {
+        return {
+            $: 'TokenPool_PostflightCheck',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PostflightCheck {
+        loadAndCheckPrefix32(s, 0x703c2b58, 'TokenPool_PostflightCheck');
+        return {
+            $: 'TokenPool_PostflightCheck',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
+            localAmount: s.loadUintBig(256),
+            requestedFinalityConfig: s.loadUintBig(32),
+            replyTo: s.loadAddress(),
+            replyPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_PostflightCheck, b: c.Builder): void {
+        b.storeUint(0x703c2b58, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
+        b.storeUint(self.localAmount, 256);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        b.storeAddress(self.replyTo);
+        storeTolkNullable<c.Cell>(self.replyPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_PostflightCheck): c.Cell {
+        return makeCellFrom<TokenPool_PostflightCheck>(self, TokenPool_PostflightCheck.store);
+    }
+}
+
+/**
  > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
  >     queryId: uint64
  >     forwardPayload: TokenPool_LockOrBurnForwardPayload
@@ -2792,6 +3008,48 @@ export const TokenPool_RateLimitConfiguredNotification = {
 }
 
 /**
+ > struct (0xe5d08b2e) TokenPool_RMNProxySet {
+ >     queryId: uint64
+ >     rmnProxy: address
+ > }
+ */
+export interface TokenPool_RMNProxySet {
+    readonly $: 'TokenPool_RMNProxySet'
+    queryId: uint64
+    rmnProxy: c.Address
+}
+
+export const TokenPool_RMNProxySet = {
+    PREFIX: 0xe5d08b2e,
+
+    create(args: {
+        queryId: uint64
+        rmnProxy: c.Address
+    }): TokenPool_RMNProxySet {
+        return {
+            $: 'TokenPool_RMNProxySet',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RMNProxySet {
+        loadAndCheckPrefix32(s, 0xe5d08b2e, 'TokenPool_RMNProxySet');
+        return {
+            $: 'TokenPool_RMNProxySet',
+            queryId: s.loadUintBig(64),
+            rmnProxy: s.loadAddress(),
+        }
+    },
+    store(self: TokenPool_RMNProxySet, b: c.Builder): void {
+        b.storeUint(0xe5d08b2e, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.rmnProxy);
+    },
+    toCell(self: TokenPool_RMNProxySet): c.Cell {
+        return makeCellFrom<TokenPool_RMNProxySet>(self, TokenPool_RMNProxySet.store);
+    }
+}
+
+/**
  > struct (0x15800161) TokenPool_CursedSubjectsSet {
  >     queryId: uint64
  >     cursedSubjects: CursedSubjects
@@ -2987,6 +3245,177 @@ export const TokenPool_AdvancedPoolHooksSet = {
 }
 
 /**
+ > struct TokenPool_LockedOrBurned {
+ >     remoteChainSelector: uint64
+ >     details: Cell<TokenPool_LockedOrBurnedDetails>
+ > }
+ */
+export interface TokenPool_LockedOrBurned {
+    readonly $: 'TokenPool_LockedOrBurned'
+    remoteChainSelector: uint64
+    details: CellRef<TokenPool_LockedOrBurnedDetails>
+}
+
+export const TokenPool_LockedOrBurned = {
+    create(args: {
+        remoteChainSelector: uint64
+        details: CellRef<TokenPool_LockedOrBurnedDetails>
+    }): TokenPool_LockedOrBurned {
+        return {
+            $: 'TokenPool_LockedOrBurned',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockedOrBurned {
+        return {
+            $: 'TokenPool_LockedOrBurned',
+            remoteChainSelector: s.loadUintBig(64),
+            details: loadCellRef<TokenPool_LockedOrBurnedDetails>(s, TokenPool_LockedOrBurnedDetails.fromSlice),
+        }
+    },
+    store(self: TokenPool_LockedOrBurned, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<TokenPool_LockedOrBurnedDetails>(self.details, b, TokenPool_LockedOrBurnedDetails.store);
+    },
+    toCell(self: TokenPool_LockedOrBurned): c.Cell {
+        return makeCellFrom<TokenPool_LockedOrBurned>(self, TokenPool_LockedOrBurned.store);
+    }
+}
+
+/**
+ > struct TokenPool_LockedOrBurnedDetails {
+ >     token: address
+ >     sender: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_LockedOrBurnedDetails {
+    readonly $: 'TokenPool_LockedOrBurnedDetails'
+    token: c.Address
+    sender: c.Address
+    amount: uint256
+}
+
+export const TokenPool_LockedOrBurnedDetails = {
+    create(args: {
+        token: c.Address
+        sender: c.Address
+        amount: uint256
+    }): TokenPool_LockedOrBurnedDetails {
+        return {
+            $: 'TokenPool_LockedOrBurnedDetails',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockedOrBurnedDetails {
+        return {
+            $: 'TokenPool_LockedOrBurnedDetails',
+            token: s.loadAddress(),
+            sender: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_LockedOrBurnedDetails, b: c.Builder): void {
+        b.storeAddress(self.token);
+        b.storeAddress(self.sender);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_LockedOrBurnedDetails): c.Cell {
+        return makeCellFrom<TokenPool_LockedOrBurnedDetails>(self, TokenPool_LockedOrBurnedDetails.store);
+    }
+}
+
+/**
+ > struct TokenPool_ReleasedOrMinted {
+ >     remoteChainSelector: uint64
+ >     details: Cell<TokenPool_ReleasedOrMintedDetails>
+ > }
+ */
+export interface TokenPool_ReleasedOrMinted {
+    readonly $: 'TokenPool_ReleasedOrMinted'
+    remoteChainSelector: uint64
+    details: CellRef<TokenPool_ReleasedOrMintedDetails>
+}
+
+export const TokenPool_ReleasedOrMinted = {
+    create(args: {
+        remoteChainSelector: uint64
+        details: CellRef<TokenPool_ReleasedOrMintedDetails>
+    }): TokenPool_ReleasedOrMinted {
+        return {
+            $: 'TokenPool_ReleasedOrMinted',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleasedOrMinted {
+        return {
+            $: 'TokenPool_ReleasedOrMinted',
+            remoteChainSelector: s.loadUintBig(64),
+            details: loadCellRef<TokenPool_ReleasedOrMintedDetails>(s, TokenPool_ReleasedOrMintedDetails.fromSlice),
+        }
+    },
+    store(self: TokenPool_ReleasedOrMinted, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<TokenPool_ReleasedOrMintedDetails>(self.details, b, TokenPool_ReleasedOrMintedDetails.store);
+    },
+    toCell(self: TokenPool_ReleasedOrMinted): c.Cell {
+        return makeCellFrom<TokenPool_ReleasedOrMinted>(self, TokenPool_ReleasedOrMinted.store);
+    }
+}
+
+/**
+ > struct TokenPool_ReleasedOrMintedDetails {
+ >     token: address
+ >     sender: address
+ >     amount: uint256
+ >     recipient: Cell<address>
+ > }
+ */
+export interface TokenPool_ReleasedOrMintedDetails {
+    readonly $: 'TokenPool_ReleasedOrMintedDetails'
+    token: c.Address
+    sender: c.Address
+    amount: uint256
+    recipient: CellRef<c.Address>
+}
+
+export const TokenPool_ReleasedOrMintedDetails = {
+    create(args: {
+        token: c.Address
+        sender: c.Address
+        amount: uint256
+        recipient: CellRef<c.Address>
+    }): TokenPool_ReleasedOrMintedDetails {
+        return {
+            $: 'TokenPool_ReleasedOrMintedDetails',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleasedOrMintedDetails {
+        return {
+            $: 'TokenPool_ReleasedOrMintedDetails',
+            token: s.loadAddress(),
+            sender: s.loadAddress(),
+            amount: s.loadUintBig(256),
+            recipient: loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
+        }
+    },
+    store(self: TokenPool_ReleasedOrMintedDetails, b: c.Builder): void {
+        b.storeAddress(self.token);
+        b.storeAddress(self.sender);
+        b.storeUint(self.amount, 256);
+        storeCellRef<c.Address>(self.recipient, b,
+            (v,b) => b.storeAddress(v)
+        );
+    },
+    toCell(self: TokenPool_ReleasedOrMintedDetails): c.Cell {
+        return makeCellFrom<TokenPool_ReleasedOrMintedDetails>(self, TokenPool_ReleasedOrMintedDetails.store);
+    }
+}
+
+/**
  > struct TokenPool_ChainAdded {
  >     remoteChainSelector: uint64
  >     remoteTokenAddress: Cell<CrossChainAddress>
@@ -3054,6 +3483,82 @@ export const TokenPool_ChainRemoved = {
     },
     toCell(self: TokenPool_ChainRemoved): c.Cell {
         return makeCellFrom<TokenPool_ChainRemoved>(self, TokenPool_ChainRemoved.store);
+    }
+}
+
+/**
+ > struct TokenPool_RemotePoolAdded {
+ >     remoteChainSelector: uint64
+ >     remotePoolAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_RemotePoolAdded {
+    readonly $: 'TokenPool_RemotePoolAdded'
+    remoteChainSelector: uint64
+    remotePoolAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_RemotePoolAdded = {
+    create(args: {
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }): TokenPool_RemotePoolAdded {
+        return {
+            $: 'TokenPool_RemotePoolAdded',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RemotePoolAdded {
+        return {
+            $: 'TokenPool_RemotePoolAdded',
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_RemotePoolAdded, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_RemotePoolAdded): c.Cell {
+        return makeCellFrom<TokenPool_RemotePoolAdded>(self, TokenPool_RemotePoolAdded.store);
+    }
+}
+
+/**
+ > struct TokenPool_RemotePoolRemoved {
+ >     remoteChainSelector: uint64
+ >     remotePoolAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TokenPool_RemotePoolRemoved {
+    readonly $: 'TokenPool_RemotePoolRemoved'
+    remoteChainSelector: uint64
+    remotePoolAddress: CellRef<CrossChainAddress>
+}
+
+export const TokenPool_RemotePoolRemoved = {
+    create(args: {
+        remoteChainSelector: uint64
+        remotePoolAddress: CellRef<CrossChainAddress>
+    }): TokenPool_RemotePoolRemoved {
+        return {
+            $: 'TokenPool_RemotePoolRemoved',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RemotePoolRemoved {
+        return {
+            $: 'TokenPool_RemotePoolRemoved',
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TokenPool_RemotePoolRemoved, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TokenPool_RemotePoolRemoved): c.Cell {
+        return makeCellFrom<TokenPool_RemotePoolRemoved>(self, TokenPool_RemotePoolRemoved.store);
     }
 }
 
@@ -3316,6 +3821,92 @@ export const TokenPool_InboundRateLimitRefunded = {
 }
 
 /**
+ > struct TokenPool_FastFinalityOutboundRateLimitRefunded {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_FastFinalityOutboundRateLimitRefunded {
+    readonly $: 'TokenPool_FastFinalityOutboundRateLimitRefunded'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_FastFinalityOutboundRateLimitRefunded = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_FastFinalityOutboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_FastFinalityOutboundRateLimitRefunded',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FastFinalityOutboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_FastFinalityOutboundRateLimitRefunded',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_FastFinalityOutboundRateLimitRefunded, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_FastFinalityOutboundRateLimitRefunded): c.Cell {
+        return makeCellFrom<TokenPool_FastFinalityOutboundRateLimitRefunded>(self, TokenPool_FastFinalityOutboundRateLimitRefunded.store);
+    }
+}
+
+/**
+ > struct TokenPool_FastFinalityInboundRateLimitRefunded {
+ >     remoteChainSelector: uint64
+ >     token: address
+ >     amount: uint256
+ > }
+ */
+export interface TokenPool_FastFinalityInboundRateLimitRefunded {
+    readonly $: 'TokenPool_FastFinalityInboundRateLimitRefunded'
+    remoteChainSelector: uint64
+    token: c.Address
+    amount: uint256
+}
+
+export const TokenPool_FastFinalityInboundRateLimitRefunded = {
+    create(args: {
+        remoteChainSelector: uint64
+        token: c.Address
+        amount: uint256
+    }): TokenPool_FastFinalityInboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_FastFinalityInboundRateLimitRefunded',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FastFinalityInboundRateLimitRefunded {
+        return {
+            $: 'TokenPool_FastFinalityInboundRateLimitRefunded',
+            remoteChainSelector: s.loadUintBig(64),
+            token: s.loadAddress(),
+            amount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_FastFinalityInboundRateLimitRefunded, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.amount, 256);
+    },
+    toCell(self: TokenPool_FastFinalityInboundRateLimitRefunded): c.Cell {
+        return makeCellFrom<TokenPool_FastFinalityInboundRateLimitRefunded>(self, TokenPool_FastFinalityInboundRateLimitRefunded.store);
+    }
+}
+
+/**
  > struct TokenPool_TokenTransferFeeConfigUpdated {
  >     destChainSelector: uint64
  >     tokenTransferFeeConfig: Cell<TokenPool_TokenTransferFeeConfig>
@@ -3461,23 +4052,6 @@ export const TokenPool_RampAccessUpdated = {
     },
     toCell(self: TokenPool_RampAccessUpdated): c.Cell {
         return makeCellFrom<TokenPool_RampAccessUpdated>(self, TokenPool_RampAccessUpdated.store);
-    }
-}
-
-/**
- > type LockReleaseLockboxTokenPool_OutMessage = AskToTransfer
- */
-export type LockReleaseLockboxTokenPool_OutMessage = AskToTransfer
-
-export const LockReleaseLockboxTokenPool_OutMessage = {
-    fromSlice(s: c.Slice): LockReleaseLockboxTokenPool_OutMessage {
-        return AskToTransfer.fromSlice(s);
-    },
-    store(self: LockReleaseLockboxTokenPool_OutMessage, b: c.Builder): void {
-        AskToTransfer.store(self, b);
-    },
-    toCell(self: LockReleaseLockboxTokenPool_OutMessage): c.Cell {
-        return makeCellFrom<LockReleaseLockboxTokenPool_OutMessage>(self, LockReleaseLockboxTokenPool_OutMessage.store);
     }
 }
 
@@ -3628,6 +4202,103 @@ export const Storage = {
     },
     toCell(self: Storage): c.Cell {
         return makeCellFrom<Storage>(self, Storage.store);
+    }
+}
+
+/**
+ > struct JettonLockBox_WithdrawExtra {
+ >     sendExcessesTo: address?
+ > }
+ */
+export interface JettonLockBox_WithdrawExtra {
+    readonly $: 'JettonLockBox_WithdrawExtra'
+    sendExcessesTo: c.Address | null
+}
+
+export const JettonLockBox_WithdrawExtra = {
+    create(args: {
+        sendExcessesTo: c.Address | null
+    }): JettonLockBox_WithdrawExtra {
+        return {
+            $: 'JettonLockBox_WithdrawExtra',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_WithdrawExtra {
+        return {
+            $: 'JettonLockBox_WithdrawExtra',
+            sendExcessesTo: s.loadMaybeAddress(),
+        }
+    },
+    store(self: JettonLockBox_WithdrawExtra, b: c.Builder): void {
+        b.storeAddress(self.sendExcessesTo);
+    },
+    toCell(self: JettonLockBox_WithdrawExtra): c.Cell {
+        return makeCellFrom<JettonLockBox_WithdrawExtra>(self, JettonLockBox_WithdrawExtra.store);
+    }
+}
+
+/**
+ > struct (0xd065c306) JettonLockBox_Withdraw {
+ >     queryId: uint64
+ >     token: address
+ >     remoteChainSelector: uint64
+ >     amount: coins
+ >     recipientWallet: address
+ >     extra: Cell<JettonLockBox_WithdrawExtra>?
+ > }
+ */
+export interface JettonLockBox_Withdraw {
+    readonly $: 'JettonLockBox_Withdraw'
+    queryId: uint64
+    token: c.Address
+    remoteChainSelector: uint64
+    amount: coins
+    recipientWallet: c.Address
+    extra: CellRef<JettonLockBox_WithdrawExtra> | null
+}
+
+export const JettonLockBox_Withdraw = {
+    PREFIX: 0xd065c306,
+
+    create(args: {
+        queryId: uint64
+        token: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        recipientWallet: c.Address
+        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+    }): JettonLockBox_Withdraw {
+        return {
+            $: 'JettonLockBox_Withdraw',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_Withdraw {
+        loadAndCheckPrefix32(s, 0xd065c306, 'JettonLockBox_Withdraw');
+        return {
+            $: 'JettonLockBox_Withdraw',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            remoteChainSelector: s.loadUintBig(64),
+            amount: s.loadCoins(),
+            recipientWallet: s.loadAddress(),
+            extra: s.loadBoolean() ? loadCellRef<JettonLockBox_WithdrawExtra>(s, JettonLockBox_WithdrawExtra.fromSlice) : null,
+        }
+    },
+    store(self: JettonLockBox_Withdraw, b: c.Builder): void {
+        b.storeUint(0xd065c306, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeCoins(self.amount);
+        b.storeAddress(self.recipientWallet);
+        storeTolkNullable<CellRef<JettonLockBox_WithdrawExtra>>(self.extra, b,
+            (v,b) => storeCellRef<JettonLockBox_WithdrawExtra>(v, b, JettonLockBox_WithdrawExtra.store)
+        );
+    },
+    toCell(self: JettonLockBox_Withdraw): c.Cell {
+        return makeCellFrom<JettonLockBox_Withdraw>(self, JettonLockBox_Withdraw.store);
     }
 }
 

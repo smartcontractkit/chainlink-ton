@@ -29,10 +29,6 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
-    outgoingMessages:
-        | TokenPool_OutMessage
-        | BurnMintTokenPool_OutMessage
-    emittedEvents: TokenPool_Events
 }
 
 fun onInternalMessage(in: InMessage) {

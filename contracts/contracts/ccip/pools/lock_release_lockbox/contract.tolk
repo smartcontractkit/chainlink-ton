@@ -31,10 +31,6 @@ contract LockReleaseLockboxTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseLockboxTokenPool_InMessage
-    outgoingMessages:
-        | TokenPool_OutMessage
-        | LockReleaseLockboxTokenPool_OutMessage
-    emittedEvents: TokenPool_Events
 }
 
 fun onInternalMessage(in: InMessage): void {
