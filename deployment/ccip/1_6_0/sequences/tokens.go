@@ -57,12 +57,6 @@ func NewTonTokenAdapter() *TonTokenAdapter {
 	return &TonTokenAdapter{}
 }
 
-func NewTonTokenAdapterWithPackageRef(pkg string) *TonTokenAdapter {
-	return &TonTokenAdapter{
-		Package: pkg,
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Derivation helpers
 // ---------------------------------------------------------------------------
@@ -82,7 +76,7 @@ func (a *TonTokenAdapter) AddressRefToBytes(ref datastore.AddressRef) ([]byte, e
 // DeriveTokenAddress looks up the deployed jetton minter that shares the pool's qualifier.
 // Convention: the DeployTokenInput.Qualifier and DeployTokenPoolInput.TokenPoolQualifier
 // match (e.g. both "TEST_TOKEN_USDC"); this lets us resolve the token from the pool ref.
-func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector uint64, poolRef datastore.AddressRef) ([]byte, error) {
+func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
 	candidates := e.DataStore.Addresses().Filter(
 		datastore.AddressRefByChainSelector(chainSelector),
 		datastore.AddressRefByType(datastore.ContractType(bindings.ShortJettonMinter)),
@@ -90,11 +84,11 @@ func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector u
 	)
 	switch len(candidates) {
 	case 0:
-		return nil, fmt.Errorf("no jetton minter found in datastore for chain %d and qualifier %q", chainSelector, poolRef.Qualifier)
+		return "", fmt.Errorf("no jetton minter found in datastore for chain %d and qualifier %q", chainSelector, poolRef.Qualifier)
 	case 1:
-		return a.AddressRefToBytes(candidates[0])
+		return candidates[0].Address, nil
 	default:
-		return nil, fmt.Errorf("multiple jetton minters found in datastore for chain %d and qualifier %q", chainSelector, poolRef.Qualifier)
+		return "", fmt.Errorf("multiple jetton minters found in datastore for chain %d and qualifier %q", chainSelector, poolRef.Qualifier)
 	}
 }
 
