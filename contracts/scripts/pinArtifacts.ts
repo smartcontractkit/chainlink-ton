@@ -52,9 +52,7 @@ function main(): void {
   }
 
   if (!process.env.PATH_CONTRACTS_JETTON) {
-    process.stdout.write(
-      'PATH_CONTRACTS_JETTON not set, skipping reference Jetton artifacts\n',
-    )
+    process.stdout.write('PATH_CONTRACTS_JETTON not set, skipping reference Jetton artifacts\n')
   }
 }
 
