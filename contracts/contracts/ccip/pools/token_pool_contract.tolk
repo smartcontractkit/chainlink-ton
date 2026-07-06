@@ -3,10 +3,10 @@ import "@stdlib/lisp-lists"
 
 import "../common/types"
 
-import "types"
-import "messages"
-import "events"
-import "token_pool"
+import "lib/token_pool/types"
+import "lib/token_pool/entrypoint"
+import "lib/token_pool/messages"
+import "lib/token_pool/events"
 
 contract TokenPool {
     author: "SmartContract Chainlink Limited SEZC"

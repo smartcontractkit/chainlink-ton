@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../lib/utils"
-import "../common/types"
-import "../rmn_remote/lib"
+import "../../../../lib/utils"
+import "../../../common/types"
+import "../../../rmn_remote/lib"
 
-import "lib/rate_limiter"
+import "../rate_limiter"
 
 const TOKEN_POOL_WAIT_FOR_FINALITY_FLAG: uint32 = 0;
 const TOKEN_POOL_DEFAULT_FINALITY: uint32 = TOKEN_POOL_WAIT_FOR_FINALITY_FLAG;

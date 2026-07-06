@@ -2,7 +2,7 @@ import "types"
 import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../token_registry/messages"
-import "../pools/messages"
+import "../pools/lib/token_pool/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute

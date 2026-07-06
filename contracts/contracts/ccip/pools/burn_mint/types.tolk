@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/jetton_client"
-import "../messages"
-import "../types"
+import "../lib/token_pool/messages"
+import "../lib/token_pool/types"
 
 const BurnMintTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.BurnMintTokenPool".literalSlice();
 const BurnMintTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();

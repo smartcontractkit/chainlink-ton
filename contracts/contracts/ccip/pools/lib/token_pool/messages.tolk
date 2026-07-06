@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../lib/jetton/messages"
-import "../../lib/utils"
-import "../common/types"
-import "../rmn_remote/lib"
+import "../../../../lib/jetton/messages"
+import "../../../../lib/utils"
+import "../../../common/types"
+import "../../../rmn_remote/lib"
 
 import "types"
 

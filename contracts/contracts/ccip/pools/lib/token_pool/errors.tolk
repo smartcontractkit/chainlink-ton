@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../lib/utils"
+import "../../../../lib/utils"
 
 const TokenPool_FACILITY_NAME = "link.chain.ton.ccip.TokenPool";
 const TokenPool_FACILITY_ID = 149;  // (crc32(<facility>) % 640) + 10

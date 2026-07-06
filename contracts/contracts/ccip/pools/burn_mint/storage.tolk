@@ -2,8 +2,8 @@
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/access/ownable_2step"
 import "../../rmn_remote/lib"
-import "../token_pool"
-import "../types"
+import "../lib/token_pool/entrypoint"
+import "../lib/token_pool/types"
 
 import "types"
 

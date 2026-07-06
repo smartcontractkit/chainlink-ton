@@ -1,5 +1,5 @@
-import "../../pools/messages"
-import "../../pools/types"
+import "../../pools/lib/token_pool/messages"
+import "../../pools/lib/token_pool/types"
 
 import "messages"
 

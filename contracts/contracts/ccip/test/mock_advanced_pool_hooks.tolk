@@ -4,7 +4,7 @@
 //   queryId % 2 == 0  → Finished  (success)
 //   queryId % 2 == 1  → Failed    (failure)
 
-import "../pools/messages"
+import "../pools/lib/token_pool/messages"
 
 contract MockAdvancedPoolHooks {
     author: "SmartContract Chainlink Limited SEZC"

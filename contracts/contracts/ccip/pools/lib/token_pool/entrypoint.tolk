@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
-import "../../lib/math"
-import "../../lib/utils"
-import "../../lib/jetton/messages"
-import "../../lib/jetton/jetton_client"
-import "../../lib/access/ownable_2step"
-import "../common/types"
-import "../rmn_remote/lib"
+import "../../../../lib/math"
+import "../../../../lib/utils"
+import "../../../../lib/jetton/messages"
+import "../../../../lib/jetton/jetton_client"
+import "../../../../lib/access/ownable_2step"
+import "../../../common/types"
+import "../../../rmn_remote/lib"
 
 import "types"
 import "errors"
 import "messages"
 import "events"
-import "lib/rate_limiter"
+import "../rate_limiter"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic

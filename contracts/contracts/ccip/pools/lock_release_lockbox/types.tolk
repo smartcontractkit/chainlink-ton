@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/jetton_client"
-import "../types"
+import "../lib/token_pool/types"
 import "../messages"
 
 const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool".literalSlice();

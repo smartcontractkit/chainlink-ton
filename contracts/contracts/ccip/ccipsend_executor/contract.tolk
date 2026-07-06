@@ -8,7 +8,7 @@ import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../token_registry/messages"
-import "../pools/messages"
+import "../pools/lib/token_pool/messages"
 
 import "types"
 import "messages"
