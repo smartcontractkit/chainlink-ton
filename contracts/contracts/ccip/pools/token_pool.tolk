@@ -13,7 +13,7 @@ import "types"
 import "errors"
 import "messages"
 import "events"
-import "rate_limiter"
+import "lib/rate_limiter"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic

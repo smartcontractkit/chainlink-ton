@@ -15,7 +15,7 @@ import "../types"
 import "../messages"
 import "../events"
 import "../errors"
-import "../rate_limiter"
+import "../lib/rate_limiter"
 
 import "messages"
 import "types"
