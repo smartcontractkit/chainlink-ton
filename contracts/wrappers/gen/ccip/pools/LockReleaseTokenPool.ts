@@ -4094,102 +4094,6 @@ export const TokenPool_RampAccessUpdated = {
 }
 
 /**
- > struct RateLimiter_Config {
- >     isEnabled: bool
- >     capacity: uint128
- >     rate: uint128
- > }
- */
-export interface RateLimiter_Config {
-    readonly $: 'RateLimiter_Config'
-    isEnabled: boolean
-    capacity: uint128
-    rate: uint128
-}
-
-export const RateLimiter_Config = {
-    create(args: {
-        isEnabled: boolean
-        capacity: uint128
-        rate: uint128
-    }): RateLimiter_Config {
-        return {
-            $: 'RateLimiter_Config',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): RateLimiter_Config {
-        return {
-            $: 'RateLimiter_Config',
-            isEnabled: s.loadBoolean(),
-            capacity: s.loadUintBig(128),
-            rate: s.loadUintBig(128),
-        }
-    },
-    store(self: RateLimiter_Config, b: c.Builder): void {
-        b.storeBit(self.isEnabled);
-        b.storeUint(self.capacity, 128);
-        b.storeUint(self.rate, 128);
-    },
-    toCell(self: RateLimiter_Config): c.Cell {
-        return makeCellFrom<RateLimiter_Config>(self, RateLimiter_Config.store);
-    }
-}
-
-/**
- > struct RateLimiter_TokenBucket {
- >     tokens: uint128
- >     lastUpdated: uint64
- >     isEnabled: bool
- >     capacity: uint128
- >     rate: uint128
- > }
- */
-export interface RateLimiter_TokenBucket {
-    readonly $: 'RateLimiter_TokenBucket'
-    tokens: uint128
-    lastUpdated: uint64
-    isEnabled: boolean
-    capacity: uint128
-    rate: uint128
-}
-
-export const RateLimiter_TokenBucket = {
-    create(args: {
-        tokens: uint128
-        lastUpdated: uint64
-        isEnabled: boolean
-        capacity: uint128
-        rate: uint128
-    }): RateLimiter_TokenBucket {
-        return {
-            $: 'RateLimiter_TokenBucket',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): RateLimiter_TokenBucket {
-        return {
-            $: 'RateLimiter_TokenBucket',
-            tokens: s.loadUintBig(128),
-            lastUpdated: s.loadUintBig(64),
-            isEnabled: s.loadBoolean(),
-            capacity: s.loadUintBig(128),
-            rate: s.loadUintBig(128),
-        }
-    },
-    store(self: RateLimiter_TokenBucket, b: c.Builder): void {
-        b.storeUint(self.tokens, 128);
-        b.storeUint(self.lastUpdated, 64);
-        b.storeBit(self.isEnabled);
-        b.storeUint(self.capacity, 128);
-        b.storeUint(self.rate, 128);
-    },
-    toCell(self: RateLimiter_TokenBucket): c.Cell {
-        return makeCellFrom<RateLimiter_TokenBucket>(self, RateLimiter_TokenBucket.store);
-    }
-}
-
-/**
  > type LockReleaseTokenPool_InMessage = ReturnExcessesBack
  */
 export type LockReleaseTokenPool_InMessage = ReturnExcessesBack
@@ -4295,6 +4199,102 @@ export const Storage = {
     },
     toCell(self: Storage): c.Cell {
         return makeCellFrom<Storage>(self, Storage.store);
+    }
+}
+
+/**
+ > struct RateLimiter_Config {
+ >     isEnabled: bool
+ >     capacity: uint128
+ >     rate: uint128
+ > }
+ */
+export interface RateLimiter_Config {
+    readonly $: 'RateLimiter_Config'
+    isEnabled: boolean
+    capacity: uint128
+    rate: uint128
+}
+
+export const RateLimiter_Config = {
+    create(args: {
+        isEnabled: boolean
+        capacity: uint128
+        rate: uint128
+    }): RateLimiter_Config {
+        return {
+            $: 'RateLimiter_Config',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RateLimiter_Config {
+        return {
+            $: 'RateLimiter_Config',
+            isEnabled: s.loadBoolean(),
+            capacity: s.loadUintBig(128),
+            rate: s.loadUintBig(128),
+        }
+    },
+    store(self: RateLimiter_Config, b: c.Builder): void {
+        b.storeBit(self.isEnabled);
+        b.storeUint(self.capacity, 128);
+        b.storeUint(self.rate, 128);
+    },
+    toCell(self: RateLimiter_Config): c.Cell {
+        return makeCellFrom<RateLimiter_Config>(self, RateLimiter_Config.store);
+    }
+}
+
+/**
+ > struct RateLimiter_TokenBucket {
+ >     tokens: uint128
+ >     lastUpdated: uint64
+ >     isEnabled: bool
+ >     capacity: uint128
+ >     rate: uint128
+ > }
+ */
+export interface RateLimiter_TokenBucket {
+    readonly $: 'RateLimiter_TokenBucket'
+    tokens: uint128
+    lastUpdated: uint64
+    isEnabled: boolean
+    capacity: uint128
+    rate: uint128
+}
+
+export const RateLimiter_TokenBucket = {
+    create(args: {
+        tokens: uint128
+        lastUpdated: uint64
+        isEnabled: boolean
+        capacity: uint128
+        rate: uint128
+    }): RateLimiter_TokenBucket {
+        return {
+            $: 'RateLimiter_TokenBucket',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RateLimiter_TokenBucket {
+        return {
+            $: 'RateLimiter_TokenBucket',
+            tokens: s.loadUintBig(128),
+            lastUpdated: s.loadUintBig(64),
+            isEnabled: s.loadBoolean(),
+            capacity: s.loadUintBig(128),
+            rate: s.loadUintBig(128),
+        }
+    },
+    store(self: RateLimiter_TokenBucket, b: c.Builder): void {
+        b.storeUint(self.tokens, 128);
+        b.storeUint(self.lastUpdated, 64);
+        b.storeBit(self.isEnabled);
+        b.storeUint(self.capacity, 128);
+        b.storeUint(self.rate, 128);
+    },
+    toCell(self: RateLimiter_TokenBucket): c.Cell {
+        return makeCellFrom<RateLimiter_TokenBucket>(self, RateLimiter_TokenBucket.store);
     }
 }
 
