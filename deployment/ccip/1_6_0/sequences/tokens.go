@@ -1,7 +1,6 @@
 package sequences
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -26,7 +25,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	jettoncommon "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	ton_tvm "github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -43,21 +41,26 @@ const (
 	// defaultJettonDecimals is returned by DeriveTokenDecimals until the on-chain getter is wired up.
 	// TON jettons commonly use 9 decimas.
 	defaultJettonDecimals uint8 = 9
-
-	// Some contract packages still expose the mock pool under this older identifier.
-	alternateTestTokenPoolKey ton_tvm.FullyQualifiedName = "link.chain.ton.ccip.test.MockTokenPool"
 )
 
 // TonTokenAdapter implements tokensapi.TokenAdapter for TON at CCIP v1.6.0.
 // It currently supports deploying jetton minters and the test token pool used by
 // the minimal token-transfer smoke path.
-type TonTokenAdapter struct{}
+type TonTokenAdapter struct{
+	Package string // Used to retrieve compiled contracts for deployment sequences. Defaults to utils.ContractsVersionLocal if empty.
+}
 
 var _ tokensapi.TokenAdapter = (*TonTokenAdapter)(nil)
 
 // NewTonTokenAdapter constructs the TON token adapter.
 func NewTonTokenAdapter() *TonTokenAdapter {
 	return &TonTokenAdapter{}
+}
+
+func NewTonTokenAdapterWithPackageRef(pkg string) *TonTokenAdapter {
+	return &TonTokenAdapter{
+		Package: pkg,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -128,13 +131,25 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				return sequences.OnChainOutput{}, fmt.Errorf("chain %d not found or not a TON chain", input.ChainSelector)
 			}
 
-			walletCode, err := wallet.Code()
+			if a.Package == "" {
+				a.Package = utils.ContractsVersionLocal
+			}
+			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
+				Package: a.Package,
+				Contracts: []ton_tvm.FullyQualifiedName{
+					bindings.TypeJettonMinter,
+					bindings.TypeJettonWallet,
+				},
+			})
 			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve mock token pool contract: %w", err)
+			}
+			compiledWallet, ok := compiledContracts[bindings.TypeJettonWallet]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to load jetton wallet code: %w", err)
 			}
-			minterCode, err := minter.Code()
-			b.Logger.Debugf("Deploying jetton minter with wallet code hash %s and minter code hash %s", hex.EncodeToString(walletCode.Hash()), hex.EncodeToString(minterCode.Hash()))
-			if err != nil {
+			compiledMinter, ok := compiledContracts[bindings.TypeJettonMinter]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to load jetton minter code: %w", err)
 			}
 
@@ -142,7 +157,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				TotalSupply:   tlb.ZeroCoins,
 				Admin:         chain.Wallet.WalletAddress(),
 				TransferAdmin: nil,
-				WalletCode:    walletCode,
+				WalletCode:    compiledWallet.Code,
 				JettonContent: buildOffchainJettonContent(defaultJettonContentURI),
 			}
 
@@ -160,7 +175,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 			contract, _, err := wrappers.Deploy(
 				b.GetContext(),
 				&conn,
-				minterCode,
+				compiledMinter.Code,
 				initData,
 				tlb.MustFromTON(defaultJettonDeployCoin),
 				topUpMsg,
@@ -215,11 +230,13 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
+			if a.Package == "" {
+				a.Package = utils.ContractsVersionLocal
+			}
 			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
-				Package: utils.ContractsVersionLocal,
+				Package: a.Package,
 				Contracts: []ton_tvm.FullyQualifiedName{
 					bindings.TypeTestTokenPool,
-					alternateTestTokenPoolKey,
 				},
 			})
 			if err != nil {
@@ -228,13 +245,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 
 			compiled, ok := compiledContracts[bindings.TypeTestTokenPool]
 			if !ok {
-				compiled, ok = compiledContracts[alternateTestTokenPoolKey]
-			}
-			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf(
-					"mock token pool contract not found in compiled contracts package under %q or %q",
+					"mock token pool contract not found in compiled contracts package under %q",
 					bindings.TypeTestTokenPool,
-					alternateTestTokenPoolKey,
 				)
 			}
 			compiled.Metadata.ID = bindings.TypeTestTokenPool
