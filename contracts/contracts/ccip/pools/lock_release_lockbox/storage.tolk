@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-import "../../../lib/jetton/jetton_client"
 import "../../../lib/access/ownable_2step"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/types"

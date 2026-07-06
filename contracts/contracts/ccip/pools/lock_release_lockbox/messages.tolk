@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
-import "../lock_release/messages"
 import "../lockbox/messages"
 
 // Messages we receive from lockbox or jetton system:

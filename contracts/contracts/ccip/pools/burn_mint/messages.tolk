@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/messages"
-import "../lib/token_pool/messages"
 
 struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;

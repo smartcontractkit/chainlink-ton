@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-import "../../../lib/jetton/jetton_client"
 import "../../../lib/access/access_control"
 
 /// Facility for error codes.

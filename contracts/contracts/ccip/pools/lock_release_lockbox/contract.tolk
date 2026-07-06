@@ -4,7 +4,6 @@ tolk 1.4.1
 import "@stdlib/lisp-lists"
 
 import "../../../lib/utils"
-import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../common/types"

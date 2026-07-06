@@ -15,7 +15,6 @@ import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/events"
 import "../lib/token_pool/errors"
-import "../lib/rate_limiter"
 
 import "messages"
 import "types"

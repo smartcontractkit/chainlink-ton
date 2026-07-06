@@ -2,7 +2,6 @@ tolk 1.4.1
 import "@stdlib/gas-payments"
 import "../../lib/utils"
 
-import "../common/types"
 import "../router/messages"
 import "../onramp/messages"
 import "../fee_quoter/messages"
