@@ -6,7 +6,7 @@ import "messages"
 contract MockTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.1"
-    description: "link.chain.ton.ccip.test.TokenPool"
+    description: "link.chain.ton.ccip.test.MockTokenPool"
     incomingMessages: MockTokenPool_LockOrBurn
 }
 

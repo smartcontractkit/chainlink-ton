@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -41,6 +42,7 @@ func init() {
 		},
 	)
 	changesets.GetRegistry().RegisterMCMSReader(chainsel.FamilyTon, &MCMSReaderAdapter{})
+	tokensapi.GetTokenAdapterRegistry().RegisterTokenAdapter(chainsel.FamilyTon, v, NewTonTokenAdapter())
 }
 
 // Standalone functions - can be used by any adapter without coupling

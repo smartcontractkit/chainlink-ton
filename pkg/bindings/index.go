@@ -75,6 +75,7 @@ const (
 	ShortTimelock        = "RBACTimelock"
 	ShortMCMS            = "MCMS"
 	ShortTokenRegistry   = "TokenAdminRegistry"
+	ShortTokenPool       = "MockTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
