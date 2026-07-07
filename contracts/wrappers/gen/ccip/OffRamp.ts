@@ -1054,45 +1054,6 @@ export const Any2TVMMessage = {
 }
 
 /**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
- > }
- */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: c.Dictionary<uint128, []>
-}
-
-export const CursedSubjects = {
-    create(args: {
-        data: c.Dictionary<uint128, []>
-    }): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
-        }
-    },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
-    }
-}
-
-/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice
@@ -1159,6 +1120,45 @@ export const RampMessageHeader = {
     },
     toCell(self: RampMessageHeader): c.Cell {
         return makeCellFrom<RampMessageHeader>(self, RampMessageHeader.store);
+    }
+}
+
+/**
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
+ > }
+ */
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: c.Dictionary<uint128, []>
+}
+
+export const CursedSubjects = {
+    create(args: {
+        data: c.Dictionary<uint128, []>
+    }): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                (s) => [],
+                (v,b) => { {} }
+            ), s),
+        }
+    },
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
     }
 }
 

@@ -7,7 +7,7 @@ sidebar_position: 1
 
 # Arbitrary Message OffRamp Flow
 
-> See [how CCIPSend works](receive-executor.md) and [how the Token Registry is implemented](../token-registry.md).
+> See [how CCIPSend works](receive-executor.md) and [how the Token Registry is implemented](../token-pools/token-registry.md).
 
 See also [MerkleRoot](./merkle-root.md) for the per-message execution state machine that drives retries and finalization.
 

@@ -21,3 +21,9 @@ export function loadDict<K extends DictionaryKeyTypes, V>(dict: Dictionary<K, V>
 
   return map
 }
+
+// Returns an DictionaryValue<[]> key (serialized as bool), used for map<K, ()>
+// where value is an empty tesnor (not important, only presence of key matters)
+export function createEmptyTensorValue() {
+  return Dictionary.Values.Bool() as unknown as DictionaryValue<[]>
+}

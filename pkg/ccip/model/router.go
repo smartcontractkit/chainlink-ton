@@ -11,8 +11,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
 // ---------- Router Model Struct Definitions ----------

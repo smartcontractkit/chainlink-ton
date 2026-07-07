@@ -21,15 +21,15 @@ import (
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"

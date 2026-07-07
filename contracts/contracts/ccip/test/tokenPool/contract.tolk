@@ -1,5 +1,7 @@
+import "../../pools/lib/token_pool/messages"
+import "../../pools/lib/token_pool/types"
+
 import "messages"
-import "../../pools/messages"
 
 contract MockTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
@@ -16,7 +18,11 @@ fun onInternalMessage(in: InMessage) {
 		bounce: false,
 		value: 0,
 		dest: msg.notify,
-		body: TokenPool_NotifySuccessfulLockOrBurn {},
+		body: TokenPool_LockOrBurnFinished {
+			queryId: 0,
+			out: createEmptyCell() as Cell<TokenPool_LockOrBurnOutV1>,
+			destTokenAmount: 0,
+		},
 	});
 	notification.send(SEND_MODE_CARRY_ALL_BALANCE);
 }

@@ -21,10 +21,11 @@ jobs:
       - name: Check formatting
         run: |
           pushd contracts
-          nix develop .#contracts -c \
+          nix develop .#contracts -c bash -c '
             yarn && \
             yarn fmt-contracts:check && \
             yarn fmt-typescript:check
+          '
 
       - name: Check generated TypeScript wrappers
         run: |

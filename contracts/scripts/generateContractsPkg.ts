@@ -110,6 +110,11 @@ const CONTRACTS: ContractSource[] = [
     tolkSource: 'contracts/ccip/test/tokenPool/contract.tolk',
   },
   {
+    contractType: 'link.chain.ton.ccip.test.MockAdvancedPoolHooks',
+    compiledFile: 'ccip.test.mockAdvancedPoolHooks.compiled.json',
+    tolkSource: 'contracts/ccip/test/mock_advanced_pool_hooks.tolk',
+  },
+  {
     contractType: 'link.chain.ton.mcms.Timelock',
     compiledFile: 'mcms.RBACTimelock.compiled.json',
     tolkSource: 'contracts/mcms/rbac_timelock.tolk',

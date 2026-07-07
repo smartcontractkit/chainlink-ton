@@ -11,9 +11,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 )
 
 // ---------- OffRamp Model Struct Definitions ----------

@@ -253,7 +253,6 @@ export const opcodes = {
     messageValidated: fq.opcodes.out.messageValidated,
     messageValidationFailed: fq.opcodes.out.messageValidationFailed,
     tokenRegistryReturnTokenInfo: 0xddccddb5,
-    mockTokenPoolNotifySuccessfulLockOrBurn: 0x7adb20bb,
   },
 }
 

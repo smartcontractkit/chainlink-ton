@@ -19,8 +19,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	// TODO: These imports should be removed and injected via options/factories
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 )
 
 // ErrUnsupportedSample is returned when the generator cannot construct a value for a type.

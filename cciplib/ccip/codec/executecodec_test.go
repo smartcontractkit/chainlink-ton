@@ -18,9 +18,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	mocks "github.com/smartcontractkit/chainlink-ton/cciplib/mocks/ccipocr3"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	mocks "github.com/smartcontractkit/chainlink-ton/cciplib/mocks/ccipocr3"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 

@@ -9,11 +9,11 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
-	onrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/onramp"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
+	onrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/onramp"
 )
 
 // View represents a view of the on-ramp contract configuration.

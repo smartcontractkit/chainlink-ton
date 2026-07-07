@@ -46,7 +46,7 @@ graph LR
   - [Receive Executor](./offramp/receive-executor.md)
   - [Merkle Root](./offramp/merkle-root.md)
 - [FeeQuoter](./fee-quoter.md)
-- [Token Registry](./token-registry.md)
+- [Token Pools](./token-pools/index.md)
 
 ## Topics
 
