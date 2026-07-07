@@ -138,11 +138,11 @@ get fun getRemoteChainConfig(remoteChainSelector: uint64): TokenPool_RemoteChain
 get fun getFee(
     localToken: address,
     destChainSelector: uint64,
-    amount: uint256,
+    amount: coins,
     feeToken: address,
     requestedFinalityConfig: uint32,
     tokenArgs: cell?,
-): (uint256, uint32, uint32, uint16, bool) {
+): (coins, uint32, uint32, uint16, bool) {
     throw 0xFFFF;
 }
 
