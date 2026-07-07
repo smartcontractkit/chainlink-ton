@@ -8,6 +8,7 @@ import { readFileSync } from 'fs'
 import { execSync } from 'child_process'
 import { env } from 'process'
 import * as jetton from '../wrappers/jetton/JettonCode'
+import { uint8ArrayToBigInt } from '../src/utils'
 
 const ONCHAIN_CONTENT_PREFIX = 0x00
 const OFFCHAIN_CONTENT_PREFIX = 0x01
