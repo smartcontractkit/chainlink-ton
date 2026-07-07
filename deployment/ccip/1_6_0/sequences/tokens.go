@@ -46,7 +46,7 @@ const (
 // TonTokenAdapter implements tokensapi.TokenAdapter for TON at CCIP v1.6.0.
 // It currently supports deploying jetton minters and the test token pool used by
 // the minimal token-transfer smoke path.
-type TonTokenAdapter struct{
+type TonTokenAdapter struct {
 	Package string // Used to retrieve compiled contracts for deployment sequences. Defaults to utils.ContractsVersionLocal if empty.
 }
 

@@ -71,12 +71,12 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 
 	tokenBytes, err := adapter.AddressRefToBytes(tokenRef)
 	require.NoError(t, err)
-	derivedTokenBytes, err := adapter.DeriveTokenAddress(env, tonSelector, datastore.AddressRef{
+	derivedTokenAddress, err := adapter.DeriveTokenAddress(env, tonSelector, datastore.AddressRef{
 		ChainSelector: tonSelector,
 		Qualifier:     tokenRef.Qualifier,
 	})
 	require.NoError(t, err)
-	require.True(t, bytes.Equal(tokenBytes, derivedTokenBytes))
+	require.Equal(t, tokenRef.Address, derivedTokenAddress)
 
 	decimals, err := adapter.DeriveTokenDecimals(env, tonSelector, tokenRef, tokenBytes)
 	require.NoError(t, err)
