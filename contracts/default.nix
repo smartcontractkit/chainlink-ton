@@ -73,6 +73,8 @@
         contracts-jetton-func
       ];
 
+      PATH_CONTRACTS_JETTON = "${contracts-jetton-func}/lib/node_modules/jetton/build/";
+
       meta = with pkgs.lib; {
         inherit (package-info) description;
 
