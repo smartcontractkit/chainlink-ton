@@ -26,6 +26,11 @@ const INT_MIN: int = -(1 << 255) - (1 << 255);
 // 2^(15×8) - 1 = 2^120 - 1
 const COIN_MAX: int = (1 << 120) - 1;
 
+const MAX_UINT8: uint8 = 0xFF; // 255
+const MAX_UINT256: uint256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+
+const MAX_EXP10: uint8 = 77;
+
 // Returns (result, errorCode), where errorCode is 0 if no error.
 fun safeAdd(a: int, b: int): (int, int) {
     // Check for positive overflow: a > INT_MAX - b
@@ -113,4 +118,22 @@ fun mustCastToCoin(value: int, errCode: int): coins {
         throw errCode;
     }
     return value;
+}
+
+// @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
+fun pow10(n: uint8): uint256 {
+    var result: uint256 = 1;
+    var base: uint256 = 10;
+
+    while (n > 0) {
+        if ((n & 1) == 1) {
+            // Check for potential overflow before multiplication
+            assert(result == 0 || base <= MAX_UINT256 / result, 4); // exit code 4: Integer overflow
+            result *= base;
+        }
+        base *= base;
+        n >>= 1;
+    }
+
+    return result;
 }

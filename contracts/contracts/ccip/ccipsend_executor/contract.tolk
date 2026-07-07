@@ -1,18 +1,18 @@
+tolk 1.4.1
+import "@stdlib/gas-payments"
+import "../../lib/utils"
+
+import "../router/messages"
+import "../onramp/messages"
+import "../fee_quoter/messages"
+import "../fee_quoter/types"
+import "../token_registry/messages"
+import "../pools/lib/token_pool/messages"
+
 import "types"
 import "messages"
 import "storage"
 import "errors"
-import "../fee_quoter/messages"
-import "../onramp/messages"
-import "../../lib/utils"
-import "../router/messages"
-import "../fee_quoter/types"
-import "@stdlib/gas-payments"
-import "../common/types"
-import "../token_registry/messages"
-import "../pools/messages"
-
-tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
@@ -55,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
             assert(this.addresses.load().tokenRegistry! == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
-        TokenPool_NotifySuccessfulLockOrBurn => {
+        TokenPool_LockOrBurnFinished => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.load();
             assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onConfirmLockOrBurn(msg);
@@ -185,7 +185,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     newState.store();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.onConfirmLockOrBurn(mutate self, msg: TokenPool_NotifySuccessfulLockOrBurn) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
     self.exitSuccessfully(self.state.load().fee);
 }

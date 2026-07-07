@@ -38,6 +38,12 @@ src = "contracts/ccip/ccipsend_executor/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.ContextExecutor]
+display-name = "link.chain.ton.ccip.ContextExecutor"
+src = "contracts/ccip/executors/context_executor/contract.tolk"
+domain = "ccip"
+depends = []
+
 [contracts.ReceiveExecutor]
 display-name = "link.chain.ton.ccip.ReceiveExecutor"
 src = "contracts/ccip/receive_executor/contract.tolk"
@@ -50,10 +56,56 @@ src = "contracts/ccip/merkle_root/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.JettonMinter]
+display-name = "link.chain.ton.ccip.cct.JettonMinter"
+src = "contracts/ccip/cct/JettonMinter.tolk"
+domain = "ccip/cct"
+depends = []
+
+[contracts.JettonWallet]
+display-name = "link.chain.ton.ccip.cct.JettonWallet"
+src = "contracts/ccip/cct/JettonWallet.tolk"
+domain = "ccip/cct"
+depends = []
+
+[contracts.TokenPool]
+display-name = "link.chain.ton.ccip.TokenPool"
+src = "contracts/ccip/pools/token_pool_contract.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.JettonLockBox]
+display-name = "link.chain.ton.ccip.JettonLockBox"
+src = "contracts/ccip/pools/lockbox/JettonLockBox.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.LockReleaseTokenPool]
+display-name = "link.chain.ton.ccip.LockReleaseTokenPool"
+src = "contracts/ccip/pools/lock_release/contract.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.BurnMintTokenPool]
+display-name = "link.chain.ton.ccip.BurnMintTokenPool"
+src = "contracts/ccip/pools/burn_mint/contract.tolk"
+domain = "ccip/pools"
+
+[contracts.LockReleaseLockboxTokenPool]
+display-name = "link.chain.ton.ccip.LockReleaseLockboxTokenPool"
+src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
+domain = "ccip/pools"
+depends = []
+
 [contracts.MockTokenPool]
 display-name = "link.chain.ton.ccip.test.TokenPool"
 src = "contracts/ccip/test/tokenPool/contract.tolk"
 domain = "ccip"
+
+[contracts.MockAdvancedPoolHooks]
+display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
+src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
+domain = "ccip/test"
 depends = []
 
 [contracts.TokenRegistry]
@@ -73,6 +125,13 @@ display-name = "link.chain.ton.mcms.MCMS"
 src = "contracts/mcms/mcms.tolk"
 domain = "mcms"
 depends = []
+
+# TODO: gen lib bindings
+# [contracts.AccessControl]
+# display-name = "link.chain.ton.lib.access.AccessControl"
+# src = "contracts/lib/access/access_control.tolk"
+# domain = "mcms"
+# depends = []
 
 # fmt is not very mature yet
 [fmt]

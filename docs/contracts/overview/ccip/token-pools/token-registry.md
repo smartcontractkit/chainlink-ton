@@ -2,10 +2,10 @@
 id: contracts-ccip-token-registry
 title: Token Registry
 sidebar_label: Token Registry
-sidebar_position: 7
+sidebar_position: 2
 ---
 
-# Token Registry (Not yet supported)
+# Token Registry
 
 Unlike the EVM implementation where a single contract stores all the information about supported tokens and their Token Pools, in TON we will use a collection of contracts to store this information. This is because contract storage in TON is limited.
 

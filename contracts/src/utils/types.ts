@@ -33,6 +33,10 @@ export function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
   return result
 }
 
+export function asSnakedCellEmpty<T>(): Cell {
+  return asSnakedCell([], (item: T) => new Builder())
+}
+
 export function asSnakedCell<T>(array: T[], builderFn: (item: T) => Builder): Cell {
   const cells: Builder[] = []
   let builder = beginCell()

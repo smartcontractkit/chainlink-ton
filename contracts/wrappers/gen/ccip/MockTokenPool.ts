@@ -110,10 +110,123 @@ class StackReader {
 }
 
 // ————————————————————————————————————————————
+//   custom packToBuilder and unpackFromSlice
+//
+
+type CustomPackToBuilderFn<T> = (self: T, b: c.Builder) => void
+type CustomUnpackFromSliceFn<T> = (s: c.Slice) => T
+
+let customSerializersRegistry: Map<string, [CustomPackToBuilderFn<any> | null, CustomUnpackFromSliceFn<any> | null]> = new Map;
+
+function ensureCustomSerializerRegistered(typeName: string) {
+    if (!customSerializersRegistry.has(typeName)) {
+        throw new Error(`Custom packToBuilder/unpackFromSlice was not registered for type 'MockTokenPool.${typeName}'.\n(in Tolk code, they have custom logic \`fun ${typeName}__packToBuilder\`)\nSteps to fix:\n1) in your code, create and implement\n > function ${typeName}__packToBuilder(self: ${typeName}, b: Builder): void { ... }\n > function ${typeName}__unpackFromSlice(s: Slice): ${typeName} { ... }\n2) register them in advance by calling\n > MockTokenPool.registerCustomPackUnpack('${typeName}', ${typeName}__packToBuilder, ${typeName}__unpackFromSlice);`);
+    }
+}
+
+function invokeCustomPackToBuilder<T>(typeName: string, self: T, b: c.Builder) {
+    ensureCustomSerializerRegistered(typeName);
+    customSerializersRegistry.get(typeName)![0]!(self, b);
+}
+
+function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
+    ensureCustomSerializerRegistered(typeName);
+    return customSerializersRegistry.get(typeName)![1]!(s);
+}
+
+// ————————————————————————————————————————————
 //   auto-generated serializers to/from cells
 //
 
 type coins = bigint
+
+type uint64 = bigint
+type uint256 = bigint
+
+/**
+ > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
+ >     queryId: uint64
+ >     out: Cell<TokenPool_LockOrBurnOutV1>
+ >     destTokenAmount: uint256
+ > }
+ */
+export interface TokenPool_LockOrBurnFinished {
+    readonly $: 'TokenPool_LockOrBurnFinished'
+    queryId: uint64
+    out: CellRef<TokenPool_LockOrBurnOutV1>
+    destTokenAmount: uint256
+}
+
+export const TokenPool_LockOrBurnFinished = {
+    PREFIX: 0xf432a4e3,
+
+    create(args: {
+        queryId: uint64
+        out: CellRef<TokenPool_LockOrBurnOutV1>
+        destTokenAmount: uint256
+    }): TokenPool_LockOrBurnFinished {
+        return {
+            $: 'TokenPool_LockOrBurnFinished',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
+        loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
+        return {
+            $: 'TokenPool_LockOrBurnFinished',
+            queryId: s.loadUintBig(64),
+            out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
+            destTokenAmount: s.loadUintBig(256),
+        }
+    },
+    store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
+        b.storeUint(0xf432a4e3, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
+        b.storeUint(self.destTokenAmount, 256);
+    },
+    toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
+    }
+}
+
+/**
+ > struct TokenPool_LockOrBurnOutV1 {
+ >     destTokenAddress: Cell<CrossChainAddress>
+ >     destPoolData: cell
+ > }
+ */
+export interface TokenPool_LockOrBurnOutV1 {
+    readonly $: 'TokenPool_LockOrBurnOutV1'
+    destTokenAddress: CellRef<CrossChainAddress>
+    destPoolData: c.Cell
+}
+
+export const TokenPool_LockOrBurnOutV1 = {
+    create(args: {
+        destTokenAddress: CellRef<CrossChainAddress>
+        destPoolData: c.Cell
+    }): TokenPool_LockOrBurnOutV1 {
+        return {
+            $: 'TokenPool_LockOrBurnOutV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnOutV1 {
+        return {
+            $: 'TokenPool_LockOrBurnOutV1',
+            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            destPoolData: s.loadRef(),
+        }
+    },
+    store(self: TokenPool_LockOrBurnOutV1, b: c.Builder): void {
+        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
+        b.storeRef(self.destPoolData);
+    },
+    toCell(self: TokenPool_LockOrBurnOutV1): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnOutV1>(self, TokenPool_LockOrBurnOutV1.store);
+    }
+}
 
 /**
  > struct (0x7dd8f942) MockTokenPool_LockOrBurn {
@@ -158,32 +271,19 @@ export const MockTokenPool_LockOrBurn = {
 }
 
 /**
- > struct (0x4c700579) TokenPool_NotifySuccessfulLockOrBurn {
- > }
+ > type CrossChainAddress = slice
  */
-export interface TokenPool_NotifySuccessfulLockOrBurn {
-    readonly $: 'TokenPool_NotifySuccessfulLockOrBurn'
-}
+export type CrossChainAddress = c.Slice
 
-export const TokenPool_NotifySuccessfulLockOrBurn = {
-    PREFIX: 0x4c700579,
-
-    create(): TokenPool_NotifySuccessfulLockOrBurn {
-        return {
-            $: 'TokenPool_NotifySuccessfulLockOrBurn',
-        }
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
     },
-    fromSlice(s: c.Slice): TokenPool_NotifySuccessfulLockOrBurn {
-        loadAndCheckPrefix32(s, 0x4c700579, 'TokenPool_NotifySuccessfulLockOrBurn');
-        return {
-            $: 'TokenPool_NotifySuccessfulLockOrBurn',
-        }
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
     },
-    store(self: TokenPool_NotifySuccessfulLockOrBurn, b: c.Builder): void {
-        b.storeUint(0x4c700579, 32);
-    },
-    toCell(self: TokenPool_NotifySuccessfulLockOrBurn): c.Cell {
-        return makeCellFrom<TokenPool_NotifySuccessfulLockOrBurn>(self, TokenPool_NotifySuccessfulLockOrBurn.store);
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
     }
 }
 
@@ -264,7 +364,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockTokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAOgABFP8A9KQT9LzyyAsBAFbT+JHyQNcsI+7HyhTyv/oAMfpIMfpIMMjPhQj6UoIQTHAFec8LjsmDBvsA');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAWgABFP8A9KQT9LzyyAsBAZDT+JHyQNcsI+7HyhTyv/oAMfpIMfpIMIjIz4UIEvpSjQaAAAAAAAAAAAAAAAAAAHoZUnGAAAAAAAAAAEDPFsxwzwv/yYMG+wACAAA=');
 
     static Errors = {
     }
@@ -275,6 +375,17 @@ export class MockTokenPool implements c.Contract {
     protected constructor(address: c.Address, init?: { code: c.Cell, data: c.Cell }) {
         this.address = address;
         this.init = init;
+    }
+
+    static registerCustomPackUnpack<T>(
+        typeName: string,
+        packToBuilderFn: CustomPackToBuilderFn<T> | null,
+        unpackFromSliceFn: CustomUnpackFromSliceFn<T> | null,
+    ) {
+        if (customSerializersRegistry.has(typeName)) {
+            throw new Error(`Custom pack/unpack for 'MockTokenPool.${typeName}' already registered`);
+        }
+        customSerializersRegistry.set(typeName, [packToBuilderFn, unpackFromSliceFn]);
     }
 
     static fromAddress(address: c.Address) {

@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # Arbitrary Message Onramp Flow
 
-> See [how CCIPSend works](send-executor.md) and [how the Token Registry is implemented](../token-registry.md).
+> See [how CCIPSend works](send-executor.md) and [how the Token Registry is implemented](../token-pools/token-registry.md).
 
 
 ```mermaid

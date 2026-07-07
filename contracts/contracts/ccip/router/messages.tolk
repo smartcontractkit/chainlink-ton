@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
-import "../common/types.tolk"
 import "../../lib/utils"
-import "../../lib/funding/withdrawable.tolk";
+import "../../lib/funding/withdrawable";
 import "../../lib/versioning/upgradeable"
+import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../common/types"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
-import "../common/messages"
 import "../token_registry/types"
 
 type Router_InMsg =
@@ -29,9 +29,8 @@ type Router_InMsg =
     | Router_MessageRejected
     | Router_LockOrBurn
     | Router_RMNOwnableMessage
-    | Common_JettonTransferNotification
     | Router_TokenRegistrySetTokenInfo
-    ;
+    | TransferNotificationForRecipient;
 
 type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
 type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>

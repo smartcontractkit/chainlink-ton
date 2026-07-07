@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
-import "../../lib/funding/withdrawable.tolk"
-import "../../lib/access/ownable_2step"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable"
+import "../../lib/access/ownable_2step"
+import "../../lib/deployable/namespace"
+import "../../lib/deployable/types"
 import "../../lib/versioning/upgradeable"
+import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
-import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
 import "../offramp/types"
-import "../common/messages"
+import "../rmn_remote/lib"
+import "../token_registry/storage"
+import "../token_registry/messages"
 import "../test/tokenPool/messages"
 
 import "types"
@@ -21,10 +25,6 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
-import "../../lib/deployable/namespace"
-import "../token_registry/storage"
-import "../token_registry/messages"
-import "../../lib/deployable/types"
 
 tolk 1.4.1
 
@@ -169,7 +169,7 @@ fun onInternalMessage(in: InMessage) {
             onLockOrBurn(msg);
         }
         // Sender must be a Jetton Wallet owned by the Router
-        Common_JettonTransferNotification => {
+        TransferNotificationForRecipient => {
             // TODO we can't just throw errors in the Router on JettonTransferNotification - this will burn the tokens.
             // - We either need to return them (do we have enough gas to return?)
             // - Or we need to store state and mark them invalid to be able to withdraw
@@ -183,19 +183,21 @@ fun onInternalMessage(in: InMessage) {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
 
-            assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
+            // TODO: this doesn't compile
+            // assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
 
             //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
-            val sendMsg = lazy Router_CCIPSend.fromCell(msg.forwardPayload);
+            var forwardPayload = msg.forwardPayload;
+            val sendMsg = lazy Router_CCIPSend.fromCell(forwardPayload.loadRef());
 
             var tokenAmounts = sendMsg.tokenAmounts.iter();
             assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
 
             val transferedJetton = tokenAmounts.next();
-            assert (transferedJetton.amount == msg.amount) throw Router_Error.TokenAmountMismatch;
+            assert (transferedJetton.amount == msg.jettonAmount) throw Router_Error.TokenAmountMismatch;
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
-            onCCIPSend(sendMsg, msg.sender, in.valueCoins);
+            onCCIPSend(sendMsg, msg.transferInitiator!, in.valueCoins);
         }
         Router_TokenRegistrySetTokenInfo => {
             val st = Storage.load();
