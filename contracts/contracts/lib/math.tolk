@@ -23,9 +23,6 @@
 const INT_MAX: int = ((1 << 255) - 1) + (1 << 255);
 const INT_MIN: int = -(1 << 255) - (1 << 255);
 
-// 2^(15×8) - 1 = 2^120 - 1
-const COIN_MAX: int = (1 << 120) - 1;
-
 const MAX_UINT8: uint8 = 0xFF; // 255
 const MAX_UINT256: uint256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
@@ -113,6 +110,17 @@ fun mustProd(a: int, b: int, errCode: int): int {
     return res;
 }
 
+const MAX_UINT4: uint4 = 0xF; // 15
+/// According to [the documentation](https://docs.ton.org/tolk/types/numbers#serialization),
+/// `coins` is an alias to `varuint16`, which is encoded by `4` bits of length followed by an `8 * length`-bit number.
+/// 
+/// Given that the maximum length is `0xF(15)`, the maximum value of coins is 2^(8*15) - 1 = 2^120 - 1
+/// 
+/// @note 2^n = 1 << n
+const COIN_MAX: int = (1 << (MAX_UINT4*8)) - 1;
+
+/// Returns `value` as `coins` if it is non negative and fits as a uint120 bits
+/// Otherwise throws `errCode`
 fun mustCastToCoin(value: int, errCode: int): coins {
     if (value < 0 || value > COIN_MAX) {
         throw errCode;
