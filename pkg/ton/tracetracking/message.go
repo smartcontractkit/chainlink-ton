@@ -77,6 +77,8 @@ type ReceivedMessage struct {
 	GasFee                           *big.Int                            // Fees charged to the receiver for processing the message.
 	MagicFee                         *big.Int                            // Unknown origin fee
 	EmittedBouncedMessage            bool                                // Indicates if the transaction was bounced
+	OrigStatus                       tlb.AccountStatus                   // Account status of the receiver before this transaction
+	EndStatus                        tlb.AccountStatus                   // Account status of the receiver after this transaction
 	Description                      *tlb.TransactionDescriptionOrdinary // Description of the transaction (if ordinary)
 	OutgoingInternalSentMessages     []*SentMessage                      // Internal messages sent as a result of this message
 	OutgoingInternalReceivedMessages []*ReceivedMessage                  // Internal messages that have been received by their recipients
@@ -220,6 +222,8 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		GasFee:                           big.NewInt(0),
 		MagicFee:                         big.NewInt(0).Sub(newVar, importFee),
 		EmittedBouncedMessage:            false,
+		OrigStatus:                       txOnReceived.OrigStatus,
+		EndStatus:                        txOnReceived.EndStatus,
 		TotalActionFees:                  big.NewInt(0),
 		OutgoingInternalSentMessages:     make([]*SentMessage, 0),
 		OutgoingInternalReceivedMessages: make([]*ReceivedMessage, 0),
@@ -567,6 +571,41 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 		}
 	}
 	return tvm.ExitCode(computePhase.Details.ExitCode), nil
+}
+
+// FindMessageTo searches this message's trace for a received message addressed to dst,
+// i.e. a message whose receiving contract is dst. It exists because some wallet
+// implementations (e.g. HighloadV3) dispatch their outgoing messages via an
+// intermediate self-addressed message, so the message actually reaching dst may not be
+// a direct child of m. Returns nil if no such message is found in the trace.
+func (m *ReceivedMessage) FindMessageTo(dst *address.Address) *ReceivedMessage {
+	stack := []*ReceivedMessage{m}
+
+	for len(stack) > 0 {
+		n := len(stack) - 1
+		curr := stack[n]
+		stack = stack[:n]
+
+		for _, msg := range curr.OutgoingInternalReceivedMessages {
+			if msg.InternalMsg != nil && msg.InternalMsg.DstAddr.Equals(dst) {
+				return msg
+			}
+			stack = append(stack, msg)
+		}
+	}
+
+	return nil
+}
+
+// IsDeployment reports whether this message deployed the receiving contract, i.e.
+// the account went from a non-active status to active as a result of this transaction.
+// This mirrors @ton/sandbox's `toHaveTransaction({ deploy: true })` matcher, which is
+// defined as `oldStatus !== 'active' && endStatus === 'active'` and, like it, is
+// independent of the transaction's exit code: a StateInit is applied before the compute
+// phase runs, so a contract can be successfully deployed even when its handler reverts
+// (e.g. a jetton minter that underflows on an empty deploy body, exit code 9).
+func (m *ReceivedMessage) IsDeployment() bool {
+	return m.OrigStatus != tlb.AccountStatusActive && m.EndStatus == tlb.AccountStatusActive
 }
 
 // TraceSucceeded recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded.

@@ -26,7 +26,6 @@ jobs:
             yarn fmt-contracts:check && \
             yarn fmt-typescript:check
           '
-
       - name: Check generated TypeScript wrappers
         run: |
           nix run .#abigen
