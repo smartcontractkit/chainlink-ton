@@ -573,6 +573,30 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 	return tvm.ExitCode(computePhase.Details.ExitCode), nil
 }
 
+// FindMessageTo searches this message's trace for a received message addressed to dst,
+// i.e. a message whose receiving contract is dst. It exists because some wallet
+// implementations (e.g. HighloadV3) dispatch their outgoing messages via an
+// intermediate self-addressed message, so the message actually reaching dst may not be
+// a direct child of m. Returns nil if no such message is found in the trace.
+func (m *ReceivedMessage) FindMessageTo(dst *address.Address) *ReceivedMessage {
+	stack := []*ReceivedMessage{m}
+
+	for len(stack) > 0 {
+		n := len(stack) - 1
+		curr := stack[n]
+		stack = stack[:n]
+
+		for _, msg := range curr.OutgoingInternalReceivedMessages {
+			if msg.InternalMsg != nil && msg.InternalMsg.DstAddr.Equals(dst) {
+				return msg
+			}
+			stack = append(stack, msg)
+		}
+	}
+
+	return nil
+}
+
 // IsDeployment reports whether this message deployed the receiving contract, i.e.
 // the account went from a non-active status to active as a result of this transaction.
 // This mirrors @ton/sandbox's `toHaveTransaction({ deploy: true })` matcher, which is

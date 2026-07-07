@@ -250,8 +250,15 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", exitCode, exitCode.Describe())
 	}
 
-	if len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
-		return nil, nil, fmt.Errorf("contract deployment failed: expected exactly 1 outgoing internal message (the deployment transaction to the new contract address), but got %d. This usually indicates an issue with the deployment process or contract code", len(receivedMessage.OutgoingInternalReceivedMessages))
+	// Some wallet implementations (e.g. HighloadV3) don't send the deployment message
+	// directly: the external message triggers a self-addressed internal message that the
+	// wallet uses to dispatch its outgoing messages, so the actual deployment transaction
+	// is nested one level deeper in the trace rather than being the direct outgoing
+	// message. Search the trace for the transaction addressed to the new contract instead
+	// of assuming it is the first direct outgoing message.
+	deploymentMessage := receivedMessage.FindMessageTo(addr)
+	if deploymentMessage == nil {
+		return nil, nil, fmt.Errorf("contract deployment failed: no transaction to the new contract address %s found in the deployment trace. This usually indicates an issue with the deployment process or contract code", addr)
 	}
 
 	// The deployment transaction (the internal message received by the new contract) is
@@ -261,7 +268,6 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	// deploy even when its handler reverts on the deploy body (e.g. a jetton minter that
 	// underflows on an empty body, exit code 9). Callers that require a clean run should
 	// inspect the returned message's ExitCode themselves.
-	deploymentMessage := receivedMessage.OutgoingInternalReceivedMessages[0]
 	if !deploymentMessage.IsDeployment() {
 		deployExitCode, ecErr := deploymentMessage.ExitCode()
 		if ecErr != nil {
