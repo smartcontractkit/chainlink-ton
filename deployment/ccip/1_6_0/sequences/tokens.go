@@ -136,7 +136,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				},
 			})
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve mock token pool contract: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve contracts: %w", err)
 			}
 			compiledWallet, ok := compiledContracts[bindings.TypeJettonWallet]
 			if !ok {
