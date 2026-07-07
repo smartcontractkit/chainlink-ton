@@ -660,14 +660,14 @@ export const TokenRegistry_ReturnTokenInfo = {
  > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
- >     destTokenAmount: uint256
+ >     destTokenAmount: coins
  > }
  */
 export interface TokenPool_LockOrBurnFinished {
     readonly $: 'TokenPool_LockOrBurnFinished'
     queryId: uint64
     out: CellRef<TokenPool_LockOrBurnOutV1>
-    destTokenAmount: uint256
+    destTokenAmount: coins
 }
 
 export const TokenPool_LockOrBurnFinished = {
@@ -676,7 +676,7 @@ export const TokenPool_LockOrBurnFinished = {
     create(args: {
         queryId: uint64
         out: CellRef<TokenPool_LockOrBurnOutV1>
-        destTokenAmount: uint256
+        destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
@@ -689,14 +689,14 @@ export const TokenPool_LockOrBurnFinished = {
             $: 'TokenPool_LockOrBurnFinished',
             queryId: s.loadUintBig(64),
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
-            destTokenAmount: s.loadUintBig(256),
+            destTokenAmount: s.loadCoins(),
         }
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0xf432a4e3, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
-        b.storeUint(self.destTokenAmount, 256);
+        b.storeCoins(self.destTokenAmount);
     },
     toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
@@ -1533,7 +1533,7 @@ export class CCIPSendExecutor implements c.Contract {
     static createCellOfTokenPoolLockOrBurnFinished(body: {
         queryId: uint64
         out: CellRef<TokenPool_LockOrBurnOutV1>
-        destTokenAmount: uint256
+        destTokenAmount: coins
     }) {
         return TokenPool_LockOrBurnFinished.toCell(TokenPool_LockOrBurnFinished.create(body));
     }
@@ -1605,7 +1605,7 @@ export class CCIPSendExecutor implements c.Contract {
     async sendTokenPoolLockOrBurnFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         out: CellRef<TokenPool_LockOrBurnOutV1>
-        destTokenAmount: uint256
+        destTokenAmount: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

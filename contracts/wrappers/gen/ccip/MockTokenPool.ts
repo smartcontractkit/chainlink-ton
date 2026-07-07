@@ -141,20 +141,19 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 type coins = bigint
 
 type uint64 = bigint
-type uint256 = bigint
 
 /**
  > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
- >     destTokenAmount: uint256
+ >     destTokenAmount: coins
  > }
  */
 export interface TokenPool_LockOrBurnFinished {
     readonly $: 'TokenPool_LockOrBurnFinished'
     queryId: uint64
     out: CellRef<TokenPool_LockOrBurnOutV1>
-    destTokenAmount: uint256
+    destTokenAmount: coins
 }
 
 export const TokenPool_LockOrBurnFinished = {
@@ -163,7 +162,7 @@ export const TokenPool_LockOrBurnFinished = {
     create(args: {
         queryId: uint64
         out: CellRef<TokenPool_LockOrBurnOutV1>
-        destTokenAmount: uint256
+        destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
@@ -176,14 +175,14 @@ export const TokenPool_LockOrBurnFinished = {
             $: 'TokenPool_LockOrBurnFinished',
             queryId: s.loadUintBig(64),
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
-            destTokenAmount: s.loadUintBig(256),
+            destTokenAmount: s.loadCoins(),
         }
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0xf432a4e3, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
-        b.storeUint(self.destTokenAmount, 256);
+        b.storeCoins(self.destTokenAmount);
     },
     toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
@@ -364,7 +363,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockTokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAWgABFP8A9KQT9LzyyAsBAZDT+JHyQNcsI+7HyhTyv/oAMfpIMfpIMIjIz4UIEvpSjQaAAAAAAAAAAAAAAAAAAHoZUnGAAAAAAAAAAEDPFsxwzwv/yYMG+wACAAA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAWQABFP8A9KQT9LzyyAsBAY7T+JHyQNcsI+7HyhTyv/oAMfpIMfpIMIjIz4UIEvpSjQaAAAAAAAAAAAAAAAAAAHoZUnGAAAAAAAAAAEDPFszPhCDJgwb7AAIAAA==');
 
     static Errors = {
     }
