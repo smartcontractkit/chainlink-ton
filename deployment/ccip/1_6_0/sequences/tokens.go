@@ -6,7 +6,9 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -25,6 +27,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	jettoncommon "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	ton_tvm "github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -274,16 +278,84 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 	)
 }
 
-// TODO: ConfigureTokenForTransfersSequence is a no-op for the minimal skeleton.
-// Token-registry administration on TON happens via the OnRamp's TokenRegistryDeployment
-// field at deploy time; per-token enable/disable will be added when source-functional
-// TON→EVM transfers are exercised.
+// ConfigureTokenForTransfersSequence registers a jetton and its pool with the on-chain
+// TokenRegistry by sending Router_TokenRegistrySetTokenInfo to the Router. The Router
+// deploys the per-token registry entry (when IsNewEntry) and forwards TokenRegistry_SetTokenInfo.
 func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequence[tokensapi.ConfigureTokenForTransfersInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/configure-token-for-transfers",
 		semver.MustParse("1.6.0"),
-		"TODO: No-op for TON token transfer configuration (minimal skeleton)",
+		"Registers a jetton with the TON TokenRegistry via the Router",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.ConfigureTokenForTransfersInput) (sequences.OnChainOutput, error) {
+			chain, ok := chains.TonChains()[input.ChainSelector]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("chain %d not found or not a TON chain", input.ChainSelector)
+			}
+
+			tokenAddrStr := input.TokenRef.Address
+			if tokenAddrStr == "" {
+				return sequences.OnChainOutput{}, errors.New("token ref address is empty")
+			}
+			tokenAddr, err := address.ParseAddr(tokenAddrStr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse token address %q: %w", tokenAddrStr, err)
+			}
+
+			poolAddrStr := input.TokenPoolAddress
+			if input.RegistryTokenPoolAddress != "" {
+				poolAddrStr = input.RegistryTokenPoolAddress
+			}
+			if poolAddrStr == "" {
+				return sequences.OnChainOutput{}, errors.New("token pool address is empty")
+			}
+			poolAddr, err := address.ParseAddr(poolAddrStr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse token pool address %q: %w", poolAddrStr, err)
+			}
+
+			var routerAddr *address.Address
+			if input.RegistryAddress != "" {
+				routerAddr, err = address.ParseAddr(input.RegistryAddress)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse registry (router) address %q: %w", input.RegistryAddress, err)
+				}
+			} else {
+				stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, err)
+				}
+				r := stateCCIP.Router
+				routerAddr = &r
+			}
+
+			body, err := tlb.ToCell(router.TokenRegistrySetTokenInfo{
+				TokenAddress: tokenAddr,
+				TokenInfo: tokenregistry.TokenInfo{
+					TokenPool:     poolAddr,
+					MinterAddress: tokenAddr,
+					Enabled:       true,
+				},
+				IsNewEntry: true,
+			})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to serialize TokenRegistrySetTokenInfo body: %w", err)
+			}
+
+			conn := tracetracking.NewSignedAPIClient(chain.Client, *chain.Wallet)
+			walletMsg := &wallet.Message{
+				Mode: wallet.PayGasSeparately,
+				InternalMessage: &tlb.InternalMessage{
+					IHRDisabled: true,
+					Bounce:      true,
+					DstAddr:     routerAddr,
+					Amount:      tlb.MustFromTON("0.1"),
+					Body:        body,
+				},
+			}
+			if _, _, err := conn.SendWaitTransaction(b.GetContext(), *routerAddr, walletMsg); err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to send TokenRegistrySetTokenInfo to router at %s: %w", routerAddr.String(), err)
+			}
+
 			return sequences.OnChainOutput{}, nil
 		},
 	)

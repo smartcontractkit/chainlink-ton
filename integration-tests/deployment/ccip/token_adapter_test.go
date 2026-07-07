@@ -15,7 +15,11 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
+
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
+	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
@@ -112,6 +116,75 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 	counterpart, err := adapter.DeriveTokenPoolCounterpart(env, tonSelector, tokenBytes, tokenBytes)
 	require.NoError(t, err)
 	require.True(t, bytes.Equal(tokenBytes, counterpart))
+}
+
+// TestTonTokenAdapterConfigureTokenForTransfers exercises the full
+// deploy-jetton → deploy-pool → register-with-router flow. It requires a live
+// Router + TokenRegistryDeployment on chain, so CCIP contracts are deployed first.
+func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
+	t.Parallel()
+
+	lggr := logger.Test(t)
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().Build(t)
+	require.NoError(t, err)
+
+	tonSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))[0]
+	tonChain := env.BlockChains.TonChains()[tonSelector]
+
+	contractID, err := tonops.RandomUint32()
+	require.NoError(t, err)
+	cs := commonchangeset.Configure(
+		tonops.DeployCCIPContracts{},
+		tonops.DeployChainContractsConfig(t, env, tonSelector, deployutils.ContractsVersionLocal, contractID),
+	)
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	require.NoError(t, err, "failed to deploy ccip")
+
+	adapter, ok := tokensapi.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
+	require.True(t, ok, "expected TON token adapter to be registered")
+
+	b := env.OperationsBundle
+
+	tokenOut, err := operations.ExecuteSequence(b, adapter.DeployToken(), env.BlockChains, tokensapi.DeployTokenInput{
+		Name:              "Test Token",
+		Symbol:            "TST",
+		Decimals:          9,
+		ExternalAdmin:     tonChain.WalletAddress.String(),
+		CCIPAdmin:         tonChain.WalletAddress.String(),
+		ChainSelector:     tonSelector,
+		ExistingDataStore: env.DataStore,
+	})
+	require.NoError(t, err)
+	require.Len(t, tokenOut.Output.Addresses, 1)
+
+	tokenRef := tokenOut.Output.Addresses[0]
+	tokenRef.Qualifier = "test-token"
+
+	poolOut, err := operations.ExecuteSequence(b, adapter.DeployTokenPoolForToken(), env.BlockChains, tokensapi.DeployTokenPoolInput{
+		TokenRef: &datastore.AddressRef{
+			Address:       tokenRef.Address,
+			ChainSelector: tokenRef.ChainSelector,
+			Type:          tokenRef.Type,
+			Version:       tokenRef.Version,
+			Qualifier:     tokenRef.Qualifier,
+		},
+		TokenPoolQualifier: "test-pool",
+		PoolType:           bindings.ShortMockTokenPool,
+		TokenPoolVersion:   semver.MustParse("1.6.0"),
+		ChainSelector:      tonSelector,
+		ExistingDataStore:  env.DataStore,
+	})
+	require.NoError(t, err)
+	require.Len(t, poolOut.Output.Addresses, 1)
+	poolRef := poolOut.Output.Addresses[0]
+
+	_, err = operations.ExecuteSequence(b, adapter.ConfigureTokenForTransfersSequence(), env.BlockChains, tokensapi.ConfigureTokenForTransfersInput{
+		ChainSelector:     tonSelector,
+		TokenPoolAddress:  poolRef.Address,
+		TokenRef:          tokenRef,
+		ExistingDataStore: env.DataStore,
+	})
+	require.NoError(t, err, "expected ConfigureTokenForTransfersSequence to succeed against on-chain Router")
 }
 
 func mustParseTONAddr(t *testing.T, raw string) *address.Address {
