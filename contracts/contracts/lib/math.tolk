@@ -92,6 +92,28 @@ fun safeProd(a: int, b: int): (int, int) {
     return (a * b, 0); // success
 }
 
+// @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
+fun safePow10(n: uint8): (uint256, int) {
+    if (n > MAX_EXP10) {
+        return (0, 1); // overflow error
+    }
+
+    var result: uint256 = 1;
+    var base: uint256 = 10;
+
+    while (n > 0) {
+        if ((n & 1) == 1) {
+            // Check for potential overflow before multiplication
+            assert(result == 0 || base <= MAX_UINT256 / result, 4); // exit code 4: Integer overflow
+            result *= base;
+        }
+        base *= base;
+        n >>= 1;
+    }
+
+    return (result, 0); // success
+}
+
 // Returns result or throws errCode on overflow.
 fun mustAdd(a: int, b: int, errCode: int): int {
     val (res, err) = safeAdd(a, b);
@@ -104,6 +126,15 @@ fun mustAdd(a: int, b: int, errCode: int): int {
 // Returns result or throws errCode on overflow.
 fun mustProd(a: int, b: int, errCode: int): int {
     val (res, err) = safeProd(a, b);
+    if (err != 0) {
+        throw errCode;
+    }
+    return res;
+}
+
+// Returns result or throws errCode on overflow.
+fun mustPow10(n: uint8, errCode: int): uint256 {
+    val (res, err) = safePow10(n);
     if (err != 0) {
         throw errCode;
     }
@@ -128,20 +159,3 @@ fun mustCastToCoin(value: int, errCode: int): coins {
     return value;
 }
 
-// @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
-fun pow10(n: uint8): uint256 {
-    var result: uint256 = 1;
-    var base: uint256 = 10;
-
-    while (n > 0) {
-        if ((n & 1) == 1) {
-            // Check for potential overflow before multiplication
-            assert(result == 0 || base <= MAX_UINT256 / result, 4); // exit code 4: Integer overflow
-            result *= base;
-        }
-        base *= base;
-        n >>= 1;
-    }
-
-    return result;
-}
