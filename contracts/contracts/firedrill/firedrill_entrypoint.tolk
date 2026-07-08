@@ -177,6 +177,12 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 		dataAvailabilityGasPrice: 1,
 		timestamp: timestamp
 	});
+
+	emit(USD_PER_TOKEN_UPDATED_TOPIC, UsdPerTokenUpdated {
+		sourceToken: st.tokenAddress,
+		usdPerToken: 1,
+		timestamp: timestamp
+	});
 }
 
 // ========== Router Getters ==========

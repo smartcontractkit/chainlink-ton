@@ -281,6 +281,12 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
       executionGasPrice: 1n, // uint112
       dataAvailabilityGasPrice: 1n, // uint112
     })
+
+    assertLog(result.transactions,entrypoint.address, LogTypes.UsdPerTokenUpdated, {
+      sourceToken: tokenAddress,
+      usdPerToken: 1n,
+    })
+
   })
 
   it('should reject drill price registries from non-owner', async () => {
