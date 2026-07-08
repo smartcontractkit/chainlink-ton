@@ -65,30 +65,32 @@ jobs:
           CONTRACT_VERSION: local
         run: |
           set -euo pipefail
-
-          OUTPUT=$(gh workflow run "${WORKFLOW_FILE}" \
+          
+          # Trigger workflow
+          gh workflow run "${WORKFLOW_FILE}" \
             --repo "${TARGET_REPO}" \
             --ref "${TARGET_BRANCH}" \
             --field "ton_ref=${TON_REF}" \
             --field "chainlink_version=${CHAINLINK_VERSION}" \
             --field "contract_version=${CONTRACT_VERSION}" \
-            --field "custom_config=${CUSTOM_CONFIG}")
-
-          echo "$OUTPUT"
-
-          RUN_ID=$(printf '%s\n' "$OUTPUT" \
-            | grep -Eo 'https://github.com/[^ ]+/actions/runs/[0-9]+' \
-            | grep -Eo '[0-9]+' \
-            | tail -n 1)
-
-          if [[ -z "${RUN_ID:-}" ]]; then
-            echo "Failed to parse workflow run ID from gh workflow run output"
+            --field "custom_config=${CUSTOM_CONFIG}"
+          
+          RUN_ID="$(gh run list \
+            --repo "${TARGET_REPO}" \
+            --workflow "${WORKFLOW_FILE}" \
+            --branch "${TARGET_BRANCH}" \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')"
+          
+          if [[ -z "${RUN_ID:-}" || "${RUN_ID}" == "null" ]]; then
+            echo "Failed to resolve workflow run ID after dispatch"
             exit 1
           fi
 
           echo "Triggered workflow run: https://github.com/${TARGET_REPO}/actions/runs/${RUN_ID}"
-
+          
           gh run watch \
             --repo "${TARGET_REPO}" \
-            "$RUN_ID" \
+            "${RUN_ID}" \
             --exit-status
