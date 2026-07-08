@@ -261,8 +261,8 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	}
 
 	// The deployment transaction (the internal message received by the new contract) is
-	// only required to have actually deployed the contract. 
-	// We deliberately do NOT assert a success exit code here	
+	// only required to have actually deployed the contract.
+	// We deliberately do NOT assert a success exit code here
 	if !deploymentMessage.IsDeployment() {
 		deployExitCode, ecErr := deploymentMessage.ExitCode()
 		if ecErr != nil {
