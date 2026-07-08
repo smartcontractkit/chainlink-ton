@@ -320,9 +320,9 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse registry (router) address %q: %w", input.RegistryAddress, err)
 				}
 			} else {
-				stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, err)
+				stateCCIP, loadErr := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
+				if loadErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, loadErr)
 				}
 				r := stateCCIP.Router
 				routerAddr = &r
