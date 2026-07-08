@@ -41,9 +41,12 @@ interface ContractSource {
   compiledFile: string
   /**
    * Tolk source file relative to the contracts/ root from which CONTRACT_VERSION
-   * is extracted.
+   * is extracted. Omit for contracts whose version is supplied directly via `version`
+   * (e.g. externally sourced contracts with no Tolk source of their own).
    */
-  tolkSource: string
+  tolkSource?: string
+  /** Explicit version, used when `tolkSource` isn't applicable. */
+  version?: string
 }
 
 /**
@@ -137,6 +140,47 @@ function extractContractVersion(tolkSourcePath: string): string {
   return match[1]
 }
 
+function resolveContractVersion(source: ContractSource): string {
+  if (source.tolkSource) {
+    return extractContractVersion(source.tolkSource)
+  }
+  if (source.version) {
+    return source.version
+  }
+  throw new Error(`Contract ${source.contractType} has neither a tolkSource nor a version`)
+}
+
+/**
+ * Reference Jetton contracts (JettonMinter, JettonWallet), pinned into build/ by
+ * pinArtifacts.ts from PATH_CONTRACTS_JETTON. Only included when that env var is set,
+ * i.e. when building inside the nix dev/build environments that expose it.
+ *
+ * NOTE: contract types must stay in sync with pkg/bindings/index.go.
+ */
+function getJettonContracts(): ContractSource[] {
+  const jettonBuildDir = process.env.PATH_CONTRACTS_JETTON
+  if (!jettonBuildDir) {
+    return []
+  }
+
+  const jettonPkgJson = JSON.parse(
+    fs.readFileSync(path.join(jettonBuildDir, '..', 'package.json'), 'utf-8'),
+  ) as { version: string }
+
+  return [
+    {
+      contractType: 'com.github.ton-blockchain.jetton-contract.contracts.jetton-minter',
+      compiledFile: 'JettonMinter.compiled.json',
+      version: jettonPkgJson.version,
+    },
+    {
+      contractType: 'com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet',
+      compiledFile: 'JettonWallet.compiled.json',
+      version: jettonPkgJson.version,
+    },
+  ]
+}
+
 interface CliArgs {
   sha?: string
   out: string
@@ -168,9 +212,11 @@ function main(): void {
   const packageVersion = sha ? `${pkgJson.version}+${sha}` : pkgJson.version
 
   const contracts: Record<string, ContractEntry> = {}
-  for (const { contractType, compiledFile, tolkSource } of CONTRACTS) {
-    const version = extractContractVersion(tolkSource)
-    contracts[contractType] = { path: compiledFile, version }
+  for (const source of [...CONTRACTS, ...getJettonContracts()]) {
+    contracts[source.contractType] = {
+      path: source.compiledFile,
+      version: resolveContractVersion(source),
+    }
   }
 
   const output: ContractPackageMetadata = { version: packageVersion, contracts }

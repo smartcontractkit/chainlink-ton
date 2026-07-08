@@ -203,6 +203,7 @@ func TestFastCurseTON(t *testing.T) {
 					},
 				},
 				Force: false,
+				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
 				MCMS:  mcms.Input{},
 			}
 
@@ -234,6 +235,7 @@ func TestFastCurseTON(t *testing.T) {
 					},
 				},
 				Force: false,
+				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
 				MCMS:  mcms.Input{},
 			}
 
@@ -273,6 +275,7 @@ func TestFastCurseTON(t *testing.T) {
 					},
 				},
 				Force: false,
+				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
 				MCMS:  mcms.Input{},
 			}
 
@@ -309,6 +312,7 @@ func TestFastCurseTON(t *testing.T) {
 					},
 				},
 				Force: false,
+				AllowAsymmetricLaneCurses: true,
 				MCMS:  mcms.Input{},
 			}
 
