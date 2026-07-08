@@ -240,6 +240,8 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
+	// The exit code of the external message (the wallet processing the deploy request)
+	// must be success: this only reflects the wallet accepting and forwarding the message.
 	exitCode, err := receivedMessage.ExitCode()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get exit code: %w", err)
@@ -248,17 +250,25 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", exitCode, exitCode.Describe())
 	}
 
-	if len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
-		return nil, nil, fmt.Errorf("contract deployment failed: expected exactly 1 outgoing internal message (the deployment transaction to the new contract address), but got %d. This usually indicates an issue with the deployment process or contract code", len(receivedMessage.OutgoingInternalReceivedMessages))
+	// Some wallet implementations (e.g. HighloadV3) don't always send the deployment message
+	// directly: the external message triggers a self-addressed internal message that the
+	// wallet uses to dispatch its outgoing messages.
+	// Search the trace for the transaction addressed to the new contract instead
+	// of assuming it is the first direct outgoing message.
+	deploymentMessage := receivedMessage.FindMessageTo(addr)
+	if deploymentMessage == nil {
+		return nil, nil, fmt.Errorf("contract deployment failed: no transaction to the new contract address %s found in the deployment trace. This usually indicates an issue with the deployment process or contract code", addr)
 	}
 
-	// TODO: Temporarily allow ExitCodeTactInvalidIncomingMessage until Tact contract is fixed, jira ticket: NON-EVM-3080
-	exitCode, err = receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get exit code of deployment transaction: %w", err)
-	}
-	if exitCode != tvm.ExitCodeSuccess && exitCode != tvm.ExitCodeTactInvalidIncomingMessage {
-		return nil, nil, fmt.Errorf("contract deployment failed: error in deployment transaction: %s", exitCode.Describe())
+	// The deployment transaction (the internal message received by the new contract) is
+	// only required to have actually deployed the contract.
+	// We deliberately do NOT assert a success exit code here
+	if !deploymentMessage.IsDeployment() {
+		deployExitCode, ecErr := deploymentMessage.ExitCode()
+		if ecErr != nil {
+			return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s)", deploymentMessage.OrigStatus, deploymentMessage.EndStatus)
+		}
+		return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s), deploy tx exit code %d: %s", deploymentMessage.OrigStatus, deploymentMessage.EndStatus, deployExitCode, deployExitCode.Describe())
 	}
 
 	return &Contract{addr, client}, &receivedMessage, nil
