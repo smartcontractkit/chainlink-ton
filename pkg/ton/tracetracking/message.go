@@ -574,10 +574,7 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 }
 
 // FindMessageTo searches this message's trace for a received message addressed to dst,
-// i.e. a message whose receiving contract is dst. It exists because some wallet
-// implementations (e.g. HighloadV3) dispatch their outgoing messages via an
-// intermediate self-addressed message, so the message actually reaching dst may not be
-// a direct child of m. Returns nil if no such message is found in the trace.
+// i.e. a message whose receiving contract is dst. Returns nil if no such message is found in the trace.
 func (m *ReceivedMessage) FindMessageTo(dst *address.Address) *ReceivedMessage {
 	stack := []*ReceivedMessage{m}
 
@@ -599,11 +596,6 @@ func (m *ReceivedMessage) FindMessageTo(dst *address.Address) *ReceivedMessage {
 
 // IsDeployment reports whether this message deployed the receiving contract, i.e.
 // the account went from a non-active status to active as a result of this transaction.
-// This mirrors @ton/sandbox's `toHaveTransaction({ deploy: true })` matcher, which is
-// defined as `oldStatus !== 'active' && endStatus === 'active'` and, like it, is
-// independent of the transaction's exit code: a StateInit is applied before the compute
-// phase runs, so a contract can be successfully deployed even when its handler reverts
-// (e.g. a jetton minter that underflows on an empty deploy body, exit code 9).
 func (m *ReceivedMessage) IsDeployment() bool {
 	return m.OrigStatus != tlb.AccountStatusActive && m.EndStatus == tlb.AccountStatusActive
 }

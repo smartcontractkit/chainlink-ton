@@ -250,11 +250,10 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", exitCode, exitCode.Describe())
 	}
 
-	// Some wallet implementations (e.g. HighloadV3) don't send the deployment message
+	// Some wallet implementations (e.g. HighloadV3) don't always send the deployment message
 	// directly: the external message triggers a self-addressed internal message that the
-	// wallet uses to dispatch its outgoing messages, so the actual deployment transaction
-	// is nested one level deeper in the trace rather than being the direct outgoing
-	// message. Search the trace for the transaction addressed to the new contract instead
+	// wallet uses to dispatch its outgoing messages.
+	// Search the trace for the transaction addressed to the new contract instead
 	// of assuming it is the first direct outgoing message.
 	deploymentMessage := receivedMessage.FindMessageTo(addr)
 	if deploymentMessage == nil {
@@ -262,12 +261,8 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	}
 
 	// The deployment transaction (the internal message received by the new contract) is
-	// only required to have actually deployed the contract, mirroring @ton/sandbox's
-	// `toHaveTransaction({ deploy: true })`. We deliberately do NOT assert a success exit
-	// code here: the StateInit is applied before the compute phase runs, so a contract can
-	// deploy even when its handler reverts on the deploy body (e.g. a jetton minter that
-	// underflows on an empty body, exit code 9). Callers that require a clean run should
-	// inspect the returned message's ExitCode themselves.
+	// only required to have actually deployed the contract. 
+	// We deliberately do NOT assert a success exit code here	
 	if !deploymentMessage.IsDeployment() {
 		deployExitCode, ecErr := deploymentMessage.ExitCode()
 		if ecErr != nil {

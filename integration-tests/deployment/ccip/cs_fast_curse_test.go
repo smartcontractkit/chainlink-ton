@@ -202,9 +202,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
+				Force:                     false,
 				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
-				MCMS:  mcms.Input{},
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the curse changeset
@@ -234,9 +234,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
+				Force:                     false,
 				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
-				MCMS:  mcms.Input{},
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the uncurse changeset
@@ -274,9 +274,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
+				Force:                     false,
 				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
-				MCMS:  mcms.Input{},
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the curse changeset
@@ -311,9 +311,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
+				Force:                     false,
 				AllowAsymmetricLaneCurses: true,
-				MCMS:  mcms.Input{},
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the uncurse changeset
