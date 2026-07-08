@@ -66,28 +66,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          DISPATCH_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-
-          gh workflow run "${WORKFLOW_FILE}" \
+          OUTPUT=$(gh workflow run "${WORKFLOW_FILE}" \
             --repo "${TARGET_REPO}" \
             --ref "${TARGET_BRANCH}" \
             --field "ton_ref=${TON_REF}" \
             --field "chainlink_version=${CHAINLINK_VERSION}" \
             --field "contract_version=${CONTRACT_VERSION}" \
-            --field "custom_config=${CUSTOM_CONFIG}"
+            --field "custom_config=${CUSTOM_CONFIG}")
 
-          sleep 5
+          echo "$OUTPUT"
 
-          RUN_ID="$(gh run list \
-            --repo "${TARGET_REPO}" \
-            --workflow "${WORKFLOW_FILE}" \
-            --branch "${TARGET_BRANCH}" \
-            --event workflow_dispatch \
-            --json databaseId,createdAt \
-            --jq "[.[] | select(.createdAt >= \"${DISPATCH_TIME}\")] | sort_by(.createdAt) | last | .databaseId")"
+          RUN_ID=$(printf '%s\n' "$OUTPUT" \
+            | grep -Eo 'https://github.com/[^ ]+/actions/runs/[0-9]+' \
+            | grep -Eo '[0-9]+' \
+            | tail -n 1)
 
-          if [[ -z "${RUN_ID:-}" || "${RUN_ID}" == "null" ]]; then
-            echo "Failed to resolve workflow run ID after dispatch"
+          if [[ -z "${RUN_ID:-}" ]]; then
+            echo "Failed to parse workflow run ID from gh workflow run output"
             exit 1
           fi
 
@@ -95,5 +90,5 @@ jobs:
 
           gh run watch \
             --repo "${TARGET_REPO}" \
-            "${RUN_ID}" \
+            "$RUN_ID" \
             --exit-status
