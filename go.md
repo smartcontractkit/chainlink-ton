@@ -100,8 +100,6 @@ flowchart LR
 	click chainlink-aptos href "https://github.com/smartcontractkit/chainlink-aptos"
 	chainlink-automation
 	click chainlink-automation href "https://github.com/smartcontractkit/chainlink-automation"
-	chainlink-canton
-	click chainlink-canton href "https://github.com/smartcontractkit/chainlink-canton"
 	chainlink-ccip --> chainlink-common
 	chainlink-ccip --> chainlink-protos/rmn/v1.6/go
 	click chainlink-ccip href "https://github.com/smartcontractkit/chainlink-ccip"
@@ -115,6 +113,7 @@ flowchart LR
 	click chainlink-ccip/chains/solana href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/solana/gobindings
 	click chainlink-ccip/chains/solana/gobindings href "https://github.com/smartcontractkit/chainlink-ccip"
+	chainlink-ccip/deployment --> chainlink-deployments-framework
 	chainlink-ccip/deployment --> chainlink-evm
 	click chainlink-ccip/deployment href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccv
@@ -145,6 +144,7 @@ flowchart LR
 	click chainlink-data-streams href "https://github.com/smartcontractkit/chainlink-data-streams"
 	chainlink-deployments-framework --> ccip-owner-contracts
 	chainlink-deployments-framework --> chainlink-ccip/chains/evm
+	chainlink-deployments-framework --> chainlink-protos/job-distributor
 	chainlink-deployments-framework --> chainlink-protos/op-catalog
 	chainlink-deployments-framework --> chainlink-testing-framework/seth
 	chainlink-deployments-framework --> mcms
@@ -270,8 +270,6 @@ flowchart LR
 	chainlink/v2 --> chainlink-protos/orchestrator
 	chainlink/v2 --> chainlink-protos/ring/go
 	chainlink/v2 --> chainlink-solana
-	chainlink/v2 --> chainlink-sui
-	chainlink/v2 --> chainlink-ton
 	chainlink/v2 --> cre-sdk-go
 	chainlink/v2 --> cre-sdk-go/capabilities/networking/http
 	chainlink/v2 --> cre-sdk-go/capabilities/scheduler/cron
@@ -286,22 +284,16 @@ flowchart LR
 	click cre-sdk-go/capabilities/scheduler/cron href "https://github.com/smartcontractkit/cre-sdk-go"
 	freeport
 	click freeport href "https://github.com/smartcontractkit/freeport"
-	go-daml
-	click go-daml href "https://github.com/smartcontractkit/go-daml"
 	go-sumtype2
 	click go-sumtype2 href "https://github.com/smartcontractkit/go-sumtype2"
 	grpc-proxy
 	click grpc-proxy href "https://github.com/smartcontractkit/grpc-proxy"
 	libocr --> go-sumtype2
 	click libocr href "https://github.com/smartcontractkit/libocr"
-	mcms --> chainlink-canton
 	mcms --> chainlink-ccip/chains/solana
-	mcms --> chainlink-deployments-framework
-	mcms --> chainlink-protos/job-distributor
 	mcms --> chainlink-sui
 	mcms --> chainlink-testing-framework/framework
 	mcms --> chainlink-ton
-	mcms --> go-daml
 	click mcms href "https://github.com/smartcontractkit/mcms"
 	quarantine
 	click quarantine href "https://github.com/smartcontractkit/quarantine"
