@@ -65,8 +65,9 @@ jobs:
           CONTRACT_VERSION: local
         run: |
           set -euo pipefail
-          
-          # Trigger workflow
+
+          DISPATCH_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
           gh workflow run "${WORKFLOW_FILE}" \
             --repo "${TARGET_REPO}" \
             --ref "${TARGET_BRANCH}" \
@@ -74,22 +75,24 @@ jobs:
             --field "chainlink_version=${CHAINLINK_VERSION}" \
             --field "contract_version=${CONTRACT_VERSION}" \
             --field "custom_config=${CUSTOM_CONFIG}"
-          
+
+          sleep 5
+
           RUN_ID="$(gh run list \
             --repo "${TARGET_REPO}" \
             --workflow "${WORKFLOW_FILE}" \
             --branch "${TARGET_BRANCH}" \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId')"
-          
+            --event workflow_dispatch \
+            --json databaseId,createdAt \
+            --jq "[.[] | select(.createdAt >= \"${DISPATCH_TIME}\")] | sort_by(.createdAt) | last | .databaseId")"
+
           if [[ -z "${RUN_ID:-}" || "${RUN_ID}" == "null" ]]; then
             echo "Failed to resolve workflow run ID after dispatch"
             exit 1
           fi
 
           echo "Triggered workflow run: https://github.com/${TARGET_REPO}/actions/runs/${RUN_ID}"
-          
+
           gh run watch \
             --repo "${TARGET_REPO}" \
             "${RUN_ID}" \
