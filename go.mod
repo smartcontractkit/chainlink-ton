@@ -102,7 +102,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20260326111235-8c09d1a4491f // indirect
 	github.com/smartcontractkit/chainlink-protos/linking-service/go v0.0.0-20251002192024-d2ad9222409b // indirect
 	github.com/smartcontractkit/chainlink-protos/node-platform v0.0.0-20260211172625-dff40e83b3c9 // indirect
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-00010101000000-000000000000
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260709175429-8cf9fa44dc59
 	github.com/smartcontractkit/freeport v0.1.3-0.20250828155247-add56fa28aad // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -151,5 +151,3 @@ tool (
 	github.com/jmank88/gomods
 	github.com/jmank88/modgraph
 )
-
-replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
