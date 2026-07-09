@@ -1,5 +1,5 @@
 # Notice: `pkgs.lib.fakeHash` can be used as a placeholder,
 #   but `lock-nix-tidy` will only replace actual hashes.
 {pkgs}: {
-  chainlink-ton = "sha256-ruyhtw7uScQQD6ItEFTKTiuZZXt7/oWGbMz2QCJXkEQ=";
+  chainlink-ton = "sha256-SU5voYChCW7LsTJ350lor5NcYpgRplQ0iAUGZZDuffk=";
 }
