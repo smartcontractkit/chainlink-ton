@@ -1,26 +1,18 @@
-//revive:disable:var-naming
+// Package hash is a temporary compatibility shim that re-exports the public API
+// of github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash.
+//
+// The real implementation was moved into the standalone cciplib module. This
+// shim exists solely so that the older chainlink pinned by integration-tests,
+// which still imports this path, keeps compiling without a premature chainlink
+// upgrade.
+//
+// DELETE this shim once integration-tests bumps to a chainlink that imports the
+// cciplib path directly.
 package hash
 
 import (
-	"hash/crc32"
-	"strings"
+	cciplibhash "github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 )
 
-// https://docs.ton.org/v3/documentation/data-formats/tlb/crc32
-// ieeeTable is a pre-calculated table for the CRC32-IEEE polynomial
-var ieeeTable = crc32.MakeTable(crc32.IEEE)
-
-// CRC32 takes a schema string, cleans it, and calculates the CRC32-IEEE checksum, returning it as a uint32.
-func CRC32(schema string) uint32 {
-	// normalize the input
-	cleanedSchema := strings.ReplaceAll(schema, "(", "")
-	cleanedSchema = strings.ReplaceAll(cleanedSchema, ")", "")
-
-	// convert the cleaned string to a byte slice.
-	data := []byte(cleanedSchema)
-
-	// calculate the CRC32 checksum using the IEEE polynomial table and return it directly.
-	crc := crc32.Checksum(data, ieeeTable)
-
-	return crc
-}
+// CRC32 forwards to cciplib/ton/hash.CRC32.
+var CRC32 = cciplibhash.CRC32

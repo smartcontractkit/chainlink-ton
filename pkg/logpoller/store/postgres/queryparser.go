@@ -11,7 +11,7 @@ import (
 	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )

@@ -8,7 +8,7 @@ gomods: ## Install gomods
 
 .PHONY: modgraph
 modgraph:
-	go install github.com/jmank88/modgraph@v0.1.1
+	go install github.com/jmank88/modgraph@v0.1.4
 	./modgraph > go.md
 
 help:

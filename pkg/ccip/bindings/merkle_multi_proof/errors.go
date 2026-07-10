@@ -1,6 +1,6 @@
 package merklemultiproof
 
-import "github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+import "github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode

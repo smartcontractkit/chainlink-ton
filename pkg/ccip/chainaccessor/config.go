@@ -13,12 +13,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // globalCurseSubject is the uint128 value used to indicate a global curse.
