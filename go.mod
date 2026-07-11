@@ -27,8 +27,6 @@ require (
 	golang.org/x/sync v0.22.0
 )
 
-require github.com/ethereum/go-ethereum v1.17.2 // indirect
-
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/XSAM/otelsql v0.37.0 // indirect
@@ -41,6 +39,7 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.16.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
+	github.com/ethereum/go-ethereum v1.17.2 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect

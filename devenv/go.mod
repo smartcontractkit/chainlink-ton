@@ -5,7 +5,7 @@ go 1.26.2
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
-	github.com/smartcontractkit/chainlink-ton => ../
+	//TODO restore github.com/smartcontractkit/chainlink-ton => ../
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
@@ -18,7 +18,7 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-deployments-framework v0.105.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.16.1
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260514223130-48bc90aca745
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260710204427-f53ee44a1088
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
 	github.com/xssnick/tonutils-go v1.14.1
 )

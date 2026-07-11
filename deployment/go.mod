@@ -2,7 +2,7 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 
 go 1.26.2
 
-replace github.com/smartcontractkit/chainlink-ton => ../
+//TODO restore replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -15,7 +15,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
 	github.com/smartcontractkit/chainlink-deployments-framework v0.105.0
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.18.0
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260514223130-48bc90aca745
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260710204427-f53ee44a1088
 	github.com/smartcontractkit/mcms v0.45.0
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
