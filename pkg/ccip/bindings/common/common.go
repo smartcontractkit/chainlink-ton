@@ -3,8 +3,9 @@
 //
 // The real implementation was moved into the standalone cciplib module. This
 // shim exists solely so that external consumers still importing this path (e.g.
-// chainlink-ccip's EVM/Solana test adapters) keep compiling without a premature
-// upgrade to the cciplib import path.
+// chainlink-ccip's EVM/Solana test adapters) and this repo's dependent modules
+// (deployment/view) keep compiling without a premature upgrade to the cciplib
+// import path.
 //
 // Types are re-exported as aliases (=) so their identity matches cciplib's -
 // callers must agree on the same underlying types.
@@ -16,7 +17,9 @@ import (
 	cciplibcommon "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 )
 
-// Types.
-type (
-	SnakedCell[T any] = cciplibcommon.SnakedCell[T]
-)
+type SnakedCell[T any] = cciplibcommon.SnakedCell[T]
+type TypeAndVersion = cciplibcommon.TypeAndVersion
+type AddressWrap = cciplibcommon.AddressWrap
+type CrossChainAddress = cciplibcommon.CrossChainAddress
+
+var GetTypeAndVersion = cciplibcommon.GetTypeAndVersion
