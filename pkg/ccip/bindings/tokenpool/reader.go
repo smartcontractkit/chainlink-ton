@@ -11,10 +11,10 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // --- Shared getters from token_pool.tolk (library) ---

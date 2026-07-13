@@ -8,11 +8,11 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Messages - incoming ---

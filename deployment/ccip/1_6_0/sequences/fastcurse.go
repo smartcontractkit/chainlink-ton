@@ -24,11 +24,11 @@ import (
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/mcms/types"
 )

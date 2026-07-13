@@ -9,9 +9,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // BOC Header Structure Reference (from tonutils-go/tvm/cell/parse.go:32-65)

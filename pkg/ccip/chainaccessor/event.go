@@ -14,12 +14,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
 // CCIP log retention defaults

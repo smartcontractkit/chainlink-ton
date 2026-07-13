@@ -7,9 +7,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var TLBs = ccipsendexecutor.TLBs

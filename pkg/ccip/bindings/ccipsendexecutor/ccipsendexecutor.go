@@ -7,9 +7,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // CCIPSend Executor opcodes

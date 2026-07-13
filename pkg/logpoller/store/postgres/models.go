@@ -10,7 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )

@@ -5,9 +5,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Constants ---
