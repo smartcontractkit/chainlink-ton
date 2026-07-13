@@ -348,9 +348,8 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 }
 
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
-	// Option A stub: real jetton approval (e.g. minting an allowance / notifying the
-	// pool) is deferred to Track B. No tokens actually move in Option A so there is
-	// nothing to approve yet.
+	// Real jetton approval (e.g. minting an allowance / notifying the pool) is not
+	// yet implemented; no tokens actually move so there is nothing to approve yet.
 	return nil
 }
 
