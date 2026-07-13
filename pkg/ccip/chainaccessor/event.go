@@ -120,7 +120,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
 		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
-		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
+		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount.Nano()),
 		// TODO(2025-01-09): TON CCIP currently supports message transfer only, not token transfer
 		// TokenAmounts:   tokenAmounts,
 	}

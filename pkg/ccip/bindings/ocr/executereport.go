@@ -64,7 +64,7 @@ type TVM2AnyRampMessageBody struct {
 	ExtraArgs      *cell.Cell                     `tlb:"^"`
 	TokenAmounts   common.SnakedCell[TokenAmount] `tlb:"^"`
 	FeeToken       *address.Address               `tlb:"addr"`
-	FeeTokenAmount *big.Int                       `tlb:"## 256"`
+	FeeTokenAmount *tlb.Coins                     `tlb:"."`
 }
 
 // TokenAmount mirrors the contract's common TokenAmount { amount: coins, token: address }.

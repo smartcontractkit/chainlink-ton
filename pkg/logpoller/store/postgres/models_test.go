@@ -180,6 +180,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 				sender, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 				feeToken, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 
+				feeAmount := tlb.MustFromTON("1000000")
 				event := onramp.CCIPMessageSent{
 					Message: ocr.TVM2AnyRampMessage{
 						Header: ocr.RampMessageHeader{
@@ -196,7 +197,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 							ExtraArgs:      tvm.EmptyCell,
 							TokenAmounts:   common.SnakedCell[ocr.TokenAmount]{},
 							FeeToken:       feeToken,
-							FeeTokenAmount: big.NewInt(1000000),
+							FeeTokenAmount: &feeAmount,
 						},
 						FeeValueJuels: big.NewInt(500000),
 					},
