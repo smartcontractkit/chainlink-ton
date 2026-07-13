@@ -385,8 +385,8 @@ func (a *TonTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 	)
 }
 
-// TODO: UpdateAuthorities is a no-op for the minimal skeleton. The TestAdapter (Ticket 3)
-// sets SkipOwnershipTransfer=true so this is never executed at runtime, but the
+// TODO: UpdateAuthorities is a no-op for the minimal skeleton. TestAdapter callers
+// set SkipOwnershipTransfer=true so this is never executed at runtime, but the
 // interface signature must still be satisfied.
 func (a *TonTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.UpdateAuthoritiesInput, sequences.OnChainOutput, *cldf.Environment] {
 	return cldf_ops.NewSequence(
