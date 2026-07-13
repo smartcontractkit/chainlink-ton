@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -38,6 +39,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
+	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -105,12 +109,28 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 		return nil, err
 	}
 
-	// TODO: add TokenAmounts support for TON token transfers
+	tokenAmounts := make(common.SnakedCell[router.TokenAmount], 0, len(components.TokenAmounts))
+	for _, ta := range components.TokenAmounts {
+		tokenAddr, err := address.ParseAddr(ta.Token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse token address %q: %w", ta.Token, err)
+		}
+		amount, err := tlb.FromNano(ta.Amount, 9)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert token amount %q to coins: %w", ta.Amount, err)
+		}
+		tokenAmounts = append(tokenAmounts, router.TokenAmount{
+			Amount: amount,
+			Token:  tokenAddr,
+		})
+	}
+
 	return router.CCIPSend{
 		QueryID:           rand.Uint64(),
 		DestChainSelector: components.DestChainSelector,
 		Data:              components.Data,
 		Receiver:          components.Receiver,
+		TokenAmounts:      tokenAmounts,
 		ExtraArgs:         c, // TODO handle ExtraArgs properly
 		FeeToken:          feeToken,
 	}, nil
@@ -328,22 +348,91 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 }
 
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
-	// TODO: implement when TON token transfer support is added
-	return errors.ErrUnsupported
+	// Option A stub: real jetton approval (e.g. minting an allowance / notifying the
+	// pool) is deferred to Track B. No tokens actually move in Option A so there is
+	// nothing to approve yet.
+	return nil
 }
 
 func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, ownerAddress []byte) (*big.Int, error) {
-	// TODO: implement when TON token transfer support is added
-	return nil, errors.ErrUnsupported
+	minterAddr, err := address.ParseAddr(tokenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
+	}
+
+	ac := codec.NewAddressCodec()
+	ownerAddrStr, err := ac.AddressBytesToString(ownerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert owner address bytes to string: %w", err)
+	}
+	ownerAddr, err := address.ParseAddr(ownerAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse owner address %q: %w", ownerAddrStr, err)
+	}
+
+	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, ownerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive jetton wallet address for owner %q: %w", ownerAddrStr, err)
+	}
+
+	balance, err := tvm.CallGetterLatest(ctx, a.Client, walletAddr, jettonwallet.GetWalletData)
+	if err != nil {
+		// The jetton wallet contract has not been deployed yet (no transfer has ever
+		// landed for this owner), so treat it as a zero balance rather than an error.
+		return big.NewInt(0), nil
+	}
+
+	return balance, nil
 }
 
 func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
-	return nil, errors.ErrUnsupported
+	if os.Getenv("TON_TOKEN_TRANSFERS_ENABLED") == "" {
+		return nil, errors.ErrUnsupported
+	}
+
+	suffix := strconv.FormatUint(a.Selector, 10) + "-" + chain_selectors.FamilyTon
+	registryAddr, err := a.GetRegistryAddress()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get registry address: %w", err)
+	}
+
+	preMintAmount := uint64(1_000_000) // pre-mint 1 million tokens
+	return &tokensapi.TokenExpansionInputPerChain{
+		TokenPoolVersion: semver.MustParse("1.6.0"),
+		DeployTokenInput: &tokensapi.DeployTokenInput{
+			Decimals:      9,
+			Symbol:        "TEST_TOKEN_" + suffix,
+			Name:          "TEST TOKEN " + suffix,
+			Type:          deployment.ContractType(bindings.ShortJettonMinter),
+			PreMint:       &preMintAmount,
+			Senders:       []string{a.WalletAddress.String()},
+			ExternalAdmin: a.WalletAddress.String(),
+			CCIPAdmin:     a.WalletAddress.String(),
+		},
+		DeployTokenPoolInput: &tokensapi.DeployTokenPoolInput{
+			PoolType:           bindings.ShortMockTokenPool,
+			TokenPoolQualifier: "TEST TOKEN POOL " + suffix,
+		},
+		TokenTransferConfig: &tokensapi.TokenTransferConfig{
+			ChainSelector: a.Selector,
+			RegistryRef: datastore.AddressRef{
+				ChainSelector: a.Selector,
+				Address:       registryAddr,
+			},
+			RemoteChains: map[uint64]tokensapi.RemoteChainConfig[*datastore.AddressRef, datastore.AddressRef]{},
+		},
+		// UpdateAuthorities is a no-op for the TON token adapter today, so skip it
+		// rather than sending a transaction that isn't backed by real behavior.
+		SkipOwnershipTransfer: true,
+	}, nil
 }
 
 func (a *TONAdapter) GetRegistryAddress() (string, error) {
-	// TODO: implement when TON token transfer support is added
-	return "", errors.ErrUnsupported
+	addr, err := a.getAddress(state.TokenRegistry)
+	if err != nil {
+		return "", fmt.Errorf("failed to get TokenRegistry address: %w", err)
+	}
+	return addr.String(), nil
 }
 
 func (a *TONAdapter) CurrentBlock(t *testing.T) uint64 {

@@ -194,6 +194,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 					ChainSelector: input.ChainSelector,
 					Type:          datastore.ContractType(bindings.ShortJettonMinter),
 					Version:       semver.MustParse("1.0.0"),
+					Qualifier:     input.Symbol,
 					Labels:        datastore.NewLabelSet("package:github.com/smartcontractkit/chainlink-ton/jetton"),
 				}},
 			}, nil
