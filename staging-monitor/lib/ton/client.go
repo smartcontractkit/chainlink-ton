@@ -341,6 +341,7 @@ func (c *Client) GetWalletAddress() (string, error) {
 type mapStateProvider struct {
 	addresses map[datastore.ContractType]string
 }
+
 var _ testadapters.StateProvider = (*mapStateProvider)(nil)
 
 func (p *mapStateProvider) GetAddress(ty datastore.ContractType, _ ...string) (string, error) {

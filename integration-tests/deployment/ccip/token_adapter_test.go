@@ -6,15 +6,14 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
@@ -27,7 +26,7 @@ import (
 func TestTonTokenAdapterRegistered(t *testing.T) {
 	t.Parallel()
 
-	adapter, ok := tokensapi.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
+	adapter, ok := tokens.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
 	require.True(t, ok, "expected TON token adapter to be registered")
 	require.NotNil(t, adapter.DeployToken())
 	require.NotNil(t, adapter.DeployTokenPoolForToken())
@@ -43,13 +42,13 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 
 	tonSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))[0]
 	tonChain := env.BlockChains.TonChains()[tonSelector]
-	adapter, ok := tokensapi.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
+	adapter, ok := tokens.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
 	require.True(t, ok, "expected TON token adapter to be registered")
 
 	tokenStore := datastore.NewMemoryDataStore()
 	b := env.OperationsBundle
 
-	tokenOut, err := operations.ExecuteSequence(b, adapter.DeployToken(), env.BlockChains, tokensapi.DeployTokenInput{
+	tokenOut, err := operations.ExecuteSequence(b, adapter.DeployToken(), env.BlockChains, tokens.DeployTokenInput{
 		Name:              "Test Token",
 		Symbol:            "TST",
 		Decimals:          9,
@@ -70,7 +69,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 
 	block, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
-	tokenAddr, err := tonChain.Client.GetAccount(t.Context(), block, mustParseTONAddr(t, tokenRef.Address))
+	tokenAddr, err := tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(t.Context(), block, mustParseTONAddr(t, tokenRef.Address))
 	require.NoError(t, err)
 	require.True(t, tokenAddr.IsActive, "deployed jetton should be active")
 
@@ -87,7 +86,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint8(9), decimals)
 
-	poolOut, err := operations.ExecuteSequence(b, adapter.DeployTokenPoolForToken(), env.BlockChains, tokensapi.DeployTokenPoolInput{
+	poolOut, err := operations.ExecuteSequence(b, adapter.DeployTokenPoolForToken(), env.BlockChains, tokens.DeployTokenPoolInput{
 		TokenRef: &datastore.AddressRef{
 			Address:       tokenRef.Address,
 			ChainSelector: tokenRef.ChainSelector,
@@ -110,7 +109,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
-	poolAddr, err := tonChain.Client.GetAccount(t.Context(), block, mustParseTONAddr(t, poolRef.Address))
+	poolAddr, err := tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(t.Context(), block, mustParseTONAddr(t, poolRef.Address))
 	require.NoError(t, err)
 	require.True(t, poolAddr.IsActive, "deployed token pool should be active")
 
@@ -141,12 +140,12 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
-	adapter, ok := tokensapi.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
+	adapter, ok := tokens.GetTokenAdapterRegistry().GetTokenAdapter(chainselectors.FamilyTon, semver.MustParse("1.6.0"))
 	require.True(t, ok, "expected TON token adapter to be registered")
 
 	b := env.OperationsBundle
 
-	tokenOut, err := operations.ExecuteSequence(b, adapter.DeployToken(), env.BlockChains, tokensapi.DeployTokenInput{
+	tokenOut, err := operations.ExecuteSequence(b, adapter.DeployToken(), env.BlockChains, tokens.DeployTokenInput{
 		Name:              "Test Token",
 		Symbol:            "TST",
 		Decimals:          9,
@@ -162,7 +161,7 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 	tokenRef := tokenOut.Output.Addresses[0]
 	tokenRef.Qualifier = "test-token"
 
-	poolOut, err := operations.ExecuteSequence(b, adapter.DeployTokenPoolForToken(), env.BlockChains, tokensapi.DeployTokenPoolInput{
+	poolOut, err := operations.ExecuteSequence(b, adapter.DeployTokenPoolForToken(), env.BlockChains, tokens.DeployTokenPoolInput{
 		TokenRef: &datastore.AddressRef{
 			Address:       tokenRef.Address,
 			ChainSelector: tokenRef.ChainSelector,
@@ -180,7 +179,7 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 	require.Len(t, poolOut.Output.Addresses, 1)
 	poolRef := poolOut.Output.Addresses[0]
 
-	_, err = operations.ExecuteSequence(b, adapter.ConfigureTokenForTransfersSequence(), env.BlockChains, tokensapi.ConfigureTokenForTransfersInput{
+	_, err = operations.ExecuteSequence(b, adapter.ConfigureTokenForTransfersSequence(), env.BlockChains, tokens.ConfigureTokenForTransfersInput{
 		ChainSelector:     tonSelector,
 		TokenPoolAddress:  poolRef.Address,
 		TokenRef:          tokenRef,
