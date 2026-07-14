@@ -55,7 +55,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 		Decimals:          9,
 		ExternalAdmin:     tonChain.WalletAddress.String(),
 		CCIPAdmin:         tonChain.WalletAddress.String(),
-		Type:		   bindings.ShortJettonMinter,
+		Type:              bindings.ShortJettonMinter,
 		ChainSelector:     tonSelector,
 		ExistingDataStore: tokenStore.Seal(),
 	})
@@ -70,7 +70,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 
 	block, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
-	tokenAddr, err := tonChain.Client.GetAccount(t.Context(), block, mustParseTONAddr(t, tokenRef.Address))
+	tokenAddr, err := tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(t.Context(), block, mustParseTONAddr(t, tokenRef.Address))
 	require.NoError(t, err)
 	require.True(t, tokenAddr.IsActive, "deployed jetton should be active")
 
@@ -110,7 +110,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
-	poolAddr, err := tonChain.Client.GetAccount(t.Context(), block, mustParseTONAddr(t, poolRef.Address))
+	poolAddr, err := tonChain.Client.WaitForBlock(block.SeqNo).GetAccount(t.Context(), block, mustParseTONAddr(t, poolRef.Address))
 	require.NoError(t, err)
 	require.True(t, poolAddr.IsActive, "deployed token pool should be active")
 

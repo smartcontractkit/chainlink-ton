@@ -81,7 +81,7 @@ func (a *TonTokenAdapter) AddressRefToBytes(ref datastore.AddressRef) ([]byte, e
 // DeriveTokenAddress looks up the deployed jetton minter that shares the pool's qualifier.
 // Convention: the DeployTokenInput.Qualifier and DeployTokenPoolInput.TokenPoolQualifier
 // match (e.g. both "TEST_TOKEN_USDC"); this lets us resolve the token from the pool ref.
-//TODO: This should probably read the Token address from the pool on-chain: smartcontractkit/chainlink-ccip@a58c4ba/deployment/docs/implementing-adapters.md?plain=1#L157
+// TODO: This should probably read the Token address from the pool on-chain: smartcontractkit/chainlink-ccip@a58c4ba/deployment/docs/implementing-adapters.md?plain=1#L157
 // For now we can keep it like this and modify it when the actul TokenPools are integrated
 func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
 	candidates := e.DataStore.Addresses().Filter(
