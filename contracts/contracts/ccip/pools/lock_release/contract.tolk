@@ -109,7 +109,7 @@ fun onReleaseOrMintContinue(
         dest: ownWallet,
         body: AskToTransfer {
             queryId: msg.queryId,
-            jettonAmount: prepared.localAmount as coins,
+            jettonAmount: prepared.localAmount,
             transferRecipient: details.receiver,
             sendExcessesTo: contract.getAddress(), // TODO: ContextExecutor
             customPayload: null,
@@ -342,11 +342,11 @@ get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTra
 get fun getFee(
     localToken: address,
     destChainSelector: uint64,
-    amount: uint256,
+    amount: coins,
     feeToken: address,
     requestedFinalityConfig: uint32,
     tokenArgs: cell?,
-): (uint256, uint32, uint32, uint16, bool) {
+): (coins, uint32, uint32, uint16, bool) {
     val pool = loadPool(Storage.load());
     return pool.getFee(localToken, destChainSelector, amount, feeToken, requestedFinalityConfig, tokenArgs);
 }
@@ -355,7 +355,7 @@ get fun getFee(
 get fun getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
-): uint256 {
+): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
 }

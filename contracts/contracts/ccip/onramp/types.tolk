@@ -72,7 +72,7 @@ struct TVM2AnyRampMessageBody {
     extraArgs: cell;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address;
-    feeTokenAmount: uint256;
+    feeTokenAmount: coins;
 }
 
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {

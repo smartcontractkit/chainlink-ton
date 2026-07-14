@@ -124,7 +124,7 @@ fun onLockOrBurnTransferContinue(
         queryId: requestMsg.queryId,
         token: jettonClient.masterAddress,
         remoteChainSelector: requestDetails.remoteChainSelector,
-        amount: prepared.destTokenAmount as coins,
+        amount: prepared.destTokenAmount,
     };
 
     // Wrap deposit message in forwardPayload cell (flag + ref, same pattern as lockbox uses).
@@ -142,7 +142,7 @@ fun onLockOrBurnTransferContinue(
         dest: ownWallet,
         body: AskToTransfer {
             queryId: requestMsg.queryId,
-            jettonAmount: prepared.destTokenAmount as coins,
+            jettonAmount: prepared.destTokenAmount,
             transferRecipient: lockboxWallet,
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
@@ -262,9 +262,9 @@ fun onReleaseOrMintContinue(
             queryId: msg.queryId,
             token: jettonClient.masterAddress,
             remoteChainSelector: details.remoteChainSelector,
-            amount: prepared.localAmount as coins,
-            recipientWallet: recipientWallet,
-            extra: extra,
+            amount: prepared.localAmount,
+            recipientWallet,
+            extra,
         },
     });
     withdraw.send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -512,11 +512,11 @@ get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTra
 get fun getFee(
     localToken: address,
     destChainSelector: uint64,
-    amount: uint256,
+    amount: coins,
     feeToken: address,
     requestedFinalityConfig: uint32,
     tokenArgs: cell?,
-): (uint256, uint32, uint32, uint16, bool) {
+): (coins, uint32, uint32, uint16, bool) {
     val pool = loadPool(Storage.load());
     return pool.getFee(localToken, destChainSelector, amount, feeToken, requestedFinalityConfig, tokenArgs);
 }
@@ -525,7 +525,7 @@ get fun getFee(
 get fun getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
-): uint256 {
+): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
 }

@@ -189,7 +189,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockAdvancedPoolHooks implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAuAABFP8A9KQT9LzyyAsBAcrT+JHyQCDXLCIJTohMjkQx0z/UMdMfMfQEMdP/MfpI9AUiqTgAncjPkpt+mI4Tyz8SzMmdyM+QI8v+3hPLPxLMyeLIz4UIEvpScc8LbszJgED7AODXLCOB4VrE4wIwhA8BxwDy9AIAgjHTP9Qx0/8x0x8x+kj0BSKpOACdyM+Qh5x2HhPLPxLMyZ3Iz5J4qa2aE8s/EszJ4sjPhQgS+lJxzwtuzMmAQPsA');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAuAABFP8A9KQT9LzyyAsBAcrT+JHyQCDXLCIJTohMjkQx0z/UMdMfMfQEMfoAMfpI9AUiqTgAncjPkpt+mI4Tyz8SzMmdyM+QI8v+3hPLPxLMyeLIz4UIEvpScc8LbszJgED7AODXLCOB4VrE4wIwhA8BxwDy9AIAgjHTP9Qx+gAx0x8x+kj0BSKpOACdyM+Qh5x2HhPLPxLMyZ3Iz5J4qa2aE8s/EszJ4sjPhQgS+lJxzwtuzMmAQPsA');
 
     static Errors = {
     }

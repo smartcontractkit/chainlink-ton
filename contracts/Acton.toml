@@ -133,6 +133,13 @@ depends = []
 # domain = "mcms"
 # depends = []
 
+# Testing #
+[contracts.TestLibMath]
+display-name = "link.chain.ton.test.lib.math"
+src = "contracts/test/lib/math.tolk"
+domain = "test"
+depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100

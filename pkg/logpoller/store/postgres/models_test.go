@@ -13,13 +13,13 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestFilterModel_Conversion(t *testing.T) {
@@ -180,6 +180,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 				sender, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 				feeToken, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 
+				feeAmount := tlb.MustFromTON("0.001")
 				event := onramp.CCIPMessageSent{
 					Message: ocr.TVM2AnyRampMessage{
 						Header: ocr.RampMessageHeader{
@@ -196,7 +197,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 							ExtraArgs:      tvm.EmptyCell,
 							TokenAmounts:   common.SnakedCell[ocr.TokenAmount]{},
 							FeeToken:       feeToken,
-							FeeTokenAmount: big.NewInt(1000000),
+							FeeTokenAmount: &feeAmount,
 						},
 						FeeValueJuels: big.NewInt(500000),
 					},

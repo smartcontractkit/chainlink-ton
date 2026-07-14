@@ -331,7 +331,7 @@ export const builder = (() => {
           .storeRef(data.extraArgs)
           .storeRef(data.tokenAmounts)
           .storeAddress(data.feeToken)
-          .storeUint(data.feeTokenAmount, 256)
+          .storeCoins(data.feeTokenAmount)
       },
       load: function (src: Slice): TVM2AnyRampMessageBody {
         return {
@@ -340,7 +340,7 @@ export const builder = (() => {
           extraArgs: src.loadRef(),
           tokenAmounts: src.loadRef(),
           feeToken: src.loadAddress(),
-          feeTokenAmount: src.loadUintBig(256),
+          feeTokenAmount: src.loadCoins(),
         }
       },
     }

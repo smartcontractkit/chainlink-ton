@@ -13,8 +13,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestSaveLogs_Deduplication(t *testing.T) {

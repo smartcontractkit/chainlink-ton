@@ -14,12 +14,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
 // CCIP log retention defaults
@@ -120,7 +120,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
 		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
-		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
+		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount.Nano()),
 		// TODO(2025-01-09): TON CCIP currently supports message transfer only, not token transfer
 		// TokenAmounts:   tokenAmounts,
 	}
