@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 import "../../lib/math.tolk"
 
+contract TestLibMath {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.0.0"
+    description: "link.chain.ton.test.lib.math"
+}
+
 // Test wrapper for math library functions
 fun onInternalMessage(in: InMessage) {
     // ignore empty messages, "wrong opcode" for others

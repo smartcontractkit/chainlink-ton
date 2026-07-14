@@ -1,9 +1,17 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano } from '@ton/core'
-import { math } from '../../wrappers/test/lib'
-import { contractCode } from '../../wrappers/codeLoader'
+import { Cell, contractAddress, toNano } from '@ton/core'
+import { TestLibMath } from '../../wrappers/gen/test/TestLibMath'
+
+// Extends the generated wrapper to expose a public factory for deployment,
+// since the base constructor is protected.
+class MathContract extends TestLibMath {
+  static create(code: Cell = TestLibMath.CodeCell, data: Cell = Cell.EMPTY, workchain = 0) {
+    const init = { code, data }
+    return new MathContract(contractAddress(workchain, init), init)
+  }
+}
 
 // 257-bit signed integer bounds
 const INT_MAX = (1n << 256n) - 1n
@@ -27,7 +35,7 @@ type BinaryOpCase = {
 
 type UnaryOpCase = {
   name: string
-  n: number
+  n: bigint
   result: bigint
   errorCode: bigint
 }
@@ -35,22 +43,12 @@ type UnaryOpCase = {
 describe('math', () => {
   let blockchain: Blockchain
 
-  var code: {
-    math: Cell
-  }
-
-  beforeAll(async () => {
-    code = {
-      math: await contractCode.ccip.local('tests.lib.math'),
-    }
-  }, 10_000)
-
   var acc: {
     deployer: SandboxContract<TreasuryContract>
   }
 
   var bind: {
-    math: SandboxContract<math.ContractClient>
+    math: SandboxContract<MathContract>
   }
 
   beforeEach(async () => {
@@ -66,15 +64,14 @@ describe('math', () => {
       math: null as any,
     }
 
-    // Set up verifier contract
+    // Set up math contract
     {
-      bind.math = blockchain.openContract(math.ContractClient.newFrom(Cell.EMPTY, code.math))
+      bind.math = blockchain.openContract(MathContract.create())
     }
 
-    // Deploy verifier contract
+    // Deploy math contract
     {
-      const body = Cell.EMPTY
-      const r = await bind.math.sendInternal(acc.deployer.getSender(), toNano('0.2'), body)
+      const r = await bind.math.sendDeploy(acc.deployer.getSender(), toNano('0.2'))
 
       expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,
@@ -126,7 +123,7 @@ describe('math', () => {
     for (const tc of addCases) {
       describe(tc.name, () => {
         it('safe returns (result, errorCode)', async () => {
-          const { result, errorCode } = await bind.math.getSafeAdd(tc.a, tc.b)
+          const [result, errorCode] = await bind.math.getSafeAdd(tc.a, tc.b)
           expect(result).toBe(tc.result)
           expect(errorCode).toBe(tc.errorCode)
         })
@@ -200,7 +197,7 @@ describe('math', () => {
     for (const tc of prodCases) {
       describe(tc.name, () => {
         it('safe returns (result, errorCode)', async () => {
-          const { result, errorCode } = await bind.math.getSafeProd(tc.a, tc.b)
+          const [result, errorCode] = await bind.math.getSafeProd(tc.a, tc.b)
           expect(result).toBe(tc.result)
           expect(errorCode).toBe(tc.errorCode)
         })
@@ -221,22 +218,22 @@ describe('math', () => {
 
   describe('pow10', () => {
     const pow10Cases: UnaryOpCase[] = [
-      { name: '10^0 = 1', n: 0, result: 1n, errorCode: ERR_NONE },
-      { name: '10^1 = 10', n: 1, result: 10n, errorCode: ERR_NONE },
-      { name: '10^2 = 100', n: 2, result: 100n, errorCode: ERR_NONE },
-      { name: '10^3 = 1000 (odd exponent)', n: 3, result: 1000n, errorCode: ERR_NONE },
-      { name: '10^7 (odd exponent)', n: 7, result: 10_000_000n, errorCode: ERR_NONE },
-      { name: '10^10', n: 10, result: 10_000_000_000n, errorCode: ERR_NONE },
-      { name: '10^18 (common decimals)', n: 18, result: 10n ** 18n, errorCode: ERR_NONE },
-      { name: '10^77 (max allowed exponent)', n: 77, result: 10n ** 77n, errorCode: ERR_NONE },
-      { name: 'overflow for n = 78', n: 78, result: 0n, errorCode: ERR_OVERFLOW },
-      { name: 'overflow for n = 255 (max uint8)', n: 255, result: 0n, errorCode: ERR_OVERFLOW },
+      { name: '10^0 = 1', n: 0n, result: 1n, errorCode: ERR_NONE },
+      { name: '10^1 = 10', n: 1n, result: 10n, errorCode: ERR_NONE },
+      { name: '10^2 = 100', n: 2n, result: 100n, errorCode: ERR_NONE },
+      { name: '10^3 = 1000 (odd exponent)', n: 3n, result: 1000n, errorCode: ERR_NONE },
+      { name: '10^7 (odd exponent)', n: 7n, result: 10_000_000n, errorCode: ERR_NONE },
+      { name: '10^10', n: 10n, result: 10_000_000_000n, errorCode: ERR_NONE },
+      { name: '10^18 (common decimals)', n: 18n, result: 10n ** 18n, errorCode: ERR_NONE },
+      { name: '10^77 (max allowed exponent)', n: 77n, result: 10n ** 77n, errorCode: ERR_NONE },
+      { name: 'overflow for n = 78', n: 78n, result: 0n, errorCode: ERR_OVERFLOW },
+      { name: 'overflow for n = 255 (max uint8)', n: 255n, result: 0n, errorCode: ERR_OVERFLOW },
     ]
 
     for (const tc of pow10Cases) {
       describe(tc.name, () => {
         it('safe returns (result, errorCode)', async () => {
-          const { result, errorCode } = await bind.math.getSafePow10(tc.n)
+          const [result, errorCode] = await bind.math.getSafePow10(tc.n)
           expect(result).toBe(tc.result)
           expect(errorCode).toBe(tc.errorCode)
         })
