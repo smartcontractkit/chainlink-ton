@@ -44,6 +44,16 @@ export class ContractClient implements Contract {
       { type: 'int', value: b },
     ])
   }
+  async getSafePow10(
+    p: ContractProvider,
+    n: number,
+  ): Promise<{ result: bigint; errorCode: bigint }> {
+    const result = await p.get('get_safePow10', [{ type: 'int', value: BigInt(n) }])
+    return {
+      result: result.stack.readBigNumber(),
+      errorCode: result.stack.readBigNumber(),
+    }
+  }
   async getMustAdd(p: ContractProvider, a: bigint, b: bigint, errCode: bigint) {
     return p.get('get_mustAdd', [
       { type: 'int', value: a },
@@ -55,6 +65,18 @@ export class ContractClient implements Contract {
     return p.get('get_mustProd', [
       { type: 'int', value: a },
       { type: 'int', value: b },
+      { type: 'int', value: errCode },
+    ])
+  }
+  async getMustCastToCoin(p: ContractProvider, value: bigint, errCode: bigint) {
+    return p.get('get_mustCastToCoin', [
+      { type: 'int', value: value },
+      { type: 'int', value: errCode },
+    ])
+  }
+  async getMustPow10(p: ContractProvider, n: number, errCode: bigint) {
+    return p.get('get_mustPow10', [
+      { type: 'int', value: BigInt(n) },
       { type: 'int', value: errCode },
     ])
   }

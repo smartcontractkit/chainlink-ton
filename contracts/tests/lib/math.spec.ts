@@ -194,6 +194,68 @@ describe('math', () => {
     })
   })
 
+  describe('safePow10', () => {
+    it('should calculate 10^0 = 1', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(0)
+      expect(result).toBe(1n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^1 = 10', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(1)
+      expect(result).toBe(10n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^2 = 100', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(2)
+      expect(result).toBe(100n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^3 = 1000 (odd exponent)', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(3)
+      expect(result).toBe(1000n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^7 (odd exponent)', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(7)
+      expect(result).toBe(10_000_000n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^10', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(10)
+      expect(result).toBe(10_000_000_000n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^18 (common decimals)', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(18)
+      expect(result).toBe(10n ** 18n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should calculate 10^77 (max allowed exponent)', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(77)
+      expect(result).toBe(10n ** 77n)
+      expect(errorCode).toBe(0n)
+    })
+
+    it('should detect overflow for n = 78', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(78)
+      expect(result).toBe(0n)
+      expect(errorCode).toBe(1n)
+    })
+
+    it('should detect overflow for n = 255 (max uint8)', async () => {
+      const { result, errorCode } = await bind.math.getSafePow10(255)
+      expect(result).toBe(0n)
+      expect(errorCode).toBe(1n)
+    })
+  })
+
   describe('mustAdd', () => {
     it('should add two numbers successfully', async () => {
       const result = await bind.math.getMustAdd(100n, 200n, 100n)
