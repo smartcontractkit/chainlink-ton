@@ -177,6 +177,7 @@ fun RateLimiter_Config.validate(self) {
 /// @param rate bucket refill rate.
 /// @return the value of tokens after refill.
 fun _calculateRefill(capacity: uint120, tokens: int, timeDiff: uint256, rate: int): uint120 {
+    // SAFETY: capacity is uint120 and caps the value.
     return min(capacity, (tokens + timeDiff * rate));
 }
 

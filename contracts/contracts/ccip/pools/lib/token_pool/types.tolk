@@ -99,8 +99,8 @@ struct TokenPool_TokenTransferFeeConfig {
     finalityFeeUSDCents: coins;         // Fee to charge for token transfer with default (wait-for-finality) finality, multiples of 0.01 USD.
     fastFinalityFeeUSDCents: coins;     // Fee to charge for token transfer with fast finality (FTF), multiples of 0.01 USD.
                                         // The following two fee is deducted from the transferred asset, not added on top.
-    finalityTransferFeeBps: uint16;     // Fee in basis points for default finality transfers [0-10_000].
-    fastFinalityTransferFeeBps: uint16; // Fee in basis points for custom finality transfers [0-10_000].
+    finalityTransferFeeBps: uint16;     // Fee in basis points for default finality transfers [0-10_000). Capped by TOKEN_POOL_BPS_DIVIDER.
+    fastFinalityTransferFeeBps: uint16; // Fee in basis points for custom finality transfers [0-10_000). Capped by TOKEN_POOL_BPS_DIVIDER.
     isEnabled: bool;                    // Whether this config is enabled.
 }
 

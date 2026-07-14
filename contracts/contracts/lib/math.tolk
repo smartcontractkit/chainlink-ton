@@ -93,6 +93,7 @@ fun safeProd(a: int, b: int): (int, int) {
 }
 
 // @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
+// TODO test limits
 fun safePow10(n: uint8): (uint256, int) {
     if (n > MAX_EXP10) {
         return (0, 1); // overflow error
