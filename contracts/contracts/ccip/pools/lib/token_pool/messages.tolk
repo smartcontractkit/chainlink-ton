@@ -133,7 +133,7 @@ struct (0x4129d109) TokenPool_PreflightCheck {
     request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
-    amountPostFee: uint256;
+    amountPostFee: coins;
     replyTo: address;
     replyPayload: cell?;
 }
@@ -142,7 +142,7 @@ struct (0x4129d109) TokenPool_PreflightCheck {
 struct (0x703c2b58) TokenPool_PostflightCheck {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
-    localAmount: uint256;
+    localAmount: coins;
     requestedFinalityConfig: uint32;
     replyTo: address;
     replyPayload: cell?;
@@ -177,7 +177,9 @@ struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
     // TODO: unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
-    destTokenAmount: uint256;
+    /// Token amount in local token decimals after deducting the fee.
+    // TBD: rename to just amount?
+    destTokenAmount: coins;
 }
 
 struct (0x3476ea72) TokenPool_LockOrBurnFailure {

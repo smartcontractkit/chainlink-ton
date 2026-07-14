@@ -9,8 +9,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // DestChainConfigMap represents a map of destination chain selectors to their configurations.

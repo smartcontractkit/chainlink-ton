@@ -5,24 +5,26 @@ const RateLimiter_FACILITY_ID = 263;  // (crc32(<facility>) % 640) + 10 // TODO:
 
 enum RateLimiter_Error {
     BucketOverfilled = RateLimiter_FACILITY_ID * 100
-    TokenMaxCapacityExceeded // (uint256 capacity, uint256 requested, address tokenAddress);
-    TokenRateLimitReached    // (uint256 minWaitInSeconds, uint256 available, address tokenAddress);
+    TokenMaxCapacityExceeded // (coins capacity, coins requested, address tokenAddress);
+    TokenRateLimitReached    // (uint256 minWaitInSeconds, coins available, address tokenAddress);
     InvalidRateLimitConfig   // (Config rateLimiterConfig);
     DisabledNonZeroRateLimit // (Config config);
 }
 
 struct RateLimiter_Config {
     isEnabled: bool // Indication whether the rate limiting should be enabled.
-    capacity: uint128 // ──╮ Specifies the capacity of the rate limiter.
-    rate: uint128 // ──────╯ Specifies the rate of the rate limiter.
+    capacity: uint120 // ──╮ Specifies the capacity of the rate limiter.
+    rate: uint120 // ──────╯ Specifies the rate of the rate limiter.
 }
 
+/// @dev we keep all external interface functions passing amount as coins, but we store the values in the token bucket as uint120 to simplify encoding.
+/// TODO add this ^ to token pools documentation
 struct RateLimiter_TokenBucket {
-    tokens: uint128 // ────╮ Current number of tokens that are in the bucket.
+    tokens: uint120 // ────╮ Current number of tokens that are in the bucket.
     lastUpdated: uint64 // │ Timestamp in seconds of the last token refill, good for 100+ years.
     isEnabled: bool // ────╯ Indication whether the rate limiting is enabled or not.
-    capacity: uint128 // ──╮ Maximum number of tokens that can be in the bucket.
-    rate: uint128 // ──────╯ Number of tokens per second that the bucket is refilled.
+    capacity: uint120 // ──╮ Maximum number of tokens that can be in the bucket.
+    rate: uint120 // ──────╯ Number of tokens per second that the bucket is refilled.
 }
 
 fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_TokenBucket {
@@ -35,13 +37,15 @@ fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_
     };
 }
 
-/// @notice _consume removes the given tokens from the pool, lowering the rate tokens allowed to be
+// TODO remove unused _tokenAddress: address from consume()
+
+/// @notice consume removes the given tokens from the pool, lowering the rate tokens allowed to be
 /// consumed for subsequent calls.
 /// @param requestTokens The total tokens to be consumed from the bucket.
 /// @param tokenAddress The token to consume capacity for, use 0x0 to indicate aggregate value capacity.
 /// @dev Reverts when requestTokens exceeds bucket capacity or available tokens in the bucket.
 /// @dev emits removal of requestTokens if requestTokens is > 0.
-fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: uint256, _tokenAddress: address) {
+fun RateLimiter_TokenBucket.consume(mutate self, requestTokens: coins, _tokenAddress: address) {
     // If there is no value to remove or rate limiting is turned off, skip this step to reduce gas usage.
     if (!self.isEnabled || requestTokens == 0) {
         return;
@@ -73,16 +77,16 @@ fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: uint256, _token
     tokens -= requestTokens;
 
     // Downcast is safe here, as tokens is not larger than capacity.
-    self.tokens = tokens as uint128;
+    self.tokens = tokens;
 }
 
-/// @notice _refund returns previously consumed tokens to the bucket. Used when an async
+/// @notice refund returns previously consumed tokens to the bucket. Used when an async
 /// operation that consumed capacity at admission later fails (e.g. a transfer bounces), so
 /// the reserved capacity must be made available again.
 /// @param refundTokens The number of tokens to return to the bucket.
 /// @dev Refilling for elapsed time is applied first (consistent with _consume), then the
 /// refund is added, capped at capacity so the bucket can never exceed its maximum.
-fun RateLimiter_TokenBucket._refund(mutate self, refundTokens: uint256, _tokenAddress: address) {
+fun RateLimiter_TokenBucket.refund(mutate self, refundTokens: coins, _tokenAddress: address) {
     // If there is nothing to refund or rate limiting is off, skip to reduce gas usage.
     if (!self.isEnabled || refundTokens == 0) {
         return;
@@ -95,26 +99,29 @@ fun RateLimiter_TokenBucket._refund(mutate self, refundTokens: uint256, _tokenAd
     // Refill tokens for elapsed time.
     tokens = self._applyElapsedRefill(tokens, capacity, timeDiff);
 
-    val restored = (tokens as uint256) + refundTokens;
+    val restored = tokens + refundTokens;
     // Cap at capacity: refunds can never overfill the bucket.
-    self.tokens = (restored > (capacity as uint256) ? capacity : restored as uint128);
+    // SAFETY: capacity is uint120 and caps the value.
+    self.tokens = min(restored, capacity);
 }
 
 /// @notice Gets the token bucket with its values for the block it was requested at.
 /// @return The token bucket.
-fun RateLimiter_TokenBucket._currentTokenBucketState(mutate self): RateLimiter_TokenBucket {
+fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_TokenBucket {
     // We update the bucket to reflect the status at the exact time of the call. This means we might need to refill a
     // part of the bucket based on the time that has passed since the last update.
+    // SAFETY: capacity is uint120 and caps the refill to that value.
     self.tokens = _calculateRefill(
         self.capacity,
         self.tokens,
         blockchain.now() - self.lastUpdated,
-        self.rate
+        self.rate,
     );
     self.lastUpdated = blockchain.now();
     return self;
 }
 
+/// TBD This is not used
 /// @notice Sets the rate limited config.
 /// @param s_bucket The token bucket.
 /// @param config The new config.
@@ -134,7 +141,7 @@ fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimit
 /// @param capacity The bucket capacity.
 /// @param timeDiff Seconds elapsed since the last update.
 /// @return The token count after refill.
-fun RateLimiter_TokenBucket._applyElapsedRefill(mutate self, tokens: uint128, capacity: uint128, timeDiff: uint256): uint128 {
+fun RateLimiter_TokenBucket._applyElapsedRefill(mutate self, tokens: uint120, capacity: uint120, timeDiff: uint256): uint120 {
     if (timeDiff != 0) {
         if (tokens > capacity) {
             throw RateLimiter_Error.BucketOverfilled;
@@ -156,6 +163,7 @@ fun RateLimiter_Config.validate(self) {
             throw RateLimiter_Error.InvalidRateLimitConfig;
         }
     } else {
+        // TBD: What is the point here? Do we expect disabled rate limiters to have zero values? If so, why not put rate and capacity in an optional struct, so isEnabled is implicitly false when the struct is None?
         if (self.rate != 0 || self.capacity != 0) {
             throw RateLimiter_Error.DisabledNonZeroRateLimit;
         }
@@ -168,17 +176,8 @@ fun RateLimiter_Config.validate(self) {
 /// @param timeDiff block time difference since last refill.
 /// @param rate bucket refill rate.
 /// @return the value of tokens after refill.
-fun _calculateRefill(capacity: uint128, tokens: uint128, timeDiff: uint256, rate: uint128): uint128 {
-    return _min(capacity, (tokens as uint256 + timeDiff * rate as uint256) as uint128);
+fun _calculateRefill(capacity: uint120, tokens: int, timeDiff: uint256, rate: int): uint120 {
+    // SAFETY: capacity is uint120 and caps the value.
+    return min(capacity, (tokens + timeDiff * rate));
 }
 
-/// @notice Return the smallest of two integers.
-/// @param a first int.
-/// @param b second int.
-/// @return smallest.
-fun _min(a: uint128, b: uint128): uint128 {
-    if (a < b) {
-        return a;
-    }
-    return b;
-}

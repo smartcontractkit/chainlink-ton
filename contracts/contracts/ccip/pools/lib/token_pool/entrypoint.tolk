@@ -786,18 +786,20 @@ fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): Tok
     return entry.isFound ? entry.loadValue() : null;
 }
 
+// TBD: should we put return value in a struct? For getters is the same, as they are returned in the stack, but it is much beter for readability
 /// Returns the pool fee parameters that will apply to a transfer.
 /// @param destChainSelector The destination lane selector.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
+/// Returns a tuple of (finalityFeeInUSDCents, destGasOverhead, destBytesOverhead, finalityTransferFeeBps, isEnabled).
 fun TokenPool<T>.getFee(
     self,
     _localToken: address,
     destChainSelector: uint64,
-    _amount: uint256,
+    _amount: coins,
     _feeToken: address,
     requestedFinalityConfig: uint32,
     _tokenArgs: cell?,
-): (uint256, uint32, uint32, uint16, bool) {
+): (coins, uint32, uint32, uint16, bool) {
     TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
 
     val entry = self.data.tokenTransferFeeConfigs.get(destChainSelector);
@@ -839,9 +841,9 @@ fun TokenPool<T>.getFeeAmount(
     self,
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
-): uint256 {
+): coins {
     // TODO: register as an available hook
-    val details = lazy transfer.details.load();
+    val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy transfer.details.load();
     val entry = self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector);
     if (!entry.isFound) {
         return 0;
@@ -852,11 +854,18 @@ fun TokenPool<T>.getFeeAmount(
         return 0;
     }
 
+    var transferFeeBps = feeConfig.finalityTransferFeeBps;
     if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        return (details.amount * (feeConfig.fastFinalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
+        transferFeeBps = feeConfig.fastFinalityTransferFeeBps;
     }
 
-    return (details.amount * (feeConfig.finalityTransferFeeBps as uint256)) / TOKEN_POOL_BPS_DIVIDER;
+    assert(transferFeeBps < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps); // Unexpected since it is validated in config update
+    // SAFETY: Temporarily cast to int so compiler doesn't complain (all integers are `257`-bit signed `int`s in TVM's stack).
+    // This product can't overflow because `details.amount` is 120 bits and `transferFeeBps` is 16 bits, so the product is at most 136 bits
+    // const c = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF * 0xFFFF // MAX_UINT120 * MAX_UINT16 // Evaluated value: 0xFFFEFFFFFFFFFFFFFFFFFFFFFFFFFF0001 (136 bits)
+    // SAFETY: Division result can be safely casted back to `coins` (`varuint120`) given
+    // `transferFeeBps` is guaranteed to be less than `TOKEN_POOL_BPS_DIVIDER`, so the result will always be smaller than details.amount (`uint120`).
+    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO test case with max amount and max BPS to prove
 }
 
 /// Validates the lock or burn input for correctness on
@@ -882,7 +891,7 @@ fun TokenPool<T>.validateLockOrBurn(
     }
 
     val request = msg.request.load();
-    val details = lazy request.transfer.details.load();
+    val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy request.transfer.details.load();
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
@@ -1232,28 +1241,29 @@ fun TokenPool<T>.parseRemoteDecimals(self, sourcePoolData: cell?): uint8 {
   /// probably incorrect as that means the amount cannot be represented on this chain. If the local decimals have been
   /// wrongly configured, the token issuer could redeploy the pool with the correct decimals and manually re-execute the
   /// CCIP tx to fix the issue.
-fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimals: uint8): uint256 {
-    if (remoteDecimals == self.data.tokenDecimals) {
-        return remoteAmount;
-    }
+fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimals: uint8): coins {
+    return mustCastToCoin(fun(): uint256 {
+        if (remoteDecimals == self.data.tokenDecimals) {
+            return remoteAmount;
+        }
 
-    if (remoteDecimals > self.data.tokenDecimals) {
-        val decimalsDiff = remoteDecimals - self.data.tokenDecimals;
+        if (remoteDecimals > self.data.tokenDecimals) {
+            val decimalsDiff = remoteDecimals - self.data.tokenDecimals;
+            // This is a safety check to prevent overflow in the next calculation.
+            // TODO Move to math as safePow() and mustPow()
+
+            return remoteAmount / mustPow10(decimalsDiff, TokenPool_Error.OverflowDetected);
+        }
+
         // This is a safety check to prevent overflow in the next calculation.
-        assert(decimalsDiff <= MAX_EXP10, TokenPool_Error.OverflowDetected);
-
-        return remoteAmount / pow10(decimalsDiff);
-    }
-
-    // This is a safety check to prevent overflow in the next calculation.
-    // More than 77 would never fit in a uint256 and would cause an overflow.
-    // We also check if the resulting amount would overflow.
-    val decimalsDiff = self.data.tokenDecimals - remoteDecimals;
-    assert(decimalsDiff <= MAX_EXP10, TokenPool_Error.OverflowDetected);
-    val scale = pow10(decimalsDiff);
-    assert(scale == 0 || remoteAmount <= MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
- 
-    return remoteAmount * scale;
+        // More than 77 would never fit in a uint256 and would cause an overflow.
+        // We also check if the resulting amount would overflow.
+        val decimalsDiff = self.data.tokenDecimals - remoteDecimals;
+        val scale = mustPow10(decimalsDiff, TokenPool_Error.OverflowDetected);
+        assert(scale == 0 || remoteAmount <= MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
+    
+        return remoteAmount * scale;
+    }(), TokenPool_Error.OverflowDetected)
 }
 
 fun TokenPool<T>.requireSupportedChain(self, remoteChainSelector: uint64) {
@@ -1414,11 +1424,11 @@ fun TokenPool<T>.postflightCheck(
 /// Consumes outbound rate limiting capacity in this pool.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
-fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
-    bucket._consume(amount, self.data.token());
+    bucket.consume(amount, self.data.token());
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -1433,11 +1443,11 @@ fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint
 /// Consumes inbound rate limiting capacity in this pool.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
-fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
-    bucket._consume(amount, self.data.token());
+    bucket.consume(amount, self.data.token());
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -1453,11 +1463,11 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
 /// fails after admission (e.g. a lock/burn flow bounces). Mirrors `consumeOutboundRateLimit`.
 /// @dev Fast-finality refunds require the requested finality to be recovered from the
 /// pending operation; deferred until FTF is enabled (see TON-TP/16).
-fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
-    bucket._refund(amount, self.data.token());
+    bucket.refund(amount, self.data.token());
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -1473,11 +1483,11 @@ fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint
 /// fails after admission (e.g. a release transfer bounces). Mirrors `consumeInboundRateLimit`.
 /// @dev Fast-finality refunds require the requested finality to be recovered from the
 /// pending operation; deferred until FTF is enabled (see TON-TP/16).
-fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
-    bucket._refund(amount, self.data.token());
+    bucket.refund(amount, self.data.token());
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -1491,18 +1501,18 @@ fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint6
 
 /// Returns previously consumed fast-finality outbound capacity to the bucket.
 /// Mirrors `consumeFastFinalityOutboundRateLimit` (falls back to default bucket if FTF is disabled).
-fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.outbound.load();
-        bucket._refund(amount, self.data.token());
+        bucket.refund(amount, self.data.token());
         rateLimiters.outbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket._refund(amount, self.data.token());
+        fastBucket.refund(amount, self.data.token());
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -1517,18 +1527,18 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
 
 /// Returns previously consumed fast-finality inbound capacity to the bucket.
 /// Mirrors `consumeFastFinalityInboundRateLimit` (falls back to default bucket if FTF is disabled).
-fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.inbound.load();
-        bucket._refund(amount, self.data.token());
+        bucket.refund(amount, self.data.token());
         rateLimiters.inbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket._refund(amount, self.data.token());
+        fastBucket.refund(amount, self.data.token());
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -1546,18 +1556,18 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
 /// rate limiter.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
-fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.outbound.load();
-        bucket._consume(amount, self.data.token());
+        bucket.consume(amount, self.data.token());
         rateLimiters.outbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket._consume(amount, self.data.token());
+        fastBucket.consume(amount, self.data.token());
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -1575,18 +1585,18 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
 /// rate limiter.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
-fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.inbound.load();
-        bucket._consume(amount, self.data.token());
+        bucket.consume(amount, self.data.token());
         rateLimiters.inbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket._consume(amount, self.data.token());
+        fastBucket.consume(amount, self.data.token());
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -1611,15 +1621,15 @@ fun TokenPool<T>.getCurrentRateLimiterState(
     if (fastFinality) {
         val rateLimiters = config.fastFinalityRateLimiters.load();
         return TokenPool_RateLimiterPair {
-            outbound: rateLimiters.outbound.load()._currentTokenBucketState().toCell(),
-            inbound: rateLimiters.inbound.load()._currentTokenBucketState().toCell(),
+            outbound: rateLimiters.outbound.load().currentTokenBucketState().toCell(),
+            inbound: rateLimiters.inbound.load().currentTokenBucketState().toCell(),
         };
     }
 
     val rateLimiters = config.rateLimiters.load();
     return TokenPool_RateLimiterPair {
-        outbound: rateLimiters.outbound.load()._currentTokenBucketState().toCell(),
-        inbound: rateLimiters.inbound.load()._currentTokenBucketState().toCell(),
+        outbound: rateLimiters.outbound.load().currentTokenBucketState().toCell(),
+        inbound: rateLimiters.inbound.load().currentTokenBucketState().toCell(),
     };
 }
 

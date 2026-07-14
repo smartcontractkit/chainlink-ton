@@ -1,6 +1,8 @@
 package bindings
 
 import (
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
@@ -9,12 +11,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 )
@@ -51,7 +51,7 @@ const (
 	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
 	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
 	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
-	TypeTestTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
+	TypeMockTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -71,11 +71,10 @@ const (
 	ShortMerkleRoot      = "MerkleRoot"
 	ShortReceiveExecutor = "ReceiveExecutor"
 	ShortReceiver        = "Receiver"
-	ShortMockTokenPool   = "MockTokenPool"
 	ShortTimelock        = "RBACTimelock"
 	ShortMCMS            = "MCMS"
 	ShortTokenRegistry   = "TokenAdminRegistry"
-	ShortTokenPool       = "MockTokenPool"
+	ShortMockTokenPool   = "MockTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
@@ -102,7 +101,7 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
-	{ShortMockTokenPool, TypeTestTokenPool},
+	{ShortMockTokenPool, TypeMockTokenPool},
 	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},

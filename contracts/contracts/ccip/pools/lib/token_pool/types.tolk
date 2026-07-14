@@ -78,14 +78,16 @@ struct TokenPool_TokenTransferFeeConfigArgs {
 // TODO: triage new types below
 
 struct TokenPool_LockOrBurnPrepared {
-    feeAmount: uint256;
-    destTokenAmount: uint256;
+    feeAmount: coins;
+    /// Token amount in local token decimals after deducting the fee.
+    // TBD: rename to just amount?
+    destTokenAmount: coins; 
     out: TokenPool_LockOrBurnOutV1;
 }
 
 struct TokenPool_ReleaseOrMintPrepared {
     requestedFinalityConfig: uint32;
-    localAmount: uint256;
+    localAmount: coins;
     out: TokenPool_ReleaseOrMintOutV1;
 }
 
@@ -94,11 +96,11 @@ struct TokenPool_ReleaseOrMintPrepared {
 struct TokenPool_TokenTransferFeeConfig {
     destGasOverhead: uint32;            // Gas charged to execute the token transfer on the destination chain.
     destBytesOverhead: uint32;          // Data availability bytes.
-    finalityFeeUSDCents: uint256;       // Fee to charge for token transfer with default (wait-for-finality) finality, multiples of 0.01 USD.
-    fastFinalityFeeUSDCents: uint256;   // Fee to charge for token transfer with fast finality (FTF), multiples of 0.01 USD.
+    finalityFeeUSDCents: coins;         // Fee to charge for token transfer with default (wait-for-finality) finality, multiples of 0.01 USD.
+    fastFinalityFeeUSDCents: coins;     // Fee to charge for token transfer with fast finality (FTF), multiples of 0.01 USD.
                                         // The following two fee is deducted from the transferred asset, not added on top.
-    finalityTransferFeeBps: uint16;     // Fee in basis points for default finality transfers [0-10_000].
-    fastFinalityTransferFeeBps: uint16; // Fee in basis points for custom finality transfers [0-10_000].
+    finalityTransferFeeBps: uint16;     // Fee in basis points for default finality transfers [0-10_000). Capped by TOKEN_POOL_BPS_DIVIDER.
+    fastFinalityTransferFeeBps: uint16; // Fee in basis points for custom finality transfers [0-10_000). Capped by TOKEN_POOL_BPS_DIVIDER.
     isEnabled: bool;                    // Whether this config is enabled.
 }
 
@@ -107,16 +109,24 @@ enum TokenPool_MessageDirection: uint8 {
     Inbound = 1
 }
 
-struct TokenPool_Transfer<S, R> {
+// TBD: Do we really need this generics? Makes the code harder to read and abigen has difficuitles generating the wrappers for generics
+
+/// Struct representing a token transfer operation, including the unique transfer ID and the details of the transfer.
+/// 
+/// Type parameters:
+/// - `S`: The type of the original sender's address on the source chain
+/// - `R`: The type of the recipient's address on the destination chain
+/// - `C`: The type of the amount of tokens, denominated in the source token's decimals
+struct TokenPool_Transfer<S, R, C> {
     id : uint256;                                   // Unique transfer ID for this TP operation.
-    details: Cell<TokenPool_TransferDetails<S, R>>; // Details of the transfer.
+    details: Cell<TokenPool_TransferDetails<S, R, C>>; // Details of the transfer.
 }
 
-struct TokenPool_TransferDetails<S, R> {
+struct TokenPool_TransferDetails<S, R, C> {
     receiver: R;                 // The recipient of the tokens on the destination chain. For EVM source chains, this is abi-encoded (32 bytes).
     remoteChainSelector: uint64; // ─╮ The chain ID of the destination chain.
     originalSender: S;           // ─╯ The original sender of the tx on the source chain.
-    amount: uint256;             // The amount of tokens to process, denominated in the source token's decimals.
+    amount: C;                   // The amount of tokens to process, denominated in the source token's decimals.
     localToken: address;         // The address on this chain of the token to process.
 }
 
@@ -124,10 +134,12 @@ struct TokenPool_TransferDetails<S, R> {
 type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<
     address,                 // sender addr
     Cell<CrossChainAddress>, // receiver addr
+    coins,                   // amount
 >;
 type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<
     Cell<CrossChainAddress>, // sender addr
-    address                  // receiver addr
+    address,                 // receiver addr
+    uint256,                 // amount
 >;
 
 struct TokenPool_LockOrBurnInV1 {
@@ -158,5 +170,5 @@ struct TokenPool_ReleaseOrMintOutV1 {
     // The number of tokens released or minted on the destination chain, denominated in the local token's decimals.
     // This value is expected to be equal to the ReleaseOrMintInV1.amount in the case where the source and destination
     // chain have the same number of decimals.
-    destinationAmount: uint256;
+    destinationAmount: coins;
 }

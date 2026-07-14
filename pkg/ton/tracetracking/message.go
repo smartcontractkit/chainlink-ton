@@ -11,7 +11,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // MsgStatus represents the status of a message in the TON blockchain.
@@ -596,6 +596,7 @@ func (m *ReceivedMessage) FindMessageTo(dst *address.Address) *ReceivedMessage {
 
 // IsDeployment reports whether this message deployed the receiving contract, i.e.
 // the account went from a non-active status to active as a result of this transaction.
+// TODO: test this
 func (m *ReceivedMessage) IsDeployment() bool {
 	return m.OrigStatus != tlb.AccountStatusActive && m.EndStatus == tlb.AccountStatusActive
 }

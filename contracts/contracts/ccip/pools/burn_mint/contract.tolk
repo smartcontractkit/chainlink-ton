@@ -87,7 +87,7 @@ fun onLockOrBurnTransferContinue(
         dest: sender,
         body: AskToBurn {
             queryId: requestMsg.queryId,
-            jettonAmount: prepared.destTokenAmount as coins,
+            jettonAmount: prepared.destTokenAmount,
             sendExcessesTo: contract.getAddress(), // TODO: use ContextExecutor addr as proxy
             customPayload: null,
         },
@@ -135,7 +135,7 @@ fun onReleaseOrMintContinue(
             tonAmount: BurnMintTokenPool_MINT_VALUE,
             internalTransferMsg: InternalTransferStep {
                 queryId: msg.queryId,
-                jettonAmount: prepared.localAmount as coins,
+                jettonAmount: prepared.localAmount,
                 transferInitiator: null,
                 sendExcessesTo: contract.getAddress(),
                 forwardTonAmount: 0,
@@ -354,11 +354,11 @@ get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTra
 get fun getFee(
     localToken: address,
     destChainSelector: uint64,
-    amount: uint256,
+    amount: coins,
     feeToken: address,
     requestedFinalityConfig: uint32,
     tokenArgs: cell?,
-): (uint256, uint32, uint32, uint16, bool) {
+): (coins, uint32, uint32, uint16, bool) {
     val pool = loadPool(Storage.load());
     return pool.getFee(localToken, destChainSelector, amount, feeToken, requestedFinalityConfig, tokenArgs);
 }
@@ -367,7 +367,7 @@ get fun getFee(
 get fun getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
-): uint256 {
+): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
 }

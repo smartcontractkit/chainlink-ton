@@ -15,6 +15,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -340,6 +341,7 @@ func (c *Client) GetWalletAddress() (string, error) {
 type mapStateProvider struct {
 	addresses map[datastore.ContractType]string
 }
+var _ testadapters.StateProvider = (*mapStateProvider)(nil)
 
 func (p *mapStateProvider) GetAddress(ty datastore.ContractType, _ ...string) (string, error) {
 	addr, ok := p.addresses[ty]

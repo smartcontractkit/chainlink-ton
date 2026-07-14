@@ -3,8 +3,9 @@ package utils //nolint:revive,nolintlint // TODO: update to meaningful package n
 import (
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 )
