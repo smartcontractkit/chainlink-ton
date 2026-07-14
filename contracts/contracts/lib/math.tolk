@@ -108,8 +108,12 @@ fun safePow10(n: uint8): (uint256, int) {
             assert(result == 0 || base <= MAX_UINT256 / result, 4); // exit code 4: Integer overflow
             result *= base;
         }
-        base *= base;
         n >>= 1;
+        if (n > 0) {
+            // Only square base if there are more bits to process,
+            // otherwise base *= base may overflow uint256 unnecessarily.
+            base *= base;
+        }
     }
 
     return (result, 0); // success
