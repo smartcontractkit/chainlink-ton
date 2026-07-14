@@ -51,7 +51,7 @@ const (
 	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
 	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
 	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
-	TypeTestTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
+	TypeMockTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -71,11 +71,10 @@ const (
 	ShortMerkleRoot      = "MerkleRoot"
 	ShortReceiveExecutor = "ReceiveExecutor"
 	ShortReceiver        = "Receiver"
-	ShortMockTokenPool   = "MockTokenPool"
 	ShortTimelock        = "RBACTimelock"
 	ShortMCMS            = "MCMS"
 	ShortTokenRegistry   = "TokenAdminRegistry"
-	ShortTokenPool       = "MockTokenPool"
+	ShortMockTokenPool   = "MockTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
@@ -102,7 +101,7 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
-	{ShortMockTokenPool, TypeTestTokenPool},
+	{ShortMockTokenPool, TypeMockTokenPool},
 	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},

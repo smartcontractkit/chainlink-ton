@@ -55,6 +55,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 		Decimals:          9,
 		ExternalAdmin:     tonChain.WalletAddress.String(),
 		CCIPAdmin:         tonChain.WalletAddress.String(),
+		Type:		   bindings.ShortJettonMinter,
 		ChainSelector:     tonSelector,
 		ExistingDataStore: tokenStore.Seal(),
 	})
@@ -151,6 +152,7 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 		Decimals:          9,
 		ExternalAdmin:     tonChain.WalletAddress.String(),
 		CCIPAdmin:         tonChain.WalletAddress.String(),
+		Type:              bindings.ShortJettonMinter,
 		ChainSelector:     tonSelector,
 		ExistingDataStore: env.DataStore,
 	})

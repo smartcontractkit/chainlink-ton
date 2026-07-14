@@ -8,7 +8,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -20,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
@@ -29,7 +29,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	ton_tvm "github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -69,7 +70,7 @@ func (a *TonTokenAdapter) AddressRefToBytes(ref datastore.AddressRef) ([]byte, e
 	if ref.Address == "" {
 		return nil, errors.New("empty address in ref")
 	}
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := ccipcodec.NewAddressCodec()
 	raw, err := addrCodec.AddressStringToBytes(ref.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert TON address %q to bytes: %w", ref.Address, err)
@@ -80,6 +81,8 @@ func (a *TonTokenAdapter) AddressRefToBytes(ref datastore.AddressRef) ([]byte, e
 // DeriveTokenAddress looks up the deployed jetton minter that shares the pool's qualifier.
 // Convention: the DeployTokenInput.Qualifier and DeployTokenPoolInput.TokenPoolQualifier
 // match (e.g. both "TEST_TOKEN_USDC"); this lets us resolve the token from the pool ref.
+//TODO: This should probably read the Token address from the pool on-chain: smartcontractkit/chainlink-ccip@a58c4ba/deployment/docs/implementing-adapters.md?plain=1#L157
+// For now we can keep it like this and modify it when the actul TokenPools are integrated
 func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
 	candidates := e.DataStore.Addresses().Filter(
 		datastore.AddressRefByChainSelector(chainSelector),
@@ -131,6 +134,10 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 
 			if a.Package == "" {
 				a.Package = utils.ContractsVersionLocal
+			}
+			// TODO: We should check the Type value in the DeployTokenInput to decide wether we deploy this standard token, wGram, or a cross-chain token implementation
+			if input.Type != bindings.ShortJettonMinter {
+				return sequences.OnChainOutput{}, fmt.Errorf("unsupported token type %q for TON; only %q is supported", input.Type, bindings.ShortJettonMinter)
 			}
 			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
 				Package: a.Package,
@@ -234,21 +241,21 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
 				Package: a.Package,
 				Contracts: []ton_tvm.FullyQualifiedName{
-					bindings.TypeTestTokenPool,
+					bindings.TypeMockTokenPool,
 				},
 			})
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve mock token pool contract: %w", err)
 			}
 
-			compiled, ok := compiledContracts[bindings.TypeTestTokenPool]
+			compiled, ok := compiledContracts[bindings.TypeMockTokenPool]
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf(
 					"mock token pool contract not found in compiled contracts package under %q",
-					bindings.TypeTestTokenPool,
+					bindings.TypeMockTokenPool,
 				)
 			}
-			compiled.Metadata.ID = bindings.TypeTestTokenPool
+			compiled.Metadata.ID = bindings.TypeMockTokenPool
 
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
@@ -328,7 +335,7 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				routerAddr = &r
 			}
 
-			body, err := tlb.ToCell(router.TokenRegistrySetTokenInfo{
+			body := codec.MustWrapMessage[any](bindings.TypeRouter, router.TokenRegistrySetTokenInfo{
 				TokenAddress: tokenAddr,
 				TokenInfo: tokenregistry.TokenInfo{
 					TokenPool:     poolAddr,
@@ -337,22 +344,22 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				},
 				IsNewEntry: true,
 			})
+
+			dp, err := dep.NewDependencyProvider(dep.Provide(chain))
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to serialize TokenRegistrySetTokenInfo body: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			conn := tracetracking.NewSignedAPIClient(chain.Client, *chain.Wallet)
-			walletMsg := &wallet.Message{
-				Mode: wallet.PayGasSeparately,
-				InternalMessage: &tlb.InternalMessage{
-					IHRDisabled: true,
-					Bounce:      true,
-					DstAddr:     routerAddr,
-					Amount:      tlb.MustFromTON("0.1"),
-					Body:        body,
+			if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: routerAddr,
+						Amount:  tlb.MustFromTON("0.1"),
+						Body:    body,
+					},
 				},
-			}
-			if _, _, err := conn.SendWaitTransaction(b.GetContext(), *routerAddr, walletMsg); err != nil {
+			}); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send TokenRegistrySetTokenInfo to router at %s: %w", routerAddr.String(), err)
 			}
 
