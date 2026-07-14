@@ -2,6 +2,9 @@ module github.com/smartcontractkit/chainlink-ton
 
 go 1.26.2
 
+// Temporary for merging PR
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib // TODO remove local replace
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/TyphonHill/go-mermaid v1.0.0
