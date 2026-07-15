@@ -3,7 +3,7 @@ package sequences
 import (
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )

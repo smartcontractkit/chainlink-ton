@@ -10,9 +10,9 @@ import (
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
