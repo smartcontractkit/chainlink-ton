@@ -67,7 +67,7 @@ describe('Receiver - Current Version Tests', () => {
     contractType: tr.Receiver.type(),
     currentVersion: tr.Receiver.version(),
     getCurrentCode: () => tr.Receiver.code(),
-    CurrentVersionConstructor: tr.Receiver,
+    CurrentVersionConstructor: tr.Receiver.createFromAddress,
     deployCurrentContract: deployReceiverContract,
   })
   currentVersionSpec.run()
@@ -86,7 +86,7 @@ describe('Receiver - Upgrade Tests', () => {
     })),
     currentVersion: Receiver.version(),
     getCurrentCode: () => Receiver.code(),
-    CurrentVersionConstructor: Receiver,
+    CurrentVersionConstructor: Receiver.createFromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run()

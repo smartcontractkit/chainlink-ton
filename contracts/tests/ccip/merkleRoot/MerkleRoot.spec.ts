@@ -55,8 +55,8 @@ describe('MerkleRoot - Unit Tests', () => {
     const facilityIdVal = await merkleRoot.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(mr.FACILITY_ID))
 
-    const { type } = await merkleRoot.getTypeAndVersion()
-    expect(type).toBe(mr.FACILITY_NAME)
+    const [typeSlice] = await merkleRoot.getTypeAndVersion()
+    expect(typeSlice.loadStringTail()).toBe(mr.FACILITY_NAME)
     expect(mr.FACILITY_ID).toEqual(facilityId(crc32(mr.FACILITY_NAME)))
   })
 

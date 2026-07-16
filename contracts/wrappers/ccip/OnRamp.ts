@@ -721,13 +721,13 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     })
   }
 
-  sendUpgrade(
+  sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ): Promise<void> {
-    return upgradeable.sendUpgrade(provider, via, value, body)
+    return upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   getStaticConfig(provider: ContractProvider): Promise<bigint> {
@@ -766,7 +766,7 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     return stack.readBigNumber()
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 

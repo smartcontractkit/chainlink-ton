@@ -192,13 +192,13 @@ export class Router
     })
   }
 
-  sendUpgrade(
+  sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ): Promise<void> {
-    return upgradeable.sendUpgrade(provider, via, value, body)
+    return upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   sendGetValidatedFee(
@@ -253,7 +253,7 @@ export class Router
     })
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 
@@ -406,13 +406,13 @@ export class Router
   }
 
   // Withdrawable methods
-  async sendWithdraw(
+  async sendWithdrawableWithdraw(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: withdrawable.Withdraw,
   ) {
-    await withdrawable.sendWithdraw(provider, via, value, body)
+    await withdrawable.sendWithdrawableWithdraw(provider, via, value, body)
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {

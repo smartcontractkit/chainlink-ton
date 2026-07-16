@@ -346,7 +346,8 @@ describe('ReceiveExecutor', () => {
       const facilityIdVal = await receiveExecutor.getFacilityId()
       expect(facilityIdVal).toBe(BigInt(rx.FACILITY_ID))
 
-      const { type } = await receiveExecutor.getTypeAndVersion()
+      const [typeSlice] = await receiveExecutor.getTypeAndVersion()
+      const type = typeSlice.loadStringTail()
       expect(type).toBe(rx.FACILITY_NAME)
 
       expect(rx.FACILITY_ID).toEqual(facilityId(crc32(rx.FACILITY_NAME)))

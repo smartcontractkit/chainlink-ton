@@ -111,9 +111,9 @@ export function newInstance<TContract extends TypeAndVersionContract>(
       })
 
       it('should deploy on current version', async () => {
-        const typeAndVersion = await contract.getTypeAndVersion()
-        expect(typeAndVersion.type).toBe(config.type)
-        expect(typeAndVersion.version).toBe(config.version)
+        const [type, version] = await contract.getTypeAndVersion()
+        expect(type.loadStringTail()).toBe(config.type)
+        expect(version.loadStringTail()).toBe(config.version)
       })
 
       afterAll(async () => {

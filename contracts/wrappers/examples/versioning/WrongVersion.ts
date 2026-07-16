@@ -72,13 +72,13 @@ export class ContractClient implements /*typeAndVersion.TypeAndVersion,*/ upgrad
   }
 
   // Delegate Upgradeable methods
-  async sendUpgrade(
+  async sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ) {
-    await upgradeable.sendUpgrade(provider, via, value, body)
+    await upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   async getCode(provider: ContractProvider): Promise<Cell> {

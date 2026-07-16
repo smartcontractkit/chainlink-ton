@@ -33,7 +33,7 @@ describe('rt.Router - TypeAndVersion Tests', () => {
 describe('Router - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => contractCode.ccip.local('Router'),
-    ContractConstructor: rt.Router,
+    ContractConstructor: rt.Router.createFromAddress,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployRouterContract,
   })
@@ -58,7 +58,7 @@ describe('Router - Upgrade Tests', () => {
     })),
     currentVersion: Router.version(),
     getCurrentCode: () => Router.code(),
-    CurrentVersionConstructor: Router,
+    CurrentVersionConstructor: Router.createFromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -74,7 +74,7 @@ describe('Router - Current Version Tests', () => {
     contractType: rt.Router.type(),
     currentVersion: rt.Router.version(),
     getCurrentCode: () => rt.Router.code(),
-    CurrentVersionConstructor: rt.Router,
+    CurrentVersionConstructor: rt.Router.createFromAddress,
     deployCurrentContract: deployRouterContract,
   })
   currentVersionSpec.run('router')
@@ -143,8 +143,8 @@ describe('Router - Ownable Tests', () => {
     const facilityIdVal = await router.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(rt.FACILITY_ID))
 
-    const { type } = await router.getTypeAndVersion()
-    expect(type).toBe(rt.FACILITY_NAME)
+    const [typeSlice] = await router.getTypeAndVersion()
+    expect(typeSlice.loadStringTail()).toBe(rt.FACILITY_NAME)
 
     expect(rt.FACILITY_ID).toEqual(facilityId(crc32(rt.FACILITY_NAME)))
   })

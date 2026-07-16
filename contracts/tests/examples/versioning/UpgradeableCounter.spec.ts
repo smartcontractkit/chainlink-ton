@@ -88,7 +88,7 @@ describe('UpgradeableCounter - Upgrade Tests', () => {
     ],
     currentVersion: upCounterV2.ContractClient.version(),
     getCurrentCode: () => upCounterV2.ContractClient.code(),
-    CurrentVersionConstructor: upCounterV2.ContractClient,
+    CurrentVersionConstructor: upCounterV2.ContractClient.createFromAddress,
   })
   upgradeSpec.run()
 })
@@ -98,7 +98,7 @@ describe('UpgradeableCounter - Current Version Tests', () => {
     contractType: upCounterV2.ContractClient.type(),
     currentVersion: upCounterV2.ContractClient.version(),
     getCurrentCode: () => upCounterV2.ContractClient.code(),
-    CurrentVersionConstructor: upCounterV2.ContractClient,
+    CurrentVersionConstructor: upCounterV2.ContractClient.createFromAddress,
     deployCurrentContract: async (blockchain, owner) => {
       const code = await upCounterV2.ContractClient.code()
       const contract = blockchain.openContract(
@@ -165,7 +165,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
       upgradeableCounterV1,
       owner.getSender(),
       toNano('0.05'),
-      upCounterV2.ContractClient,
+      upCounterV2.ContractClient.createFromAddress,
       await upCounterV2.ContractClient.code(),
     )
 
@@ -250,7 +250,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
     expect(currentOwner).toEqual(newOwner.address)
 
     // Old owner should no longer be able to upgrade
-    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(
+    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgradeableUpgrade(
       owner.getSender(),
       toNano('0.05'),
       {
@@ -270,7 +270,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
       upgradeableCounter,
       newOwner.getSender(),
       toNano('0.05'),
-      upCounterV2.ContractClient,
+      upCounterV2.ContractClient.createFromAddress,
       await upCounterV2.ContractClient.code(),
     )
 
@@ -283,11 +283,11 @@ describe('UpgradeableCounter - Unit Tests', () => {
     let upgradeableCounterV2 = blockchain.openContract(newVersionInstance)
 
     // Verify the contract is now on version 2
-    const typeAndVersion = await upgradeableCounterV2.getTypeAndVersion()
-    expect(typeAndVersion.type).toBe(
+    const [type, version] = await upgradeableCounterV2.getTypeAndVersion()
+    expect(type.loadStringTail()).toBe(
       'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
     )
-    expect(typeAndVersion.version).toBe('2.0.0')
+    expect(version.loadStringTail()).toBe('2.0.0')
 
     // Verify new owner is still the owner after upgrade
     const finalOwner = await upgradeableCounterV2.getOwner()

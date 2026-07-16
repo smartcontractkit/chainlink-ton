@@ -123,7 +123,7 @@ export class ContractClient implements typeAndVersion.Interface, upgradeable.Int
   }
 
   // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 
@@ -136,13 +136,13 @@ export class ContractClient implements typeAndVersion.Interface, upgradeable.Int
   }
 
   // Delegate Upgradeable methods
-  async sendUpgrade(
+  async sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ) {
-    await upgradeable.sendUpgrade(provider, via, value, body)
+    await upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   // Ownership methods

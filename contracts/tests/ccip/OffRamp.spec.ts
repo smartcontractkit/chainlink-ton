@@ -32,6 +32,7 @@ import * as mr from '../../wrappers/ccip/MerkleRoot'
 import * as fq from '../../wrappers/ccip/FeeQuoter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as ocr from '../../wrappers/libraries/ocr/MultiOCR3Base'
+import * as typeAndVersion from '../../wrappers/libraries/versioning/TypeAndVersion'
 import * as tr from '../../wrappers/examples/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
@@ -157,7 +158,7 @@ describe('OffRamp - TypeAndVersion Tests', () => {
 describe('OffRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => contractCode.ccip.local('OffRamp'),
-    ContractConstructor: of.OffRamp,
+    ContractConstructor: of.OffRamp.createFromAddress,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
   })
@@ -182,7 +183,7 @@ describe('OffRamp - Upgrade Tests', () => {
     })),
     currentVersion: OffRamp.version(),
     getCurrentCode: () => OffRamp.code(),
-    CurrentVersionConstructor: OffRamp,
+    CurrentVersionConstructor: OffRamp.createFromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -198,7 +199,7 @@ describe('OffRamp - Current Version Tests', () => {
     contractType: of.OffRamp.type(),
     currentVersion: of.OffRamp.version(),
     getCurrentCode: () => of.OffRamp.code(),
-    CurrentVersionConstructor: of.OffRamp,
+    CurrentVersionConstructor: of.OffRamp.createFromAddress,
     deployCurrentContract: deployOffRampContract,
   })
   currentVersionSpec.run('offramp')
@@ -2102,8 +2103,8 @@ describe('OffRamp - Unit Tests', () => {
     const facilityIdVal = await offRamp.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(of.FACILITY_ID))
 
-    const { type } = await offRamp.getTypeAndVersion()
-    expect(type).toBe(of.FACILITY_NAME)
+    const [type] = await offRamp.getTypeAndVersion()
+    expect(type.loadStringTail()).toBe(of.FACILITY_NAME)
 
     expect(of.FACILITY_ID).toEqual(facilityId(crc32(of.FACILITY_NAME)))
   })

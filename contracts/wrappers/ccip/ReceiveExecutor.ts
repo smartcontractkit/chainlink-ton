@@ -229,7 +229,7 @@ export class ReceiveExecutor extends OCR3Base implements typeAndVersion.Interfac
     })
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
   getCode(provider: ContractProvider): Promise<Cell> {

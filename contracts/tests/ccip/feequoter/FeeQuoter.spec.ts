@@ -19,7 +19,7 @@ import { FEE_QUOTER_SUPPORTED_PREV_VERSIONS } from '../../../wrappers/ccip/FeeQu
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => contractCode.ccip.local('FeeQuoter'),
-    ContractConstructor: fq.FeeQuoter,
+    ContractConstructor: fq.FeeQuoter.createFromAddress,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
@@ -59,7 +59,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
     })),
     currentVersion: FeeQuoter.version(),
     getCurrentCode: () => FeeQuoter.code(),
-    CurrentVersionConstructor: FeeQuoter,
+    CurrentVersionConstructor: FeeQuoter.createFromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -101,7 +101,7 @@ describe('FeeQuoter - Current Version Tests', () => {
     contractType: fq.FeeQuoter.type(),
     currentVersion: fq.FeeQuoter.version(),
     getCurrentCode: () => fq.FeeQuoter.code(),
-    CurrentVersionConstructor: fq.FeeQuoter,
+    CurrentVersionConstructor: fq.FeeQuoter.createFromAddress,
     deployCurrentContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
   currentVersionSpec.run('feequoter')
@@ -136,8 +136,8 @@ describe('FeeQuoter - Unit Tests', () => {
     const facilityIdVal = await feeQuoter.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(fq.FACILITY_ID))
 
-    const { type } = await feeQuoter.getTypeAndVersion()
-    expect(type).toBe(fq.FACILITY_NAME)
+    const [typeSlice] = await feeQuoter.getTypeAndVersion()
+    expect(typeSlice.loadStringTail()).toBe(fq.FACILITY_NAME)
 
     expect(fq.FACILITY_ID).toEqual(facilityId(crc32(fq.FACILITY_NAME)))
   })

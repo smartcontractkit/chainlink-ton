@@ -1,10 +1,8 @@
-import { Cell, ContractProvider } from '@ton/core'
+import { Cell, ContractProvider, Slice } from '@ton/core'
 
-export async function getTypeAndVersion(
-  provider: ContractProvider,
-): Promise<{ type: string; version: string }> {
+export async function getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
   const result = await provider.get('typeAndVersion', [])
-  return { type: result.stack.readString(), version: result.stack.readString() }
+  return [result.stack.readCell().beginParse(), result.stack.readCell().beginParse()]
 }
 
 export async function getCode(provider: ContractProvider): Promise<Cell> {
@@ -25,7 +23,5 @@ export async function getCodeHash(provider: ContractProvider): Promise<bigint> {
 }
 
 export interface Interface {
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }>
-  getCode(provider: ContractProvider): Promise<Cell>
-  getCodeHash(provider: ContractProvider): Promise<bigint>
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]>
 }

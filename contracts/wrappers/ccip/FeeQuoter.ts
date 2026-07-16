@@ -8,10 +8,10 @@ import {
   ContractProvider,
   Dictionary,
   DictionaryValue,
+  Slice,
   Sender,
   SendMode,
   Builder,
-  Slice,
   TupleItem,
   Tuple,
   TupleItemSlice,
@@ -619,13 +619,13 @@ export class FeeQuoter
     })
   }
 
-  sendUpgrade(
+  sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ): Promise<void> {
-    return upgradeable.sendUpgrade(provider, via, value, body)
+    return upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   async getValidatedFeeCell(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
@@ -660,7 +660,7 @@ export class FeeQuoter
     return stack.readBigNumber()
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
   getCode(provider: ContractProvider): Promise<Cell> {
@@ -788,13 +788,13 @@ export class FeeQuoter
   }
 
   // Withdrawable methods
-  async sendWithdraw(
+  async sendWithdrawableWithdraw(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: withdrawable.Withdraw,
   ) {
-    await withdrawable.sendWithdraw(provider, via, value, body)
+    await withdrawable.sendWithdrawableWithdraw(provider, via, value, body)
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {

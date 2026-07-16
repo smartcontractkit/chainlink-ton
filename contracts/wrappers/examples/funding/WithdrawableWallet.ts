@@ -94,13 +94,13 @@ export class ContractClient implements withdrawable.Interface {
   }
 
   // Delegate Withdrawable methods
-  async sendWithdraw(
+  async sendWithdrawableWithdraw(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: withdrawable.Withdraw,
   ) {
-    await withdrawable.sendWithdraw(provider, via, value, body)
+    await withdrawable.sendWithdrawableWithdraw(provider, via, value, body)
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
