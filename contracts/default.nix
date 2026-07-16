@@ -36,10 +36,23 @@
       name = "abigen";
       runtimeInputs = [
         acton
-        pkgs.python3
+        pkgs.nodejs_24
       ];
+      # The abigen script (scripts/abigen.ts) is post-processed with ts-morph,
+      # which must resolve from the actual repo checkout's node_modules (via
+      # `yarn install`), not a copy in the nix store. So, unlike a typical
+      # writeShellApplication, this locates the real on-disk script instead of
+      # embedding a `${./scripts/abigen.ts}` store path.
       text = ''
-        exec python3 ${./scripts/abigen.py} "$@"
+        root="$PWD"
+        if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
+          root="$root/contracts"
+        fi
+        if [ ! -f "$root/scripts/abigen.ts" ]; then
+          echo "error: could not find scripts/abigen.ts under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
+          exit 1
+        fi
+        exec node --require ts-node/register/transpile-only "$root/scripts/abigen.ts" "$@"
       '';
     };
 
