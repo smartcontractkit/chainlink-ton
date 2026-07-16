@@ -20,7 +20,7 @@ import (
 type View struct {
 	view.MetaData
 	ChainSelector   uint64                            `json:"chainSelector,omitempty"`
-	DynamicConfig   onramp.DynamicConfig              `json:"dynamicConfig,omitempty"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
+	DynamicConfig   onramp.DynamicConfig              `json:"dynamicConfig"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
 	DestChainConfig map[uint64]onramp.DestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
 }
 

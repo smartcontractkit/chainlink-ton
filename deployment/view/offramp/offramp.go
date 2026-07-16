@@ -21,7 +21,7 @@ const latestPriceSequenceNumberGetter = "latestPriceSequenceNumber"
 type View struct {
 	view.MetaData
 	LatestPriceSequenceNumber uint64                               `json:"latestPriceSequenceNumber,omitempty"`
-	Config                    offramp.Config                       `json:"Config,omitempty"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
+	Config                    offramp.Config                       `json:"Config"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
 	SourceChainConfigs        map[uint64]offramp.SourceChainConfig `json:"sourceChainConfigs,omitempty"`
 }
 
