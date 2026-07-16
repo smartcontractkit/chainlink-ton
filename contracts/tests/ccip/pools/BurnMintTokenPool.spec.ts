@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
-import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
+import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
 import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
@@ -150,39 +149,32 @@ describe('BurnMintTokenPool', () => {
         toNano('0.2'),
         {
           queryId: 1n,
-          remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
-          chainsToAdd: asSnakedCell(
-            [
-              TokenPool_ChainUpdate.create({
-                remoteChainSelector,
-                remotePoolAddresses: asSnakedCell([sourcePoolAddress], (item) => {
-                  let b = beginCell()
-                  CrossChainAddress.store(item, b)
-                  return b
+          remoteChainSelectorsToRemove: [],
+          chainsToAdd: [
+            TokenPool_ChainUpdate.create({
+              remoteChainSelector,
+              remotePoolAddresses: [sourcePoolAddress],
+              remoteTokenAddress: { ref: destTokenAddress },
+              rateLimitConfigs: {
+                ref: TokenPool_RateLimitConfigPair.create({
+                  outbound: {
+                    ref: RateLimiter_Config.create({
+                      isEnabled: true,
+                      capacity: toNano('100'),
+                      rate: 1n,
+                    }),
+                  },
+                  inbound: {
+                    ref: RateLimiter_Config.create({
+                      isEnabled: true,
+                      capacity: toNano('100'),
+                      rate: 1n,
+                    }),
+                  },
                 }),
-                remoteTokenAddress: { ref: destTokenAddress },
-                rateLimitConfigs: {
-                  ref: TokenPool_RateLimitConfigPair.create({
-                    outbound: {
-                      ref: RateLimiter_Config.create({
-                        isEnabled: true,
-                        capacity: toNano('100'),
-                        rate: 1n,
-                      }),
-                    },
-                    inbound: {
-                      ref: RateLimiter_Config.create({
-                        isEnabled: true,
-                        capacity: toNano('100'),
-                        rate: 1n,
-                      }),
-                    },
-                  }),
-                },
-              }),
-            ],
-            (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
-          ),
+              },
+            }),
+          ],
         },
       )
 
@@ -195,16 +187,13 @@ describe('BurnMintTokenPool', () => {
 
     await burnMintPool.sendTokenPoolUpdateRampAccess(deployer.getSender(), toNano('0.2'), {
       queryId: 2n,
-      updates: asSnakedCell(
-        [
-          TokenPool_RampUpdate.create({
-            remoteChainSelector,
-            onRamp: deployer.address,
-            offRamp: offRamp.address,
-          }),
-        ],
-        (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-      ),
+      updates: [
+        TokenPool_RampUpdate.create({
+          remoteChainSelector,
+          onRamp: deployer.address,
+          offRamp: offRamp.address,
+        }),
+      ],
     })
 
     // Mint user-side test balance before handing minter admin to the pool.

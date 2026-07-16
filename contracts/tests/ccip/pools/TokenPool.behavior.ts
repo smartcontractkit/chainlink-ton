@@ -23,7 +23,6 @@ import {
   TokenPool_Transfer,
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
 import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
@@ -181,8 +180,8 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 903n,
-          remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
-          chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+          remoteChainSelectorsToRemove: [],
+          chainsToAdd: [],
         },
       )
 
@@ -200,16 +199,13 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 904n,
-          updates: asSnakedCell(
-            [
-              TokenPool_RampUpdate.create({
-                remoteChainSelector: ctx.remoteChainSelector,
-                onRamp: ctx.onRampAddress,
-                offRamp: ctx.unauthorized.address,
-              }),
-            ],
-            (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-          ),
+          updates: [
+            TokenPool_RampUpdate.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              onRamp: ctx.onRampAddress,
+              offRamp: ctx.unauthorized.address,
+            }),
+          ],
         },
       )
 
@@ -274,10 +270,8 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 905n,
-          remoteChainSelectorsToRemove: asSnakedCell([ctx.remoteChainSelector], (item: bigint) =>
-            beginCell().storeUint(item, 64),
-          ),
-          chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+          remoteChainSelectorsToRemove: [ctx.remoteChainSelector],
+          chainsToAdd: [],
         },
       )
 
@@ -293,10 +287,8 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
       await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 906n,
-        remoteChainSelectorsToRemove: asSnakedCell([ctx.remoteChainSelector], (item: bigint) =>
-          beginCell().storeUint(item, 64),
-        ),
-        chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+        remoteChainSelectorsToRemove: [ctx.remoteChainSelector],
+        chainsToAdd: [],
       })
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
@@ -324,11 +316,8 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 908n,
-          remoteChainSelectorsToRemove: asSnakedCell(
-            [ctx.remoteChainSelector + 1n],
-            (item: bigint) => beginCell().storeUint(item, 64),
-          ),
-          chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+          remoteChainSelectorsToRemove: [ctx.remoteChainSelector + 1n],
+          chainsToAdd: [],
         },
       )
 
@@ -346,16 +335,13 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 909n,
-          updates: asSnakedCell(
-            [
-              TokenPool_RampUpdate.create({
-                remoteChainSelector: ctx.remoteChainSelector,
-                onRamp: ctx.onRampAddress,
-                offRamp: ctx.unauthorized.address,
-              }),
-            ],
-            (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-          ),
+          updates: [
+            TokenPool_RampUpdate.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              onRamp: ctx.onRampAddress,
+              offRamp: ctx.unauthorized.address,
+            }),
+          ],
         },
       )
 
@@ -373,16 +359,13 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
       await ctx.pool.sendTokenPoolUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 910n,
-        updates: asSnakedCell(
-          [
-            TokenPool_RampUpdate.create({
-              remoteChainSelector: ctx.remoteChainSelector,
-              onRamp: ctx.onRampAddress,
-              offRamp: ctx.unauthorized.address,
-            }),
-          ],
-          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-        ),
+        updates: [
+          TokenPool_RampUpdate.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            onRamp: ctx.onRampAddress,
+            offRamp: ctx.unauthorized.address,
+          }),
+        ],
       })
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
@@ -470,16 +453,13 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
       await ctx.pool.sendTokenPoolUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 914n,
-        updates: asSnakedCell(
-          [
-            TokenPool_RampUpdate.create({
-              remoteChainSelector: ctx.remoteChainSelector,
-              onRamp: ctx.onRampAddress,
-              offRamp: null,
-            }),
-          ],
-          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-        ),
+        updates: [
+          TokenPool_RampUpdate.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            onRamp: ctx.onRampAddress,
+            offRamp: null,
+          }),
+        ],
       })
 
       expect(await ctx.pool.getOffRamp(ctx.remoteChainSelector)).toBeNull()
@@ -489,16 +469,13 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
       await ctx.pool.sendTokenPoolUpdateRampAccess(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 915n,
-        updates: asSnakedCell(
-          [
-            TokenPool_RampUpdate.create({
-              remoteChainSelector: ctx.remoteChainSelector,
-              onRamp: ctx.onRampAddress,
-              offRamp: null,
-            }),
-          ],
-          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-        ),
+        updates: [
+          TokenPool_RampUpdate.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            onRamp: ctx.onRampAddress,
+            offRamp: null,
+          }),
+        ],
       })
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
@@ -524,10 +501,8 @@ export function runTokenPoolBehaviorTests(
 
       await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 917n,
-        remoteChainSelectorsToRemove: asSnakedCell([ctx.remoteChainSelector], (item) =>
-          beginCell().storeUint(item, 64),
-        ),
-        chainsToAdd: asSnakedCellEmpty<TokenPool_ChainUpdate>(),
+        remoteChainSelectorsToRemove: [ctx.remoteChainSelector],
+        chainsToAdd: [],
       })
 
       const addResult = await ctx.pool.sendTokenPoolApplyChainUpdates(
@@ -535,39 +510,32 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 918n,
-          remoteChainSelectorsToRemove: asSnakedCell([], (item) => beginCell().storeUint(item, 64)),
-          chainsToAdd: asSnakedCell(
-            [
-              TokenPool_ChainUpdate.create({
-                remoteChainSelector: ctx.remoteChainSelector,
-                remotePoolAddresses: asSnakedCell([ctx.sourcePoolAddress], (item) => {
-                  let b = beginCell()
-                  CrossChainAddress.store(item, b)
-                  return b
+          remoteChainSelectorsToRemove: [],
+          chainsToAdd: [
+            TokenPool_ChainUpdate.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              remotePoolAddresses: [ctx.sourcePoolAddress],
+              remoteTokenAddress: { ref: ctx.destTokenAddress },
+              rateLimitConfigs: {
+                ref: TokenPool_RateLimitConfigPair.create({
+                  outbound: {
+                    ref: RateLimiter_Config.create({
+                      isEnabled: true,
+                      capacity: toNano('100'),
+                      rate: 1n,
+                    }),
+                  },
+                  inbound: {
+                    ref: RateLimiter_Config.create({
+                      isEnabled: true,
+                      capacity: toNano('100'),
+                      rate: 1n,
+                    }),
+                  },
                 }),
-                remoteTokenAddress: { ref: ctx.destTokenAddress },
-                rateLimitConfigs: {
-                  ref: TokenPool_RateLimitConfigPair.create({
-                    outbound: {
-                      ref: RateLimiter_Config.create({
-                        isEnabled: true,
-                        capacity: toNano('100'),
-                        rate: 1n,
-                      }),
-                    },
-                    inbound: {
-                      ref: RateLimiter_Config.create({
-                        isEnabled: true,
-                        capacity: toNano('100'),
-                        rate: 1n,
-                      }),
-                    },
-                  }),
-                },
-              }),
-            ],
-            (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
-          ),
+              },
+            }),
+          ],
         },
       )
 

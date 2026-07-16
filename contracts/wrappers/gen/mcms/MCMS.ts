@@ -197,8 +197,8 @@ export const MCMS_SetRoot = {
             root: s.loadUintBig(256),
             validUntil: s.loadUintBig(64),
             metadata: RootMetadata.fromSlice(s),
-            metadataProof: s.loadRef(),
-            signatures: s.loadRef(),
+            metadataProof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            signatures: loadSnakedCellOf(s, Signature.fromSlice),
         }
     },
     store(self: MCMS_SetRoot, b: c.Builder): void {
@@ -207,8 +207,8 @@ export const MCMS_SetRoot = {
         b.storeUint(self.root, 256);
         b.storeUint(self.validUntil, 64);
         RootMetadata.store(self.metadata, b);
-        b.storeRef(self.metadataProof);
-        b.storeRef(self.signatures);
+        storeSnakedCellOf(self.metadataProof, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.signatures, b, Signature.store);
     },
     toCell(self: MCMS_SetRoot): c.Cell {
         return makeCellFrom<MCMS_SetRoot>(self, MCMS_SetRoot.store);
@@ -248,14 +248,14 @@ export const MCMS_Execute = {
             $: 'MCMS_Execute',
             queryId: s.loadUintBig(64),
             op: loadCellRef<Op>(s, Op.fromSlice),
-            proof: s.loadRef(),
+            proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: MCMS_Execute, b: c.Builder): void {
         b.storeUint(0x9b9ce96a, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Op>(self.op, b, Op.store);
-        b.storeRef(self.proof);
+        storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: MCMS_Execute): c.Cell {
         return makeCellFrom<MCMS_Execute>(self, MCMS_Execute.store);
@@ -303,8 +303,8 @@ export const MCMS_SetConfig = {
         return {
             $: 'MCMS_SetConfig',
             queryId: s.loadUintBig(64),
-            signerAddresses: s.loadRef(),
-            signerGroups: s.loadRef(),
+            signerAddresses: loadSnakedCellOf(s, (s) => s.loadUintBig(160)),
+            signerGroups: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             groupQuorums: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
             groupParents: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
             clearRoot: s.loadBoolean(),
@@ -313,8 +313,8 @@ export const MCMS_SetConfig = {
     store(self: MCMS_SetConfig, b: c.Builder): void {
         b.storeUint(0x89277f4b, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.signerAddresses);
-        b.storeRef(self.signerGroups);
+        storeSnakedCellOf(self.signerAddresses, b, (v, b) => b.storeUint(v, 160));
+        storeSnakedCellOf(self.signerGroups, b, (v, b) => b.storeUint(v, 8));
         b.storeDict<uint8, uint8>(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
         b.storeDict<uint8, uint8>(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
         b.storeBit(self.clearRoot);
@@ -408,7 +408,7 @@ export const MCMS_SubmitErrorReport = {
             $: 'MCMS_SubmitErrorReport',
             queryId: s.loadUintBig(64),
             op: loadCellRef<Op>(s, Op.fromSlice),
-            proof: s.loadRef(),
+            proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
             errorCode: s.loadUintBig(32),
@@ -418,7 +418,7 @@ export const MCMS_SubmitErrorReport = {
         b.storeUint(0x4b3af0b5, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Op>(self.op, b, Op.store);
-        b.storeRef(self.proof);
+        storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.opTxHash, 256);
         b.storeUint(self.errorTxHash, 256);
         b.storeUint(self.errorCode, 32);
@@ -499,13 +499,13 @@ export const MCMS_CleanExpiredRoots = {
         return {
             $: 'MCMS_CleanExpiredRoots',
             queryId: s.loadUintBig(64),
-            roots: s.loadRef(),
+            roots: loadSnakedCellOf(s, RootDescriptor.fromSlice),
         }
     },
     store(self: MCMS_CleanExpiredRoots, b: c.Builder): void {
         b.storeUint(0xa903c276, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.roots);
+        storeSnakedCellOf(self.roots, b, RootDescriptor.store);
     },
     toCell(self: MCMS_CleanExpiredRoots): c.Cell {
         return makeCellFrom<MCMS_CleanExpiredRoots>(self, MCMS_CleanExpiredRoots.store);
@@ -862,13 +862,13 @@ export const MCMS_ExpiredRootsCleaned = {
         return {
             $: 'MCMS_ExpiredRootsCleaned',
             queryId: s.loadUintBig(64),
-            roots: s.loadRef(),
+            roots: loadSnakedCellOf(s, RootDescriptor.fromSlice),
         }
     },
     store(self: MCMS_ExpiredRootsCleaned, b: c.Builder): void {
         b.storeUint(0xa86846d5, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.roots);
+        storeSnakedCellOf(self.roots, b, RootDescriptor.store);
     },
     toCell(self: MCMS_ExpiredRootsCleaned): c.Cell {
         return makeCellFrom<MCMS_ExpiredRootsCleaned>(self, MCMS_ExpiredRootsCleaned.store);
@@ -1415,7 +1415,49 @@ export const RootDescriptor = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct Ownable2Step {

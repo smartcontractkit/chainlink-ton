@@ -1,7 +1,7 @@
 import { toNano, Cell, beginCell, Builder, Slice } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { asSnakeDataUint, fromSnakeData, WRAPPED_NATIVE } from '../../../src/utils'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
@@ -54,7 +54,7 @@ describe('Router', () => {
     destChainSelector: CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_CC_ADDRESS,
     data: Cell.EMPTY,
-    tokenAmounts: beginCell().endCell(),
+    tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
     extraArgs: {
       ref: rt.GenericExtraArgsV2.create({
@@ -112,7 +112,7 @@ describe('Router', () => {
         destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
         receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
         data: Cell.EMPTY,
-        tokenAmounts: beginCell().endCell(),
+        tokenAmounts: [],
         feeToken: WRAPPED_NATIVE,
         extraArgs: {
           ref: rt.GenericExtraArgsV2.create({
@@ -159,7 +159,7 @@ describe('Router', () => {
         queryId: 1n,
         onRampUpdates: {
           $: 'OnRamps',
-          destChainSelectors: asSnakeDataUint([CHAINSEL_EVM_TEST_90000001], 64),
+          destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
           onRamp: null,
         },
         offRampAdds: null,
@@ -180,7 +180,7 @@ describe('Router', () => {
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
         receiver: EVM_CC_ADDRESS,
         data: Cell.EMPTY,
-        tokenAmounts: beginCell().endCell(),
+        tokenAmounts: [],
         feeToken: WRAPPED_NATIVE,
         extraArgs: {
           ref: rt.GenericExtraArgsV2.create({
@@ -254,7 +254,7 @@ describe('Router', () => {
           decoded.msg.ref.data.equals(Cell.EMPTY) &&
           decoded.msg.ref.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.ref.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          fromSnakeData(decoded.msg.ref.tokenAmounts, rt.TokenAmount.fromSlice).length === 0 &&
+          decoded.msg.ref.tokenAmounts.length === 0 &&
           decoded.msg.ref.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
@@ -320,7 +320,7 @@ describe('Router', () => {
           decoded.msg.ref.data.equals(Cell.EMPTY) &&
           decoded.msg.ref.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.ref.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          fromSnakeData(decoded.msg.ref.tokenAmounts, rt.TokenAmount.fromSlice).length === 0 &&
+          decoded.msg.ref.tokenAmounts.length === 0 &&
           decoded.msg.ref.feeToken!.equals(WRAPPED_NATIVE)
         )
       },

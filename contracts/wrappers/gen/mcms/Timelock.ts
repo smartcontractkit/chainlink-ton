@@ -200,10 +200,10 @@ export const Timelock_Init = {
             queryId: s.loadUintBig(64),
             minDelay: s.loadUintBig(32),
             admin: s.loadAddress(),
-            proposers: s.loadRef(),
-            executors: s.loadRef(),
-            cancellers: s.loadRef(),
-            bypassers: s.loadRef(),
+            proposers: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            executors: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            cancellers: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            bypassers: loadSnakedCellOf(s, (s) => s.loadAddress()),
             executorRoleCheckEnabled: s.loadBoolean(),
             opFinalizationTimeout: s.loadUintBig(32),
         }
@@ -213,10 +213,10 @@ export const Timelock_Init = {
         b.storeUint(self.queryId, 64);
         b.storeUint(self.minDelay, 32);
         b.storeAddress(self.admin);
-        b.storeRef(self.proposers);
-        b.storeRef(self.executors);
-        b.storeRef(self.cancellers);
-        b.storeRef(self.bypassers);
+        storeSnakedCellOf(self.proposers, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.executors, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.cancellers, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.bypassers, b, (v, b) => b.storeAddress(v));
         b.storeBit(self.executorRoleCheckEnabled);
         b.storeUint(self.opFinalizationTimeout, 32);
     },
@@ -263,7 +263,7 @@ export const Timelock_ScheduleBatch = {
         return {
             $: 'Timelock_ScheduleBatch',
             queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
             delay: s.loadUintBig(32),
@@ -272,7 +272,7 @@ export const Timelock_ScheduleBatch = {
     store(self: Timelock_ScheduleBatch, b: c.Builder): void {
         b.storeUint(0x094718f4, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
         b.storeUint(self.delay, 32);
@@ -359,7 +359,7 @@ export const Timelock_ExecuteBatch = {
         return {
             $: 'Timelock_ExecuteBatch',
             queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
         }
@@ -367,7 +367,7 @@ export const Timelock_ExecuteBatch = {
     store(self: Timelock_ExecuteBatch, b: c.Builder): void {
         b.storeUint(0x6e9bf263, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
     },
@@ -573,13 +573,13 @@ export const Timelock_BypasserExecuteBatch = {
         return {
             $: 'Timelock_BypasserExecuteBatch',
             queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
         }
     },
     store(self: Timelock_BypasserExecuteBatch, b: c.Builder): void {
         b.storeUint(0xbb0e9f7d, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
     },
     toCell(self: Timelock_BypasserExecuteBatch): c.Cell {
         return makeCellFrom<Timelock_BypasserExecuteBatch>(self, Timelock_BypasserExecuteBatch.store);
@@ -1428,13 +1428,13 @@ export const Timelock_OperationBatch = {
     fromSlice(s: c.Slice): Timelock_OperationBatch {
         return {
             $: 'Timelock_OperationBatch',
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
         }
     },
     store(self: Timelock_OperationBatch, b: c.Builder): void {
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
     },
@@ -1494,7 +1494,49 @@ export const Timelock_OpPendingInfo = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct (0xcf3ca837) AccessControl_RoleGranted {

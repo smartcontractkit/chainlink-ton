@@ -340,7 +340,49 @@ export const Ramp = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > type RemainingBitsOrRef<T> = T
@@ -1258,12 +1300,12 @@ export const OnRamps = {
     fromSlice(s: c.Slice): OnRamps {
         return {
             $: 'OnRamps',
-            destChainSelectors: s.loadRef(),
+            destChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
             onRamp: s.loadMaybeAddress(),
         }
     },
     store(self: OnRamps, b: c.Builder): void {
-        b.storeRef(self.destChainSelectors);
+        storeSnakedCellOf(self.destChainSelectors, b, (v, b) => b.storeUint(v, 64));
         b.storeAddress(self.onRamp);
     },
     toCell(self: OnRamps): c.Cell {
@@ -1296,12 +1338,12 @@ export const OffRamps = {
     fromSlice(s: c.Slice): OffRamps {
         return {
             $: 'OffRamps',
-            sourceChainSelectors: s.loadRef(),
+            sourceChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
             offRamp: s.loadAddress(),
         }
     },
     store(self: OffRamps, b: c.Builder): void {
-        b.storeRef(self.sourceChainSelectors);
+        storeSnakedCellOf(self.sourceChainSelectors, b, (v, b) => b.storeUint(v, 64));
         b.storeAddress(self.offRamp);
     },
     toCell(self: OffRamps): c.Cell {
@@ -1528,7 +1570,7 @@ export const Router_CCIPSend = {
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadRef(),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
             extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
                 (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
@@ -1544,7 +1586,7 @@ export const Router_CCIPSend = {
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
         b.storeRef(self.data);
-        b.storeRef(self.tokenAmounts);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
             (v,b) => { switch (v.$) {
@@ -1683,13 +1725,13 @@ export const Router_RMNRemoteCurse = {
         return {
             $: 'Router_RMNRemoteCurse',
             queryId: s.loadUintBig(64),
-            subjects: s.loadRef(),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
         }
     },
     store(self: Router_RMNRemoteCurse, b: c.Builder): void {
         b.storeUint(0xf3388046, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.subjects);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
     },
     toCell(self: Router_RMNRemoteCurse): c.Cell {
         return makeCellFrom<Router_RMNRemoteCurse>(self, Router_RMNRemoteCurse.store);
@@ -1725,13 +1767,13 @@ export const Router_RMNRemoteUncurse = {
         return {
             $: 'Router_RMNRemoteUncurse',
             queryId: s.loadUintBig(64),
-            subjects: s.loadRef(),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
         }
     },
     store(self: Router_RMNRemoteUncurse, b: c.Builder): void {
         b.storeUint(0x3f153a31, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.subjects);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
     },
     toCell(self: Router_RMNRemoteUncurse): c.Cell {
         return makeCellFrom<Router_RMNRemoteUncurse>(self, Router_RMNRemoteUncurse.store);
@@ -2473,12 +2515,12 @@ export const OnRampSet = {
     fromSlice(s: c.Slice): OnRampSet {
         return {
             $: 'OnRampSet',
-            destChainSelectors: s.loadRef(),
+            destChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
             onRamp: s.loadMaybeAddress(),
         }
     },
     store(self: OnRampSet, b: c.Builder): void {
-        b.storeRef(self.destChainSelectors);
+        storeSnakedCellOf(self.destChainSelectors, b, (v, b) => b.storeUint(v, 64));
         b.storeAddress(self.onRamp);
     },
     toCell(self: OnRampSet): c.Cell {
@@ -2511,12 +2553,12 @@ export const OffRampAdded = {
     fromSlice(s: c.Slice): OffRampAdded {
         return {
             $: 'OffRampAdded',
-            sourceChainSelectors: s.loadRef(),
+            sourceChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
             offRampAdded: s.loadAddress(),
         }
     },
     store(self: OffRampAdded, b: c.Builder): void {
-        b.storeRef(self.sourceChainSelectors);
+        storeSnakedCellOf(self.sourceChainSelectors, b, (v, b) => b.storeUint(v, 64));
         b.storeAddress(self.offRampAdded);
     },
     toCell(self: OffRampAdded): c.Cell {
@@ -2549,12 +2591,12 @@ export const OffRampRemoved = {
     fromSlice(s: c.Slice): OffRampRemoved {
         return {
             $: 'OffRampRemoved',
-            sourceChainSelectors: s.loadRef(),
+            sourceChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
             offRampRemoved: s.loadAddress(),
         }
     },
     store(self: OffRampRemoved, b: c.Builder): void {
-        b.storeRef(self.sourceChainSelectors);
+        storeSnakedCellOf(self.sourceChainSelectors, b, (v, b) => b.storeUint(v, 64));
         b.storeAddress(self.offRampRemoved);
     },
     toCell(self: OffRampRemoved): c.Cell {
@@ -2768,7 +2810,7 @@ export const SVMExtraArgsV1 = {
             accountIsWritableBitmap: s.loadUintBig(64),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            accounts: s.loadRef(),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SVMExtraArgsV1, b: c.Builder): void {
@@ -2777,7 +2819,7 @@ export const SVMExtraArgsV1 = {
         b.storeUint(self.accountIsWritableBitmap, 64);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.accounts);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SVMExtraArgsV1): c.Cell {
         return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
@@ -2821,7 +2863,7 @@ export const SuiExtraArgsV1 = {
             gasLimit: s.loadUintBig(256),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            receiverObjectIds: s.loadRef(),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SuiExtraArgsV1, b: c.Builder): void {
@@ -2829,7 +2871,7 @@ export const SuiExtraArgsV1 = {
         b.storeUint(self.gasLimit, 256);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.receiverObjectIds);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SuiExtraArgsV1): c.Cell {
         return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);

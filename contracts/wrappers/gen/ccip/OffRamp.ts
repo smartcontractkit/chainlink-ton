@@ -638,16 +638,16 @@ export const OCR3Base_ConfigSet = {
             $: 'OCR3Base_ConfigSet',
             ocrPluginType: s.loadUintBig(16),
             configDigest: s.loadUintBig(256),
-            signers: s.loadRef(),
-            transmitters: s.loadRef(),
+            signers: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            transmitters: loadSnakedCellOf(s, (s) => s.loadAddress()),
             bigF: s.loadUintBig(8),
         }
     },
     store(self: OCR3Base_ConfigSet, b: c.Builder): void {
         b.storeUint(self.ocrPluginType, 16);
         b.storeUint(self.configDigest, 256);
-        b.storeRef(self.signers);
-        b.storeRef(self.transmitters);
+        storeSnakedCellOf(self.signers, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.transmitters, b, (v, b) => b.storeAddress(v));
         b.storeUint(self.bigF, 8);
     },
     toCell(self: OCR3Base_ConfigSet): c.Cell {
@@ -746,8 +746,8 @@ export const OCR3Base_SetOCR3Config = {
             ocrPluginType: s.loadUintBig(16),
             bigF: s.loadUintBig(8),
             isSignatureVerificationEnabled: s.loadBoolean(),
-            signers: s.loadRef(),
-            transmitters: s.loadRef(),
+            signers: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            transmitters: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: OCR3Base_SetOCR3Config, b: c.Builder): void {
@@ -757,8 +757,8 @@ export const OCR3Base_SetOCR3Config = {
         b.storeUint(self.ocrPluginType, 16);
         b.storeUint(self.bigF, 8);
         b.storeBit(self.isSignatureVerificationEnabled);
-        b.storeRef(self.signers);
-        b.storeRef(self.transmitters);
+        storeSnakedCellOf(self.signers, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.transmitters, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: OCR3Base_SetOCR3Config): c.Cell {
         return makeCellFrom<OCR3Base_SetOCR3Config>(self, OCR3Base_SetOCR3Config.store);
@@ -996,7 +996,49 @@ export const ReportContext = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct Any2TVMMessage {
@@ -1549,7 +1591,7 @@ export const OffRamp_Commit = {
             queryId: s.loadUintBig(64),
             reportContext: ReportContext.fromSlice(s),
             report: CommitReport.fromSlice(s),
-            signatures: s.loadRef(),
+            signatures: loadSnakedCellOf(s, SignatureEd25519.fromSlice),
         }
     },
     store(self: OffRamp_Commit, b: c.Builder): void {
@@ -1557,7 +1599,7 @@ export const OffRamp_Commit = {
         b.storeUint(self.queryId, 64);
         ReportContext.store(self.reportContext, b);
         CommitReport.store(self.report, b);
-        b.storeRef(self.signatures);
+        storeSnakedCellOf(self.signatures, b, SignatureEd25519.store);
     },
     toCell(self: OffRamp_Commit): c.Cell {
         return makeCellFrom<OffRamp_Commit>(self, OffRamp_Commit.store);
@@ -1746,13 +1788,13 @@ export const OffRamp_UpdateSourceChainConfigs = {
         return {
             $: 'OffRamp_UpdateSourceChainConfigs',
             queryId: s.loadUintBig(64),
-            configs: s.loadRef(),
+            configs: loadSnakedCellOf(s, SourceChainConfigUpdate.fromSlice),
         }
     },
     store(self: OffRamp_UpdateSourceChainConfigs, b: c.Builder): void {
         b.storeUint(0x22b4f05c, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.configs);
+        storeSnakedCellOf(self.configs, b, SourceChainConfigUpdate.store);
     },
     toCell(self: OffRamp_UpdateSourceChainConfigs): c.Cell {
         return makeCellFrom<OffRamp_UpdateSourceChainConfigs>(self, OffRamp_UpdateSourceChainConfigs.store);
@@ -2196,7 +2238,7 @@ export const ExecutionReport = {
             sourceChainSelector: s.loadUintBig(64),
             messages: s.loadRef(),
             offchainTokenData: s.loadRef(),
-            proofs: s.loadRef(),
+            proofs: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             proofFlagBits: s.loadUintBig(256),
         }
     },
@@ -2204,7 +2246,7 @@ export const ExecutionReport = {
         b.storeUint(self.sourceChainSelector, 64);
         b.storeRef(self.messages);
         b.storeRef(self.offchainTokenData);
-        b.storeRef(self.proofs);
+        storeSnakedCellOf(self.proofs, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.proofFlagBits, 256);
     },
     toCell(self: ExecutionReport): c.Cell {
@@ -2238,14 +2280,14 @@ export const CommitReport = {
         return {
             $: 'CommitReport',
             priceUpdates: s.loadBoolean() ? loadCellRef<PriceUpdates>(s, PriceUpdates.fromSlice) : null,
-            merkleRoots: s.loadRef(),
+            merkleRoots: loadSnakedCellOf(s, MerkleRoot.fromSlice),
         }
     },
     store(self: CommitReport, b: c.Builder): void {
         storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
-        b.storeRef(self.merkleRoots);
+        storeSnakedCellOf(self.merkleRoots, b, MerkleRoot.store);
     },
     toCell(self: CommitReport): c.Cell {
         return makeCellFrom<CommitReport>(self, CommitReport.store);
@@ -2433,7 +2475,7 @@ export const Any2TVMRampMessage = {
             data: s.loadRef(),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
@@ -2442,9 +2484,7 @@ export const Any2TVMRampMessage = {
         b.storeRef(self.data);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
-        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
@@ -3075,13 +3115,13 @@ export const PriceUpdates = {
     fromSlice(s: c.Slice): PriceUpdates {
         return {
             $: 'PriceUpdates',
-            tokenPriceUpdates: s.loadRef(),
-            gasPriceUpdates: s.loadRef(),
+            tokenPriceUpdates: loadSnakedCellOf(s, TokenPriceUpdate.fromSlice),
+            gasPriceUpdates: loadSnakedCellOf(s, GasPriceUpdate.fromSlice),
         }
     },
     store(self: PriceUpdates, b: c.Builder): void {
-        b.storeRef(self.tokenPriceUpdates);
-        b.storeRef(self.gasPriceUpdates);
+        storeSnakedCellOf(self.tokenPriceUpdates, b, TokenPriceUpdate.store);
+        storeSnakedCellOf(self.gasPriceUpdates, b, GasPriceUpdate.store);
     },
     toCell(self: PriceUpdates): c.Cell {
         return makeCellFrom<PriceUpdates>(self, PriceUpdates.store);

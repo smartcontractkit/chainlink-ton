@@ -34,7 +34,6 @@ import { setupGenBindings } from '../../../wrappers/gen'
 
 import * as rtOld from '../../../wrappers/ccip/Router'
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
-import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
@@ -159,39 +158,32 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.2'),
       {
         queryId: 1n,
-        remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
-        chainsToAdd: asSnakedCell(
-          [
-            TokenPool_ChainUpdate.create({
-              remoteChainSelector,
-              remotePoolAddresses: asSnakedCell([sourcePoolAddress], (item) => {
-                let b = beginCell()
-                CrossChainAddress.store(item, b)
-                return b
+        remoteChainSelectorsToRemove: [],
+        chainsToAdd: [
+          TokenPool_ChainUpdate.create({
+            remoteChainSelector,
+            remotePoolAddresses: [sourcePoolAddress],
+            remoteTokenAddress: { ref: destTokenAddress },
+            rateLimitConfigs: {
+              ref: TokenPool_RateLimitConfigPair.create({
+                outbound: {
+                  ref: RateLimiter_Config.create({
+                    isEnabled: true,
+                    capacity: toNano('100'),
+                    rate: 1n,
+                  }),
+                },
+                inbound: {
+                  ref: RateLimiter_Config.create({
+                    isEnabled: true,
+                    capacity: toNano('100'),
+                    rate: 1n,
+                  }),
+                },
               }),
-              remoteTokenAddress: { ref: destTokenAddress },
-              rateLimitConfigs: {
-                ref: TokenPool_RateLimitConfigPair.create({
-                  outbound: {
-                    ref: RateLimiter_Config.create({
-                      isEnabled: true,
-                      capacity: toNano('100'),
-                      rate: 1n,
-                    }),
-                  },
-                  inbound: {
-                    ref: RateLimiter_Config.create({
-                      isEnabled: true,
-                      capacity: toNano('100'),
-                      rate: 1n,
-                    }),
-                  },
-                }),
-              },
-            }),
-          ],
-          (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
-        ),
+            },
+          }),
+        ],
       },
     )
 
@@ -206,16 +198,13 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.2'),
       {
         queryId: 2n,
-        updates: asSnakedCell(
-          [
-            TokenPool_RampUpdate.create({
-              remoteChainSelector,
-              onRamp: deployer.address,
-              offRamp: offRamp.address,
-            }),
-          ],
-          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-        ),
+        updates: [
+          TokenPool_RampUpdate.create({
+            remoteChainSelector,
+            onRamp: deployer.address,
+            offRamp: offRamp.address,
+          }),
+        ],
       },
     )
 

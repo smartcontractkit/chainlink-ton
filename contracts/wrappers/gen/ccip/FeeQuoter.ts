@@ -497,13 +497,13 @@ export const FeeQuoter_UpdateFeeTokens = {
         return {
             $: 'FeeQuoter_UpdateFeeTokens',
             add: c.Dictionary.load<c.Address, FeeToken>(c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store), s),
-            remove: s.loadRef(),
+            remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: FeeQuoter_UpdateFeeTokens, b: c.Builder): void {
         b.storeUint(0xd0984986, 32);
         b.storeDict<c.Address, FeeToken>(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store));
-        b.storeRef(self.remove);
+        storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: FeeQuoter_UpdateFeeTokens): c.Cell {
         return makeCellFrom<FeeQuoter_UpdateFeeTokens>(self, FeeQuoter_UpdateFeeTokens.store);
@@ -630,12 +630,12 @@ export const FeeQuoter_UpdateDestChainConfigs = {
         loadAndCheckPrefix32(s, 0x2d2410f6, 'FeeQuoter_UpdateDestChainConfigs');
         return {
             $: 'FeeQuoter_UpdateDestChainConfigs',
-            updates: s.loadRef(),
+            updates: loadSnakedCellOf(s, FeeQuoter_UpdateDestChainConfig.fromSlice),
         }
     },
     store(self: FeeQuoter_UpdateDestChainConfigs, b: c.Builder): void {
         b.storeUint(0x2d2410f6, 32);
-        b.storeRef(self.updates);
+        storeSnakedCellOf(self.updates, b, FeeQuoter_UpdateDestChainConfig.store);
     },
     toCell(self: FeeQuoter_UpdateDestChainConfigs): c.Cell {
         return makeCellFrom<FeeQuoter_UpdateDestChainConfigs>(self, FeeQuoter_UpdateDestChainConfigs.store);
@@ -779,13 +779,13 @@ export const PriceUpdates = {
     fromSlice(s: c.Slice): PriceUpdates {
         return {
             $: 'PriceUpdates',
-            tokenPriceUpdates: s.loadRef(),
-            gasPriceUpdates: s.loadRef(),
+            tokenPriceUpdates: loadSnakedCellOf(s, TokenPriceUpdate.fromSlice),
+            gasPriceUpdates: loadSnakedCellOf(s, GasPriceUpdate.fromSlice),
         }
     },
     store(self: PriceUpdates, b: c.Builder): void {
-        b.storeRef(self.tokenPriceUpdates);
-        b.storeRef(self.gasPriceUpdates);
+        storeSnakedCellOf(self.tokenPriceUpdates, b, TokenPriceUpdate.store);
+        storeSnakedCellOf(self.gasPriceUpdates, b, GasPriceUpdate.store);
     },
     toCell(self: PriceUpdates): c.Cell {
         return makeCellFrom<PriceUpdates>(self, PriceUpdates.store);
@@ -1161,12 +1161,12 @@ export const UpdateTokenTransferFeeConfig = {
         return {
             $: 'UpdateTokenTransferFeeConfig',
             add: c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s),
-            remove: s.loadRef(),
+            remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: UpdateTokenTransferFeeConfig, b: c.Builder): void {
         b.storeDict<c.Address, TokenTransferFeeConfig>(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
-        b.storeRef(self.remove);
+        storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: UpdateTokenTransferFeeConfig): c.Cell {
         return makeCellFrom<UpdateTokenTransferFeeConfig>(self, UpdateTokenTransferFeeConfig.store);
@@ -1463,7 +1463,7 @@ export const SVMExtraArgsV1 = {
             accountIsWritableBitmap: s.loadUintBig(64),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            accounts: s.loadRef(),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SVMExtraArgsV1, b: c.Builder): void {
@@ -1472,7 +1472,7 @@ export const SVMExtraArgsV1 = {
         b.storeUint(self.accountIsWritableBitmap, 64);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.accounts);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SVMExtraArgsV1): c.Cell {
         return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
@@ -1516,7 +1516,7 @@ export const SuiExtraArgsV1 = {
             gasLimit: s.loadUintBig(256),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            receiverObjectIds: s.loadRef(),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SuiExtraArgsV1, b: c.Builder): void {
@@ -1524,7 +1524,7 @@ export const SuiExtraArgsV1 = {
         b.storeUint(self.gasLimit, 256);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.receiverObjectIds);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SuiExtraArgsV1): c.Cell {
         return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
@@ -1830,7 +1830,49 @@ export const Upgradeable_UpgradedEvent = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct (0x31768d95) Router_CCIPSend {
@@ -1879,7 +1921,7 @@ export const Router_CCIPSend = {
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadRef(),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
             extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
                 (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
@@ -1895,7 +1937,7 @@ export const Router_CCIPSend = {
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
         b.storeRef(self.data);
-        b.storeRef(self.tokenAmounts);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
             (v,b) => { switch (v.$) {

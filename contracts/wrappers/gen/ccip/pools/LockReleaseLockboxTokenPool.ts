@@ -258,7 +258,49 @@ type uint256 = bigint
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -854,14 +896,14 @@ export const TokenPool_ChainUpdate = {
         return {
             $: 'TokenPool_ChainUpdate',
             remoteChainSelector: s.loadUintBig(64),
-            remotePoolAddresses: s.loadRef(),
+            remotePoolAddresses: loadSnakedCellOf(s, CrossChainAddress.fromSlice),
             remoteTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             rateLimitConfigs: loadCellRef<TokenPool_RateLimitConfigPair>(s, TokenPool_RateLimitConfigPair.fromSlice),
         }
     },
     store(self: TokenPool_ChainUpdate, b: c.Builder): void {
         b.storeUint(self.remoteChainSelector, 64);
-        b.storeRef(self.remotePoolAddresses);
+        storeSnakedCellOf(self.remotePoolAddresses, b, CrossChainAddress.store);
         storeCellRef<CrossChainAddress>(self.remoteTokenAddress, b, CrossChainAddress.store);
         storeCellRef<TokenPool_RateLimitConfigPair>(self.rateLimitConfigs, b, TokenPool_RateLimitConfigPair.store);
     },
@@ -1486,15 +1528,15 @@ export const TokenPool_ApplyChainUpdates = {
         return {
             $: 'TokenPool_ApplyChainUpdates',
             queryId: s.loadUintBig(64),
-            remoteChainSelectorsToRemove: s.loadRef(),
-            chainsToAdd: s.loadRef(),
+            remoteChainSelectorsToRemove: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
+            chainsToAdd: loadSnakedCellOf(s, TokenPool_ChainUpdate.fromSlice),
         }
     },
     store(self: TokenPool_ApplyChainUpdates, b: c.Builder): void {
         b.storeUint(0x56f73d37, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.remoteChainSelectorsToRemove);
-        b.storeRef(self.chainsToAdd);
+        storeSnakedCellOf(self.remoteChainSelectorsToRemove, b, (v, b) => b.storeUint(v, 64));
+        storeSnakedCellOf(self.chainsToAdd, b, TokenPool_ChainUpdate.store);
     },
     toCell(self: TokenPool_ApplyChainUpdates): c.Cell {
         return makeCellFrom<TokenPool_ApplyChainUpdates>(self, TokenPool_ApplyChainUpdates.store);
@@ -1762,13 +1804,13 @@ export const TokenPool_SetRateLimitConfig = {
         return {
             $: 'TokenPool_SetRateLimitConfig',
             queryId: s.loadUintBig(64),
-            updates: s.loadRef(),
+            updates: loadSnakedCellOf(s, TokenPool_RateLimitConfigArgs.fromSlice),
         }
     },
     store(self: TokenPool_SetRateLimitConfig, b: c.Builder): void {
         b.storeUint(0x4fe2d26c, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.updates);
+        storeSnakedCellOf(self.updates, b, TokenPool_RateLimitConfigArgs.store);
     },
     toCell(self: TokenPool_SetRateLimitConfig): c.Cell {
         return makeCellFrom<TokenPool_SetRateLimitConfig>(self, TokenPool_SetRateLimitConfig.store);
@@ -1807,15 +1849,15 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
         return {
             $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
             queryId: s.loadUintBig(64),
-            updates: s.loadRef(),
-            disableChainSelectors: s.loadRef(),
+            updates: loadSnakedCellOf(s, TokenPool_TokenTransferFeeConfigArgs.fromSlice),
+            disableChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
         }
     },
     store(self: TokenPool_ApplyTokenTransferFeeConfigUpdates, b: c.Builder): void {
         b.storeUint(0x30a1d1f7, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.updates);
-        b.storeRef(self.disableChainSelectors);
+        storeSnakedCellOf(self.updates, b, TokenPool_TokenTransferFeeConfigArgs.store);
+        storeSnakedCellOf(self.disableChainSelectors, b, (v, b) => b.storeUint(v, 64));
     },
     toCell(self: TokenPool_ApplyTokenTransferFeeConfigUpdates): c.Cell {
         return makeCellFrom<TokenPool_ApplyTokenTransferFeeConfigUpdates>(self, TokenPool_ApplyTokenTransferFeeConfigUpdates.store);
@@ -1851,13 +1893,13 @@ export const TokenPool_UpdateRampAccess = {
         return {
             $: 'TokenPool_UpdateRampAccess',
             queryId: s.loadUintBig(64),
-            updates: s.loadRef(),
+            updates: loadSnakedCellOf(s, TokenPool_RampUpdate.fromSlice),
         }
     },
     store(self: TokenPool_UpdateRampAccess, b: c.Builder): void {
         b.storeUint(0xe30764be, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.updates);
+        storeSnakedCellOf(self.updates, b, TokenPool_RampUpdate.store);
     },
     toCell(self: TokenPool_UpdateRampAccess): c.Cell {
         return makeCellFrom<TokenPool_UpdateRampAccess>(self, TokenPool_UpdateRampAccess.store);
