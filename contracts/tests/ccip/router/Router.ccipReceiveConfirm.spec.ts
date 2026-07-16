@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
-import * as of from '../../../wrappers/ccip/OffRamp'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
@@ -65,11 +65,11 @@ describe('Router', () => {
       from: router.address,
       to: offRamp.address,
       success: true,
-      op: of.opcodes.in.ccipReceiveConfirm,
+      op: of.OffRamp_CCIPReceiveConfirm.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = of.builder.messages.in.ccipReceiveConfirm.load(x.beginParse())
-        return decoded.execID === execID
+        const decoded = of.OffRamp_CCIPReceiveConfirm.fromSlice(x.beginParse())
+        return decoded.execId === execID
       },
     })
   })

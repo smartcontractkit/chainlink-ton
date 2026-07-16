@@ -2,7 +2,7 @@ import { beginCell, Builder, Contract, ContractProvider, Sender, Slice } from '@
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
 
-import { Any2TVMMessage, builder as OffRampBuilder } from '../ccip/OffRamp'
+import * as rt from '../gen/ccip/Router'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.lib.Receiver'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
@@ -21,7 +21,7 @@ export const opcodes = {
 
 export type CCIPReceive = {
   rootId: bigint
-  message: Any2TVMMessage
+  message: rt.Any2TVMMessage
 }
 
 export interface Receiver extends Contract {
@@ -41,7 +41,7 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.ccipReceive, 32)
             .storeUint(opts.rootId, 192)
-            .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
+            .storeBuilder(rt.Any2TVMMessage.toCell(opts.message).asBuilder())
         },
         load: function (src: Slice): CCIPReceive {
           // TODO We can check that the opcode matches
@@ -49,7 +49,7 @@ export const builder = {
 
           return {
             rootId: src.loadUintBig(192),
-            message: OffRampBuilder.data.any2TVMMessage.load(src),
+            message: rt.Any2TVMMessage.fromSlice(src),
           }
         },
       }

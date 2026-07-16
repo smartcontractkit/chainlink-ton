@@ -38,3 +38,14 @@ export const codec: CellCodec<Buffer> = {
     return src.loadBuffer(len)
   },
 }
+
+const TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE = 36
+
+export function FromTonAddress(addr: c.Address): rt.CrossChainAddress {
+  const hash = addr.hash
+  return c
+    .beginCell()
+    .storeUint(0, 32) // basechain prefix
+    .storeBuffer(hash, 32) // accountId (hash)
+    .asSlice()
+}

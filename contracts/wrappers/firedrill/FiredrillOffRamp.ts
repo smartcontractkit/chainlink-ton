@@ -9,14 +9,13 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Config, CrossChainAddress, SourceChainConfig } from '../ccip/OffRamp'
-import { OCR3Config } from '../libraries/ocr/MultiOCR3Base'
+import * as of from '../gen/ccip/OffRamp'
 
 export type FiredrillOffRampStorage = {
   id: bigint
   controlAddress: Address
   chainSelector: bigint
-  onRampAddress: CrossChainAddress
+  onRampAddress: of.CrossChainAddress
 }
 
 export function firedrillOffRampStorageToCell(config: FiredrillOffRampStorage): Cell {
@@ -24,8 +23,7 @@ export function firedrillOffRampStorageToCell(config: FiredrillOffRampStorage): 
     .storeUint(config.id, 32)
     .storeAddress(config.controlAddress)
     .storeUint(config.chainSelector, 64)
-    .storeUint(config.onRampAddress.byteLength, 8)
-    .storeBuffer(config.onRampAddress, config.onRampAddress.byteLength)
+    .storeBuilder(of.CrossChainAddress.toCell(config.onRampAddress).asBuilder())
     .endCell()
 }
 
@@ -86,19 +84,19 @@ export class FiredrillOffRamp implements Contract {
     })
   }
 
-  async getConfig(provider: ContractProvider): Promise<Config> {
+  async getConfig(provider: ContractProvider): Promise<of.Config> {
     const result = await provider.get('config', [])
-    return {
+    return of.Config.create({
       chainSelector: result.stack.readBigNumber(),
       feeQuoter: result.stack.readAddress(),
-      permissionlessExecutionThresholdSeconds: result.stack.readNumber(),
-    }
+      permissionlessExecutionThresholdSeconds: result.stack.readBigNumber(),
+    })
   }
 
   async getSourceChainConfig(
     provider: ContractProvider,
     sourceChainSelector: bigint,
-  ): Promise<SourceChainConfig> {
+  ): Promise<of.SourceChainConfig> {
     const result = await provider.get('sourceChainConfig', [
       { type: 'int', value: sourceChainSelector },
     ])
@@ -106,16 +104,14 @@ export class FiredrillOffRamp implements Contract {
     const isEnabled = result.stack.readBoolean()
     const minSeqNr = result.stack.readBigNumber()
     const isRMNVerificationDisabled = result.stack.readBoolean()
-    const onRampSlice = result.stack.readCell().beginParse()
-    const remaining = onRampSlice.remainingBits
-    const onRamp = onRampSlice.loadBuffer(remaining / 8)
+    const onRamp = result.stack.readCell().beginParse()
 
-    return {
+    return of.SourceChainConfig.create({
       router,
       isEnabled,
       minSeqNr,
       isRMNVerificationDisabled,
       onRamp,
-    }
+    })
   }
 }

@@ -39,7 +39,6 @@ import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
 import { contractCode } from '../../wrappers/codeLoader'
-import { setupGenBindings } from '../../wrappers/gen'
 import * as dict from '../../src/utils/dict'
 import * as CrossChainAddressCodec from '../../wrappers/ccip/common/CrossChainAddressCodec'
 
@@ -169,8 +168,8 @@ async function deployOffRampContract(
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: ofManual.OffRamp.type(),
-    version: ofManual.OffRamp.version(),
+    type: ofManual.FACILITY_NAME,
+    version: ofManual.OFFRAMP_CONTRACT_VERSION,
     deployContract: deployOffRampContract,
   })
   currentVersionSpec.run([
@@ -198,7 +197,7 @@ describe('OffRamp - Withdrawable Tests', () => {
 
 describe('OffRamp - Upgrade Tests', () => {
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: ofManual.OffRamp.type(),
+    contractType: ofManual.FACILITY_NAME,
     prevVersionConfigs: Object.entries(ofManual.SUPPORTED_PREV_VERSIONS).map(
       ([version, getCode]) => ({
         version,
@@ -207,8 +206,8 @@ describe('OffRamp - Upgrade Tests', () => {
           deployOffRampContract(blockchain, owner, await getCode()),
       }),
     ),
-    currentVersion: ofManual.OffRamp.version(),
-    getCurrentCode: () => ofManual.OffRamp.code(),
+    currentVersion: ofManual.OFFRAMP_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local(ofManual.ARTIFACT_NAME),
     CurrentVersionConstructor: of.OffRamp.fromAddress,
     upgradeValue: toNano('0.05'),
   })
@@ -222,9 +221,9 @@ describe('OffRamp - Upgrade Tests', () => {
 
 describe('OffRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: ofManual.OffRamp.type(),
-    currentVersion: ofManual.OffRamp.version(),
-    getCurrentCode: () => ofManual.OffRamp.code(),
+    contractType: ofManual.FACILITY_NAME,
+    currentVersion: ofManual.OFFRAMP_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local(ofManual.ARTIFACT_NAME),
     CurrentVersionConstructor: of.OffRamp.fromAddress,
     deployCurrentContract: deployOffRampContract,
   })
@@ -410,10 +409,10 @@ describe('OffRamp - Unit Tests', () => {
     for (const config of configs) {
       assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
         sourceChainSelector: config.sourceChainSelector,
-        config: {
+        sourceChainConfig: {
           ...config.config,
           ...overrides,
-          onRamp: CrossChainAddressCodec.ToBuffer(config.config.onRamp),
+          onRamp: config.config.onRamp,
           minSeqNr: expect.anything(),
         },
       })
@@ -580,7 +579,6 @@ describe('OffRamp - Unit Tests', () => {
   }
 
   beforeAll(async () => {
-    setupGenBindings()
     blockchain = await Blockchain.create()
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
@@ -1613,12 +1611,13 @@ describe('OffRamp - Unit Tests', () => {
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
-        message: {
+        message: of.Any2TVMMessage.create({
           messageId: message.header.messageId,
           sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: CrossChainAddressCodec.ToBuffer(message.sender),
+          sender: message.sender,
           data: message.data,
-        },
+          tokenAmounts: null,
+        }),
       },
     )
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
@@ -1897,12 +1896,13 @@ describe('OffRamp - Unit Tests', () => {
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
-        message: {
+        message: of.Any2TVMMessage.create({
           messageId: message.header.messageId,
           sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: CrossChainAddressCodec.ToBuffer(message.sender),
+          sender: message.sender,
           data: message.data,
-        },
+          tokenAmounts: null,
+        }),
       },
     )
   })
@@ -1938,12 +1938,13 @@ describe('OffRamp - Unit Tests', () => {
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
-        message: {
+        message: of.Any2TVMMessage.create({
           messageId: message.header.messageId,
           sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: CrossChainAddressCodec.ToBuffer(message.sender),
+          sender: message.sender,
           data: message.data,
-        },
+          tokenAmounts: null,
+        }),
       },
     )
   })
@@ -2101,12 +2102,13 @@ describe('OffRamp - Unit Tests', () => {
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
-        message: {
+        message: of.Any2TVMMessage.create({
           messageId: message.header.messageId,
           sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: CrossChainAddressCodec.ToBuffer(message.sender),
+          sender: message.sender,
           data: message.data,
-        },
+          tokenAmounts: null,
+        }),
       },
     )
   })
@@ -2178,12 +2180,13 @@ describe('OffRamp - Unit Tests', () => {
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
-        message: {
+        message: of.Any2TVMMessage.create({
           messageId: message.header.messageId,
           sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: CrossChainAddressCodec.ToBuffer(message.sender),
+          sender: message.sender,
           data: message.data,
-        },
+          tokenAmounts: null,
+        }),
       },
     )
   })
@@ -2254,12 +2257,13 @@ describe('OffRamp - Unit Tests', () => {
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
-        message: {
+        message: of.Any2TVMMessage.create({
           messageId: message.header.messageId,
           sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: CrossChainAddressCodec.ToBuffer(message.sender),
+          sender: message.sender,
           data: message.data,
-        },
+          tokenAmounts: null,
+        }),
       },
     )
   })

@@ -30,7 +30,6 @@ import {
   JettonClient,
   LockReleaseTokenPool,
 } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
-import { setupGenBindings } from '../../../wrappers/gen'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
@@ -57,8 +56,6 @@ describe('LockReleaseTokenPool', () => {
   let receiverAddress: CrossChainAddress
 
   beforeAll(async () => {
-    setupGenBindings()
-
     sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
     destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
     receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))

@@ -36,7 +36,6 @@ import {
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
-import { setupGenBindings } from '../../../wrappers/gen'
 
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
@@ -72,8 +71,6 @@ describe('LockReleaseLockboxTokenPool', () => {
   let receiverAddress: CrossChainAddress
 
   beforeAll(async () => {
-    setupGenBindings()
-
     sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
     destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
     receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))

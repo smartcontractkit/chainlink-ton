@@ -9,6 +9,7 @@ import { crc32 } from 'zlib'
 import * as onramp from '../wrappers/ccip/OnRamp'
 import * as router from '../wrappers/ccip/Router'
 import * as of from '../wrappers/gen/ccip/OffRamp'
+import { Decoder } from '../src/utils/codec'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -17,21 +18,21 @@ export const getExternals = (transactions: BlockchainTransaction[]) => {
 }
 
 export const testLog = (
-  message: Message,
+  actual: Message,
   from: Address,
   topic: string,
   matcher?: (body: Cell) => boolean,
 ) => {
-  if (message.info.type !== 'external-out') {
+  if (actual.info.type !== 'external-out') {
     console.log('Wrong from')
     return false
   }
-  if (!message.info.src.equals(from)) return false
-  if (!message.info.dest) return false
-  if (message.info.dest!.value !== BigInt(crc32(topic))) return false
+  if (!actual.info.src.equals(from)) return false
+  if (!actual.info.dest) return false
+  if (actual.info.dest!.value !== BigInt(crc32(topic))) return false
   if (matcher !== undefined) {
-    if (!message.body) console.log('No body')
-    return matcher(message.body)
+    if (!actual.body) console.log('No body')
+    return matcher(actual.body)
   }
   return true
 }
@@ -53,13 +54,13 @@ type DeepPartial<T> = {
   [P in keyof T]?: DeepPartial<T[P]>
 }
 
-// map from log type → match payload type
+// map from log type → expected payload type
 type LogTypeMap = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<onramp.CCIPMessageSent>
   [CCIPLogs.LogTypes.CommitReportAccepted]: DeepPartial<of.CommitReportAccepted>
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: CCIPLogs.SourceChainSelectorAdded
-  [CCIPLogs.LogTypes.SourceChainConfigUpdated]: CCIPLogs.SourceChainConfigUpdated
+  [CCIPLogs.LogTypes.SourceChainConfigUpdated]: DeepPartial<of.SourceChainConfigUpdated>
   [CCIPLogs.LogTypes.DestChainSelectorAdded]: CCIPLogs.DestChainSelectorAdded
   [CCIPLogs.LogTypes.DestChainConfigUpdated]: DeepPartial<CCIPLogs.DestChainConfigUpdated>
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
@@ -86,82 +87,134 @@ type LogMatch<T extends CombinedLogType> = LogTypeMap[T]
 
 // Strongly-typed handler map
 type Handler<T extends CombinedLogType> = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: LogTypeMap[T],
+  expected: LogTypeMap[T],
   addressesMap: Map<string, string>,
 ) => boolean
 
 const handlers: { [K in CombinedLogType]: Handler<K> } = {
-  [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match, addressesMap) =>
-    testLogCCIPMessageSent(x, from, match as DeepPartial<onramp.CCIPMessageSent>, addressesMap),
+  [CCIPLogs.LogTypes.CCIPMessageSent]: (actual, from, expected, addressesMap) =>
+    testLogCCIPMessageSent(
+      actual,
+      from,
+      expected as DeepPartial<onramp.CCIPMessageSent>,
+      addressesMap,
+    ),
 
-  [CCIPLogs.LogTypes.CommitReportAccepted]: (x, from, match) =>
-    testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<of.CommitReportAccepted>),
+  [CCIPLogs.LogTypes.CommitReportAccepted]: (actual, from, expected) =>
+    testLogGen(
+      actual,
+      from,
+      CCIPLogs.LogTypes.CommitReportAccepted,
+      expected as DeepPartial<of.CommitReportAccepted>,
+      of.CommitReportAccepted,
+    ),
 
-  [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
-    testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
+  [CCIPLogs.LogTypes.ExecutionStateChanged]: (actual, from, expected) =>
+    testLogCCIPExecutionStateChanged(
+      actual,
+      from,
+      expected as DeepPartial<CCIPLogs.ExecutionStateChanged>,
+    ),
 
-  [CCIPLogs.LogTypes.SourceChainSelectorAdded]: (x, from, match) =>
-    testLogSourceChainSelectorAdded(x, from, match as CCIPLogs.SourceChainSelectorAdded),
+  [CCIPLogs.LogTypes.SourceChainSelectorAdded]: (actual, from, expected) =>
+    testLogSourceChainSelectorAdded(actual, from, expected as CCIPLogs.SourceChainSelectorAdded),
 
-  [CCIPLogs.LogTypes.SourceChainConfigUpdated]: (x, from, match) =>
-    testLogSourceChainConfigUpdated(x, from, match as CCIPLogs.SourceChainConfigUpdated),
+  [CCIPLogs.LogTypes.SourceChainConfigUpdated]: (actual, from, expected) =>
+    testLogGen(
+      actual,
+      from,
+      CCIPLogs.LogTypes.SourceChainConfigUpdated,
+      expected as DeepPartial<of.SourceChainConfigUpdated>,
+      of.SourceChainConfigUpdated,
+    ),
 
-  [CCIPLogs.LogTypes.DestChainSelectorAdded]: (x, from, match) =>
-    testLogDestChainSelectorAdded(x, from, match as CCIPLogs.DestChainSelectorAdded),
+  [CCIPLogs.LogTypes.DestChainSelectorAdded]: (actual, from, expected) =>
+    testLogDestChainSelectorAdded(actual, from, expected as CCIPLogs.DestChainSelectorAdded),
 
-  [CCIPLogs.LogTypes.DestChainConfigUpdated]: (x, from, match) =>
-    testLogDestChainConfigUpdated(x, from, match as DeepPartial<CCIPLogs.DestChainConfigUpdated>),
+  [CCIPLogs.LogTypes.DestChainConfigUpdated]: (actual, from, expected) =>
+    testLogDestChainConfigUpdated(
+      actual,
+      from,
+      expected as DeepPartial<CCIPLogs.DestChainConfigUpdated>,
+    ),
 
-  [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
-    testLogReceiverCCIPMessageReceived(x, from, match as CCIPLogs.ReceiverCCIPMessageReceived),
+  [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: (actual, from, expected) =>
+    testLogReceiverCCIPMessageReceived(
+      actual,
+      from,
+      expected as CCIPLogs.ReceiverCCIPMessageReceived,
+    ),
 
-  [OCR3Logs.LogTypes.OCR3BaseConfigSet]: (x, from, match) =>
-    testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet),
+  [OCR3Logs.LogTypes.OCR3BaseConfigSet]: (actual, from, expected) =>
+    testConfigSetLogMessage(actual, from, expected as OCR3Logs.OCR3BaseConfigSet),
 
-  [OCR3Logs.LogTypes.OCR3BaseTransmitted]: (x, from, match) =>
-    testTransmittedLogMessage(x, from, match as Partial<OCR3Logs.OCR3BaseTransmitted>),
+  [OCR3Logs.LogTypes.OCR3BaseTransmitted]: (actual, from, expected) =>
+    testTransmittedLogMessage(actual, from, expected as Partial<OCR3Logs.OCR3BaseTransmitted>),
 
-  [CCIPLogs.LogTypes.OnRampSet]: (x, from, match) =>
-    testLogRampSet(x, from, match as CCIPLogs.OnRampSet),
+  [CCIPLogs.LogTypes.OnRampSet]: (actual, from, expected) =>
+    testLogRampSet(actual, from, expected as CCIPLogs.OnRampSet),
 
-  [CCIPLogs.LogTypes.OffRampAdded]: (x, from, match) =>
-    testLogOffRampAdded(x, from, match as CCIPLogs.OffRampAdded),
+  [CCIPLogs.LogTypes.OffRampAdded]: (actual, from, expected) =>
+    testLogOffRampAdded(actual, from, expected as CCIPLogs.OffRampAdded),
 
-  [CCIPLogs.LogTypes.OffRampRemoved]: (x, from, match) =>
-    testLogOffRampRemoved(x, from, match as CCIPLogs.OffRampRemoved),
+  [CCIPLogs.LogTypes.OffRampRemoved]: (actual, from, expected) =>
+    testLogOffRampRemoved(actual, from, expected as CCIPLogs.OffRampRemoved),
 
-  [CCIPLogs.LogTypes.Cursed]: (x, from, match) =>
-    testLogRMNRemoteCursed(x, from, match as CCIPLogs.Cursed),
+  [CCIPLogs.LogTypes.Cursed]: (actual, from, expected) =>
+    testLogRMNRemoteCursed(actual, from, expected as CCIPLogs.Cursed),
 
-  [CCIPLogs.LogTypes.Uncursed]: (x, from, match) =>
-    testLogRMNRemoteUncursed(x, from, match as CCIPLogs.Uncursed),
+  [CCIPLogs.LogTypes.Uncursed]: (actual, from, expected) =>
+    testLogRMNRemoteUncursed(actual, from, expected as CCIPLogs.Uncursed),
 
-  [CCIPLogs.LogTypes.UsdPerTokenUpdated]: (x, from, match) =>
-    testLogUsdPerTokenUpdated(x, from, match as DeepPartial<CCIPLogs.UsdPerTokenUpdated>),
+  [CCIPLogs.LogTypes.UsdPerTokenUpdated]: (actual, from, expected) =>
+    testLogUsdPerTokenUpdated(actual, from, expected as DeepPartial<CCIPLogs.UsdPerTokenUpdated>),
 
-  [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: (x, from, match) =>
-    testLogUsdPerUnitGasUpdated(x, from, match as DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>),
-  [CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced]: (x, from, match) =>
+  [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: (actual, from, expected) =>
+    testLogUsdPerUnitGasUpdated(
+      actual,
+      from,
+      expected as DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>,
+    ),
+  [CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced]: (actual, from, expected) =>
     testLogReceiveExecutorInitExecuteBounced(
-      x,
+      actual,
       from,
-      match as DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>,
+      expected as DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>,
     ),
 
-  [CCIPLogs.LogTypes.DeployableInitializeBounced]: (x, from, match) =>
+  [CCIPLogs.LogTypes.DeployableInitializeBounced]: (actual, from, expected) =>
     testLogDeployableInitializeBounced(
-      x,
+      actual,
       from,
-      match as DeepPartial<CCIPLogs.DeployableInitializeBounced>,
+      expected as DeepPartial<CCIPLogs.DeployableInitializeBounced>,
     ),
 
-  [CCIPLogs.LogTypes.RouteMessageBounced]: (x, from, match) =>
-    testLogRouteMessageBounced(x, from, match as DeepPartial<CCIPLogs.RouteMessageBounced>),
+  [CCIPLogs.LogTypes.RouteMessageBounced]: (actual, from, expected) =>
+    testLogRouteMessageBounced(actual, from, expected as DeepPartial<CCIPLogs.RouteMessageBounced>),
 
-  [CCIPLogs.LogTypes.MessageToOffRampBounced]: (x, from, match) =>
-    testLogMessageToOffRampBounced(x, from, match as DeepPartial<CCIPLogs.MessageToOffRampBounced>),
+  [CCIPLogs.LogTypes.MessageToOffRampBounced]: (actual, from, expected) =>
+    testLogMessageToOffRampBounced(
+      actual,
+      from,
+      expected as DeepPartial<CCIPLogs.MessageToOffRampBounced>,
+    ),
+}
+
+// testLogGen is a helper function to test logs that can be decoded using a decoder from a wrapper
+function testLogGen<T>(
+  actual: Message,
+  from: Address,
+  type: CCIPLogs.CombinedLogType,
+  expected: DeepPartial<T>,
+  decoder: Decoder<T>,
+) {
+  return testLog(actual, from, type, (actual) => {
+    const reportAccepted = decoder.fromSlice(actual.beginParse())
+    matchesObject(reportAccepted, expected)
+    return true
+  })
 }
 
 // assertLog delegates via the handler table
@@ -169,46 +222,35 @@ export const assertLog = <T extends CombinedLogType>(
   transactions: BlockchainTransaction[],
   from: Address,
   type: T,
-  match: LogMatch<T>,
+  expected: LogMatch<T>,
 ) => {
   const prettyAddressesMap = prettifyAddressesMap(transactions)
   let failedMatches: any[] = []
-  const matched = getExternals(transactions).some((x) => {
+  const matched = getExternals(transactions).some((actual) => {
     try {
-      return handlers[type](x, from, match, prettyAddressesMap)
+      return handlers[type](actual, from, expected, prettyAddressesMap)
     } catch (error) {
       failedMatches.push(error)
       return false
     }
   })
   if (!matched && failedMatches.length > 0) {
-    // rethrow the last match failure since it's likely the most relevant
+    // rethrow the last expected failure since it's likely the most relevant
     throw failedMatches[failedMatches.length - 1]
   }
   expect(matched).toBe(true)
 }
 
-// TODO this could be generalized to handle any log type, provinding a interface that exposes fromSlice function
-function testLogCCIPCommitReportAccepted(
-  message: Message,
-  from: Address,
-  match: DeepPartial<of.CommitReportAccepted>,
-) {
-  return testLog(message, from, CCIPLogs.LogTypes.CommitReportAccepted, (x) => {
-    const reportAccepted = of.CommitReportAccepted.fromSlice(x.beginParse())
-    matchesObject(reportAccepted, match)
-    return true
-  })
-}
-
 export const testLogCCIPMessageSent = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<onramp.CCIPMessageSent>,
+  expected: DeepPartial<onramp.CCIPMessageSent>,
   prettyAddressesMap: Map<string, string>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.CCIPMessageSent, (x) => {
-    const msg: onramp.CCIPMessageSent = onramp.builder.events.ccipMessageSent.load(x.beginParse())
+  return testLog(actual, from, CCIPLogs.LogTypes.CCIPMessageSent, (actual) => {
+    const msg: onramp.CCIPMessageSent = onramp.builder.events.ccipMessageSent.load(
+      actual.beginParse(),
+    )
     const sender = msg.message.sender
 
     // Decode tokenAmounts from its raw Cell into an array so matches can use plain objects.
@@ -225,16 +267,16 @@ export const testLogCCIPMessageSent = (
 
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)
     const { sender: _, ...messageWithoutSender } = decodedMessage
-    const { sender: __, ...matchWithoutSender } = match.message || {}
+    const { sender: __, ...matchWithoutSender } = expected.message || {}
 
     matchesObject(messageWithoutSender, matchWithoutSender as object)
 
-    // Check sender address using .equals() if specified in match
-    if (match.message?.sender && match.message.sender instanceof Address) {
-      if (!sender.equals(match.message.sender)) {
+    // Check sender address using .equals() if specified in expected
+    if (expected.message?.sender && expected.message.sender instanceof Address) {
+      if (!sender.equals(expected.message.sender)) {
         throw new Error(
           `Sender address mismatch:\n` +
-            `  Expected: ${match.message.sender.toString()} (${prettyAddressesMap.get(match.message.sender.toRawString())})\n` +
+            `  Expected: ${expected.message.sender.toString()} (${prettyAddressesMap.get(expected.message.sender.toRawString())})\n` +
             `  Received: ${sender.toString()} (${prettyAddressesMap.get(sender.toRawString())})`,
         )
       }
@@ -244,12 +286,12 @@ export const testLogCCIPMessageSent = (
 }
 
 export const testLogCCIPExecutionStateChanged = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.ExecutionStateChanged>,
+  expected: DeepPartial<CCIPLogs.ExecutionStateChanged>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.ExecutionStateChanged, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.ExecutionStateChanged, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       sourceChainSelector: cs.loadUintBig(64),
       sequenceNumber: cs.loadUintBig(64),
@@ -257,22 +299,22 @@ export const testLogCCIPExecutionStateChanged = (
       state: cs.loadUintBig(8),
     }
 
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
 export const testConfigSetLogMessage = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: OCR3Logs.OCR3BaseConfigSet,
+  expected: OCR3Logs.OCR3BaseConfigSet,
 ) => {
-  return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseConfigSet, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, OCR3Logs.LogTypes.OCR3BaseConfigSet, (actual) => {
+    const cs = actual.beginParse()
     const ocrPluginType = cs.loadUintBig(16)
     const configDigest = cs.loadUintBig(256)
-    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
-    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress()).sort()
+    const signers = fromSnakeData(cs.loadRef(), (actual) => actual.loadUintBig(256)).sort()
+    const transmitters = fromSnakeData(cs.loadRef(), (actual) => actual.loadAddress()).sort()
     const bigF = cs.loadUint(8)
 
     const msg = {
@@ -283,11 +325,11 @@ export const testConfigSetLogMessage = (
       bigF,
     }
     const modifiedMatch = {
-      ocrPluginType: match.ocrPluginType,
-      configDigest: match.configDigest,
-      signers: match.signers.sort(),
-      transmitters: match.transmitters.sort(),
-      bigF: match.bigF,
+      ocrPluginType: expected.ocrPluginType,
+      configDigest: expected.configDigest,
+      signers: expected.signers.sort(),
+      transmitters: expected.transmitters.sort(),
+      bigF: expected.bigF,
     }
 
     equalsObject(msg, modifiedMatch)
@@ -296,222 +338,179 @@ export const testConfigSetLogMessage = (
 }
 
 export const testTransmittedLogMessage = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: Partial<OCR3Logs.OCR3BaseTransmitted>,
+  expected: Partial<OCR3Logs.OCR3BaseTransmitted>,
 ) => {
-  return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseTransmitted, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, OCR3Logs.LogTypes.OCR3BaseTransmitted, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       ocrPluginType: cs.loadUintBig(16),
       configDigest: cs.loadUintBig(256),
       sequenceNumber: cs.loadUint(64),
     }
 
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
-export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.OnRampSet) => {
-  return testLog(message, from, CCIPLogs.LogTypes.OnRampSet, (x) => {
-    const cs = x.beginParse()
-    const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
+export const testLogRampSet = (actual: Message, from: Address, expected: CCIPLogs.OnRampSet) => {
+  return testLog(actual, from, CCIPLogs.LogTypes.OnRampSet, (actual) => {
+    const cs = actual.beginParse()
+    const selectors = fromSnakeData(cs.loadRef(), (actual) => actual.loadUintBig(64))
     const addr = cs.loadMaybeAddress()
     const msg = {
       destChainSelectors: selectors,
       onRamp: addr ?? undefined,
     }
-    equalsObject(msg, match)
+    equalsObject(msg, expected)
     return true
   })
 }
 
 export const testLogOffRampAdded = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: CCIPLogs.OffRampAdded,
+  expected: CCIPLogs.OffRampAdded,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.OffRampAdded, (x) => {
-    const cs = x.beginParse()
-    const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
+  return testLog(actual, from, CCIPLogs.LogTypes.OffRampAdded, (actual) => {
+    const cs = actual.beginParse()
+    const selectors = fromSnakeData(cs.loadRef(), (actual) => actual.loadUintBig(64))
     const addr = cs.loadAddress()
     const msg = {
       sourceChainSelectors: selectors,
       offRampAdded: addr,
     }
-    equalsObject(msg, match)
+    equalsObject(msg, expected)
     return true
   })
 }
 
 export const testLogOffRampRemoved = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: CCIPLogs.OffRampRemoved,
+  expected: CCIPLogs.OffRampRemoved,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.OffRampRemoved, (x) => {
-    const cs = x.beginParse()
-    const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
+  return testLog(actual, from, CCIPLogs.LogTypes.OffRampRemoved, (actual) => {
+    const cs = actual.beginParse()
+    const selectors = fromSnakeData(cs.loadRef(), (actual) => actual.loadUintBig(64))
     const addr = cs.loadAddress()
     const msg = {
       sourceChainSelectors: selectors,
       offRampRemoved: addr,
     }
-    equalsObject(msg, match)
+    equalsObject(msg, expected)
     return true
   })
 }
 
-export const testLogRMNRemoteCursed = (message: Message, from: Address, match: CCIPLogs.Cursed) => {
-  return testLog(message, from, CCIPLogs.LogTypes.Cursed, (x) => {
-    const cs = x.beginParse()
+export const testLogRMNRemoteCursed = (
+  actual: Message,
+  from: Address,
+  expected: CCIPLogs.Cursed,
+) => {
+  return testLog(actual, from, CCIPLogs.LogTypes.Cursed, (actual) => {
+    const cs = actual.beginParse()
     const subject = cs.loadUintBig(128)
     const msg = {
       subject: subject,
     }
-    equalsObject(msg, match)
+    equalsObject(msg, expected)
     return true
   })
 }
 
 export const testLogRMNRemoteUncursed = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: CCIPLogs.Uncursed,
+  expected: CCIPLogs.Uncursed,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.Uncursed, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.Uncursed, (actual) => {
+    const cs = actual.beginParse()
     const subject = cs.loadUintBig(128)
     const msg = {
       subject: subject,
     }
-    equalsObject(msg, match)
+    equalsObject(msg, expected)
     return true
   })
 }
 
 export const testLogReceiverCCIPMessageReceived = (
-  message: Message,
+  actual: Message,
   from: Address,
   expected: CCIPLogs.ReceiverCCIPMessageReceived,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, (x) => {
-    const msg = expected.message
-    const expectedCell = beginCell()
-      .storeUint(msg.messageId, 256)
-      .storeUint(msg.sourceChainSelector, 64)
-      .storeUint(msg.sender.byteLength, 8)
-      .storeBuffer(msg.sender, msg.sender.byteLength)
-      .storeRef(msg.data)
-      .storeMaybeRef(msg.tokenAmounts)
-      .endCell()
-
-    equalsObject(expectedCell, x)
+  return testLog(actual, from, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, (actual) => {
+    const decoded = of.Any2TVMMessage.fromSlice(actual.beginParse())
+    equalsObject(decoded, expected.message)
     return true
   })
 }
 
 export const testLogSourceChainSelectorAdded = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: CCIPLogs.SourceChainSelectorAdded,
+  expected: CCIPLogs.SourceChainSelectorAdded,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.SourceChainSelectorAdded, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.SourceChainSelectorAdded, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       sourceChainSelector: cs.loadUintBig(64),
     }
-    equalsObject(msg, match)
-    return true
-  })
-}
-
-export const testLogSourceChainConfigUpdated = (
-  message: Message,
-  from: Address,
-  match: CCIPLogs.SourceChainConfigUpdated,
-) => {
-  return testLog(message, from, CCIPLogs.LogTypes.SourceChainConfigUpdated, (x) => {
-    const cs = x.beginParse()
-    const msg = {
-      sourceChainSelector: cs.loadUintBig(64),
-      config: offRamp.builder.data.sourceChainConfig.load(cs),
-    }
-    const modifiedMsg = {
-      sourceChainSelector: msg.sourceChainSelector,
-      config: {
-        router: msg.config.router.toString(),
-        isEnabled: msg.config.isEnabled,
-        minSeqNr: msg.config.minSeqNr,
-        isRMNVerificationDisabled: msg.config.isRMNVerificationDisabled,
-        onRamp: msg.config.onRamp,
-      },
-    }
-
-    const modifiedMatch = {
-      sourceChainSelector: match.sourceChainSelector,
-      config: {
-        router: match.config.router.toString(),
-        isEnabled: match.config.isEnabled,
-        minSeqNr: match.config.minSeqNr,
-        isRMNVerificationDisabled: match.config.isRMNVerificationDisabled,
-        onRamp: match.config.onRamp,
-      },
-    }
-
-    equalsObject(modifiedMsg, modifiedMatch)
+    equalsObject(msg, expected)
     return true
   })
 }
 
 export const testLogDestChainSelectorAdded = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: CCIPLogs.DestChainSelectorAdded,
+  expected: CCIPLogs.DestChainSelectorAdded,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.DestChainSelectorAdded, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.DestChainSelectorAdded, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       destChainSelector: cs.loadUintBig(64),
     }
-    equalsObject(msg, match)
+    equalsObject(msg, expected)
     return true
   })
 }
 
 export const testLogDestChainConfigUpdated = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.DestChainConfigUpdated>,
+  expected: DeepPartial<CCIPLogs.DestChainConfigUpdated>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.DestChainConfigUpdated, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.DestChainConfigUpdated, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       destChainSelector: cs.loadUintBig(64),
       config: onramp.builder.data.destChainConfig.load(cs),
     }
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
 export const testLogUsdPerTokenUpdated = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.UsdPerTokenUpdated>,
+  expected: DeepPartial<CCIPLogs.UsdPerTokenUpdated>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.UsdPerTokenUpdated, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.UsdPerTokenUpdated, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       sourceToken: cs.loadAddress().toString(),
       usdPerToken: cs.loadUintBig(224),
       timestamp: cs.loadUintBig(64),
     }
 
-    const modifiedMatch = { ...match }
-    if (match.sourceToken && match.sourceToken instanceof Address) {
-      modifiedMatch.sourceToken = match.sourceToken.toString()
+    const modifiedMatch = { ...expected }
+    if (expected.sourceToken && expected.sourceToken instanceof Address) {
+      modifiedMatch.sourceToken = expected.sourceToken.toString()
     }
 
     matchesObject(msg, modifiedMatch)
@@ -520,91 +519,91 @@ export const testLogUsdPerTokenUpdated = (
 }
 
 export const testLogUsdPerUnitGasUpdated = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>,
+  expected: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.UsdPerUnitGasUpdated, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.UsdPerUnitGasUpdated, (actual) => {
+    const cs = actual.beginParse()
     const msg: CCIPLogs.UsdPerUnitGasUpdated = {
       destChainSelector: cs.loadUintBig(64),
       executionGasPrice: cs.loadUintBig(112),
       dataAvailabilityGasPrice: cs.loadUintBig(112),
       timestamp: cs.loadUintBig(64),
     }
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
 export const testLogReceiveExecutorInitExecuteBounced = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>,
+  expected: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       receiveExecutor: cs.loadAddress(),
       root: cs.loadAddress(),
       sequenceNumber: cs.loadUintBig(64),
     }
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
 export const testLogDeployableInitializeBounced = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.DeployableInitializeBounced>,
+  expected: DeepPartial<CCIPLogs.DeployableInitializeBounced>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.DeployableInitializeBounced, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.DeployableInitializeBounced, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       deployableAddress: cs.loadAddress(),
     }
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
 export const testLogRouteMessageBounced = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.RouteMessageBounced>,
+  expected: DeepPartial<CCIPLogs.RouteMessageBounced>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.RouteMessageBounced, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.RouteMessageBounced, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       router: cs.loadAddress(),
       execId: cs.loadUintBig(192),
     }
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
 export const testLogMessageToOffRampBounced = (
-  message: Message,
+  actual: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.MessageToOffRampBounced>,
+  expected: DeepPartial<CCIPLogs.MessageToOffRampBounced>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.MessageToOffRampBounced, (x) => {
-    const cs = x.beginParse()
+  return testLog(actual, from, CCIPLogs.LogTypes.MessageToOffRampBounced, (actual) => {
+    const cs = actual.beginParse()
     const msg = {
       offRamp: cs.loadAddress(),
       execId: cs.loadUintBig(192),
     }
-    matchesObject(msg, match)
+    matchesObject(msg, expected)
     return true
   })
 }
 
-function matchesObject(obj, match) {
-  expect(obj).toMatchObject(match)
+function matchesObject(actual: any, expected: any) {
+  expect(actual).toMatchObject(expected)
 }
 
-function equalsObject(obj1: any, obj2: any) {
-  expect(obj1).toEqual(obj2)
+function equalsObject(actual: any, expected: any) {
+  expect(actual).toEqual(expected)
 }

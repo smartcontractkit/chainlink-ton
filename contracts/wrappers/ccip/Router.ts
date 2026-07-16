@@ -22,8 +22,8 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import * as or from '../ccip/OnRamp'
-import * as of from './OffRamp'
+import * as or from './OnRamp'
+import * as of from '../gen/ccip/OffRamp'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import * as CrossChainAddressCodec from './common/CrossChainAddressCodec'
 
@@ -805,7 +805,7 @@ export const builder = (() => {
         encode: (opts: RouteMessage): Builder => {
           return beginCell()
             .storeUint(opcodes.in.routeMessage, 32)
-            .storeRef(of.builder.data.any2TVMMessage.encode(opts.message))
+            .storeRef(of.Any2TVMMessage.toCell(of.Any2TVMMessage.create(opts.message)))
             .storeUint(opts.execID, 192)
             .storeAddress(opts.receiver)
             .storeCoins(opts.gasLimit)
@@ -813,7 +813,7 @@ export const builder = (() => {
         load: function (src: Slice): RouteMessage {
           src.skip(32)
           return {
-            message: of.builder.data.any2TVMMessage.load(src.loadRef().beginParse()),
+            message: of.Any2TVMMessage.fromSlice(src.loadRef().beginParse()),
             execID: src.loadUintBig(192),
             receiver: src.loadAddress(),
             gasLimit: src.loadCoins(),

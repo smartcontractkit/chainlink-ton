@@ -12,7 +12,6 @@ import {
   EVM_ADDRESS,
   contractsCoverageConfig,
 } from './Router.Setup'
-import { setupGenBindings } from '../../../wrappers/gen'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = beginCell().storeBuffer(EVM_ADDRESS).asSlice()
 
@@ -25,8 +24,6 @@ describe('Router', () => {
   let onRamp: SandboxContract<TreasuryContract>
 
   beforeAll(async () => {
-    setupGenBindings()
-
     blockchain = await Blockchain.create()
     blockchain.verbosity = {
       print: true,

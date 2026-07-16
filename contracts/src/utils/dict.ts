@@ -1,11 +1,5 @@
-import {
-  Dictionary,
-  DictionaryKeyTypes,
-  DictionaryKey,
-  DictionaryValue,
-  Slice,
-  Builder,
-} from '@ton/core'
+import { Dictionary, DictionaryKeyTypes, DictionaryKey, DictionaryValue } from '@ton/core'
+import { Codec } from './codec'
 
 export const loadMap = <K extends DictionaryKeyTypes, V>(
   key: DictionaryKey<K>,
@@ -45,9 +39,4 @@ export const Values = {
       },
     }
   },
-}
-
-interface Codec<T> {
-  fromSlice(s: Slice): T
-  store(self: T, b: Builder): void
 }

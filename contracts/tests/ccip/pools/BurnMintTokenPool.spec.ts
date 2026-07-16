@@ -4,7 +4,6 @@ import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
 import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
-import { setupGenBindings } from '../../../wrappers/gen'
 import {
   Ownable2Step,
   CrossChainAddress,
@@ -57,8 +56,6 @@ describe('BurnMintTokenPool', () => {
   let receiverAddress: CrossChainAddress
 
   beforeAll(async () => {
-    setupGenBindings()
-
     sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
     destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
     receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))

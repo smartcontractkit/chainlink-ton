@@ -17,7 +17,7 @@ import { errorCode, facilityId, CellCodec } from '../utils'
 import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import * as of from './OffRamp'
+import * as of from '../gen/ccip/OffRamp'
 
 export const RECEIVE_EXECUTOR_CONTRACT_VERSION_PREV = '1.6.1'
 export const RECEIVE_EXECUTOR_CONTRACT_VERSION = '1.6.2'
@@ -87,7 +87,7 @@ export const builder = {
         encode: function (data: ReceiveExecutorStorage): Builder {
           return beginCell()
             .storeAddress(data.owner)
-            .storeRef(of.builder.data.any2TVMRampMessage.encode(data.message))
+            .storeRef(of.Any2TVMRampMessage.toCell(of.Any2TVMRampMessage.create(data.message)))
             .storeAddress(data.root)
             .storeUint(data.execId, 192)
             .storeUint(data.state, 2)
