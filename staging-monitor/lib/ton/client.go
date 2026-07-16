@@ -20,17 +20,12 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
-	chainsel "github.com/smartcontractkit/chain-selectors"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-
 	tonhash "github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	tonlogpoller "github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
