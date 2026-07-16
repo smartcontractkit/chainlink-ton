@@ -118,21 +118,21 @@ export class ContractClient implements withdrawable.Interface {
     return result.stack.readAddressOpt()
   }
 
-  async sendTransferOwnership(
+  async sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint = 0n,
     body: ownable2step.TransferOwnership,
   ) {
-    return this.ownable.sendTransferOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepTransferOwnership(p, via, value, body)
   }
 
-  async sendAcceptOwnership(
+  async sendOwnable2StepAcceptOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint = 0n,
     body: ownable2step.AcceptOwnership,
   ) {
-    return this.ownable.sendAcceptOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepAcceptOwnership(p, via, value, body)
   }
 }

@@ -211,7 +211,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
     expect(initialOwner).toEqual(owner.address)
 
     // Transfer ownership
-    const transferResult = await upgradeableCounter.sendTransferOwnership(
+    const transferResult = await upgradeableCounter.sendOwnable2StepTransferOwnership(
       owner.getSender(),
       toNano('0.05'),
       {
@@ -231,7 +231,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
     expect(pendingOwner).toEqual(newOwner.address)
 
     // Accept ownership from new owner
-    const acceptResult = await upgradeableCounter.sendAcceptOwnership(
+    const acceptResult = await upgradeableCounter.sendOwnable2StepAcceptOwnership(
       newOwner.getSender(),
       toNano('0.05'),
       {

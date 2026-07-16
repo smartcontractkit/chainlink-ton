@@ -157,7 +157,7 @@ export class ContractClient implements Contract, Interface {
     })
   }
 
-  async sendTransferOwnership(
+  async sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint = BigInt(0.01),
@@ -171,7 +171,7 @@ export class ContractClient implements Contract, Interface {
     )
   }
 
-  async sendAcceptOwnership(
+  async sendOwnable2StepAcceptOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint = BigInt(0.01),
@@ -204,13 +204,13 @@ function prefixGetter(getter: string | undefined, field: string): string {
 export interface Interface extends Contract {
   getOwner(p: ContractProvider): Promise<Address>
   getPendingOwner(p: ContractProvider): Promise<Address | null>
-  sendTransferOwnership(
+  sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint,
     body: TransferOwnership,
   ): Promise<void>
-  sendAcceptOwnership(
+  sendOwnable2StepAcceptOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint,

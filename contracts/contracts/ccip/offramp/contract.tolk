@@ -33,7 +33,7 @@ contract OffRamp {
     description: "link.chain.ton.ccip.OffRamp"
 
     storage: Storage
-    incomingMessages: OffRamp_InMessage
+    incomingMessages: OffRamp_InMessage | Ownable2Step_Messages
 }
 
 

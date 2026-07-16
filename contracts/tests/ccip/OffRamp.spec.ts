@@ -746,11 +746,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    // TBD: isn't there another way?
-    const offRampOwnable = blockchain.openContract(
-      ownable2step.ContractClient.createFromAddress(offRamp.address),
-    )
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRampOwnable, {})
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp, {})
   })
 
   it('should deploy', async () => {
