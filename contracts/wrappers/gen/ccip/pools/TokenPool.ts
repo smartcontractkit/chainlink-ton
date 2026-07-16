@@ -1258,13 +1258,14 @@ export const TokenPool_ApplyChainUpdates = {
     PREFIX: 0x56f73d37,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
         chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
     }): TokenPool_ApplyChainUpdates {
         return {
             $: 'TokenPool_ApplyChainUpdates',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ApplyChainUpdates {
@@ -1305,13 +1306,14 @@ export const TokenPool_AddRemotePool = {
     PREFIX: 0x17c242dc,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_AddRemotePool {
         return {
             $: 'TokenPool_AddRemotePool',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_AddRemotePool {
@@ -1352,13 +1354,14 @@ export const TokenPool_RemoveRemotePool = {
     PREFIX: 0x426b8cc4,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_RemoveRemotePool {
         return {
             $: 'TokenPool_RemoveRemotePool',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemoveRemotePool {
@@ -1401,7 +1404,7 @@ export const TokenPool_SetDynamicConfig = {
     PREFIX: 0xd7712810,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin?: c.Address | null /* = null */
@@ -1410,7 +1413,8 @@ export const TokenPool_SetDynamicConfig = {
             $: 'TokenPool_SetDynamicConfig',
             rateLimitAdmin: null,
             feeAdmin: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetDynamicConfig {
@@ -1451,12 +1455,13 @@ export const TokenPool_SetAllowedFinalityConfig = {
     PREFIX: 0x3c50a39b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         allowedFinalityConfig: uint32
     }): TokenPool_SetAllowedFinalityConfig {
         return {
             $: 'TokenPool_SetAllowedFinalityConfig',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetAllowedFinalityConfig {
@@ -1493,12 +1498,13 @@ export const TokenPool_SetAdvancedPoolHooks = {
     PREFIX: 0x3f5c9f57,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         advancedPoolHooks: c.Address | null
     }): TokenPool_SetAdvancedPoolHooks {
         return {
             $: 'TokenPool_SetAdvancedPoolHooks',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetAdvancedPoolHooks {
@@ -1535,12 +1541,13 @@ export const TokenPool_SetRateLimitConfig = {
     PREFIX: 0x4fe2d26c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
     }): TokenPool_SetRateLimitConfig {
         return {
             $: 'TokenPool_SetRateLimitConfig',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetRateLimitConfig {
@@ -1579,13 +1586,14 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
     PREFIX: 0x30a1d1f7,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
         disableChainSelectors: SnakedCell<uint64>
     }): TokenPool_ApplyTokenTransferFeeConfigUpdates {
         return {
             $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ApplyTokenTransferFeeConfigUpdates {
@@ -1624,12 +1632,13 @@ export const TokenPool_UpdateRampAccess = {
     PREFIX: 0xe30764be,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_RampUpdate>
     }): TokenPool_UpdateRampAccess {
         return {
             $: 'TokenPool_UpdateRampAccess',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_UpdateRampAccess {
@@ -1666,12 +1675,13 @@ export const TokenPool_SetRMNProxy = {
     PREFIX: 0x9929b642,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         rmnProxy: c.Address
     }): TokenPool_SetRMNProxy {
         return {
             $: 'TokenPool_SetRMNProxy',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetRMNProxy {
@@ -1708,12 +1718,13 @@ export const TokenPool_SetCursedSubjects = {
     PREFIX: 0x9da4da09,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         cursedSubjects: CursedSubjects
     }): TokenPool_SetCursedSubjects {
         return {
             $: 'TokenPool_SetCursedSubjects',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetCursedSubjects {
@@ -1756,7 +1767,7 @@ export const TokenPool_LockOrBurn = {
     PREFIX: 0xfa7da444,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -1764,7 +1775,8 @@ export const TokenPool_LockOrBurn = {
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurn {
@@ -1856,7 +1868,7 @@ export const TokenPool_ReleaseOrMint = {
     PREFIX: 0x351f77e3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
@@ -1864,7 +1876,8 @@ export const TokenPool_ReleaseOrMint = {
         return {
             $: 'TokenPool_ReleaseOrMint',
             replyTo: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMint {
@@ -1905,12 +1918,13 @@ export const TokenPool_PreflightCheckFinished = {
     PREFIX: 0x08f2ffb7,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_PreflightCheckFinished {
         return {
             $: 'TokenPool_PreflightCheckFinished',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PreflightCheckFinished {
@@ -1947,12 +1961,13 @@ export const TokenPool_PreflightCheckFailed = {
     PREFIX: 0xa6dfa623,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_PreflightCheckFailed {
         return {
             $: 'TokenPool_PreflightCheckFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PreflightCheckFailed {
@@ -2032,12 +2047,13 @@ export const TokenPool_PostflightCheckFinished = {
     PREFIX: 0x9e2a6b66,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }): TokenPool_PostflightCheckFinished {
         return {
             $: 'TokenPool_PostflightCheckFinished',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PostflightCheckFinished {
@@ -2074,12 +2090,13 @@ export const TokenPool_PostflightCheckFailed = {
     PREFIX: 0x21e71d87,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }): TokenPool_PostflightCheckFailed {
         return {
             $: 'TokenPool_PostflightCheckFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PostflightCheckFailed {
@@ -2116,12 +2133,13 @@ export const TokenPool_LockOrBurnWithdraw = {
     PREFIX: 0xe7a35041,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_LockOrBurnWithdraw {
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
@@ -2160,13 +2178,14 @@ export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
@@ -2205,12 +2224,13 @@ export const TokenPool_LockOrBurnFailure = {
     PREFIX: 0x3476ea72,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         errorCode: uint16
     }): TokenPool_LockOrBurnFailure {
         return {
             $: 'TokenPool_LockOrBurnFailure',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFailure {
@@ -2247,12 +2267,13 @@ export const TokenPool_ReleaseOrMintFinished = {
     PREFIX: 0xe0e882f5,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         out: TokenPool_ReleaseOrMintOutV1
     }): TokenPool_ReleaseOrMintFinished {
         return {
             $: 'TokenPool_ReleaseOrMintFinished',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFinished {
@@ -2289,12 +2310,13 @@ export const TokenPool_ReleaseOrMintFailure = {
     PREFIX: 0xef0cb36e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         errorCode: uint16
     }): TokenPool_ReleaseOrMintFailure {
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFailure {
@@ -2333,13 +2355,14 @@ export const TokenPool_RemotePoolAddedNotification = {
     PREFIX: 0x12cc4985,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolAddedNotification {
         return {
             $: 'TokenPool_RemotePoolAddedNotification',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemotePoolAddedNotification {
@@ -2380,13 +2403,14 @@ export const TokenPool_RemotePoolRemovedNotification = {
     PREFIX: 0xe17bf3cc,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolRemovedNotification {
         return {
             $: 'TokenPool_RemotePoolRemovedNotification',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemotePoolRemovedNotification {
@@ -2425,12 +2449,13 @@ export const TokenPool_FinalityConfigSet = {
     PREFIX: 0x426a713b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         allowedFinalityConfig: uint32
     }): TokenPool_FinalityConfigSet {
         return {
             $: 'TokenPool_FinalityConfigSet',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_FinalityConfigSet {
@@ -2471,14 +2496,15 @@ export const TokenPool_DynamicConfigSet = {
     PREFIX: 0xb735e30c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         router: c.Address
         rateLimitAdmin: c.Address | null
         feeAdmin: c.Address | null
     }): TokenPool_DynamicConfigSet {
         return {
             $: 'TokenPool_DynamicConfigSet',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_DynamicConfigSet {
@@ -2517,11 +2543,12 @@ export const TokenPool_RateLimitConfiguredNotification = {
     PREFIX: 0xdd7b0c71,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): TokenPool_RateLimitConfiguredNotification {
         return {
             $: 'TokenPool_RateLimitConfiguredNotification',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RateLimitConfiguredNotification {
@@ -2556,12 +2583,13 @@ export const TokenPool_CursedSubjectsSet = {
     PREFIX: 0x15800161,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         cursedSubjects: CursedSubjects
     }): TokenPool_CursedSubjectsSet {
         return {
             $: 'TokenPool_CursedSubjectsSet',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_CursedSubjectsSet {
@@ -2596,11 +2624,12 @@ export const TokenPool_ChainUpdatesApplied = {
     PREFIX: 0xad7833d7,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): TokenPool_ChainUpdatesApplied {
         return {
             $: 'TokenPool_ChainUpdatesApplied',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ChainUpdatesApplied {
@@ -2633,11 +2662,12 @@ export const TokenPool_RampAccessUpdatesApplied = {
     PREFIX: 0xd7f5c563,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): TokenPool_RampAccessUpdatesApplied {
         return {
             $: 'TokenPool_RampAccessUpdatesApplied',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RampAccessUpdatesApplied {
@@ -2670,11 +2700,12 @@ export const TokenPool_FeeConfigApplied = {
     PREFIX: 0x28cbcc64,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): TokenPool_FeeConfigApplied {
         return {
             $: 'TokenPool_FeeConfigApplied',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_FeeConfigApplied {
@@ -2709,12 +2740,13 @@ export const TokenPool_AdvancedPoolHooksSet = {
     PREFIX: 0x3c869d80,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         advancedPoolHooks: c.Address | null
     }): TokenPool_AdvancedPoolHooksSet {
         return {
             $: 'TokenPool_AdvancedPoolHooksSet',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksSet {
@@ -3432,14 +3464,15 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
     }): TransferNotificationForRecipient {
         return {
             $: 'TransferNotificationForRecipient',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
@@ -3623,7 +3656,7 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolLockOrBurn(body: {
-        queryId: uint64
+        queryId?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -3633,7 +3666,7 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -3642,21 +3675,21 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolPreflightCheckFinished(body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
         return TokenPool_PreflightCheckFinished.toCell(TokenPool_PreflightCheckFinished.create(body));
     }
 
     static createCellOfTokenPoolPreflightCheckFailed(body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
         return TokenPool_PreflightCheckFailed.toCell(TokenPool_PreflightCheckFailed.create(body));
     }
 
     static createCellOfTokenPoolReleaseOrMint(body: {
-        queryId: uint64
+        queryId?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
@@ -3665,21 +3698,21 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolPostflightCheckFinished(body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFinished.toCell(TokenPool_PostflightCheckFinished.create(body));
     }
 
     static createCellOfTokenPoolPostflightCheckFailed(body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body));
     }
 
     static createCellOfTokenPoolApplyChainUpdates(body: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
         chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
     }) {
@@ -3687,7 +3720,7 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolAddRemotePool(body: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }) {
@@ -3695,7 +3728,7 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolRemoveRemotePool(body: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }) {
@@ -3703,7 +3736,7 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolSetDynamicConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin?: c.Address | null /* = null */
@@ -3712,28 +3745,28 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolSetAllowedFinalityConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         allowedFinalityConfig: uint32
     }) {
         return TokenPool_SetAllowedFinalityConfig.toCell(TokenPool_SetAllowedFinalityConfig.create(body));
     }
 
     static createCellOfTokenPoolSetAdvancedPoolHooks(body: {
-        queryId: uint64
+        queryId?: uint64
         advancedPoolHooks: c.Address | null
     }) {
         return TokenPool_SetAdvancedPoolHooks.toCell(TokenPool_SetAdvancedPoolHooks.create(body));
     }
 
     static createCellOfTokenPoolSetRateLimitConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
     }) {
         return TokenPool_SetRateLimitConfig.toCell(TokenPool_SetRateLimitConfig.create(body));
     }
 
     static createCellOfTokenPoolApplyTokenTransferFeeConfigUpdates(body: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
         disableChainSelectors: SnakedCell<uint64>
     }) {
@@ -3741,21 +3774,21 @@ export class TokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolUpdateRampAccess(body: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_RampUpdate>
     }) {
         return TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body));
     }
 
     static createCellOfTokenPoolSetRMNProxy(body: {
-        queryId: uint64
+        queryId?: uint64
         rmnProxy: c.Address
     }) {
         return TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body));
     }
 
     static createCellOfTokenPoolSetCursedSubjects(body: {
-        queryId: uint64
+        queryId?: uint64
         cursedSubjects: CursedSubjects
     }) {
         return TokenPool_SetCursedSubjects.toCell(TokenPool_SetCursedSubjects.create(body));
@@ -3770,7 +3803,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -3784,7 +3817,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -3797,7 +3830,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolPreflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3808,7 +3841,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolPreflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3819,7 +3852,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
@@ -3832,7 +3865,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolPostflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3843,7 +3876,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolPostflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3854,7 +3887,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolApplyChainUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
         chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
     }, extraOptions?: ExtraSendOptions) {
@@ -3866,7 +3899,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolAddRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
@@ -3878,7 +3911,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolRemoveRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
@@ -3890,7 +3923,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin?: c.Address | null /* = null */
@@ -3903,7 +3936,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetAllowedFinalityConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         allowedFinalityConfig: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3914,7 +3947,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetAdvancedPoolHooks(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         advancedPoolHooks: c.Address | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3925,7 +3958,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetRateLimitConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3936,7 +3969,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolApplyTokenTransferFeeConfigUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
         disableChainSelectors: SnakedCell<uint64>
     }, extraOptions?: ExtraSendOptions) {
@@ -3948,7 +3981,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolUpdateRampAccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         updates: SnakedCell<TokenPool_RampUpdate>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3959,7 +3992,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetRMNProxy(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         rmnProxy: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3970,7 +4003,7 @@ export class TokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         cursedSubjects: CursedSubjects
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

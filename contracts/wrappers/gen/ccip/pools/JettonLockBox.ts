@@ -197,14 +197,15 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
     }): TransferNotificationForRecipient {
         return {
             $: 'TransferNotificationForRecipient',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
@@ -379,14 +380,15 @@ export const JettonLockBox_Deposit = {
     PREFIX: 0x9e9ec361,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
     }): JettonLockBox_Deposit {
         return {
             $: 'JettonLockBox_Deposit',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposit {
@@ -468,7 +470,7 @@ export const JettonLockBox_Withdraw = {
     PREFIX: 0xd065c306,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -477,7 +479,8 @@ export const JettonLockBox_Withdraw = {
     }): JettonLockBox_Withdraw {
         return {
             $: 'JettonLockBox_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Withdraw {
@@ -528,14 +531,15 @@ export const JettonLockBox_Deposited = {
     PREFIX: 0x6d077f2e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
     }): JettonLockBox_Deposited {
         return {
             $: 'JettonLockBox_Deposited',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposited {
@@ -580,14 +584,15 @@ export const JettonLockBox_Init = {
     PREFIX: 0xffa6eeb9,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
     }): JettonLockBox_Init {
         return {
             $: 'JettonLockBox_Init',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Init {
@@ -632,14 +637,15 @@ export const JettonLockBox_Initialized = {
     PREFIX: 0xe9f4e311,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address
     }): JettonLockBox_Initialized {
         return {
             $: 'JettonLockBox_Initialized',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Initialized {
@@ -684,14 +690,15 @@ export const JettonLockBox_WithdrawFailed = {
     PREFIX: 0x60bae556,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         amount: coins
         recipientWallet: c.Address
     }): JettonLockBox_WithdrawFailed {
         return {
             $: 'JettonLockBox_WithdrawFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_WithdrawFailed {
@@ -794,7 +801,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfJettonLockBoxInit(body: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -803,7 +810,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfJettonLockBoxWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -814,7 +821,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -831,7 +838,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendJettonLockBoxInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -844,7 +851,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendJettonLockBoxWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -859,7 +866,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder

@@ -269,7 +269,7 @@ export const AskToTransfer = {
     PREFIX: 0x0f8a7ea5,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -279,7 +279,8 @@ export const AskToTransfer = {
     }): AskToTransfer {
         return {
             $: 'AskToTransfer',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): AskToTransfer {
@@ -332,14 +333,15 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
     }): TransferNotificationForRecipient {
         return {
             $: 'TransferNotificationForRecipient',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
@@ -388,7 +390,7 @@ export const InternalTransferStep = {
     PREFIX: 0x178d4519,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null
@@ -397,7 +399,8 @@ export const InternalTransferStep = {
     }): InternalTransferStep {
         return {
             $: 'InternalTransferStep',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): InternalTransferStep {
@@ -440,11 +443,12 @@ export const ReturnExcessesBack = {
     PREFIX: 0xd53276db,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): ReturnExcessesBack {
         return {
             $: 'ReturnExcessesBack',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReturnExcessesBack {
@@ -483,14 +487,15 @@ export const AskToBurn = {
     PREFIX: 0x595f07bc,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         sendExcessesTo: c.Address | null
         customPayload: c.Cell | null
     }): AskToBurn {
         return {
             $: 'AskToBurn',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): AskToBurn {
@@ -537,14 +542,15 @@ export const BurnNotificationForMinter = {
     PREFIX: 0x7bdd97de,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
     }): BurnNotificationForMinter {
         return {
             $: 'BurnNotificationForMinter',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): BurnNotificationForMinter {
@@ -675,7 +681,7 @@ export class JettonWallet implements c.Contract {
     }
 
     static createCellOfAskToTransfer(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -687,7 +693,7 @@ export class JettonWallet implements c.Contract {
     }
 
     static createCellOfAskToBurn(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         sendExcessesTo: c.Address | null
         customPayload: c.Cell | null
@@ -696,7 +702,7 @@ export class JettonWallet implements c.Contract {
     }
 
     static createCellOfInternalTransferStep(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null
@@ -720,7 +726,7 @@ export class JettonWallet implements c.Contract {
     }
 
     async sendAskToTransfer(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -736,7 +742,7 @@ export class JettonWallet implements c.Contract {
     }
 
     async sendAskToBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         sendExcessesTo: c.Address | null
         customPayload: c.Cell | null
@@ -749,7 +755,7 @@ export class JettonWallet implements c.Contract {
     }
 
     async sendInternalTransferStep(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null

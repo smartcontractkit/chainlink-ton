@@ -187,6 +187,20 @@ def transform_snaked_cell(content: str) -> str:
         flags=re.DOTALL,
     )
 
+    # Get methods pass stack arguments directly, but SnakedCell fields are exposed
+    # as arrays in TypeScript. Re-wrap them as cells at the stack boundary.
+    snaked_fields: dict[str, str] = {}
+    for fm in re.finditer(r"\b(\w+):\s*SnakedCell<([^>]+)>", content):
+        snaked_fields[fm.group(1)] = fm.group(2)
+
+    for field, item_type in snaked_fields.items():
+        store_expr = _snake_store_expr(item_type)
+        content = re.sub(
+            rf"\{{ type: 'cell', cell: (\w+)\.{field} \}}",
+            rf"{{ type: 'cell', cell: makeCellFrom<SnakedCell<{item_type}>>(\1.{field}, (v,b) => storeSnakedCellOf(v, b, {store_expr})) }}",
+            content,
+        )
+
     return content
 
 
@@ -285,6 +299,126 @@ def transform_cell_ref(content: str) -> str:
     return content
 
 
+# ---------------------------------------------------------------------------
+#   queryId / queryID omittable transform
+#
+#   Acton generates `queryId: uint64` as a required field in every message
+#   struct.  In practice callers almost always pass 0n, so this transform
+#   makes the field optional in create() args, send*() body types, and
+#   createCellOf*() body types, defaulting to 0n when omitted.
+# ---------------------------------------------------------------------------
+
+# Match `queryId: uint64` or `queryID: uint64` as a standalone arg/field line.
+# Captures the field name (queryId or queryID) and indentation.
+_QUERY_ID_FIELD = re.compile(r"^(\s+)(queryId|queryID): uint64$", re.MULTILINE)
+
+
+def transform_query_id(content: str) -> str:
+    """Make queryId/queryID optional with a default of 0n in generated wrappers.
+
+    Transforms:
+    - create() args:      `queryId: uint64` → `queryId?: uint64`
+    - create() body:      adds `queryId: 0n,` before `...args`
+    - send*() body types: `queryId: uint64` → `queryId?: uint64`
+    - createCellOf*() body types: same
+    - get method params:  `queryID: uint64` → `queryID?: uint64`
+
+    Interface fields are left as-is (non-optional) because the value is always
+    present after creation/deserialization.
+    """
+
+    # Skip files that don't have queryId or queryID at all.
+    if "queryId" not in content and "queryID" not in content:
+        return content
+
+    # 1. Make queryId/queryID optional in create() args and send/createCellOf body types.
+    #    Pattern: `    queryId: uint64` (standalone line, not inside interface)
+    #    We need to be careful not to touch interface fields.
+    #    Interface fields appear inside `export interface X { ... }` blocks.
+    #    create() args and send/createCellOf body types appear inside `create(args: { ... })`
+    #    or `body: { ... }` blocks.
+
+    def _make_optional_in_block(m: re.Match) -> str:
+        """Make queryId/queryID optional within a { ... } block."""
+        block = m.group(0)
+        block = _QUERY_ID_FIELD.sub(
+            lambda fm: f"{fm.group(1)}{fm.group(2)}?: uint64",
+            block,
+        )
+        return block
+
+    # Transform create() args blocks: `create(args: { ... })` and `create<T>(args: { ... })`
+    content = re.sub(
+        r"create(?:<[^>]+>)?\(args: \{.*?\n    \}\)",
+        _make_optional_in_block,
+        content,
+        flags=re.DOTALL,
+    )
+
+    # Transform send*() body type blocks: `body: { ... }`
+    content = re.sub(
+        r"body: \{.*?\n    \}",
+        _make_optional_in_block,
+        content,
+        flags=re.DOTALL,
+    )
+
+    # Transform get method inline msg type blocks: `msg: { ... }`
+    content = re.sub(
+        r"msg: \{.*?\n    \}",
+        _make_optional_in_block,
+        content,
+        flags=re.DOTALL,
+    )
+
+    # Default omitted query IDs when get-method args are pushed onto the stack.
+    content = re.sub(
+        r"value: msg\.(queryId|queryID) \}",
+        r"value: msg.\1 ?? 0n }",
+        content,
+    )
+
+    # Transform createCellOf*() body type blocks: `body: { ... }`
+    # (same pattern as send, already covered above)
+
+    # 2. Add default `queryId: args.queryId ?? 0n` (or `queryID: args.queryID ?? 0n`) after `...args` in create() bodies.
+    #    Pattern: `return {\n            $: 'StructName',\n            ...args\n        }`
+    #    We need to insert the default after `...args` so explicit undefined values are normalised.
+    #    But only if the struct has a queryId/queryID field.
+
+    def _add_default_in_create(m: re.Match) -> str:
+        full_match = m.group(0)
+        # Check if this create() block has a queryId or queryID field
+        field_name = None
+        if "queryId" in full_match:
+            field_name = "queryId"
+        elif "queryID" in full_match:
+            field_name = "queryID"
+
+        if field_name is None:
+            return full_match  # no queryId in this struct
+
+        # Find the `...args` line and insert the default after it so explicit
+        # undefined still normalizes to 0n.
+        # Pattern: `            ...args\n        }`
+        return full_match.replace(
+            "            ...args\n        }",
+            f"            ...args,\n            {field_name}: args.{field_name} ?? 0n\n        }}",
+        )
+
+    # Match create() function bodies that contain `...args`. This covers both
+    # `create(args: ...)` and generic `create<T>(args: ...)` forms, including
+    # bodies with other default fields before `...args`.
+    content = re.sub(
+        r"create(?:<[^>]+>)?\([^)]*\): [^{]+ \{\n        return \{\n.*?            \.\.\.args\n        \}\n    \},",
+        _add_default_in_create,
+        content,
+        flags=re.DOTALL,
+    )
+
+    return content
+
+
 def sort_errors_blocks(content: str) -> str:
     """Sort 'static Errors = { ... }' entries by (value, key) for cross-platform determinism.
 
@@ -362,10 +496,12 @@ def main():
         # entries with the same numeric value come out in platform-specific order).
         # Then transform SnakedCell<T> from c.Cell to T[] with automatic snake encoding.
         # Then transform CellRef<T> from { ref: T } to T with automatic cell-ref wrapping.
+        # Then make queryId/queryID optional with a default of 0n.
         original = output_path.read_text(encoding="utf-8")
         normalised = sort_errors_blocks(original)
         normalised = transform_snaked_cell(normalised)
         normalised = transform_cell_ref(normalised)
+        normalised = transform_query_id(normalised)
         if normalised != original:
             output_path.write_text(normalised, encoding="utf-8")
 

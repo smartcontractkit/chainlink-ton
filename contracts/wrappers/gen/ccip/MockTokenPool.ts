@@ -157,13 +157,14 @@ export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {

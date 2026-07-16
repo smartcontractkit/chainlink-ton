@@ -320,12 +320,13 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
@@ -473,12 +474,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -513,13 +515,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -562,7 +565,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -570,7 +573,8 @@ export const Withdrawable_Withdraw = {
     }): Withdrawable_Withdraw {
         return {
             $: 'Withdrawable_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
@@ -721,7 +725,7 @@ export const OCR3Base_SetOCR3Config = {
     PREFIX: 0x2b78359f,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -731,7 +735,8 @@ export const OCR3Base_SetOCR3Config = {
     }): OCR3Base_SetOCR3Config {
         return {
             $: 'OCR3Base_SetOCR3Config',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OCR3Base_SetOCR3Config {
@@ -1571,14 +1576,15 @@ export const OffRamp_Commit = {
     PREFIX: 0x9d431905,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
     }): OffRamp_Commit {
         return {
             $: 'OffRamp_Commit',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_Commit {
@@ -1621,13 +1627,14 @@ export const OffRamp_Execute = {
     PREFIX: 0x27bdac33,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }): OffRamp_Execute {
         return {
             $: 'OffRamp_Execute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_Execute {
@@ -1727,13 +1734,14 @@ export const OffRamp_ManuallyExecute = {
     PREFIX: 0xa00785cf,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
         gasOverride: coins
     }): OffRamp_ManuallyExecute {
         return {
             $: 'OffRamp_ManuallyExecute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ManuallyExecute {
@@ -1772,12 +1780,13 @@ export const OffRamp_UpdateSourceChainConfigs = {
     PREFIX: 0x22b4f05c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }): OffRamp_UpdateSourceChainConfigs {
         return {
             $: 'OffRamp_UpdateSourceChainConfigs',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_UpdateSourceChainConfigs {
@@ -2118,13 +2127,14 @@ export const OffRamp_SetDynamicConfig = {
     PREFIX: 0x95bc5a5c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }): OffRamp_SetDynamicConfig {
         return {
             $: 'OffRamp_SetDynamicConfig',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_SetDynamicConfig {
@@ -2165,13 +2175,14 @@ export const OffRamp_UpdateDeployables = {
     PREFIX: 0xa015e0e2,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         receiveExecutorCode: c.Cell | null
         merkleRootCode: c.Cell | null
     }): OffRamp_UpdateDeployables {
         return {
             $: 'OffRamp_UpdateDeployables',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_UpdateDeployables {
@@ -3342,7 +3353,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampCommit(body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
@@ -3351,7 +3362,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecute(body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }) {
@@ -3369,7 +3380,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampManuallyExecute(body: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
         gasOverride: coins
     }) {
@@ -3385,7 +3396,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampUpdateSourceChainConfigs(body: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }) {
         return OffRamp_UpdateSourceChainConfigs.toCell(OffRamp_UpdateSourceChainConfigs.create(body));
@@ -3428,7 +3439,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampSetDynamicConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }) {
@@ -3436,7 +3447,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOCR3BaseSetOCR3Config(body: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -3448,7 +3459,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampUpdateDeployables(body: {
-        queryId: uint64
+        queryId?: uint64
         receiveExecutorCode: c.Cell | null
         merkleRootCode: c.Cell | null
     }) {
@@ -3456,14 +3467,14 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -3481,7 +3492,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampCommit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
@@ -3494,7 +3505,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }, extraOptions?: ExtraSendOptions) {
@@ -3520,7 +3531,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampManuallyExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
         gasOverride: coins
     }, extraOptions?: ExtraSendOptions) {
@@ -3544,7 +3555,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampUpdateSourceChainConfigs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3611,7 +3622,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }, extraOptions?: ExtraSendOptions) {
@@ -3623,7 +3634,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOCR3BaseSetOCR3Config(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -3639,7 +3650,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampUpdateDeployables(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         receiveExecutorCode: c.Cell | null
         merkleRootCode: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
@@ -3651,7 +3662,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3662,7 +3673,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null

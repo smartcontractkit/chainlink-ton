@@ -223,13 +223,14 @@ export const ContextExecutor_Set = {
     PREFIX: 0x44e61eec,
 
     create<T>(args: {
-        queryId: uint64
+        queryId?: uint64
         context: T
         forwardFrom: array<c.Address>
     }): ContextExecutor_Set<T> {
         return {
             $: 'ContextExecutor_Set',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
 }
@@ -252,13 +253,14 @@ export const ContextExecutor_Ask = {
     PREFIX: 0xcad4d1d0,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: c.Cell
         done: boolean
     }): ContextExecutor_Ask {
         return {
             $: 'ContextExecutor_Ask',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ContextExecutor_Ask {
@@ -305,7 +307,7 @@ export const ContextExecutor_Reply = {
     PREFIX: 0x93e5bbc5,
 
     create<T>(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint64
         context: T
         forwardFrom: array<c.Address>
@@ -314,7 +316,8 @@ export const ContextExecutor_Reply = {
     }): ContextExecutor_Reply<T> {
         return {
             $: 'ContextExecutor_Reply',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
 }
@@ -525,7 +528,7 @@ export class ContextExecutor implements c.Contract {
     }
 
     static createCellOfContextExecutorSetCell_(body: {
-        queryId: uint64
+        queryId?: uint64
         context: c.Cell
         forwardFrom: array<c.Address>
     }) {
@@ -542,7 +545,7 @@ export class ContextExecutor implements c.Contract {
     }
 
     static createCellOfContextExecutorAsk(body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: c.Cell
         done: boolean
     }) {
@@ -558,7 +561,7 @@ export class ContextExecutor implements c.Contract {
     }
 
     async sendContextExecutorSetCell_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         context: c.Cell
         forwardFrom: array<c.Address>
     }, extraOptions?: ExtraSendOptions) {
@@ -579,7 +582,7 @@ export class ContextExecutor implements c.Contract {
     }
 
     async sendContextExecutorAsk(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         forwardPayload: c.Cell
         done: boolean
     }, extraOptions?: ExtraSendOptions) {

@@ -408,7 +408,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -416,7 +416,8 @@ export const Withdrawable_Withdraw = {
     }): Withdrawable_Withdraw {
         return {
             $: 'Withdrawable_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
@@ -497,12 +498,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -537,13 +539,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -617,12 +620,13 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
@@ -718,14 +722,15 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
     }): TransferNotificationForRecipient {
         return {
             $: 'TransferNotificationForRecipient',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
@@ -1488,14 +1493,15 @@ export const Router_ApplyRampUpdates = {
     PREFIX: 0x7db6745d,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         onRampUpdates: OnRamps | null
         offRampAdds: OffRamps | null
         offRampRemoves: OffRamps | null
     }): Router_ApplyRampUpdates {
         return {
             $: 'Router_ApplyRampUpdates',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_ApplyRampUpdates {
@@ -1546,7 +1552,7 @@ export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
@@ -1556,7 +1562,8 @@ export const Router_CCIPSend = {
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
@@ -1709,12 +1716,13 @@ export const Router_RMNRemoteCurse = {
     PREFIX: 0xf3388046,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         subjects: SnakedCell<uint128>
     }): Router_RMNRemoteCurse {
         return {
             $: 'Router_RMNRemoteCurse',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RMNRemoteCurse {
@@ -1751,12 +1759,13 @@ export const Router_RMNRemoteUncurse = {
     PREFIX: 0x3f153a31,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         subjects: SnakedCell<uint128>
     }): Router_RMNRemoteUncurse {
         return {
             $: 'Router_RMNRemoteUncurse',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RMNRemoteUncurse {
@@ -1793,12 +1802,13 @@ export const Router_RMNRemoteVerifyNotCursed = {
     PREFIX: 0x0b95aa4e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         subject: uint128
     }): Router_RMNRemoteVerifyNotCursed {
         return {
             $: 'Router_RMNRemoteVerifyNotCursed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RMNRemoteVerifyNotCursed {
@@ -1835,12 +1845,13 @@ export const Router_RMNRemoteVerifyNotCursedResponse = {
     PREFIX: 0x22ba83b3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         result: boolean
     }): Router_RMNRemoteVerifyNotCursedResponse {
         return {
             $: 'Router_RMNRemoteVerifyNotCursedResponse',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RMNRemoteVerifyNotCursedResponse {
@@ -1881,14 +1892,15 @@ export const Router_MessageSent = {
     PREFIX: 0x6513f8e1,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
     }): Router_MessageSent {
         return {
             $: 'Router_MessageSent',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageSent {
@@ -1933,14 +1945,15 @@ export const Router_MessageRejected = {
     PREFIX: 0x8ae25114,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         sender: c.Address
         error: uint256
     }): Router_MessageRejected {
         return {
             $: 'Router_MessageRejected',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageRejected {
@@ -2018,12 +2031,13 @@ export const Router_CCIPSendACK = {
     PREFIX: 0x78d0f21e,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         messageId: uint256
     }): Router_CCIPSendACK {
         return {
             $: 'Router_CCIPSendACK',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSendACK {
@@ -2060,12 +2074,13 @@ export const Router_CCIPSendNACK = {
     PREFIX: 0x5a45d434,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         error: uint256
     }): Router_CCIPSendNACK {
         return {
             $: 'Router_CCIPSendNACK',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSendNACK {
@@ -3062,7 +3077,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterCCIPSend(body: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
@@ -3074,7 +3089,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterApplyRampUpdates(body: {
-        queryId: uint64
+        queryId?: uint64
         onRampUpdates: OnRamps | null
         offRampAdds: OffRamps | null
         offRampRemoves: OffRamps | null
@@ -3110,14 +3125,14 @@ export class Router implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -3127,28 +3142,28 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterRMNRemoteCurse(body: {
-        queryId: uint64
+        queryId?: uint64
         subjects: SnakedCell<uint128>
     }) {
         return Router_RMNRemoteCurse.toCell(Router_RMNRemoteCurse.create(body));
     }
 
     static createCellOfRouterRMNRemoteUncurse(body: {
-        queryId: uint64
+        queryId?: uint64
         subjects: SnakedCell<uint128>
     }) {
         return Router_RMNRemoteUncurse.toCell(Router_RMNRemoteUncurse.create(body));
     }
 
     static createCellOfRouterRMNRemoteVerifyNotCursed(body: {
-        queryId: uint64
+        queryId?: uint64
         subject: uint128
     }) {
         return Router_RMNRemoteVerifyNotCursed.toCell(Router_RMNRemoteVerifyNotCursed.create(body));
     }
 
     static createCellOfRouterMessageSent(body: {
-        queryID: uint64
+        queryID?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
@@ -3157,7 +3172,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterMessageRejected(body: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         sender: c.Address
         error: uint256
@@ -3189,7 +3204,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -3206,7 +3221,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterCCIPSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
@@ -3222,7 +3237,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterApplyRampUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         onRampUpdates: OnRamps | null
         offRampAdds: OffRamps | null
         offRampRemoves: OffRamps | null
@@ -3282,7 +3297,7 @@ export class Router implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3293,7 +3308,7 @@ export class Router implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -3307,7 +3322,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterRMNRemoteCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3318,7 +3333,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterRMNRemoteUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3329,7 +3344,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterRMNRemoteVerifyNotCursed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         subject: uint128
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3340,7 +3355,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterMessageSent(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID: uint64
+        queryID?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
@@ -3353,7 +3368,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterMessageRejected(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         sender: c.Address
         error: uint256
@@ -3401,7 +3416,7 @@ export class Router implements c.Contract {
     }
 
     async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder

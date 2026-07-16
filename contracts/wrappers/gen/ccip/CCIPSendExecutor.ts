@@ -240,7 +240,7 @@ export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
@@ -250,7 +250,8 @@ export const Router_CCIPSend = {
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
@@ -713,13 +714,14 @@ export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
@@ -1570,7 +1572,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     static createCellOfTokenPoolLockOrBurnFinished(body: {
-        queryId: uint64
+        queryId?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }) {
@@ -1642,7 +1644,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurnFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }, extraOptions?: ExtraSendOptions) {

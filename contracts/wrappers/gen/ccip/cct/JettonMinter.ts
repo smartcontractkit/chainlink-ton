@@ -356,7 +356,7 @@ export const InternalTransferStep = {
     PREFIX: 0x178d4519,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null
@@ -365,7 +365,8 @@ export const InternalTransferStep = {
     }): InternalTransferStep {
         return {
             $: 'InternalTransferStep',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): InternalTransferStep {
@@ -408,11 +409,12 @@ export const ReturnExcessesBack = {
     PREFIX: 0xd53276db,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): ReturnExcessesBack {
         return {
             $: 'ReturnExcessesBack',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReturnExcessesBack {
@@ -451,14 +453,15 @@ export const BurnNotificationForMinter = {
     PREFIX: 0x7bdd97de,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
     }): BurnNotificationForMinter {
         return {
             $: 'BurnNotificationForMinter',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): BurnNotificationForMinter {
@@ -501,13 +504,14 @@ export const RequestWalletAddress = {
     PREFIX: 0x2c76b973,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }): RequestWalletAddress {
         return {
             $: 'RequestWalletAddress',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): RequestWalletAddress {
@@ -548,13 +552,14 @@ export const ResponseWalletAddress = {
     PREFIX: 0xd1735400,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonWalletAddress: c.Address | null
         ownerAddress: c.Address | null
     }): ResponseWalletAddress {
         return {
             $: 'ResponseWalletAddress',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ResponseWalletAddress {
@@ -603,14 +608,15 @@ export const MintNewJettons = {
     PREFIX: 0x00000015,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         mintRecipient: c.Address
         tonAmount: coins
         internalTransferMsg: InternalTransferStep
     }): MintNewJettons {
         return {
             $: 'MintNewJettons',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MintNewJettons {
@@ -651,12 +657,13 @@ export const ChangeMinterAdmin = {
     PREFIX: 0x6501f354,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newAdminAddress: c.Address
     }): ChangeMinterAdmin {
         return {
             $: 'ChangeMinterAdmin',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ChangeMinterAdmin {
@@ -691,11 +698,12 @@ export const ClaimMinterAdmin = {
     PREFIX: 0xfb88e119,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): ClaimMinterAdmin {
         return {
             $: 'ClaimMinterAdmin',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ClaimMinterAdmin {
@@ -728,11 +736,12 @@ export const DropMinterAdmin = {
     PREFIX: 0x7431f221,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): DropMinterAdmin {
         return {
             $: 'DropMinterAdmin',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): DropMinterAdmin {
@@ -769,13 +778,14 @@ export const UpgradeMinterCode = {
     PREFIX: 0x2508d66a,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newData: c.Cell
         newCode: c.Cell
     }): UpgradeMinterCode {
         return {
             $: 'UpgradeMinterCode',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): UpgradeMinterCode {
@@ -814,12 +824,13 @@ export const ChangeMinterMetadataUri = {
     PREFIX: 0xcb862902,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newMetadataUri: RemainingBitsAndRefs
     }): ChangeMinterMetadataUri {
         return {
             $: 'ChangeMinterMetadataUri',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ChangeMinterMetadataUri {
@@ -947,7 +958,7 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfMintNewJettons(body: {
-        queryId: uint64
+        queryId?: uint64
         mintRecipient: c.Address
         tonAmount: coins
         internalTransferMsg: InternalTransferStep
@@ -956,7 +967,7 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfBurnNotificationForMinter(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
@@ -965,7 +976,7 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfRequestWalletAddress(body: {
-        queryId: uint64
+        queryId?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }) {
@@ -973,33 +984,33 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfChangeMinterAdmin(body: {
-        queryId: uint64
+        queryId?: uint64
         newAdminAddress: c.Address
     }) {
         return ChangeMinterAdmin.toCell(ChangeMinterAdmin.create(body));
     }
 
     static createCellOfClaimMinterAdmin(body: {
-        queryId: uint64
+        queryId?: uint64
     }) {
         return ClaimMinterAdmin.toCell(ClaimMinterAdmin.create(body));
     }
 
     static createCellOfDropMinterAdmin(body: {
-        queryId: uint64
+        queryId?: uint64
     }) {
         return DropMinterAdmin.toCell(DropMinterAdmin.create(body));
     }
 
     static createCellOfChangeMinterMetadataUri(body: {
-        queryId: uint64
+        queryId?: uint64
         newMetadataUri: RemainingBitsAndRefs
     }) {
         return ChangeMinterMetadataUri.toCell(ChangeMinterMetadataUri.create(body));
     }
 
     static createCellOfUpgradeMinterCode(body: {
-        queryId: uint64
+        queryId?: uint64
         newData: c.Cell
         newCode: c.Cell
     }) {
@@ -1020,7 +1031,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendMintNewJettons(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         mintRecipient: c.Address
         tonAmount: coins
         internalTransferMsg: InternalTransferStep
@@ -1033,7 +1044,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendBurnNotificationForMinter(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
@@ -1046,7 +1057,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendRequestWalletAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }, extraOptions?: ExtraSendOptions) {
@@ -1058,7 +1069,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendChangeMinterAdmin(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newAdminAddress: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1069,7 +1080,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendClaimMinterAdmin(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1079,7 +1090,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendDropMinterAdmin(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1089,7 +1100,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendChangeMinterMetadataUri(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newMetadataUri: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1100,7 +1111,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendUpgradeMinterCode(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newData: c.Cell
         newCode: c.Cell
     }, extraOptions?: ExtraSendOptions) {
