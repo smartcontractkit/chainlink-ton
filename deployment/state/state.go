@@ -13,12 +13,12 @@ import (
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
