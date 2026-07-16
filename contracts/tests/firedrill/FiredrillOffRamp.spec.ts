@@ -5,6 +5,7 @@ import { FiredrillOffRamp } from '../../wrappers/firedrill/FiredrillOffRamp'
 import { deployFiredrillOffRamp, CHAINSEL_TON_TEST } from './Firedrill.Setup'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
+import { setupGenBindings } from '../../wrappers/gen'
 
 describe('FiredrillOffRamp - Unit Tests', () => {
   let blockchain: Blockchain
@@ -13,6 +14,7 @@ describe('FiredrillOffRamp - Unit Tests', () => {
   let onRampAddress: any
 
   beforeAll(async () => {
+    setupGenBindings()
     blockchain = await Blockchain.create()
     blockchain.verbosity.debugLogs = true
   })

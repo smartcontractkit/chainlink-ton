@@ -8,6 +8,7 @@ import { prettifyAddressesMap } from './utils/prettyPrint'
 import { crc32 } from 'zlib'
 import * as onramp from '../wrappers/ccip/OnRamp'
 import * as router from '../wrappers/ccip/Router'
+import * as of from '../wrappers/gen/ccip/OffRamp'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -55,7 +56,7 @@ type DeepPartial<T> = {
 // map from log type → match payload type
 type LogTypeMap = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<onramp.CCIPMessageSent>
-  [CCIPLogs.LogTypes.CommitReportAccepted]: DeepPartial<CCIPLogs.CommitReportAccepted>
+  [CCIPLogs.LogTypes.CommitReportAccepted]: DeepPartial<of.CommitReportAccepted>
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: CCIPLogs.SourceChainSelectorAdded
   [CCIPLogs.LogTypes.SourceChainConfigUpdated]: CCIPLogs.SourceChainConfigUpdated
@@ -96,7 +97,7 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
     testLogCCIPMessageSent(x, from, match as DeepPartial<onramp.CCIPMessageSent>, addressesMap),
 
   [CCIPLogs.LogTypes.CommitReportAccepted]: (x, from, match) =>
-    testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<CCIPLogs.CommitReportAccepted>),
+    testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<of.CommitReportAccepted>),
 
   [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
     testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
@@ -187,31 +188,14 @@ export const assertLog = <T extends CombinedLogType>(
   expect(matched).toBe(true)
 }
 
+// TODO this could be generalized to handle any log type, provinding a interface that exposes fromSlice function
 function testLogCCIPCommitReportAccepted(
   message: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.CommitReportAccepted>,
+  match: DeepPartial<of.CommitReportAccepted>,
 ) {
   return testLog(message, from, CCIPLogs.LogTypes.CommitReportAccepted, (x) => {
-    let bs = x.beginParse()
-
-    const commitHasMerkleRoots = bs.loadBit()
-    let merkleRoot: offRamp.MerkleRoot | undefined = undefined
-    if (commitHasMerkleRoots) {
-      merkleRoot = offRamp.builder.data.merkleRoot.load(bs)
-    }
-
-    const priceUpdatesCell = bs.loadMaybeRef()
-
-    const priceUpdates =
-      priceUpdatesCell != undefined
-        ? offRamp.builder.data.priceUpdates.load(priceUpdatesCell.beginParse())
-        : undefined
-
-    const reportAccepted: CCIPLogs.CommitReportAccepted = {
-      merkleRoot,
-      priceUpdates,
-    }
+    const reportAccepted = of.CommitReportAccepted.fromSlice(x.beginParse())
     matchesObject(reportAccepted, match)
     return true
   })
@@ -285,7 +269,7 @@ export const testConfigSetLogMessage = (
 ) => {
   return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseConfigSet, (x) => {
     const cs = x.beginParse()
-    const ocrPluginType = cs.loadUint(16)
+    const ocrPluginType = cs.loadUintBig(16)
     const configDigest = cs.loadUintBig(256)
     const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
     const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress()).sort()
@@ -319,7 +303,7 @@ export const testTransmittedLogMessage = (
   return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseTransmitted, (x) => {
     const cs = x.beginParse()
     const msg = {
-      ocrPluginType: cs.loadUint(16),
+      ocrPluginType: cs.loadUintBig(16),
       configDigest: cs.loadUintBig(256),
       sequenceNumber: cs.loadUint(64),
     }

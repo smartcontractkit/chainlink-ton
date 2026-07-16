@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
-import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
+import { Values, loadMap } from '../../../src/utils/dict'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -38,21 +38,16 @@ import {
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { setupGenBindings } from '../../../wrappers/gen'
 
-import * as rtOld from '../../../wrappers/ccip/Router'
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
     $: 'AccessControl_Data',
     roles: Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell()) as any,
   }
-}
-
-function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
-  const addrSlice = rtOld.builder.data.crossChainAddress.encode(buffer).asSlice()
-  return CrossChainAddress.fromSlice(addrSlice)
 }
 
 describe('LockReleaseLockboxTokenPool', () => {
@@ -79,9 +74,9 @@ describe('LockReleaseLockboxTokenPool', () => {
   beforeAll(async () => {
     setupGenBindings()
 
-    sourcePoolAddress = crossChainAddressFromBuffer(Buffer.from('source-pool'))
-    destTokenAddress = crossChainAddressFromBuffer(Buffer.from('dest-token'))
-    receiverAddress = crossChainAddressFromBuffer(Buffer.from('receiver'))
+    sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
+    destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
+    receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))
   })
 
   beforeEach(async () => {
@@ -993,7 +988,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           cursedSubjects: CursedSubjects.create({
             data: loadMap(
               Dictionary.Keys.BigInt(128),
-              createEmptyTensorValue(),
+              Values.EmptyTensor(),
               new Map([[remoteChainSelector, []]]),
             ),
           }),

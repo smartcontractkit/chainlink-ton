@@ -255,7 +255,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       const commitConfigResult = await offRamp.sendSetOCR3Config(deployer.getSender(), {
         value: toNano('100'),
         configDigest,
-        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        ocrPluginType: Number(OCR3_PLUGIN_TYPE_COMMIT),
         bigF: 1,
         isSignatureVerificationEnabled: true,
         signers: signersPublicKeys,
@@ -269,7 +269,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       const executeConfigResult = await offRamp.sendSetOCR3Config(deployer.getSender(), {
         value: toNano('100'),
         configDigest,
-        ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+        ocrPluginType: Number(OCR3_PLUGIN_TYPE_EXECUTE),
         bigF: 1,
         isSignatureVerificationEnabled: false,
         signers: [],

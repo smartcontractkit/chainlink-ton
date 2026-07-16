@@ -51,11 +51,6 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
 }
 
-export type CommitReportAccepted = {
-  merkleRoot?: MerkleRoot
-  priceUpdates?: PriceUpdates
-}
-
 export type ExecutionStateChanged = {
   sourceChainSelector: bigint //64
   sequenceNumber: bigint //64

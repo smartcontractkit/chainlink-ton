@@ -33,13 +33,7 @@ import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/B
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-
-import * as rtOld from '../../../wrappers/ccip/Router'
-
-function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
-  const addrSlice = rtOld.builder.data.crossChainAddress.encode(buffer).asSlice()
-  return CrossChainAddress.fromSlice(addrSlice)
-}
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 describe('BurnMintTokenPool', () => {
   let blockchain: Blockchain
@@ -65,9 +59,9 @@ describe('BurnMintTokenPool', () => {
   beforeAll(async () => {
     setupGenBindings()
 
-    sourcePoolAddress = crossChainAddressFromBuffer(Buffer.from('source-pool'))
-    destTokenAddress = crossChainAddressFromBuffer(Buffer.from('dest-token'))
-    receiverAddress = crossChainAddressFromBuffer(Buffer.from('receiver'))
+    sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
+    destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
+    receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))
   })
 
   beforeEach(async () => {
@@ -259,7 +253,7 @@ describe('BurnMintTokenPool', () => {
     recipient,
     remoteChainSelector,
     unsupportedChainSelector: remoteChainSelector + 1n,
-    unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+    unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(Buffer.from('unknown-source-pool')),
     remoteTokenAddress: destTokenAddress,
     onRampAddress: deployer.address,
     destTokenAddress,
@@ -296,7 +290,9 @@ describe('BurnMintTokenPool', () => {
       recipient,
       remoteChainSelector,
       unsupportedChainSelector: remoteChainSelector + 1n,
-      unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+      unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(
+        Buffer.from('unknown-source-pool'),
+      ),
       remoteTokenAddress: destTokenAddress,
       onRampAddress: deployer.address,
       destTokenAddress,

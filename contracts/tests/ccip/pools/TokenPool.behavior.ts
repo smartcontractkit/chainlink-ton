@@ -23,7 +23,7 @@ import {
   TokenPool_Transfer,
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
+import { Values, loadMap } from '../../../src/utils/dict'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 export type TokenPoolBehaviorContext = {
@@ -128,7 +128,7 @@ export function runTokenPoolBehaviorTests(
         cursedSubjects: CursedSubjects.create({
           data: loadMap(
             Dictionary.Keys.BigInt(128),
-            createEmptyTensorValue(),
+            Values.EmptyTensor(),
             new Map([[ctx.remoteChainSelector, []]]),
           ),
         }),
@@ -224,7 +224,7 @@ export function runTokenPoolBehaviorTests(
           cursedSubjects: CursedSubjects.create({
             data: loadMap(
               Dictionary.Keys.BigInt(128),
-              createEmptyTensorValue(),
+              Values.EmptyTensor(),
               new Map([[ctx.remoteChainSelector, []]]),
             ),
           }),
@@ -245,7 +245,7 @@ export function runTokenPoolBehaviorTests(
         cursedSubjects: CursedSubjects.create({
           data: loadMap(
             Dictionary.Keys.BigInt(128),
-            createEmptyTensorValue(),
+            Values.EmptyTensor(),
             new Map([[ctx.remoteChainSelector, []]]),
           ),
         }),

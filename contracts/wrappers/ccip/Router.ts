@@ -25,6 +25,7 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as or from '../ccip/OnRamp'
 import * as of from './OffRamp'
 import { Maybe } from '@ton/core/dist/utils/maybe'
+import * as CrossChainAddressCodec from './common/CrossChainAddressCodec'
 
 export const ARTIFACT_NAME = 'Router'
 
@@ -649,22 +650,6 @@ export type RouteMessage = {
   gasLimit: bigint
 }
 
-const crossChainAddressCodec: CellCodec<Buffer> = {
-  encode: (addr: Buffer): Builder => {
-    if (addr.byteLength > 64) {
-      throw new Error('CrossChainAddress too long')
-    }
-    return beginCell().storeUint(addr.length, 8).storeBuffer(addr, addr.length)
-  },
-  load: (src: Slice): Buffer => {
-    const len = Number(src.loadUint(8))
-    if (len > 64) {
-      throw new Error('CrossChainAddress too long')
-    }
-    return src.loadBuffer(len)
-  },
-}
-
 export const builder = (() => {
   const dataCodec = (() => {
     const contractData: CellCodec<Storage> = {
@@ -783,7 +768,7 @@ export const builder = (() => {
       extraArgs,
       onRamps,
       offRamps,
-      crossChainAddress: crossChainAddressCodec,
+      crossChainAddress: CrossChainAddressCodec.codec,
       getValidatedFeeContext,
     }
   })()
@@ -795,7 +780,7 @@ export const builder = (() => {
             .storeUint(opcodes.in.ccipSend, 32)
             .storeUint(opts.queryID ?? 0, 64)
             .storeUint(opts.destChainSelector, 64)
-            .storeBuilder(crossChainAddressCodec.encode(opts.receiver))
+            .storeBuilder(CrossChainAddressCodec.codec.encode(opts.receiver))
             .storeRef(opts.data)
             .storeRef(asSnakedCell(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
             .storeAddress(opts.feeToken)
@@ -807,7 +792,7 @@ export const builder = (() => {
           return {
             queryID: src.loadUint(64),
             destChainSelector: src.loadUintBig(64),
-            receiver: crossChainAddressCodec.load(src),
+            receiver: CrossChainAddressCodec.codec.load(src),
             data: src.loadRef(),
             tokenAmounts: fromSnakeData(src.loadRef(), tokenAmountCodec.load),
             feeToken: src.loadAddress(),
