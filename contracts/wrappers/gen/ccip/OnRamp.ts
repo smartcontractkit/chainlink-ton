@@ -17,9 +17,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -42,15 +39,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -931,7 +928,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
 export const Router_CCIPSend = {
@@ -944,7 +941,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -1160,7 +1157,7 @@ export const Router_LockOrBurn = {
  */
 export interface FeeQuoter_GetValidatedFee<T> {
     readonly $: 'FeeQuoter_GetValidatedFee'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -1168,7 +1165,7 @@ export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
     create<T>(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_GetValidatedFee<T> {
         return {
@@ -1188,7 +1185,7 @@ export const FeeQuoter_GetValidatedFee = {
 export interface FeeQuoter_MessageValidated<T> {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -1197,7 +1194,7 @@ export const FeeQuoter_MessageValidated = {
 
     create<T>(args: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidated<T> {
         return {
@@ -1217,7 +1214,7 @@ export const FeeQuoter_MessageValidated = {
 export interface FeeQuoter_MessageValidationFailed<T> {
     readonly $: 'FeeQuoter_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -1226,7 +1223,7 @@ export const FeeQuoter_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidationFailed<T> {
         return {
@@ -1686,7 +1683,7 @@ export interface TVM2AnyRampMessage {
     readonly $: 'TVM2AnyRampMessage'
     header: RampMessageHeader
     sender: c.Address
-    body: CellRef<TVM2AnyRampMessageBody>
+    body: TVM2AnyRampMessageBody
     feeValueJuels: uint96
 }
 
@@ -1694,7 +1691,7 @@ export const TVM2AnyRampMessage = {
     create(args: {
         header: RampMessageHeader
         sender: c.Address
-        body: CellRef<TVM2AnyRampMessageBody>
+        body: TVM2AnyRampMessageBody
         feeValueJuels: uint96
     }): TVM2AnyRampMessage {
         return {
@@ -1734,7 +1731,7 @@ export const TVM2AnyRampMessage = {
  */
 export interface TVM2AnyRampMessageBody {
     readonly $: 'TVM2AnyRampMessageBody'
-    receiver: CellRef<CrossChainAddress>
+    receiver: CrossChainAddress
     data: c.Cell
     extraArgs: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
@@ -1744,7 +1741,7 @@ export interface TVM2AnyRampMessageBody {
 
 export const TVM2AnyRampMessageBody = {
     create(args: {
-        receiver: CellRef<CrossChainAddress>
+        receiver: CrossChainAddress
         data: c.Cell
         extraArgs: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
@@ -1795,7 +1792,7 @@ export interface OnRamp_Storage {
     id: uint32
     ownable: Ownable2Step
     chainSelector: uint64
-    config: CellRef<OnRamp_DynamicConfig>
+    config: OnRamp_DynamicConfig
     destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
     executor: ExecutorDeployment
 }
@@ -1805,7 +1802,7 @@ export const OnRamp_Storage = {
         id: uint32
         ownable: Ownable2Step
         chainSelector: uint64
-        config: CellRef<OnRamp_DynamicConfig>
+        config: OnRamp_DynamicConfig
         destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
     }): OnRamp_Storage {
@@ -1847,7 +1844,7 @@ export const OnRamp_Storage = {
  */
 export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
     tokenRegistry: c.Address | null
 }
@@ -1856,7 +1853,7 @@ export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
     create(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }): OnRamp_Send {
@@ -1893,7 +1890,7 @@ export const OnRamp_Send = {
  */
 export interface OnRamp_GetValidatedFee<T> {
     readonly $: 'OnRamp_GetValidatedFee'
-    ccipSend: CellRef<Router_CCIPSend>
+    ccipSend: Router_CCIPSend
     context: T
 }
 
@@ -1901,7 +1898,7 @@ export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
     create<T>(args: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: T
     }): OnRamp_GetValidatedFee<T> {
         return {
@@ -2050,7 +2047,7 @@ export interface OnRamp_ExecutorFinishedSuccessfully {
     readonly $: 'OnRamp_ExecutorFinishedSuccessfully'
     executorID: CCIPSendExecutor_ID
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
 }
 
@@ -2060,7 +2057,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
     create(args: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }): OnRamp_ExecutorFinishedSuccessfully {
         return {
@@ -2102,7 +2099,7 @@ export interface OnRamp_ExecutorFinishedWithError {
     readonly $: 'OnRamp_ExecutorFinishedWithError'
     executorID: CCIPSendExecutor_ID
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
 }
 
@@ -2112,7 +2109,7 @@ export const OnRamp_ExecutorFinishedWithError = {
     create(args: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }): OnRamp_ExecutorFinishedWithError {
         return {
@@ -2263,7 +2260,7 @@ export const OnRamp_UpdateAllowlists = {
 export interface OnRamp_MessageValidated<T> {
     readonly $: 'OnRamp_MessageValidated'
     fee: coins
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -2272,7 +2269,7 @@ export const OnRamp_MessageValidated = {
 
     create<T>(args: {
         fee: coins
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): OnRamp_MessageValidated<T> {
         return {
@@ -2292,7 +2289,7 @@ export const OnRamp_MessageValidated = {
 export interface OnRamp_MessageValidationFailed<T> {
     readonly $: 'OnRamp_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -2301,7 +2298,7 @@ export const OnRamp_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): OnRamp_MessageValidationFailed<T> {
         return {
@@ -2429,7 +2426,7 @@ export class OnRamp implements c.Contract {
         id: uint32
         ownable: Ownable2Step
         chainSelector: uint64
-        config: CellRef<OnRamp_DynamicConfig>
+        config: OnRamp_DynamicConfig
         destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
     }, deployedOptions?: DeployedAddrOptions) {
@@ -2442,7 +2439,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampSend(body: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }) {
@@ -2450,7 +2447,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampGetValidatedFeeRemainingBitsAndRefs_(body: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: RemainingBitsAndRefs
     }) {
         return makeCellFrom<OnRamp_GetValidatedFee<RemainingBitsAndRefs>>(OnRamp_GetValidatedFee.create<RemainingBitsAndRefs>(body),
@@ -2462,7 +2459,7 @@ export class OnRamp implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidatedOnRampGetValidatedFeeContext_(body: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }) {
         return makeCellFrom<FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidated.create<OnRamp_GetValidatedFeeContext>(body),
@@ -2475,7 +2472,7 @@ export class OnRamp implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidationFailedOnRampGetValidatedFeeContext_(body: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }) {
         return makeCellFrom<FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidationFailed.create<OnRamp_GetValidatedFeeContext>(body),
@@ -2498,7 +2495,7 @@ export class OnRamp implements c.Contract {
     static createCellOfOnRampExecutorFinishedSuccessfully(body: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }) {
         return OnRamp_ExecutorFinishedSuccessfully.toCell(OnRamp_ExecutorFinishedSuccessfully.create(body));
@@ -2507,7 +2504,7 @@ export class OnRamp implements c.Contract {
     static createCellOfOnRampExecutorFinishedWithError(body: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }) {
         return OnRamp_ExecutorFinishedWithError.toCell(OnRamp_ExecutorFinishedWithError.create(body));
@@ -2559,7 +2556,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }, extraOptions?: ExtraSendOptions) {
@@ -2571,7 +2568,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2587,7 +2584,7 @@ export class OnRamp implements c.Contract {
 
     async sendFeeQuoterMessageValidatedOnRampGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2604,7 +2601,7 @@ export class OnRamp implements c.Contract {
 
     async sendFeeQuoterMessageValidationFailedOnRampGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2635,7 +2632,7 @@ export class OnRamp implements c.Contract {
     async sendOnRampExecutorFinishedSuccessfully(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2648,7 +2645,7 @@ export class OnRamp implements c.Contract {
     async sendOnRampExecutorFinishedWithError(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

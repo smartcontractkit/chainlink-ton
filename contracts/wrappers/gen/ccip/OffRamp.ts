@@ -15,9 +15,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -40,15 +37,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkBitsN(v: c.Slice, nBits: number, b: c.Builder): void {
@@ -192,8 +189,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 
     readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
@@ -775,15 +772,15 @@ export const OCR3Base_SetOCR3Config = {
 export interface OCR3Base {
     readonly $: 'OCR3Base'
     chainId: uint8
-    commit: CellRef<OCRConfig> | null
-    execute: CellRef<OCRConfig> | null
+    commit: OCRConfig | null
+    execute: OCRConfig | null
 }
 
 export const OCR3Base = {
     create(args: {
         chainId: uint8
-        commit: CellRef<OCRConfig> | null
-        execute: CellRef<OCRConfig> | null
+        commit: OCRConfig | null
+        execute: OCRConfig | null
     }): OCR3Base {
         return {
             $: 'OCR3Base',
@@ -800,10 +797,10 @@ export const OCR3Base = {
     },
     store(self: OCR3Base, b: c.Builder): void {
         b.storeUint(self.chainId, 8);
-        storeTolkNullable<CellRef<OCRConfig>>(self.commit, b,
+        storeTolkNullable<OCRConfig>(self.commit, b,
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
-        storeTolkNullable<CellRef<OCRConfig>>(self.execute, b,
+        storeTolkNullable<OCRConfig>(self.execute, b,
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
     },
@@ -1256,7 +1253,7 @@ export const FeeQuoter_UpdatePrices = {
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
     gasOverride: coins | null
@@ -1266,7 +1263,7 @@ export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
         gasOverride: coins | null
@@ -1512,7 +1509,7 @@ export const ReceiveExecutor_BouncedReason = {
  */
 export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
-    message: CellRef<Any2TVMMessage>
+    message: Any2TVMMessage
     execId: ReceiveExecutorId
     receiver: c.Address
     gasLimit: coins
@@ -1522,7 +1519,7 @@ export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
     create(args: {
-        message: CellRef<Any2TVMMessage>
+        message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
         gasLimit: coins
@@ -1664,7 +1661,7 @@ export const OffRamp_Execute = {
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
     gasOverride: coins | null
@@ -1675,7 +1672,7 @@ export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -1848,7 +1845,7 @@ export const SourceChainConfigUpdate = {
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     execId: uint192
     gasOverride: coins | null
 }
@@ -1857,7 +1854,7 @@ export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }): OffRamp_DispatchValidated {
@@ -2262,13 +2259,13 @@ export const ExecutionReport = {
  */
 export interface CommitReport {
     readonly $: 'CommitReport'
-    priceUpdates: CellRef<PriceUpdates> | null
+    priceUpdates: PriceUpdates | null
     merkleRoots: SnakedCell<MerkleRoot>
 }
 
 export const CommitReport = {
     create(args: {
-        priceUpdates: CellRef<PriceUpdates> | null
+        priceUpdates: PriceUpdates | null
         merkleRoots: SnakedCell<MerkleRoot>
     }): CommitReport {
         return {
@@ -2284,7 +2281,7 @@ export const CommitReport = {
         }
     },
     store(self: CommitReport, b: c.Builder): void {
-        storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
+        storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
         storeSnakedCellOf(self.merkleRoots, b, MerkleRoot.store);
@@ -2446,7 +2443,7 @@ export const SourceChainConfig = {
 export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
-    sender: CellRef<CrossChainAddress>
+    sender: CrossChainAddress
     data: c.Cell
     receiver: c.Address
     gasLimit: coins
@@ -2456,7 +2453,7 @@ export interface Any2TVMRampMessage {
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
-        sender: CellRef<CrossChainAddress>
+        sender: CrossChainAddress
         data: c.Cell
         receiver: c.Address
         gasLimit: coins
@@ -2555,7 +2552,7 @@ export const MerkleRoot = {
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
-    sourcePoolAddress: CellRef<CrossChainAddress>
+    sourcePoolAddress: CrossChainAddress
     destPoolAddress: c.Address
     destGasAmount: uint32
     extraData: c.Cell
@@ -2564,7 +2561,7 @@ export interface Any2TVMTokenTransfer {
 
 export const Any2TVMTokenTransfer = {
     create(args: {
-        sourcePoolAddress: CellRef<CrossChainAddress>
+        sourcePoolAddress: CrossChainAddress
         destPoolAddress: c.Address
         destGasAmount: uint32
         extraData: c.Cell
@@ -2719,9 +2716,9 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    deployables: CellRef<OffRamp_Deployables>
+    deployables: OffRamp_Deployables
     feeQuoter: c.Address
-    ocr3Base: CellRef<OCR3Base>
+    ocr3Base: OCR3Base
     cursedSubjects: CursedSubjects
     chainSelector: uint64
     permissionlessExecutionThresholdSeconds: uint32
@@ -2733,9 +2730,9 @@ export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        deployables: CellRef<OffRamp_Deployables>
+        deployables: OffRamp_Deployables
         feeQuoter: c.Address
-        ocr3Base: CellRef<OCR3Base>
+        ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
@@ -2836,13 +2833,13 @@ export const ExecutionStateChanged = {
 export interface CommitReportAccepted {
     readonly $: 'CommitReportAccepted'
     merkleRoot: MerkleRoot | null
-    priceUpdates: CellRef<PriceUpdates> | null
+    priceUpdates: PriceUpdates | null
 }
 
 export const CommitReportAccepted = {
     create(args: {
         merkleRoot: MerkleRoot | null
-        priceUpdates: CellRef<PriceUpdates> | null
+        priceUpdates: PriceUpdates | null
     }): CommitReportAccepted {
         return {
             $: 'CommitReportAccepted',
@@ -2858,7 +2855,7 @@ export const CommitReportAccepted = {
     },
     store(self: CommitReportAccepted, b: c.Builder): void {
         storeTolkNullable<MerkleRoot>(self.merkleRoot, b, MerkleRoot.store);
-        storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
+        storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
     },
@@ -3327,9 +3324,9 @@ export class OffRamp implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        deployables: CellRef<OffRamp_Deployables>
+        deployables: OffRamp_Deployables
         feeQuoter: c.Address
-        ocr3Base: CellRef<OCR3Base>
+        ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
@@ -3362,7 +3359,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecuteValidated(body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -3380,7 +3377,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampDispatchValidated(body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }) {
@@ -3509,7 +3506,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecuteValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -3535,7 +3532,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampDispatchValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }, extraOptions?: ExtraSendOptions) {
@@ -3695,10 +3692,10 @@ export class OffRamp implements c.Contract {
         return ({
             $: 'OCR3Base',
             chainId: r.readBigInt(),
-            commit: r.readNullable<CellRef<OCRConfig>>(
+            commit: r.readNullable<OCRConfig>(
                 (r) => r.readCellRef<OCRConfig>(OCRConfig.fromSlice)
             ),
-            execute: r.readNullable<CellRef<OCRConfig>>(
+            execute: r.readNullable<OCRConfig>(
                 (r) => r.readCellRef<OCRConfig>(OCRConfig.fromSlice)
             ),
         });

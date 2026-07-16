@@ -14,9 +14,6 @@ type RemainingBitsAndRefs = c.Slice
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -47,15 +44,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -236,7 +233,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
 export const Router_CCIPSend = {
@@ -249,7 +246,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -310,7 +307,7 @@ export const Router_CCIPSend = {
  */
 export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
     tokenRegistry: c.Address | null
 }
@@ -319,7 +316,7 @@ export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
     create(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }): OnRamp_Send {
@@ -412,7 +409,7 @@ export interface OnRamp_ExecutorFinishedSuccessfully {
     readonly $: 'OnRamp_ExecutorFinishedSuccessfully'
     executorID: CCIPSendExecutor_ID
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
 }
 
@@ -422,7 +419,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
     create(args: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }): OnRamp_ExecutorFinishedSuccessfully {
         return {
@@ -464,7 +461,7 @@ export interface OnRamp_ExecutorFinishedWithError {
     readonly $: 'OnRamp_ExecutorFinishedWithError'
     executorID: CCIPSendExecutor_ID
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
 }
 
@@ -474,7 +471,7 @@ export const OnRamp_ExecutorFinishedWithError = {
     create(args: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }): OnRamp_ExecutorFinishedWithError {
         return {
@@ -512,7 +509,7 @@ export const OnRamp_ExecutorFinishedWithError = {
  */
 export interface FeeQuoter_GetValidatedFee<T> {
     readonly $: 'FeeQuoter_GetValidatedFee'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -520,7 +517,7 @@ export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
     create<T>(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_GetValidatedFee<T> {
         return {
@@ -540,7 +537,7 @@ export const FeeQuoter_GetValidatedFee = {
 export interface FeeQuoter_MessageValidated<T> {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -549,7 +546,7 @@ export const FeeQuoter_MessageValidated = {
 
     create<T>(args: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidated<T> {
         return {
@@ -569,7 +566,7 @@ export const FeeQuoter_MessageValidated = {
 export interface FeeQuoter_MessageValidationFailed<T> {
     readonly $: 'FeeQuoter_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -578,7 +575,7 @@ export const FeeQuoter_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidationFailed<T> {
         return {
@@ -708,7 +705,7 @@ export const TokenRegistry_ReturnTokenInfo = {
 export interface TokenPool_LockOrBurnFinished {
     readonly $: 'TokenPool_LockOrBurnFinished'
     queryId: uint64
-    out: CellRef<TokenPool_LockOrBurnOutV1>
+    out: TokenPool_LockOrBurnOutV1
     destTokenAmount: coins
 }
 
@@ -717,7 +714,7 @@ export const TokenPool_LockOrBurnFinished = {
 
     create(args: {
         queryId: uint64
-        out: CellRef<TokenPool_LockOrBurnOutV1>
+        out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
@@ -812,7 +809,7 @@ export interface CCIPSendExecutor_Data {
     readonly $: 'CCIPSendExecutor_Data'
     id: CCIPSendExecutor_ID
     onrampSend: OnRamp_Send
-    addresses: CellRef<CCIPSendExecutor_Addresses>
+    addresses: CCIPSendExecutor_Addresses
     state: CCIPSendExecutor_State
 }
 
@@ -820,7 +817,7 @@ export const CCIPSendExecutor_Data = {
     create(args: {
         id: CCIPSendExecutor_ID
         onrampSend: OnRamp_Send
-        addresses: CellRef<CCIPSendExecutor_Addresses>
+        addresses: CCIPSendExecutor_Addresses
         state: CCIPSendExecutor_State
     }): CCIPSendExecutor_Data {
         return {
@@ -895,11 +892,11 @@ export const CCIPSendExecutor_Addresses = {
  > type CCIPSendExecutor_State = Cell<CCIPSendExecutor_State_Initialized> | Cell<CCIPSendExecutor_State_OnGoingFeeValidation> | Cell<CCIPSendExecutor_State_TokenRegistryAccess> | Cell<CCIPSendExecutor_State_TokenTransfer> | Cell<CCIPSendExecutor_State_Finalized>
  */
 export type CCIPSendExecutor_State =
-    | { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: CellRef<CCIPSendExecutor_State_Initialized> }
-    | { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: CellRef<CCIPSendExecutor_State_OnGoingFeeValidation> }
-    | { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: CellRef<CCIPSendExecutor_State_TokenRegistryAccess> }
-    | { $: 'Cell<CCIPSendExecutor_State_TokenTransfer>', value: CellRef<CCIPSendExecutor_State_TokenTransfer> }
-    | { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: CellRef<CCIPSendExecutor_State_Finalized> }
+    | { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: CCIPSendExecutor_State_Initialized }
+    | { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: CCIPSendExecutor_State_OnGoingFeeValidation }
+    | { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: CCIPSendExecutor_State_TokenRegistryAccess }
+    | { $: 'Cell<CCIPSendExecutor_State_TokenTransfer>', value: CCIPSendExecutor_State_TokenTransfer }
+    | { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: CCIPSendExecutor_State_Finalized }
 
 export const CCIPSendExecutor_State = {
     fromSlice(s: c.Slice): CCIPSendExecutor_State {
@@ -1130,7 +1127,7 @@ export const CCIPSendExecutor_Config = {
 export interface CCIPSendExecutor_Execute {
     readonly $: 'CCIPSendExecutor_Execute'
     onrampSend: OnRamp_Send
-    config: CellRef<CCIPSendExecutor_Config>
+    config: CCIPSendExecutor_Config
 }
 
 export const CCIPSendExecutor_Execute = {
@@ -1138,7 +1135,7 @@ export const CCIPSendExecutor_Execute = {
 
     create(args: {
         onrampSend: OnRamp_Send
-        config: CellRef<CCIPSendExecutor_Config>
+        config: CCIPSendExecutor_Config
     }): CCIPSendExecutor_Execute {
         return {
             $: 'CCIPSendExecutor_Execute',
@@ -1417,13 +1414,13 @@ export const Metadata = {
  */
 export interface TokenPool_LockOrBurnOutV1 {
     readonly $: 'TokenPool_LockOrBurnOutV1'
-    destTokenAddress: CellRef<CrossChainAddress>
+    destTokenAddress: CrossChainAddress
     destPoolData: c.Cell
 }
 
 export const TokenPool_LockOrBurnOutV1 = {
     create(args: {
-        destTokenAddress: CellRef<CrossChainAddress>
+        destTokenAddress: CrossChainAddress
         destPoolData: c.Cell
     }): TokenPool_LockOrBurnOutV1 {
         return {
@@ -1534,14 +1531,14 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfCCIPSendExecutorExecute(body: {
         onrampSend: OnRamp_Send
-        config: CellRef<CCIPSendExecutor_Config>
+        config: CCIPSendExecutor_Config
     }) {
         return CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body));
     }
 
     static createCellOfFeeQuoterMessageValidatedRemainingBitsAndRefs_(body: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }) {
         return makeCellFrom<FeeQuoter_MessageValidated<RemainingBitsAndRefs>>(FeeQuoter_MessageValidated.create<RemainingBitsAndRefs>(body),
@@ -1554,7 +1551,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidationFailedRemainingBitsAndRefs_(body: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }) {
         return makeCellFrom<FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>>(FeeQuoter_MessageValidationFailed.create<RemainingBitsAndRefs>(body),
@@ -1574,7 +1571,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfTokenPoolLockOrBurnFinished(body: {
         queryId: uint64
-        out: CellRef<TokenPool_LockOrBurnOutV1>
+        out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }) {
         return TokenPool_LockOrBurnFinished.toCell(TokenPool_LockOrBurnFinished.create(body));
@@ -1590,7 +1587,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendCCIPSendExecutorExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         onrampSend: OnRamp_Send
-        config: CellRef<CCIPSendExecutor_Config>
+        config: CCIPSendExecutor_Config
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1601,7 +1598,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendFeeQuoterMessageValidatedRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1618,7 +1615,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendFeeQuoterMessageValidationFailedRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1646,7 +1643,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendTokenPoolLockOrBurnFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        out: CellRef<TokenPool_LockOrBurnOutV1>
+        out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

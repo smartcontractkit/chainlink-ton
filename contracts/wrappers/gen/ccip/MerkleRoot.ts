@@ -12,9 +12,6 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,15 +34,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -204,7 +201,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
     gasOverride: coins | null
@@ -215,7 +212,7 @@ export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -265,7 +262,7 @@ export const OffRamp_ExecuteValidated = {
 export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
-    sender: CellRef<CrossChainAddress>
+    sender: CrossChainAddress
     data: c.Cell
     receiver: c.Address
     gasLimit: coins
@@ -275,7 +272,7 @@ export interface Any2TVMRampMessage {
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
-        sender: CellRef<CrossChainAddress>
+        sender: CrossChainAddress
         data: c.Cell
         receiver: c.Address
         gasLimit: coins
@@ -321,7 +318,7 @@ export const Any2TVMRampMessage = {
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
-    sourcePoolAddress: CellRef<CrossChainAddress>
+    sourcePoolAddress: CrossChainAddress
     destPoolAddress: c.Address
     destGasAmount: uint32
     extraData: c.Cell
@@ -330,7 +327,7 @@ export interface Any2TVMTokenTransfer {
 
 export const Any2TVMTokenTransfer = {
     create(args: {
-        sourcePoolAddress: CellRef<CrossChainAddress>
+        sourcePoolAddress: CrossChainAddress
         destPoolAddress: c.Address
         destGasAmount: uint32
         extraData: c.Cell
@@ -412,7 +409,7 @@ export const ExecutionState = {
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
     gasOverride: coins | null
@@ -422,7 +419,7 @@ export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
         gasOverride: coins | null
@@ -723,7 +720,7 @@ export class MerkleRoot implements c.Contract {
     }
 
     static createCellOfMerkleRootValidate(body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
         gasOverride: coins | null
@@ -747,7 +744,7 @@ export class MerkleRoot implements c.Contract {
     }
 
     async sendMerkleRootValidate(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
         gasOverride: coins | null

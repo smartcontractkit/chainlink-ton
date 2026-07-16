@@ -12,9 +12,6 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,15 +34,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -640,7 +637,7 @@ export const Timelock_UpdateExecutorRoleCheck = {
 export interface Timelock_SubmitErrorReport {
     readonly $: 'Timelock_SubmitErrorReport'
     queryId: uint64
-    opBatch: CellRef<Timelock_OperationBatch>
+    opBatch: Timelock_OperationBatch
     opTxHash: uint256
     errorTxHash: uint256
     errorCode: uint32
@@ -651,7 +648,7 @@ export const Timelock_SubmitErrorReport = {
 
     create(args: {
         queryId: uint64
-        opBatch: CellRef<Timelock_OperationBatch>
+        opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
@@ -800,7 +797,7 @@ export interface Timelock_CallScheduled {
     queryId: uint64
     id: uint256
     index: uint64
-    call: CellRef<Timelock_Call>
+    call: Timelock_Call
     predecessor: uint256
     salt: uint256
     delay: uint32
@@ -813,7 +810,7 @@ export const Timelock_CallScheduled = {
         queryId: uint64
         id: uint256
         index: uint64
-        call: CellRef<Timelock_Call>
+        call: Timelock_Call
         predecessor: uint256
         salt: uint256
         delay: uint32
@@ -1310,7 +1307,7 @@ export interface Timelock_Data {
     blockedFnSelectors: c.Dictionary<uint32, boolean>
     executorRoleCheckEnabled: boolean
     opPendingInfo: Timelock_OpPendingInfo
-    rbac: CellRef<AccessControl_Data>
+    rbac: AccessControl_Data
 }
 
 export const Timelock_Data = {
@@ -1322,7 +1319,7 @@ export const Timelock_Data = {
         blockedFnSelectors: c.Dictionary<uint32, boolean>
         executorRoleCheckEnabled: boolean
         opPendingInfo: Timelock_OpPendingInfo
-        rbac: CellRef<AccessControl_Data>
+        rbac: AccessControl_Data
     }): Timelock_Data {
         return {
             $: 'Timelock_Data',
@@ -1701,12 +1698,12 @@ export const AccessControl_RoleAdminChanged = {
  */
 export interface AccessControl_Data {
     readonly $: 'AccessControl_Data'
-    roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+    roles: c.Dictionary<uint256, AccessControl_RoleData>
 }
 
 export const AccessControl_Data = {
     create(args: {
-        roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+        roles: c.Dictionary<uint256, AccessControl_RoleData>
     }): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
@@ -1716,14 +1713,14 @@ export const AccessControl_Data = {
     fromSlice(s: c.Slice): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
-            roles: c.Dictionary.load<uint256, CellRef<AccessControl_RoleData>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+            roles: c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
                 (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
                 (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
             ), s),
         }
     },
     store(self: AccessControl_Data, b: c.Builder): void {
-        b.storeDict<uint256, CellRef<AccessControl_RoleData>>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+        b.storeDict<uint256, AccessControl_RoleData>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
             (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
             (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
         ));
@@ -1855,7 +1852,7 @@ export class Timelock implements c.Contract {
         blockedFnSelectors: c.Dictionary<uint32, boolean>
         executorRoleCheckEnabled: boolean
         opPendingInfo: Timelock_OpPendingInfo
-        rbac: CellRef<AccessControl_Data>
+        rbac: AccessControl_Data
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? Timelock.CodeCell,
@@ -1949,7 +1946,7 @@ export class Timelock implements c.Contract {
 
     static createCellOfTimelockSubmitErrorReport(body: {
         queryId: uint64
-        opBatch: CellRef<Timelock_OperationBatch>
+        opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
@@ -2089,7 +2086,7 @@ export class Timelock implements c.Contract {
 
     async sendTimelockSubmitErrorReport(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        opBatch: CellRef<Timelock_OperationBatch>
+        opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32

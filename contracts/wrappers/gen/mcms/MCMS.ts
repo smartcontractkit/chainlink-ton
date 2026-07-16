@@ -12,9 +12,6 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,15 +34,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -225,7 +222,7 @@ export const MCMS_SetRoot = {
 export interface MCMS_Execute {
     readonly $: 'MCMS_Execute'
     queryId: uint64
-    op: CellRef<Op>
+    op: Op
     proof: SnakedCell<uint256>
 }
 
@@ -234,7 +231,7 @@ export const MCMS_Execute = {
 
     create(args: {
         queryId: uint64
-        op: CellRef<Op>
+        op: Op
         proof: SnakedCell<uint256>
     }): MCMS_Execute {
         return {
@@ -379,7 +376,7 @@ export const MCMS_UpdateOpFinalizationTimeout = {
 export interface MCMS_SubmitErrorReport {
     readonly $: 'MCMS_SubmitErrorReport'
     queryId: uint64
-    op: CellRef<Op>
+    op: Op
     proof: SnakedCell<uint256>
     opTxHash: uint256
     errorTxHash: uint256
@@ -391,7 +388,7 @@ export const MCMS_SubmitErrorReport = {
 
     create(args: {
         queryId: uint64
-        op: CellRef<Op>
+        op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
         errorTxHash: uint256
@@ -733,7 +730,7 @@ export interface MCMS_ErrorReportSubmitted {
     opTxHash: uint256
     errorTxHash: uint256
     errorCode: uint32
-    root: CellRef<uint256>
+    root: uint256
     matchesPendingOp: boolean
 }
 
@@ -746,7 +743,7 @@ export const MCMS_ErrorReportSubmitted = {
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
-        root: CellRef<uint256>
+        root: uint256
         matchesPendingOp: boolean
     }): MCMS_ErrorReportSubmitted {
         return {
@@ -954,9 +951,9 @@ export interface MCMS_Data {
     ownable: Ownable2Step
     oracle: c.Address
     signers: c.Dictionary<uint160, Signer>
-    config: CellRef<Config>
+    config: Config
     seenSignedHashes: c.Dictionary<uint256, boolean>
-    rootInfo: CellRef<RootInfo>
+    rootInfo: RootInfo
 }
 
 export const MCMS_Data = {
@@ -965,9 +962,9 @@ export const MCMS_Data = {
         ownable: Ownable2Step
         oracle: c.Address
         signers: c.Dictionary<uint160, Signer>
-        config: CellRef<Config>
+        config: Config
         seenSignedHashes: c.Dictionary<uint256, boolean>
-        rootInfo: CellRef<RootInfo>
+        rootInfo: RootInfo
     }): MCMS_Data {
         return {
             $: 'MCMS_Data',
@@ -1137,7 +1134,7 @@ export interface ExpiringRootAndOpCount {
     root: uint256
     validUntil: uint64
     opCount: uint40
-    opPendingInfo: CellRef<OpPendingInfo>
+    opPendingInfo: OpPendingInfo
 }
 
 export const ExpiringRootAndOpCount = {
@@ -1145,7 +1142,7 @@ export const ExpiringRootAndOpCount = {
         root: uint256
         validUntil: uint64
         opCount: uint40
-        opPendingInfo: CellRef<OpPendingInfo>
+        opPendingInfo: OpPendingInfo
     }): ExpiringRootAndOpCount {
         return {
             $: 'ExpiringRootAndOpCount',
@@ -1669,9 +1666,9 @@ export class MCMS implements c.Contract {
         ownable: Ownable2Step
         oracle: c.Address
         signers: c.Dictionary<uint160, Signer>
-        config: CellRef<Config>
+        config: Config
         seenSignedHashes: c.Dictionary<uint256, boolean>
-        rootInfo: CellRef<RootInfo>
+        rootInfo: RootInfo
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? MCMS.CodeCell,
@@ -1694,7 +1691,7 @@ export class MCMS implements c.Contract {
 
     static createCellOfMCMSExecute(body: {
         queryId: uint64
-        op: CellRef<Op>
+        op: Op
         proof: SnakedCell<uint256>
     }) {
         return MCMS_Execute.toCell(MCMS_Execute.create(body));
@@ -1720,7 +1717,7 @@ export class MCMS implements c.Contract {
 
     static createCellOfMCMSSubmitErrorReport(body: {
         queryId: uint64
-        op: CellRef<Op>
+        op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
         errorTxHash: uint256
@@ -1791,7 +1788,7 @@ export class MCMS implements c.Contract {
 
     async sendMCMSExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        op: CellRef<Op>
+        op: Op
         proof: SnakedCell<uint256>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1829,7 +1826,7 @@ export class MCMS implements c.Contract {
 
     async sendMCMSSubmitErrorReport(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        op: CellRef<Op>
+        op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
         errorTxHash: uint256

@@ -190,6 +190,101 @@ def transform_snaked_cell(content: str) -> str:
     return content
 
 
+# ---------------------------------------------------------------------------
+#   CellRef<T> ergonomic transform
+#
+#   Acton generates `type CellRef<T> = { ref: T }`, leaking serialization
+#   details into the API.  Every caller must wrap values as `{ ref: value }`.
+#   This transform rewrites the generated output so that fields typed as
+#   `CellRef<T>` become just `T`, and the store/load functions handle the
+#   cell-ref wrapping internally.
+# ---------------------------------------------------------------------------
+
+
+def transform_cell_ref(content: str) -> str:
+    """Transform CellRef<T> from { ref: T } to T with automatic cell-ref wrapping.
+
+    Changes:
+    - `storeCellRef(cell: CellRef<T>, ...)` → `storeCellRef(value: T, ...)`
+    - `loadCellRef(...): CellRef<T>` → `loadCellRef(...): T`
+    - `readCellRef(...): CellRef<T>` → `readCellRef(...): T`
+    - All type annotations `CellRef<T>` → `T` (including `CellRef<T> | null` → `T | null`)
+    - Dictionary value types `c.Dictionary<K, CellRef<V>>` → `c.Dictionary<K, V>`
+    """
+
+    # Skip files that don't use CellRef at all.
+    if "CellRef" not in content:
+        return content
+
+    # 1. Change storeCellRef to accept T instead of CellRef<T>, and access the value directly.
+    content = content.replace(
+        "function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {\n"
+        "    let b_ref = c.beginCell();\n"
+        "    storeFn_T(cell.ref, b_ref);",
+        "function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {\n"
+        "    let b_ref = c.beginCell();\n"
+        "    storeFn_T(value, b_ref);",
+    )
+
+    # 2. Change loadCellRef to return T instead of CellRef<T>.
+    content = content.replace(
+        "function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {\n"
+        "    let s_ref = s.loadRef().beginParse();\n"
+        "    return { ref: loadFn_T(s_ref) };\n"
+        "}",
+        "function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {\n"
+        "    let s_ref = s.loadRef().beginParse();\n"
+        "    return loadFn_T(s_ref);\n"
+        "}",
+    )
+
+    # 3. Change readCellRef to return T instead of CellRef<T>.
+    content = content.replace(
+        "    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {\n"
+        "        return { ref: loadFn_T(this.readCell().beginParse()) };\n"
+        "    }",
+        "    readCellRef<T>(loadFn_T: LoadCallback<T>): T {\n"
+        "        return loadFn_T(this.readCell().beginParse());\n"
+        "    }",
+    )
+
+    # 4. Remove the `export type CellRef<T> = { ref: T }` definition entirely.
+    #    It's no longer used — storeCellRef/loadCellRef now accept/return T directly.
+    content = re.sub(
+        r"\nexport type CellRef<T> = \{\n    ref: T\n\}\n",
+        "\n",
+        content,
+    )
+
+    # 5. Replace all remaining CellRef<X> type annotations with X.
+    #    This handles:
+    #    - Interface fields: `field: CellRef<T>` → `field: T`
+    #    - Nullable fields: `CellRef<T> | null` → `T | null`
+    #    - Dictionary values: `c.Dictionary<K, CellRef<V>>` → `c.Dictionary<K, V>`
+    #    - Generic type params: `storeTolkNullable<CellRef<T>>` → `storeTolkNullable<T>`
+    #    - readNullable<CellRef<T>> → readNullable<T>
+    #    - fromStorage args, createCellOf body types, send method body types
+    #
+    #    IMPORTANT: Use a negative lookbehind for word characters so we don't
+    #    accidentally rewrite function names like `storeCellRef<T>` → `storeT<T>`.
+    #    The `\b` before CellRef ensures we only match when CellRef starts a word.
+    content = re.sub(r"(?<!\w)CellRef<([^>]+)>", r"\1", content)
+
+    # 6. Remove `.ref` property accesses on values that were previously CellRef<T>.
+    #    Now that CellRef<T> is just T, accessing `.ref` is wrong.
+    #    The generated code has patterns like:
+    #      - `Router_CCIPSend.toCell(msg.ref)` → `Router_CCIPSend.toCell(msg)`
+    #      - `CrossChainAddress.toCell(remotePoolAddress.ref)` → `CrossChainAddress.toCell(remotePoolAddress)`
+    #      - `makeCellFrom<...>(transfer.details.ref, ...)` → `makeCellFrom<...>(transfer.details, ...)`
+    #    We must NOT touch `{ ref: ... }` (object construction) or `.ref` on
+    #    values that genuinely have a `ref` property (e.g. manual wrapper types).
+    #    Since this runs on generated code only, any `.ref` access is from the
+    #    old CellRef<T> pattern.
+    content = re.sub(r"(\w+)\.ref\b", r"\1", content)
+
+    return content
+
+
 def sort_errors_blocks(content: str) -> str:
     """Sort 'static Errors = { ... }' entries by (value, key) for cross-platform determinism.
 
@@ -266,9 +361,11 @@ def main():
         # Normalise error-map entry order (acton's hash map is unordered, so
         # entries with the same numeric value come out in platform-specific order).
         # Then transform SnakedCell<T> from c.Cell to T[] with automatic snake encoding.
+        # Then transform CellRef<T> from { ref: T } to T with automatic cell-ref wrapping.
         original = output_path.read_text(encoding="utf-8")
         normalised = sort_errors_blocks(original)
         normalised = transform_snaked_cell(normalised)
+        normalised = transform_cell_ref(normalised)
         if normalised != original:
             output_path.write_text(normalised, encoding="utf-8")
 

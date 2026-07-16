@@ -14,9 +14,6 @@ type RemainingBitsAndRefs = c.Slice
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -39,15 +36,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -239,12 +236,12 @@ export const TransferNotificationForRecipient = {
  */
 export interface AccessControl_Data {
     readonly $: 'AccessControl_Data'
-    roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+    roles: c.Dictionary<uint256, AccessControl_RoleData>
 }
 
 export const AccessControl_Data = {
     create(args: {
-        roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+        roles: c.Dictionary<uint256, AccessControl_RoleData>
     }): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
@@ -254,14 +251,14 @@ export const AccessControl_Data = {
     fromSlice(s: c.Slice): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
-            roles: c.Dictionary.load<uint256, CellRef<AccessControl_RoleData>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+            roles: c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
                 (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
                 (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
             ), s),
         }
     },
     store(self: AccessControl_Data, b: c.Builder): void {
-        b.storeDict<uint256, CellRef<AccessControl_RoleData>>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+        b.storeDict<uint256, AccessControl_RoleData>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
             (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
             (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
         ));
@@ -464,7 +461,7 @@ export interface JettonLockBox_Withdraw {
     remoteChainSelector: uint64
     amount: coins
     recipientWallet: c.Address
-    extra: CellRef<JettonLockBox_WithdrawExtra> | null
+    extra: JettonLockBox_WithdrawExtra | null
 }
 
 export const JettonLockBox_Withdraw = {
@@ -476,7 +473,7 @@ export const JettonLockBox_Withdraw = {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }): JettonLockBox_Withdraw {
         return {
             $: 'JettonLockBox_Withdraw',
@@ -502,7 +499,7 @@ export const JettonLockBox_Withdraw = {
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
         b.storeAddress(self.recipientWallet);
-        storeTolkNullable<CellRef<JettonLockBox_WithdrawExtra>>(self.extra, b,
+        storeTolkNullable<JettonLockBox_WithdrawExtra>(self.extra, b,
             (v,b) => storeCellRef<JettonLockBox_WithdrawExtra>(v, b, JettonLockBox_WithdrawExtra.store)
         );
     },
@@ -811,7 +808,7 @@ export class JettonLockBox implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }) {
         return JettonLockBox_Withdraw.toCell(JettonLockBox_Withdraw.create(body));
     }
@@ -852,7 +849,7 @@ export class JettonLockBox implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

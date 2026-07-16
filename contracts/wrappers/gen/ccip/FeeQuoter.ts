@@ -19,9 +19,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -44,15 +41,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -235,8 +232,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 
     readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
@@ -450,7 +447,7 @@ export const FeeQuoter_UpdatePrices = {
  */
 export interface FeeQuoter_GetValidatedFee<T> {
     readonly $: 'FeeQuoter_GetValidatedFee'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -458,7 +455,7 @@ export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
     create<T>(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_GetValidatedFee<T> {
         return {
@@ -520,7 +517,7 @@ export const FeeQuoter_UpdateFeeTokens = {
 export interface FeeQuoter_MessageValidated<T> {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -529,7 +526,7 @@ export const FeeQuoter_MessageValidated = {
 
     create<T>(args: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidated<T> {
         return {
@@ -549,7 +546,7 @@ export const FeeQuoter_MessageValidated = {
 export interface FeeQuoter_MessageValidationFailed<T> {
     readonly $: 'FeeQuoter_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -558,7 +555,7 @@ export const FeeQuoter_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidationFailed<T> {
         return {
@@ -1102,14 +1099,14 @@ export const TokenTransferFeeConfig = {
 export interface DestChainConfig {
     readonly $: 'DestChainConfig'
     config: FeeQuoterDestChainConfig
-    usdPerUnitGas: CellRef<GasPrice>
+    usdPerUnitGas: GasPrice
     tokenTransferFeeConfigs: c.Dictionary<c.Address, TokenTransferFeeConfig>
 }
 
 export const DestChainConfig = {
     create(args: {
         config: FeeQuoterDestChainConfig
-        usdPerUnitGas: CellRef<GasPrice>
+        usdPerUnitGas: GasPrice
         tokenTransferFeeConfigs: c.Dictionary<c.Address, TokenTransferFeeConfig>
     }): DestChainConfig {
         return {
@@ -1893,7 +1890,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
 export const Router_CCIPSend = {
@@ -1906,7 +1903,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -2111,7 +2108,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     static createCellOfFeeQuoterGetValidatedFeeRemainingBitsAndRefs_(body: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }) {
         return makeCellFrom<FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>>(FeeQuoter_GetValidatedFee.create<RemainingBitsAndRefs>(body),
@@ -2209,7 +2206,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendFeeQuoterGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2248,9 +2245,9 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async getValidatedFeeCell(provider: ContractProvider, msg: CellRef<Router_CCIPSend>): Promise<coins> {
+    async getValidatedFeeCell(provider: ContractProvider, msg: Router_CCIPSend): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('validatedFeeCell', [
-            { type: 'cell', cell: Router_CCIPSend.toCell(msg.ref) },
+            { type: 'cell', cell: Router_CCIPSend.toCell(msg) },
         ]));
         return r.readBigInt();
     }
@@ -2292,7 +2289,7 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async getTokenPrices(provider: ContractProvider, tokens: array<c.Address>): Promise<array<CellRef<TimestampedPrice> | null>> {
+    async getTokenPrices(provider: ContractProvider, tokens: array<c.Address>): Promise<array<TimestampedPrice | null>> {
         const r = StackReader.fromGetMethod(1, await provider.get('tokenPrices', [
             { type: 'tuple', items: tokens.map(
                 (ith) => ({ type: 'slice', cell: makeCellFrom<c.Address>(ith,
@@ -2300,8 +2297,8 @@ export class FeeQuoter implements c.Contract {
                 ) })
             )},
         ]));
-        return r.readArrayOf<CellRef<TimestampedPrice> | null>(
-            (r) => r.readNullable<CellRef<TimestampedPrice>>(
+        return r.readArrayOf<TimestampedPrice | null>(
+            (r) => r.readNullable<TimestampedPrice>(
                 (r) => r.readCellRef<TimestampedPrice>(TimestampedPrice.fromSlice)
             )
         );

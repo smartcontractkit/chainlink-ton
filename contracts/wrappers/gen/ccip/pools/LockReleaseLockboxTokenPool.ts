@@ -17,9 +17,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -42,15 +39,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -211,8 +208,8 @@ class StackReader {
         return valueT;
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 }
 
@@ -545,9 +542,9 @@ export const CursedSubjects = {
  */
 export interface TokenPool_AdminConfig {
     readonly $: 'TokenPool_AdminConfig'
-    ownable: CellRef<Ownable2Step>
+    ownable: Ownable2Step
     rmnProxy: c.Address
-    dynamicConfig: CellRef<TokenPool_DynamicConfig>
+    dynamicConfig: TokenPool_DynamicConfig
     jettonClient: JettonClient
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
     advancedPoolHooks: c.Address | null
@@ -555,9 +552,9 @@ export interface TokenPool_AdminConfig {
 
 export const TokenPool_AdminConfig = {
     create(args: {
-        ownable: CellRef<Ownable2Step>
+        ownable: Ownable2Step
         rmnProxy: c.Address
-        dynamicConfig: CellRef<TokenPool_DynamicConfig>
+        dynamicConfig: TokenPool_DynamicConfig
         jettonClient: JettonClient
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
         advancedPoolHooks: c.Address | null
@@ -603,8 +600,8 @@ export const TokenPool_AdminConfig = {
  */
 export interface TokenPool_Data {
     readonly $: 'TokenPool_Data'
-    adminConfig: CellRef<TokenPool_AdminConfig>
-    mirroredPolicy: CellRef<TokenPool_MirroredPolicy>
+    adminConfig: TokenPool_AdminConfig
+    mirroredPolicy: TokenPool_MirroredPolicy
     tokenDecimals: uint8
     remoteChainConfigs: c.Dictionary<uint64, TokenPool_RemoteChainConfig>
     tokenTransferFeeConfigs: c.Dictionary<uint64, TokenPool_TokenTransferFeeConfig>
@@ -612,8 +609,8 @@ export interface TokenPool_Data {
 
 export const TokenPool_Data = {
     create(args: {
-        adminConfig: CellRef<TokenPool_AdminConfig>
-        mirroredPolicy: CellRef<TokenPool_MirroredPolicy>
+        adminConfig: TokenPool_AdminConfig
+        mirroredPolicy: TokenPool_MirroredPolicy
         tokenDecimals: uint8
         remoteChainConfigs: c.Dictionary<uint64, TokenPool_RemoteChainConfig>
         tokenTransferFeeConfigs: c.Dictionary<uint64, TokenPool_TokenTransferFeeConfig>
@@ -796,14 +793,14 @@ export const TokenPool_RampUpdate = {
  */
 export interface TokenPool_RateLimiterPair {
     readonly $: 'TokenPool_RateLimiterPair'
-    outbound: CellRef<RateLimiter_TokenBucket>
-    inbound: CellRef<RateLimiter_TokenBucket>
+    outbound: RateLimiter_TokenBucket
+    inbound: RateLimiter_TokenBucket
 }
 
 export const TokenPool_RateLimiterPair = {
     create(args: {
-        outbound: CellRef<RateLimiter_TokenBucket>
-        inbound: CellRef<RateLimiter_TokenBucket>
+        outbound: RateLimiter_TokenBucket
+        inbound: RateLimiter_TokenBucket
     }): TokenPool_RateLimiterPair {
         return {
             $: 'TokenPool_RateLimiterPair',
@@ -834,14 +831,14 @@ export const TokenPool_RateLimiterPair = {
  */
 export interface TokenPool_RateLimitConfigPair {
     readonly $: 'TokenPool_RateLimitConfigPair'
-    outbound: CellRef<RateLimiter_Config>
-    inbound: CellRef<RateLimiter_Config>
+    outbound: RateLimiter_Config
+    inbound: RateLimiter_Config
 }
 
 export const TokenPool_RateLimitConfigPair = {
     create(args: {
-        outbound: CellRef<RateLimiter_Config>
-        inbound: CellRef<RateLimiter_Config>
+        outbound: RateLimiter_Config
+        inbound: RateLimiter_Config
     }): TokenPool_RateLimitConfigPair {
         return {
             $: 'TokenPool_RateLimitConfigPair',
@@ -876,16 +873,16 @@ export interface TokenPool_ChainUpdate {
     readonly $: 'TokenPool_ChainUpdate'
     remoteChainSelector: uint64
     remotePoolAddresses: SnakedCell<CrossChainAddress>
-    remoteTokenAddress: CellRef<CrossChainAddress>
-    rateLimitConfigs: CellRef<TokenPool_RateLimitConfigPair>
+    remoteTokenAddress: CrossChainAddress
+    rateLimitConfigs: TokenPool_RateLimitConfigPair
 }
 
 export const TokenPool_ChainUpdate = {
     create(args: {
         remoteChainSelector: uint64
         remotePoolAddresses: SnakedCell<CrossChainAddress>
-        remoteTokenAddress: CellRef<CrossChainAddress>
-        rateLimitConfigs: CellRef<TokenPool_RateLimitConfigPair>
+        remoteTokenAddress: CrossChainAddress
+        rateLimitConfigs: TokenPool_RateLimitConfigPair
     }): TokenPool_ChainUpdate {
         return {
             $: 'TokenPool_ChainUpdate',
@@ -922,18 +919,18 @@ export const TokenPool_ChainUpdate = {
  */
 export interface TokenPool_RemoteChainConfig {
     readonly $: 'TokenPool_RemoteChainConfig'
-    remoteTokenAddress: CellRef<CrossChainAddress>
-    remotePools: c.Dictionary<uint256, CellRef<CrossChainAddress>>
-    rateLimiters: CellRef<TokenPool_RateLimiterPair>
-    fastFinalityRateLimiters: CellRef<TokenPool_RateLimiterPair>
+    remoteTokenAddress: CrossChainAddress
+    remotePools: c.Dictionary<uint256, CrossChainAddress>
+    rateLimiters: TokenPool_RateLimiterPair
+    fastFinalityRateLimiters: TokenPool_RateLimiterPair
 }
 
 export const TokenPool_RemoteChainConfig = {
     create(args: {
-        remoteTokenAddress: CellRef<CrossChainAddress>
-        remotePools: c.Dictionary<uint256, CellRef<CrossChainAddress>>
-        rateLimiters: CellRef<TokenPool_RateLimiterPair>
-        fastFinalityRateLimiters: CellRef<TokenPool_RateLimiterPair>
+        remoteTokenAddress: CrossChainAddress
+        remotePools: c.Dictionary<uint256, CrossChainAddress>
+        rateLimiters: TokenPool_RateLimiterPair
+        fastFinalityRateLimiters: TokenPool_RateLimiterPair
     }): TokenPool_RemoteChainConfig {
         return {
             $: 'TokenPool_RemoteChainConfig',
@@ -944,7 +941,7 @@ export const TokenPool_RemoteChainConfig = {
         return {
             $: 'TokenPool_RemoteChainConfig',
             remoteTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            remotePools: c.Dictionary.load<uint256, CellRef<CrossChainAddress>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<CrossChainAddress>>(
+            remotePools: c.Dictionary.load<uint256, CrossChainAddress>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CrossChainAddress>(
                 (s) => loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
                 (v,b) => storeCellRef<CrossChainAddress>(v, b, CrossChainAddress.store)
             ), s),
@@ -954,7 +951,7 @@ export const TokenPool_RemoteChainConfig = {
     },
     store(self: TokenPool_RemoteChainConfig, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.remoteTokenAddress, b, CrossChainAddress.store);
-        b.storeDict<uint256, CellRef<CrossChainAddress>>(self.remotePools, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<CrossChainAddress>>(
+        b.storeDict<uint256, CrossChainAddress>(self.remotePools, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CrossChainAddress>(
             (s) => loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             (v,b) => storeCellRef<CrossChainAddress>(v, b, CrossChainAddress.store)
         ));
@@ -978,16 +975,16 @@ export interface TokenPool_RateLimitConfigArgs {
     readonly $: 'TokenPool_RateLimitConfigArgs'
     remoteChainSelector: uint64
     fastFinality: boolean
-    outboundRateLimiterConfig: CellRef<RateLimiter_Config>
-    inboundRateLimiterConfig: CellRef<RateLimiter_Config>
+    outboundRateLimiterConfig: RateLimiter_Config
+    inboundRateLimiterConfig: RateLimiter_Config
 }
 
 export const TokenPool_RateLimitConfigArgs = {
     create(args: {
         remoteChainSelector: uint64
         fastFinality: boolean
-        outboundRateLimiterConfig: CellRef<RateLimiter_Config>
-        inboundRateLimiterConfig: CellRef<RateLimiter_Config>
+        outboundRateLimiterConfig: RateLimiter_Config
+        inboundRateLimiterConfig: RateLimiter_Config
     }): TokenPool_RateLimitConfigArgs {
         return {
             $: 'TokenPool_RateLimitConfigArgs',
@@ -1210,13 +1207,13 @@ export const TokenPool_TokenTransferFeeConfig = {
 export interface TokenPool_Transfer<S, R, C> {
     readonly $: 'TokenPool_Transfer'
     id: uint256
-    details: CellRef<TokenPool_TransferDetails<S, R, C>>
+    details: TokenPool_TransferDetails<S, R, C>
 }
 
 export const TokenPool_Transfer = {
     create<S, R, C>(args: {
         id: uint256
-        details: CellRef<TokenPool_TransferDetails<S, R, C>>
+        details: TokenPool_TransferDetails<S, R, C>
     }): TokenPool_Transfer<S, R, C> {
         return {
             $: 'TokenPool_Transfer',
@@ -1261,7 +1258,7 @@ export const TokenPool_TransferDetails = {
 /**
  > type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<address, Cell<CrossChainAddress>, coins>
  */
-export type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<c.Address, CellRef<CrossChainAddress>, coins>
+export type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<c.Address, CrossChainAddress, coins>
 
 export const TokenPool_LockOrBurnTransfer = {
     fromSlice(s: c.Slice): TokenPool_LockOrBurnTransfer {
@@ -1269,7 +1266,7 @@ export const TokenPool_LockOrBurnTransfer = {
             return {
                 $: 'TokenPool_Transfer',
                 id: s.loadUintBig(256),
-                details: loadCellRef<TokenPool_TransferDetails<c.Address, CellRef<CrossChainAddress>, coins>>(s,
+                details: loadCellRef<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(s,
                     (s) => (() => {
                         return {
                             $: 'TokenPool_TransferDetails',
@@ -1286,7 +1283,7 @@ export const TokenPool_LockOrBurnTransfer = {
     },
     store(self: TokenPool_LockOrBurnTransfer, b: c.Builder): void {
         b.storeUint(self.id, 256);
-        storeCellRef<TokenPool_TransferDetails<c.Address, CellRef<CrossChainAddress>, coins>>(self.details, b,
+        storeCellRef<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(self.details, b,
             (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
             b.storeUint(v.remoteChainSelector, 64);
             b.storeAddress(v.originalSender);
@@ -1302,7 +1299,7 @@ export const TokenPool_LockOrBurnTransfer = {
 /**
  > type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<Cell<CrossChainAddress>, address, uint256>
  */
-export type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<CellRef<CrossChainAddress>, c.Address, uint256>
+export type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<CrossChainAddress, c.Address, uint256>
 
 export const TokenPool_ReleaseOrMintTransfer = {
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintTransfer {
@@ -1310,7 +1307,7 @@ export const TokenPool_ReleaseOrMintTransfer = {
             return {
                 $: 'TokenPool_Transfer',
                 id: s.loadUintBig(256),
-                details: loadCellRef<TokenPool_TransferDetails<CellRef<CrossChainAddress>, c.Address, uint256>>(s,
+                details: loadCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(s,
                     (s) => (() => {
                         return {
                             $: 'TokenPool_TransferDetails',
@@ -1327,7 +1324,7 @@ export const TokenPool_ReleaseOrMintTransfer = {
     },
     store(self: TokenPool_ReleaseOrMintTransfer, b: c.Builder): void {
         b.storeUint(self.id, 256);
-        storeCellRef<TokenPool_TransferDetails<CellRef<CrossChainAddress>, c.Address, uint256>>(self.details, b,
+        storeCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(self.details, b,
             (v,b) => { b.storeAddress(v.receiver);
             b.storeUint(v.remoteChainSelector, 64);
             storeCellRef<CrossChainAddress>(v.originalSender, b, CrossChainAddress.store);
@@ -1381,13 +1378,13 @@ export const TokenPool_LockOrBurnInV1 = {
  */
 export interface TokenPool_LockOrBurnOutV1 {
     readonly $: 'TokenPool_LockOrBurnOutV1'
-    destTokenAddress: CellRef<CrossChainAddress>
+    destTokenAddress: CrossChainAddress
     destPoolData: c.Cell
 }
 
 export const TokenPool_LockOrBurnOutV1 = {
     create(args: {
-        destTokenAddress: CellRef<CrossChainAddress>
+        destTokenAddress: CrossChainAddress
         destPoolData: c.Cell
     }): TokenPool_LockOrBurnOutV1 {
         return {
@@ -1422,7 +1419,7 @@ export const TokenPool_LockOrBurnOutV1 = {
 export interface TokenPool_ReleaseOrMintInV1 {
     readonly $: 'TokenPool_ReleaseOrMintInV1'
     transfer: TokenPool_ReleaseOrMintTransfer
-    sourcePoolAddress: CellRef<CrossChainAddress>
+    sourcePoolAddress: CrossChainAddress
     sourcePoolData: c.Cell | null
     offchainTokenData: c.Cell | null
 }
@@ -1430,7 +1427,7 @@ export interface TokenPool_ReleaseOrMintInV1 {
 export const TokenPool_ReleaseOrMintInV1 = {
     create(args: {
         transfer: TokenPool_ReleaseOrMintTransfer
-        sourcePoolAddress: CellRef<CrossChainAddress>
+        sourcePoolAddress: CrossChainAddress
         sourcePoolData: c.Cell | null
         offchainTokenData: c.Cell | null
     }): TokenPool_ReleaseOrMintInV1 {
@@ -1554,7 +1551,7 @@ export interface TokenPool_AddRemotePool {
     readonly $: 'TokenPool_AddRemotePool'
     queryId: uint64
     remoteChainSelector: uint64
-    remotePoolAddress: CellRef<CrossChainAddress>
+    remotePoolAddress: CrossChainAddress
 }
 
 export const TokenPool_AddRemotePool = {
@@ -1563,7 +1560,7 @@ export const TokenPool_AddRemotePool = {
     create(args: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }): TokenPool_AddRemotePool {
         return {
             $: 'TokenPool_AddRemotePool',
@@ -1601,7 +1598,7 @@ export interface TokenPool_RemoveRemotePool {
     readonly $: 'TokenPool_RemoveRemotePool'
     queryId: uint64
     remoteChainSelector: uint64
-    remotePoolAddress: CellRef<CrossChainAddress>
+    remotePoolAddress: CrossChainAddress
 }
 
 export const TokenPool_RemoveRemotePool = {
@@ -1610,7 +1607,7 @@ export const TokenPool_RemoveRemotePool = {
     create(args: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }): TokenPool_RemoveRemotePool {
         return {
             $: 'TokenPool_RemoveRemotePool',
@@ -2002,7 +1999,7 @@ export const TokenPool_SetCursedSubjects = {
 export interface TokenPool_LockOrBurn {
     readonly $: 'TokenPool_LockOrBurn'
     queryId: uint64
-    request: CellRef<TokenPool_LockOrBurnInV1>
+    request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
     replyTo: c.Address | null
@@ -2013,7 +2010,7 @@ export const TokenPool_LockOrBurn = {
 
     create(args: {
         queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
+        request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address | null
@@ -2059,15 +2056,15 @@ export const TokenPool_LockOrBurn = {
 export interface TokenPool_LockOrBurnForwardPayload {
     readonly $: 'TokenPool_LockOrBurnForwardPayload'
     originalSender: c.Address
-    requestMsg: CellRef<TokenPool_LockOrBurn>
-    prepared: CellRef<TokenPool_LockOrBurnPrepared>
+    requestMsg: TokenPool_LockOrBurn
+    prepared: TokenPool_LockOrBurnPrepared
 }
 
 export const TokenPool_LockOrBurnForwardPayload = {
     create(args: {
         originalSender: c.Address
-        requestMsg: CellRef<TokenPool_LockOrBurn>
-        prepared: CellRef<TokenPool_LockOrBurnPrepared>
+        requestMsg: TokenPool_LockOrBurn
+        prepared: TokenPool_LockOrBurnPrepared
     }): TokenPool_LockOrBurnForwardPayload {
         return {
             $: 'TokenPool_LockOrBurnForwardPayload',
@@ -2103,7 +2100,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
 export interface TokenPool_ReleaseOrMint {
     readonly $: 'TokenPool_ReleaseOrMint'
     queryId: uint64
-    request: CellRef<TokenPool_ReleaseOrMintInV1>
+    request: TokenPool_ReleaseOrMintInV1
     requestedFinalityConfig: uint32
     replyTo: c.Address | null /* = null */
 }
@@ -2113,7 +2110,7 @@ export const TokenPool_ReleaseOrMint = {
 
     create(args: {
         queryId: uint64
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
     }): TokenPool_ReleaseOrMint {
@@ -2154,7 +2151,7 @@ export const TokenPool_ReleaseOrMint = {
 export interface TokenPool_PreflightCheckFinished {
     readonly $: 'TokenPool_PreflightCheckFinished'
     queryId: uint64
-    forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
 
 export const TokenPool_PreflightCheckFinished = {
@@ -2162,7 +2159,7 @@ export const TokenPool_PreflightCheckFinished = {
 
     create(args: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_PreflightCheckFinished {
         return {
             $: 'TokenPool_PreflightCheckFinished',
@@ -2196,7 +2193,7 @@ export const TokenPool_PreflightCheckFinished = {
 export interface TokenPool_PreflightCheckFailed {
     readonly $: 'TokenPool_PreflightCheckFailed'
     queryId: uint64
-    forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
 
 export const TokenPool_PreflightCheckFailed = {
@@ -2204,7 +2201,7 @@ export const TokenPool_PreflightCheckFailed = {
 
     create(args: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_PreflightCheckFailed {
         return {
             $: 'TokenPool_PreflightCheckFailed',
@@ -2239,15 +2236,15 @@ export const TokenPool_PreflightCheckFailed = {
 export interface TokenPool_ReleaseOrMintForwardPayload {
     readonly $: 'TokenPool_ReleaseOrMintForwardPayload'
     originalSender: c.Address
-    requestMsg: CellRef<TokenPool_ReleaseOrMint>
-    prepared: CellRef<TokenPool_ReleaseOrMintPrepared>
+    requestMsg: TokenPool_ReleaseOrMint
+    prepared: TokenPool_ReleaseOrMintPrepared
 }
 
 export const TokenPool_ReleaseOrMintForwardPayload = {
     create(args: {
         originalSender: c.Address
-        requestMsg: CellRef<TokenPool_ReleaseOrMint>
-        prepared: CellRef<TokenPool_ReleaseOrMintPrepared>
+        requestMsg: TokenPool_ReleaseOrMint
+        prepared: TokenPool_ReleaseOrMintPrepared
     }): TokenPool_ReleaseOrMintForwardPayload {
         return {
             $: 'TokenPool_ReleaseOrMintForwardPayload',
@@ -2281,7 +2278,7 @@ export const TokenPool_ReleaseOrMintForwardPayload = {
 export interface TokenPool_PostflightCheckFinished {
     readonly $: 'TokenPool_PostflightCheckFinished'
     queryId: uint64
-    forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload
 }
 
 export const TokenPool_PostflightCheckFinished = {
@@ -2289,7 +2286,7 @@ export const TokenPool_PostflightCheckFinished = {
 
     create(args: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }): TokenPool_PostflightCheckFinished {
         return {
             $: 'TokenPool_PostflightCheckFinished',
@@ -2323,7 +2320,7 @@ export const TokenPool_PostflightCheckFinished = {
 export interface TokenPool_PostflightCheckFailed {
     readonly $: 'TokenPool_PostflightCheckFailed'
     queryId: uint64
-    forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload
 }
 
 export const TokenPool_PostflightCheckFailed = {
@@ -2331,7 +2328,7 @@ export const TokenPool_PostflightCheckFailed = {
 
     create(args: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }): TokenPool_PostflightCheckFailed {
         return {
             $: 'TokenPool_PostflightCheckFailed',
@@ -2370,7 +2367,7 @@ export const TokenPool_PostflightCheckFailed = {
 export interface TokenPool_PreflightCheck {
     readonly $: 'TokenPool_PreflightCheck'
     queryId: uint64
-    request: CellRef<TokenPool_LockOrBurnInV1>
+    request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
     amountPostFee: coins
@@ -2383,7 +2380,7 @@ export const TokenPool_PreflightCheck = {
 
     create(args: {
         queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
+        request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         amountPostFee: coins
@@ -2440,7 +2437,7 @@ export const TokenPool_PreflightCheck = {
 export interface TokenPool_PostflightCheck {
     readonly $: 'TokenPool_PostflightCheck'
     queryId: uint64
-    request: CellRef<TokenPool_ReleaseOrMintInV1>
+    request: TokenPool_ReleaseOrMintInV1
     localAmount: coins
     requestedFinalityConfig: uint32
     replyTo: c.Address
@@ -2452,7 +2449,7 @@ export const TokenPool_PostflightCheck = {
 
     create(args: {
         queryId: uint64
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        request: TokenPool_ReleaseOrMintInV1
         localAmount: coins
         requestedFinalityConfig: uint32
         replyTo: c.Address
@@ -2543,7 +2540,7 @@ export const TokenPool_LockOrBurnWithdraw = {
 export interface TokenPool_LockOrBurnFinished {
     readonly $: 'TokenPool_LockOrBurnFinished'
     queryId: uint64
-    out: CellRef<TokenPool_LockOrBurnOutV1>
+    out: TokenPool_LockOrBurnOutV1
     destTokenAmount: coins
 }
 
@@ -2552,7 +2549,7 @@ export const TokenPool_LockOrBurnFinished = {
 
     create(args: {
         queryId: uint64
-        out: CellRef<TokenPool_LockOrBurnOutV1>
+        out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
@@ -2631,7 +2628,7 @@ export const TokenPool_LockOrBurnFailure = {
 export interface TokenPool_ReleaseOrMintFinished {
     readonly $: 'TokenPool_ReleaseOrMintFinished'
     queryId: uint64
-    out: CellRef<TokenPool_ReleaseOrMintOutV1>
+    out: TokenPool_ReleaseOrMintOutV1
 }
 
 export const TokenPool_ReleaseOrMintFinished = {
@@ -2639,7 +2636,7 @@ export const TokenPool_ReleaseOrMintFinished = {
 
     create(args: {
         queryId: uint64
-        out: CellRef<TokenPool_ReleaseOrMintOutV1>
+        out: TokenPool_ReleaseOrMintOutV1
     }): TokenPool_ReleaseOrMintFinished {
         return {
             $: 'TokenPool_ReleaseOrMintFinished',
@@ -2717,7 +2714,7 @@ export interface TokenPool_RemotePoolAddedNotification {
     readonly $: 'TokenPool_RemotePoolAddedNotification'
     queryId: uint64
     remoteChainSelector: uint64
-    remotePoolAddress: CellRef<CrossChainAddress>
+    remotePoolAddress: CrossChainAddress
 }
 
 export const TokenPool_RemotePoolAddedNotification = {
@@ -2726,7 +2723,7 @@ export const TokenPool_RemotePoolAddedNotification = {
     create(args: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolAddedNotification {
         return {
             $: 'TokenPool_RemotePoolAddedNotification',
@@ -2764,7 +2761,7 @@ export interface TokenPool_RemotePoolRemovedNotification {
     readonly $: 'TokenPool_RemotePoolRemovedNotification'
     queryId: uint64
     remoteChainSelector: uint64
-    remotePoolAddress: CellRef<CrossChainAddress>
+    remotePoolAddress: CrossChainAddress
 }
 
 export const TokenPool_RemotePoolRemovedNotification = {
@@ -2773,7 +2770,7 @@ export const TokenPool_RemotePoolRemovedNotification = {
     create(args: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolRemovedNotification {
         return {
             $: 'TokenPool_RemotePoolRemovedNotification',
@@ -3177,13 +3174,13 @@ export const TokenPool_AdvancedPoolHooksSet = {
 export interface TokenPool_LockedOrBurned {
     readonly $: 'TokenPool_LockedOrBurned'
     remoteChainSelector: uint64
-    details: CellRef<TokenPool_LockedOrBurnedDetails>
+    details: TokenPool_LockedOrBurnedDetails
 }
 
 export const TokenPool_LockedOrBurned = {
     create(args: {
         remoteChainSelector: uint64
-        details: CellRef<TokenPool_LockedOrBurnedDetails>
+        details: TokenPool_LockedOrBurnedDetails
     }): TokenPool_LockedOrBurned {
         return {
             $: 'TokenPool_LockedOrBurned',
@@ -3258,13 +3255,13 @@ export const TokenPool_LockedOrBurnedDetails = {
 export interface TokenPool_ReleasedOrMinted {
     readonly $: 'TokenPool_ReleasedOrMinted'
     remoteChainSelector: uint64
-    details: CellRef<TokenPool_ReleasedOrMintedDetails>
+    details: TokenPool_ReleasedOrMintedDetails
 }
 
 export const TokenPool_ReleasedOrMinted = {
     create(args: {
         remoteChainSelector: uint64
-        details: CellRef<TokenPool_ReleasedOrMintedDetails>
+        details: TokenPool_ReleasedOrMintedDetails
     }): TokenPool_ReleasedOrMinted {
         return {
             $: 'TokenPool_ReleasedOrMinted',
@@ -3300,7 +3297,7 @@ export interface TokenPool_ReleasedOrMintedDetails {
     token: c.Address
     sender: c.Address
     amount: coins
-    recipient: CellRef<c.Address>
+    recipient: c.Address
 }
 
 export const TokenPool_ReleasedOrMintedDetails = {
@@ -3308,7 +3305,7 @@ export const TokenPool_ReleasedOrMintedDetails = {
         token: c.Address
         sender: c.Address
         amount: coins
-        recipient: CellRef<c.Address>
+        recipient: c.Address
     }): TokenPool_ReleasedOrMintedDetails {
         return {
             $: 'TokenPool_ReleasedOrMintedDetails',
@@ -3348,13 +3345,13 @@ export const TokenPool_ReleasedOrMintedDetails = {
 export interface TokenPool_ChainAdded {
     readonly $: 'TokenPool_ChainAdded'
     remoteChainSelector: uint64
-    remoteTokenAddress: CellRef<CrossChainAddress>
+    remoteTokenAddress: CrossChainAddress
 }
 
 export const TokenPool_ChainAdded = {
     create(args: {
         remoteChainSelector: uint64
-        remoteTokenAddress: CellRef<CrossChainAddress>
+        remoteTokenAddress: CrossChainAddress
     }): TokenPool_ChainAdded {
         return {
             $: 'TokenPool_ChainAdded',
@@ -3419,13 +3416,13 @@ export const TokenPool_ChainRemoved = {
 export interface TokenPool_RemotePoolAdded {
     readonly $: 'TokenPool_RemotePoolAdded'
     remoteChainSelector: uint64
-    remotePoolAddress: CellRef<CrossChainAddress>
+    remotePoolAddress: CrossChainAddress
 }
 
 export const TokenPool_RemotePoolAdded = {
     create(args: {
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolAdded {
         return {
             $: 'TokenPool_RemotePoolAdded',
@@ -3457,13 +3454,13 @@ export const TokenPool_RemotePoolAdded = {
 export interface TokenPool_RemotePoolRemoved {
     readonly $: 'TokenPool_RemotePoolRemoved'
     remoteChainSelector: uint64
-    remotePoolAddress: CellRef<CrossChainAddress>
+    remotePoolAddress: CrossChainAddress
 }
 
 export const TokenPool_RemotePoolRemoved = {
     create(args: {
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolRemoved {
         return {
             $: 'TokenPool_RemotePoolRemoved',
@@ -3839,13 +3836,13 @@ export const TokenPool_FastFinalityInboundRateLimitRefunded = {
 export interface TokenPool_TokenTransferFeeConfigUpdated {
     readonly $: 'TokenPool_TokenTransferFeeConfigUpdated'
     destChainSelector: uint64
-    tokenTransferFeeConfig: CellRef<TokenPool_TokenTransferFeeConfig>
+    tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig
 }
 
 export const TokenPool_TokenTransferFeeConfigUpdated = {
     create(args: {
         destChainSelector: uint64
-        tokenTransferFeeConfig: CellRef<TokenPool_TokenTransferFeeConfig>
+        tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig
     }): TokenPool_TokenTransferFeeConfigUpdated {
         return {
             $: 'TokenPool_TokenTransferFeeConfigUpdated',
@@ -3988,13 +3985,13 @@ export const TokenPool_RampAccessUpdated = {
 export interface LockReleaseLockboxTokenPool_PendingLock {
     readonly $: 'LockReleaseLockboxTokenPool_PendingLock'
     queryId: uint64
-    forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
 
 export const LockReleaseLockboxTokenPool_PendingLock = {
     create(args: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): LockReleaseLockboxTokenPool_PendingLock {
         return {
             $: 'LockReleaseLockboxTokenPool_PendingLock',
@@ -4028,17 +4025,17 @@ export const LockReleaseLockboxTokenPool_PendingLock = {
 export interface LockReleaseLockboxTokenPool_PendingRelease {
     readonly $: 'LockReleaseLockboxTokenPool_PendingRelease'
     queryId: uint64
-    replyTo: CellRef<c.Address | null>
-    request: CellRef<TokenPool_ReleaseOrMintInV1>
-    out: CellRef<TokenPool_ReleaseOrMintOutV1>
+    replyTo: c.Address | null
+    request: TokenPool_ReleaseOrMintInV1
+    out: TokenPool_ReleaseOrMintOutV1
 }
 
 export const LockReleaseLockboxTokenPool_PendingRelease = {
     create(args: {
         queryId: uint64
-        replyTo: CellRef<c.Address | null>
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
-        out: CellRef<TokenPool_ReleaseOrMintOutV1>
+        replyTo: c.Address | null
+        request: TokenPool_ReleaseOrMintInV1
+        out: TokenPool_ReleaseOrMintOutV1
     }): LockReleaseLockboxTokenPool_PendingRelease {
         return {
             $: 'LockReleaseLockboxTokenPool_PendingRelease',
@@ -4079,18 +4076,18 @@ export const LockReleaseLockboxTokenPool_PendingRelease = {
  */
 export interface Storage {
     readonly $: 'Storage'
-    poolData: CellRef<TokenPool_Data>
+    poolData: TokenPool_Data
     lockbox: c.Address
-    pendingLocks: c.Dictionary<uint64, CellRef<LockReleaseLockboxTokenPool_PendingLock>>
-    pendingReleases: c.Dictionary<uint64, CellRef<LockReleaseLockboxTokenPool_PendingRelease>>
+    pendingLocks: c.Dictionary<uint64, LockReleaseLockboxTokenPool_PendingLock>
+    pendingReleases: c.Dictionary<uint64, LockReleaseLockboxTokenPool_PendingRelease>
 }
 
 export const Storage = {
     create(args: {
-        poolData: CellRef<TokenPool_Data>
+        poolData: TokenPool_Data
         lockbox: c.Address
-        pendingLocks: c.Dictionary<uint64, CellRef<LockReleaseLockboxTokenPool_PendingLock>>
-        pendingReleases: c.Dictionary<uint64, CellRef<LockReleaseLockboxTokenPool_PendingRelease>>
+        pendingLocks: c.Dictionary<uint64, LockReleaseLockboxTokenPool_PendingLock>
+        pendingReleases: c.Dictionary<uint64, LockReleaseLockboxTokenPool_PendingRelease>
     }): Storage {
         return {
             $: 'Storage',
@@ -4102,11 +4099,11 @@ export const Storage = {
             $: 'Storage',
             poolData: loadCellRef<TokenPool_Data>(s, TokenPool_Data.fromSlice),
             lockbox: s.loadAddress(),
-            pendingLocks: c.Dictionary.load<uint64, CellRef<LockReleaseLockboxTokenPool_PendingLock>>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<CellRef<LockReleaseLockboxTokenPool_PendingLock>>(
+            pendingLocks: c.Dictionary.load<uint64, LockReleaseLockboxTokenPool_PendingLock>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<LockReleaseLockboxTokenPool_PendingLock>(
                 (s) => loadCellRef<LockReleaseLockboxTokenPool_PendingLock>(s, LockReleaseLockboxTokenPool_PendingLock.fromSlice),
                 (v,b) => storeCellRef<LockReleaseLockboxTokenPool_PendingLock>(v, b, LockReleaseLockboxTokenPool_PendingLock.store)
             ), s),
-            pendingReleases: c.Dictionary.load<uint64, CellRef<LockReleaseLockboxTokenPool_PendingRelease>>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<CellRef<LockReleaseLockboxTokenPool_PendingRelease>>(
+            pendingReleases: c.Dictionary.load<uint64, LockReleaseLockboxTokenPool_PendingRelease>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<LockReleaseLockboxTokenPool_PendingRelease>(
                 (s) => loadCellRef<LockReleaseLockboxTokenPool_PendingRelease>(s, LockReleaseLockboxTokenPool_PendingRelease.fromSlice),
                 (v,b) => storeCellRef<LockReleaseLockboxTokenPool_PendingRelease>(v, b, LockReleaseLockboxTokenPool_PendingRelease.store)
             ), s),
@@ -4115,11 +4112,11 @@ export const Storage = {
     store(self: Storage, b: c.Builder): void {
         storeCellRef<TokenPool_Data>(self.poolData, b, TokenPool_Data.store);
         b.storeAddress(self.lockbox);
-        b.storeDict<uint64, CellRef<LockReleaseLockboxTokenPool_PendingLock>>(self.pendingLocks, c.Dictionary.Keys.BigUint(64), createDictionaryValue<CellRef<LockReleaseLockboxTokenPool_PendingLock>>(
+        b.storeDict<uint64, LockReleaseLockboxTokenPool_PendingLock>(self.pendingLocks, c.Dictionary.Keys.BigUint(64), createDictionaryValue<LockReleaseLockboxTokenPool_PendingLock>(
             (s) => loadCellRef<LockReleaseLockboxTokenPool_PendingLock>(s, LockReleaseLockboxTokenPool_PendingLock.fromSlice),
             (v,b) => storeCellRef<LockReleaseLockboxTokenPool_PendingLock>(v, b, LockReleaseLockboxTokenPool_PendingLock.store)
         ));
-        b.storeDict<uint64, CellRef<LockReleaseLockboxTokenPool_PendingRelease>>(self.pendingReleases, c.Dictionary.Keys.BigUint(64), createDictionaryValue<CellRef<LockReleaseLockboxTokenPool_PendingRelease>>(
+        b.storeDict<uint64, LockReleaseLockboxTokenPool_PendingRelease>(self.pendingReleases, c.Dictionary.Keys.BigUint(64), createDictionaryValue<LockReleaseLockboxTokenPool_PendingRelease>(
             (s) => loadCellRef<LockReleaseLockboxTokenPool_PendingRelease>(s, LockReleaseLockboxTokenPool_PendingRelease.fromSlice),
             (v,b) => storeCellRef<LockReleaseLockboxTokenPool_PendingRelease>(v, b, LockReleaseLockboxTokenPool_PendingRelease.store)
         ));
@@ -4179,7 +4176,7 @@ export interface JettonLockBox_Withdraw {
     remoteChainSelector: uint64
     amount: coins
     recipientWallet: c.Address
-    extra: CellRef<JettonLockBox_WithdrawExtra> | null
+    extra: JettonLockBox_WithdrawExtra | null
 }
 
 export const JettonLockBox_Withdraw = {
@@ -4191,7 +4188,7 @@ export const JettonLockBox_Withdraw = {
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }): JettonLockBox_Withdraw {
         return {
             $: 'JettonLockBox_Withdraw',
@@ -4217,7 +4214,7 @@ export const JettonLockBox_Withdraw = {
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
         b.storeAddress(self.recipientWallet);
-        storeTolkNullable<CellRef<JettonLockBox_WithdrawExtra>>(self.extra, b,
+        storeTolkNullable<JettonLockBox_WithdrawExtra>(self.extra, b,
             (v,b) => storeCellRef<JettonLockBox_WithdrawExtra>(v, b, JettonLockBox_WithdrawExtra.store)
         );
     },
@@ -4679,10 +4676,10 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static fromStorage(emptyStorage: {
-        poolData: CellRef<TokenPool_Data>
+        poolData: TokenPool_Data
         lockbox: c.Address
-        pendingLocks: c.Dictionary<uint64, CellRef<LockReleaseLockboxTokenPool_PendingLock>>
-        pendingReleases: c.Dictionary<uint64, CellRef<LockReleaseLockboxTokenPool_PendingRelease>>
+        pendingLocks: c.Dictionary<uint64, LockReleaseLockboxTokenPool_PendingLock>
+        pendingReleases: c.Dictionary<uint64, LockReleaseLockboxTokenPool_PendingRelease>
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? LockReleaseLockboxTokenPool.CodeCell,
@@ -4694,7 +4691,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     static createCellOfTokenPoolLockOrBurn(body: {
         queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
+        request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address | null
@@ -4713,21 +4710,21 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     static createCellOfTokenPoolPreflightCheckFinished(body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
         return TokenPool_PreflightCheckFinished.toCell(TokenPool_PreflightCheckFinished.create(body));
     }
 
     static createCellOfTokenPoolPreflightCheckFailed(body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
         return TokenPool_PreflightCheckFailed.toCell(TokenPool_PreflightCheckFailed.create(body));
     }
 
     static createCellOfTokenPoolReleaseOrMint(body: {
         queryId: uint64
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
     }) {
@@ -4736,14 +4733,14 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     static createCellOfTokenPoolPostflightCheckFinished(body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFinished.toCell(TokenPool_PostflightCheckFinished.create(body));
     }
 
     static createCellOfTokenPoolPostflightCheckFailed(body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body));
     }
@@ -4759,7 +4756,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     static createCellOfTokenPoolAddRemotePool(body: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }) {
         return TokenPool_AddRemotePool.toCell(TokenPool_AddRemotePool.create(body));
     }
@@ -4767,7 +4764,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     static createCellOfTokenPoolRemoveRemotePool(body: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }) {
         return TokenPool_RemoveRemotePool.toCell(TokenPool_RemoveRemotePool.create(body));
     }
@@ -4865,7 +4862,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        request: CellRef<TokenPool_LockOrBurnInV1>
+        request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address | null
@@ -4892,7 +4889,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     async sendTokenPoolPreflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4903,7 +4900,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     async sendTokenPoolPreflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_LockOrBurnForwardPayload>
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4914,7 +4911,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     async sendTokenPoolReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        request: CellRef<TokenPool_ReleaseOrMintInV1>
+        request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
@@ -4927,7 +4924,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     async sendTokenPoolPostflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4938,7 +4935,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
 
     async sendTokenPoolPostflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        forwardPayload: CellRef<TokenPool_ReleaseOrMintForwardPayload>
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4962,7 +4959,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     async sendTokenPoolAddRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4974,7 +4971,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     async sendTokenPoolRemoveRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
         remoteChainSelector: uint64
-        remotePoolAddress: CellRef<CrossChainAddress>
+        remotePoolAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5246,26 +5243,26 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         );
     }
 
-    async getIsRemotePool(provider: ContractProvider, remoteChainSelector: uint64, remotePoolAddress: CellRef<CrossChainAddress>): Promise<boolean> {
+    async getIsRemotePool(provider: ContractProvider, remoteChainSelector: uint64, remotePoolAddress: CrossChainAddress): Promise<boolean> {
         const r = StackReader.fromGetMethod(1, await provider.get('isRemotePool', [
             { type: 'int', value: remoteChainSelector },
-            { type: 'cell', cell: CrossChainAddress.toCell(remotePoolAddress.ref) },
+            { type: 'cell', cell: CrossChainAddress.toCell(remotePoolAddress) },
         ]));
         return r.readBoolean();
     }
 
-    async getRemoteToken(provider: ContractProvider, remoteChainSelector: uint64): Promise<CellRef<CrossChainAddress>> {
+    async getRemoteToken(provider: ContractProvider, remoteChainSelector: uint64): Promise<CrossChainAddress> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRemoteToken', [
             { type: 'int', value: remoteChainSelector },
         ]));
         return r.readCellRef<CrossChainAddress>(CrossChainAddress.fromSlice);
     }
 
-    async getRemotePools(provider: ContractProvider, remoteChainSelector: uint64): Promise<lisp_list<CellRef<CrossChainAddress>>> {
+    async getRemotePools(provider: ContractProvider, remoteChainSelector: uint64): Promise<lisp_list<CrossChainAddress>> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRemotePools', [
             { type: 'int', value: remoteChainSelector },
         ]));
-        return r.readLispListOf<CellRef<CrossChainAddress>>(
+        return r.readLispListOf<CrossChainAddress>(
             (r) => r.readCellRef<CrossChainAddress>(CrossChainAddress.fromSlice)
         );
     }
@@ -5319,7 +5316,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     async getFeeAmount(provider: ContractProvider, transfer: TokenPool_LockOrBurnTransfer, requestedFinalityConfig: uint32): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('getFeeAmount', [
             { type: 'int', value: transfer.id },
-            { type: 'cell', cell: makeCellFrom<TokenPool_TransferDetails<c.Address, CellRef<CrossChainAddress>, coins>>(transfer.details.ref,
+            { type: 'cell', cell: makeCellFrom<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(transfer.details,
                 (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
                 b.storeUint(v.remoteChainSelector, 64);
                 b.storeAddress(v.originalSender);

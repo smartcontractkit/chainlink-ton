@@ -14,9 +14,6 @@ type array<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -39,15 +36,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -167,8 +164,8 @@ class StackReader {
         return readFn_T(new StackReader(subItems));
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 }
 
@@ -218,7 +215,7 @@ export const ExtraCurrenciesMap = {
 export interface ContextExecutor_Set<T> {
     readonly $: 'ContextExecutor_Set'
     queryId: uint64
-    context: CellRef<T>
+    context: T
     forwardFrom: array<c.Address>
 }
 
@@ -227,7 +224,7 @@ export const ContextExecutor_Set = {
 
     create<T>(args: {
         queryId: uint64
-        context: CellRef<T>
+        context: T
         forwardFrom: array<c.Address>
     }): ContextExecutor_Set<T> {
         return {
@@ -298,7 +295,7 @@ export interface ContextExecutor_Reply<T> {
     readonly $: 'ContextExecutor_Reply'
     queryId: uint64
     id: uint64
-    context: CellRef<T>
+    context: T
     forwardFrom: array<c.Address>
     forwardPayload: c.Cell
     done: boolean
@@ -310,7 +307,7 @@ export const ContextExecutor_Reply = {
     create<T>(args: {
         queryId: uint64
         id: uint64
-        context: CellRef<T>
+        context: T
         forwardFrom: array<c.Address>
         forwardPayload: c.Cell
         done: boolean
@@ -333,9 +330,9 @@ export const ContextExecutor_Reply = {
 export interface ContextExecutor_ForwardNotification<T> {
     readonly $: 'ContextExecutor_ForwardNotification'
     id: uint64
-    context: CellRef<T>
+    context: T
     forwardFrom: array<c.Address>
-    message: CellRef<ContextExecutor_InMessageForward>
+    message: ContextExecutor_InMessageForward
 }
 
 export const ContextExecutor_ForwardNotification = {
@@ -343,9 +340,9 @@ export const ContextExecutor_ForwardNotification = {
 
     create<T>(args: {
         id: uint64
-        context: CellRef<T>
+        context: T
         forwardFrom: array<c.Address>
-        message: CellRef<ContextExecutor_InMessageForward>
+        message: ContextExecutor_InMessageForward
     }): ContextExecutor_ForwardNotification<T> {
         return {
             $: 'ContextExecutor_ForwardNotification',
@@ -366,7 +363,7 @@ export interface ContextExecutor_Data<C> {
     readonly $: 'ContextExecutor_Data'
     id: uint64
     owner: c.Address
-    context: CellRef<C>
+    context: C
     forwardFrom: array<c.Address>
 }
 
@@ -374,7 +371,7 @@ export const ContextExecutor_Data = {
     create<C>(args: {
         id: uint64
         owner: c.Address
-        context: CellRef<C>
+        context: C
         forwardFrom: array<c.Address>
     }): ContextExecutor_Data<C> {
         return {
@@ -507,7 +504,7 @@ export class ContextExecutor implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint64
         owner: c.Address
-        context: CellRef<c.Cell>
+        context: c.Cell
         forwardFrom: array<c.Address>
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -529,7 +526,7 @@ export class ContextExecutor implements c.Contract {
 
     static createCellOfContextExecutorSetCell_(body: {
         queryId: uint64
-        context: CellRef<c.Cell>
+        context: c.Cell
         forwardFrom: array<c.Address>
     }) {
         return makeCellFrom<ContextExecutor_Set<c.Cell>>(ContextExecutor_Set.create<c.Cell>(body),
@@ -562,7 +559,7 @@ export class ContextExecutor implements c.Contract {
 
     async sendContextExecutorSetCell_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId: uint64
-        context: CellRef<c.Cell>
+        context: c.Cell
         forwardFrom: array<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -614,7 +611,7 @@ export class ContextExecutor implements c.Contract {
         return r.readSlice().loadAddress();
     }
 
-    async getContext(provider: ContractProvider): Promise<CellRef<c.Cell>> {
+    async getContext(provider: ContractProvider): Promise<c.Cell> {
         const r = StackReader.fromGetMethod(1, await provider.get('context', []));
         return r.readCellRef<c.Cell>(
             (s) => s.loadRef()

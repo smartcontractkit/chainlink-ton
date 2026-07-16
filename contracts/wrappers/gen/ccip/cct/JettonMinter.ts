@@ -14,9 +14,6 @@ type RemainingBitsAndRefs = c.Slice
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -50,15 +47,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -155,8 +152,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 }
 
@@ -183,7 +180,7 @@ export interface JettonDataReply {
     totalSupply: bigint
     mintable: boolean
     adminAddress: c.Address | null
-    jettonContent: CellRef<OnchainMetadataReply>
+    jettonContent: OnchainMetadataReply
     jettonWalletCode: c.Cell
 }
 
@@ -192,7 +189,7 @@ export const JettonDataReply = {
         totalSupply: bigint
         mintable: boolean
         adminAddress: c.Address | null
-        jettonContent: CellRef<OnchainMetadataReply>
+        jettonContent: OnchainMetadataReply
         jettonWalletCode: c.Cell
     }): JettonDataReply {
         return {
@@ -544,7 +541,7 @@ export interface ResponseWalletAddress {
     readonly $: 'ResponseWalletAddress'
     queryId: uint64
     jettonWalletAddress: c.Address | null
-    ownerAddress: CellRef<c.Address> | null
+    ownerAddress: c.Address | null
 }
 
 export const ResponseWalletAddress = {
@@ -553,7 +550,7 @@ export const ResponseWalletAddress = {
     create(args: {
         queryId: uint64
         jettonWalletAddress: c.Address | null
-        ownerAddress: CellRef<c.Address> | null
+        ownerAddress: c.Address | null
     }): ResponseWalletAddress {
         return {
             $: 'ResponseWalletAddress',
@@ -575,7 +572,7 @@ export const ResponseWalletAddress = {
         b.storeUint(0xd1735400, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.jettonWalletAddress);
-        storeTolkNullable<CellRef<c.Address>>(self.ownerAddress, b,
+        storeTolkNullable<c.Address>(self.ownerAddress, b,
             (v,b) => { storeCellRef<c.Address>(v, b,
                 (v,b) => b.storeAddress(v)
             ); }
@@ -599,7 +596,7 @@ export interface MintNewJettons {
     queryId: uint64
     mintRecipient: c.Address
     tonAmount: coins
-    internalTransferMsg: CellRef<InternalTransferStep>
+    internalTransferMsg: InternalTransferStep
 }
 
 export const MintNewJettons = {
@@ -609,7 +606,7 @@ export const MintNewJettons = {
         queryId: uint64
         mintRecipient: c.Address
         tonAmount: coins
-        internalTransferMsg: CellRef<InternalTransferStep>
+        internalTransferMsg: InternalTransferStep
     }): MintNewJettons {
         return {
             $: 'MintNewJettons',
@@ -953,7 +950,7 @@ export class JettonMinter implements c.Contract {
         queryId: uint64
         mintRecipient: c.Address
         tonAmount: coins
-        internalTransferMsg: CellRef<InternalTransferStep>
+        internalTransferMsg: InternalTransferStep
     }) {
         return MintNewJettons.toCell(MintNewJettons.create(body));
     }
@@ -1026,7 +1023,7 @@ export class JettonMinter implements c.Contract {
         queryId: uint64
         mintRecipient: c.Address
         tonAmount: coins
-        internalTransferMsg: CellRef<InternalTransferStep>
+        internalTransferMsg: InternalTransferStep
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

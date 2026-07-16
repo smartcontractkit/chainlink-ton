@@ -49,23 +49,18 @@ describe('Router', () => {
     router = blockchain.openContract(rt.Router.fromAddress(res.router.address))
   })
 
-  const ccipSend = rt.Router_CCIPSend.create({
+  const msg = rt.Router_CCIPSend.create({
     queryID: 1n,
     destChainSelector: CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_CC_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
-    extraArgs: {
-      ref: rt.GenericExtraArgsV2.create({
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      }),
-    },
+    extraArgs: rt.GenericExtraArgsV2.create({
+      gasLimit: 100n,
+      allowOutOfOrderExecution: true,
+    }),
   })
-  const msg: rt.CellRef<rt.Router_CCIPSend> = {
-    ref: ccipSend,
-  }
 
   it('should forward getValidatedFee to OnRamp', async () => {
     const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
@@ -105,22 +100,18 @@ describe('Router', () => {
   })
 
   it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
-    const badMsg: rt.CellRef<rt.Router_CCIPSend> = {
-      ref: {
-        $: 'Router_CCIPSend',
-        queryID: 1n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
-        receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: WRAPPED_NATIVE,
-        extraArgs: {
-          ref: rt.GenericExtraArgsV2.create({
-            gasLimit: 100n,
-            allowOutOfOrderExecution: true,
-          }),
-        },
-      },
+    const badMsg: rt.Router_CCIPSend = {
+      $: 'Router_CCIPSend',
+      queryID: 1n,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
+      receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: rt.GenericExtraArgsV2.create({
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      }),
     }
     const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
       sender.getSender(),
@@ -173,22 +164,18 @@ describe('Router', () => {
       })
     }
 
-    const badMsg: rt.CellRef<rt.Router_CCIPSend> = {
-      ref: {
-        $: 'Router_CCIPSend',
-        queryID: 1n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: EVM_CC_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: WRAPPED_NATIVE,
-        extraArgs: {
-          ref: rt.GenericExtraArgsV2.create({
-            gasLimit: 100n,
-            allowOutOfOrderExecution: true,
-          }),
-        },
-      },
+    const badMsg: rt.Router_CCIPSend = {
+      $: 'Router_CCIPSend',
+      queryID: 1n,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_CC_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: rt.GenericExtraArgsV2.create({
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      }),
     }
     const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
       sender.getSender(),
@@ -250,12 +237,12 @@ describe('Router', () => {
         const decoded = rt.Router_MessageValidated_RemainingBitsAndRefs.fromSlice(x.beginParse())
         return (
           decoded.fee === toNano('0.5') &&
-          decoded.msg.ref.queryID === 1n &&
-          decoded.msg.ref.data.equals(Cell.EMPTY) &&
-          decoded.msg.ref.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.ref.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          decoded.msg.ref.tokenAmounts.length === 0 &&
-          decoded.msg.ref.feeToken!.equals(WRAPPED_NATIVE)
+          decoded.msg.queryID === 1n &&
+          decoded.msg.data.equals(Cell.EMPTY) &&
+          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+          decoded.msg.tokenAmounts.length === 0 &&
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -316,12 +303,12 @@ describe('Router', () => {
         )
         return (
           decoded.error === 12345n &&
-          decoded.msg.ref.queryID === 1n &&
-          decoded.msg.ref.data.equals(Cell.EMPTY) &&
-          decoded.msg.ref.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.ref.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          decoded.msg.ref.tokenAmounts.length === 0 &&
-          decoded.msg.ref.feeToken!.equals(WRAPPED_NATIVE)
+          decoded.msg.queryID === 1n &&
+          decoded.msg.data.equals(Cell.EMPTY) &&
+          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+          decoded.msg.tokenAmounts.length === 0 &&
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })

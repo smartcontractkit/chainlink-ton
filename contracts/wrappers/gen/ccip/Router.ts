@@ -17,9 +17,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -42,15 +39,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
@@ -197,8 +194,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 }
 
@@ -859,7 +856,7 @@ export const Receiver_CCIPReceive = {
  */
 export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
     tokenRegistry: c.Address | null
 }
@@ -868,7 +865,7 @@ export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
     create(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }): OnRamp_Send {
@@ -905,7 +902,7 @@ export const OnRamp_Send = {
  */
 export interface OnRamp_GetValidatedFee<T> {
     readonly $: 'OnRamp_GetValidatedFee'
-    ccipSend: CellRef<Router_CCIPSend>
+    ccipSend: Router_CCIPSend
     context: T
 }
 
@@ -913,7 +910,7 @@ export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
     create<T>(args: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: T
     }): OnRamp_GetValidatedFee<T> {
         return {
@@ -933,7 +930,7 @@ export const OnRamp_GetValidatedFee = {
 export interface OnRamp_MessageValidated<T> {
     readonly $: 'OnRamp_MessageValidated'
     fee: coins
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -942,7 +939,7 @@ export const OnRamp_MessageValidated = {
 
     create<T>(args: {
         fee: coins
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): OnRamp_MessageValidated<T> {
         return {
@@ -962,7 +959,7 @@ export const OnRamp_MessageValidated = {
 export interface OnRamp_MessageValidationFailed<T> {
     readonly $: 'OnRamp_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -971,7 +968,7 @@ export const OnRamp_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): OnRamp_MessageValidationFailed<T> {
         return {
@@ -1542,7 +1539,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
 export const Router_CCIPSend = {
@@ -1555,7 +1552,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -1617,7 +1614,7 @@ export const Router_CCIPSend = {
  */
 export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
-    message: CellRef<Any2TVMMessage>
+    message: Any2TVMMessage
     execId: ReceiveExecutorId
     receiver: c.Address
     gasLimit: coins
@@ -1627,7 +1624,7 @@ export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
     create(args: {
-        message: CellRef<Any2TVMMessage>
+        message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
         gasLimit: coins
@@ -2097,7 +2094,7 @@ export const Router_CCIPSendNACK = {
  */
 export interface Router_GetValidatedFee<T> {
     readonly $: 'Router_GetValidatedFee'
-    ccipSend: CellRef<Router_CCIPSend>
+    ccipSend: Router_CCIPSend
     context: T
 }
 
@@ -2105,7 +2102,7 @@ export const Router_GetValidatedFee = {
     PREFIX: 0x4dd6aa82,
 
     create<T>(args: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: T
     }): Router_GetValidatedFee<T> {
         return {
@@ -2290,7 +2287,7 @@ export const Router_MessageValidated_RemainingBitsAndRefs = {
 export interface Router_MessageValidated<T> {
     readonly $: 'Router_MessageValidated'
     fee: coins
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: RemainingBitsOrRef<T>
 }
 
@@ -2299,7 +2296,7 @@ export const Router_MessageValidated = {
 
     create<T>(args: {
         fee: coins
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsOrRef<T>
     }): Router_MessageValidated<T> {
         return {
@@ -2347,7 +2344,7 @@ export const Router_MessageValidationFailed_RemainingBitsAndRefs = {
 export interface Router_MessageValidationFailed<T> {
     readonly $: 'Router_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: RemainingBitsOrRef<T>
 }
 
@@ -2356,7 +2353,7 @@ export const Router_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: RemainingBitsOrRef<T>
     }): Router_MessageValidationFailed<T> {
         return {
@@ -2433,8 +2430,8 @@ export interface Storage {
     wrappedNative: c.Address
     onRamps: c.Dictionary<uint64, c.Address>
     offRamps: c.Dictionary<uint64, c.Address>
-    rmnRemote: CellRef<RMNRemote>
-    tokenRegistryDeployment: CellRef<Router_TokenRegistryDeployment>
+    rmnRemote: RMNRemote
+    tokenRegistryDeployment: Router_TokenRegistryDeployment
 }
 
 export const Storage = {
@@ -2444,8 +2441,8 @@ export const Storage = {
         wrappedNative: c.Address
         onRamps: c.Dictionary<uint64, c.Address>
         offRamps: c.Dictionary<uint64, c.Address>
-        rmnRemote: CellRef<RMNRemote>
-        tokenRegistryDeployment: CellRef<Router_TokenRegistryDeployment>
+        rmnRemote: RMNRemote
+        tokenRegistryDeployment: Router_TokenRegistryDeployment
     }): Storage {
         return {
             $: 'Storage',
@@ -3053,8 +3050,8 @@ export class Router implements c.Contract {
         wrappedNative: c.Address
         onRamps: c.Dictionary<uint64, c.Address>
         offRamps: c.Dictionary<uint64, c.Address>
-        rmnRemote: CellRef<RMNRemote>
-        tokenRegistryDeployment: CellRef<Router_TokenRegistryDeployment>
+        rmnRemote: RMNRemote
+        tokenRegistryDeployment: Router_TokenRegistryDeployment
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? Router.CodeCell,
@@ -3071,7 +3068,7 @@ export class Router implements c.Contract {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }) {
         return Router_CCIPSend.toCell(Router_CCIPSend.create(body));
     }
@@ -3098,7 +3095,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterRouteMessage(body: {
-        message: CellRef<Any2TVMMessage>
+        message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
         gasLimit: coins
@@ -3215,7 +3212,7 @@ export class Router implements c.Contract {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3262,7 +3259,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterRouteMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMMessage>
+        message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
         gasLimit: coins
@@ -3491,16 +3488,16 @@ export class Router implements c.Contract {
         return r.readSlice().loadAddress();
     }
 
-    async getOnRamps(provider: ContractProvider): Promise<lisp_list<CellRef<Ramp>>> {
+    async getOnRamps(provider: ContractProvider): Promise<lisp_list<Ramp>> {
         const r = StackReader.fromGetMethod(1, await provider.get('onRamps', []));
-        return r.readLispListOf<CellRef<Ramp>>(
+        return r.readLispListOf<Ramp>(
             (r) => r.readCellRef<Ramp>(Ramp.fromSlice)
         );
     }
 
-    async getOffRamps(provider: ContractProvider): Promise<lisp_list<CellRef<Ramp>>> {
+    async getOffRamps(provider: ContractProvider): Promise<lisp_list<Ramp>> {
         const r = StackReader.fromGetMethod(1, await provider.get('offRamps', []));
-        return r.readLispListOf<CellRef<Ramp>>(
+        return r.readLispListOf<Ramp>(
             (r) => r.readCellRef<Ramp>(Ramp.fromSlice)
         );
     }

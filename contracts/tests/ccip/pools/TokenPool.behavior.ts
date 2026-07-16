@@ -46,17 +46,15 @@ function releaseRequest(
   return TokenPool_ReleaseOrMintInV1.create({
     transfer: TokenPool_Transfer.create({
       id: 1n,
-      details: {
-        ref: TokenPool_TransferDetails.create({
-          originalSender: { ref: ctx.sourcePoolAddress },
-          remoteChainSelector: ctx.remoteChainSelector,
-          receiver: ctx.recipient.address,
-          amount: 1n,
-          localToken: ctx.localToken,
-        }),
-      },
+      details: TokenPool_TransferDetails.create({
+        originalSender: ctx.sourcePoolAddress,
+        remoteChainSelector: ctx.remoteChainSelector,
+        receiver: ctx.recipient.address,
+        amount: 1n,
+        localToken: ctx.localToken,
+      }),
     }),
-    sourcePoolAddress: { ref: ctx.sourcePoolAddress },
+    sourcePoolAddress: ctx.sourcePoolAddress,
     sourcePoolData: null,
     offchainTokenData: null,
     ...overrides,
@@ -84,7 +82,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 901n,
-          request: { ref: releaseRequest(ctx) },
+          request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -142,7 +140,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 902n,
-          request: { ref: releaseRequest(ctx) },
+          request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -296,7 +294,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 907n,
-          request: { ref: releaseRequest(ctx) },
+          request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -373,7 +371,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 911n,
-          request: { ref: releaseRequest(ctx) },
+          request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -398,9 +396,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 912n,
-          request: {
-            ref: releaseRequest(ctx, { sourcePoolAddress: { ref: wrongSourcePoolAddress } }),
-          },
+          request: releaseRequest(ctx, { sourcePoolAddress: wrongSourcePoolAddress }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -421,22 +417,18 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 913n,
-          request: {
-            ref: releaseRequest(ctx, {
-              transfer: TokenPool_Transfer.create({
-                id: 1n,
-                details: {
-                  ref: TokenPool_TransferDetails.create({
-                    originalSender: { ref: ctx.sourcePoolAddress },
-                    remoteChainSelector: ctx.remoteChainSelector,
-                    receiver: ctx.recipient.address,
-                    amount: 1n,
-                    localToken: wrongLocalToken,
-                  }),
-                },
+          request: releaseRequest(ctx, {
+            transfer: TokenPool_Transfer.create({
+              id: 1n,
+              details: TokenPool_TransferDetails.create({
+                originalSender: ctx.sourcePoolAddress,
+                remoteChainSelector: ctx.remoteChainSelector,
+                receiver: ctx.recipient.address,
+                amount: 1n,
+                localToken: wrongLocalToken,
               }),
             }),
-          },
+          }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -483,7 +475,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 916n,
-          request: { ref: releaseRequest(ctx) },
+          request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -515,25 +507,19 @@ export function runTokenPoolBehaviorTests(
             TokenPool_ChainUpdate.create({
               remoteChainSelector: ctx.remoteChainSelector,
               remotePoolAddresses: [ctx.sourcePoolAddress],
-              remoteTokenAddress: { ref: ctx.destTokenAddress },
-              rateLimitConfigs: {
-                ref: TokenPool_RateLimitConfigPair.create({
-                  outbound: {
-                    ref: RateLimiter_Config.create({
-                      isEnabled: true,
-                      capacity: toNano('100'),
-                      rate: 1n,
-                    }),
-                  },
-                  inbound: {
-                    ref: RateLimiter_Config.create({
-                      isEnabled: true,
-                      capacity: toNano('100'),
-                      rate: 1n,
-                    }),
-                  },
+              remoteTokenAddress: ctx.destTokenAddress,
+              rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+                outbound: RateLimiter_Config.create({
+                  isEnabled: true,
+                  capacity: toNano('100'),
+                  rate: 1n,
                 }),
-              },
+                inbound: RateLimiter_Config.create({
+                  isEnabled: true,
+                  capacity: toNano('100'),
+                  rate: 1n,
+                }),
+              }),
             }),
           ],
         },
@@ -572,15 +558,13 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const transfer: TokenPool_LockOrBurnTransfer = {
         $: 'TokenPool_Transfer',
         id: 1n,
-        details: {
-          ref: TokenPool_TransferDetails.create({
-            receiver: { ref: ctx.destTokenAddress },
-            remoteChainSelector: ctx.remoteChainSelector,
-            originalSender: ctx.deployer.address,
-            amount: toNano('1'),
-            localToken: ctx.localToken,
-          }),
-        },
+        details: TokenPool_TransferDetails.create({
+          receiver: ctx.destTokenAddress,
+          remoteChainSelector: ctx.remoteChainSelector,
+          originalSender: ctx.deployer.address,
+          amount: toNano('1'),
+          localToken: ctx.localToken,
+        }),
       }
       return TokenPool_LockOrBurnInV1.create({
         transfer,
@@ -599,22 +583,20 @@ export function runTokenPoolAsyncHookBehaviorTests(
         feeAmount: 0n,
         destTokenAmount: toNano('1'),
         out: TokenPool_LockOrBurnOutV1.create({
-          destTokenAddress: { ref: ctx.destTokenAddress },
+          destTokenAddress: ctx.destTokenAddress,
           destPoolData: Cell.EMPTY,
         }),
       })
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: ctx.deployer.address,
-        requestMsg: {
-          ref: TokenPool_LockOrBurn.create({
-            queryId: 0n,
-            request: { ref: request },
-            requestedFinalityConfig: 0n,
-            tokenArgs: null,
-            replyTo: null,
-          }),
-        },
-        prepared: { ref: prepared },
+        requestMsg: TokenPool_LockOrBurn.create({
+          queryId: 0n,
+          request: request,
+          requestedFinalityConfig: 0n,
+          tokenArgs: null,
+          replyTo: null,
+        }),
+        prepared: prepared,
       })
       return TokenPool_LockOrBurnForwardPayload.toCell(fwdp)
     }
@@ -635,15 +617,13 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
       const fwdp = TokenPool_ReleaseOrMintForwardPayload.create({
         originalSender: ctx.offRamp.address,
-        requestMsg: {
-          ref: TokenPool_ReleaseOrMint.create({
-            queryId: 0n,
-            request: { ref: request },
-            requestedFinalityConfig: 0n,
-            replyTo: null,
-          }),
-        },
-        prepared: { ref: prepared },
+        requestMsg: TokenPool_ReleaseOrMint.create({
+          queryId: 0n,
+          request: request,
+          requestedFinalityConfig: 0n,
+          replyTo: null,
+        }),
+        prepared: prepared,
       })
       return TokenPool_ReleaseOrMintForwardPayload.toCell(fwdp)
     }
@@ -678,7 +658,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 2n,
-        request: { ref: request },
+        request: request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
@@ -708,7 +688,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 1n,
-        request: { ref: request },
+        request: request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
@@ -748,7 +728,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 2n,
-          request: { ref: request },
+          request: request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
         },
@@ -781,7 +761,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 1n,
-          request: { ref: request },
+          request: request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
         },
@@ -818,7 +798,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 100n,
-        request: { ref: request },
+        request: request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: null,
@@ -841,7 +821,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 100n,
-          request: { ref: request },
+          request: request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },
@@ -866,7 +846,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 4n,
-          request: { ref: requestEven },
+          request: requestEven,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
@@ -886,7 +866,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 5n,
-          request: { ref: requestOdd },
+          request: requestOdd,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
@@ -917,7 +897,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 6n,
-          request: { ref: requestEven },
+          request: requestEven,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
         },
@@ -936,7 +916,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 7n,
-          request: { ref: requestOdd },
+          request: requestOdd,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
         },
