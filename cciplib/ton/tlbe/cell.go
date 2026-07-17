@@ -52,7 +52,7 @@ func ManyCellsFrom[T any](values []T) ([]*Cell[T], error) {
 // a pointer to a value type, not a pointer to a pointer.
 func (c *Cell[T]) ToValue() (T, error) {
 	var v T
-	err := tlb.LoadFromCell(&v, c.MustToCell().BeginParse())
+	err := tlb.Parse(&v, c.MustToCell())
 	if err != nil {
 		// Provide a hint if the error might be due to using a pointer type
 		if reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Pointer {

@@ -234,7 +234,7 @@ func (t *Txm) broadcastLoop() {
 
 			var st tlb.StateInit
 			if tx.StateInit != nil {
-				err := tlb.LoadFromCell(&st, tx.StateInit.BeginParse())
+				err := tlb.Parse(&st, tx.StateInit)
 				if err != nil {
 					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
 					continue

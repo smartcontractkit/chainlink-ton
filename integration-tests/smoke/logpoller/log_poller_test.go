@@ -357,7 +357,7 @@ func Test_LogPoller(t *testing.T) {
 			if len(resA) != targetCounter {
 				for _, data := range indexedLogsA {
 					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, data.BeginParse())
+					err = tlb.Parse(&event, data)
 					require.NoError(t, err)
 					t.Logf("emitterA Event Counter=%d", event.Value)
 				}
@@ -368,7 +368,7 @@ func Test_LogPoller(t *testing.T) {
 			if len(resB) != targetCounter {
 				for _, data := range indexedLogsB {
 					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, data.BeginParse())
+					err = tlb.Parse(&event, data)
 					require.NoError(t, err)
 					t.Logf("emitterB Event Counter=%d", event.Value)
 				}
@@ -487,7 +487,7 @@ func Test_LogPoller(t *testing.T) {
 				// Parse the logs manually since FilterBytes doesn't parse events
 				for _, log := range result {
 					var event counter.CountIncreased
-					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
+					lerr := tlb.Parse(&event, log.Data)
 					require.NoError(t, lerr)
 					// check that the counter is within the expected range
 					require.Greater(t, event.Value, uint32(5))
@@ -522,7 +522,7 @@ func Test_LogPoller(t *testing.T) {
 				// Parse events from logs to verify data
 				for _, log := range result {
 					var event counter.CountIncreased
-					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
+					lerr := tlb.Parse(&event, log.Data)
 					require.NoError(t, lerr)
 					// check that the counter is within the expected range
 					require.GreaterOrEqual(t, event.Value, uint32(1))
@@ -553,7 +553,7 @@ func Test_LogPoller(t *testing.T) {
 				// Parse events from logs to verify data
 				for _, log := range result {
 					var event counter.CountIncreased
-					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
+					lerr := tlb.Parse(&event, log.Data)
 					require.NoError(t, lerr)
 					// check that the counter is within the expected range
 					require.GreaterOrEqual(t, event.Value, uint32(1))
@@ -581,7 +581,7 @@ func Test_LogPoller(t *testing.T) {
 				seen := make(map[uint32]bool, targetCounter)
 				for _, log := range result {
 					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
+					err = tlb.Parse(&event, log.Data)
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(1))
@@ -789,7 +789,7 @@ func Test_LogPoller(t *testing.T) {
 				// Verify the filtering worked
 				for _, log := range result {
 					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
+					err = tlb.Parse(&event, log.Data)
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(from))

@@ -1089,7 +1089,7 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 		return nil, 0, fmt.Errorf("unexpected event topic %#x for CCIPMessageSent", topic)
 	}
 	var event onramp.CCIPMessageSent
-	if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
+	if err := tlb.Parse(&event, extMsg.Body); err != nil {
 		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
 		return nil, 0, err
 	}

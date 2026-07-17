@@ -68,7 +68,7 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 	}
 
 	argsPtr := reflect.New(argsType)
-	if err = tlb.LoadFromCell(argsPtr.Interface(), c.BeginParse()); err != nil {
+	if err = tlb.Parse(argsPtr.Interface(), c); err != nil {
 		return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 	}
 

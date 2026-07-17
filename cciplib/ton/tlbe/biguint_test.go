@@ -56,7 +56,7 @@ func TestUintWrappers_MaskSignBit(t *testing.T) {
 
 			// Testing typed wrappers - should mask sign bit and interpret as unsigned
 			var typed typedValues
-			err = tlb.LoadFromCell(&typed, c.BeginParse())
+			err = tlb.Parse(&typed, c)
 			require.NoError(t, err)
 
 			require.NotNil(t, typed.Address.Value(), "address value is nil")
@@ -67,7 +67,7 @@ func TestUintWrappers_MaskSignBit(t *testing.T) {
 
 			// Testing legacy big.Int loading - should interpret as signed integers
 			var legacy legacyValues
-			err = tlb.LoadFromCell(&legacy, c.BeginParse())
+			err = tlb.Parse(&legacy, c)
 			require.NoError(t, err)
 
 			require.Equal(t, tc.legacyAddrNeg, legacy.Address.Sign() < 0, "address sign mismatch")
@@ -89,7 +89,7 @@ func TestUintWrappers_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded typedValues
-	err = tlb.LoadFromCell(&decoded, cellValue.BeginParse())
+	err = tlb.Parse(&decoded, cellValue)
 	require.NoError(t, err)
 
 	require.NotNil(t, decoded.Address.Value(), "address value is nil after roundtrip")
@@ -99,7 +99,7 @@ func TestUintWrappers_RoundTrip(t *testing.T) {
 	require.Equal(t, new(big.Int).SetBytes(root), decoded.Root.Value(), "root mismatch after roundtrip")
 
 	var legacy legacyValues
-	err = tlb.LoadFromCell(&legacy, cellValue.BeginParse())
+	err = tlb.Parse(&legacy, cellValue)
 	require.NoError(t, err)
 
 	require.Negative(t, legacy.Address.Sign(), "legacy address expected negative sign")
