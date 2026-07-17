@@ -409,7 +409,7 @@ func Test_LogPoller(t *testing.T) {
 					t.Logf("emitterA Reply Log: %s", log.String())
 
 					var event counter.CountIncreasedMsg
-					err = tlb.LoadFromCell(&event, log.Data.BeginParse(), true)
+					err = tlb.LoadFromCell(&event, log.Data.MustBeginParse(), true)
 					require.NoError(t, err)
 
 					t.Logf("emitterA Reply Event Counter=%d", event.Value)
@@ -500,7 +500,7 @@ func Test_LogPoller(t *testing.T) {
 				testCell := cell.BeginCell().
 					MustStoreAddr(emitterA.Wallet()).
 					EndCell()
-				testSlice := testCell.BeginParse()
+				testSlice := testCell.MustBeginParse()
 				senderBytes, sberr := testSlice.LoadSlice(267) // Load exactly 267 bits
 				require.NoError(t, sberr)
 

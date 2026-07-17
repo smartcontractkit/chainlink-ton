@@ -74,7 +74,7 @@ func TestDictCellRoundTrip(t *testing.T) {
 	require.NoError(t, restored.LoadFromCell(encoded))
 	require.Equal(t, dict.entries, restored.entries)
 
-	slice := encoded.BeginParse()
+	slice := encoded.MustBeginParse()
 	tonDict, err := slice.LoadDict(16)
 	require.NoError(t, err)
 
@@ -99,7 +99,7 @@ func TestDictEmptyRoundTrip(t *testing.T) {
 	require.NoError(t, restored.LoadFromCell(encoded))
 	require.Equal(t, 0, restored.Len())
 
-	slice := encoded.BeginParse()
+	slice := encoded.MustBeginParse()
 	loadedDict, err := slice.LoadDict(16)
 	require.NoError(t, err)
 	require.True(t, loadedDict == nil || loadedDict.IsEmpty())

@@ -669,7 +669,12 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 
 			// Add this message to the queue for further processing
 			messagesToProcess = append(messagesToProcess, outMsg)
-			opcode, err := outMsg.InternalMsg.Body.BeginParse().LoadUInt(32)
+			s, err := outMsg.InternalMsg.Body.BeginParse()
+			if err != nil {
+				l.Errorf("failed to begin parse: %v", err)
+				continue
+			}
+			opcode, err := s.LoadUInt(32)
 			if err == nil && opcode == onramp.OpcodeOnRampExecutorFinishedSuccessfully {
 				commitMessage = outMsg
 			}

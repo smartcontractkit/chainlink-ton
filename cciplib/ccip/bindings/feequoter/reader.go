@@ -153,7 +153,7 @@ var GetTokenPrice = tvm.Getter[*address.Address, TimestampedPrice]{
 	Name: tokenPriceGetter,
 	Encoder: tvm.NewArgsEncoder(func(addr *address.Address) ([]any, error) {
 		// Encode address as a cell slice (as expected by the contract)
-		addrSlice := cell.BeginCell().MustStoreAddr(addr).EndCell().BeginParse()
+		addrSlice := cell.BeginCell().MustStoreAddr(addr).ToSlice()
 		return []any{addrSlice}, nil
 	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (TimestampedPrice, error) {

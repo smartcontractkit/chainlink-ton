@@ -257,7 +257,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 				require.NoError(t, err)
 
 				var execEvent offramp.ExecutionStateChanged
-				err = tlb.LoadFromCell(&execEvent, bocCell.BeginParse(), true)
+				err = tlb.LoadFromCell(&execEvent, bocCell.MustBeginParse(), true)
 				require.NoError(t, err)
 
 				require.Equal(t, tc.expectedSourceChain, execEvent.SourceChainSelector)
@@ -325,7 +325,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 				require.NoError(t, err)
 
 				var msgEvent onramp.CCIPMessageSent
-				err = tlb.LoadFromCell(&msgEvent, bocCell.BeginParse(), true)
+				err = tlb.LoadFromCell(&msgEvent, bocCell.MustBeginParse(), true)
 				require.NoError(t, err)
 
 				require.Equal(t, tc.expectedSeqNum, msgEvent.Message.Header.SequenceNumber)

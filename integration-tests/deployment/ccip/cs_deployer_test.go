@@ -142,7 +142,7 @@ func TestWalletInit(t *testing.T) {
 	balance, err = w.GetBalance(t.Context(), block)
 	require.NoError(t, err)
 	t.Logf("Target wallet balance after second funding attempt (wallet.IgnoreErrors): %s", balance.String())
-	require.Equal(t, -1, tlb.ZeroCoins.Compare(&balance), "Balance should be greater than 0 after funding")
+	require.Equal(t, -1, tlb.ZeroCoins.Compare(balance), "Balance should be greater than 0 after funding")
 
 	// Fund wallet with amount and deploy
 	err = tvm.NewInitializedWallet(t.Context(), tonChain.Wallet, w, amount)

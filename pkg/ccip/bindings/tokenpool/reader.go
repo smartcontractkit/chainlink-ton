@@ -488,7 +488,10 @@ func loadCrossChainAddressFromCell(c *cell.Cell) (common.CrossChainAddress, erro
 		return nil, errors.New("nil cell")
 	}
 
-	cs := c.BeginParse()
+	cs, err := c.BeginParse()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	return common.LoadCrossChainAddressWithoutPrefix(cs)
 }
 
