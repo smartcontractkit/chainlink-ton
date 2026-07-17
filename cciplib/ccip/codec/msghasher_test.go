@@ -198,7 +198,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 			Header: ccipocr3.RampMessageHeader{
 				MessageID:           messageID,
 				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),
-				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094),
+				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768),
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
 				OnRamp:              evmOnrampBytes,
@@ -286,8 +286,8 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		msg := ccipocr3.Message{
 			Header: ccipocr3.RampMessageHeader{
 				MessageID:           messageID,
-				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),   // CHAINSEL_EVM_TEST_90000001
-				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094), // CHAINSEL_TON
+				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),  // CHAINSEL_EVM_TEST_90000001
+				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768), // CHAINSEL_TON
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
 				OnRamp:              evmOnrampBytes,
@@ -307,7 +307,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 
 		// Run the TypeScript file to get this value:
 		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "ce60f1962af3c7c7f9d3e434dea13530564dbff46704d628ff4b2206bbc93289"
+		expectedHashHex := "ba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807"
 		expectedHash, err := hex.DecodeString(expectedHashHex)
 		require.NoError(t, err)
 
@@ -341,8 +341,8 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		msg := ccipocr3.Message{
 			Header: ccipocr3.RampMessageHeader{
 				MessageID:           messageID,
-				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),   // CHAINSEL_EVM_TEST_90000001
-				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094), // CHAINSEL_TON
+				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),  // CHAINSEL_EVM_TEST_90000001
+				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768), // CHAINSEL_TON
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
 				OnRamp:              evmOnrampBytes,
@@ -362,7 +362,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 
 		// Run the TypeScript file to get this value:
 		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "ce60f1962af3c7c7f9d3e434dea13530564dbff46704d628ff4b2206bbc93289"
+		expectedHashHex := "ba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807"
 		expectedHash, err := hex.DecodeString(expectedHashHex)
 		require.NoError(t, err)
 
