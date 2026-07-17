@@ -107,7 +107,11 @@ func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
-func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
+func (c *CrossChainAddress) LoadFromCell(cell *cell.Cell) error {
+	s, err := cell.BeginParse()
+	if err != nil {
+		return fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	if s.BitsLeft() < 8 {
 		return errors.New("crosschain address is too short")
 	}

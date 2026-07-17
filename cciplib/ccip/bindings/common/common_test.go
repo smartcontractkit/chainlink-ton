@@ -57,7 +57,7 @@ func TestCrossChainAddress_LoadFromCell(t *testing.T) {
 
 			c := builder.EndCell()
 			var addr CrossChainAddress
-			err = addr.LoadFromCell(c.BeginParse())
+			err = addr.LoadFromCell(c)
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -76,7 +76,7 @@ func TestCrossChainAddress_RoundTrip_Empty(t *testing.T) {
 	require.NoError(t, err)
 
 	var restored CrossChainAddress
-	err = restored.LoadFromCell(c.BeginParse())
+	err = restored.LoadFromCell(c)
 	require.NoError(t, err)
 	require.Empty(t, restored)
 }
@@ -89,7 +89,7 @@ func TestCrossChainAddress_RoundTrip(t *testing.T) {
 	require.Equal(t, uint(56), c.BitsSize(), "CrossChainAddress should be 56 bits (7 bytes)")
 
 	var restored CrossChainAddress
-	err = restored.LoadFromCell(c.BeginParse())
+	err = restored.LoadFromCell(c)
 	require.NoError(t, err)
 
 	require.Equal(t, original, restored)
