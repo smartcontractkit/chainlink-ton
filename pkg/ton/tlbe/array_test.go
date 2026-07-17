@@ -38,7 +38,7 @@ func TestArray_RoundTripScalars(t *testing.T) {
 	require.NoError(t, err)
 
 	var out Array[uint64]
-	require.NoError(t, src.LoadFromCell(&out, c.BeginParse()))
+	require.NoError(t, src.LoadFromCell(&out, c.MustBeginParse()))
 	require.Equal(t, in, out)
 }
 
@@ -52,7 +52,7 @@ func TestArray_RoundTripStructs(t *testing.T) {
 	require.NoError(t, err)
 
 	var out Array[small]
-	require.NoError(t, src.LoadFromCell(&out, c.BeginParse()))
+	require.NoError(t, src.LoadFromCell(&out, c.MustBeginParse()))
 	require.Equal(t, in, out)
 }
 
@@ -69,7 +69,7 @@ func TestArray_RoundTripStructsWithRefs(t *testing.T) {
 	require.NoError(t, err)
 
 	var out Array[withRef]
-	require.NoError(t, src.LoadFromCell(&out, c.BeginParse()))
+	require.NoError(t, src.LoadFromCell(&out, c.MustBeginParse()))
 	require.Len(t, out, len(in))
 	for i := range in {
 		require.True(t, in[i].Addr.Equals(out[i].Addr), "elem %d addr mismatch", i)
@@ -82,7 +82,7 @@ func TestArray_Empty(t *testing.T) {
 	require.NoError(t, err)
 
 	var out Array[uint64]
-	require.NoError(t, src.LoadFromCell(&out, c.BeginParse()))
+	require.NoError(t, src.LoadFromCell(&out, c.MustBeginParse()))
 	require.Empty(t, out)
 }
 
@@ -93,7 +93,7 @@ func TestArray_ReceiverReusable(t *testing.T) {
 
 	// Pre-populate the receiver; LoadFromCell must reset it, not accumulate.
 	out := Array[uint64]{99, 98}
-	require.NoError(t, src.LoadFromCell(&out, c.BeginParse()))
+	require.NoError(t, src.LoadFromCell(&out, c.MustBeginParse()))
 	require.Equal(t, in, out)
 }
 
@@ -106,7 +106,7 @@ func TestArray_LengthMismatchRejected(t *testing.T) {
 	c := b.EndCell()
 
 	var out Array[uint64]
-	err := src.LoadFromCell(&out, c.BeginParse())
+	err := src.LoadFromCell(&out, c.MustBeginParse())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "mismatch")
 }
@@ -120,7 +120,7 @@ func TestArray_OverLengthLimitRejected(t *testing.T) {
 
 func TestArray_NilReceiver(t *testing.T) {
 	var out *Array[uint64]
-	err := src.LoadFromCell(out, cell.BeginCell().EndCell().BeginParse())
+	err := src.LoadFromCell(out, cell.BeginCell().EndCell().MustBeginParse())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "nil")
 }
@@ -135,7 +135,7 @@ func TestArray_LargeCount(t *testing.T) {
 	c, err := tlb.ToCell(in)
 	require.NoError(t, err)
 	var out Array[uint64]
-	require.NoError(t, src.LoadFromCell(&out, c.BeginParse()))
+	require.NoError(t, src.LoadFromCell(&out, c.MustBeginParse()))
 	require.Equal(t, in, out)
 }
 

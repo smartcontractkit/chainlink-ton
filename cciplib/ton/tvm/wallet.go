@@ -127,7 +127,7 @@ func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.
 				IHRDisabled: true,
 				Bounce:      false,
 				DstAddr:     w.WalletAddress(),
-				Amount:      *amount.MustDiv(big.NewInt(2)), // Send some non-zero amount to self to trigger wallet initialization
+				Amount:      amount.MustDiv(big.NewInt(2)), // Send some non-zero amount to self to trigger wallet initialization
 				Body:        nil,
 			},
 		})

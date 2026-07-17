@@ -18,7 +18,10 @@ func ExtractOpcode(body *cell.Cell) (uint32, error) {
 		return 0, nil
 	}
 
-	s := body.BeginParse()
+	s, err := body.BeginParse()
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	if s.BitsLeft() < BitLenOpcode {
 		return 0, nil
 	}

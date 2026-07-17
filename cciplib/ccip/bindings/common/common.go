@@ -360,7 +360,10 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
 		}
 
-		s := curr.BeginParse()
+		s, err := curr.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+		}
 		for s.BitsLeft() > 0 {
 			var v T
 			if err := tlb.LoadFromCell(&v, s); err != nil {
@@ -375,7 +378,6 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 		}
 		// Use slice's remaining refs (after element refs are consumed), not cell's original refs.
 		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
-		var err error
 		curr, err = loadChainRef(s)
 		if err != nil {
 			return nil, err
@@ -459,7 +461,10 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
 		}
 
-		s := curr.BeginParse()
+		s, err := curr.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+		}
 		for s.BitsLeft() > 0 {
 			part, err := s.LoadSlice(s.BitsLeft())
 			if err != nil {
@@ -475,7 +480,6 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			result = append(result, part...)
 		}
 
-		var err error
 		curr, err = loadChainRef(s)
 		if err != nil {
 			return nil, err

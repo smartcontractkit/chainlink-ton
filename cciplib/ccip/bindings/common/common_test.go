@@ -497,7 +497,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 				builder := cell.BeginCell()
 				addr := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
 				_ = builder.StoreSlice(addr, uint(len(addr))*8)
-				return builder.EndCell().BeginParse()
+				return builder.ToSlice()
 			},
 			expectErr: "",
 		},
@@ -505,7 +505,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 			name: "empty address",
 			setupFunc: func() *cell.Slice {
 				builder := cell.BeginCell()
-				return builder.EndCell().BeginParse()
+				return builder.ToSlice()
 			},
 			expectErr: "crosschain address is empty",
 		},
@@ -515,7 +515,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 				builder := cell.BeginCell()
 				addr := make([]byte, 65)
 				_ = builder.StoreSlice(addr, uint(len(addr))*8)
-				return builder.EndCell().BeginParse()
+				return builder.ToSlice()
 			},
 			expectErr: "exceeds maximum of 64 bytes",
 		},
