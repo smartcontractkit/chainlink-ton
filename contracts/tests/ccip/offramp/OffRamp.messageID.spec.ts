@@ -1,13 +1,34 @@
-import { Cell, beginCell, Address } from '@ton/core'
+import { Cell, beginCell, Address, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import '@ton/test-utils'
 import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../src/utils'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.commitAndExec.spec'
+import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 
 describe('OffRamp - Message ID', () => {
-  it('Test generateMessageId hash compatibility with Go', () => {
-    // Create the exact same message as in Go test for cross-language compatibility
+  let blockchain: Blockchain
+  let deployer: SandboxContract<TreasuryContract>
+  let msgHasher: SandboxContract<tmh.TestMsgHasher>
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create()
+    deployer = await blockchain.treasury('deployer')
+
+    msgHasher = blockchain.openContract(tmh.TestMsgHasher.fromStorage({}))
+    const result = await msgHasher.sendDeploy(deployer.getSender(), toNano('0.2'))
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: msgHasher.address,
+      deploy: true,
+      success: true,
+    })
+  })
+
+  it('generateMessageId matches the on-chain msg_hasher implementation and the Go implementation', async () => {
+    // Create the exact same message as in the Go test for cross-language compatibility
     const rampMessageHeader = of.RampMessageHeader.create({
       messageId: 1n,
       sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -33,19 +54,25 @@ describe('OffRamp - Message ID', () => {
         EVM_ONRAMP_ADDRESS_TEST,
       ),
     )
-    const messageIdHash = generateMessageID(message, metadataHash)
-    const messageId = uint8ArrayToBigInt(messageIdHash)
 
-    // Uncomment to log the hash to update Go test
-    // const hashHex = messageId.toString(16).padStart(64, '0')
-    // console.log('Expected hash for Go test:', hashHex)
-    // Basic validation that we got a valid hash
-    expect(messageId).toBe(0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807n)
+    // Local TypeScript calculation, independent of the contract
+    const localMessageId = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
 
-    // Uncomment to log the raw bytes of ramp message for Go test
-    // console.log(beginCell().storeBuilder(or.Any2TVMRampMessageToBuilder(message)).endCell().toBoc().toString('hex'))
-    // Uncomment to log the raw bytes of execute report for Go test
-    // const report = createExecuteReport([message])
-    // console.log(beginCell().storeBuilder(or.ExecutionReportToBuilder(report)).endCell().toBoc().toString('hex'))
+    // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
+    // Any2TVMRampMessage.generateMessageId from ccip/offramp/types.tolk)
+    const onChainMessage = tmh.Any2TVMRampMessage.create({
+      header: tmh.RampMessageHeader.create(rampMessageHeader),
+      sender: message.sender,
+      data: message.data,
+      receiver: message.receiver,
+      gasLimit: message.gasLimit,
+      tokenAmounts: null,
+    })
+    const onChainMessageId = await msgHasher.getAny2TVMRampMessageID(onChainMessage, metadataHash)
+
+    expect(onChainMessageId).toBe(localMessageId)
+
+    // Cross-language compatibility check against cciplib/ccip/codec/msghasher_test.go
+    expect(localMessageId).toBe(0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807n)
   })
 })

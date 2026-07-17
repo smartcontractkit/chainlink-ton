@@ -5,6 +5,7 @@ import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
+import { TestMsgHasher } from './test/TestMsgHasher'
 import * as CrossChainAddressCodec from '../ccip/common/CrossChainAddressCodec'
 
 export function setupGenBindings() {
@@ -40,6 +41,12 @@ export function setupGenBindings() {
     )
 
     LockReleaseLockboxTokenPool.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    TestMsgHasher.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,
