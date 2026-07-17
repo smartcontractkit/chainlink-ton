@@ -22,7 +22,10 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs tvm.TLBMap) (any, error) {
 	}
 
 	// Try to decode *cell.Cell as one of the TLBs type by reading the opcode
-	r := c.BeginParse()
+	r, err := c.BeginParse()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	if r.BitsLeft() == 0 {
 		return nil, ErrUnknownMessage
 	}
