@@ -107,6 +107,9 @@ func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
+// LoadFromCell implements the tlb.Unmarshaler interface: the signature must
+// stay (*cell.Slice) so tlb reflection can parse structs holding
+// CrossChainAddress fields.
 func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	if s.BitsLeft() < 8 {
 		return errors.New("crosschain address is too short")
