@@ -681,7 +681,7 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 	}
 
 	var event onramp.CCIPMessageSent
-	err := tlb.LoadFromCell(&event, commitMessage.OutgoingExternalMessages[0].Body.BeginParse())
+	err := tlb.Parse(&event, commitMessage.OutgoingExternalMessages[0].Body)
 	if err != nil {
 		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
 		return onramp.CCIPMessageSent{}, err

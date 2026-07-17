@@ -224,7 +224,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Test BOC decoding - Merkle Root only", func(t *testing.T) {
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
-		err = tlb.LoadFromCell(&commitReportAccepted, merkleRootOnlyCell.BeginParse())
+		err = tlb.Parse(&commitReportAccepted, merkleRootOnlyCell)
 		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
 
 		// Validate the decoded data
@@ -247,7 +247,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Test BOC decoding - Price Updates only", func(t *testing.T) {
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
-		err = tlb.LoadFromCell(&commitReportAccepted, priceOnlyCell.BeginParse())
+		err = tlb.Parse(&commitReportAccepted, priceOnlyCell)
 		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
 
 		// Validate the decoded data
@@ -294,7 +294,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
-		err = tlb.LoadFromCell(&commitReportAccepted, bothCell.BeginParse())
+		err = tlb.Parse(&commitReportAccepted, bothCell)
 		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
 
 		// Validate the decoded data

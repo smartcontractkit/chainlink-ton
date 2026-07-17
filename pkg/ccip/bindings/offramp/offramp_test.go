@@ -95,7 +95,7 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 
 	// Decode from cell
 	var decoded Commit
-	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
+	err = tlb.Parse(&decoded, newCell)
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
 	require.Equal(t, commitReport, decoded.CommitReport)
@@ -171,7 +171,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	// Decode from cell
 	var decoded Execute
-	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
+	err = tlb.Parse(&decoded, newCell)
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
 	require.Len(t, decoded.ExecuteReport.Message.TokenAmounts, 2)
@@ -194,7 +194,7 @@ func TestExecuteReport_WithHardCodedTSBytes(t *testing.T) {
 
 	// Load the message from the cell
 	var rampMsg ocr.Any2TVMRampMessage
-	err = tlb.LoadFromCell(&rampMsg, c.BeginParse())
+	err = tlb.Parse(&rampMsg, c)
 	require.NoError(t, err)
 
 	// Convert hex string to bytes
@@ -208,6 +208,6 @@ func TestExecuteReport_WithHardCodedTSBytes(t *testing.T) {
 
 	// Load the message from the cell
 	var report ocr.ExecuteReport
-	err = tlb.LoadFromCell(&report, c.BeginParse())
+	err = tlb.Parse(&report, c)
 	require.NoError(t, err)
 }

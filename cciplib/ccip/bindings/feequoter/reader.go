@@ -143,7 +143,7 @@ var GetDestinationChainGasPrice = tvm.Getter[uint64, USDPerUnitGas]{
 		if err != nil {
 			return u, err
 		}
-		err = tlb.LoadFromCell(&u, c.BeginParse())
+		err = tlb.Parse(&u, c)
 		return u, err
 	}),
 }

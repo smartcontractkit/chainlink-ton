@@ -226,7 +226,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 			require.NoError(t, err, "ToCell should succeed - depth limits enforced during LoadFromCell")
 
 			var output SnakeRef[SnakeBytes]
-			err = tlb.LoadFromCell(&output, c.BeginParse())
+			err = tlb.Parse(&output, c)
 			require.NoError(t, err)
 			require.Len(t, tt.input, len(output), "array count mismatch")
 
@@ -250,7 +250,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 
 		// Verify unpacking works correctly
 		var output SnakeRef[SnakeBytes]
-		err = tlb.LoadFromCell(&output, c.BeginParse())
+		err = tlb.Parse(&output, c)
 		require.NoError(t, err)
 		require.Len(t, arrays, len(output))
 
@@ -274,7 +274,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 
 		// Verify unpacking works correctly
 		var output SnakeRef[SnakeBytes]
-		err = tlb.LoadFromCell(&output, c.BeginParse())
+		err = tlb.Parse(&output, c)
 		require.NoError(t, err)
 		require.Len(t, arrays, len(output))
 
@@ -299,7 +299,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 		require.NoError(t, err)
 
 		var output SnakeRef[SnakeBytes]
-		err = tlb.LoadFromCell(&output, c.BeginParse())
+		err = tlb.Parse(&output, c)
 		require.NoError(t, err)
 		require.Equal(t, arrays, output)
 	})
