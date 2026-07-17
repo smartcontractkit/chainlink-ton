@@ -99,7 +99,11 @@ type OutgoingExternalMessages struct {
 // This is commonly used for external messages that contain text data or event information.
 // Returns an error if the body cannot be parsed as a string.
 func (e *OutgoingExternalMessages) AsString() (string, error) {
-	str, err := e.Body.BeginParse().LoadStringSnake()
+	s, err := e.Body.BeginParse()
+	if err != nil {
+		return "", fmt.Errorf("failed to begin parsing event body: %w", err)
+	}
+	str, err := s.LoadStringSnake()
 	if err != nil {
 		return "", fmt.Errorf("failed to parse event body: %w", err)
 	}

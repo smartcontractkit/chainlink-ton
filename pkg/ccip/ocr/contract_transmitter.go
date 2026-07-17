@@ -248,12 +248,12 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 
 		// Calculate cost: ExecuteCostTON + message gas limit
 		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
-		totalCost, err1 := baseCost.Add(&executeReport.Message.GasLimit)
+		totalCost, err1 := baseCost.Add(executeReport.Message.GasLimit)
 		if err1 != nil {
 			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err1)
 		}
 
-		return txID, totalCost, &executeReport.Message.GasLimit, nil
+		return txID, &totalCost, &executeReport.Message.GasLimit, nil
 	}
 
 	// Not an execute report, try to decode as CommitReport

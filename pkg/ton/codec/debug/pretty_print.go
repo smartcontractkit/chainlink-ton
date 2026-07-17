@@ -336,17 +336,21 @@ func NewSimpleInfoUnknown(body string) SimpleInfo {
 }
 
 func describeBody(body *cell.Cell, verbose bool) lib.MessageInfo {
-	slice := body.BeginParse()
+	slice, err := body.BeginParse()
+	if err != nil {
+		return NewSimpleInfoUnknown(fmt.Sprintf("failed to begin parsing body: %v", err))
+	}
 	if slice.BitsLeft() == 0 {
 		return NewSimpleInfoUnknown("empty")
 	}
 	if !verbose {
-		opcode, err := slice.LoadUInt(32)
+		var opcode uint64
+		opcode, err = slice.LoadUInt(32)
 		if err == nil {
 			return NewSimpleInfoUnknown(fmt.Sprintf("opcode: 0x %x", opcode))
 		}
 	}
-	strSnake, err := body.BeginParse().LoadStringSnake()
+	strSnake, err := slice.LoadStringSnake()
 	if err == nil {
 		return NewSimpleInfoUnknown(fmt.Sprintf("stringSnake: %x", strSnake))
 	}
@@ -369,12 +373,15 @@ func describeEmitBody(dstAddr *address.Address, body *cell.Cell, verbose bool) l
 		}
 	}
 
-	slice := body.BeginParse()
+	slice, err := body.BeginParse()
+	if err != nil {
+		return NewSimpleInfo(eventName, fmt.Sprintf("failed to begin parsing body: %v", err))
+	}
 	if slice.BitsLeft() == 0 {
 		return NewSimpleInfo(eventName, "empty")
 	}
 
-	strSnake, err := body.BeginParse().LoadStringSnake()
+	strSnake, err := slice.LoadStringSnake()
 	if err == nil {
 		return NewSimpleInfo(eventName, fmt.Sprintf("stringSnake: %x", strSnake))
 	}

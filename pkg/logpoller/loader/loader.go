@@ -266,7 +266,10 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 		// transaction we've processed yet - we need the txHash parameter from our cursor.
 		// After the first iteration, txHash gets updated to tx.PrevTxHash for the next comparison.
 		for i := range txList {
-			loader := txList[i].BeginParse()
+			loader, err := txList[i].BeginParse()
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to begin parsing transaction cell: %w", err)
+			}
 
 			var tx tlb.Transaction
 			err = tlb.LoadFromCell(&tx, loader)
