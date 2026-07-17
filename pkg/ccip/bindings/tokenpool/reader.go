@@ -506,7 +506,10 @@ func loadCrossChainAddressFromCell(c *cell.Cell) (common.CrossChainAddress, erro
 		return nil, errors.New("nil cell")
 	}
 
-	cs := c.BeginParse()
+	cs, err := c.BeginParse()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	return common.LoadCrossChainAddressWithoutPrefix(cs)
 }
 
@@ -579,7 +582,7 @@ var GetDepositAccount = tvm.Getter[*address.Address, *address.Address]{
 	Name: "getDepositAccount",
 	Encoder: tvm.NewArgsEncoder(func(addr *address.Address) ([]any, error) {
 		// Encode address as a cell slice (as expected by the contract)
-		addrSlice := cell.BeginCell().MustStoreAddr(addr).EndCell().BeginParse()
+		addrSlice := cell.BeginCell().MustStoreAddr(addr).ToSlice()
 		return []any{addrSlice}, nil
 	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
