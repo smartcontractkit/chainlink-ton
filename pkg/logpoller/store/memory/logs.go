@@ -291,7 +291,11 @@ func (s *inMemoryLogs) compareTypedValues(a, b any) (int, bool) {
 // matchBytes checks if a log passes a single byte filter
 func (s *inMemoryLogs) matchBytes(log models.Log, filter *query.ByteFilter) bool {
 	// Extract cell payload as bytes for byte-level filtering
-	_, cellPayload, err := log.Data.BeginParse().RestBits()
+	slice, err := log.Data.BeginParse()
+	if err != nil {
+		return false
+	}
+	_, cellPayload, err := slice.RestBits()
 	if err != nil {
 		return false
 	}
@@ -335,7 +339,11 @@ func (s *inMemoryLogs) passesByteCondition(data []byte, condition query.Conditio
 // matchBits checks if a log passes a bit filter (single bit or bit range)
 func (s *inMemoryLogs) matchBits(log models.Log, filter *query.BitFilter) bool {
 	// Extract cell payload as bits using RestBits() for accurate bit-level processing
-	_, cellPayload, err := log.Data.BeginParse().RestBits()
+	slice, err := log.Data.BeginParse()
+	if err != nil {
+		return false
+	}
+	_, cellPayload, err := slice.RestBits()
 	if err != nil {
 		return false
 	}
