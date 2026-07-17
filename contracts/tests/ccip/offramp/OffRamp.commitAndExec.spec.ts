@@ -1,5 +1,5 @@
 import { Cell, toNano, beginCell, Dictionary, StateInit, contractAddress, Address } from '@ton/core'
-import { KeyPair, sha256_sync } from '@ton/crypto'
+import { KeyPair } from '@ton/crypto'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 import {
@@ -35,73 +35,17 @@ import { expectSuccessfulTransaction, assertLog, expectFailedTransaction } from 
 import { setupTestFeeQuoter } from '../helpers/SetUp'
 import { deployOffRampContract } from './OffRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
+import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
+import { createSignatures, getMerkleRootID } from './OffRamp.Setup'
+
+const getDefaultMetadataHash = (sourceChainSelector: bigint) =>
+  getMetadataHash(sourceChainSelector, EVM_ONRAMP_ADDRESS_TEST)
 
 export const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 export const EVM_ONRAMP_ADDRESS_TEST = beginCell()
   .storeBuffer(Buffer.from('111111c891c5d4e6ad68064ae45d43146d4f9f3a', 'hex'), 20)
   .asSlice()
-const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
-
-export const createSignatures = (
-  signerList: KeyPair[],
-  hash: Buffer<ArrayBufferLike>,
-): of.SignatureEd25519[] => {
-  return signerList.map((signer) => {
-    const sig = ocr.createSignature(signer, hash)
-    return of.SignatureEd25519.create(sig)
-  })
-}
-
-export const getMerkleRootID = (root: bigint) => {
-  return beginCell().storeUint(root, 256)
-}
-
-export const getMetadataHash = (sourceChainSelector: bigint) => {
-  const hash = beginCell()
-    .storeUint(uint8ArrayToBigInt(sha256_sync('Any2TVMMessageHashV1')), 256)
-    .storeUint(sourceChainSelector, 64)
-    .storeUint(ChainSelectors.testnet.ton, 64)
-    .storeRef(of.CrossChainAddress.toCell(EVM_ONRAMP_ADDRESS_TEST))
-    .endCell()
-    .hash()
-
-  return hash
-}
-
-export function generateMessageId(message: of.Any2TVMRampMessage, metadataHash: bigint) {
-  return (
-    beginCell()
-      .storeSlice(LEAF_DOMAIN_SEPARATOR)
-      .storeUint(metadataHash, 256)
-      //header
-      .storeRef(
-        beginCell()
-          .storeUint(message.header.messageId, 256)
-          .storeAddress(message.receiver)
-          .storeUint(message.header.sequenceNumber, 64)
-          .storeCoins(message.gasLimit)
-          .storeUint(message.header.nonce, 64)
-          .endCell(),
-      )
-      //message sender
-      .storeRef(of.CrossChainAddress.toCell(message.sender))
-      //rest of the message
-      .storeRef(message.data)
-      .storeMaybeRef(
-        message.tokenAmounts
-          ? asSnakedCell(message.tokenAmounts, (item) => {
-              const b = beginCell()
-              of.Any2TVMTokenTransfer.store(item, b)
-              return b
-            })
-          : undefined,
-      )
-      .endCell()
-      .hash()
-  )
-}
-
 describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -213,7 +157,7 @@ describe('OffRamp - Unit Tests', () => {
     metadataHash: bigint,
   ): bigint => {
     let hashedMessages = messages.map((msg) => {
-      return uint8ArrayToBigInt(generateMessageId(msg, metadataHash))
+      return uint8ArrayToBigInt(generateMessageID(msg, metadataHash))
     })
 
     let merkleHelper: MerkleHelper = new MerkleHelper()
@@ -417,9 +361,9 @@ describe('OffRamp - Unit Tests', () => {
 
   const setupAndCommitMessage = async (message: of.Any2TVMRampMessage) => {
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfigs()
@@ -792,9 +736,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test commit fails when source chain is cursed', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfig()
@@ -851,9 +795,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test commit fails when global cursed', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfig()
@@ -910,9 +854,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test commit fails with onRamp address mismatch', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
 
     // Create root with wrong onRamp address
     const wrongOnRampAddress = 0x222222c891c5d4e6ad68064ae45d43146d4f9f3an
@@ -957,9 +901,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test commit with one merkle root for one empty message', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfig()
@@ -978,9 +922,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test commit report fails if more than one merkle root', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root1 = createMerkleRoot(1n, 1n, rootBytes)
     const root2 = createMerkleRoot(2n, 2n, rootBytes)
 
@@ -1000,9 +944,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test commit report fails if source chain is not enabled', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfig()
@@ -1046,9 +990,9 @@ describe('OffRamp - Unit Tests', () => {
 
     const message = createTestMessage(1n, 1n)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
 
     // Commit with more than 64 messages should fail
     const root = createMerkleRoot(1n, 65n, rootBytes)
@@ -1072,10 +1016,10 @@ describe('OffRamp - Unit Tests', () => {
     const message2 = createTestMessage(2n, 2n)
 
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
-    const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const root1Bytes = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
+    const root2Bytes = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
 
     const root1 = createMerkleRoot(1n, 1n, root1Bytes)
     const root2 = createMerkleRoot(2n, 2n, root2Bytes)
@@ -1099,46 +1043,6 @@ describe('OffRamp - Unit Tests', () => {
       deploy: true,
       success: true,
     })
-  })
-
-  it('Test generateMessageId hash compatibility with Go', () => {
-    // Create the exact same message as in Go test for cross-language compatibility
-    const rampMessageHeader = of.RampMessageHeader.create({
-      messageId: 1n,
-      sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: ChainSelectors.testnet.ton,
-      sequenceNumber: 1n,
-      nonce: 0n,
-    })
-
-    const message = of.Any2TVMRampMessage.create({
-      header: rampMessageHeader,
-      sender: beginCell()
-        .storeBuffer(Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)))
-        .asSlice(),
-      data: Cell.EMPTY,
-      receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
-      gasLimit: 100000000n,
-      tokenAmounts: null,
-    })
-
-    const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
-    )
-    const messageIdHash = generateMessageId(message, metadataHash)
-    const messageId = uint8ArrayToBigInt(messageIdHash)
-
-    // Uncomment to log the hash to update Go test
-    // const hashHex = messageId.toString(16).padStart(64, '0')
-    // console.log('Expected hash for Go test:', hashHex)
-    // Basic validation that we got a valid hash
-    expect(messageId).toBe(0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807n)
-
-    // Uncomment to log the raw bytes of ramp message for Go test
-    // console.log(beginCell().storeBuilder(or.Any2TVMRampMessageToBuilder(message)).endCell().toBoc().toString('hex'))
-    // Uncomment to log the raw bytes of execute report for Go test
-    // const report = createExecuteReport([message])
-    // console.log(beginCell().storeBuilder(or.ExecutionReportToBuilder(report)).endCell().toBoc().toString('hex'))
   })
 
   it('Test execute fails when root was not committed', async () => {
@@ -1204,9 +1108,9 @@ describe('OffRamp - Unit Tests', () => {
     const differentMessage = createTestMessage(1n, 1n, receiver.address)
 
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const differentRootBytes = uint8ArrayToBigInt(generateMessageId(differentMessage, metadataHash))
+    const differentRootBytes = uint8ArrayToBigInt(generateMessageID(differentMessage, metadataHash))
     const differentRoot = createMerkleRoot(1n, 1n, differentRootBytes)
 
     // Setup configurations
@@ -1269,9 +1173,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test execute fails when same message is sent twice', async () => {
     const message = createTestMessage(1n, 1n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     // Setup configurations
@@ -1388,9 +1292,9 @@ describe('OffRamp - Unit Tests', () => {
     // Setup and commit with enabled chain
     await setupOCRConfigs()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
     await commitReport([root])
 
@@ -1407,9 +1311,9 @@ describe('OffRamp - Unit Tests', () => {
     // Setup and commit with enabled chain
     await setupOCRConfigs()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
     await commitReport([root])
 
@@ -1449,9 +1353,9 @@ describe('OffRamp - Unit Tests', () => {
     // Setup and commit with enabled chain
     await setupOCRConfigs()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
     await commitReport([root])
 
@@ -1561,11 +1465,11 @@ describe('OffRamp - Unit Tests', () => {
   it('Test cannot call dispatch directly', async () => {
     const message = createTestMessage(1n, 1n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     const messageIdSlice = beginCell()
-      .storeUint(uint8ArrayToBigInt(generateMessageId(message, metadataHash)), 256)
+      .storeUint(uint8ArrayToBigInt(generateMessageID(message, metadataHash)), 256)
       .asSlice()
     const execId = messageIdSlice.loadUintBig(192)
 
@@ -1621,9 +1525,9 @@ describe('OffRamp - Unit Tests', () => {
     // Create a merkle root
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     // Create price updates
@@ -1705,9 +1609,9 @@ describe('OffRamp - Unit Tests', () => {
     // But commit with same merkle root should succeed (just price update ignored)
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupSourceChainConfig()
@@ -1723,9 +1627,9 @@ describe('OffRamp - Unit Tests', () => {
     // First commit with minSeqNr=1, maxSeqNr=5
     const message1 = createTestMessage(1n, 1n)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
+    const root1Bytes = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
     const root1 = createMerkleRoot(1n, 5n, root1Bytes) // maxSeqNr = 5
 
     await commitReport([root1])
@@ -1738,7 +1642,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Second commit with minSeqNr=6, maxSeqNr=10
     const message2 = createTestMessage(6n, 6n)
-    const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const root2Bytes = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
     const root2 = createMerkleRoot(6n, 10n, root2Bytes) // maxSeqNr = 10
 
     await commitReport([root2])
@@ -1759,9 +1663,9 @@ describe('OffRamp - Unit Tests', () => {
     // Commit with a large gap: minSeqNr=1, maxSeqNr=100
     const message = createTestMessage(1n, 1n)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
     const root = createMerkleRoot(1n, 10n, rootBytes)
 
     const value = toNano('1')
@@ -1943,7 +1847,7 @@ describe('OffRamp - Unit Tests', () => {
     const message1 = createTestMessage(1n, 1n)
     const message2 = createTestMessage(2n, 2n)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
     const rootBytes = generateMerkleRootBytes([message1, message2], metadataHash)
     const root = createMerkleRoot(1n, 2n, rootBytes)
@@ -2211,12 +2115,12 @@ describe('OffRamp - Unit Tests', () => {
     const message1 = createTestMessage(1n, 1n, receiver.address)
     const message2 = createTestMessage(2n, 2n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs
-    const messageId1 = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
-    const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const messageId1 = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
+    const messageId2 = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
 
     // Create merkle tree with both messages
     const merkleHelper = new MerkleHelper()
@@ -2275,12 +2179,12 @@ describe('OffRamp - Unit Tests', () => {
     const message1 = createTestMessage(1n, 1n, receiver.address)
     const message2 = createTestMessage(2n, 2n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs
-    const messageId1 = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
-    const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const messageId1 = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
+    const messageId2 = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
 
     // Create merkle tree with both messages
     const merkleHelper = new MerkleHelper()
@@ -2339,12 +2243,12 @@ describe('OffRamp - Unit Tests', () => {
     const message1 = createTestMessage(1n, 1n, receiver.address)
     const message2 = createTestMessage(2n, 2n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs
-    const messageId1 = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
-    const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const messageId1 = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
+    const messageId2 = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
 
     // Create merkle tree with both messages - IMPORTANT: We create it once and reuse for both proofs
     const merkleHelper = new MerkleHelper()
@@ -2441,12 +2345,12 @@ describe('OffRamp - Unit Tests', () => {
     const message1 = createTestMessage(1n, 1n, receiver.address)
     const message2 = createTestMessage(2n, 2n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs
-    const messageId1 = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
-    const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const messageId1 = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
+    const messageId2 = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
 
     // Create merkle tree with both messages
     const merkleHelper = new MerkleHelper()
@@ -2516,13 +2420,13 @@ describe('OffRamp - Unit Tests', () => {
     const message2 = createTestMessage(2n, 2n, receiver.address)
     const message3 = createTestMessage(3n, 3n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs
-    const messageId1 = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
-    const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
-    const messageId3 = uint8ArrayToBigInt(generateMessageId(message3, metadataHash))
+    const messageId1 = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
+    const messageId2 = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
+    const messageId3 = uint8ArrayToBigInt(generateMessageID(message3, metadataHash))
 
     // Create merkle tree with all three messages
     const merkleHelper = new MerkleHelper()
@@ -2588,12 +2492,12 @@ describe('OffRamp - Unit Tests', () => {
     ]
 
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs for all messages
     const messageIds = messages.map((msg) =>
-      uint8ArrayToBigInt(generateMessageId(msg, metadataHash)),
+      uint8ArrayToBigInt(generateMessageID(msg, metadataHash)),
     )
 
     // Create merkle tree with all five messages
@@ -2662,12 +2566,12 @@ describe('OffRamp - Unit Tests', () => {
     ]
 
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
 
     // Generate message IDs for all messages
     const messageIds = messages.map((msg) =>
-      uint8ArrayToBigInt(generateMessageId(msg, metadataHash)),
+      uint8ArrayToBigInt(generateMessageID(msg, metadataHash)),
     )
 
     // Create merkle tree with all five messages
@@ -2734,9 +2638,9 @@ describe('OffRamp - Unit Tests', () => {
     // First commit to establish minSeqNr
     const message1 = createTestMessage(1n, 1n)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
+    const root1Bytes = uint8ArrayToBigInt(generateMessageID(message1, metadataHash))
     const root1 = createMerkleRoot(1n, 10n, root1Bytes)
 
     await commitReport([root1])
@@ -2749,7 +2653,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Try to commit with minSeqNr smaller than current (should fail)
     const message2 = createTestMessage(5n, 5n)
-    const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const root2Bytes = uint8ArrayToBigInt(generateMessageID(message2, metadataHash))
     const root2 = createMerkleRoot(5n, 15n, root2Bytes) // minSeqNr=5 < 11
 
     await commitReport(
@@ -2768,9 +2672,9 @@ describe('OffRamp - Unit Tests', () => {
 
     const message = createTestMessage(1n, 1n)
     const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+      getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
     )
-    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
 
     // Create root with minSeqNr > maxSeqNr
     const root = createMerkleRoot(10n, 5n, rootBytes) // minSeqNr=10 > maxSeqNr=5
@@ -2935,9 +2839,9 @@ describe('OffRamp - Unit Tests', () => {
       // Create and commit a message to a valid receiver
       const message = createTestMessage(1n, 1n, receiver.address)
       const metadataHash = uint8ArrayToBigInt(
-        getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+        getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
       )
-      const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+      const rootBytes = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
       const root = createMerkleRoot(1n, 1n, rootBytes)
 
       await commitReport([root])
@@ -2982,10 +2886,10 @@ describe('OffRamp - Unit Tests', () => {
       // would not match, but we can intentionally build a commit report with correct seqNr
       const message1 = createTestMessage(1n, 1n, receiver.address)
       const rootBytes = uint8ArrayToBigInt(
-        generateMessageId(
+        generateMessageID(
           message1,
           uint8ArrayToBigInt(
-            getMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+            getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
           ),
         ),
       )

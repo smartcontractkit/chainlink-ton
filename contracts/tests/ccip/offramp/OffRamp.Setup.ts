@@ -1,10 +1,12 @@
-import { Cell, Address, Dictionary, toNano } from '@ton/core'
+import { Cell, Address, Dictionary, toNano, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { generateRandomContractId } from '../../../src/utils'
 import * as dict from '../../../src/utils/dict'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.commitAndExec.spec'
 import { ChainSelectors } from '../../utils/Selectors'
+import { KeyPair } from '@ton/crypto'
 
 export async function deployOffRampContract(
   blockchain: Blockchain,
@@ -56,4 +58,17 @@ export async function deployOffRampContract(
     success: true,
   })
   return offramp
+}
+export const createSignatures = (
+  signerList: KeyPair[],
+  hash: Buffer<ArrayBufferLike>,
+): of.SignatureEd25519[] => {
+  return signerList.map((signer) => {
+    const sig = ocr.createSignature(signer, hash)
+    return of.SignatureEd25519.create(sig)
+  })
+}
+
+export function getMerkleRootID(root: bigint) {
+  return beginCell().storeUint(root, 256)
 }

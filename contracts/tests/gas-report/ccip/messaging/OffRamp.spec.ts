@@ -33,7 +33,6 @@ import { KeyPair, sha256_sync } from '@ton/crypto'
 import { EVM_SENDER_ADDRESS_TEST, EVM_ONRAMP_ADDRESS_TEST } from '../../constants'
 import { createMaxPayload, createExtraArgs, MESSAGE_COUNT_IN_COMMIT } from './config'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
-import { getMetadataHash, generateMessageId, createSignatures } from './helpers'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -45,6 +44,8 @@ import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossC
 import { asSnakedCell } from '../../../../src/utils'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../../utils/Selectors'
+import generateMessageID, { getMetadataHash } from '../../../../src/offramp/generateMessageID'
+import { createSignatures } from '../../../ccip/offramp/OffRamp.Setup'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 
@@ -361,7 +362,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     })
 
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(ChainSelectors.testnet.evm))
-    const messageIdBytes = generateMessageId(testMessage, metadataHash)
+    const messageIdBytes = generateMessageID(testMessage, metadataHash)
     const rootBytes = uint8ArrayToBigInt(messageIdBytes)
 
     // Step 2: Create merkle roots
