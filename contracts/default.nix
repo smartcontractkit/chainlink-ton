@@ -52,7 +52,19 @@
           echo "error: could not find scripts/abigen.ts under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
           exit 1
         fi
-        exec node --require ts-node/register/transpile-only "$root/scripts/abigen.ts" "$@"
+
+        # Resolve any manifest-path argument before changing directories below.
+        args=()
+        for arg in "$@"; do
+          args+=("$(realpath "$arg")")
+        done
+
+        # ts-node resolves tsconfig.json relative to the process cwd, not the
+        # script's own location, so cd there first (repo root has no
+        # tsconfig.json, which would otherwise fall back to ts-node's bundled
+        # default config and fail with TS5109 on this TypeScript version).
+        cd "$root"
+        exec node --require ts-node/register/transpile-only scripts/abigen.ts "''${args[@]}"
       '';
     };
 
