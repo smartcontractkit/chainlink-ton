@@ -66,7 +66,7 @@ func TestTokenAmounts(t *testing.T) {
 	})
 	require.NoError(t, err)
 	array := common.SnakeRef[Any2TVMTokenTransfer]{}
-	err = tlb.LoadFromCell(&array, tokenAmountsCell.BeginParse())
+	err = tlb.Parse(&array, tokenAmountsCell)
 	require.NoError(t, err)
 	require.Len(t, array, 6)
 }
@@ -135,7 +135,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	// Decode from cell
 	var decoded ExecuteReport
-	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
+	err = tlb.Parse(&decoded, newCell)
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
 	require.Len(t, decoded.Message.TokenAmounts, 3)
@@ -162,7 +162,7 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 	body := cell.BeginCell().MustStoreRef(receiver).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreRef(transfer).MustStoreAddr(addr).MustStoreCoins(1).EndCell()
 
 	var decoded TVM2AnyRampMessageBody
-	err = tlb.LoadFromCell(&decoded, body.BeginParse())
+	err = tlb.Parse(&decoded, body)
 	require.NoError(t, err)
 	require.Len(t, decoded.TokenTransfer, 1)
 	require.Equal(t, addr.String(), decoded.TokenTransfer[0].SourcePoolAddress.String())
@@ -181,7 +181,7 @@ func TestTVM2AnyRampMessageBody_LoadsLegacyEmptyTokenAmounts(t *testing.T) {
 	body := cell.BeginCell().MustStoreRef(receiver).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreAddr(addr).MustStoreCoins(1).EndCell()
 
 	var decoded TVM2AnyRampMessageBody
-	err = tlb.LoadFromCell(&decoded, body.BeginParse())
+	err = tlb.Parse(&decoded, body)
 	require.NoError(t, err)
 	require.Empty(t, decoded.TokenTransfer)
 }

@@ -236,7 +236,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 				break // move to next cell, do not decode this ref
 			}
 			var v T
-			if err := tlb.LoadFromCell(&v, ref.BeginParse()); err != nil {
+			if err := tlb.Parse(&v, ref); err != nil {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)

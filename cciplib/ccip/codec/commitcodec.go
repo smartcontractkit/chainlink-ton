@@ -122,7 +122,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	}
 
 	var report ocr.CommitReport
-	if err := tlb.LoadFromCell(&report, c.BeginParse()); err != nil {
+	if err := tlb.Parse(&report, c); err != nil {
 		return cciptypes.CommitPluginReport{}, fmt.Errorf("cannot decode commit report from cell: %w", err)
 	}
 
