@@ -6,6 +6,7 @@ import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
   let setup: FeeQuoterSetup
@@ -32,7 +33,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
 
   it('should add token transfer fee config', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
@@ -69,7 +70,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
 
   it('should remove token transfer fee config', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     // First add the config
     await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
@@ -127,7 +128,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
   it('should add multiple token transfer fee configs at once', async () => {
     const token1 = FeeQuoterSetup.CUSTOM_TOKEN.token
     const token2 = FeeQuoterSetup.CUSTOM_TOKEN_2.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     const config2 = {
       ...sampleTokenTransferFeeConfig,
@@ -178,7 +179,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
   it('should remove multiple token transfer fee configs at once', async () => {
     const token1 = FeeQuoterSetup.CUSTOM_TOKEN.token
     const token2 = FeeQuoterSetup.CUSTOM_TOKEN_2.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     // First add both configs
     await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
@@ -234,8 +235,8 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
 
   it('should update configs for multiple destination chains at once', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const destChainSelector1 = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
-    const destChainSelector2 = FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM
+    const destChainSelector1 = ChainSelectors.testnet.evm
+    const destChainSelector2 = ChainSelectors.testnet.solana
 
     const config1 = sampleTokenTransferFeeConfig
     const config2 = {
@@ -290,7 +291,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
   it('should add and remove configs in same transaction', async () => {
     const tokenToAdd = FeeQuoterSetup.CUSTOM_TOKEN.token
     const tokenToRemove = FeeQuoterSetup.CUSTOM_TOKEN_2.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     // First add the token to be removed
     await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
@@ -347,7 +348,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
 
   it('should update existing token transfer fee config', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     // Add initial config
     await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
@@ -406,7 +407,7 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
 
   it('should only allow owner to update token transfer fee configs', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const destChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM
+    const destChainSelector = ChainSelectors.testnet.evm
 
     // Try with non-owner
     const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(

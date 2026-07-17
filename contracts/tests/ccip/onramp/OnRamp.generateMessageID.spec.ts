@@ -9,8 +9,9 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
-import { CHAINSEL_EVM_TEST, CHAINSEL_TON, setup } from './OnRamp.Setup'
+import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { ChainSelectors } from '../../utils/Selectors'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -30,7 +31,7 @@ describe('OnRamp - generate message id', () => {
 
   const ccipSend: rt.CCIPSend = {
     queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
@@ -76,7 +77,7 @@ describe('OnRamp - generate message id', () => {
         value: toNano('0.5'),
         destChainConfigs: [
           {
-            destChainSelector: CHAINSEL_EVM_TEST,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: false,
           },
@@ -149,8 +150,8 @@ describe('OnRamp - generate message id', () => {
     const expectedTVM2AnyRampMessage: or.TVM2AnyRampMessage = {
       header: {
         messageId: 0n,
-        sourceChainSelector: CHAINSEL_TON,
-        destChainSelector: CHAINSEL_EVM_TEST,
+        sourceChainSelector: ChainSelectors.testnet.ton,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         nonce: 0n,
       },

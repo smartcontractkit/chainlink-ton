@@ -1,6 +1,7 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, Dictionary, toNano } from '@ton/core'
 
+import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import {
@@ -9,8 +10,6 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../../wrappers/ccip/FeeQuoter'
-
-const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 
 export const setupTestFeeQuoter = async (
   deployer: SandboxContract<TreasuryContract>,
@@ -62,7 +61,7 @@ export const setupTestFeeQuoter = async (
     value: toNano('1'),
     updates: [
       {
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         config: {
           // minimal valid config
           isEnabled: true,

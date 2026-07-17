@@ -6,6 +6,7 @@ import { FeeQuoterSetup } from './FeeQuoterSetup'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { generateRandomTonAddress } from '../../../src/utils'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('FeeQuoter Getters', () => {
   let setup: FeeQuoterSetup
@@ -61,9 +62,9 @@ describe('FeeQuoter Getters', () => {
       expect(destChainSelectors!.length).toBeGreaterThan(0)
 
       // Check that our configured chains are in the list
-      expect(destChainSelectors).toContainEqual(FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM)
-      expect(destChainSelectors).toContainEqual(FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM)
-      expect(destChainSelectors).toContainEqual(FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI)
+      expect(destChainSelectors).toContainEqual(ChainSelectors.testnet.evm)
+      expect(destChainSelectors).toContainEqual(ChainSelectors.testnet.solana)
+      expect(destChainSelectors).toContainEqual(ChainSelectors.testnet.sui)
     })
   })
 
@@ -175,7 +176,7 @@ describe('FeeQuoter Getters', () => {
 
       await expect(
         setup.bind.feeQuoter.getTokenTransferFeeConfig(
-          FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          ChainSelectors.testnet.evm,
           nonExistentToken,
         ),
       ).rejects.toThrow()
@@ -199,7 +200,7 @@ describe('FeeQuoter Getters', () => {
       // Testing that it can be called without error
       const result = await setup.bind.feeQuoter.getTokenAndGasPrices(
         FeeQuoterSetup.NATIVE_TON.token,
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        ChainSelectors.testnet.evm,
       )
 
       // Just verify it doesn't throw
@@ -235,7 +236,7 @@ describe('FeeQuoter Getters', () => {
   describe('destinationChainGasPrice', () => {
     it('should return gas price for existing chain', async () => {
       const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        ChainSelectors.testnet.evm,
       )
 
       expect(gasPrice.value).toBeDefined()
@@ -275,9 +276,7 @@ describe('FeeQuoter Getters', () => {
 
   describe('destChainConfig', () => {
     it('should return config for existing chain', async () => {
-      const config = await setup.bind.feeQuoter.getDestChainConfig(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
-      )
+      const config = await setup.bind.feeQuoter.getDestChainConfig(ChainSelectors.testnet.evm)
 
       expect(config.isEnabled).toBe(true)
       expect(config.maxNumberOfTokensPerMsg).toBe(FeeQuoterSetup.MAX_TOKENS_LENGTH)
@@ -295,7 +294,7 @@ describe('FeeQuoter Getters', () => {
   describe('dataAvailabilityCost', () => {
     it('should calculate data availability cost', async () => {
       const cost = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        ChainSelectors.testnet.evm,
         FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         1000n,
         0n,
@@ -322,7 +321,7 @@ describe('FeeQuoter Getters', () => {
     it('should throw error when token transfers provided (not supported)', async () => {
       await expect(
         setup.bind.feeQuoter.getDataAvailabilityCost(
-          FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          ChainSelectors.testnet.evm,
           FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
           1000n,
           1n, // tokenCount > 0

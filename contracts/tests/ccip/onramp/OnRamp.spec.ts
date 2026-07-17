@@ -10,7 +10,8 @@ import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import { deployOnRampContract, CHAINSEL_TON, setup, deployOnRampContractW } from './OnRamp.Setup'
+import { deployOnRampContract, setup, deployOnRampContractW } from './OnRamp.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -152,7 +153,7 @@ describe('OnRamp - Unit Tests', () => {
 
   it('getStaticConfig should return chain selector', async () => {
     const result = await onramp.getStaticConfig()
-    expect(result).toBe(CHAINSEL_TON)
+    expect(result).toBe(ChainSelectors.testnet.ton)
   })
 
   it('should allow owner to updateSendExecutor', async () => {

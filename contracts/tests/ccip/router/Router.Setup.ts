@@ -14,6 +14,7 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
@@ -215,7 +216,7 @@ async function deployFeeQuoterInstance(
       value: toNano('1'),
       updates: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           config: {
             isEnabled: true,
             maxNumberOfTokensPerMsg: 1,
@@ -228,7 +229,7 @@ async function deployFeeQuoterInstance(
             destDataAvailabilityOverheadGas: 0,
             destGasPerDataAvailabilityByte: 0,
             destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: CHAIN_FAMILY_SELECTOR_EVM,
+            chainFamilySelector: ChainFamilySelectors.evm,
             defaultTokenFeeUsdCents: 0,
             defaultTokenDestGasOverhead: 0,
             defaultTxGasLimit: 1,
@@ -312,7 +313,7 @@ async function deployOnRampInstance(
       value: toNano('1'),
       destChainConfigs: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           router: config.router,
           allowlistEnabled: config.allowlistEnabled,
         },
@@ -325,10 +326,10 @@ async function deployOnRampInstance(
       success: true,
     })
     assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     })
     assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       config,
     })
   }
@@ -394,7 +395,7 @@ async function deployOffRampInstance(
       of.OffRamp_UpdateSourceChainConfigs.create({
         configs: [
           of.SourceChainConfigUpdate.create({
-            sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+            sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             config: of.SourceChainConfig.create({
               router: config.router,
               isEnabled: true,
@@ -428,11 +429,11 @@ async function configureRouterWithOnRamp(
     data: {
       queryID: BigInt(0),
       onRamps: {
-        destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+        destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp,
       },
       offRampAdds: {
-        sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+        sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
         offRamp: offRamp,
       },
     },
@@ -444,7 +445,7 @@ async function configureRouterWithOnRamp(
   })
 
   assertLog(result.transactions, router.address, LogTypes.OnRampSet, {
-    destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+    destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
     onRamp: onRamp,
   })
 }
@@ -475,13 +476,6 @@ export async function deployRouterContract(
   await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
   return contract
 }
-
-export const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
-export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
-export const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
-export const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
-export const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
-export const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
 
 // unit192 where 64 first bits are chain selector
 export function genExecID(opts: {

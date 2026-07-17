@@ -5,12 +5,8 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-} from './Router.Setup'
+import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router.ccipSend', () => {
   let blockchain: Blockchain
@@ -43,7 +39,7 @@ describe('Router.ccipSend', () => {
 
   const msg = {
     queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST_90000001,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
@@ -110,7 +106,7 @@ describe('Router.ccipSend', () => {
         data: {
           queryID: 1n,
           onRamps: {
-            destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             onRamp: undefined,
           },
         },

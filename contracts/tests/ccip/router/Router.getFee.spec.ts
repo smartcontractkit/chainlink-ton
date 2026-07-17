@@ -6,12 +6,8 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-} from './Router.Setup'
+import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = beginCell().storeBuffer(EVM_ADDRESS).asSlice()
 
@@ -48,7 +44,7 @@ describe('Router', () => {
 
   const msg = rt.Router_CCIPSend.create({
     queryID: 1n,
-    destChainSelector: CHAINSEL_EVM_TEST_90000001,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_CC_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
@@ -87,7 +83,8 @@ describe('Router', () => {
         return (
           decoded.msg.queryID === 1 &&
           decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.destChainSelector ===
+            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
           decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
@@ -100,7 +97,7 @@ describe('Router', () => {
     const badMsg: rt.Router_CCIPSend = {
       $: 'Router_CCIPSend',
       queryID: 1n,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
       receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
       data: Cell.EMPTY,
       tokenAmounts: [],
@@ -147,7 +144,7 @@ describe('Router', () => {
         queryId: 1n,
         onRampUpdates: {
           $: 'OnRamps',
-          destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+          destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
           onRamp: null,
         },
         offRampAdds: null,
@@ -164,7 +161,7 @@ describe('Router', () => {
     const badMsg: rt.Router_CCIPSend = {
       $: 'Router_CCIPSend',
       queryID: 1n,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_CC_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
@@ -236,7 +233,8 @@ describe('Router', () => {
           decoded.fee === toNano('0.5') &&
           decoded.msg.queryID === 1n &&
           decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.destChainSelector ===
+            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
           decoded.msg.tokenAmounts.length === 0 &&
           decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
@@ -302,7 +300,8 @@ describe('Router', () => {
           decoded.error === 12345n &&
           decoded.msg.queryID === 1n &&
           decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.destChainSelector ===
+            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
           decoded.msg.tokenAmounts.length === 0 &&
           decoded.msg.feeToken!.equals(WRAPPED_NATIVE)

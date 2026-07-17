@@ -8,9 +8,10 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
-import { CHAINSEL_EVM_TEST, setup } from './OnRamp.Setup'
+import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { ChainSelectors } from '../../utils/Selectors'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -29,7 +30,7 @@ describe('OnRamp - Send', () => {
   const senderAddress = randomAddress()
   const ccipSend: rt.CCIPSend = {
     queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
@@ -75,7 +76,7 @@ describe('OnRamp - Send', () => {
         value: toNano('0.5'),
         destChainConfigs: [
           {
-            destChainSelector: CHAINSEL_EVM_TEST,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: false,
           },
@@ -171,7 +172,7 @@ describe('OnRamp - Send', () => {
           value: toNano('0.5'),
           destChainConfigs: [
             {
-              destChainSelector: CHAINSEL_EVM_TEST,
+              destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
               router: mockRouter.address,
               allowlistEnabled: true,
             },
@@ -189,7 +190,7 @@ describe('OnRamp - Send', () => {
         updateAllowlists: {
           updates: [
             {
-              destChainSelector: CHAINSEL_EVM_TEST,
+              destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
               add: [senderAddress],
               remove: [],
             },
@@ -232,7 +233,7 @@ describe('OnRamp - Send', () => {
         value: toNano('0.5'),
         destChainConfigs: [
           {
-            destChainSelector: CHAINSEL_EVM_TEST,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: true,
           },

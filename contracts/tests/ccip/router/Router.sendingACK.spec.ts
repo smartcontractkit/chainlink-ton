@@ -5,7 +5,8 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import { setup, CHAINSEL_EVM_TEST_90000001, contractsCoverageConfig } from './Router.Setup'
+import { setup, contractsCoverageConfig } from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -42,7 +43,7 @@ describe('Router', () => {
       body: {
         queryID: 0n,
         messageId: 42n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         sender: sender.address,
       },
     })
@@ -72,7 +73,7 @@ describe('Router', () => {
       body: {
         queryID: 0n,
         messageId: 42n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         sender: sender.address,
       },
     })
@@ -91,7 +92,7 @@ describe('Router', () => {
       body: {
         queryID: 0n,
         error: 42n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         sender: sender.address,
       },
     })
@@ -121,7 +122,7 @@ describe('Router', () => {
       body: {
         queryID: 0n,
         error: 42n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         sender: sender.address,
       },
     })

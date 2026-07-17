@@ -15,12 +15,8 @@ import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-} from '../router/Router.Setup'
+import { setup, EVM_ADDRESS, contractsCoverageConfig } from '../router/Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -53,7 +49,7 @@ describe('Router', () => {
     const initialOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
     const ccipSend: rt.CCIPSend = {
       queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
@@ -156,7 +152,7 @@ describe('Router', () => {
       assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
         message: {
           header: {
-            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           },
           sender: sender.address,
         },

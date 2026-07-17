@@ -30,13 +30,7 @@ import {
   ReportContext,
 } from '../../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { KeyPair, sha256_sync } from '@ton/crypto'
-import {
-  CHAINSEL_TON,
-  CHAINSEL_EVM_TEST,
-  EVM_SENDER_ADDRESS_TEST,
-  EVM_ONRAMP_ADDRESS_TEST,
-  CHAIN_FAMILY_SELECTOR_EVM,
-} from '../../constants'
+import { EVM_SENDER_ADDRESS_TEST, EVM_ONRAMP_ADDRESS_TEST } from '../../constants'
 import { createMaxPayload, createExtraArgs, MESSAGE_COUNT_IN_COMMIT } from './config'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { getMetadataHash, generateMessageId, createSignatures } from './helpers'
@@ -50,6 +44,7 @@ import { ContractClient as CCIPSendExecutorContract } from '../../../../wrappers
 import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { asSnakedCell } from '../../../../src/utils'
 import { contractCode } from '../../../../wrappers/codeLoader'
+import { ChainSelectors } from '../../../utils/Selectors'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 
@@ -162,7 +157,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
-        chainSelector: CHAINSEL_TON,
+        chainSelector: ChainSelectors.testnet.ton,
         config: {
           feeQuoter: feeQuoter.address,
           feeAggregator: deployer.address,
@@ -190,7 +185,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         data: {
           queryID: BigInt(0),
           onRamps: {
-            destChainSelectors: [CHAINSEL_EVM_TEST],
+            destChainSelectors: [ChainSelectors.testnet.evm],
             onRamp: onRamp.address,
           },
         },
@@ -205,7 +200,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         value: toNano('1'),
         destChainConfigs: [
           {
-            destChainSelector: CHAINSEL_EVM_TEST,
+            destChainSelector: ChainSelectors.testnet.evm,
             router: router.address,
             allowlistEnabled: false,
           },
@@ -246,7 +241,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         cursedSubjects: of.CursedSubjects.create({
           data: new Set(),
         }),
-        chainSelector: CHAINSEL_TON,
+        chainSelector: ChainSelectors.testnet.ton,
         permissionlessExecutionThresholdSeconds: 60n,
         sourceChainConfigs: new Map(),
         latestPriceSequenceNumber: 0n,
@@ -304,7 +299,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         {
           configs: [
             of.SourceChainConfigUpdate.create({
-              sourceChainSelector: CHAINSEL_EVM_TEST,
+              sourceChainSelector: ChainSelectors.testnet.evm,
               config: of.SourceChainConfig.create({
                 router: ROUTER_ADDRESS_TEST,
                 isEnabled: true,
@@ -353,8 +348,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const testMessage: of.Any2TVMRampMessage = of.Any2TVMRampMessage.create({
       header: of.RampMessageHeader.create({
         messageId: 1n,
-        sourceChainSelector: CHAINSEL_EVM_TEST,
-        destChainSelector: CHAINSEL_TON,
+        sourceChainSelector: ChainSelectors.testnet.evm,
+        destChainSelector: ChainSelectors.testnet.ton,
         sequenceNumber: 1n,
         nonce: 0n,
       }),
@@ -365,7 +360,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       tokenAmounts: null,
     })
 
-    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST))
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(ChainSelectors.testnet.evm))
     const messageIdBytes = generateMessageId(testMessage, metadataHash)
     const rootBytes = uint8ArrayToBigInt(messageIdBytes)
 
@@ -373,7 +368,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const merkleRoots: of.MerkleRoot[] = []
     merkleRoots.push(
       of.MerkleRoot.create({
-        sourceChainSelector: CHAINSEL_EVM_TEST,
+        sourceChainSelector: ChainSelectors.testnet.evm,
         onRampAddress: CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
         minSeqNr: 1n,
         maxSeqNr: 10n,
@@ -478,7 +473,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     }
 
     const executeReport: of.ExecutionReport = of.ExecutionReport.create({
-      sourceChainSelector: CHAINSEL_EVM_TEST,
+      sourceChainSelector: ChainSelectors.testnet.evm,
       messages: asSnakedCell([testMessage], (msg) => {
         const b = beginCell()
         of.Any2TVMRampMessage.store(msg, b)

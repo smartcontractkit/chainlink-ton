@@ -11,6 +11,7 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as Setup from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -47,8 +48,8 @@ describe('Router', () => {
           queryID: BigInt(0),
           onRamps: {
             destChainSelectors: [
-              Setup.CHAINSEL_EVM_TEST_90000001,
-              Setup.CHAINSEL_EVM_TEST_90000002,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
             ],
             onRamp: onRamp.address,
           },
@@ -62,10 +63,10 @@ describe('Router', () => {
     }
 
     {
-      let result = await router.getOnRamp(Setup.CHAINSEL_EVM_TEST_90000001)
+      let result = await router.getOnRamp(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001)
       expect(result).toEqual(onRamp.address)
 
-      result = await router.getOnRamp(Setup.CHAINSEL_EVM_TEST_90000002)
+      result = await router.getOnRamp(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002)
       expect(result).toEqual(onRamp.address)
     }
 
@@ -73,11 +74,11 @@ describe('Router', () => {
       let result = await router.getOnRamps()
       expect(result).toEqual([
         {
-          chainSelector: Setup.CHAINSEL_EVM_TEST_90000002,
+          chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
           address: onRamp.address,
         },
         {
-          chainSelector: Setup.CHAINSEL_EVM_TEST_90000001,
+          chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           address: onRamp.address,
         },
       ])
@@ -86,7 +87,10 @@ describe('Router', () => {
     {
       let result = await router.getDestChainSelectors()
       expect(result.sort()).toEqual(
-        [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002].sort(),
+        [
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        ].sort(),
       )
     }
   })
@@ -101,8 +105,8 @@ describe('Router', () => {
           queryID: BigInt(0),
           offRampAdds: {
             sourceChainSelectors: [
-              Setup.CHAINSEL_EVM_TEST_90000001,
-              Setup.CHAINSEL_EVM_TEST_90000002,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
             ],
             offRamp: offRampAddress1,
           },
@@ -115,7 +119,10 @@ describe('Router', () => {
       })
 
       assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
-        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002],
+        sourceChainSelectors: [
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        ],
         offRampAdded: offRampAddress1,
       })
 
@@ -126,8 +133,8 @@ describe('Router', () => {
           queryID: BigInt(0),
           offRampRemoves: {
             sourceChainSelectors: [
-              Setup.CHAINSEL_EVM_TEST_90000001,
-              Setup.CHAINSEL_EVM_TEST_90000002,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
             ],
             offRamp: offRampAddress1,
           },
@@ -140,7 +147,10 @@ describe('Router', () => {
       })
 
       assertLog(result2.transactions, router.address, LogTypes.OffRampRemoved, {
-        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002],
+        sourceChainSelectors: [
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        ],
         offRampRemoved: offRampAddress1,
       })
     }
@@ -156,8 +166,8 @@ describe('Router', () => {
           queryID: BigInt(0),
           offRampAdds: {
             sourceChainSelectors: [
-              Setup.CHAINSEL_EVM_TEST_90000001,
-              Setup.CHAINSEL_EVM_TEST_90000002,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
             ],
             offRamp: offRampAddress1,
           },
@@ -170,7 +180,10 @@ describe('Router', () => {
       })
 
       assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
-        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002],
+        sourceChainSelectors: [
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        ],
         offRampAdded: offRampAddress1,
       })
     }
@@ -181,11 +194,11 @@ describe('Router', () => {
       expect(result.sort()).toEqual(
         [
           {
-            chainSelector: Setup.CHAINSEL_EVM_TEST_90000002,
+            chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
             address: offRampAddress1,
           },
           {
-            chainSelector: Setup.CHAINSEL_EVM_TEST_90000001,
+            chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             address: offRampAddress1,
           },
         ].sort(),
@@ -194,10 +207,10 @@ describe('Router', () => {
 
     {
       // test individual getter
-      let result = await router.getOffRamp(Setup.CHAINSEL_EVM_TEST_90000001)
+      let result = await router.getOffRamp(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001)
       expect(result).toEqual(offRampAddress1)
 
-      result = await router.getOffRamp(Setup.CHAINSEL_EVM_TEST_90000002)
+      result = await router.getOffRamp(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002)
       expect(result).toEqual(offRampAddress1)
     }
 
@@ -208,7 +221,7 @@ describe('Router', () => {
         data: {
           queryID: BigInt(0),
           offRampRemoves: {
-            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+            sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress1,
           },
         },
@@ -223,7 +236,7 @@ describe('Router', () => {
       let getResult = await router.getOffRamps()
       expect(getResult).toEqual([
         {
-          chainSelector: Setup.CHAINSEL_EVM_TEST_90000002,
+          chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
           address: offRampAddress1,
         },
       ])
@@ -237,11 +250,11 @@ describe('Router', () => {
         data: {
           queryID: BigInt(0),
           offRampAdds: {
-            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+            sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress2,
           },
           offRampRemoves: {
-            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000002],
+            sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002],
             offRamp: offRampAddress1,
           },
         },
@@ -255,7 +268,7 @@ describe('Router', () => {
       const getResult = await router.getOffRamps()
       expect(getResult).toEqual([
         {
-          chainSelector: Setup.CHAINSEL_EVM_TEST_90000001,
+          chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           address: offRampAddress2,
         },
       ])
@@ -272,8 +285,8 @@ describe('Router', () => {
           queryID: BigInt(0),
           offRampAdds: {
             sourceChainSelectors: [
-              Setup.CHAINSEL_EVM_TEST_90000001,
-              Setup.CHAINSEL_EVM_TEST_90000002,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+              ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
             ],
             offRamp: offRampAddress,
           },
@@ -293,7 +306,7 @@ describe('Router', () => {
         data: {
           queryID: BigInt(0),
           offRampRemoves: {
-            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+            sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress,
           },
         },
@@ -306,7 +319,7 @@ describe('Router', () => {
       })
 
       assertLog(removeResult.transactions, router.address, LogTypes.OffRampRemoved, {
-        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+        sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
         offRampRemoved: offRampAddress,
       })
     }
@@ -314,7 +327,10 @@ describe('Router', () => {
     {
       const result = await router.getOffRamps()
       expect(result).toEqual([
-        { chainSelector: Setup.CHAINSEL_EVM_TEST_90000002, address: offRampAddress },
+        {
+          chainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+          address: offRampAddress,
+        },
       ])
     }
   })
