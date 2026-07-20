@@ -78,6 +78,6 @@ struct SignatureEd25519 {
 
 struct ReportContext {
 	configDigest: uint256;
-	_padding: bytes24;
+	_padding: bytes24 = "000000000000000000000000000000000000000000000000".hexToSlice() as bytes24;
 	sequenceBytes: uint64
 }

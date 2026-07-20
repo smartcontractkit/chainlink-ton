@@ -266,7 +266,6 @@ describe('OffRamp - Unit Tests', () => {
     const result = await offRamp.sendOffRampCommit(transmitters[0].getSender(), value, {
       reportContext: of.ReportContext.create({
         configDigest,
-        _padding: beginCell().storeUint(0, 192).asSlice(),
         sequenceBytes: BigInt(sequenceBytes),
       }),
       report: genReport,
@@ -315,7 +314,6 @@ describe('OffRamp - Unit Tests', () => {
     const result = await offRamp.sendOffRampExecute(transmitters[0].getSender(), toNano('0.2'), {
       reportContext: of.ReportContext.create({
         configDigest,
-        _padding: beginCell().storeUint(0, 192).asSlice(),
         sequenceBytes: BigInt(sequenceBytes),
       }),
       report,
@@ -718,7 +716,6 @@ describe('OffRamp - Unit Tests', () => {
     const result = await offRamp.sendOffRampCommit(transmitters[0].getSender(), toNano('0.5'), {
       reportContext: of.ReportContext.create({
         configDigest,
-        _padding: beginCell().storeUint(0, 192).asSlice(),
         sequenceBytes: 1n,
       }),
       report,
@@ -969,7 +966,6 @@ describe('OffRamp - Unit Tests', () => {
     const result = await offRamp.sendOffRampCommit(transmitters[0].getSender(), toNano('0.5'), {
       reportContext: of.ReportContext.create({
         configDigest,
-        _padding: beginCell().storeUint(0, 192).asSlice(),
         sequenceBytes: 1n,
       }),
       report,
@@ -1077,7 +1073,6 @@ describe('OffRamp - Unit Tests', () => {
       {
         reportContext: of.ReportContext.create({
           configDigest,
-          _padding: beginCell().storeUint(0, 192).asSlice(),
           sequenceBytes: 0x02n,
         }),
         report: executeReport,
@@ -1145,7 +1140,6 @@ describe('OffRamp - Unit Tests', () => {
       {
         reportContext: of.ReportContext.create({
           configDigest,
-          _padding: beginCell().storeUint(0, 192).asSlice(),
           sequenceBytes: 0x02n,
         }),
         report: executeReport,
@@ -1211,7 +1205,6 @@ describe('OffRamp - Unit Tests', () => {
       {
         reportContext: of.ReportContext.create({
           configDigest,
-          _padding: beginCell().storeUint(0, 192).asSlice(),
           sequenceBytes: 0x02n,
         }),
         report: executeReport,
@@ -1231,7 +1224,6 @@ describe('OffRamp - Unit Tests', () => {
       {
         reportContext: of.ReportContext.create({
           configDigest,
-          _padding: beginCell().storeUint(0, 192).asSlice(),
           sequenceBytes: 0x02n,
         }),
         report: executeReport,
@@ -2389,7 +2381,6 @@ describe('OffRamp - Unit Tests', () => {
     const result = await offRamp.sendOffRampExecute(transmitters[0].getSender(), toNano('0.5'), {
       reportContext: of.ReportContext.create({
         configDigest,
-        _padding: beginCell().storeUint(0, 192).asSlice(),
         sequenceBytes: 0x02n,
       }),
       report,

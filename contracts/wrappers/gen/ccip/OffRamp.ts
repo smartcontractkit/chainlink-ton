@@ -1077,18 +1077,19 @@ export const SignatureEd25519 = {
 export interface ReportContext {
     readonly $: 'ReportContext'
     configDigest: uint256
-    _padding: bits192
+    _padding: bits192 /* = hex('000000000000000000000000000000000000000000000000') as slice as bits192 */
     sequenceBytes: uint64
 }
 
 export const ReportContext = {
     create(args: {
         configDigest: uint256
-        _padding: bits192
+        _padding?: bits192 /* = hex('000000000000000000000000000000000000000000000000') as slice as bits192 */
         sequenceBytes: uint64
     }): ReportContext {
         return {
             $: 'ReportContext',
+            _padding: new c.Slice(new c.BitReader(new c.BitString(Buffer.from('000000000000000000000000000000000000000000000000', 'hex'), 0, 192)), []),
             ...args
         }
     },
@@ -2417,6 +2418,55 @@ export const CommitReport = {
     },
     toCell(self: CommitReport): c.Cell {
         return makeCellFrom<CommitReport>(self, CommitReport.store);
+    }
+}
+
+/**
+ > struct MessageMetadata {
+ >     _header: uint256
+ >     sourceChainSelector: uint64
+ >     destChainSelector: uint64
+ >     onRamp: Cell<CrossChainAddress>
+ > }
+ */
+export interface MessageMetadata {
+    readonly $: 'MessageMetadata'
+    _header: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
+    sourceChainSelector: uint64
+    destChainSelector: uint64
+    onRamp: CrossChainAddress
+}
+
+export const MessageMetadata = {
+    create(args: {
+        _header?: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
+        sourceChainSelector: uint64
+        destChainSelector: uint64
+        onRamp: CrossChainAddress
+    }): MessageMetadata {
+        return {
+            $: 'MessageMetadata',
+            _header: 94125445462166101730960845378898357591674356293939125390047719859241158747070n,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MessageMetadata {
+        return {
+            $: 'MessageMetadata',
+            _header: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            onRamp: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: MessageMetadata, b: c.Builder): void {
+        b.storeUint(self._header, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.destChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.onRamp, b, CrossChainAddress.store);
+    },
+    toCell(self: MessageMetadata): c.Cell {
+        return makeCellFrom<MessageMetadata>(self, MessageMetadata.store);
     }
 }
 

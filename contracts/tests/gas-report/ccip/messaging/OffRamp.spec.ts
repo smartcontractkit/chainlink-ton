@@ -404,7 +404,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
       {
         reportContext: of.ReportContext.create({
           configDigest,
-          _padding: beginCell().storeUint(0, 192).asSlice(),
           sequenceBytes: BigInt(reportContext.sequenceBytes),
         }),
         report: commitReport,
@@ -500,7 +499,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
       {
         reportContext: of.ReportContext.create({
           configDigest,
-          _padding: beginCell().storeUint(0, 192).asSlice(),
           sequenceBytes: BigInt(executeReportContext.sequenceBytes),
         }),
         report: executeReport,
