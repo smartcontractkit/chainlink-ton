@@ -1,3 +1,4 @@
+import "../../ccip/common/types"
 import "../../ccip/offramp/types"
 import "../../ccip/onramp/types"
 
@@ -26,4 +27,20 @@ get fun getAny2TVMRampMessageID(msg: Cell<Any2TVMRampMessage>, metadataHash: int
 get fun getTVM2AnyRampMessageID(msg: Cell<TVM2AnyRampMessage>, metadataHash: int): (int) {
     val decodedMsg = msg.load();
     return decodedMsg.generateMessageId(metadataHash)
+}
+
+get fun getAny2TVMV1MetadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: Cell<CrossChainAddress>): (int) {
+    return Any2TVMMessageV1Metadata {
+        sourceChainSelector,
+        destChainSelector,
+        onRamp,
+    }.toCell().hash()
+}
+
+get fun getTVM2AnyV1MetadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: address): (int) {
+    return TVM2AnyRampMessageV1Metadata {
+        sourceChainSelector,
+        destChainSelector,
+        onRamp,
+    }.toCell().hash()
 }

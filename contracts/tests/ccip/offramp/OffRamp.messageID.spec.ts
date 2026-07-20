@@ -91,4 +91,22 @@ describe('OffRamp - Message ID', () => {
     expect(onChainMessageId).toBe(golden)
     expect(localMessageId).toBe(golden)
   })
+
+  it('getMetadataHash matches the on-chain msg_hasher implementation', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+    const destChainSelector = ChainSelectors.testnet.ton
+
+    // Local TypeScript calculation, independent of the contract
+    const localMetadataHash = getMetadataHash(sourceChainSelector, EVM_ONRAMP_ADDRESS_TEST)
+
+    // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
+    // Any2TVMMessageV1Metadata from ccip/offramp/types.tolk)
+    const onChainMetadataHash = await msgHasher.getAny2TVMV1MetadataHash(
+      sourceChainSelector,
+      destChainSelector,
+      EVM_ONRAMP_ADDRESS_TEST,
+    )
+
+    expect(onChainMetadataHash).toBe(localMetadataHash)
+  })
 })

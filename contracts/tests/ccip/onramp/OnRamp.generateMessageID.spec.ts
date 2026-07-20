@@ -58,6 +58,21 @@ describe('OnRamp - generate message id', () => {
       blockchain.verbosity.print = false
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
+
+    // TestMsgHasher is stateless and deploys to a deterministic address, so it only
+    // needs to be deployed once for the whole suite.
+    const deployerTreasury = await blockchain.treasury('msgHasherDeployer')
+    msgHasher = blockchain.openContract(tmh.TestMsgHasher.fromStorage({}))
+    const resultDeployMsgHasher = await msgHasher.sendDeploy(
+      deployerTreasury.getSender(),
+      toNano('0.2'),
+    )
+    expect(resultDeployMsgHasher.transactions).toHaveTransaction({
+      from: deployerTreasury.address,
+      to: msgHasher.address,
+      deploy: true,
+      success: true,
+    })
   })
 
   beforeEach(async () => {
@@ -74,15 +89,6 @@ describe('OnRamp - generate message id', () => {
         executorCode: await relay.ContractClient.code(),
       },
     }))
-
-    msgHasher = blockchain.openContract(tmh.TestMsgHasher.fromStorage({}))
-    const resultDeployMsgHasher = await msgHasher.sendDeploy(deployer.getSender(), toNano('0.2'))
-    expect(resultDeployMsgHasher.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: msgHasher.address,
-      deploy: true,
-      success: true,
-    })
 
     const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
       deployer.getSender(),
@@ -255,6 +261,28 @@ describe('OnRamp - generate message id', () => {
         }
       }
     }
+  })
+
+  it('getMetadataHash matches the on-chain msg_hasher implementation', async () => {
+    const sourceChainSelector = ChainSelectors.testnet.ton
+    const destChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+
+    // Local TypeScript calculation, independent of the contract
+    const localMetadataHash = getMetadataHash(
+      sourceChainSelector,
+      destChainSelector,
+      onramp.address,
+    )
+
+    // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
+    // TVM2AnyRampMessageV1Metadata from ccip/onramp/types.tolk)
+    const onChainMetadataHash = await msgHasher.getTVM2AnyV1MetadataHash(
+      sourceChainSelector,
+      destChainSelector,
+      onramp.address,
+    )
+
+    expect(onChainMetadataHash).toBe(localMetadataHash)
   })
 
   afterAll(async () => {

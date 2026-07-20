@@ -169,6 +169,114 @@ export const Storage = {
 }
 
 /**
+ > type CrossChainAddress = slice
+ */
+export type CrossChainAddress = c.Slice
+
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+    },
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    },
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
+ > struct RampMessageHeader {
+ >     messageId: uint256
+ >     sourceChainSelector: uint64
+ >     destChainSelector: uint64
+ >     sequenceNumber: uint64
+ >     nonce: uint64
+ > }
+ */
+export interface RampMessageHeader {
+    readonly $: 'RampMessageHeader'
+    messageId: uint256
+    sourceChainSelector: uint64
+    destChainSelector: uint64
+    sequenceNumber: uint64
+    nonce: uint64
+}
+
+export const RampMessageHeader = {
+    create(args: {
+        messageId: uint256
+        sourceChainSelector: uint64
+        destChainSelector: uint64
+        sequenceNumber: uint64
+        nonce: uint64
+    }): RampMessageHeader {
+        return {
+            $: 'RampMessageHeader',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RampMessageHeader {
+        return {
+            $: 'RampMessageHeader',
+            messageId: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            sequenceNumber: s.loadUintBig(64),
+            nonce: s.loadUintBig(64),
+        }
+    },
+    store(self: RampMessageHeader, b: c.Builder): void {
+        b.storeUint(self.messageId, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeUint(self.sequenceNumber, 64);
+        b.storeUint(self.nonce, 64);
+    },
+    toCell(self: RampMessageHeader): c.Cell {
+        return makeCellFrom<RampMessageHeader>(self, RampMessageHeader.store);
+    }
+}
+
+/**
+ > struct TokenAmount {
+ >     amount: coins
+ >     token: address
+ > }
+ */
+export interface TokenAmount {
+    readonly $: 'TokenAmount'
+    amount: coins
+    token: c.Address
+}
+
+export const TokenAmount = {
+    create(args: {
+        amount: coins
+        token: c.Address
+    }): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            amount: s.loadCoins(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: TokenAmount, b: c.Builder): void {
+        b.storeCoins(self.amount);
+        b.storeAddress(self.token);
+    },
+    toCell(self: TokenAmount): c.Cell {
+        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
+/**
  > struct Any2TVMRampMessage {
  >     header: RampMessageHeader
  >     sender: Cell<CrossChainAddress>
@@ -386,114 +494,6 @@ export const TVM2AnyRampMessageBody = {
 }
 
 /**
- > type CrossChainAddress = slice
- */
-export type CrossChainAddress = c.Slice
-
-export const CrossChainAddress = {
-    fromSlice(s: c.Slice): CrossChainAddress {
-        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
-    },
-    store(self: CrossChainAddress, b: c.Builder): void {
-        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
-    },
-    toCell(self: CrossChainAddress): c.Cell {
-        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
-    }
-}
-
-/**
- > struct RampMessageHeader {
- >     messageId: uint256
- >     sourceChainSelector: uint64
- >     destChainSelector: uint64
- >     sequenceNumber: uint64
- >     nonce: uint64
- > }
- */
-export interface RampMessageHeader {
-    readonly $: 'RampMessageHeader'
-    messageId: uint256
-    sourceChainSelector: uint64
-    destChainSelector: uint64
-    sequenceNumber: uint64
-    nonce: uint64
-}
-
-export const RampMessageHeader = {
-    create(args: {
-        messageId: uint256
-        sourceChainSelector: uint64
-        destChainSelector: uint64
-        sequenceNumber: uint64
-        nonce: uint64
-    }): RampMessageHeader {
-        return {
-            $: 'RampMessageHeader',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): RampMessageHeader {
-        return {
-            $: 'RampMessageHeader',
-            messageId: s.loadUintBig(256),
-            sourceChainSelector: s.loadUintBig(64),
-            destChainSelector: s.loadUintBig(64),
-            sequenceNumber: s.loadUintBig(64),
-            nonce: s.loadUintBig(64),
-        }
-    },
-    store(self: RampMessageHeader, b: c.Builder): void {
-        b.storeUint(self.messageId, 256);
-        b.storeUint(self.sourceChainSelector, 64);
-        b.storeUint(self.destChainSelector, 64);
-        b.storeUint(self.sequenceNumber, 64);
-        b.storeUint(self.nonce, 64);
-    },
-    toCell(self: RampMessageHeader): c.Cell {
-        return makeCellFrom<RampMessageHeader>(self, RampMessageHeader.store);
-    }
-}
-
-/**
- > struct TokenAmount {
- >     amount: coins
- >     token: address
- > }
- */
-export interface TokenAmount {
-    readonly $: 'TokenAmount'
-    amount: coins
-    token: c.Address
-}
-
-export const TokenAmount = {
-    create(args: {
-        amount: coins
-        token: c.Address
-    }): TokenAmount {
-        return {
-            $: 'TokenAmount',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenAmount {
-        return {
-            $: 'TokenAmount',
-            amount: s.loadCoins(),
-            token: s.loadAddress(),
-        }
-    },
-    store(self: TokenAmount, b: c.Builder): void {
-        b.storeCoins(self.amount);
-        b.storeAddress(self.token);
-    },
-    toCell(self: TokenAmount): c.Cell {
-        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
-    }
-}
-
-/**
  > type SnakedCell<T> = cell
  */
 export type SnakedCell<T> = T[]
@@ -579,7 +579,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestMsgHasher implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBBgEA5gABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFAM+/nzAOhp/+mfmOmfmOmf6Z/qan0kfQB6AmjGhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEARkZf+J/SkLZZ+oAv0BCeWf5OQS66X5JMGD3XlEiucK5f+J5gnmZnoAfItACpvKlwDoaf+Y6Z+Y6Z+Y6Z/pn/0kammvmOjGhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEGQQ66X5JMGD3XlE5wrl//0pCWWf5Z/mfItA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECCgEAAVcAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQDPv58wDoaf/pn5jpn5jpn+mf6mp9JH0AegJoxoQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAEZGX/if0pC2WfqAL9AQnln+TkEuul+STBg915RIrnCuX/ieYJ5mZ6AHyLQCASAGBwIBSAgJAGG5bryI0INAZHTxx0URWYcBjzZ2aJQM1S08gD22SEq0SvqktqKO+gzxYTyz/LP8z5FoAGOwwPIjQgNrmuA7oAWlLcAn3tWi59feKrE4r0HoKT+knzixGfrXSDPFhPLP8s/+lL5FoACpsUuAdDT/zHTPzHTPzHTP9M/+kjU018x0Y0IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgyCHXS/JJgwe68onOFcv/+lISyz/LP8z5FoA==');
 
     static Errors = {
     }
@@ -637,6 +637,26 @@ export class TestMsgHasher implements c.Contract {
         const r = StackReader.fromGetMethod(1, await provider.get('getTVM2AnyRampMessageID', [
             { type: 'cell', cell: TVM2AnyRampMessage.toCell(msg) },
             { type: 'int', value: metadataHash },
+        ]));
+        return r.readBigInt();
+    }
+
+    async getAny2TVMV1MetadataHash(provider: ContractProvider, sourceChainSelector: uint64, destChainSelector: uint64, onRamp: CrossChainAddress): Promise<bigint> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getAny2TVMV1MetadataHash', [
+            { type: 'int', value: sourceChainSelector },
+            { type: 'int', value: destChainSelector },
+            { type: 'cell', cell: CrossChainAddress.toCell(onRamp) },
+        ]));
+        return r.readBigInt();
+    }
+
+    async getTVM2AnyV1MetadataHash(provider: ContractProvider, sourceChainSelector: uint64, destChainSelector: uint64, onRamp: c.Address): Promise<bigint> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getTVM2AnyV1MetadataHash', [
+            { type: 'int', value: sourceChainSelector },
+            { type: 'int', value: destChainSelector },
+            { type: 'slice', cell: makeCellFrom<c.Address>(onRamp,
+                (v,b) => b.storeAddress(v)
+            ) },
         ]));
         return r.readBigInt();
     }
