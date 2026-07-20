@@ -1,1 +1,2 @@
 **go.sum linguist-generated=true
+contracts/wrappers/gen/*/**/*.ts linguist-generated=true
