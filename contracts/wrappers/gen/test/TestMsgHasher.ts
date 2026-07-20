@@ -579,7 +579,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestMsgHasher implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBBgEA0gABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFALu/nzAOhp/+mfmOmfmOmf6Z/qan0kfQB6AmjGhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEGRnDOX/g+Rl/4l9KQrln6gCfQEJZZ/kqAHmCWZmegB8i0AJW8qXAOhp/5jpn5jpn5jpn+mf/SRqaa+Y6MaEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQZGcK5f/9KQlln+Wf5nyLQ=');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBBgEA3AABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFAM+/nzAOhp/+mfmOmfmOmf6Z/qan0kfQB6AmjGhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEARkZf+J/SkLZZ+oAv0BCeWf5OQS66X5JMGD3XlEiucK5f+J5gnmZnoAfItACVvKlwDoaf+Y6Z+Y6Z+Y6Z/pn/0kammvmOjGhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEGRnCuX//SkJZZ/ln+Z8i0');
 
     static Errors = {
     }

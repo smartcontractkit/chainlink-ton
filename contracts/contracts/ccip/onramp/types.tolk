@@ -75,6 +75,7 @@ struct TVM2AnyRampMessageBody {
     feeTokenAmount: coins;
 }
 
+// TODO use struct
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink/blob/d1a9f8be2f222ea30bdf7182aaa6428bfa605cf7/contracts/src/v0.8/ccip/libraries/Internal.sol#L137-L154
     return beginCell()

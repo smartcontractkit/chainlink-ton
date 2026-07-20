@@ -23,35 +23,20 @@ export default function generateMessageID(
   message: of.Any2TVMRampMessage,
   metadataHash: bigint,
 ): bigint {
-  const hash = c
-    .beginCell()
-    .storeSlice(LEAF_DOMAIN_SEPARATOR)
-    .storeUint(metadataHash, 256)
-    //header
-    .storeRef(
-      c
-        .beginCell()
-        .storeUint(message.header.messageId, 256)
-        .storeAddress(message.receiver)
-        .storeUint(message.header.sequenceNumber, 64)
-        .storeCoins(message.gasLimit)
-        .storeUint(message.header.nonce, 64)
-        .endCell(),
-    )
-    //message sender
-    .storeRef(of.CrossChainAddress.toCell(message.sender))
-    //rest of the message
-    .storeRef(message.data)
-    .storeMaybeRef(
-      message.tokenAmounts
-        ? asSnakedCell(message.tokenAmounts, (item) => {
-            const b = c.beginCell()
-            of.Any2TVMTokenTransfer.store(item, b)
-            return b
-          })
-        : undefined,
-    )
-    .endCell()
-    .hash()
+  const hash = of.Any2TVMRampMessageIDData.toCell(
+    of.Any2TVMRampMessageIDData.create({
+      metadataHash,
+      metadata: of.Any2TVMRampMessageIDHeader.create({
+        messageId: message.header.messageId,
+        receiver: message.receiver,
+        sequenceNumber: message.header.sequenceNumber,
+        gasLimit: message.gasLimit,
+        nonce: message.header.nonce,
+      }),
+      sender: message.sender,
+      data: message.data,
+      tokenAmounts: message.tokenAmounts,
+    }),
+  ).hash()
   return uint8ArrayToBigInt(hash)
 }

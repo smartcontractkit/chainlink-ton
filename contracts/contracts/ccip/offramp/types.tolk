@@ -68,25 +68,37 @@ struct Any2TVMRampMessage {
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
-    return beginCell()
-        .storeSlice(LEAF_DOMAIN_SEPARATOR)
-        .storeUint(metadataHash, 256)
-        // header
-        .storeRef(
-        beginCell()
-            .storeUint(self.header.messageId, 256)
-            .storeAddress(self.receiver)
-            .storeUint(self.header.sequenceNumber, 64)
-            .storeCoins(self.gasLimit)
-            .storeUint(self.header.nonce, 64)
-            .endCell()
-    )
-        // message
-        .storeRef(self.sender)
-        .storeRef(self.data)
-        .storeMaybeRef(self.tokenAmounts)
-        .endCell()
-        .hash()
+    return Any2TVMRampMessageIDData{
+        metadataHash,
+        metadata: Any2TVMRampMessageIDHeader {
+            messageId: self.header.messageId,
+            receiver: self.receiver,
+            sequenceNumber: self.header.sequenceNumber,
+            gasLimit: self.gasLimit,
+            nonce: self.header.nonce,
+        }.toCell(),
+        sender: self.sender,
+        data: self.data,
+        tokenAmounts: self.tokenAmounts
+    }.toCell().hash();
+}
+
+
+struct Any2TVMRampMessageIDData {
+    _leafDomainSeparator: bits256 = LEAF_DOMAIN_SEPARATOR_BYTES;
+    metadataHash: uint256;
+    metadata: Cell<Any2TVMRampMessageIDHeader>;
+    sender: Cell<CrossChainAddress>;
+    data: cell;
+    tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?
+}
+
+struct Any2TVMRampMessageIDHeader {
+    messageId: uint256;
+    receiver: address;
+    sequenceNumber: uint64;
+    gasLimit: coins;
+    nonce: uint64;
 }
 
 struct MerkleRoot {
