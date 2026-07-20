@@ -1,12 +1,28 @@
 import { Cell, beginCell, Address, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
+import * as fs from 'fs'
+import * as path from 'path'
 import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../src/utils'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.commitAndExec.spec'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
+
+// Single source of truth for the expected MessageID of the fixed message below, shared
+// with the Go implementation (cciplib/ccip/codec/msghasher_test.go).
+const ANY2TVM_MESSAGE_ID_GOLDEN_PATH = path.join(
+  __dirname,
+  '../../../../testdata/golden/any2tvm_message_id.json',
+)
+
+function loadAny2TVMMessageIDGolden(): bigint {
+  const golden = JSON.parse(fs.readFileSync(ANY2TVM_MESSAGE_ID_GOLDEN_PATH, 'utf-8')) as {
+    messageId: string
+  }
+  return BigInt(golden.messageId)
+}
 
 describe('OffRamp - Message ID', () => {
   let blockchain: Blockchain
@@ -68,9 +84,11 @@ describe('OffRamp - Message ID', () => {
     })
     const onChainMessageId = await msgHasher.getAny2TVMRampMessageID(onChainMessage, metadataHash)
 
-    expect(onChainMessageId).toBe(localMessageId)
+    const golden = loadAny2TVMMessageIDGolden()
 
-    // Cross-language compatibility check against cciplib/ccip/codec/msghasher_test.go
-    expect(localMessageId).toBe(0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807n)
+    // Both the TypeScript and Tolk implementations must agree with each other, and
+    // with the golden value also checked by cciplib/ccip/codec/msghasher_test.go
+    expect(onChainMessageId).toBe(golden)
+    expect(localMessageId).toBe(golden)
   })
 })
