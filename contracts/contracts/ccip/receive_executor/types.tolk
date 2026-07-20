@@ -7,7 +7,10 @@ const ReceiveExecutor_FACILITY_ID = ReceiveExecutor_FACILITY_NAME.crc32() % 640 
 // State stores the general state machine indicating which phase we're in
 enum ReceiveExecutor_MessageState {
     Untouched = 0
+    TokenAdminRegistryQuery = 1
+    TokenTransfer
     Execute
     ExecuteFailed
+    TokenTransferFailed
     Success
 }
