@@ -30,6 +30,7 @@ contract OnRamp {
 
     storage: OnRamp_Storage
     incomingMessages: OnRamp_InMessage
+    forceAbiExport: (TVM2AnyRampMessageV1Metadata, TVM2AnyRampMessageIDData)
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -343,13 +344,11 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
 
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
-    val metadataHash = beginCell()
-        .storeUint("TVM2AnyMessageHashV1".sha256(), 256)
-        .storeUint(st.chainSelector, 64)
-        .storeUint(ccipsend.destChainSelector, 64)
-        .storeAddress(contract.getAddress())
-        .endCell()
-        .hash();
+    val metadataHash = TVM2AnyRampMessageV1Metadata {
+        sourceChainSelector: st.chainSelector,
+        destChainSelector: ccipsend.destChainSelector,
+        onRamp: contract.getAddress(),
+    }.toCell().hash();
 
     rampMessage.header.messageId = rampMessage.generateMessageId(metadataHash);
     

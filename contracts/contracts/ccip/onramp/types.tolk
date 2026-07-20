@@ -59,6 +59,13 @@ struct Metadata {
     value: coins,
 }
 
+struct TVM2AnyRampMessageV1Metadata {
+    _header: uint256 = "TVM2AnyMessageHashV1".sha256();
+    sourceChainSelector: uint64;
+    destChainSelector: uint64;
+    onRamp: address;
+}
+
 struct TVM2AnyRampMessage {
     header: RampMessageHeader;
     sender: address;

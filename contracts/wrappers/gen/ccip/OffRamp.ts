@@ -2423,51 +2423,51 @@ export const CommitReport = {
 }
 
 /**
- > struct MessageMetadata {
+ > struct Any2TVMMessageV1Metadata {
  >     _header: uint256
  >     sourceChainSelector: uint64
  >     destChainSelector: uint64
  >     onRamp: Cell<CrossChainAddress>
  > }
  */
-export interface MessageMetadata {
-    readonly $: 'MessageMetadata'
+export interface Any2TVMMessageV1Metadata {
+    readonly $: 'Any2TVMMessageV1Metadata'
     _header: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
     sourceChainSelector: uint64
     destChainSelector: uint64
     onRamp: CrossChainAddress
 }
 
-export const MessageMetadata = {
+export const Any2TVMMessageV1Metadata = {
     create(args: {
         _header?: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
         sourceChainSelector: uint64
         destChainSelector: uint64
         onRamp: CrossChainAddress
-    }): MessageMetadata {
+    }): Any2TVMMessageV1Metadata {
         return {
-            $: 'MessageMetadata',
+            $: 'Any2TVMMessageV1Metadata',
             _header: 94125445462166101730960845378898357591674356293939125390047719859241158747070n,
             ...args
         }
     },
-    fromSlice(s: c.Slice): MessageMetadata {
+    fromSlice(s: c.Slice): Any2TVMMessageV1Metadata {
         return {
-            $: 'MessageMetadata',
+            $: 'Any2TVMMessageV1Metadata',
             _header: s.loadUintBig(256),
             sourceChainSelector: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             onRamp: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
     },
-    store(self: MessageMetadata, b: c.Builder): void {
+    store(self: Any2TVMMessageV1Metadata, b: c.Builder): void {
         b.storeUint(self._header, 256);
         b.storeUint(self.sourceChainSelector, 64);
         b.storeUint(self.destChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.onRamp, b, CrossChainAddress.store);
     },
-    toCell(self: MessageMetadata): c.Cell {
-        return makeCellFrom<MessageMetadata>(self, MessageMetadata.store);
+    toCell(self: Any2TVMMessageV1Metadata): c.Cell {
+        return makeCellFrom<Any2TVMMessageV1Metadata>(self, Any2TVMMessageV1Metadata.store);
     }
 }
 

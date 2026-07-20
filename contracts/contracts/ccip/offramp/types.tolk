@@ -21,7 +21,7 @@ struct CommitReport {
     merkleRoots: SnakedCell<MerkleRoot>; // Merkle roots is always size one, but interface is set up to possibly support multiple in the future
 }
 
-struct MessageMetadata {
+struct Any2TVMMessageV1Metadata {
     _header: uint256 = "Any2TVMMessageHashV1".sha256();
     sourceChainSelector: uint64;
     destChainSelector: uint64;

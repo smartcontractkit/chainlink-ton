@@ -8,8 +8,8 @@ import { ChainSelectors } from '../../tests/utils/Selectors'
 const LEAF_DOMAIN_SEPARATOR = c.beginCell().storeUint(0, 256).asSlice()
 
 export function getMetadataHash(sourceChainSelector: bigint, onRamp: c.Slice): bigint {
-  const hash = of.MessageMetadata.toCell(
-    of.MessageMetadata.create({
+  const hash = of.Any2TVMMessageV1Metadata.toCell(
+    of.Any2TVMMessageV1Metadata.create({
       sourceChainSelector,
       destChainSelector: ChainSelectors.testnet.ton,
       onRamp,
