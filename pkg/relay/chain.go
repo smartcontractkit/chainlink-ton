@@ -373,7 +373,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 			continue
 		}
 
-		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
+		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetryTimeout(defaultTONClientRetryCount, 0)
 
 		blockID, err := client.CurrentMasterchainInfo(ctx)
 		if err != nil {
@@ -443,7 +443,7 @@ func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped
 	}
 
 	// Create the wallet from public key + signer wrapper
-	w, err := wallet.FromSigner(client, pubKey, tonconfig.WalletVersion, signer)
+	w, err := wallet.FromPubKeyWithOptions(pubKey, tonconfig.WalletVersion, wallet.WithAPI(client), wallet.WithSigner(signer))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet: %w", err)
 	}
