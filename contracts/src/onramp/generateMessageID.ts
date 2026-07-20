@@ -1,7 +1,6 @@
 import * as c from '@ton/core'
 import { uint8ArrayToBigInt } from '../utils'
 import * as on from '../../wrappers/gen/ccip/OnRamp'
-import { ChainSelectors } from '../../tests/utils/Selectors'
 
 export function getMetadataHash(
   sourceChainSelector: bigint,

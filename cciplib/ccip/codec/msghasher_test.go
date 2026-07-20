@@ -43,6 +43,7 @@ func loadAny2TVMMessageIDGolden(t *testing.T) ccipocr3.Bytes32 {
 	decoded, err := hex.DecodeString(strings.TrimPrefix(golden.MessageID, "0x"))
 	require.NoError(t, err)
 
+	require.Len(t, decoded, 32, "golden messageID must be exactly 32 bytes")
 	var messageID ccipocr3.Bytes32
 	copy(messageID[:], decoded)
 	return messageID

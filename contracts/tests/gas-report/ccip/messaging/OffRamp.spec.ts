@@ -363,6 +363,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     const metadataHash = getMetadataHash(
       ChainSelectors.testnet.evm,
+      ChainSelectors.testnet.ton,
       CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
     )
     const messageIdForProof = generateMessageID(testMessage, metadataHash)

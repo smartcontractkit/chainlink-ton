@@ -3,7 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import * as fs from 'fs'
 import * as path from 'path'
-import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../src/utils'
+import { bigIntToUint8Array } from '../../../src/utils'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
@@ -66,6 +66,7 @@ describe('OffRamp - Message ID', () => {
 
     const metadataHash = getMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      ChainSelectors.testnet.ton,
       EVM_ONRAMP_ADDRESS_TEST,
     )
 
@@ -97,7 +98,11 @@ describe('OffRamp - Message ID', () => {
     const destChainSelector = ChainSelectors.testnet.ton
 
     // Local TypeScript calculation, independent of the contract
-    const localMetadataHash = getMetadataHash(sourceChainSelector, EVM_ONRAMP_ADDRESS_TEST)
+    const localMetadataHash = getMetadataHash(
+      sourceChainSelector,
+      destChainSelector,
+      EVM_ONRAMP_ADDRESS_TEST,
+    )
 
     // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
     // Any2TVMMessageV1Metadata from ccip/offramp/types.tolk)

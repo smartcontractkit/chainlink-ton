@@ -39,7 +39,7 @@ import generateMessageID, { getMetadataHash } from '../../../src/offramp/generat
 import { createSignatures, getMerkleRootID } from './OffRamp.Setup'
 
 const getDefaultMetadataHash = (sourceChainSelector: bigint): bigint =>
-  getMetadataHash(sourceChainSelector, EVM_ONRAMP_ADDRESS_TEST)
+  getMetadataHash(sourceChainSelector, ChainSelectors.testnet.ton, EVM_ONRAMP_ADDRESS_TEST)
 
 export const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 export const EVM_ONRAMP_ADDRESS_TEST = beginCell()
