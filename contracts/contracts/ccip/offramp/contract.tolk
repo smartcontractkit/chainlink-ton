@@ -9,15 +9,17 @@ import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils"
 import "../../lib/receiver/types"
+import "../pools/lib/token_pool/messages"
 
 import "../common/types.tolk"
-import "../rmn_remote/lib"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
+import "../rmn_remote/lib"
 import "../router/messages"
+import "../token_registry/types"
 
 import "messages"
 import "errors"
@@ -68,6 +70,12 @@ fun onInternalMessage(in:InMessage) {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onDispatchValidated(st, msg)
+        }
+        // Sender must be ReceiveExecutor
+        OffRamp_ReleaseOrMint => {
+            val st = lazy Storage.load();
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            onReleaseOrMint(in.senderAddress, msg)
         }
         // Permissionless
         OffRamp_ManuallyExecute => {
@@ -441,6 +449,21 @@ fun blockMsg(st: Storage, execId: uint192, receiver: address) {
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+fun onReleaseOrMint(sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
+    val releaseOrMintMsg = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: msg.tokenPool,
+        body: TokenPool_ReleaseOrMint {
+            queryId: msg.queryId,
+            request: msg.request,
+            requestedFinalityConfig: msg.requestedFinalityConfig,
+            replyTo: sendExecutor,
+        }
+    });
+    releaseOrMintMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 // Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
 fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     var st = lazy Storage.load();
@@ -803,6 +826,8 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
+    val tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts);
+
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
@@ -818,6 +843,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                         message: message.toCell(),
                         root: sender,
                         execId,
+                        tokenAdminRegistry,
                     }.toCell(),
                 }
             },
@@ -839,6 +865,15 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         }
     });
     initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?): Cell<address>? {
+    if (tokenAmounts == null) {
+        return null;
+    }
+    val tokenTransfer = tokenAmounts.getTokenTransfer(OffRamp_Error.UnsupportedNumberOfTokens);
+    val registryAddress = TokenRegistry {deployableCode: st.deployables.load().deployer, tokenAddress: tokenTransfer.token}.deriveAddress().calculateAddress();
+    return registryAddress.toCell();
 }
 
 /*

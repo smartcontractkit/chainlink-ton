@@ -12,6 +12,7 @@ import "../merkle_root/messages"
 import "../receive_executor/messages"
 import "../fee_quoter/messages"
 import "../router/messages"
+import "../pools/lib/token_pool/types"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -19,6 +20,7 @@ type OffRamp_InMessage =
     | OffRamp_ExecuteValidated
     | OffRamp_ManuallyExecute
     | OffRamp_DispatchValidated
+    | OffRamp_ReleaseOrMint
     | OffRamp_UpdateSourceChainConfigs
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced
@@ -117,6 +119,14 @@ struct (0xa015e0e2) OffRamp_UpdateDeployables {
     queryId: uint64;
     receiveExecutorCode: cell?;
     merkleRootCode: cell?;
+}
+
+struct (0x7deaf076) OffRamp_ReleaseOrMint {
+    queryId: uint64
+    execId: ReceiveExecutorId
+    tokenPool: address
+    requestedFinalityConfig: uint32
+    request: Cell<TokenPool_ReleaseOrMintInV1>
 }
 
 struct OffRamp_Costs{}

@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
+import "../token_registry/messages"
+import "../pools/lib/token_pool/messages"
+
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
     | ReceiveExecutor_Bounced
-    | ReceiveExecutor_Confirm;
+    | TokenRegistry_ReturnTokenInfo
+    | TokenPool_ReleaseOrMintFinished
+    | TokenPool_ReleaseOrMintFailure
+    | ReceiveExecutor_Confirm
+    ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     gasOverride: coins? = null;

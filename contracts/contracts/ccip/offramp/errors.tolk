@@ -20,4 +20,5 @@ enum OffRamp_Error {
     OnRampAddressMismatch
     EmptyCommitReport
     MerkleRootCannotBeZero
+    UnsupportedNumberOfTokens
 }

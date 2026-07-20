@@ -5,4 +5,9 @@ enum ReceiveExecutor_Error {
     UpdatingStateOfNonExecutedMessage = ReceiveExecutor_FACILITY_ID * 100
     NotificationFromInvalidReceiver
     Unauthorized
+    UnsupportedNumberOfTokens
+    NoTokenAmountsInMessage
+    TokenAdminRegistryUnexpectedResponse
+    TokenPoolUnexpectedResponse
+    PTTNotSupported
 }
