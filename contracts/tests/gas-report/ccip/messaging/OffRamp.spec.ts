@@ -361,9 +361,11 @@ describe('CCIP OffRamp Gas Estimation', () => {
       tokenAmounts: null,
     })
 
-    const metadataHash = uint8ArrayToBigInt(getMetadataHash(ChainSelectors.testnet.evm))
-    const messageIdBytes = generateMessageID(testMessage, metadataHash)
-    const rootBytes = uint8ArrayToBigInt(messageIdBytes)
+    const metadataHash = getMetadataHash(
+      ChainSelectors.testnet.evm,
+      CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
+    )
+    const messageIdForProof = generateMessageID(testMessage, metadataHash)
 
     // Step 2: Create merkle roots
     const merkleRoots: of.MerkleRoot[] = []
@@ -373,7 +375,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         onRampAddress: CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
         minSeqNr: 1n,
         maxSeqNr: 10n,
-        merkleRoot: rootBytes + 0n,
+        merkleRoot: messageIdForProof + 0n,
       }),
     )
 
@@ -463,7 +465,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
     // Step 4: Execute phase
     const merkleHelper = new MerkleHelper()
 
-    const messageIdForProof = uint8ArrayToBigInt(messageIdBytes)
     const { proof, root: proofRoot } = merkleHelper.createTreeAndProve([messageIdForProof], [0])
 
     let proofFlagBits = 0n

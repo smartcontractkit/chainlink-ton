@@ -48,15 +48,13 @@ describe('OffRamp - Message ID', () => {
       tokenAmounts: null,
     })
 
-    const metadataHash = uint8ArrayToBigInt(
-      getMetadataHash(
-        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        EVM_ONRAMP_ADDRESS_TEST,
-      ),
+    const metadataHash = getMetadataHash(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      EVM_ONRAMP_ADDRESS_TEST,
     )
 
     // Local TypeScript calculation, independent of the contract
-    const localMessageId = uint8ArrayToBigInt(generateMessageID(message, metadataHash))
+    const localMessageId = generateMessageID(message, metadataHash)
 
     // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
     // Any2TVMRampMessage.generateMessageId from ccip/offramp/types.tolk)
