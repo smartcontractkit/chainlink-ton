@@ -1,6 +1,7 @@
 import { Builder, Slice, beginCell, toNano } from '@ton/core'
 import { Router } from './ccip/Router';
 import { OffRamp } from './ccip/OffRamp';
+import { OnRamp } from './ccip/OnRamp';
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
@@ -35,6 +36,12 @@ export function setupGenBindings() {
     )
 
     OffRamp.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    OnRamp.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,

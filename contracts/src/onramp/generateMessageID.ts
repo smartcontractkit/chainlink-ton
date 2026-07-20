@@ -1,21 +1,29 @@
 import * as c from '@ton/core'
-import { sha256_sync } from '@ton/crypto'
-import { uint8ArrayToBigInt, asSnakedCell } from '../utils'
+import { uint8ArrayToBigInt } from '../utils'
 import * as on from '../../wrappers/gen/ccip/OnRamp'
 import { ChainSelectors } from '../../tests/utils/Selectors'
 
-export function getMetadataHash(destChainSelector: bigint, onRamp: c.Address) {
-  return on.TVM2AnyRampMessageV1Metadata.toCell(
+export function getMetadataHash(
+  sourceChainSelector: bigint,
+  destChainSelector: bigint,
+  onRamp: c.Address,
+): bigint {
+  const hash = on.TVM2AnyRampMessageV1Metadata.toCell(
     on.TVM2AnyRampMessageV1Metadata.create({
-      sourceChainSelector: ChainSelectors.testnet.ton,
+      sourceChainSelector,
       destChainSelector,
       onRamp,
     }),
   ).hash()
+
+  return uint8ArrayToBigInt(hash)
 }
 
-export default function generateMessageID(message: on.TVM2AnyRampMessage, metadataHash: bigint) {
-  return on.TVM2AnyRampMessageIDData.toCell(
+export default function generateMessageID(
+  message: on.TVM2AnyRampMessage,
+  metadataHash: bigint,
+): bigint {
+  const hash = on.TVM2AnyRampMessageIDData.toCell(
     on.TVM2AnyRampMessageIDData.create({
       metadataHash,
       metadata: on.TVM2AnyRampMessageIDHeader.create({
@@ -26,4 +34,5 @@ export default function generateMessageID(message: on.TVM2AnyRampMessage, metada
       body: on.TVM2AnyRampMessageBody.toCell(message.body),
     }),
   ).hash()
+  return uint8ArrayToBigInt(hash)
 }

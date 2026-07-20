@@ -1,9 +1,8 @@
 import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { sha256 } from '@ton/crypto'
 
 import * as coverage from '../../coverage/coverage'
-import { asSnakedCell, WRAPPED_NATIVE } from '../../../src/utils'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
@@ -12,6 +11,10 @@ import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
+import * as on from '../../../wrappers/gen/ccip/OnRamp'
+import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
+import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -22,6 +25,7 @@ describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
+  let msgHasher: SandboxContract<tmh.TestMsgHasher>
   let senderAddress: Address
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
@@ -70,6 +74,15 @@ describe('OnRamp - generate message id', () => {
         executorCode: await relay.ContractClient.code(),
       },
     }))
+
+    msgHasher = blockchain.openContract(tmh.TestMsgHasher.fromStorage({}))
+    const resultDeployMsgHasher = await msgHasher.sendDeploy(deployer.getSender(), toNano('0.2'))
+    expect(resultDeployMsgHasher.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: msgHasher.address,
+      deploy: true,
+      success: true,
+    })
 
     const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
       deployer.getSender(),
@@ -147,55 +160,49 @@ describe('OnRamp - generate message id', () => {
       },
     })
 
-    const expectedTVM2AnyRampMessage: or.TVM2AnyRampMessage = {
-      header: {
+    const expectedTVM2AnyRampMessage = on.TVM2AnyRampMessage.create({
+      header: on.RampMessageHeader.create({
         messageId: 0n,
         sourceChainSelector: ChainSelectors.testnet.ton,
         destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         nonce: 0n,
-      },
+      }),
       sender: senderAddress,
-      body: {
-        receiver: rt.builder.data.crossChainAddress.encode(ccipSend.receiver).asCell(),
+      body: on.TVM2AnyRampMessageBody.create({
+        receiver: CrossChainAddressCodec.FromBuffer(ccipSend.receiver),
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
-        tokenAmounts: asSnakedCell(ccipSend.tokenAmounts, rt.builder.data.tokenAmount.encode),
+        tokenAmounts: ccipSend.tokenAmounts.map((ta) => on.TokenAmount.create(ta)),
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
-      },
+      }),
       feeValueJuels: 0n,
-    }
+    })
 
-    const identifierBuffer = await sha256('TVM2AnyMessageHashV1')
-    const identifierInt = BigInt('0x' + identifierBuffer.toString('hex'))
-    const metadataHash = BigInt(
-      '0x' +
-        beginCell()
-          .storeUint(identifierInt, 256)
-          .storeUint(expectedTVM2AnyRampMessage.header.sourceChainSelector, 64)
-          .storeUint(expectedTVM2AnyRampMessage.header.destChainSelector, 64)
-          .storeAddress(onramp.address)
-          .endCell()
-          .hash()
-          .toString('hex'),
+    const metadataHash = getMetadataHash(
+      expectedTVM2AnyRampMessage.header.sourceChainSelector,
+      expectedTVM2AnyRampMessage.header.destChainSelector,
+      onramp.address,
     )
 
-    const LEAF_DOMAIN_SEPARATOR = beginCell().storeBuffer(Buffer.alloc(32)).asSlice()
+    // Local TypeScript calculation, independent of the contract
+    const localMessageId = generateMessageID(expectedTVM2AnyRampMessage, metadataHash)
 
-    expectedTVM2AnyRampMessage.header.messageId = BigInt(
-      '0x' +
-        beginCell()
-          .storeSlice(LEAF_DOMAIN_SEPARATOR)
-          .storeUint(metadataHash, 256)
-          .storeAddress(senderAddress)
-          .storeUint(expectedTVM2AnyRampMessage.header.sequenceNumber, 64)
-          .storeUint(expectedTVM2AnyRampMessage.header.nonce, 64)
-          .storeRef(or.builder.data.tvm2AnyRampMessageBody.encode(expectedTVM2AnyRampMessage.body))
-          .endCell()
-          .hash()
-          .toString('hex'),
+    // On-chain calculation via the real Tolk implementation
+    const onChainMessageId = await msgHasher.getTVM2AnyRampMessageID(
+      tmh.TVM2AnyRampMessage.create({
+        header: expectedTVM2AnyRampMessage.header,
+        sender: expectedTVM2AnyRampMessage.sender,
+        body: expectedTVM2AnyRampMessage.body,
+        feeValueJuels: expectedTVM2AnyRampMessage.feeValueJuels,
+      }),
+      metadataHash,
     )
+
+    expect(onChainMessageId).toBe(localMessageId)
+
+    expectedTVM2AnyRampMessage.header.messageId = localMessageId
 
     expect(result.transactions).toHaveTransaction({
       from: executorSender.address,
