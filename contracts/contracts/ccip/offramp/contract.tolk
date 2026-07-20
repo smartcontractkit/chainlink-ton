@@ -34,6 +34,8 @@ contract OffRamp {
 
     storage: Storage
     incomingMessages: OffRamp_InMessage | Ownable2Step_Messages
+
+    forceAbiExport: (MessageMetadata)
 }
 
 

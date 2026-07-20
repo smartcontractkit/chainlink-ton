@@ -1,5 +1,4 @@
 import * as c from '@ton/core'
-import { sha256_sync } from '@ton/crypto'
 
 import { uint8ArrayToBigInt, asSnakedCell } from '../utils'
 
@@ -9,14 +8,13 @@ import { ChainSelectors } from '../../tests/utils/Selectors'
 const LEAF_DOMAIN_SEPARATOR = c.beginCell().storeUint(0, 256).asSlice()
 
 export function getMetadataHash(sourceChainSelector: bigint, onRamp: c.Slice): bigint {
-  const hash = c
-    .beginCell()
-    .storeUint(uint8ArrayToBigInt(sha256_sync('Any2TVMMessageHashV1')), 256)
-    .storeUint(sourceChainSelector, 64)
-    .storeUint(ChainSelectors.testnet.ton, 64)
-    .storeRef(of.CrossChainAddress.toCell(onRamp))
-    .endCell()
-    .hash()
+  const hash = of.MessageMetadata.toCell(
+    of.MessageMetadata.create({
+      sourceChainSelector,
+      destChainSelector: ChainSelectors.testnet.ton,
+      onRamp,
+    }),
+  ).hash()
 
   return uint8ArrayToBigInt(hash)
 }
