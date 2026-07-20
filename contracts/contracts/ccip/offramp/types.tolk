@@ -85,7 +85,7 @@ fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
 
 
 struct Any2TVMRampMessageIDData {
-    _leafDomainSeparator: bits256 = LEAF_DOMAIN_SEPARATOR_BYTES;
+    _leafDomainSeparator: bits256 = LEAF_DOMAIN_SEPARATOR;
     metadataHash: uint256;
     metadata: Cell<Any2TVMRampMessageIDHeader>;
     sender: Cell<CrossChainAddress>;
