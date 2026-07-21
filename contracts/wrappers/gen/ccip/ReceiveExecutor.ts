@@ -12,9 +12,6 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,15 +34,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -159,7 +156,7 @@ type uint256 = bigint
 export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
-    sender: CellRef<CrossChainAddress>
+    sender: CrossChainAddress
     data: c.Cell
     receiver: c.Address
     gasLimit: coins
@@ -169,7 +166,7 @@ export interface Any2TVMRampMessage {
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
-        sender: CellRef<CrossChainAddress>
+        sender: CrossChainAddress
         data: c.Cell
         receiver: c.Address
         gasLimit: coins
@@ -188,7 +185,7 @@ export const Any2TVMRampMessage = {
             data: s.loadRef(),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
@@ -197,9 +194,7 @@ export const Any2TVMRampMessage = {
         b.storeRef(self.data);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
-        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
@@ -217,7 +212,7 @@ export const Any2TVMRampMessage = {
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
-    sourcePoolAddress: CellRef<CrossChainAddress>
+    sourcePoolAddress: CrossChainAddress
     destPoolAddress: c.Address
     destGasAmount: uint32
     extraData: c.Cell
@@ -226,7 +221,7 @@ export interface Any2TVMTokenTransfer {
 
 export const Any2TVMTokenTransfer = {
     create(args: {
-        sourcePoolAddress: CellRef<CrossChainAddress>
+        sourcePoolAddress: CrossChainAddress
         destPoolAddress: c.Address
         destGasAmount: uint32
         extraData: c.Cell
@@ -289,7 +284,7 @@ export const ReceiveExecutorId = {
 export interface ReceiveExecutor_Storage {
     readonly $: 'ReceiveExecutor_Storage'
     owner: c.Address
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     root: c.Address
     execId: uint192
     state: ReceiveExecutor_MessageState /* = 0 as ReceiveExecutor_MessageState */
@@ -299,7 +294,7 @@ export interface ReceiveExecutor_Storage {
 export const ReceiveExecutor_Storage = {
     create(args: {
         owner: c.Address
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
         state?: ReceiveExecutor_MessageState /* = 0 as ReceiveExecutor_MessageState */
@@ -527,7 +522,7 @@ export const ReceiveExecutor_MessageState = {
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     execId: uint192
     gasOverride: coins | null
 }
@@ -536,7 +531,7 @@ export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }): OffRamp_DispatchValidated {
@@ -664,7 +659,49 @@ export const OffRamp_NotifyFailure = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > type CrossChainAddress = slice
@@ -808,7 +845,7 @@ export class ReceiveExecutor implements c.Contract {
 
     static fromStorage(emptyStorage: {
         owner: c.Address
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
         state?: ReceiveExecutor_MessageState /* = 0 as ReceiveExecutor_MessageState */

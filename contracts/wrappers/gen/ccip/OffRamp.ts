@@ -15,9 +15,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -40,16 +37,50 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
 
 function storeTolkBitsN(v: c.Slice, nBits: number, b: c.Builder): void {
     if (v.remainingBits !== nBits) { throw new Error(`expected ${nBits} bits, got ${v.remainingBits}`); }
@@ -192,8 +223,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 
     readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
@@ -323,12 +354,13 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
@@ -463,6 +495,87 @@ export const Ownable2Step = {
 }
 
 /**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct Ownable2Step_OwnershipTransferRequested {
  >     queryId: uint64
  >     newOwner: address
@@ -476,12 +589,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -516,13 +630,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -565,7 +680,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -573,7 +688,8 @@ export const Withdrawable_Withdraw = {
     }): Withdrawable_Withdraw {
         return {
             $: 'Withdrawable_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
@@ -638,16 +754,16 @@ export const OCR3Base_ConfigSet = {
             $: 'OCR3Base_ConfigSet',
             ocrPluginType: s.loadUintBig(16),
             configDigest: s.loadUintBig(256),
-            signers: s.loadRef(),
-            transmitters: s.loadRef(),
+            signers: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            transmitters: loadSnakedCellOf(s, (s) => s.loadAddress()),
             bigF: s.loadUintBig(8),
         }
     },
     store(self: OCR3Base_ConfigSet, b: c.Builder): void {
         b.storeUint(self.ocrPluginType, 16);
         b.storeUint(self.configDigest, 256);
-        b.storeRef(self.signers);
-        b.storeRef(self.transmitters);
+        storeSnakedCellOf(self.signers, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.transmitters, b, (v, b) => b.storeAddress(v));
         b.storeUint(self.bigF, 8);
     },
     toCell(self: OCR3Base_ConfigSet): c.Cell {
@@ -724,7 +840,7 @@ export const OCR3Base_SetOCR3Config = {
     PREFIX: 0x2b78359f,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -734,7 +850,8 @@ export const OCR3Base_SetOCR3Config = {
     }): OCR3Base_SetOCR3Config {
         return {
             $: 'OCR3Base_SetOCR3Config',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OCR3Base_SetOCR3Config {
@@ -746,8 +863,8 @@ export const OCR3Base_SetOCR3Config = {
             ocrPluginType: s.loadUintBig(16),
             bigF: s.loadUintBig(8),
             isSignatureVerificationEnabled: s.loadBoolean(),
-            signers: s.loadRef(),
-            transmitters: s.loadRef(),
+            signers: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            transmitters: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: OCR3Base_SetOCR3Config, b: c.Builder): void {
@@ -757,8 +874,8 @@ export const OCR3Base_SetOCR3Config = {
         b.storeUint(self.ocrPluginType, 16);
         b.storeUint(self.bigF, 8);
         b.storeBit(self.isSignatureVerificationEnabled);
-        b.storeRef(self.signers);
-        b.storeRef(self.transmitters);
+        storeSnakedCellOf(self.signers, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.transmitters, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: OCR3Base_SetOCR3Config): c.Cell {
         return makeCellFrom<OCR3Base_SetOCR3Config>(self, OCR3Base_SetOCR3Config.store);
@@ -775,15 +892,15 @@ export const OCR3Base_SetOCR3Config = {
 export interface OCR3Base {
     readonly $: 'OCR3Base'
     chainId: uint8
-    commit: CellRef<OCRConfig> | null
-    execute: CellRef<OCRConfig> | null
+    commit: OCRConfig | null
+    execute: OCRConfig | null
 }
 
 export const OCR3Base = {
     create(args: {
         chainId: uint8
-        commit: CellRef<OCRConfig> | null
-        execute: CellRef<OCRConfig> | null
+        commit: OCRConfig | null
+        execute: OCRConfig | null
     }): OCR3Base {
         return {
             $: 'OCR3Base',
@@ -800,10 +917,10 @@ export const OCR3Base = {
     },
     store(self: OCR3Base, b: c.Builder): void {
         b.storeUint(self.chainId, 8);
-        storeTolkNullable<CellRef<OCRConfig>>(self.commit, b,
+        storeTolkNullable<OCRConfig>(self.commit, b,
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
-        storeTolkNullable<CellRef<OCRConfig>>(self.execute, b,
+        storeTolkNullable<OCRConfig>(self.execute, b,
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
     },
@@ -822,15 +939,15 @@ export const OCR3Base = {
 export interface OCRConfig {
     readonly $: 'OCRConfig'
     configInfo: ConfigInfo
-    signers: c.Dictionary<uint256, uint8>
-    transmitters: c.Dictionary<c.Address, uint8>
+    signers: Map<uint256, uint8>
+    transmitters: Map<c.Address, uint8>
 }
 
 export const OCRConfig = {
     create(args: {
         configInfo: ConfigInfo
-        signers: c.Dictionary<uint256, uint8>
-        transmitters: c.Dictionary<c.Address, uint8>
+        signers: Map<uint256, uint8>
+        transmitters: Map<c.Address, uint8>
     }): OCRConfig {
         return {
             $: 'OCRConfig',
@@ -841,14 +958,14 @@ export const OCRConfig = {
         return {
             $: 'OCRConfig',
             configInfo: ConfigInfo.fromSlice(s),
-            signers: c.Dictionary.load<uint256, uint8>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8), s),
-            transmitters: c.Dictionary.load<c.Address, uint8>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8), s),
+            signers: dictToMap(c.Dictionary.load<uint256, uint8>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8), s)),
+            transmitters: dictToMap(c.Dictionary.load<c.Address, uint8>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8), s)),
         }
     },
     store(self: OCRConfig, b: c.Builder): void {
         ConfigInfo.store(self.configInfo, b);
-        b.storeDict<uint256, uint8>(self.signers, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8));
-        b.storeDict<c.Address, uint8>(self.transmitters, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint256, uint8>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8));
+        b.storeDict<c.Address, uint8>(mapToDict(self.transmitters, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8));
     },
     toCell(self: OCRConfig): c.Cell {
         return makeCellFrom<OCRConfig>(self, OCRConfig.store);
@@ -996,7 +1113,49 @@ export const ReportContext = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct Any2TVMMessage {
@@ -1130,12 +1289,12 @@ export const RampMessageHeader = {
  */
 export interface CursedSubjects {
     readonly $: 'CursedSubjects'
-    data: c.Dictionary<uint128, []>
+    data: Set<uint128>
 }
 
 export const CursedSubjects = {
     create(args: {
-        data: c.Dictionary<uint128, []>
+        data: Set<uint128>
     }): CursedSubjects {
         return {
             $: 'CursedSubjects',
@@ -1145,14 +1304,17 @@ export const CursedSubjects = {
     fromSlice(s: c.Slice): CursedSubjects {
         return {
             $: 'CursedSubjects',
-            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
+            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
             (s) => [],
             (v,b) => { {} }
         ));
@@ -1214,7 +1376,7 @@ export const FeeQuoter_UpdatePrices = {
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
     gasOverride: coins | null
@@ -1224,7 +1386,7 @@ export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
         gasOverride: coins | null
@@ -1470,7 +1632,7 @@ export const ReceiveExecutor_BouncedReason = {
  */
 export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
-    message: CellRef<Any2TVMMessage>
+    message: Any2TVMMessage
     execId: ReceiveExecutorId
     receiver: c.Address
     gasLimit: coins
@@ -1480,7 +1642,7 @@ export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
     create(args: {
-        message: CellRef<Any2TVMMessage>
+        message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
         gasLimit: coins
@@ -1532,14 +1694,15 @@ export const OffRamp_Commit = {
     PREFIX: 0x9d431905,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
     }): OffRamp_Commit {
         return {
             $: 'OffRamp_Commit',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_Commit {
@@ -1549,7 +1712,7 @@ export const OffRamp_Commit = {
             queryId: s.loadUintBig(64),
             reportContext: ReportContext.fromSlice(s),
             report: CommitReport.fromSlice(s),
-            signatures: s.loadRef(),
+            signatures: loadSnakedCellOf(s, SignatureEd25519.fromSlice),
         }
     },
     store(self: OffRamp_Commit, b: c.Builder): void {
@@ -1557,7 +1720,7 @@ export const OffRamp_Commit = {
         b.storeUint(self.queryId, 64);
         ReportContext.store(self.reportContext, b);
         CommitReport.store(self.report, b);
-        b.storeRef(self.signatures);
+        storeSnakedCellOf(self.signatures, b, SignatureEd25519.store);
     },
     toCell(self: OffRamp_Commit): c.Cell {
         return makeCellFrom<OffRamp_Commit>(self, OffRamp_Commit.store);
@@ -1582,13 +1745,14 @@ export const OffRamp_Execute = {
     PREFIX: 0x27bdac33,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }): OffRamp_Execute {
         return {
             $: 'OffRamp_Execute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_Execute {
@@ -1622,7 +1786,7 @@ export const OffRamp_Execute = {
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
     gasOverride: coins | null
@@ -1633,7 +1797,7 @@ export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -1688,13 +1852,14 @@ export const OffRamp_ManuallyExecute = {
     PREFIX: 0xa00785cf,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
         gasOverride: coins
     }): OffRamp_ManuallyExecute {
         return {
             $: 'OffRamp_ManuallyExecute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ManuallyExecute {
@@ -1733,12 +1898,13 @@ export const OffRamp_UpdateSourceChainConfigs = {
     PREFIX: 0x22b4f05c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }): OffRamp_UpdateSourceChainConfigs {
         return {
             $: 'OffRamp_UpdateSourceChainConfigs',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_UpdateSourceChainConfigs {
@@ -1746,13 +1912,13 @@ export const OffRamp_UpdateSourceChainConfigs = {
         return {
             $: 'OffRamp_UpdateSourceChainConfigs',
             queryId: s.loadUintBig(64),
-            configs: s.loadRef(),
+            configs: loadSnakedCellOf(s, SourceChainConfigUpdate.fromSlice),
         }
     },
     store(self: OffRamp_UpdateSourceChainConfigs, b: c.Builder): void {
         b.storeUint(0x22b4f05c, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.configs);
+        storeSnakedCellOf(self.configs, b, SourceChainConfigUpdate.store);
     },
     toCell(self: OffRamp_UpdateSourceChainConfigs): c.Cell {
         return makeCellFrom<OffRamp_UpdateSourceChainConfigs>(self, OffRamp_UpdateSourceChainConfigs.store);
@@ -1806,7 +1972,7 @@ export const SourceChainConfigUpdate = {
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
-    message: CellRef<Any2TVMRampMessage>
+    message: Any2TVMRampMessage
     execId: uint192
     gasOverride: coins | null
 }
@@ -1815,7 +1981,7 @@ export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }): OffRamp_DispatchValidated {
@@ -2079,13 +2245,14 @@ export const OffRamp_SetDynamicConfig = {
     PREFIX: 0x95bc5a5c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }): OffRamp_SetDynamicConfig {
         return {
             $: 'OffRamp_SetDynamicConfig',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_SetDynamicConfig {
@@ -2126,13 +2293,14 @@ export const OffRamp_UpdateDeployables = {
     PREFIX: 0xa015e0e2,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         receiveExecutorCode: c.Cell | null
         merkleRootCode: c.Cell | null
     }): OffRamp_UpdateDeployables {
         return {
             $: 'OffRamp_UpdateDeployables',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_UpdateDeployables {
@@ -2196,7 +2364,7 @@ export const ExecutionReport = {
             sourceChainSelector: s.loadUintBig(64),
             messages: s.loadRef(),
             offchainTokenData: s.loadRef(),
-            proofs: s.loadRef(),
+            proofs: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             proofFlagBits: s.loadUintBig(256),
         }
     },
@@ -2204,7 +2372,7 @@ export const ExecutionReport = {
         b.storeUint(self.sourceChainSelector, 64);
         b.storeRef(self.messages);
         b.storeRef(self.offchainTokenData);
-        b.storeRef(self.proofs);
+        storeSnakedCellOf(self.proofs, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.proofFlagBits, 256);
     },
     toCell(self: ExecutionReport): c.Cell {
@@ -2220,13 +2388,13 @@ export const ExecutionReport = {
  */
 export interface CommitReport {
     readonly $: 'CommitReport'
-    priceUpdates: CellRef<PriceUpdates> | null
+    priceUpdates: PriceUpdates | null
     merkleRoots: SnakedCell<MerkleRoot>
 }
 
 export const CommitReport = {
     create(args: {
-        priceUpdates: CellRef<PriceUpdates> | null
+        priceUpdates: PriceUpdates | null
         merkleRoots: SnakedCell<MerkleRoot>
     }): CommitReport {
         return {
@@ -2238,14 +2406,14 @@ export const CommitReport = {
         return {
             $: 'CommitReport',
             priceUpdates: s.loadBoolean() ? loadCellRef<PriceUpdates>(s, PriceUpdates.fromSlice) : null,
-            merkleRoots: s.loadRef(),
+            merkleRoots: loadSnakedCellOf(s, MerkleRoot.fromSlice),
         }
     },
     store(self: CommitReport, b: c.Builder): void {
-        storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
+        storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
-        b.storeRef(self.merkleRoots);
+        storeSnakedCellOf(self.merkleRoots, b, MerkleRoot.store);
     },
     toCell(self: CommitReport): c.Cell {
         return makeCellFrom<CommitReport>(self, CommitReport.store);
@@ -2404,7 +2572,7 @@ export const SourceChainConfig = {
 export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
-    sender: CellRef<CrossChainAddress>
+    sender: CrossChainAddress
     data: c.Cell
     receiver: c.Address
     gasLimit: coins
@@ -2414,7 +2582,7 @@ export interface Any2TVMRampMessage {
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
-        sender: CellRef<CrossChainAddress>
+        sender: CrossChainAddress
         data: c.Cell
         receiver: c.Address
         gasLimit: coins
@@ -2433,7 +2601,7 @@ export const Any2TVMRampMessage = {
             data: s.loadRef(),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
@@ -2442,9 +2610,7 @@ export const Any2TVMRampMessage = {
         b.storeRef(self.data);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
-        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
@@ -2515,7 +2681,7 @@ export const MerkleRoot = {
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
-    sourcePoolAddress: CellRef<CrossChainAddress>
+    sourcePoolAddress: CrossChainAddress
     destPoolAddress: c.Address
     destGasAmount: uint32
     extraData: c.Cell
@@ -2524,7 +2690,7 @@ export interface Any2TVMTokenTransfer {
 
 export const Any2TVMTokenTransfer = {
     create(args: {
-        sourcePoolAddress: CellRef<CrossChainAddress>
+        sourcePoolAddress: CrossChainAddress
         destPoolAddress: c.Address
         destGasAmount: uint32
         extraData: c.Cell
@@ -2679,13 +2845,13 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    deployables: CellRef<OffRamp_Deployables>
+    deployables: OffRamp_Deployables
     feeQuoter: c.Address
-    ocr3Base: CellRef<OCR3Base>
+    ocr3Base: OCR3Base
     cursedSubjects: CursedSubjects
     chainSelector: uint64
     permissionlessExecutionThresholdSeconds: uint32
-    sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
+    sourceChainConfigs: Map<uint64, SourceChainConfig>
     latestPriceSequenceNumber: uint64
 }
 
@@ -2693,13 +2859,13 @@ export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        deployables: CellRef<OffRamp_Deployables>
+        deployables: OffRamp_Deployables
         feeQuoter: c.Address
-        ocr3Base: CellRef<OCR3Base>
+        ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
+        sourceChainConfigs: Map<uint64, SourceChainConfig>
         latestPriceSequenceNumber: uint64
     }): Storage {
         return {
@@ -2718,7 +2884,7 @@ export const Storage = {
             cursedSubjects: CursedSubjects.fromSlice(s),
             chainSelector: s.loadUintBig(64),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
-            sourceChainConfigs: c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s),
+            sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
             latestPriceSequenceNumber: s.loadUintBig(64),
         }
     },
@@ -2731,7 +2897,7 @@ export const Storage = {
         CursedSubjects.store(self.cursedSubjects, b);
         b.storeUint(self.chainSelector, 64);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
-        b.storeDict<uint64, SourceChainConfig>(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
     },
     toCell(self: Storage): c.Cell {
@@ -2796,13 +2962,13 @@ export const ExecutionStateChanged = {
 export interface CommitReportAccepted {
     readonly $: 'CommitReportAccepted'
     merkleRoot: MerkleRoot | null
-    priceUpdates: CellRef<PriceUpdates> | null
+    priceUpdates: PriceUpdates | null
 }
 
 export const CommitReportAccepted = {
     create(args: {
         merkleRoot: MerkleRoot | null
-        priceUpdates: CellRef<PriceUpdates> | null
+        priceUpdates: PriceUpdates | null
     }): CommitReportAccepted {
         return {
             $: 'CommitReportAccepted',
@@ -2818,7 +2984,7 @@ export const CommitReportAccepted = {
     },
     store(self: CommitReportAccepted, b: c.Builder): void {
         storeTolkNullable<MerkleRoot>(self.merkleRoot, b, MerkleRoot.store);
-        storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
+        storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
     },
@@ -3075,13 +3241,13 @@ export const PriceUpdates = {
     fromSlice(s: c.Slice): PriceUpdates {
         return {
             $: 'PriceUpdates',
-            tokenPriceUpdates: s.loadRef(),
-            gasPriceUpdates: s.loadRef(),
+            tokenPriceUpdates: loadSnakedCellOf(s, TokenPriceUpdate.fromSlice),
+            gasPriceUpdates: loadSnakedCellOf(s, GasPriceUpdate.fromSlice),
         }
     },
     store(self: PriceUpdates, b: c.Builder): void {
-        b.storeRef(self.tokenPriceUpdates);
-        b.storeRef(self.gasPriceUpdates);
+        storeSnakedCellOf(self.tokenPriceUpdates, b, TokenPriceUpdate.store);
+        storeSnakedCellOf(self.gasPriceUpdates, b, GasPriceUpdate.store);
     },
     toCell(self: PriceUpdates): c.Cell {
         return makeCellFrom<PriceUpdates>(self, PriceUpdates.store);
@@ -3287,13 +3453,13 @@ export class OffRamp implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        deployables: CellRef<OffRamp_Deployables>
+        deployables: OffRamp_Deployables
         feeQuoter: c.Address
-        ocr3Base: CellRef<OCR3Base>
+        ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
+        sourceChainConfigs: Map<uint64, SourceChainConfig>
         latestPriceSequenceNumber: uint64
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -3305,7 +3471,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampCommit(body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
@@ -3314,7 +3480,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecute(body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }) {
@@ -3322,7 +3488,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecuteValidated(body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -3332,7 +3498,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampManuallyExecute(body: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
         gasOverride: coins
     }) {
@@ -3340,7 +3506,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampDispatchValidated(body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }) {
@@ -3348,7 +3514,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampUpdateSourceChainConfigs(body: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }) {
         return OffRamp_UpdateSourceChainConfigs.toCell(OffRamp_UpdateSourceChainConfigs.create(body));
@@ -3391,7 +3557,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampSetDynamicConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }) {
@@ -3399,7 +3565,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOCR3BaseSetOCR3Config(body: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -3411,7 +3577,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampUpdateDeployables(body: {
-        queryId: uint64
+        queryId?: uint64
         receiveExecutorCode: c.Cell | null
         merkleRootCode: c.Cell | null
     }) {
@@ -3419,20 +3585,33 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
         drainAllAvailable: boolean
     }) {
         return Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body));
+    }
+
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -3444,7 +3623,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampCommit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
@@ -3457,7 +3636,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }, extraOptions?: ExtraSendOptions) {
@@ -3469,7 +3648,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecuteValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride: coins | null
@@ -3483,7 +3662,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampManuallyExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
         gasOverride: coins
     }, extraOptions?: ExtraSendOptions) {
@@ -3495,7 +3674,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampDispatchValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        message: Any2TVMRampMessage
         execId: uint192
         gasOverride: coins | null
     }, extraOptions?: ExtraSendOptions) {
@@ -3507,7 +3686,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampUpdateSourceChainConfigs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3574,7 +3753,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }, extraOptions?: ExtraSendOptions) {
@@ -3586,7 +3765,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOCR3BaseSetOCR3Config(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -3602,7 +3781,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampUpdateDeployables(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         receiveExecutorCode: c.Cell | null
         merkleRootCode: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
@@ -3614,7 +3793,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3625,7 +3804,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -3634,6 +3813,27 @@ export class OffRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }
@@ -3655,10 +3855,10 @@ export class OffRamp implements c.Contract {
         return ({
             $: 'OCR3Base',
             chainId: r.readBigInt(),
-            commit: r.readNullable<CellRef<OCRConfig>>(
+            commit: r.readNullable<OCRConfig>(
                 (r) => r.readCellRef<OCRConfig>(OCRConfig.fromSlice)
             ),
-            execute: r.readNullable<CellRef<OCRConfig>>(
+            execute: r.readNullable<OCRConfig>(
                 (r) => r.readCellRef<OCRConfig>(OCRConfig.fromSlice)
             ),
         });
@@ -3688,9 +3888,9 @@ export class OffRamp implements c.Contract {
         });
     }
 
-    async getAllSourceChainConfigs(provider: ContractProvider): Promise<c.Dictionary<uint64, SourceChainConfig>> {
+    async getAllSourceChainConfigs(provider: ContractProvider): Promise<Map<uint64, SourceChainConfig>> {
         const r = StackReader.fromGetMethod(1, await provider.get('allSourceChainConfigs', []));
-        return r.readDictionary<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        return dictToMap(r.readDictionary<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)));
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {

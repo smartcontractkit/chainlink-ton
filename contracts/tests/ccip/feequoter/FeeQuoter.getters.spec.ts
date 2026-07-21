@@ -127,7 +127,7 @@ describe('FeeQuoter Getters', () => {
       const newOwner = setup.acc.externalCaller.address
 
       // Transfer ownership
-      const result = await setup.bind.feeQuoter.sendTransferOwnership(
+      const result = await setup.bind.feeQuoter.sendOwnable2StepTransferOwnership(
         setup.acc.owner.getSender(),
         toNano('1'),
         { newOwner, queryId: 0n },

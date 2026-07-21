@@ -477,7 +477,7 @@ export class JettonMinter implements Contract {
     })
   }
 
-  async sendUpgrade(
+  async sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     opts: {

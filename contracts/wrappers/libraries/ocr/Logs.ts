@@ -12,7 +12,7 @@ export const LogTypes = {
 } as const
 
 export type OCR3BaseConfigSet = {
-  ocrPluginType: number
+  ocrPluginType: bigint
   configDigest: bigint
   signers: bigint[]
   transmitters: Address[]
@@ -20,7 +20,7 @@ export type OCR3BaseConfigSet = {
 }
 
 export type OCR3BaseTransmitted = {
-  ocrPluginType: number
+  ocrPluginType: bigint
   configDigest: bigint
   sequenceNumber: number
 }

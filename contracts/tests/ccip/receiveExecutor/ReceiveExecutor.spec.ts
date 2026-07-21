@@ -9,10 +9,11 @@ import * as coverage from '../../coverage/coverage'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
-import * as of from '../../../wrappers/ccip/OffRamp'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rx from '../../../wrappers/ccip/ReceiveExecutor'
 import { EVM_ADDRESS } from '.././router/Router.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 export async function setupTestReceiveExecutor(
   blockchain: Blockchain,
@@ -23,20 +24,20 @@ export async function setupTestReceiveExecutor(
     rx.ReceiveExecutor.createFromConfig(
       {
         owner: deployer.address,
-        message: {
-          header: {
+        message: of.Any2TVMRampMessage.create({
+          header: of.RampMessageHeader.create({
             messageId: generateRandomContractId(),
             sourceChainSelector: 0n,
             destChainSelector: 0n,
             sequenceNumber: 0n,
             nonce: 0n,
-          },
-          sender: EVM_ADDRESS,
-          data: new Cell(),
+          }),
+          sender: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+          data: Cell.EMPTY,
           receiver: deployer.address,
           gasLimit: 0n,
-          tokenAmounts: undefined,
-        },
+          tokenAmounts: null,
+        }),
         root: deployer.address,
         execId: 0n,
         state: rx.MessageState.Untouched,
@@ -154,7 +155,7 @@ describe('ReceiveExecutor', () => {
         from: receiveExecutor.address,
         to: deployer.address,
         success: true,
-        op: of.opcodes.in.dispatchValidated,
+        op: of.OffRamp_DispatchValidated.PREFIX,
       })
     })
 
@@ -174,7 +175,7 @@ describe('ReceiveExecutor', () => {
         from: receiveExecutor.address,
         to: deployer.address,
         success: true,
-        op: of.opcodes.in.dispatchValidated,
+        op: of.OffRamp_DispatchValidated.PREFIX,
       })
     })
 
@@ -268,7 +269,7 @@ describe('ReceiveExecutor', () => {
         from: receiveExecutor.address,
         to: deployer.address,
         success: true,
-        op: of.opcodes.in.notifyFailure,
+        op: of.OffRamp_NotifyFailure.PREFIX,
       })
     })
 
@@ -346,7 +347,8 @@ describe('ReceiveExecutor', () => {
       const facilityIdVal = await receiveExecutor.getFacilityId()
       expect(facilityIdVal).toBe(BigInt(rx.FACILITY_ID))
 
-      const { type } = await receiveExecutor.getTypeAndVersion()
+      const [typeSlice] = await receiveExecutor.getTypeAndVersion()
+      const type = typeSlice.loadStringTail()
       expect(type).toBe(rx.FACILITY_NAME)
 
       expect(rx.FACILITY_ID).toEqual(facilityId(crc32(rx.FACILITY_NAME)))

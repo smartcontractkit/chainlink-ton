@@ -106,7 +106,7 @@ describe('Ownable2Step Counter', () => {
     const other = await blockchain.treasury('other')
     const initialCount = await bind.counter.getValue()
 
-    const resultTransferOwnership = await bind.ownable.sendTransferOwnership(
+    const resultTransferOwnership = await bind.ownable.sendOwnable2StepTransferOwnership(
       owner.getSender(),
       toNano('0.05'),
       {
@@ -146,12 +146,12 @@ describe('Ownable2Step Counter', () => {
     const owner = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
 
-    await bind.ownable.sendTransferOwnership(owner.getSender(), toNano('0.05'), {
+    await bind.ownable.sendOwnable2StepTransferOwnership(owner.getSender(), toNano('0.05'), {
       queryId: 1n,
       newOwner: other.address,
     })
 
-    const resultAcceptOwnership = await bind.ownable.sendAcceptOwnership(
+    const resultAcceptOwnership = await bind.ownable.sendOwnable2StepAcceptOwnership(
       other.getSender(),
       toNano('0.05'),
       {
@@ -187,11 +187,11 @@ describe('Ownable2Step Counter', () => {
   it('Test06 : AcceptOwnership should not allow the original owner to operate as owner', async () => {
     const owner = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
-    await bind.ownable.sendTransferOwnership(owner.getSender(), toNano('0.05'), {
+    await bind.ownable.sendOwnable2StepTransferOwnership(owner.getSender(), toNano('0.05'), {
       queryId: 1n,
       newOwner: other.address,
     })
-    await bind.ownable.sendAcceptOwnership(other.getSender(), toNano('0.05'), {
+    await bind.ownable.sendOwnable2StepAcceptOwnership(other.getSender(), toNano('0.05'), {
       queryId: 1n,
     })
 
@@ -210,9 +210,13 @@ describe('Ownable2Step Counter', () => {
 
   it('Test07: Should prevent users from calling AcceptOwnership with no pending owner ', async () => {
     const other = await blockchain.treasury('other')
-    const result = await bind.ownable.sendAcceptOwnership(other.getSender(), toNano('0.05'), {
-      queryId: 1n,
-    })
+    const result = await bind.ownable.sendOwnable2StepAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       from: other.address,
       to: bind.counter.address,
@@ -225,14 +229,18 @@ describe('Ownable2Step Counter', () => {
     const pendingOwner = await blockchain.treasury('pendingOwner')
     const other = await blockchain.treasury('other')
 
-    await bind.ownable.sendTransferOwnership(deployer.getSender(), toNano('0.05'), {
+    await bind.ownable.sendOwnable2StepTransferOwnership(deployer.getSender(), toNano('0.05'), {
       queryId: 1n,
       newOwner: pendingOwner.address,
     })
 
-    const result = await bind.ownable.sendAcceptOwnership(other.getSender(), toNano('0.05'), {
-      queryId: 1n,
-    })
+    const result = await bind.ownable.sendOwnable2StepAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: other.address,
@@ -244,10 +252,14 @@ describe('Ownable2Step Counter', () => {
 
   it('Test09: Should prevent non owner from calling TransferOwnership', async () => {
     const other = await blockchain.treasury('other')
-    const result = await bind.ownable.sendTransferOwnership(other.getSender(), toNano('0.05'), {
-      queryId: 1n,
-      newOwner: other.address,
-    })
+    const result = await bind.ownable.sendOwnable2StepTransferOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+        newOwner: other.address,
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       from: other.address,
       to: bind.ownable.address,
@@ -258,10 +270,14 @@ describe('Ownable2Step Counter', () => {
 
   it('Test10: Should prevent transfer to self', async () => {
     const owner = await blockchain.treasury('deployer')
-    const result = await bind.ownable.sendTransferOwnership(owner.getSender(), toNano('0.05'), {
-      queryId: 1n,
-      newOwner: owner.address,
-    })
+    const result = await bind.ownable.sendOwnable2StepTransferOwnership(
+      owner.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+        newOwner: owner.address,
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       from: owner.address,
       to: bind.ownable.address,

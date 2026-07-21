@@ -60,8 +60,8 @@ describe('Deployable - Unit Tests', () => {
     const facilityIdVal = await deployable.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(dep.FACILITY_ID))
 
-    const { type } = await deployable.getTypeAndVersion()
-    expect(type).toBe(dep.FACILITY_NAME)
+    const [typeSlice] = await deployable.getTypeAndVersion()
+    expect(typeSlice.loadStringTail()).toBe(dep.FACILITY_NAME)
 
     expect(dep.FACILITY_ID).toEqual(facilityId(crc32(dep.FACILITY_NAME)))
   })

@@ -1,7 +1,7 @@
 import { Address } from '@ton/core'
 import { crc32 } from 'zlib'
-import { Any2TVMMessage, MerkleRoot, PriceUpdates, SourceChainConfig } from './OffRamp'
 import { DestChainConfig } from './OnRamp'
+import * as of from '../gen/ccip/OffRamp'
 
 export const LogTypes = {
   CCIPMessageSent: 'CCIPMessageSent',
@@ -51,11 +51,6 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
 }
 
-export type CommitReportAccepted = {
-  merkleRoot?: MerkleRoot
-  priceUpdates?: PriceUpdates
-}
-
 export type ExecutionStateChanged = {
   sourceChainSelector: bigint //64
   sequenceNumber: bigint //64
@@ -65,11 +60,6 @@ export type ExecutionStateChanged = {
 
 export type SourceChainSelectorAdded = {
   sourceChainSelector: bigint //64
-}
-
-export type SourceChainConfigUpdated = {
-  sourceChainSelector: bigint //64
-  config: SourceChainConfig
 }
 
 export type DestChainSelectorAdded = {
@@ -82,7 +72,7 @@ export type DestChainConfigUpdated = {
 }
 
 export type ReceiverCCIPMessageReceived = {
-  message: Any2TVMMessage
+  message: of.Any2TVMMessage
 }
 
 export type OnRampSet = {

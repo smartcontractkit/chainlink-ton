@@ -6,7 +6,7 @@ import * as sx from '../../../../wrappers/ccip/CCIPSendExecutor'
 import * as receiver from '../../../../wrappers/libraries/Receiver'
 import * as testReceiver from '../../../../wrappers/examples/Receiver'
 import * as deployable from '../../../../wrappers/libraries/Deployable'
-import * as offRamp from '../../../../wrappers/ccip/OffRamp'
+import * as offRamp from '../../../../wrappers/gen/ccip/OffRamp'
 import * as mr from '../../../../wrappers/ccip/MerkleRoot'
 
 export function opMapFunc(): OpMapFunc {
@@ -35,9 +35,13 @@ export function opMapFunc(): OpMapFunc {
   Object.entries(deployable.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `Deployable::${name}`)
   })
-  Object.entries(offRamp.opcodes.in).forEach(([name, code]) => {
-    opcodeMap.set(code, `OffRamp::In::${name}`)
-  })
+  opcodeMap.set(offRamp.OffRamp_Commit.PREFIX, 'OffRamp::In::commit')
+  opcodeMap.set(offRamp.OffRamp_Execute.PREFIX, 'OffRamp::In::execute')
+  opcodeMap.set(
+    offRamp.OffRamp_UpdateSourceChainConfigs.PREFIX,
+    'OffRamp::In::updateSourceChainConfigs',
+  )
+  opcodeMap.set(offRamp.OCR3Base_SetOCR3Config.PREFIX, 'OffRamp::In::setOCR3Config')
   Object.entries(testReceiver.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `TestReceiver::In::${name}`)
   })

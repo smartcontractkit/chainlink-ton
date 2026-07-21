@@ -1,11 +1,9 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
-import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
+import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
 import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
-import { setupGenBindings } from '../../../wrappers/gen'
 import {
   Ownable2Step,
   CrossChainAddress,
@@ -34,13 +32,7 @@ import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/B
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-
-import * as rtOld from '../../../wrappers/ccip/Router'
-
-function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
-  const addrSlice = rtOld.builder.data.crossChainAddress.encode(buffer).asSlice()
-  return CrossChainAddress.fromSlice(addrSlice)
-}
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 describe('BurnMintTokenPool', () => {
   let blockchain: Blockchain
@@ -64,11 +56,9 @@ describe('BurnMintTokenPool', () => {
   let receiverAddress: CrossChainAddress
 
   beforeAll(async () => {
-    setupGenBindings()
-
-    sourcePoolAddress = crossChainAddressFromBuffer(Buffer.from('source-pool'))
-    destTokenAddress = crossChainAddressFromBuffer(Buffer.from('dest-token'))
-    receiverAddress = crossChainAddressFromBuffer(Buffer.from('receiver'))
+    sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
+    destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
+    receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))
   })
 
   beforeEach(async () => {
@@ -98,45 +88,35 @@ describe('BurnMintTokenPool', () => {
 
     burnMintPool = blockchain.openContract(
       BurnMintTokenPool.fromStorage({
-        poolData: {
-          ref: TokenPool_Data.create({
-            adminConfig: {
-              ref: TokenPool_AdminConfig.create({
-                ownable: {
-                  ref: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-                },
-                rmnProxy: deployer.address,
-                dynamicConfig: {
-                  ref: TokenPool_DynamicConfig.create({
-                    router: deployer.address,
-                    rateLimitAdmin: null,
-                    feeAdmin: null,
-                  }),
-                },
-                jettonClient: JettonClient.create({
-                  masterAddress: cctMinter.address,
-                  jettonWalletCode: cctWalletCode,
-                }),
-                allowedFinalityConfig: 0n,
-                advancedPoolHooks: null,
-              }),
-            },
-            mirroredPolicy: {
-              ref: TokenPool_MirroredPolicy.create({
-                onRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-                offRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-                cursedSubjects: CursedSubjects.create({
-                  data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
-                }),
-              }),
-            },
-            tokenDecimals: 9n,
-            remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-            tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+        poolData: TokenPool_Data.create({
+          adminConfig: TokenPool_AdminConfig.create({
+            ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+            rmnProxy: deployer.address,
+            dynamicConfig: TokenPool_DynamicConfig.create({
+              router: deployer.address,
+              rateLimitAdmin: null,
+              feeAdmin: null,
+            }),
+            jettonClient: JettonClient.create({
+              masterAddress: cctMinter.address,
+              jettonWalletCode: cctWalletCode,
+            }),
+            allowedFinalityConfig: 0n,
+            advancedPoolHooks: null,
           }),
-        },
-        pendingMints: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-        pendingBurns: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+          mirroredPolicy: TokenPool_MirroredPolicy.create({
+            onRamps: new Map(),
+            offRamps: new Map(),
+            cursedSubjects: CursedSubjects.create({
+              data: new Set(),
+            }),
+          }),
+          tokenDecimals: 9n,
+          remoteChainConfigs: new Map(),
+          tokenTransferFeeConfigs: new Map(),
+        }),
+        pendingMints: new Map(),
+        pendingBurns: new Map(),
       }),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
@@ -150,39 +130,26 @@ describe('BurnMintTokenPool', () => {
         toNano('0.2'),
         {
           queryId: 1n,
-          remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
-          chainsToAdd: asSnakedCell(
-            [
-              TokenPool_ChainUpdate.create({
-                remoteChainSelector,
-                remotePoolAddresses: asSnakedCell([sourcePoolAddress], (item) => {
-                  let b = beginCell()
-                  CrossChainAddress.store(item, b)
-                  return b
+          remoteChainSelectorsToRemove: [],
+          chainsToAdd: [
+            TokenPool_ChainUpdate.create({
+              remoteChainSelector,
+              remotePoolAddresses: [sourcePoolAddress],
+              remoteTokenAddress: destTokenAddress,
+              rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+                outbound: RateLimiter_Config.create({
+                  isEnabled: true,
+                  capacity: toNano('100'),
+                  rate: 1n,
                 }),
-                remoteTokenAddress: { ref: destTokenAddress },
-                rateLimitConfigs: {
-                  ref: TokenPool_RateLimitConfigPair.create({
-                    outbound: {
-                      ref: RateLimiter_Config.create({
-                        isEnabled: true,
-                        capacity: toNano('100'),
-                        rate: 1n,
-                      }),
-                    },
-                    inbound: {
-                      ref: RateLimiter_Config.create({
-                        isEnabled: true,
-                        capacity: toNano('100'),
-                        rate: 1n,
-                      }),
-                    },
-                  }),
-                },
+                inbound: RateLimiter_Config.create({
+                  isEnabled: true,
+                  capacity: toNano('100'),
+                  rate: 1n,
+                }),
               }),
-            ],
-            (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
-          ),
+            }),
+          ],
         },
       )
 
@@ -195,16 +162,13 @@ describe('BurnMintTokenPool', () => {
 
     await burnMintPool.sendTokenPoolUpdateRampAccess(deployer.getSender(), toNano('0.2'), {
       queryId: 2n,
-      updates: asSnakedCell(
-        [
-          TokenPool_RampUpdate.create({
-            remoteChainSelector,
-            onRamp: deployer.address,
-            offRamp: offRamp.address,
-          }),
-        ],
-        (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-      ),
+      updates: [
+        TokenPool_RampUpdate.create({
+          remoteChainSelector,
+          onRamp: deployer.address,
+          offRamp: offRamp.address,
+        }),
+      ],
     })
 
     // Mint user-side test balance before handing minter admin to the pool.
@@ -286,7 +250,7 @@ describe('BurnMintTokenPool', () => {
     recipient,
     remoteChainSelector,
     unsupportedChainSelector: remoteChainSelector + 1n,
-    unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+    unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(Buffer.from('unknown-source-pool')),
     remoteTokenAddress: destTokenAddress,
     onRampAddress: deployer.address,
     destTokenAddress,
@@ -323,7 +287,9 @@ describe('BurnMintTokenPool', () => {
       recipient,
       remoteChainSelector,
       unsupportedChainSelector: remoteChainSelector + 1n,
-      unknownSourcePoolAddress: crossChainAddressFromBuffer(Buffer.from('unknown-source-pool')),
+      unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(
+        Buffer.from('unknown-source-pool'),
+      ),
       remoteTokenAddress: destTokenAddress,
       onRampAddress: deployer.address,
       destTokenAddress,
@@ -367,22 +333,18 @@ describe('BurnMintTokenPool', () => {
         forwardPayload: TokenPool_LockOrBurn.toCell(
           TokenPool_LockOrBurn.create({
             queryId: 303n,
-            request: {
-              ref: TokenPool_LockOrBurnInV1.create({
-                transfer: TokenPool_Transfer.create({
-                  id: 303n,
-                  details: {
-                    ref: TokenPool_TransferDetails.create({
-                      receiver: { ref: receiverAddress },
-                      remoteChainSelector,
-                      originalSender: unauthorized.address,
-                      amount: toNano('1'),
-                      localToken: cctMinter.address,
-                    }),
-                  },
+            request: TokenPool_LockOrBurnInV1.create({
+              transfer: TokenPool_Transfer.create({
+                id: 303n,
+                details: TokenPool_TransferDetails.create({
+                  receiver: receiverAddress,
+                  remoteChainSelector,
+                  originalSender: unauthorized.address,
+                  amount: toNano('1'),
+                  localToken: cctMinter.address,
                 }),
               }),
-            },
+            }),
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: unauthorized.address,
@@ -413,22 +375,18 @@ describe('BurnMintTokenPool', () => {
         forwardPayload: TokenPool_LockOrBurn.toCell(
           TokenPool_LockOrBurn.create({
             queryId: 304n,
-            request: {
-              ref: TokenPool_LockOrBurnInV1.create({
-                transfer: TokenPool_Transfer.create({
-                  id: 304n,
-                  details: {
-                    ref: TokenPool_TransferDetails.create({
-                      receiver: { ref: receiverAddress },
-                      remoteChainSelector,
-                      originalSender: deployer.address,
-                      amount: toNano('1'),
-                      localToken: cctMinter.address,
-                    }),
-                  },
+            request: TokenPool_LockOrBurnInV1.create({
+              transfer: TokenPool_Transfer.create({
+                id: 304n,
+                details: TokenPool_TransferDetails.create({
+                  receiver: receiverAddress,
+                  remoteChainSelector,
+                  originalSender: deployer.address,
+                  amount: toNano('1'),
+                  localToken: cctMinter.address,
                 }),
               }),
-            },
+            }),
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: deployer.address,
@@ -470,22 +428,18 @@ describe('BurnMintTokenPool', () => {
     // Pool validates → sends TokenPool_LockOrBurnWithdraw with forward payload back to deployer
     const lockOrBurn = TokenPool_LockOrBurn.create({
       queryId,
-      request: {
-        ref: TokenPool_LockOrBurnInV1.create({
-          transfer: TokenPool_Transfer.create({
-            id: queryId,
-            details: {
-              ref: TokenPool_TransferDetails.create({
-                receiver: { ref: receiverAddress },
-                remoteChainSelector,
-                originalSender: deployer.address,
-                amount: jettonAmount,
-                localToken: cctMinter.address,
-              }),
-            },
+      request: TokenPool_LockOrBurnInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: queryId,
+          details: TokenPool_TransferDetails.create({
+            receiver: receiverAddress,
+            remoteChainSelector,
+            originalSender: deployer.address,
+            amount: jettonAmount,
+            localToken: cctMinter.address,
           }),
         }),
-      },
+      }),
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
@@ -520,28 +474,26 @@ describe('BurnMintTokenPool', () => {
     // Build expected forward payload (matching what pool creates in validateLockOrBurn)
     const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
       originalSender: unauthorized.address,
-      requestMsg: { ref: lockOrBurn },
-      prepared: {
-        ref: TokenPool_LockOrBurnPrepared.create({
-          feeAmount: 0n,
-          destTokenAmount: jettonAmount,
-          out: TokenPool_LockOrBurnOutV1.create({
-            destTokenAddress: { ref: destTokenAddress },
-            destPoolData: Cell.EMPTY,
-          }),
+      requestMsg: lockOrBurn,
+      prepared: TokenPool_LockOrBurnPrepared.create({
+        feeAmount: 0n,
+        destTokenAmount: jettonAmount,
+        out: TokenPool_LockOrBurnOutV1.create({
+          destTokenAddress: destTokenAddress,
+          destPoolData: Cell.EMPTY,
         }),
-      },
+      }),
     })
 
     // Verify pool's forward payload matches our expected one
-    expect(withdrawBody.forwardPayload.requestMsg.ref.queryId).toBe(
-      expectedForwardPayload.requestMsg.ref.queryId,
+    expect(withdrawBody.forwardPayload.requestMsg.queryId).toBe(
+      expectedForwardPayload.requestMsg.queryId,
     )
-    expect(withdrawBody.forwardPayload.prepared.ref.feeAmount).toBe(
-      expectedForwardPayload.prepared.ref.feeAmount,
+    expect(withdrawBody.forwardPayload.prepared.feeAmount).toBe(
+      expectedForwardPayload.prepared.feeAmount,
     )
-    expect(withdrawBody.forwardPayload.prepared.ref.destTokenAmount).toBe(
-      expectedForwardPayload.prepared.ref.destTokenAmount,
+    expect(withdrawBody.forwardPayload.prepared.destTokenAmount).toBe(
+      expectedForwardPayload.prepared.destTokenAmount,
     )
 
     // === Step 2: Send jettons from deployer wallet to pool with the pool's forward payload ===
@@ -584,25 +536,21 @@ describe('BurnMintTokenPool', () => {
       toNano('0.6'),
       {
         queryId: 22n,
-        request: {
-          ref: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 22n,
-              details: {
-                ref: TokenPool_TransferDetails.create({
-                  originalSender: { ref: sourcePoolAddress },
-                  remoteChainSelector,
-                  receiver: recipient.address,
-                  amount: toNano('2'),
-                  localToken: cctMinter.address,
-                }),
-              },
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 22n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('2'),
+              localToken: cctMinter.address,
             }),
-            sourcePoolAddress: { ref: sourcePoolAddress },
-            sourcePoolData: null,
-            offchainTokenData: null,
           }),
-        },
+          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
         requestedFinalityConfig: 0n,
         replyTo: deployer.address,
       },
@@ -630,7 +578,7 @@ describe('BurnMintTokenPool', () => {
       body(body) {
         if (!body) return false
         const response = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
-        return response.queryId === 22n && response.out.ref.destinationAmount === toNano('2')
+        return response.queryId === 22n && response.out.destinationAmount === toNano('2')
       },
     })
   })
@@ -641,25 +589,21 @@ describe('BurnMintTokenPool', () => {
       toNano('0.6'),
       {
         queryId: 305n,
-        request: {
-          ref: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 305n,
-              details: {
-                ref: TokenPool_TransferDetails.create({
-                  originalSender: { ref: sourcePoolAddress },
-                  remoteChainSelector,
-                  receiver: recipient.address,
-                  amount: toNano('1'),
-                  localToken: cctMinter.address,
-                }),
-              },
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 305n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('1'),
+              localToken: cctMinter.address,
             }),
-            sourcePoolAddress: { ref: sourcePoolAddress },
-            sourcePoolData: null,
-            offchainTokenData: null,
           }),
-        },
+          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
         requestedFinalityConfig: 0n,
         replyTo: null,
       },

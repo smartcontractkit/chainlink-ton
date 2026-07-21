@@ -115,7 +115,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface, upgra
   }
 
   // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 
@@ -128,13 +128,13 @@ export class ContractClient implements Contract, typeAndVersion.Interface, upgra
   }
 
   // Delegate Upgradeable methods
-  async sendUpgrade(
+  async sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ) {
-    await upgradeable.sendUpgrade(provider, via, value, body)
+    await upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   static code(): Promise<Cell> {
@@ -161,21 +161,21 @@ export class ContractClient implements Contract, typeAndVersion.Interface, upgra
   }
 
   // TODO: remove this, no need to proxy ownership methods, just use the ownable2step client directly
-  async sendTransferOwnership(
+  async sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint = 0n,
     body: ownable2step.TransferOwnership,
   ) {
-    return this.ownable.sendTransferOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepTransferOwnership(p, via, value, body)
   }
 
-  async sendAcceptOwnership(
+  async sendOwnable2StepAcceptOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint = 0n,
     body: ownable2step.AcceptOwnership,
   ) {
-    return this.ownable.sendAcceptOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepAcceptOwnership(p, via, value, body)
   }
 }

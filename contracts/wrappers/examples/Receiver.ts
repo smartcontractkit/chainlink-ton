@@ -177,13 +177,13 @@ export class Receiver implements Contract, receiver.Receiver, upgradeable.Interf
     })
   }
 
-  async sendUpgrade(
+  async sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ): Promise<void> {
-    return upgradeable.sendUpgrade(provider, via, value, body)
+    return upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   async sendCCIPReceive(
@@ -252,7 +252,7 @@ export class Receiver implements Contract, receiver.Receiver, upgradeable.Interf
     })
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 

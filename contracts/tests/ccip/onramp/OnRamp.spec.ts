@@ -42,7 +42,7 @@ describe('OnRamp - Upgrade Tests', () => {
     })),
     currentVersion: or.OnRamp.version(),
     getCurrentCode: () => or.OnRamp.code(),
-    CurrentVersionConstructor: or.OnRamp,
+    CurrentVersionConstructor: or.OnRamp.createFromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -85,7 +85,7 @@ describe('OnRamp - Current Version Tests', () => {
     contractType: or.OnRamp.type(),
     currentVersion: or.OnRamp.version(),
     getCurrentCode: () => or.OnRamp.code(),
-    CurrentVersionConstructor: or.OnRamp,
+    CurrentVersionConstructor: or.OnRamp.createFromAddress,
     deployCurrentContract: (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
       deployOnRampContract(blockchain, owner).then((c) => c.onramp),
   })
@@ -137,8 +137,8 @@ describe('OnRamp - Unit Tests', () => {
     const facilityIdVal = await onramp.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(or.FACILITY_ID))
 
-    const { type } = await onramp.getTypeAndVersion()
-    expect(type).toBe(or.FACILITY_NAME)
+    const [typeSlice] = await onramp.getTypeAndVersion()
+    expect(typeSlice.loadStringTail()).toBe(or.FACILITY_NAME)
 
     expect(or.FACILITY_ID).toEqual(facilityId(crc32(or.FACILITY_NAME)))
   })

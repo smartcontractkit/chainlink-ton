@@ -34,7 +34,9 @@ const jestConsole = console
 
 // Load contract database for metric analysis
 const contractDatabasePath = path.join(__dirname, '../../../../contract.abi.json')
-const contractDatabaseData = JSON.parse(fs.readFileSync(contractDatabasePath, 'utf8'))
+const contractDatabaseData = fs.existsSync(contractDatabasePath)
+  ? JSON.parse(fs.readFileSync(contractDatabasePath, 'utf8'))
+  : {}
 const contractDatabase = ContractDatabase.from(contractDatabaseData)
 
 // Initialize metric store
@@ -106,6 +108,10 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       wrappedNative: WRAPPED_NATIVE,
       offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      tokenRegistryDeployment: {
+        deployableCode: await contractCode.ccip.local('Deployable'),
+        tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+      },
     }
     router = blockchain.openContract(rt.Router.createFromConfig(routerData, routerCode))
     await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
@@ -258,7 +264,7 @@ async function messureGetValidatedFee(
   resetMetricStore()
   const result = await router.sendGetValidatedFee(
     sender.getSender(),
-    toNano('0.125'),
+    toNano('1'),
     {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST,

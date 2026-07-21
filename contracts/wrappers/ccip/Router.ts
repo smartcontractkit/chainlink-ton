@@ -22,9 +22,10 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import * as or from '../ccip/OnRamp'
-import * as of from './OffRamp'
+import * as or from './OnRamp'
+import * as of from '../gen/ccip/OffRamp'
 import { Maybe } from '@ton/core/dist/utils/maybe'
+import * as CrossChainAddressCodec from './common/CrossChainAddressCodec'
 
 export const ARTIFACT_NAME = 'Router'
 
@@ -192,13 +193,13 @@ export class Router
     })
   }
 
-  sendUpgrade(
+  sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ): Promise<void> {
-    return upgradeable.sendUpgrade(provider, via, value, body)
+    return upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   sendGetValidatedFee(
@@ -253,7 +254,7 @@ export class Router
     })
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 
@@ -406,13 +407,13 @@ export class Router
   }
 
   // Withdrawable methods
-  async sendWithdraw(
+  async sendWithdrawableWithdraw(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: withdrawable.Withdraw,
   ) {
-    await withdrawable.sendWithdraw(provider, via, value, body)
+    await withdrawable.sendWithdrawableWithdraw(provider, via, value, body)
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
@@ -464,22 +465,22 @@ export class Router
     return this.ownable.getPendingOwner(provider)
   }
 
-  async sendTransferOwnership(
+  async sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint,
     body: ownable2step.TransferOwnership,
   ) {
-    return this.ownable.sendTransferOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepTransferOwnership(p, via, value, body)
   }
 
-  async sendAcceptOwnership(
+  async sendOwnable2StepAcceptOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint,
     body: ownable2step.AcceptOwnership,
   ) {
-    return this.ownable.sendAcceptOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepAcceptOwnership(p, via, value, body)
   }
 }
 
@@ -649,22 +650,6 @@ export type RouteMessage = {
   gasLimit: bigint
 }
 
-const crossChainAddressCodec: CellCodec<Buffer> = {
-  encode: (addr: Buffer): Builder => {
-    if (addr.byteLength > 64) {
-      throw new Error('CrossChainAddress too long')
-    }
-    return beginCell().storeUint(addr.length, 8).storeBuffer(addr, addr.length)
-  },
-  load: (src: Slice): Buffer => {
-    const len = Number(src.loadUint(8))
-    if (len > 64) {
-      throw new Error('CrossChainAddress too long')
-    }
-    return src.loadBuffer(len)
-  },
-}
-
 export const builder = (() => {
   const dataCodec = (() => {
     const contractData: CellCodec<Storage> = {
@@ -783,7 +768,7 @@ export const builder = (() => {
       extraArgs,
       onRamps,
       offRamps,
-      crossChainAddress: crossChainAddressCodec,
+      crossChainAddress: CrossChainAddressCodec.codec,
       getValidatedFeeContext,
     }
   })()
@@ -795,7 +780,7 @@ export const builder = (() => {
             .storeUint(opcodes.in.ccipSend, 32)
             .storeUint(opts.queryID ?? 0, 64)
             .storeUint(opts.destChainSelector, 64)
-            .storeBuilder(crossChainAddressCodec.encode(opts.receiver))
+            .storeBuilder(CrossChainAddressCodec.codec.encode(opts.receiver))
             .storeRef(opts.data)
             .storeRef(asSnakedCell(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
             .storeAddress(opts.feeToken)
@@ -807,7 +792,7 @@ export const builder = (() => {
           return {
             queryID: src.loadUint(64),
             destChainSelector: src.loadUintBig(64),
-            receiver: crossChainAddressCodec.load(src),
+            receiver: CrossChainAddressCodec.codec.load(src),
             data: src.loadRef(),
             tokenAmounts: fromSnakeData(src.loadRef(), tokenAmountCodec.load),
             feeToken: src.loadAddress(),
@@ -820,7 +805,7 @@ export const builder = (() => {
         encode: (opts: RouteMessage): Builder => {
           return beginCell()
             .storeUint(opcodes.in.routeMessage, 32)
-            .storeRef(of.builder.data.any2TVMMessage.encode(opts.message))
+            .storeRef(of.Any2TVMMessage.toCell(of.Any2TVMMessage.create(opts.message)))
             .storeUint(opts.execID, 192)
             .storeAddress(opts.receiver)
             .storeCoins(opts.gasLimit)
@@ -828,7 +813,7 @@ export const builder = (() => {
         load: function (src: Slice): RouteMessage {
           src.skip(32)
           return {
-            message: of.builder.data.any2TVMMessage.load(src.loadRef().beginParse()),
+            message: of.Any2TVMMessage.fromSlice(src.loadRef().beginParse()),
             execID: src.loadUintBig(192),
             receiver: src.loadAddress(),
             gasLimit: src.loadCoins(),

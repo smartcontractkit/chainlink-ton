@@ -152,7 +152,7 @@ export class ContractClient implements Contract {
     return contractCode.ccip.local('Deployable')
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 

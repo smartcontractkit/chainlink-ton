@@ -17,7 +17,7 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 export async function ownable2StepSpec(
   deployer: SandboxContract<TreasuryContract>,
   other: SandboxContract<TreasuryContract>,
-  contract: SandboxContract<ownable2step.ContractClient>,
+  contract: SandboxContract<ownable2step.Interface>,
   opts: {
     coverage?: {
       blockchain: Blockchain
@@ -25,7 +25,7 @@ export async function ownable2StepSpec(
     }
   },
 ) {
-  const resultTransferOwnership = await contract.sendTransferOwnership(
+  const resultTransferOwnership = await contract.sendOwnable2StepTransferOwnership(
     deployer.getSender(),
     toNano('0.05'),
     {
@@ -42,7 +42,7 @@ export async function ownable2StepSpec(
   expect(pendingOwner).toBeDefined()
   expect(pendingOwner).toEqual(other.address)
 
-  const resultAcceptOwnership = await contract.sendAcceptOwnership(
+  const resultAcceptOwnership = await contract.sendOwnable2StepAcceptOwnership(
     other.getSender(),
     toNano('0.05'),
     {
