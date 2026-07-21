@@ -9,7 +9,6 @@ import { ContractCoverageConfig } from '../../coverage/coverage'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as dict from '../../../src/utils/dict'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
@@ -365,12 +364,9 @@ async function deployOffRampInstance(
       execute: null,
     }),
     cursedSubjects: of.CursedSubjects.create({
-      data: Dictionary.empty(Dictionary.Keys.BigUint(128)),
+      data: new Set(),
     }),
-    sourceChainConfigs: Dictionary.empty(
-      Dictionary.Keys.BigUint(64),
-      dict.Values.FromCodec(of.SourceChainConfig),
-    ),
+    sourceChainConfigs: new Map(),
   })
 
   const offRamp = blockchain.openContract(of.OffRamp.fromStorage(data))

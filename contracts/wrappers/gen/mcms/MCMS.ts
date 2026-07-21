@@ -45,6 +45,23 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     if (v === null) {
         b.storeUint(0, 1);
@@ -276,8 +293,8 @@ export interface MCMS_SetConfig {
     queryId: uint64
     signerAddresses: SnakedCell<uint160>
     signerGroups: SnakedCell<uint8>
-    groupQuorums: c.Dictionary<uint8, uint8>
-    groupParents: c.Dictionary<uint8, uint8>
+    groupQuorums: Map<uint8, uint8>
+    groupParents: Map<uint8, uint8>
     clearRoot: boolean
 }
 
@@ -288,8 +305,8 @@ export const MCMS_SetConfig = {
         queryId?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
         clearRoot: boolean
     }): MCMS_SetConfig {
         return {
@@ -305,8 +322,8 @@ export const MCMS_SetConfig = {
             queryId: s.loadUintBig(64),
             signerAddresses: loadSnakedCellOf(s, (s) => s.loadUintBig(160)),
             signerGroups: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
-            groupQuorums: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
-            groupParents: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
+            groupQuorums: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+            groupParents: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
             clearRoot: s.loadBoolean(),
         }
     },
@@ -315,8 +332,8 @@ export const MCMS_SetConfig = {
         b.storeUint(self.queryId, 64);
         storeSnakedCellOf(self.signerAddresses, b, (v, b) => b.storeUint(v, 160));
         storeSnakedCellOf(self.signerGroups, b, (v, b) => b.storeUint(v, 8));
-        b.storeDict<uint8, uint8>(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
-        b.storeDict<uint8, uint8>(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
         b.storeBit(self.clearRoot);
     },
     toCell(self: MCMS_SetConfig): c.Cell {
@@ -964,9 +981,9 @@ export interface MCMS_Data {
     id: uint32
     ownable: Ownable2Step
     oracle: c.Address
-    signers: c.Dictionary<uint160, Signer>
+    signers: Map<uint160, Signer>
     config: Config
-    seenSignedHashes: c.Dictionary<uint256, boolean>
+    seenSignedHashes: Map<uint256, boolean>
     rootInfo: RootInfo
 }
 
@@ -975,9 +992,9 @@ export const MCMS_Data = {
         id: uint32
         ownable: Ownable2Step
         oracle: c.Address
-        signers: c.Dictionary<uint160, Signer>
+        signers: Map<uint160, Signer>
         config: Config
-        seenSignedHashes: c.Dictionary<uint256, boolean>
+        seenSignedHashes: Map<uint256, boolean>
         rootInfo: RootInfo
     }): MCMS_Data {
         return {
@@ -991,9 +1008,9 @@ export const MCMS_Data = {
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
             oracle: s.loadAddress(),
-            signers: c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s),
+            signers: dictToMap(c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
             config: loadCellRef<Config>(s, Config.fromSlice),
-            seenSignedHashes: c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s),
+            seenSignedHashes: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
             rootInfo: loadCellRef<RootInfo>(s, RootInfo.fromSlice),
         }
     },
@@ -1001,9 +1018,9 @@ export const MCMS_Data = {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
         b.storeAddress(self.oracle);
-        b.storeDict<uint160, Signer>(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
+        b.storeDict<uint160, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
         storeCellRef<Config>(self.config, b, Config.store);
-        b.storeDict<uint256, boolean>(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
+        b.storeDict<uint256, boolean>(mapToDict(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
         storeCellRef<RootInfo>(self.rootInfo, b, RootInfo.store);
     },
     toCell(self: MCMS_Data): c.Cell {
@@ -1063,16 +1080,16 @@ export const Signer = {
  */
 export interface Config {
     readonly $: 'Config'
-    signers: c.Dictionary<uint8, Signer>
-    groupQuorums: c.Dictionary<uint8, uint8>
-    groupParents: c.Dictionary<uint8, uint8>
+    signers: Map<uint8, Signer>
+    groupQuorums: Map<uint8, uint8>
+    groupParents: Map<uint8, uint8>
 }
 
 export const Config = {
     create(args: {
-        signers: c.Dictionary<uint8, Signer>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        signers: Map<uint8, Signer>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
     }): Config {
         return {
             $: 'Config',
@@ -1082,15 +1099,15 @@ export const Config = {
     fromSlice(s: c.Slice): Config {
         return {
             $: 'Config',
-            signers: c.Dictionary.load<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s),
-            groupQuorums: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
-            groupParents: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
+            signers: dictToMap(c.Dictionary.load<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
+            groupQuorums: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+            groupParents: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
         }
     },
     store(self: Config, b: c.Builder): void {
-        b.storeDict<uint8, Signer>(self.signers, c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
-        b.storeDict<uint8, uint8>(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
-        b.storeDict<uint8, uint8>(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
@@ -1681,9 +1698,9 @@ export class MCMS implements c.Contract {
         id: uint32
         ownable: Ownable2Step
         oracle: c.Address
-        signers: c.Dictionary<uint160, Signer>
+        signers: Map<uint160, Signer>
         config: Config
-        seenSignedHashes: c.Dictionary<uint256, boolean>
+        seenSignedHashes: Map<uint256, boolean>
         rootInfo: RootInfo
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -1717,8 +1734,8 @@ export class MCMS implements c.Contract {
         queryId?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
         clearRoot: boolean
     }) {
         return MCMS_SetConfig.toCell(MCMS_SetConfig.create(body));
@@ -1818,8 +1835,8 @@ export class MCMS implements c.Contract {
         queryId?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
         clearRoot: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1932,9 +1949,9 @@ export class MCMS implements c.Contract {
         const r = StackReader.fromGetMethod(3, await provider.get('getConfig', []));
         return ({
             $: 'Config',
-            signers: r.readDictionary<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)),
-            groupQuorums: r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)),
-            groupParents: r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)),
+            signers: dictToMap(r.readDictionary<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store))),
+            groupQuorums: dictToMap(r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8))),
+            groupParents: dictToMap(r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8))),
         });
     }
 

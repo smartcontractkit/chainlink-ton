@@ -50,6 +50,23 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
 }
@@ -1432,7 +1449,7 @@ export interface OnRamp_DestChainConfig {
     router: c.Address
     sequenceNumber: uint64
     allowlistEnabled: boolean
-    allowedSenders: c.Dictionary<c.Address, boolean>
+    allowedSenders: Map<c.Address, boolean>
 }
 
 export const OnRamp_DestChainConfig = {
@@ -1440,7 +1457,7 @@ export const OnRamp_DestChainConfig = {
         router: c.Address
         sequenceNumber: uint64
         allowlistEnabled: boolean
-        allowedSenders: c.Dictionary<c.Address, boolean>
+        allowedSenders: Map<c.Address, boolean>
     }): OnRamp_DestChainConfig {
         return {
             $: 'OnRamp_DestChainConfig',
@@ -1453,14 +1470,14 @@ export const OnRamp_DestChainConfig = {
             router: s.loadAddress(),
             sequenceNumber: s.loadUintBig(64),
             allowlistEnabled: s.loadBoolean(),
-            allowedSenders: c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s),
+            allowedSenders: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: OnRamp_DestChainConfig, b: c.Builder): void {
         b.storeAddress(self.router);
         b.storeUint(self.sequenceNumber, 64);
         b.storeBit(self.allowlistEnabled);
-        b.storeDict<c.Address, boolean>(self.allowedSenders, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        b.storeDict<c.Address, boolean>(mapToDict(self.allowedSenders, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
     },
     toCell(self: OnRamp_DestChainConfig): c.Cell {
         return makeCellFrom<OnRamp_DestChainConfig>(self, OnRamp_DestChainConfig.store);
@@ -1799,7 +1816,7 @@ export interface OnRamp_Storage {
     ownable: Ownable2Step
     chainSelector: uint64
     config: OnRamp_DynamicConfig
-    destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
+    destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
     executor: ExecutorDeployment
 }
 
@@ -1809,7 +1826,7 @@ export const OnRamp_Storage = {
         ownable: Ownable2Step
         chainSelector: uint64
         config: OnRamp_DynamicConfig
-        destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
     }): OnRamp_Storage {
         return {
@@ -1824,7 +1841,7 @@ export const OnRamp_Storage = {
             ownable: Ownable2Step.fromSlice(s),
             chainSelector: s.loadUintBig(64),
             config: loadCellRef<OnRamp_DynamicConfig>(s, OnRamp_DynamicConfig.fromSlice),
-            destChainConfigs: c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s),
+            destChainConfigs: dictToMap(c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s)),
             executor: ExecutorDeployment.fromSlice(s),
         }
     },
@@ -1833,7 +1850,7 @@ export const OnRamp_Storage = {
         Ownable2Step.store(self.ownable, b);
         b.storeUint(self.chainSelector, 64);
         storeCellRef<OnRamp_DynamicConfig>(self.config, b, OnRamp_DynamicConfig.store);
-        b.storeDict<uint64, OnRamp_DestChainConfig>(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
+        b.storeDict<uint64, OnRamp_DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
         ExecutorDeployment.store(self.executor, b);
     },
     toCell(self: OnRamp_Storage): c.Cell {
@@ -2433,7 +2450,7 @@ export class OnRamp implements c.Contract {
         ownable: Ownable2Step
         chainSelector: uint64
         config: OnRamp_DynamicConfig
-        destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -2761,7 +2778,7 @@ export class OnRamp implements c.Contract {
             router: r.readSlice().loadAddress(),
             sequenceNumber: r.readBigInt(),
             allowlistEnabled: r.readBoolean(),
-            allowedSenders: r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()),
+            allowedSenders: dictToMap(r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool())),
         });
     }
 

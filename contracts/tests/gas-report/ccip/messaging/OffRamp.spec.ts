@@ -50,7 +50,6 @@ import { ContractClient as CCIPSendExecutorContract } from '../../../../wrappers
 import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { asSnakedCell } from '../../../../src/utils'
 import { contractCode } from '../../../../wrappers/codeLoader'
-import * as dict from '../../../../src/utils/dict'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 
@@ -245,14 +244,11 @@ describe('CCIP OffRamp Gas Estimation', () => {
           execute: null,
         }),
         cursedSubjects: of.CursedSubjects.create({
-          data: Dictionary.empty(Dictionary.Keys.BigUint(128)),
+          data: new Set(),
         }),
         chainSelector: CHAINSEL_TON,
         permissionlessExecutionThresholdSeconds: 60n,
-        sourceChainConfigs: Dictionary.empty(
-          Dictionary.Keys.BigUint(64),
-          dict.Values.FromCodec(of.SourceChainConfig),
-        ),
+        sourceChainConfigs: new Map(),
         latestPriceSequenceNumber: 0n,
       })
       offRamp = blockchain.openContract(

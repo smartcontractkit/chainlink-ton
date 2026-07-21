@@ -58,6 +58,23 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
 }
@@ -215,14 +232,14 @@ export const JettonDataReply = {
  */
 export interface OnchainMetadataReply {
     readonly $: 'OnchainMetadataReply'
-    contentDict: c.Dictionary<uint256, string_prefixed0x>
+    contentDict: Map<uint256, string_prefixed0x>
 }
 
 export const OnchainMetadataReply = {
     PREFIX: 0x00,
 
     create(args: {
-        contentDict: c.Dictionary<uint256, string_prefixed0x>
+        contentDict: Map<uint256, string_prefixed0x>
     }): OnchainMetadataReply {
         return {
             $: 'OnchainMetadataReply',
@@ -233,12 +250,12 @@ export const OnchainMetadataReply = {
         loadAndCheckPrefix(s, 0x00, 8, 'OnchainMetadataReply');
         return {
             $: 'OnchainMetadataReply',
-            contentDict: c.Dictionary.load<uint256, string_prefixed0x>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<string_prefixed0x>(string_prefixed0x.fromSlice, string_prefixed0x.store), s),
+            contentDict: dictToMap(c.Dictionary.load<uint256, string_prefixed0x>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<string_prefixed0x>(string_prefixed0x.fromSlice, string_prefixed0x.store), s)),
         }
     },
     store(self: OnchainMetadataReply, b: c.Builder): void {
         b.storeUint(0x00, 8);
-        b.storeDict<uint256, string_prefixed0x>(self.contentDict, c.Dictionary.Keys.BigUint(256), createDictionaryValue<string_prefixed0x>(string_prefixed0x.fromSlice, string_prefixed0x.store));
+        b.storeDict<uint256, string_prefixed0x>(mapToDict(self.contentDict, c.Dictionary.Keys.BigUint(256), createDictionaryValue<string_prefixed0x>(string_prefixed0x.fromSlice, string_prefixed0x.store)), c.Dictionary.Keys.BigUint(256), createDictionaryValue<string_prefixed0x>(string_prefixed0x.fromSlice, string_prefixed0x.store));
     },
     toCell(self: OnchainMetadataReply): c.Cell {
         return makeCellFrom<OnchainMetadataReply>(self, OnchainMetadataReply.store);

@@ -52,6 +52,40 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
+
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
 }
@@ -473,7 +507,7 @@ export const FeeQuoter_GetValidatedFee = {
  */
 export interface FeeQuoter_UpdateFeeTokens {
     readonly $: 'FeeQuoter_UpdateFeeTokens'
-    add: c.Dictionary<c.Address, FeeToken>
+    add: Map<c.Address, FeeToken>
     remove: SnakedCell<c.Address>
 }
 
@@ -481,7 +515,7 @@ export const FeeQuoter_UpdateFeeTokens = {
     PREFIX: 0xd0984986,
 
     create(args: {
-        add: c.Dictionary<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken>
         remove: SnakedCell<c.Address>
     }): FeeQuoter_UpdateFeeTokens {
         return {
@@ -493,13 +527,13 @@ export const FeeQuoter_UpdateFeeTokens = {
         loadAndCheckPrefix32(s, 0xd0984986, 'FeeQuoter_UpdateFeeTokens');
         return {
             $: 'FeeQuoter_UpdateFeeTokens',
-            add: c.Dictionary.load<c.Address, FeeToken>(c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store), s),
+            add: dictToMap(c.Dictionary.load<c.Address, FeeToken>(c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store), s)),
             remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: FeeQuoter_UpdateFeeTokens, b: c.Builder): void {
         b.storeUint(0xd0984986, 32);
-        b.storeDict<c.Address, FeeToken>(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store));
+        b.storeDict<c.Address, FeeToken>(mapToDict(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store)), c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store));
         storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: FeeQuoter_UpdateFeeTokens): c.Cell {
@@ -572,14 +606,14 @@ export const FeeQuoter_MessageValidationFailed = {
  */
 export interface FeeQuoter_UpdateTokenTransferFeeConfigs {
     readonly $: 'FeeQuoter_UpdateTokenTransferFeeConfigs'
-    updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+    updates: Map<uint64, UpdateTokenTransferFeeConfig>
 }
 
 export const FeeQuoter_UpdateTokenTransferFeeConfigs = {
     PREFIX: 0xb2826316,
 
     create(args: {
-        updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+        updates: Map<uint64, UpdateTokenTransferFeeConfig>
     }): FeeQuoter_UpdateTokenTransferFeeConfigs {
         return {
             $: 'FeeQuoter_UpdateTokenTransferFeeConfigs',
@@ -590,12 +624,12 @@ export const FeeQuoter_UpdateTokenTransferFeeConfigs = {
         loadAndCheckPrefix32(s, 0xb2826316, 'FeeQuoter_UpdateTokenTransferFeeConfigs');
         return {
             $: 'FeeQuoter_UpdateTokenTransferFeeConfigs',
-            updates: c.Dictionary.load<uint64, UpdateTokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store), s),
+            updates: dictToMap(c.Dictionary.load<uint64, UpdateTokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store), s)),
         }
     },
     store(self: FeeQuoter_UpdateTokenTransferFeeConfigs, b: c.Builder): void {
         b.storeUint(0xb2826316, 32);
-        b.storeDict<uint64, UpdateTokenTransferFeeConfig>(self.updates, c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store));
+        b.storeDict<uint64, UpdateTokenTransferFeeConfig>(mapToDict(self.updates, c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store));
     },
     toCell(self: FeeQuoter_UpdateTokenTransferFeeConfigs): c.Cell {
         return makeCellFrom<FeeQuoter_UpdateTokenTransferFeeConfigs>(self, FeeQuoter_UpdateTokenTransferFeeConfigs.store);
@@ -1100,14 +1134,14 @@ export interface DestChainConfig {
     readonly $: 'DestChainConfig'
     config: FeeQuoterDestChainConfig
     usdPerUnitGas: GasPrice
-    tokenTransferFeeConfigs: c.Dictionary<c.Address, TokenTransferFeeConfig>
+    tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig>
 }
 
 export const DestChainConfig = {
     create(args: {
         config: FeeQuoterDestChainConfig
         usdPerUnitGas: GasPrice
-        tokenTransferFeeConfigs: c.Dictionary<c.Address, TokenTransferFeeConfig>
+        tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig>
     }): DestChainConfig {
         return {
             $: 'DestChainConfig',
@@ -1119,13 +1153,13 @@ export const DestChainConfig = {
             $: 'DestChainConfig',
             config: FeeQuoterDestChainConfig.fromSlice(s),
             usdPerUnitGas: loadCellRef<GasPrice>(s, GasPrice.fromSlice),
-            tokenTransferFeeConfigs: c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s),
+            tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s)),
         }
     },
     store(self: DestChainConfig, b: c.Builder): void {
         FeeQuoterDestChainConfig.store(self.config, b);
         storeCellRef<GasPrice>(self.usdPerUnitGas, b, GasPrice.store);
-        b.storeDict<c.Address, TokenTransferFeeConfig>(self.tokenTransferFeeConfigs, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
+        b.storeDict<c.Address, TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
     },
     toCell(self: DestChainConfig): c.Cell {
         return makeCellFrom<DestChainConfig>(self, DestChainConfig.store);
@@ -1140,13 +1174,13 @@ export const DestChainConfig = {
  */
 export interface UpdateTokenTransferFeeConfig {
     readonly $: 'UpdateTokenTransferFeeConfig'
-    add: c.Dictionary<c.Address, TokenTransferFeeConfig>
+    add: Map<c.Address, TokenTransferFeeConfig>
     remove: SnakedCell<c.Address>
 }
 
 export const UpdateTokenTransferFeeConfig = {
     create(args: {
-        add: c.Dictionary<c.Address, TokenTransferFeeConfig>
+        add: Map<c.Address, TokenTransferFeeConfig>
         remove: SnakedCell<c.Address>
     }): UpdateTokenTransferFeeConfig {
         return {
@@ -1157,12 +1191,12 @@ export const UpdateTokenTransferFeeConfig = {
     fromSlice(s: c.Slice): UpdateTokenTransferFeeConfig {
         return {
             $: 'UpdateTokenTransferFeeConfig',
-            add: c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s),
+            add: dictToMap(c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s)),
             remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: UpdateTokenTransferFeeConfig, b: c.Builder): void {
-        b.storeDict<c.Address, TokenTransferFeeConfig>(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
+        b.storeDict<c.Address, TokenTransferFeeConfig>(mapToDict(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
         storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: UpdateTokenTransferFeeConfig): c.Cell {
@@ -1296,26 +1330,26 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    allowedPriceUpdaters: c.Dictionary<c.Address, []>
+    allowedPriceUpdaters: Set<c.Address>
     maxFeeJuelsPerMsg: uint96
     linkToken: c.Address
     tokenPriceStalenessThreshold: uint32
-    usdPerToken: c.Dictionary<c.Address, TimestampedPrice>
-    premiumMultiplierWeiPerEth: c.Dictionary<c.Address, uint64>
-    destChainConfigs: c.Dictionary<uint64, DestChainConfig>
+    usdPerToken: Map<c.Address, TimestampedPrice>
+    premiumMultiplierWeiPerEth: Map<c.Address, uint64>
+    destChainConfigs: Map<uint64, DestChainConfig>
 }
 
 export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        allowedPriceUpdaters: c.Dictionary<c.Address, []>
+        allowedPriceUpdaters: Set<c.Address>
         maxFeeJuelsPerMsg: uint96
         linkToken: c.Address
         tokenPriceStalenessThreshold: uint32
-        usdPerToken: c.Dictionary<c.Address, TimestampedPrice>
-        premiumMultiplierWeiPerEth: c.Dictionary<c.Address, uint64>
-        destChainConfigs: c.Dictionary<uint64, DestChainConfig>
+        usdPerToken: Map<c.Address, TimestampedPrice>
+        premiumMultiplierWeiPerEth: Map<c.Address, uint64>
+        destChainConfigs: Map<uint64, DestChainConfig>
     }): Storage {
         return {
             $: 'Storage',
@@ -1327,31 +1361,34 @@ export const Storage = {
             $: 'Storage',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
-            allowedPriceUpdaters: c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
+            allowedPriceUpdaters: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
             maxFeeJuelsPerMsg: s.loadUintBig(96),
             linkToken: s.loadAddress(),
             tokenPriceStalenessThreshold: s.loadUintBig(32),
-            usdPerToken: c.Dictionary.load<c.Address, TimestampedPrice>(c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store), s),
-            premiumMultiplierWeiPerEth: c.Dictionary.load<c.Address, uint64>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64), s),
-            destChainConfigs: c.Dictionary.load<uint64, DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store), s),
+            usdPerToken: dictToMap(c.Dictionary.load<c.Address, TimestampedPrice>(c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store), s)),
+            premiumMultiplierWeiPerEth: dictToMap(c.Dictionary.load<c.Address, uint64>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64), s)),
+            destChainConfigs: dictToMap(c.Dictionary.load<uint64, DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store), s)),
         }
     },
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
-        b.storeDict<c.Address, []>(self.allowedPriceUpdaters, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+        b.storeDict<c.Address, []>(setToDict(self.allowedPriceUpdaters, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
             (s) => [],
             (v,b) => { {} }
         ));
         b.storeUint(self.maxFeeJuelsPerMsg, 96);
         b.storeAddress(self.linkToken);
         b.storeUint(self.tokenPriceStalenessThreshold, 32);
-        b.storeDict<c.Address, TimestampedPrice>(self.usdPerToken, c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store));
-        b.storeDict<c.Address, uint64>(self.premiumMultiplierWeiPerEth, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64));
-        b.storeDict<uint64, DestChainConfig>(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store));
+        b.storeDict<c.Address, TimestampedPrice>(mapToDict(self.usdPerToken, c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store));
+        b.storeDict<c.Address, uint64>(mapToDict(self.premiumMultiplierWeiPerEth, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64));
+        b.storeDict<uint64, DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store));
     },
     toCell(self: Storage): c.Cell {
         return makeCellFrom<Storage>(self, Storage.store);
@@ -2058,13 +2095,13 @@ export class FeeQuoter implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        allowedPriceUpdaters: c.Dictionary<c.Address, []>
+        allowedPriceUpdaters: Set<c.Address>
         maxFeeJuelsPerMsg: uint96
         linkToken: c.Address
         tokenPriceStalenessThreshold: uint32
-        usdPerToken: c.Dictionary<c.Address, TimestampedPrice>
-        premiumMultiplierWeiPerEth: c.Dictionary<c.Address, uint64>
-        destChainConfigs: c.Dictionary<uint64, DestChainConfig>
+        usdPerToken: Map<c.Address, TimestampedPrice>
+        premiumMultiplierWeiPerEth: Map<c.Address, uint64>
+        destChainConfigs: Map<uint64, DestChainConfig>
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? FeeQuoter.CodeCell,
@@ -2094,14 +2131,14 @@ export class FeeQuoter implements c.Contract {
     }
 
     static createCellOfFeeQuoterUpdateFeeTokens(body: {
-        add: c.Dictionary<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken>
         remove: SnakedCell<c.Address>
     }) {
         return FeeQuoter_UpdateFeeTokens.toCell(FeeQuoter_UpdateFeeTokens.create(body));
     }
 
     static createCellOfFeeQuoterUpdateTokenTransferFeeConfigs(body: {
-        updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+        updates: Map<uint64, UpdateTokenTransferFeeConfig>
     }) {
         return FeeQuoter_UpdateTokenTransferFeeConfigs.toCell(FeeQuoter_UpdateTokenTransferFeeConfigs.create(body));
     }
@@ -2180,7 +2217,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendFeeQuoterUpdateFeeTokens(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        add: c.Dictionary<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken>
         remove: SnakedCell<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2191,7 +2228,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendFeeQuoterUpdateTokenTransferFeeConfigs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+        updates: Map<uint64, UpdateTokenTransferFeeConfig>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2388,7 +2425,7 @@ export class FeeQuoter implements c.Contract {
                 networkFeeUsdCents: r.readBigInt(),
             }),
             usdPerUnitGas: r.readCellRef<GasPrice>(GasPrice.fromSlice),
-            tokenTransferFeeConfigs: r.readDictionary<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)),
+            tokenTransferFeeConfigs: dictToMap(r.readDictionary<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store))),
         });
     }
 

@@ -39,7 +39,6 @@ import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
 import { contractCode } from '../../wrappers/codeLoader'
-import * as dict from '../../src/utils/dict'
 import * as CrossChainAddressCodec from '../../wrappers/ccip/common/CrossChainAddressCodec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
@@ -141,14 +140,11 @@ async function deployOffRampContract(
       execute: null,
     }),
     cursedSubjects: of.CursedSubjects.create({
-      data: Dictionary.empty(Dictionary.Keys.BigUint(128)),
+      data: new Set(),
     }),
     chainSelector: CHAINSEL_TON,
     permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
-    sourceChainConfigs: Dictionary.empty(
-      Dictionary.Keys.BigUint(64),
-      dict.Values.FromCodec(of.SourceChainConfig),
-    ),
+    sourceChainConfigs: new Map(),
     latestPriceSequenceNumber: 0n,
   })
 
@@ -423,11 +419,7 @@ describe('OffRamp - Unit Tests', () => {
 
   // Helper to build CursedSubjects from an array of subject IDs
   const buildCursedSubjects = (subjects: bigint[]): of.CursedSubjects => {
-    let data = Dictionary.empty(Dictionary.Keys.BigUint(128), dict.Values.EmptyTensor())
-    for (const subject of subjects) {
-      data.set(subject, [])
-    }
-    return of.CursedSubjects.create({ data })
+    return of.CursedSubjects.create({ data: new Set(subjects) })
   }
 
   // Helper function to test commit report flow

@@ -45,6 +45,23 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     if (v === null) {
         b.storeUint(0, 1);
@@ -1324,9 +1341,9 @@ export interface Timelock_Data {
     readonly $: 'Timelock_Data'
     id: uint32
     minDelay: uint32
-    timestamps: c.Dictionary<uint256, uint64>
+    timestamps: Map<uint256, uint64>
     blockedFnSelectorsLen: uint32
-    blockedFnSelectors: c.Dictionary<uint32, boolean>
+    blockedFnSelectors: Map<uint32, boolean>
     executorRoleCheckEnabled: boolean
     opPendingInfo: Timelock_OpPendingInfo
     rbac: AccessControl_Data
@@ -1336,9 +1353,9 @@ export const Timelock_Data = {
     create(args: {
         id: uint32
         minDelay: uint32
-        timestamps: c.Dictionary<uint256, uint64>
+        timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
-        blockedFnSelectors: c.Dictionary<uint32, boolean>
+        blockedFnSelectors: Map<uint32, boolean>
         executorRoleCheckEnabled: boolean
         opPendingInfo: Timelock_OpPendingInfo
         rbac: AccessControl_Data
@@ -1353,9 +1370,9 @@ export const Timelock_Data = {
             $: 'Timelock_Data',
             id: s.loadUintBig(32),
             minDelay: s.loadUintBig(32),
-            timestamps: c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s),
+            timestamps: dictToMap(c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s)),
             blockedFnSelectorsLen: s.loadUintBig(32),
-            blockedFnSelectors: c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s),
+            blockedFnSelectors: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
             executorRoleCheckEnabled: s.loadBoolean(),
             opPendingInfo: Timelock_OpPendingInfo.fromSlice(s),
             rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
@@ -1364,9 +1381,9 @@ export const Timelock_Data = {
     store(self: Timelock_Data, b: c.Builder): void {
         b.storeUint(self.id, 32);
         b.storeUint(self.minDelay, 32);
-        b.storeDict<uint256, uint64>(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
+        b.storeDict<uint256, uint64>(mapToDict(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
         b.storeUint(self.blockedFnSelectorsLen, 32);
-        b.storeDict<uint32, boolean>(self.blockedFnSelectors, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
+        b.storeDict<uint32, boolean>(mapToDict(self.blockedFnSelectors, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
         b.storeBit(self.executorRoleCheckEnabled);
         Timelock_OpPendingInfo.store(self.opPendingInfo, b);
         storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
@@ -1475,7 +1492,7 @@ export interface Timelock_OpPendingInfo {
     validAfter: uint64
     opFinalizationTimeout: uint32
     opPendingId: uint256
-    opPendingCalls: c.Dictionary<uint256, boolean>
+    opPendingCalls: Map<uint256, boolean>
 }
 
 export const Timelock_OpPendingInfo = {
@@ -1483,7 +1500,7 @@ export const Timelock_OpPendingInfo = {
         validAfter: uint64
         opFinalizationTimeout: uint32
         opPendingId: uint256
-        opPendingCalls: c.Dictionary<uint256, boolean>
+        opPendingCalls: Map<uint256, boolean>
     }): Timelock_OpPendingInfo {
         return {
             $: 'Timelock_OpPendingInfo',
@@ -1496,14 +1513,14 @@ export const Timelock_OpPendingInfo = {
             validAfter: s.loadUintBig(64),
             opFinalizationTimeout: s.loadUintBig(32),
             opPendingId: s.loadUintBig(256),
-            opPendingCalls: c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s),
+            opPendingCalls: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: Timelock_OpPendingInfo, b: c.Builder): void {
         b.storeUint(self.validAfter, 64);
         b.storeUint(self.opFinalizationTimeout, 32);
         b.storeUint(self.opPendingId, 256);
-        b.storeDict<uint256, boolean>(self.opPendingCalls, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
+        b.storeDict<uint256, boolean>(mapToDict(self.opPendingCalls, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
     },
     toCell(self: Timelock_OpPendingInfo): c.Cell {
         return makeCellFrom<Timelock_OpPendingInfo>(self, Timelock_OpPendingInfo.store);
@@ -1723,12 +1740,12 @@ export const AccessControl_RoleAdminChanged = {
  */
 export interface AccessControl_Data {
     readonly $: 'AccessControl_Data'
-    roles: c.Dictionary<uint256, AccessControl_RoleData>
+    roles: Map<uint256, AccessControl_RoleData>
 }
 
 export const AccessControl_Data = {
     create(args: {
-        roles: c.Dictionary<uint256, AccessControl_RoleData>
+        roles: Map<uint256, AccessControl_RoleData>
     }): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
@@ -1738,14 +1755,17 @@ export const AccessControl_Data = {
     fromSlice(s: c.Slice): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
-            roles: c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
-                (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
-                (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
-            ), s),
+            roles: dictToMap(c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                        ), s)),
         }
     },
     store(self: AccessControl_Data, b: c.Builder): void {
-        b.storeDict<uint256, AccessControl_RoleData>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+        b.storeDict<uint256, AccessControl_RoleData>(mapToDict(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                        (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                        (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                    )), c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
             (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
             (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
         ));
@@ -1766,14 +1786,14 @@ export interface AccessControl_RoleData {
     readonly $: 'AccessControl_RoleData'
     adminRole: uint256
     membersLen: uint64
-    hasRole: c.Dictionary<c.Address, boolean>
+    hasRole: Map<c.Address, boolean>
 }
 
 export const AccessControl_RoleData = {
     create(args: {
         adminRole: uint256
         membersLen: uint64
-        hasRole: c.Dictionary<c.Address, boolean>
+        hasRole: Map<c.Address, boolean>
     }): AccessControl_RoleData {
         return {
             $: 'AccessControl_RoleData',
@@ -1785,13 +1805,13 @@ export const AccessControl_RoleData = {
             $: 'AccessControl_RoleData',
             adminRole: s.loadUintBig(256),
             membersLen: s.loadUintBig(64),
-            hasRole: c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s),
+            hasRole: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: AccessControl_RoleData, b: c.Builder): void {
         b.storeUint(self.adminRole, 256);
         b.storeUint(self.membersLen, 64);
-        b.storeDict<c.Address, boolean>(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        b.storeDict<c.Address, boolean>(mapToDict(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
     },
     toCell(self: AccessControl_RoleData): c.Cell {
         return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
@@ -1872,9 +1892,9 @@ export class Timelock implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         minDelay: uint32
-        timestamps: c.Dictionary<uint256, uint64>
+        timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
-        blockedFnSelectors: c.Dictionary<uint32, boolean>
+        blockedFnSelectors: Map<uint32, boolean>
         executorRoleCheckEnabled: boolean
         opPendingInfo: Timelock_OpPendingInfo
         rbac: AccessControl_Data
@@ -2229,7 +2249,7 @@ export class Timelock implements c.Contract {
             validAfter: r.readBigInt(),
             opFinalizationTimeout: r.readBigInt(),
             opPendingId: r.readBigInt(),
-            opPendingCalls: r.readDictionary<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()),
+            opPendingCalls: dictToMap(r.readDictionary<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool())),
         });
     }
 
@@ -2288,10 +2308,10 @@ export class Timelock implements c.Contract {
         return r.readBigInt();
     }
 
-    async getRoleMembers(provider: ContractProvider, role: uint256): Promise<c.Dictionary<c.Address, boolean>> {
+    async getRoleMembers(provider: ContractProvider, role: uint256): Promise<Map<c.Address, boolean>> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRoleMembers', [
             { type: 'int', value: role },
         ]));
-        return r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        return dictToMap(r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()));
     }
 }

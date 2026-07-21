@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
-import { Values, loadMap } from '../../../src/utils/dict'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -151,19 +150,19 @@ describe('LockReleaseLockboxTokenPool', () => {
             advancedPoolHooks: null,
           }),
           mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-            offRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+            onRamps: new Map(),
+            offRamps: new Map(),
             cursedSubjects: CursedSubjects.create({
-              data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
+              data: new Set(),
             }),
           }),
           tokenDecimals: 9n,
-          remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-          tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+          remoteChainConfigs: new Map(),
+          tokenTransferFeeConfigs: new Map(),
         }),
         lockbox: jettonLockBox.address,
-        pendingLocks: Dictionary.empty(Dictionary.Keys.BigUint(64)),
-        pendingReleases: Dictionary.empty(Dictionary.Keys.BigUint(64)),
+        pendingLocks: new Map(),
+        pendingReleases: new Map(),
       }),
     )
     await lockReleaseLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
@@ -983,11 +982,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         {
           queryId: 901n,
           cursedSubjects: CursedSubjects.create({
-            data: loadMap(
-              Dictionary.Keys.BigInt(128),
-              Values.EmptyTensor(),
-              new Map([[remoteChainSelector, []]]),
-            ),
+            data: new Set([remoteChainSelector]),
           }),
         },
       )

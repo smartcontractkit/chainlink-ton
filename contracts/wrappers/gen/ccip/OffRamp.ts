@@ -48,6 +48,40 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
+
 function storeTolkBitsN(v: c.Slice, nBits: number, b: c.Builder): void {
     if (v.remainingBits !== nBits) { throw new Error(`expected ${nBits} bits, got ${v.remainingBits}`); }
     if (v.remainingRefs !== 0) { throw new Error(`expected 0 refs, got ${v.remainingRefs}`); }
@@ -905,15 +939,15 @@ export const OCR3Base = {
 export interface OCRConfig {
     readonly $: 'OCRConfig'
     configInfo: ConfigInfo
-    signers: c.Dictionary<uint256, uint8>
-    transmitters: c.Dictionary<c.Address, uint8>
+    signers: Map<uint256, uint8>
+    transmitters: Map<c.Address, uint8>
 }
 
 export const OCRConfig = {
     create(args: {
         configInfo: ConfigInfo
-        signers: c.Dictionary<uint256, uint8>
-        transmitters: c.Dictionary<c.Address, uint8>
+        signers: Map<uint256, uint8>
+        transmitters: Map<c.Address, uint8>
     }): OCRConfig {
         return {
             $: 'OCRConfig',
@@ -924,14 +958,14 @@ export const OCRConfig = {
         return {
             $: 'OCRConfig',
             configInfo: ConfigInfo.fromSlice(s),
-            signers: c.Dictionary.load<uint256, uint8>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8), s),
-            transmitters: c.Dictionary.load<c.Address, uint8>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8), s),
+            signers: dictToMap(c.Dictionary.load<uint256, uint8>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8), s)),
+            transmitters: dictToMap(c.Dictionary.load<c.Address, uint8>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8), s)),
         }
     },
     store(self: OCRConfig, b: c.Builder): void {
         ConfigInfo.store(self.configInfo, b);
-        b.storeDict<uint256, uint8>(self.signers, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8));
-        b.storeDict<c.Address, uint8>(self.transmitters, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint256, uint8>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8));
+        b.storeDict<c.Address, uint8>(mapToDict(self.transmitters, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8));
     },
     toCell(self: OCRConfig): c.Cell {
         return makeCellFrom<OCRConfig>(self, OCRConfig.store);
@@ -1255,12 +1289,12 @@ export const RampMessageHeader = {
  */
 export interface CursedSubjects {
     readonly $: 'CursedSubjects'
-    data: c.Dictionary<uint128, []>
+    data: Set<uint128>
 }
 
 export const CursedSubjects = {
     create(args: {
-        data: c.Dictionary<uint128, []>
+        data: Set<uint128>
     }): CursedSubjects {
         return {
             $: 'CursedSubjects',
@@ -1270,14 +1304,17 @@ export const CursedSubjects = {
     fromSlice(s: c.Slice): CursedSubjects {
         return {
             $: 'CursedSubjects',
-            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
+            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
             (s) => [],
             (v,b) => { {} }
         ));
@@ -2814,7 +2851,7 @@ export interface Storage {
     cursedSubjects: CursedSubjects
     chainSelector: uint64
     permissionlessExecutionThresholdSeconds: uint32
-    sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
+    sourceChainConfigs: Map<uint64, SourceChainConfig>
     latestPriceSequenceNumber: uint64
 }
 
@@ -2828,7 +2865,7 @@ export const Storage = {
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
+        sourceChainConfigs: Map<uint64, SourceChainConfig>
         latestPriceSequenceNumber: uint64
     }): Storage {
         return {
@@ -2847,7 +2884,7 @@ export const Storage = {
             cursedSubjects: CursedSubjects.fromSlice(s),
             chainSelector: s.loadUintBig(64),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
-            sourceChainConfigs: c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s),
+            sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
             latestPriceSequenceNumber: s.loadUintBig(64),
         }
     },
@@ -2860,7 +2897,7 @@ export const Storage = {
         CursedSubjects.store(self.cursedSubjects, b);
         b.storeUint(self.chainSelector, 64);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
-        b.storeDict<uint64, SourceChainConfig>(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
     },
     toCell(self: Storage): c.Cell {
@@ -3422,7 +3459,7 @@ export class OffRamp implements c.Contract {
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
+        sourceChainConfigs: Map<uint64, SourceChainConfig>
         latestPriceSequenceNumber: uint64
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -3851,9 +3888,9 @@ export class OffRamp implements c.Contract {
         });
     }
 
-    async getAllSourceChainConfigs(provider: ContractProvider): Promise<c.Dictionary<uint64, SourceChainConfig>> {
+    async getAllSourceChainConfigs(provider: ContractProvider): Promise<Map<uint64, SourceChainConfig>> {
         const r = StackReader.fromGetMethod(1, await provider.get('allSourceChainConfigs', []));
-        return r.readDictionary<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        return dictToMap(r.readDictionary<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)));
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {

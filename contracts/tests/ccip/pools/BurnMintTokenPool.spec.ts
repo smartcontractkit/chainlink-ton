@@ -105,18 +105,18 @@ describe('BurnMintTokenPool', () => {
             advancedPoolHooks: null,
           }),
           mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-            offRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+            onRamps: new Map(),
+            offRamps: new Map(),
             cursedSubjects: CursedSubjects.create({
-              data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
+              data: new Set(),
             }),
           }),
           tokenDecimals: 9n,
-          remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-          tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+          remoteChainConfigs: new Map(),
+          tokenTransferFeeConfigs: new Map(),
         }),
-        pendingMints: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-        pendingBurns: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+        pendingMints: new Map(),
+        pendingBurns: new Map(),
       }),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))

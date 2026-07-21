@@ -8,6 +8,7 @@ import { parseToml } from './abigen/toml'
 import {
   sortErrorsBlocks,
   transformCellRef,
+  transformDictionaryMaps,
   transformQueryId,
   transformSnakedCell,
 } from './abigen/transforms'
@@ -85,6 +86,7 @@ function main(): void {
     transformSnakedCell(sourceFile)
     transformCellRef(sourceFile)
     transformQueryId(sourceFile)
+    transformDictionaryMaps(sourceFile)
 
     const transformed = sourceFile.getFullText()
     project.removeSourceFile(sourceFile)

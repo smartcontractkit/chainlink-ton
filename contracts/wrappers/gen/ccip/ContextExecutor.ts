@@ -47,6 +47,23 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     if (v === null) {
         b.storeUint(0, 1);
@@ -185,17 +202,20 @@ type varuint32 = bigint
 /**
  > type ExtraCurrenciesMap = map<int32, varuint32>
  */
-export type ExtraCurrenciesMap = c.Dictionary<int32, varuint32>
+export type ExtraCurrenciesMap = Map<int32, varuint32>
 
 export const ExtraCurrenciesMap = {
     fromSlice(s: c.Slice): ExtraCurrenciesMap {
-        return c.Dictionary.load<int32, varuint32>(c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
-            (s) => s.loadVarUintBig(5),
-            (v,b) => b.storeVarUint(v, 5)
-        ), s);
+        return dictToMap(c.Dictionary.load<int32, varuint32>(c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
+                    (s) => s.loadVarUintBig(5),
+                    (v,b) => b.storeVarUint(v, 5)
+                ), s));
     },
     store(self: ExtraCurrenciesMap, b: c.Builder): void {
-        b.storeDict<int32, varuint32>(self, c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
+        b.storeDict<int32, varuint32>(mapToDict(self, c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
+                        (s) => s.loadVarUintBig(5),
+                        (v,b) => b.storeVarUint(v, 5)
+                    )), c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
             (s) => s.loadVarUintBig(5),
             (v,b) => b.storeVarUint(v, 5)
         ));

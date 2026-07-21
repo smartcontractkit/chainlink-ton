@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, Dictionary, DictionaryValue, Sender, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import {
   CrossChainAddress,
   CursedSubjects,
@@ -23,7 +23,6 @@ import {
   TokenPool_Transfer,
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { Values, loadMap } from '../../../src/utils/dict'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 export type TokenPoolBehaviorContext = {
@@ -126,11 +125,7 @@ export function runTokenPoolBehaviorTests(
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
         cursedSubjects: CursedSubjects.create({
-          data: loadMap(
-            Dictionary.Keys.BigInt(128),
-            Values.EmptyTensor(),
-            new Map([[ctx.remoteChainSelector, []]]),
-          ),
+          data: new Set([ctx.remoteChainSelector]),
         }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
@@ -222,11 +217,7 @@ export function runTokenPoolBehaviorTests(
         {
           queryId: 904n,
           cursedSubjects: CursedSubjects.create({
-            data: loadMap(
-              Dictionary.Keys.BigInt(128),
-              Values.EmptyTensor(),
-              new Map([[ctx.remoteChainSelector, []]]),
-            ),
+            data: new Set([ctx.remoteChainSelector]),
           }),
         },
       )
@@ -243,11 +234,7 @@ export function runTokenPoolBehaviorTests(
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
         cursedSubjects: CursedSubjects.create({
-          data: loadMap(
-            Dictionary.Keys.BigInt(128),
-            Values.EmptyTensor(),
-            new Map([[ctx.remoteChainSelector, []]]),
-          ),
+          data: new Set([ctx.remoteChainSelector]),
         }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
@@ -255,7 +242,7 @@ export function runTokenPoolBehaviorTests(
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 902n,
         cursedSubjects: CursedSubjects.create({
-          data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
+          data: new Set(),
         }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
