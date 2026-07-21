@@ -29,7 +29,8 @@
     "typecheck": "tsc --noEmit",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
     "wgram-gas-report": "blueprint test --gas-report -- --config wgram-gas-report.config.ts",
-    "get-key-pair": "ts-node scripts/getKeyPair.ts"
+    "get-key-pair": "ts-node scripts/getKeyPair.ts",
+    "check-serialization-bounds": "ts-node scripts/checkSerializationBounds.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",

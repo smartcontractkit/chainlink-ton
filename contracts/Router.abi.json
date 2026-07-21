@@ -1,0 +1,2305 @@
+{
+  "abi_schema_version": "1.0",
+  "contract_name": "Router",
+  "author": "SmartContract Chainlink Limited SEZC",
+  "version": "1.6.1",
+  "description": "link.chain.ton.ccip.Router",
+  "unique_types": [
+    {
+      "kind": "void"
+    },
+    {
+      "kind": "int"
+    },
+    {
+      "kind": "slice"
+    },
+    {
+      "kind": "cell"
+    },
+    {
+      "kind": "builder"
+    },
+    {
+      "kind": "bool"
+    },
+    {
+      "kind": "coins"
+    },
+    {
+      "kind": "address"
+    },
+    {
+      "kind": "intN",
+      "n": 32
+    },
+    {
+      "kind": "uintN",
+      "n": 32
+    },
+    {
+      "kind": "intN",
+      "n": 64
+    },
+    {
+      "kind": "uintN",
+      "n": 64
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_CCIPSend"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "CrossChainAddress"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "TokenAmount"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "SnakedCell",
+      "type_args_ty_idx": [
+        14
+      ]
+    },
+    {
+      "kind": "genericT",
+      "name_t": "T"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "SnakedCell",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "addressOpt"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "GenericExtraArgsV2"
+    },
+    {
+      "kind": "uintN",
+      "n": 256
+    },
+    {
+      "kind": "nullable",
+      "inner_ty_idx": 20
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "SVMExtraArgsV1"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "SnakedCell",
+      "type_args_ty_idx": [
+        20
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "SuiExtraArgsV1"
+    },
+    {
+      "kind": "union",
+      "variants": [
+        {
+          "variant_ty_idx": 19,
+          "prefix_num": 404606736,
+          "prefix_len": 32,
+          "is_prefix_implicit": null,
+          "stack_type_id": 137,
+          "stack_width": 2
+        },
+        {
+          "variant_ty_idx": 22,
+          "prefix_num": 523975354,
+          "prefix_len": 32,
+          "is_prefix_implicit": null,
+          "stack_type_id": 138,
+          "stack_width": 5
+        },
+        {
+          "variant_ty_idx": 24,
+          "prefix_num": 569003177,
+          "prefix_len": 32,
+          "is_prefix_implicit": null,
+          "stack_type_id": 139,
+          "stack_width": 4
+        }
+      ],
+      "stack_width": 6
+    },
+    {
+      "kind": "cellOf",
+      "inner_ty_idx": 25
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_ApplyRampUpdates"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamps"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "SnakedCell",
+      "type_args_ty_idx": [
+        11
+      ]
+    },
+    {
+      "kind": "nullable",
+      "inner_ty_idx": 28,
+      "stack_type_id": 135,
+      "stack_width": 3
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OffRamps"
+    },
+    {
+      "kind": "nullable",
+      "inner_ty_idx": 31,
+      "stack_type_id": 136,
+      "stack_width": 3
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "Router_GetValidatedFee_RemainingBitsAndRefs"
+    },
+    {
+      "kind": "remaining"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_GetValidatedFee",
+      "type_args_ty_idx": [
+        34
+      ]
+    },
+    {
+      "kind": "cellOf",
+      "inner_ty_idx": 12
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_GetValidatedFee",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "OnRamp_MessageValidated_GetValidatedFeeContext"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_GetValidatedFeeContext"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "RemainingBitsOrRef",
+      "type_args_ty_idx": [
+        34
+      ]
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "RemainingBitsOrRef",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_MessageValidated",
+      "type_args_ty_idx": [
+        39
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_MessageValidated",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "OnRamp_MessageValidationFailed_GetValidatedFeeContext"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_MessageValidationFailed",
+      "type_args_ty_idx": [
+        39
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_MessageValidationFailed",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_RouteMessage"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Any2TVMMessage"
+    },
+    {
+      "kind": "nullable",
+      "inner_ty_idx": 3
+    },
+    {
+      "kind": "cellOf",
+      "inner_ty_idx": 48
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "ReceiveExecutorId"
+    },
+    {
+      "kind": "uintN",
+      "n": 192
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_CCIPReceiveConfirm"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Upgradeable_Upgrade"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Withdrawable_Withdraw"
+    },
+    {
+      "kind": "nullable",
+      "inner_ty_idx": 6
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_RMNRemoteCurse"
+    },
+    {
+      "kind": "uintN",
+      "n": 128
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "SnakedCell",
+      "type_args_ty_idx": [
+        58
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_RMNRemoteUncurse"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_RMNRemoteVerifyNotCursed"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_MessageSent"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_MessageRejected"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_LockOrBurn"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_RMNOwnableMessage"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_TokenRegistrySetTokenInfo"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "TokenRegistry_TokenInfo"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "TransferNotificationForRecipient"
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "ForwardPayloadRemainder"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Storage"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Ownable2Step"
+    },
+    {
+      "kind": "mapKV",
+      "key_ty_idx": 11,
+      "value_ty_idx": 7
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "RMNRemote"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "CursedSubjects"
+    },
+    {
+      "kind": "tensor",
+      "items_ty_idx": []
+    },
+    {
+      "kind": "mapKV",
+      "key_ty_idx": 58,
+      "value_ty_idx": 75
+    },
+    {
+      "kind": "mapKV",
+      "key_ty_idx": 7,
+      "value_ty_idx": 75
+    },
+    {
+      "kind": "cellOf",
+      "inner_ty_idx": 73
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_TokenRegistryDeployment"
+    },
+    {
+      "kind": "cellOf",
+      "inner_ty_idx": 79
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "Router_MessageValidationFailed_RemainingBitsAndRefs"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_MessageValidationFailed",
+      "type_args_ty_idx": [
+        34
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_MessageValidationFailed",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "AliasRef",
+      "alias_name": "Router_MessageValidated_RemainingBitsAndRefs"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_MessageValidated",
+      "type_args_ty_idx": [
+        34
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_MessageValidated",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Ownable2Step_OwnershipTransferRequested"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Ownable2Step_OwnershipTransferred"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_RMNRemoteVerifyNotCursedResponse"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Deployable_Initialize"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "ContractState"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "TokenRegistry_SetTokenInfo"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Receiver_CCIPReceive"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OffRamp_CCIPReceiveConfirm"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OffRamp_CCIPReceiveBounced"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_GetValidatedFee",
+      "type_args_ty_idx": [
+        39
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_GetValidatedFee",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRamp_Send"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Metadata"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OffRamp_UpdateCursedSubjects"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_CCIPSendACK"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Router_CCIPSendNACK"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "MockTokenPool_LockOrBurn"
+    },
+    {
+      "kind": "lispListOf",
+      "inner_ty_idx": 58
+    },
+    {
+      "kind": "tensor",
+      "items_ty_idx": [
+        2,
+        2
+      ]
+    },
+    {
+      "kind": "uintN",
+      "n": 16
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Ramp"
+    },
+    {
+      "kind": "cellOf",
+      "inner_ty_idx": 107
+    },
+    {
+      "kind": "lispListOf",
+      "inner_ty_idx": 108
+    },
+    {
+      "kind": "lispListOf",
+      "inner_ty_idx": 11
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Upgradeable_UpgradedEvent"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "UnsafeBodyNoRef",
+      "type_args_ty_idx": [
+        2
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "UnsafeBodyNoRef",
+      "type_args_ty_idx": [
+        16
+      ]
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OnRampSet"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OffRampRemoved"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "OffRampAdded"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Cursed"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "Uncursed"
+    },
+    {
+      "kind": "StructRef",
+      "struct_name": "MessageToOffRampBounced"
+    }
+  ],
+  "struct_instantiations": [
+    {
+      "ty_idx": 35,
+      "struct_name": "Router_GetValidatedFee<RemainingBitsAndRefs>",
+      "monomorphic_fields_ty_idx": [
+        36,
+        34
+      ]
+    },
+    {
+      "ty_idx": 42,
+      "struct_name": "OnRamp_MessageValidated<Router_GetValidatedFeeContext>",
+      "monomorphic_fields_ty_idx": [
+        6,
+        36,
+        39
+      ]
+    },
+    {
+      "ty_idx": 45,
+      "struct_name": "OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>",
+      "monomorphic_fields_ty_idx": [
+        20,
+        36,
+        39
+      ]
+    },
+    {
+      "ty_idx": 82,
+      "struct_name": "Router_MessageValidationFailed<RemainingBitsAndRefs>",
+      "monomorphic_fields_ty_idx": [
+        20,
+        36,
+        40
+      ]
+    },
+    {
+      "ty_idx": 85,
+      "struct_name": "Router_MessageValidated<RemainingBitsAndRefs>",
+      "monomorphic_fields_ty_idx": [
+        6,
+        36,
+        40
+      ]
+    },
+    {
+      "ty_idx": 96,
+      "struct_name": "OnRamp_GetValidatedFee<Router_GetValidatedFeeContext>",
+      "monomorphic_fields_ty_idx": [
+        36,
+        39
+      ]
+    },
+    {
+      "ty_idx": 112,
+      "struct_name": "UnsafeBodyNoRef<slice>",
+      "monomorphic_fields_ty_idx": [
+        2
+      ]
+    }
+  ],
+  "alias_instantiations": [
+    {
+      "ty_idx": 15,
+      "alias_name": "SnakedCell<TokenAmount>",
+      "monomorphic_target_ty_idx": 3
+    },
+    {
+      "ty_idx": 23,
+      "alias_name": "SnakedCell<uint256>",
+      "monomorphic_target_ty_idx": 3
+    },
+    {
+      "ty_idx": 29,
+      "alias_name": "SnakedCell<uint64>",
+      "monomorphic_target_ty_idx": 3
+    },
+    {
+      "ty_idx": 40,
+      "alias_name": "RemainingBitsOrRef<RemainingBitsAndRefs>",
+      "monomorphic_target_ty_idx": 34
+    },
+    {
+      "ty_idx": 59,
+      "alias_name": "SnakedCell<uint128>",
+      "monomorphic_target_ty_idx": 3
+    }
+  ],
+  "declarations": [
+    {
+      "kind": "struct",
+      "name": "ContractState",
+      "ty_idx": 91,
+      "fields": [
+        {
+          "name": "code",
+          "ty_idx": 3
+        },
+        {
+          "name": "data",
+          "ty_idx": 3
+        }
+      ],
+      "description": "`ContractState` is \"code + data\" of a contract.\nUsed in outgoing messages (StateInit) to initialize a destination contract."
+    },
+    {
+      "kind": "struct",
+      "name": "UnsafeBodyNoRef",
+      "ty_idx": 113,
+      "type_params": [
+        "T"
+      ],
+      "fields": [
+        {
+          "name": "forceInline",
+          "ty_idx": 16
+        }
+      ],
+      "description": "`UnsafeBodyNoRef` is used to prevent default behavior: when message body is potentially large,\nit's packed into a separate ref. Wrapping body with this struct tells the compiler:\n\"inline message body in-place, I guarantee it will fit\".\n```\nstruct ProbablyLarge { a: (coins, coins, coins, coins, coins) }\n\nval contents: ProbablyLarge = { ... };  // you are sure: values are small\ncreateMessage({\n    // body: contents,           // by default, will be a ref (max 620 bits)\n    body: UnsafeBodyNoRef {\n        forceInline: contents,   // but it forces the compiler to inline it\n    }\n```\nAnother example: your body contains `builder` or `RemainingBitsAndRefs`: unpredictable size.\nIf you guarantee it's small and refs won't clash with code/data, avoid creating a cell."
+    },
+    {
+      "kind": "struct",
+      "name": "Ramp",
+      "ty_idx": 107,
+      "fields": [
+        {
+          "name": "chainSelector",
+          "ty_idx": 11
+        },
+        {
+          "name": "ramp",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "SnakedCell",
+      "ty_idx": 17,
+      "target_ty_idx": 3,
+      "type_params": [
+        "T"
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "RemainingBitsOrRef",
+      "ty_idx": 41,
+      "target_ty_idx": 16,
+      "type_params": [
+        "T"
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Withdrawable_Withdraw",
+      "ty_idx": 55,
+      "prefix": {
+        "prefix_num": 4081318939,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "destination",
+          "ty_idx": 7
+        },
+        {
+          "name": "amount",
+          "ty_idx": 6
+        },
+        {
+          "name": "reserve",
+          "ty_idx": 56
+        },
+        {
+          "name": "drainAllAvailable",
+          "ty_idx": 5
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Ownable2Step",
+      "ty_idx": 71,
+      "fields": [
+        {
+          "name": "owner",
+          "ty_idx": 7
+        },
+        {
+          "name": "pendingOwner",
+          "ty_idx": 18
+        }
+      ],
+      "description": "Ownable2Step trait provides ownership two-step transfer functionality."
+    },
+    {
+      "kind": "struct",
+      "name": "Ownable2Step_OwnershipTransferRequested",
+      "ty_idx": 87,
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "newOwner",
+          "ty_idx": 7
+        }
+      ],
+      "description": "Event emitted by the contract confirming that ownership transfer has been requested."
+    },
+    {
+      "kind": "struct",
+      "name": "Ownable2Step_OwnershipTransferred",
+      "ty_idx": 88,
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "oldOwner",
+          "ty_idx": 7
+        },
+        {
+          "name": "newOwner",
+          "ty_idx": 7
+        }
+      ],
+      "description": "Event emitted by the contract to confirm acceptance of contract ownership."
+    },
+    {
+      "kind": "struct",
+      "name": "Deployable_Initialize",
+      "ty_idx": 90,
+      "prefix": {
+        "prefix_num": 3125175367,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "stateInit",
+          "ty_idx": 91
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Upgradeable_Upgrade",
+      "ty_idx": 54,
+      "prefix": {
+        "prefix_num": 178786797,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "code",
+          "ty_idx": 3
+        }
+      ],
+      "description": "Message for upgrading a contract."
+    },
+    {
+      "kind": "struct",
+      "name": "Upgradeable_UpgradedEvent",
+      "ty_idx": 111,
+      "fields": [
+        {
+          "name": "code",
+          "ty_idx": 3,
+          "description": "The new code of the contract."
+        },
+        {
+          "name": "hash",
+          "ty_idx": 20,
+          "description": "The SHA256 hash of the new code."
+        },
+        {
+          "name": "version",
+          "ty_idx": 112,
+          "description": "The version of the contract after the upgrade."
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "ForwardPayloadRemainder",
+      "ty_idx": 69,
+      "target_ty_idx": 34
+    },
+    {
+      "kind": "struct",
+      "name": "TransferNotificationForRecipient",
+      "ty_idx": 68,
+      "prefix": {
+        "prefix_num": 1935855772,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "jettonAmount",
+          "ty_idx": 6
+        },
+        {
+          "name": "transferInitiator",
+          "ty_idx": 18
+        },
+        {
+          "name": "forwardPayload",
+          "ty_idx": 69
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Any2TVMMessage",
+      "ty_idx": 48,
+      "fields": [
+        {
+          "name": "messageId",
+          "ty_idx": 20
+        },
+        {
+          "name": "sourceChainSelector",
+          "ty_idx": 11
+        },
+        {
+          "name": "sender",
+          "ty_idx": 13
+        },
+        {
+          "name": "data",
+          "ty_idx": 3
+        },
+        {
+          "name": "tokenAmounts",
+          "ty_idx": 49,
+          "description": "Note: currently unused, added for compatibility on upgrades"
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Receiver_CCIPReceive",
+      "ty_idx": 93,
+      "prefix": {
+        "prefix_num": 3004329457,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "execId",
+          "ty_idx": 52
+        },
+        {
+          "name": "message",
+          "ty_idx": 48
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OnRamp_Send",
+      "ty_idx": 98,
+      "prefix": {
+        "prefix_num": 3707343810,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "msg",
+          "ty_idx": 36
+        },
+        {
+          "name": "metadata",
+          "ty_idx": 99
+        },
+        {
+          "name": "tokenRegistry",
+          "ty_idx": 18
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OnRamp_GetValidatedFee",
+      "ty_idx": 97,
+      "type_params": [
+        "T"
+      ],
+      "prefix": {
+        "prefix_num": 2620181630,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "ccipSend",
+          "ty_idx": 36
+        },
+        {
+          "name": "context",
+          "ty_idx": 16
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OnRamp_MessageValidated",
+      "ty_idx": 43,
+      "type_params": [
+        "T"
+      ],
+      "prefix": {
+        "prefix_num": 721097149,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "fee",
+          "ty_idx": 6
+        },
+        {
+          "name": "msg",
+          "ty_idx": 36
+        },
+        {
+          "name": "context",
+          "ty_idx": 16
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OnRamp_MessageValidationFailed",
+      "ty_idx": 46,
+      "type_params": [
+        "T"
+      ],
+      "prefix": {
+        "prefix_num": 2887635246,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "error",
+          "ty_idx": 20
+        },
+        {
+          "name": "msg",
+          "ty_idx": 36
+        },
+        {
+          "name": "context",
+          "ty_idx": 16
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Metadata",
+      "ty_idx": 99,
+      "fields": [
+        {
+          "name": "sender",
+          "ty_idx": 7
+        },
+        {
+          "name": "value",
+          "ty_idx": 6
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OffRamp_CCIPReceiveConfirm",
+      "ty_idx": 94,
+      "prefix": {
+        "prefix_num": 687085167,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "execId",
+          "ty_idx": 51
+        },
+        {
+          "name": "receiver",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OffRamp_CCIPReceiveBounced",
+      "ty_idx": 95,
+      "prefix": {
+        "prefix_num": 768551491,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "execId",
+          "ty_idx": 51
+        },
+        {
+          "name": "receiver",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OffRamp_UpdateCursedSubjects",
+      "ty_idx": 100,
+      "prefix": {
+        "prefix_num": 1285668019,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "cursedSubjects",
+          "ty_idx": 74
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "ReceiveExecutorId",
+      "ty_idx": 51,
+      "target_ty_idx": 52
+    },
+    {
+      "kind": "struct",
+      "name": "CursedSubjects",
+      "ty_idx": 74,
+      "fields": [
+        {
+          "name": "data",
+          "ty_idx": 76
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "TokenRegistry_SetTokenInfo",
+      "ty_idx": 92,
+      "prefix": {
+        "prefix_num": 3527640996,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "info",
+          "ty_idx": 67
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "MockTokenPool_LockOrBurn",
+      "ty_idx": 103,
+      "prefix": {
+        "prefix_num": 2111371586,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "tokenAmount",
+          "ty_idx": 14
+        },
+        {
+          "name": "notify",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OnRamps",
+      "ty_idx": 28,
+      "fields": [
+        {
+          "name": "destChainSelectors",
+          "ty_idx": 29
+        },
+        {
+          "name": "onRamp",
+          "ty_idx": 18
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OffRamps",
+      "ty_idx": 31,
+      "fields": [
+        {
+          "name": "sourceChainSelectors",
+          "ty_idx": 29
+        },
+        {
+          "name": "offRamp",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_TokenRegistryDeployment",
+      "ty_idx": 79,
+      "fields": [
+        {
+          "name": "deployableCode",
+          "ty_idx": 3
+        },
+        {
+          "name": "tokenRegistryCode",
+          "ty_idx": 3
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "Router_GetValidatedFee_RemainingBitsAndRefs",
+      "ty_idx": 33,
+      "target_ty_idx": 35
+    },
+    {
+      "kind": "alias",
+      "name": "OnRamp_MessageValidated_GetValidatedFeeContext",
+      "ty_idx": 38,
+      "target_ty_idx": 42
+    },
+    {
+      "kind": "alias",
+      "name": "OnRamp_MessageValidationFailed_GetValidatedFeeContext",
+      "ty_idx": 44,
+      "target_ty_idx": 45
+    },
+    {
+      "kind": "struct",
+      "name": "Router_ApplyRampUpdates",
+      "ty_idx": 27,
+      "prefix": {
+        "prefix_num": 2109109341,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "onRampUpdates",
+          "ty_idx": 30
+        },
+        {
+          "name": "offRampAdds",
+          "ty_idx": 32
+        },
+        {
+          "name": "offRampRemoves",
+          "ty_idx": 32
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_CCIPSend",
+      "ty_idx": 12,
+      "prefix": {
+        "prefix_num": 829853077,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryID",
+          "ty_idx": 11
+        },
+        {
+          "name": "destChainSelector",
+          "ty_idx": 11
+        },
+        {
+          "name": "receiver",
+          "ty_idx": 13
+        },
+        {
+          "name": "data",
+          "ty_idx": 3
+        },
+        {
+          "name": "tokenAmounts",
+          "ty_idx": 15
+        },
+        {
+          "name": "feeToken",
+          "ty_idx": 18
+        },
+        {
+          "name": "extraArgs",
+          "ty_idx": 3,
+          "client_ty_idx": 26
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_RouteMessage",
+      "ty_idx": 47,
+      "prefix": {
+        "prefix_num": 4234790155,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "message",
+          "ty_idx": 50
+        },
+        {
+          "name": "execId",
+          "ty_idx": 51
+        },
+        {
+          "name": "receiver",
+          "ty_idx": 7
+        },
+        {
+          "name": "gasLimit",
+          "ty_idx": 6
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_CCIPReceiveConfirm",
+      "ty_idx": 53,
+      "prefix": {
+        "prefix_num": 508935158,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "execId",
+          "ty_idx": 51
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_RMNRemoteCurse",
+      "ty_idx": 57,
+      "prefix": {
+        "prefix_num": 4080566342,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "subjects",
+          "ty_idx": 59
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_RMNRemoteUncurse",
+      "ty_idx": 60,
+      "prefix": {
+        "prefix_num": 1058355761,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "subjects",
+          "ty_idx": 59
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_RMNRemoteVerifyNotCursed",
+      "ty_idx": 61,
+      "prefix": {
+        "prefix_num": 194357838,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "subject",
+          "ty_idx": 58
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_RMNRemoteVerifyNotCursedResponse",
+      "ty_idx": 89,
+      "prefix": {
+        "prefix_num": 582648755,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryId",
+          "ty_idx": 11
+        },
+        {
+          "name": "result",
+          "ty_idx": 5
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_MessageSent",
+      "ty_idx": 62,
+      "prefix": {
+        "prefix_num": 1695807713,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryID",
+          "ty_idx": 11
+        },
+        {
+          "name": "messageId",
+          "ty_idx": 20
+        },
+        {
+          "name": "destChainSelector",
+          "ty_idx": 11
+        },
+        {
+          "name": "sender",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_MessageRejected",
+      "ty_idx": 63,
+      "prefix": {
+        "prefix_num": 2330087700,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryID",
+          "ty_idx": 11
+        },
+        {
+          "name": "destChainSelector",
+          "ty_idx": 11
+        },
+        {
+          "name": "sender",
+          "ty_idx": 7
+        },
+        {
+          "name": "error",
+          "ty_idx": 20
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_RMNOwnableMessage",
+      "ty_idx": 65,
+      "prefix": {
+        "prefix_num": 2944047814,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "content",
+          "ty_idx": 34
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_CCIPSendACK",
+      "ty_idx": 101,
+      "prefix": {
+        "prefix_num": 2026959390,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryID",
+          "ty_idx": 11
+        },
+        {
+          "name": "messageId",
+          "ty_idx": 20
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_CCIPSendNACK",
+      "ty_idx": 102,
+      "prefix": {
+        "prefix_num": 1514525748,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "queryID",
+          "ty_idx": 11
+        },
+        {
+          "name": "error",
+          "ty_idx": 20
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_GetValidatedFee",
+      "ty_idx": 37,
+      "type_params": [
+        "T"
+      ],
+      "prefix": {
+        "prefix_num": 1305913986,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "ccipSend",
+          "ty_idx": 36
+        },
+        {
+          "name": "context",
+          "ty_idx": 16
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_LockOrBurn",
+      "ty_idx": 64,
+      "prefix": {
+        "prefix_num": 1865220319,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "tokenPool",
+          "ty_idx": 7
+        },
+        {
+          "name": "tokenAmount",
+          "ty_idx": 14
+        },
+        {
+          "name": "destChainSelector",
+          "ty_idx": 11
+        },
+        {
+          "name": "executorAddress",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_TokenRegistrySetTokenInfo",
+      "ty_idx": 66,
+      "prefix": {
+        "prefix_num": 4275556282,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "tokenAddress",
+          "ty_idx": 7
+        },
+        {
+          "name": "tokenInfo",
+          "ty_idx": 67
+        },
+        {
+          "name": "isNewEntry",
+          "ty_idx": 5
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Router_GetValidatedFeeContext",
+      "ty_idx": 39,
+      "fields": [
+        {
+          "name": "routerContext",
+          "ty_idx": 7
+        },
+        {
+          "name": "userContext",
+          "ty_idx": 40
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "Router_MessageValidated_RemainingBitsAndRefs",
+      "ty_idx": 84,
+      "target_ty_idx": 85,
+      "description": "Alias for ABIgen to generate codec"
+    },
+    {
+      "kind": "struct",
+      "name": "Router_MessageValidated",
+      "ty_idx": 86,
+      "type_params": [
+        "T"
+      ],
+      "prefix": {
+        "prefix_num": 2652984812,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "fee",
+          "ty_idx": 6
+        },
+        {
+          "name": "msg",
+          "ty_idx": 36
+        },
+        {
+          "name": "context",
+          "ty_idx": 41
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "Router_MessageValidationFailed_RemainingBitsAndRefs",
+      "ty_idx": 81,
+      "target_ty_idx": 82,
+      "description": "Alias for ABIgen to generate codec"
+    },
+    {
+      "kind": "struct",
+      "name": "Router_MessageValidationFailed",
+      "ty_idx": 83,
+      "type_params": [
+        "T"
+      ],
+      "prefix": {
+        "prefix_num": 3961767266,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "error",
+          "ty_idx": 20
+        },
+        {
+          "name": "msg",
+          "ty_idx": 36
+        },
+        {
+          "name": "context",
+          "ty_idx": 41
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "RMNRemote",
+      "ty_idx": 73,
+      "fields": [
+        {
+          "name": "admin",
+          "ty_idx": 71
+        },
+        {
+          "name": "cursedSubjects",
+          "ty_idx": 74
+        },
+        {
+          "name": "forwardUpdates",
+          "ty_idx": 77
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Storage",
+      "ty_idx": 70,
+      "fields": [
+        {
+          "name": "id",
+          "ty_idx": 9
+        },
+        {
+          "name": "ownable",
+          "ty_idx": 71
+        },
+        {
+          "name": "wrappedNative",
+          "ty_idx": 7
+        },
+        {
+          "name": "onRamps",
+          "ty_idx": 72
+        },
+        {
+          "name": "offRamps",
+          "ty_idx": 72
+        },
+        {
+          "name": "rmnRemote",
+          "ty_idx": 78
+        },
+        {
+          "name": "tokenRegistryDeployment",
+          "ty_idx": 80
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OnRampSet",
+      "ty_idx": 114,
+      "fields": [
+        {
+          "name": "destChainSelectors",
+          "ty_idx": 29
+        },
+        {
+          "name": "onRamp",
+          "ty_idx": 18
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OffRampAdded",
+      "ty_idx": 116,
+      "fields": [
+        {
+          "name": "sourceChainSelectors",
+          "ty_idx": 29
+        },
+        {
+          "name": "offRampAdded",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "OffRampRemoved",
+      "ty_idx": 115,
+      "fields": [
+        {
+          "name": "sourceChainSelectors",
+          "ty_idx": 29
+        },
+        {
+          "name": "offRampRemoved",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Cursed",
+      "ty_idx": 117,
+      "fields": [
+        {
+          "name": "subject",
+          "ty_idx": 58
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Uncursed",
+      "ty_idx": 118,
+      "fields": [
+        {
+          "name": "subject",
+          "ty_idx": 58
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "MessageToOffRampBounced",
+      "ty_idx": 119,
+      "fields": [
+        {
+          "name": "offRamp",
+          "ty_idx": 7
+        },
+        {
+          "name": "execId",
+          "ty_idx": 52
+        }
+      ]
+    },
+    {
+      "kind": "alias",
+      "name": "CrossChainAddress",
+      "ty_idx": 13,
+      "target_ty_idx": 2,
+      "custom_pack_unpack": {
+        "pack_to_builder": true,
+        "unpack_from_slice": true
+      },
+      "description": "1-byte length prefixed byte slice (up to 64 bytes)\n1-byte length prefixed byte slice (up to 64 bytes)\nAlmost all uses need to Cell<> box this type because it can be sized up to 8+512 bits\nabi.serialization = (8, 512, 0, 0)"
+    },
+    {
+      "kind": "struct",
+      "name": "GenericExtraArgsV2",
+      "ty_idx": 19,
+      "prefix": {
+        "prefix_num": 404606736,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "gasLimit",
+          "ty_idx": 21
+        },
+        {
+          "name": "allowOutOfOrderExecution",
+          "ty_idx": 5
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "SVMExtraArgsV1",
+      "ty_idx": 22,
+      "prefix": {
+        "prefix_num": 523975354,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "computeUnits",
+          "ty_idx": 9
+        },
+        {
+          "name": "accountIsWritableBitmap",
+          "ty_idx": 11
+        },
+        {
+          "name": "allowOutOfOrderExecution",
+          "ty_idx": 5
+        },
+        {
+          "name": "tokenReceiver",
+          "ty_idx": 20
+        },
+        {
+          "name": "accounts",
+          "ty_idx": 23
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "SuiExtraArgsV1",
+      "ty_idx": 24,
+      "prefix": {
+        "prefix_num": 569003177,
+        "prefix_len": 32
+      },
+      "fields": [
+        {
+          "name": "gasLimit",
+          "ty_idx": 20
+        },
+        {
+          "name": "allowOutOfOrderExecution",
+          "ty_idx": 5
+        },
+        {
+          "name": "tokenReceiver",
+          "ty_idx": 20
+        },
+        {
+          "name": "receiverObjectIds",
+          "ty_idx": 23
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "TokenAmount",
+      "ty_idx": 14,
+      "fields": [
+        {
+          "name": "amount",
+          "ty_idx": 6
+        },
+        {
+          "name": "token",
+          "ty_idx": 7
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "TokenRegistry_TokenInfo",
+      "ty_idx": 67,
+      "fields": [
+        {
+          "name": "tokenPool",
+          "ty_idx": 7
+        },
+        {
+          "name": "minterAddress",
+          "ty_idx": 7
+        },
+        {
+          "name": "enabled",
+          "ty_idx": 5
+        }
+      ]
+    }
+  ],
+  "incoming_messages": [
+    {
+      "body_ty_idx": 12
+    },
+    {
+      "body_ty_idx": 27
+    },
+    {
+      "body_ty_idx": 33
+    },
+    {
+      "body_ty_idx": 38
+    },
+    {
+      "body_ty_idx": 44
+    },
+    {
+      "body_ty_idx": 47
+    },
+    {
+      "body_ty_idx": 53
+    },
+    {
+      "body_ty_idx": 54
+    },
+    {
+      "body_ty_idx": 55
+    },
+    {
+      "body_ty_idx": 57
+    },
+    {
+      "body_ty_idx": 60
+    },
+    {
+      "body_ty_idx": 61
+    },
+    {
+      "body_ty_idx": 62
+    },
+    {
+      "body_ty_idx": 63
+    },
+    {
+      "body_ty_idx": 64
+    },
+    {
+      "body_ty_idx": 65
+    },
+    {
+      "body_ty_idx": 66
+    },
+    {
+      "body_ty_idx": 68
+    }
+  ],
+  "incoming_external": [],
+  "outgoing_messages": [
+    {
+      "body_ty_idx": 3
+    },
+    {
+      "body_ty_idx": 89
+    },
+    {
+      "body_ty_idx": 90
+    },
+    {
+      "body_ty_idx": 92
+    },
+    {
+      "body_ty_idx": 93
+    },
+    {
+      "body_ty_idx": 94
+    },
+    {
+      "body_ty_idx": 95
+    },
+    {
+      "body_ty_idx": 96
+    },
+    {
+      "body_ty_idx": 85
+    },
+    {
+      "body_ty_idx": 82
+    },
+    {
+      "body_ty_idx": 98
+    },
+    {
+      "body_ty_idx": 100
+    },
+    {
+      "body_ty_idx": 101
+    },
+    {
+      "body_ty_idx": 102
+    },
+    {
+      "body_ty_idx": 103
+    }
+  ],
+  "emitted_events": [
+    {
+      "body_ty_idx": 87
+    },
+    {
+      "body_ty_idx": 88
+    },
+    {
+      "body_ty_idx": 111
+    },
+    {
+      "body_ty_idx": 114
+    },
+    {
+      "body_ty_idx": 115
+    },
+    {
+      "body_ty_idx": 116
+    },
+    {
+      "body_ty_idx": 117
+    },
+    {
+      "body_ty_idx": 118
+    },
+    {
+      "body_ty_idx": 119
+    }
+  ],
+  "storage": {
+    "storage_ty_idx": 70
+  },
+  "get_methods": [
+    {
+      "tvm_method_id": 125825,
+      "name": "verifyNotCursed",
+      "parameters": [
+        {
+          "name": "subject",
+          "ty_idx": 58
+        }
+      ],
+      "return_ty_idx": 5
+    },
+    {
+      "tvm_method_id": 93878,
+      "name": "cursedSubjects",
+      "parameters": [],
+      "return_ty_idx": 104
+    },
+    {
+      "tvm_method_id": 83229,
+      "name": "owner",
+      "parameters": [],
+      "return_ty_idx": 7,
+      "description": "Gets the current owner of the contract."
+    },
+    {
+      "tvm_method_id": 97003,
+      "name": "pendingOwner",
+      "parameters": [],
+      "return_ty_idx": 18,
+      "description": "Gets the pending owner of the contract, if any."
+    },
+    {
+      "tvm_method_id": 116600,
+      "name": "rmn_owner",
+      "parameters": [],
+      "return_ty_idx": 7,
+      "description": "Gets the current owner of the contract."
+    },
+    {
+      "tvm_method_id": 110056,
+      "name": "rmn_pendingOwner",
+      "parameters": [],
+      "return_ty_idx": 18,
+      "description": "Gets the pending owner of the contract, if any."
+    },
+    {
+      "tvm_method_id": 69983,
+      "name": "typeAndVersion",
+      "parameters": [],
+      "return_ty_idx": 105
+    },
+    {
+      "tvm_method_id": 83589,
+      "name": "facilityId",
+      "parameters": [],
+      "return_ty_idx": 106
+    },
+    {
+      "tvm_method_id": 77352,
+      "name": "errorCode",
+      "parameters": [
+        {
+          "name": "local",
+          "ty_idx": 106
+        }
+      ],
+      "return_ty_idx": 106
+    },
+    {
+      "tvm_method_id": 97158,
+      "name": "onRamp",
+      "parameters": [
+        {
+          "name": "destChainSelector",
+          "ty_idx": 11
+        }
+      ],
+      "return_ty_idx": 7
+    },
+    {
+      "tvm_method_id": 67770,
+      "name": "offRamp",
+      "parameters": [
+        {
+          "name": "sourceChainSelector",
+          "ty_idx": 11
+        }
+      ],
+      "return_ty_idx": 7
+    },
+    {
+      "tvm_method_id": 67336,
+      "name": "onRamps",
+      "parameters": [],
+      "return_ty_idx": 109,
+      "description": "TODO returns lisp_list<OnRamp>"
+    },
+    {
+      "tvm_method_id": 95740,
+      "name": "offRamps",
+      "parameters": [],
+      "return_ty_idx": 109,
+      "description": "TODO returns lisp_list<OffRamp>"
+    },
+    {
+      "tvm_method_id": 128807,
+      "name": "destChainSelectors",
+      "parameters": [],
+      "return_ty_idx": 110
+    },
+    {
+      "tvm_method_id": 116428,
+      "name": "reserve",
+      "parameters": [],
+      "return_ty_idx": 6
+    }
+  ],
+  "thrown_errors": [
+    {
+      "kind": "plain_int",
+      "err_code": 4
+    },
+    {
+      "kind": "enum_member",
+      "name": "Common_Error.CrossChainAddressOutOfRange",
+      "err_code": 5
+    },
+    {
+      "kind": "enum_member",
+      "name": "Utils_Error.InvalidData",
+      "err_code": 13500
+    },
+    {
+      "kind": "enum_member",
+      "name": "Upgradeable_Error.VersionMismatch",
+      "err_code": 19900
+    },
+    {
+      "kind": "enum_member",
+      "name": "Ownable2Step_Error.OnlyCallableByOwner",
+      "err_code": 49800
+    },
+    {
+      "kind": "enum_member",
+      "name": "Ownable2Step_Error.CannotTransferToSelf",
+      "err_code": 49801
+    },
+    {
+      "kind": "enum_member",
+      "name": "Ownable2Step_Error.MustBeProposedOwner",
+      "err_code": 49802
+    },
+    {
+      "kind": "enum_member",
+      "name": "Withdrawable_Error.InsufficientBalance",
+      "err_code": 57100
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.DestChainNotEnabled",
+      "err_code": 57100
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.SourceChainNotEnabled",
+      "err_code": 57101
+    },
+    {
+      "kind": "enum_member",
+      "name": "Withdrawable_Error.HitReserve",
+      "err_code": 57101
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.SenderIsNotOffRamp",
+      "err_code": 57102
+    },
+    {
+      "kind": "enum_member",
+      "name": "Withdrawable_Error.InvalidRequest",
+      "err_code": 57102
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.OffRampNotSetForSelector",
+      "err_code": 57103
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.OffRampAddressMismatch",
+      "err_code": 57104
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.SubjectCursed",
+      "err_code": 57105
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.NotOnRamp",
+      "err_code": 57106
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.MissingTokenAmounts",
+      "err_code": 57107
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.NoMultiTokenTransfers",
+      "err_code": 57108
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.InsufficientFee",
+      "err_code": 57109
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.TokenTransferNotThroughNotification",
+      "err_code": 57110
+    },
+    {
+      "kind": "enum_member",
+      "name": "Router_Error.TokenAmountMismatch",
+      "err_code": 57112
+    },
+    {
+      "kind": "plain_int",
+      "err_code": 65535
+    }
+  ],
+  "compiler_name": "tolk",
+  "compiler_version": "1.4.1"
+}
