@@ -14,7 +14,7 @@
 // ground truth for custom-serialized types.
 //
 // Usage:
-//   yarn ts-node scripts/checkSerializationBounds.ts [--verbose] [abi.json ...]
+//   yarn ts-node scripts/overflowCheck.ts [--verbose] [abi.json ...]
 // With no arguments, the ABI for every contract in Acton.toml is (re)generated via
 // `nix develop .#contracts -c acton compile --abi ...` and all of them are analyzed
 // together as a single report. Pass explicit ABI JSON paths to skip generation.

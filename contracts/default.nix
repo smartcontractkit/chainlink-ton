@@ -68,6 +68,42 @@
       '';
     };
 
+    overflow-check = pkgs.writeShellApplication {
+      name = "overflow-check";
+      runtimeInputs = [
+        acton
+        pkgs.nodejs_24
+      ];
+      # The overflow-check script (scripts/overflowCheck.ts) is post-processed with ts-morph,
+      # which must resolve from the actual repo checkout's node_modules (via
+      # `yarn install`), not a copy in the nix store. So, unlike a typical
+      # writeShellApplication, this locates the real on-disk script instead of
+      # embedding a `${./scripts/overflowCheck.ts}` store path.
+      text = ''
+        root="$PWD"
+        if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
+          root="$root/contracts"
+        fi
+        if [ ! -f "$root/scripts/overflowCheck.ts" ]; then
+          echo "error: could not find scripts/overflowCheck.ts under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
+          exit 1
+        fi
+
+        # Resolve any manifest-path argument before changing directories below.
+        args=()
+        for arg in "$@"; do
+          args+=("$(realpath "$arg")")
+        done
+
+        # ts-node resolves tsconfig.json relative to the process cwd, not the
+        # script's own location, so cd there first (repo root has no
+        # tsconfig.json, which would otherwise fall back to ts-node's bundled
+        # default config and fail with TS5109 on this TypeScript version).
+        cd "$root"
+        exec node --require ts-node/register/transpile-only scripts/overflowCheck.ts "''${args[@]}"
+      '';
+    };
+
     # Chainlink contract pkgs
     contracts = pkgs.stdenv.mkDerivation (finalAttrs: {
       inherit (package-info) version;
