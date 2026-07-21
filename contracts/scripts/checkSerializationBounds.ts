@@ -25,7 +25,7 @@ import { execFileSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 
-import { parseToml } from './abigen/toml'
+import { parseToml } from './acton/toml'
 
 type TyKind =
   | 'int'
