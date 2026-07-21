@@ -32,76 +32,64 @@
 
     acton = pkgs.callPackage ./acton.nix {inherit pkgs;};
 
-    abigen = pkgs.writeShellApplication {
+    # Wraps a repo-local ts-node script (under scripts/) as a nix app/devShell command.
+    #
+    # These run via `node --require ts-node/register/transpile-only`, which resolves
+    # `ts-node` itself, and any of the script's own relative imports (e.g.
+    # scripts/acton/toml.ts), against real, yarn-installed node_modules on disk -- not
+    # anything embedded in the nix store. ts-node also looks up tsconfig.json relative
+    # to the process cwd, not the script's location. So, unlike a typical
+    # writeShellApplication, this locates the real on-disk script and cd's there before
+    # running it, instead of embedding a `${./scripts/<name>.ts}` store path.
+    mkTsScriptApp = {
+      name,
+      scriptPath,
+    }:
+      pkgs.writeShellApplication {
+        inherit name;
+        runtimeInputs = [
+          acton
+          pkgs.nodejs_24
+        ];
+        text = ''
+          root="$PWD"
+          if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
+            root="$root/contracts"
+          fi
+          if [ ! -f "$root/${scriptPath}" ]; then
+            echo "error: could not find ${scriptPath} under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
+            exit 1
+          fi
+
+          # Resolve any path arguments (e.g. a manifest or ABI JSON file) before
+          # changing directories below, so they stay correct relative to the caller's
+          # cwd. Leave anything that isn't an existing path (e.g. a --flag) untouched,
+          # so realpath doesn't fail on it and abort the script under set -e.
+          args=()
+          for arg in "$@"; do
+            if [ -e "$arg" ]; then
+              args+=("$(realpath "$arg")")
+            else
+              args+=("$arg")
+            fi
+          done
+
+          # repo root has no tsconfig.json, which would otherwise make ts-node fall
+          # back to its bundled default config and fail with TS5109 on this
+          # TypeScript version -- cd into $root so it finds the real one.
+          cd "$root"
+          exec node --require ts-node/register/transpile-only ${scriptPath} "''${args[@]}"
+        '';
+      };
+
+    abigen = mkTsScriptApp {
       name = "abigen";
-      runtimeInputs = [
-        acton
-        pkgs.nodejs_24
-      ];
-      # The abigen script (scripts/abigen.ts) is post-processed with ts-morph,
-      # which must resolve from the actual repo checkout's node_modules (via
-      # `yarn install`), not a copy in the nix store. So, unlike a typical
-      # writeShellApplication, this locates the real on-disk script instead of
-      # embedding a `${./scripts/abigen.ts}` store path.
-      text = ''
-        root="$PWD"
-        if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
-          root="$root/contracts"
-        fi
-        if [ ! -f "$root/scripts/abigen.ts" ]; then
-          echo "error: could not find scripts/abigen.ts under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
-          exit 1
-        fi
-
-        # Resolve any manifest-path argument before changing directories below.
-        args=()
-        for arg in "$@"; do
-          args+=("$(realpath "$arg")")
-        done
-
-        # ts-node resolves tsconfig.json relative to the process cwd, not the
-        # script's own location, so cd there first (repo root has no
-        # tsconfig.json, which would otherwise fall back to ts-node's bundled
-        # default config and fail with TS5109 on this TypeScript version).
-        cd "$root"
-        exec node --require ts-node/register/transpile-only scripts/abigen.ts "''${args[@]}"
-      '';
+      scriptPath = "scripts/abigen.ts";
     };
 
-    overflow-check = pkgs.writeShellApplication {
+    overflow-check = mkTsScriptApp {
       name = "overflow-check";
-      runtimeInputs = [
-        acton
-        pkgs.nodejs_24
-      ];
-      # The overflow-check script (scripts/overflowCheck.ts) is post-processed with ts-morph,
-      # which must resolve from the actual repo checkout's node_modules (via
-      # `yarn install`), not a copy in the nix store. So, unlike a typical
-      # writeShellApplication, this locates the real on-disk script instead of
-      # embedding a `${./scripts/overflowCheck.ts}` store path.
-      text = ''
-        root="$PWD"
-        if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
-          root="$root/contracts"
-        fi
-        if [ ! -f "$root/scripts/overflowCheck.ts" ]; then
-          echo "error: could not find scripts/overflowCheck.ts under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
-          exit 1
-        fi
-
-        # Resolve any manifest-path argument before changing directories below.
-        args=()
-        for arg in "$@"; do
-          args+=("$(realpath "$arg")")
-        done
-
-        # ts-node resolves tsconfig.json relative to the process cwd, not the
-        # script's own location, so cd there first (repo root has no
-        # tsconfig.json, which would otherwise fall back to ts-node's bundled
-        # default config and fail with TS5109 on this TypeScript version).
-        cd "$root"
-        exec node --require ts-node/register/transpile-only scripts/overflowCheck.ts "''${args[@]}"
-      '';
+      scriptPath = "scripts/overflowCheck.ts";
     };
 
     # Chainlink contract pkgs

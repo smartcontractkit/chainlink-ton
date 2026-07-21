@@ -732,9 +732,11 @@ function mergeReports(
         existing.contexts.push(context)
       } else {
         // Unexpected: same name, different bounds across contracts (e.g. distinct local
-        // types sharing a name). Keep both, disambiguated by contract.
-        merged.set(`${r.typeName} (${contractName})`, {
-          typeName: r.typeName,
+        // types sharing a name). Keep both, disambiguated by contract -- in the printed
+        // name too, not just the map key, otherwise the two lines look identical.
+        const disambiguatedName = `${r.typeName} (${contractName})`
+        merged.set(disambiguatedName, {
+          typeName: disambiguatedName,
           bounds: r.bounds,
           overflowsBits: r.overflowsBits,
           overflowsRefs: r.overflowsRefs,
