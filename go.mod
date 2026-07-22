@@ -147,6 +147,11 @@ require (
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d
 
+// TODO: remove before merge — bump the cciplib pin instead (go get cciplib@<commit>).
+// Local stopgap so the root module builds against the in-repo cciplib changes
+// (destTokenAddress in the CCIPMessageSent ramp message body) before cciplib is committed.
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
+
 tool (
 	github.com/jmank88/gomods
 	github.com/jmank88/modgraph

@@ -57,7 +57,7 @@ func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*tracetra
 	m, _, err := c.Client.SendWaitTransaction(context.TODO(),
 		*c.Address,
 		&wallet.Message{
-			Mode: wallet.PayGasSeparately,
+			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 			InternalMessage: &tlb.InternalMessage{
 				IHRDisabled: true,
 				Bounce:      true,

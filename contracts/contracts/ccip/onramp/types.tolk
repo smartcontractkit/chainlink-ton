@@ -70,9 +70,23 @@ struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
     extraArgs: cell;
-    tokenAmounts: SnakedCell<TokenAmount>;
+    // Source token amounts plus the destination token address, grouped into a single
+    // ref to stay within the 4-ref-per-cell limit.
+    tokenTransfer: Cell<TVM2AnyTokenTransfer>;
     feeToken: address;
     feeTokenAmount: coins;
+}
+
+// The token-transfer portion of a ramp message. `tokenAmounts` is the source-chain
+// amount(s) supplied by the sender; `destTokenAddress` is the destination-chain token
+// address returned by the token pool's lockOrBurn (LockOrBurnOutV1.destTokenAddress),
+// which offchain nodes read to build the release/mint on the destination chain.
+// The current flow supports a single token transfer, so there is one destTokenAddress
+// rather than one per tokenAmounts entry; it is empty when the message carries no
+// token transfer.
+struct TVM2AnyTokenTransfer {
+    tokenAmounts: SnakedCell<TokenAmount>;
+    destTokenAddress: Cell<CrossChainAddress>;
 }
 
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
@@ -85,7 +99,7 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .storeUint(self.header.sequenceNumber, 64)
         .storeUint(self.header.nonce, 64)
         // message
-        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
+        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, destTokenAddress, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
         .endCell()
         .hash()
 }

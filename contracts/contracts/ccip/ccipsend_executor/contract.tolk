@@ -8,6 +8,8 @@ import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../token_registry/messages"
 import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
+import "../common/types"
 
 import "types"
 import "messages"
@@ -107,14 +109,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self) 
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: FeeQuoter_Costs.GetValidatedFee(),
+        value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee<slice> {
             msg: onrampSend.msg,
             context: createEmptySlice(),
         }
     });
-    getValidatedFeeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
@@ -127,7 +129,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     // If token amounts is empty finalize the message
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
-        self.exitSuccessfully(msg.fee);
+        // No token transfer, so there is no destination token address to report.
+        self.exitSuccessfully(msg.fee, emptyCrossChainAddress());
         return;
      }
 
@@ -187,10 +190,18 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    self.exitSuccessfully(self.state.load().fee);
+    // Forward the destination token address the pool returned so the OnRamp can emit it.
+    val out = TokenPool_LockOrBurnOutV1.fromCell(msg.out);
+    self.exitSuccessfully(self.state.load().fee, out.destTokenAddress);
 }
 
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
+// An empty CrossChainAddress boxed cell (0-byte address), used when a send carries
+// no token transfer.
+fun emptyCrossChainAddress(): Cell<CrossChainAddress> {
+    return beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>;
+}
+
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, destTokenAddress: Cell<CrossChainAddress>) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -209,6 +220,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
+            destTokenAddress,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);

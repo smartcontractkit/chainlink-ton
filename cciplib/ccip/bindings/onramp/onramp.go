@@ -159,6 +159,9 @@ type ExecutorFinishedSuccessfully struct {
 	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
+	// Destination token address returned by the pool's lockOrBurn. Empty when the
+	// message carries no token transfer.
+	DestTokenAddress common.CrossChainAddress `tlb:"^"`
 }
 
 type ExecutorFinishedWithError struct {

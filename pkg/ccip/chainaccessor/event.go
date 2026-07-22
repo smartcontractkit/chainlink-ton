@@ -107,6 +107,19 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		return nil, fmt.Errorf("failed to convert fee token address: %w", err)
 	}
 
+	// The current TON flow supports a single token transfer, so a single destination
+	// token address (Body.TokenTransfer.DestTokenAddress) applies to every source
+	// tokenAmounts entry. SourcePoolAddress/ExtraData/DestExecData are not carried in
+	// the event yet, so they are left empty.
+	destTokenAddress := ccipocr3.UnknownAddress(tonEvent.Message.Body.TokenTransfer.DestTokenAddress)
+	var tokenAmounts []ccipocr3.RampTokenAmount
+	for _, ta := range tonEvent.Message.Body.TokenTransfer.TokenAmounts {
+		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
+			DestTokenAddress: destTokenAddress,
+			Amount:           ccipocr3.NewBigInt(ta.Amount.Nano()),
+		})
+	}
+
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
 			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),
@@ -121,8 +134,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
 		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount.Nano()),
-		// TODO(2025-01-09): TON CCIP currently supports message transfer only, not token transfer
-		// TokenAmounts:   tokenAmounts,
+		TokenAmounts:   tokenAmounts,
 	}
 	genericEvent := &ccipocr3.SendRequestedEvent{
 		DestChainSelector: msg.Header.DestChainSelector,

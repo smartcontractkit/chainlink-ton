@@ -89,7 +89,7 @@ type ChainUpdate struct {
 	RemoteChainSelector uint64                                      `tlb:"## 64"`
 	RemotePoolAddresses common.SnakedCell[common.CrossChainAddress] `tlb:"^"`
 	RemoteTokenAddress  *tlbe.Cell[common.CrossChainAddress]        `tlb:"^"`
-	RateLimitConfigs    RateLimitConfigPair                         `tlb:"."`
+	RateLimitConfigs    RateLimitConfigPair                         `tlb:"^"`
 }
 
 // RemoteChainConfig holds the configuration for a remote chain.
@@ -634,23 +634,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
 	PreflightCheck{},
 	PostflightCheck{},
-	// Events
-	LockedOrBurned{},
-	ReleasedOrMinted{},
-	ChainAdded{},
-	ChainRemoved{},
-	RemotePoolAdded{},
-	RemotePoolRemoved{},
-	RateLimitConfigured{},
-	RampAccessUpdated{},
-	OutboundRateLimitConsumed{},
-	InboundRateLimitConsumed{},
-	FastFinalityOutboundRateLimitConsumed{},
-	FastFinalityInboundRateLimitConsumed{},
-	OutboundRateLimitRefunded{},
-	InboundRateLimitRefunded{},
-	TokenTransferFeeConfigUpdated{},
-	TokenTransferFeeConfigDeleted{},
 }).MustWithStorageType(Storage{})
 
 // Opcode constants for events (CRC32 topics)

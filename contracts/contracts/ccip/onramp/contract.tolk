@@ -334,7 +334,10 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             receiver: ccipsend.receiver.toCell(),
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
-            tokenAmounts: ccipsend.tokenAmounts,
+            tokenTransfer: TVM2AnyTokenTransfer {
+                tokenAmounts: ccipsend.tokenAmounts,
+                destTokenAddress: msg.destTokenAddress,
+            }.toCell(),
             feeToken: ccipsend.feeToken!, // guaranteed to be non-null by this point
             feeTokenAmount: msg.fee.feeTokenAmount,
         }.toCell(),
