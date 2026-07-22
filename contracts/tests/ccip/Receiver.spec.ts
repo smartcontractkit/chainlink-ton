@@ -9,11 +9,13 @@ import { contractCode } from '../../wrappers/codeLoader'
 
 import * as r from '../../wrappers/libraries/Receiver'
 import * as tr from '../../wrappers/examples/Receiver'
-import * as rt from '../../wrappers/ccip/Router'
+import * as rtManual from '../../wrappers/ccip/Router'
+import * as rt from '../../wrappers/gen/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+import * as CrossChainAddressCodec from '../../wrappers/ccip/common/CrossChainAddressCodec'
 
 async function deployReceiverContract(
   blockchain: Blockchain,
@@ -39,12 +41,13 @@ async function deployReceiverContract(
 
 const ccipReceiveSampleMessage: r.CCIPReceive = {
   rootId: BigInt(1),
-  message: {
+  message: rt.Any2TVMMessage.create({
     messageId: BigInt(1),
     sourceChainSelector: BigInt(2),
-    sender: Buffer.from('cross chain address'),
+    sender: CrossChainAddressCodec.FromBuffer(Buffer.from('cross chain address')),
     data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
-  },
+    tokenAmounts: null,
+  }),
 }
 
 describe('Receiver - FacilityID', () => {
@@ -67,7 +70,7 @@ describe('Receiver - Current Version Tests', () => {
     contractType: tr.Receiver.type(),
     currentVersion: tr.Receiver.version(),
     getCurrentCode: () => tr.Receiver.code(),
-    CurrentVersionConstructor: tr.Receiver,
+    CurrentVersionConstructor: tr.Receiver.createFromAddress,
     deployCurrentContract: deployReceiverContract,
   })
   currentVersionSpec.run()
@@ -86,7 +89,7 @@ describe('Receiver - Upgrade Tests', () => {
     })),
     currentVersion: Receiver.version(),
     getCurrentCode: () => Receiver.code(),
-    CurrentVersionConstructor: Receiver,
+    CurrentVersionConstructor: Receiver.createFromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run()
@@ -168,7 +171,7 @@ describe('Receiver', () => {
       to: deployer.address,
       success: true,
       deploy: false,
-      body: rt.builder.message.in.ccipReceiveConfirm
+      body: rtManual.builder.message.in.ccipReceiveConfirm
         .encode({ execID: ccipReceiveSampleMessage.rootId })
         .endCell(),
     })

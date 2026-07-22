@@ -721,13 +721,13 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     })
   }
 
-  sendUpgrade(
+  sendUpgradeableUpgrade(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
     body: upgradeable.Upgrade,
   ): Promise<void> {
-    return upgradeable.sendUpgrade(provider, via, value, body)
+    return upgradeable.sendUpgradeableUpgrade(provider, via, value, body)
   }
 
   getStaticConfig(provider: ContractProvider): Promise<bigint> {
@@ -766,7 +766,7 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     return stack.readBigNumber()
   }
 
-  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 
@@ -990,22 +990,22 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     return this.ownable.getPendingOwner(provider)
   }
 
-  async sendTransferOwnership(
+  async sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint,
     body: ownable2step.TransferOwnership,
   ) {
-    return this.ownable.sendTransferOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepTransferOwnership(p, via, value, body)
   }
 
-  async sendAcceptOwnership(
+  async sendOwnable2StepAcceptOwnership(
     p: ContractProvider,
     via: Sender,
     value: bigint,
     body: ownable2step.AcceptOwnership,
   ) {
-    return this.ownable.sendAcceptOwnership(p, via, value, body)
+    return this.ownable.sendOwnable2StepAcceptOwnership(p, via, value, body)
   }
 
   // Send CCIP Send

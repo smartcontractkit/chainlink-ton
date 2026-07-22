@@ -17,9 +17,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -42,16 +39,33 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
@@ -355,12 +369,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -395,13 +410,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -425,7 +441,49 @@ export const Ownable2Step_OwnershipTransferred = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > type RemainingBitsOrRef<T> = T
@@ -448,12 +506,13 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
@@ -747,7 +806,7 @@ export const SVMExtraArgsV1 = {
             accountIsWritableBitmap: s.loadUintBig(64),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            accounts: s.loadRef(),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SVMExtraArgsV1, b: c.Builder): void {
@@ -756,7 +815,7 @@ export const SVMExtraArgsV1 = {
         b.storeUint(self.accountIsWritableBitmap, 64);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.accounts);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SVMExtraArgsV1): c.Cell {
         return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
@@ -800,7 +859,7 @@ export const SuiExtraArgsV1 = {
             gasLimit: s.loadUintBig(256),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            receiverObjectIds: s.loadRef(),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SuiExtraArgsV1, b: c.Builder): void {
@@ -808,7 +867,7 @@ export const SuiExtraArgsV1 = {
         b.storeUint(self.gasLimit, 256);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.receiverObjectIds);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SuiExtraArgsV1): c.Cell {
         return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
@@ -889,24 +948,25 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
 export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
@@ -917,7 +977,7 @@ export const Router_CCIPSend = {
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadRef(),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
             extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
                 (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
@@ -933,7 +993,7 @@ export const Router_CCIPSend = {
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
         b.storeRef(self.data);
-        b.storeRef(self.tokenAmounts);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
             (v,b) => { switch (v.$) {
@@ -974,14 +1034,15 @@ export const Router_MessageSent = {
     PREFIX: 0x6513f8e1,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
     }): Router_MessageSent {
         return {
             $: 'Router_MessageSent',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageSent {
@@ -1026,14 +1087,15 @@ export const Router_MessageRejected = {
     PREFIX: 0x8ae25114,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         sender: c.Address
         error: uint256
     }): Router_MessageRejected {
         return {
             $: 'Router_MessageRejected',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageRejected {
@@ -1118,7 +1180,7 @@ export const Router_LockOrBurn = {
  */
 export interface FeeQuoter_GetValidatedFee<T> {
     readonly $: 'FeeQuoter_GetValidatedFee'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -1126,7 +1188,7 @@ export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
     create<T>(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_GetValidatedFee<T> {
         return {
@@ -1146,7 +1208,7 @@ export const FeeQuoter_GetValidatedFee = {
 export interface FeeQuoter_MessageValidated<T> {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -1155,7 +1217,7 @@ export const FeeQuoter_MessageValidated = {
 
     create<T>(args: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidated<T> {
         return {
@@ -1175,7 +1237,7 @@ export const FeeQuoter_MessageValidated = {
 export interface FeeQuoter_MessageValidationFailed<T> {
     readonly $: 'FeeQuoter_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -1184,7 +1246,7 @@ export const FeeQuoter_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidationFailed<T> {
         return {
@@ -1387,7 +1449,7 @@ export interface OnRamp_DestChainConfig {
     router: c.Address
     sequenceNumber: uint64
     allowlistEnabled: boolean
-    allowedSenders: c.Dictionary<c.Address, boolean>
+    allowedSenders: Map<c.Address, boolean>
 }
 
 export const OnRamp_DestChainConfig = {
@@ -1395,7 +1457,7 @@ export const OnRamp_DestChainConfig = {
         router: c.Address
         sequenceNumber: uint64
         allowlistEnabled: boolean
-        allowedSenders: c.Dictionary<c.Address, boolean>
+        allowedSenders: Map<c.Address, boolean>
     }): OnRamp_DestChainConfig {
         return {
             $: 'OnRamp_DestChainConfig',
@@ -1408,14 +1470,14 @@ export const OnRamp_DestChainConfig = {
             router: s.loadAddress(),
             sequenceNumber: s.loadUintBig(64),
             allowlistEnabled: s.loadBoolean(),
-            allowedSenders: c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s),
+            allowedSenders: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: OnRamp_DestChainConfig, b: c.Builder): void {
         b.storeAddress(self.router);
         b.storeUint(self.sequenceNumber, 64);
         b.storeBit(self.allowlistEnabled);
-        b.storeDict<c.Address, boolean>(self.allowedSenders, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        b.storeDict<c.Address, boolean>(mapToDict(self.allowedSenders, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
     },
     toCell(self: OnRamp_DestChainConfig): c.Cell {
         return makeCellFrom<OnRamp_DestChainConfig>(self, OnRamp_DestChainConfig.store);
@@ -1580,14 +1642,14 @@ export const UpdateAllowlist = {
         return {
             $: 'UpdateAllowlist',
             destChainSelector: s.loadUintBig(64),
-            add: s.loadRef(),
-            remove: s.loadRef(),
+            add: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: UpdateAllowlist, b: c.Builder): void {
         b.storeUint(self.destChainSelector, 64);
-        b.storeRef(self.add);
-        b.storeRef(self.remove);
+        storeSnakedCellOf(self.add, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: UpdateAllowlist): c.Cell {
         return makeCellFrom<UpdateAllowlist>(self, UpdateAllowlist.store);
@@ -1644,7 +1706,7 @@ export interface TVM2AnyRampMessage {
     readonly $: 'TVM2AnyRampMessage'
     header: RampMessageHeader
     sender: c.Address
-    body: CellRef<TVM2AnyRampMessageBody>
+    body: TVM2AnyRampMessageBody
     feeValueJuels: uint96
 }
 
@@ -1652,7 +1714,7 @@ export const TVM2AnyRampMessage = {
     create(args: {
         header: RampMessageHeader
         sender: c.Address
-        body: CellRef<TVM2AnyRampMessageBody>
+        body: TVM2AnyRampMessageBody
         feeValueJuels: uint96
     }): TVM2AnyRampMessage {
         return {
@@ -1692,7 +1754,7 @@ export const TVM2AnyRampMessage = {
  */
 export interface TVM2AnyRampMessageBody {
     readonly $: 'TVM2AnyRampMessageBody'
-    receiver: CellRef<CrossChainAddress>
+    receiver: CrossChainAddress
     data: c.Cell
     extraArgs: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
@@ -1702,7 +1764,7 @@ export interface TVM2AnyRampMessageBody {
 
 export const TVM2AnyRampMessageBody = {
     create(args: {
-        receiver: CellRef<CrossChainAddress>
+        receiver: CrossChainAddress
         data: c.Cell
         extraArgs: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
@@ -1720,7 +1782,7 @@ export const TVM2AnyRampMessageBody = {
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             data: s.loadRef(),
             extraArgs: s.loadRef(),
-            tokenAmounts: s.loadRef(),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
         }
@@ -1729,7 +1791,7 @@ export const TVM2AnyRampMessageBody = {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeRef(self.data);
         b.storeRef(self.extraArgs);
-        b.storeRef(self.tokenAmounts);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
     },
@@ -1753,8 +1815,8 @@ export interface OnRamp_Storage {
     id: uint32
     ownable: Ownable2Step
     chainSelector: uint64
-    config: CellRef<OnRamp_DynamicConfig>
-    destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
+    config: OnRamp_DynamicConfig
+    destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
     executor: ExecutorDeployment
 }
 
@@ -1763,8 +1825,8 @@ export const OnRamp_Storage = {
         id: uint32
         ownable: Ownable2Step
         chainSelector: uint64
-        config: CellRef<OnRamp_DynamicConfig>
-        destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
+        config: OnRamp_DynamicConfig
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
     }): OnRamp_Storage {
         return {
@@ -1779,7 +1841,7 @@ export const OnRamp_Storage = {
             ownable: Ownable2Step.fromSlice(s),
             chainSelector: s.loadUintBig(64),
             config: loadCellRef<OnRamp_DynamicConfig>(s, OnRamp_DynamicConfig.fromSlice),
-            destChainConfigs: c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s),
+            destChainConfigs: dictToMap(c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s)),
             executor: ExecutorDeployment.fromSlice(s),
         }
     },
@@ -1788,7 +1850,7 @@ export const OnRamp_Storage = {
         Ownable2Step.store(self.ownable, b);
         b.storeUint(self.chainSelector, 64);
         storeCellRef<OnRamp_DynamicConfig>(self.config, b, OnRamp_DynamicConfig.store);
-        b.storeDict<uint64, OnRamp_DestChainConfig>(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
+        b.storeDict<uint64, OnRamp_DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
         ExecutorDeployment.store(self.executor, b);
     },
     toCell(self: OnRamp_Storage): c.Cell {
@@ -1805,7 +1867,7 @@ export const OnRamp_Storage = {
  */
 export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
     tokenRegistry: c.Address | null
 }
@@ -1814,7 +1876,7 @@ export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
     create(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }): OnRamp_Send {
@@ -1851,7 +1913,7 @@ export const OnRamp_Send = {
  */
 export interface OnRamp_GetValidatedFee<T> {
     readonly $: 'OnRamp_GetValidatedFee'
-    ccipSend: CellRef<Router_CCIPSend>
+    ccipSend: Router_CCIPSend
     context: T
 }
 
@@ -1859,7 +1921,7 @@ export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
     create<T>(args: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: T
     }): OnRamp_GetValidatedFee<T> {
         return {
@@ -2008,7 +2070,7 @@ export interface OnRamp_ExecutorFinishedSuccessfully {
     readonly $: 'OnRamp_ExecutorFinishedSuccessfully'
     executorID: CCIPSendExecutor_ID
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
 }
 
@@ -2018,7 +2080,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
     create(args: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }): OnRamp_ExecutorFinishedSuccessfully {
         return {
@@ -2060,7 +2122,7 @@ export interface OnRamp_ExecutorFinishedWithError {
     readonly $: 'OnRamp_ExecutorFinishedWithError'
     executorID: CCIPSendExecutor_ID
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     metadata: Metadata
 }
 
@@ -2070,7 +2132,7 @@ export const OnRamp_ExecutorFinishedWithError = {
     create(args: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }): OnRamp_ExecutorFinishedWithError {
         return {
@@ -2125,12 +2187,12 @@ export const OnRamp_UpdateDestChainConfigs = {
         loadAndCheckPrefix32(s, 0x1a246b6c, 'OnRamp_UpdateDestChainConfigs');
         return {
             $: 'OnRamp_UpdateDestChainConfigs',
-            updates: s.loadRef(),
+            updates: loadSnakedCellOf(s, OnRampUpdateDestChainConfig.fromSlice),
         }
     },
     store(self: OnRamp_UpdateDestChainConfigs, b: c.Builder): void {
         b.storeUint(0x1a246b6c, 32);
-        b.storeRef(self.updates);
+        storeSnakedCellOf(self.updates, b, OnRampUpdateDestChainConfig.store);
     },
     toCell(self: OnRamp_UpdateDestChainConfigs): c.Cell {
         return makeCellFrom<OnRamp_UpdateDestChainConfigs>(self, OnRamp_UpdateDestChainConfigs.store);
@@ -2199,12 +2261,12 @@ export const OnRamp_UpdateAllowlists = {
         loadAndCheckPrefix32(s, 0x9dc06185, 'OnRamp_UpdateAllowlists');
         return {
             $: 'OnRamp_UpdateAllowlists',
-            updates: s.loadRef(),
+            updates: loadSnakedCellOf(s, UpdateAllowlist.fromSlice),
         }
     },
     store(self: OnRamp_UpdateAllowlists, b: c.Builder): void {
         b.storeUint(0x9dc06185, 32);
-        b.storeRef(self.updates);
+        storeSnakedCellOf(self.updates, b, UpdateAllowlist.store);
     },
     toCell(self: OnRamp_UpdateAllowlists): c.Cell {
         return makeCellFrom<OnRamp_UpdateAllowlists>(self, OnRamp_UpdateAllowlists.store);
@@ -2221,7 +2283,7 @@ export const OnRamp_UpdateAllowlists = {
 export interface OnRamp_MessageValidated<T> {
     readonly $: 'OnRamp_MessageValidated'
     fee: coins
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -2230,7 +2292,7 @@ export const OnRamp_MessageValidated = {
 
     create<T>(args: {
         fee: coins
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): OnRamp_MessageValidated<T> {
         return {
@@ -2250,7 +2312,7 @@ export const OnRamp_MessageValidated = {
 export interface OnRamp_MessageValidationFailed<T> {
     readonly $: 'OnRamp_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -2259,7 +2321,7 @@ export const OnRamp_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): OnRamp_MessageValidationFailed<T> {
         return {
@@ -2294,12 +2356,12 @@ export const OnRamp_WithdrawFeeTokens = {
         loadAndCheckPrefix32(s, 0x7052dc75, 'OnRamp_WithdrawFeeTokens');
         return {
             $: 'OnRamp_WithdrawFeeTokens',
-            feeTokens: s.loadRef(),
+            feeTokens: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: OnRamp_WithdrawFeeTokens, b: c.Builder): void {
         b.storeUint(0x7052dc75, 32);
-        b.storeRef(self.feeTokens);
+        storeSnakedCellOf(self.feeTokens, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: OnRamp_WithdrawFeeTokens): c.Cell {
         return makeCellFrom<OnRamp_WithdrawFeeTokens>(self, OnRamp_WithdrawFeeTokens.store);
@@ -2387,8 +2449,8 @@ export class OnRamp implements c.Contract {
         id: uint32
         ownable: Ownable2Step
         chainSelector: uint64
-        config: CellRef<OnRamp_DynamicConfig>
-        destChainConfigs: c.Dictionary<uint64, OnRamp_DestChainConfig>
+        config: OnRamp_DynamicConfig
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
         executor: ExecutorDeployment
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -2400,7 +2462,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampSend(body: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }) {
@@ -2408,7 +2470,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampGetValidatedFeeRemainingBitsAndRefs_(body: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: RemainingBitsAndRefs
     }) {
         return makeCellFrom<OnRamp_GetValidatedFee<RemainingBitsAndRefs>>(OnRamp_GetValidatedFee.create<RemainingBitsAndRefs>(body),
@@ -2420,7 +2482,7 @@ export class OnRamp implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidatedOnRampGetValidatedFeeContext_(body: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }) {
         return makeCellFrom<FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidated.create<OnRamp_GetValidatedFeeContext>(body),
@@ -2433,7 +2495,7 @@ export class OnRamp implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidationFailedOnRampGetValidatedFeeContext_(body: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }) {
         return makeCellFrom<FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidationFailed.create<OnRamp_GetValidatedFeeContext>(body),
@@ -2456,7 +2518,7 @@ export class OnRamp implements c.Contract {
     static createCellOfOnRampExecutorFinishedSuccessfully(body: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }) {
         return OnRamp_ExecutorFinishedSuccessfully.toCell(OnRamp_ExecutorFinishedSuccessfully.create(body));
@@ -2465,7 +2527,7 @@ export class OnRamp implements c.Contract {
     static createCellOfOnRampExecutorFinishedWithError(body: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }) {
         return OnRamp_ExecutorFinishedWithError.toCell(OnRamp_ExecutorFinishedWithError.create(body));
@@ -2502,7 +2564,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
@@ -2517,7 +2579,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
         tokenRegistry: c.Address | null
     }, extraOptions?: ExtraSendOptions) {
@@ -2529,7 +2591,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        ccipSend: CellRef<Router_CCIPSend>
+        ccipSend: Router_CCIPSend
         context: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2545,7 +2607,7 @@ export class OnRamp implements c.Contract {
 
     async sendFeeQuoterMessageValidatedOnRampGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2562,7 +2624,7 @@ export class OnRamp implements c.Contract {
 
     async sendFeeQuoterMessageValidationFailedOnRampGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: OnRamp_GetValidatedFeeContext
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2593,7 +2655,7 @@ export class OnRamp implements c.Contract {
     async sendOnRampExecutorFinishedSuccessfully(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         executorID: CCIPSendExecutor_ID
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2606,7 +2668,7 @@ export class OnRamp implements c.Contract {
     async sendOnRampExecutorFinishedWithError(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         executorID: CCIPSendExecutor_ID
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         metadata: Metadata
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2667,7 +2729,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2716,7 +2778,7 @@ export class OnRamp implements c.Contract {
             router: r.readSlice().loadAddress(),
             sequenceNumber: r.readBigInt(),
             allowlistEnabled: r.readBoolean(),
-            allowedSenders: r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()),
+            allowedSenders: dictToMap(r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool())),
         });
     }
 

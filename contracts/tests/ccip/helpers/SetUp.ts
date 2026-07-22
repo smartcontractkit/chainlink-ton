@@ -43,6 +43,10 @@ export const setupTestFeeQuoter = async (
     value: 123n,
     timestamp: BigInt(Math.floor(Date.now() / 1000)), // Convert milliseconds to seconds for uint32
   } as TimestampedPrice)
+  data.usdPerToken.set(LINK_TOKEN, {
+    value: 123n,
+    timestamp: BigInt(Math.floor(Date.now() / 1000)),
+  } as TimestampedPrice)
   let feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
   let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('0.05'))

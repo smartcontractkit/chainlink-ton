@@ -6,11 +6,12 @@ import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import * as of from '../../../wrappers/ccip/OffRamp'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 
@@ -341,26 +342,34 @@ async function deployOffRampInstance(
   router: Address,
   feeQuoter: Address,
 ) {
-  const code = await contractCode.ccip.local('OffRamp')
-  const data: of.OffRampStorage = {
+  const data = of.Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: of.Ownable2Step.create({
       owner: deployer.address,
       pendingOwner: null,
-    },
+    }),
     chainSelector: CHAINSEL_TON,
-    deployables: {
-      deployerCode: await contractCode.ccip.local('Deployable'),
+    deployables: of.OffRamp_Deployables.create({
+      deployer: await contractCode.ccip.local('Deployable'),
       merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
       receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
-    },
+      rmnRouter: router,
+    }),
     feeQuoter,
-    router,
-    permissionlessExecutionThresholdSeconds: 0,
+    permissionlessExecutionThresholdSeconds: 0n,
     latestPriceSequenceNumber: 0n,
-  }
+    ocr3Base: of.OCR3Base.create({
+      chainId: 1n,
+      commit: null,
+      execute: null,
+    }),
+    cursedSubjects: of.CursedSubjects.create({
+      data: new Set(),
+    }),
+    sourceChainConfigs: new Map(),
+  })
 
-  const offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
+  const offRamp = blockchain.openContract(of.OffRamp.fromStorage(data))
 
   {
     const result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -379,21 +388,24 @@ async function deployOffRampInstance(
       allowlistEnabled: false,
     }
 
-    const result = await offRamp.sendUpdateSourceChainConfigs(deployer.getSender(), {
-      value: toNano('1'),
-      configs: [
-        {
-          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          config: {
-            router: config.router,
-            isEnabled: true,
-            minSeqNr: 0n,
-            isRMNVerificationDisabled: false,
-            onRamp: EVM_ADDRESS,
-          },
-        },
-      ],
-    })
+    const result = await offRamp.sendOffRampUpdateSourceChainConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      of.OffRamp_UpdateSourceChainConfigs.create({
+        configs: [
+          of.SourceChainConfigUpdate.create({
+            sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+            config: of.SourceChainConfig.create({
+              router: config.router,
+              isEnabled: true,
+              minSeqNr: 0n,
+              isRMNVerificationDisabled: false,
+              onRamp: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+            }),
+          }),
+        ],
+      }),
+    )
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: offRamp.address,

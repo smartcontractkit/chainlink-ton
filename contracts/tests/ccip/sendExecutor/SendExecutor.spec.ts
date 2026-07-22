@@ -122,8 +122,8 @@ describe('SendExecutor - Unit tests', () => {
     const facilityIdVal = await sendExecutor.getFacilityId()
     expect(facilityIdVal).toBe(BigInt(sx.FACILITY_ID))
 
-    const { type } = await sendExecutor.getTypeAndVersion()
-    expect(type).toBe(sx.FACILITY_NAME)
+    const [typeSlice] = await sendExecutor.getTypeAndVersion()
+    expect(typeSlice.loadStringTail()).toBe(sx.FACILITY_NAME)
 
     expect(sx.FACILITY_ID).toEqual(facilityId(crc32(sx.FACILITY_NAME)))
   })

@@ -15,6 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	logpoller_testdata "github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
@@ -26,7 +27,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // storeConfig defines how to create LogStore and FilterStore for parameterized testing.

@@ -12,9 +12,6 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,16 +34,33 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     if (v === null) {
@@ -178,7 +192,7 @@ export const Timelock_Init = {
     PREFIX: 0x4982fcfd,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         minDelay: uint32
         admin: c.Address
         proposers: SnakedCell<c.Address>
@@ -190,7 +204,8 @@ export const Timelock_Init = {
     }): Timelock_Init {
         return {
             $: 'Timelock_Init',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_Init {
@@ -200,10 +215,10 @@ export const Timelock_Init = {
             queryId: s.loadUintBig(64),
             minDelay: s.loadUintBig(32),
             admin: s.loadAddress(),
-            proposers: s.loadRef(),
-            executors: s.loadRef(),
-            cancellers: s.loadRef(),
-            bypassers: s.loadRef(),
+            proposers: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            executors: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            cancellers: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            bypassers: loadSnakedCellOf(s, (s) => s.loadAddress()),
             executorRoleCheckEnabled: s.loadBoolean(),
             opFinalizationTimeout: s.loadUintBig(32),
         }
@@ -213,10 +228,10 @@ export const Timelock_Init = {
         b.storeUint(self.queryId, 64);
         b.storeUint(self.minDelay, 32);
         b.storeAddress(self.admin);
-        b.storeRef(self.proposers);
-        b.storeRef(self.executors);
-        b.storeRef(self.cancellers);
-        b.storeRef(self.bypassers);
+        storeSnakedCellOf(self.proposers, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.executors, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.cancellers, b, (v, b) => b.storeAddress(v));
+        storeSnakedCellOf(self.bypassers, b, (v, b) => b.storeAddress(v));
         b.storeBit(self.executorRoleCheckEnabled);
         b.storeUint(self.opFinalizationTimeout, 32);
     },
@@ -247,7 +262,7 @@ export const Timelock_ScheduleBatch = {
     PREFIX: 0x094718f4,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -255,7 +270,8 @@ export const Timelock_ScheduleBatch = {
     }): Timelock_ScheduleBatch {
         return {
             $: 'Timelock_ScheduleBatch',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ScheduleBatch {
@@ -263,7 +279,7 @@ export const Timelock_ScheduleBatch = {
         return {
             $: 'Timelock_ScheduleBatch',
             queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
             delay: s.loadUintBig(32),
@@ -272,7 +288,7 @@ export const Timelock_ScheduleBatch = {
     store(self: Timelock_ScheduleBatch, b: c.Builder): void {
         b.storeUint(0x094718f4, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
         b.storeUint(self.delay, 32);
@@ -298,12 +314,13 @@ export const Timelock_Cancel = {
     PREFIX: 0xaf3bf1d0,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
     }): Timelock_Cancel {
         return {
             $: 'Timelock_Cancel',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_Cancel {
@@ -344,14 +361,15 @@ export const Timelock_ExecuteBatch = {
     PREFIX: 0x6e9bf263,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
     }): Timelock_ExecuteBatch {
         return {
             $: 'Timelock_ExecuteBatch',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ExecuteBatch {
@@ -359,7 +377,7 @@ export const Timelock_ExecuteBatch = {
         return {
             $: 'Timelock_ExecuteBatch',
             queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
         }
@@ -367,7 +385,7 @@ export const Timelock_ExecuteBatch = {
     store(self: Timelock_ExecuteBatch, b: c.Builder): void {
         b.storeUint(0x6e9bf263, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
     },
@@ -392,12 +410,13 @@ export const Timelock_UpdateDelay = {
     PREFIX: 0x7a57a45c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newDelay: uint32
     }): Timelock_UpdateDelay {
         return {
             $: 'Timelock_UpdateDelay',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UpdateDelay {
@@ -434,12 +453,13 @@ export const Timelock_UpdateOpFinalizationTimeout = {
     PREFIX: 0x94278d4f,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOpFinalizationTimeout: uint32
     }): Timelock_UpdateOpFinalizationTimeout {
         return {
             $: 'Timelock_UpdateOpFinalizationTimeout',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UpdateOpFinalizationTimeout {
@@ -476,12 +496,13 @@ export const Timelock_BlockFunctionSelector = {
     PREFIX: 0x2637af77,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         selector: uint32
     }): Timelock_BlockFunctionSelector {
         return {
             $: 'Timelock_BlockFunctionSelector',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BlockFunctionSelector {
@@ -518,12 +539,13 @@ export const Timelock_UnblockFunctionSelector = {
     PREFIX: 0x26f19f4e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         selector: uint32
     }): Timelock_UnblockFunctionSelector {
         return {
             $: 'Timelock_UnblockFunctionSelector',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UnblockFunctionSelector {
@@ -560,12 +582,13 @@ export const Timelock_BypasserExecuteBatch = {
     PREFIX: 0xbb0e9f7d,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
     }): Timelock_BypasserExecuteBatch {
         return {
             $: 'Timelock_BypasserExecuteBatch',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BypasserExecuteBatch {
@@ -573,13 +596,13 @@ export const Timelock_BypasserExecuteBatch = {
         return {
             $: 'Timelock_BypasserExecuteBatch',
             queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
         }
     },
     store(self: Timelock_BypasserExecuteBatch, b: c.Builder): void {
         b.storeUint(0xbb0e9f7d, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
     },
     toCell(self: Timelock_BypasserExecuteBatch): c.Cell {
         return makeCellFrom<Timelock_BypasserExecuteBatch>(self, Timelock_BypasserExecuteBatch.store);
@@ -602,12 +625,13 @@ export const Timelock_UpdateExecutorRoleCheck = {
     PREFIX: 0x34d98baa,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         enabled: boolean
     }): Timelock_UpdateExecutorRoleCheck {
         return {
             $: 'Timelock_UpdateExecutorRoleCheck',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UpdateExecutorRoleCheck {
@@ -640,7 +664,7 @@ export const Timelock_UpdateExecutorRoleCheck = {
 export interface Timelock_SubmitErrorReport {
     readonly $: 'Timelock_SubmitErrorReport'
     queryId: uint64
-    opBatch: CellRef<Timelock_OperationBatch>
+    opBatch: Timelock_OperationBatch
     opTxHash: uint256
     errorTxHash: uint256
     errorCode: uint32
@@ -650,15 +674,16 @@ export const Timelock_SubmitErrorReport = {
     PREFIX: 0xf4538b79,
 
     create(args: {
-        queryId: uint64
-        opBatch: CellRef<Timelock_OperationBatch>
+        queryId?: uint64
+        opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
     }): Timelock_SubmitErrorReport {
         return {
             $: 'Timelock_SubmitErrorReport',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_SubmitErrorReport {
@@ -755,13 +780,14 @@ export const Timelock_BatchScheduled = {
     PREFIX: 0xdf65b59e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
         delay: uint32
     }): Timelock_BatchScheduled {
         return {
             $: 'Timelock_BatchScheduled',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BatchScheduled {
@@ -800,7 +826,7 @@ export interface Timelock_CallScheduled {
     queryId: uint64
     id: uint256
     index: uint64
-    call: CellRef<Timelock_Call>
+    call: Timelock_Call
     predecessor: uint256
     salt: uint256
     delay: uint32
@@ -810,17 +836,18 @@ export const Timelock_CallScheduled = {
     PREFIX: 0xc55fca54,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
         index: uint64
-        call: CellRef<Timelock_Call>
+        call: Timelock_Call
         predecessor: uint256
         salt: uint256
         delay: uint32
     }): Timelock_CallScheduled {
         return {
             $: 'Timelock_CallScheduled',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_CallScheduled {
@@ -867,12 +894,13 @@ export const Timelock_BatchExecuted = {
     PREFIX: 0xa941ea1a,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
     }): Timelock_BatchExecuted {
         return {
             $: 'Timelock_BatchExecuted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BatchExecuted {
@@ -917,7 +945,7 @@ export const Timelock_CallExecuted = {
     PREFIX: 0x49ea5d0e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
         index: uint64
         target: c.Address
@@ -926,7 +954,8 @@ export const Timelock_CallExecuted = {
     }): Timelock_CallExecuted {
         return {
             $: 'Timelock_CallExecuted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_CallExecuted {
@@ -969,11 +998,12 @@ export const Timelock_BypasserBatchExecuted = {
     PREFIX: 0x539b4214,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
     }): Timelock_BypasserBatchExecuted {
         return {
             $: 'Timelock_BypasserBatchExecuted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BypasserBatchExecuted {
@@ -1014,7 +1044,7 @@ export const Timelock_BypasserCallExecuted = {
     PREFIX: 0x9c7f3010,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         index: uint64
         target: c.Address
         value: coins
@@ -1022,7 +1052,8 @@ export const Timelock_BypasserCallExecuted = {
     }): Timelock_BypasserCallExecuted {
         return {
             $: 'Timelock_BypasserCallExecuted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BypasserCallExecuted {
@@ -1065,12 +1096,13 @@ export const Timelock_Canceled = {
     PREFIX: 0x580e80f2,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
     }): Timelock_Canceled {
         return {
             $: 'Timelock_Canceled',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_Canceled {
@@ -1109,13 +1141,14 @@ export const Timelock_MinDelayChange = {
     PREFIX: 0x904b14e0,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldDuration: uint32
         newDuration: uint32
     }): Timelock_MinDelayChange {
         return {
             $: 'Timelock_MinDelayChange',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_MinDelayChange {
@@ -1156,13 +1189,14 @@ export const Timelock_OpFinalizationTimeoutChange = {
     PREFIX: 0x1f102718,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldDuration: uint32
         newDuration: uint32
     }): Timelock_OpFinalizationTimeoutChange {
         return {
             $: 'Timelock_OpFinalizationTimeoutChange',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_OpFinalizationTimeoutChange {
@@ -1201,12 +1235,13 @@ export const Timelock_ExecutorRoleCheckUpdated = {
     PREFIX: 0xc6d451e2,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         enabled: boolean
     }): Timelock_ExecutorRoleCheckUpdated {
         return {
             $: 'Timelock_ExecutorRoleCheckUpdated',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ExecutorRoleCheckUpdated {
@@ -1251,7 +1286,7 @@ export const Timelock_ErrorReportSubmitted = {
     PREFIX: 0xdbd4c8ee,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
         opTxHash: uint256
         errorTxHash: uint256
@@ -1260,7 +1295,8 @@ export const Timelock_ErrorReportSubmitted = {
     }): Timelock_ErrorReportSubmitted {
         return {
             $: 'Timelock_ErrorReportSubmitted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ErrorReportSubmitted {
@@ -1305,24 +1341,24 @@ export interface Timelock_Data {
     readonly $: 'Timelock_Data'
     id: uint32
     minDelay: uint32
-    timestamps: c.Dictionary<uint256, uint64>
+    timestamps: Map<uint256, uint64>
     blockedFnSelectorsLen: uint32
-    blockedFnSelectors: c.Dictionary<uint32, boolean>
+    blockedFnSelectors: Map<uint32, boolean>
     executorRoleCheckEnabled: boolean
     opPendingInfo: Timelock_OpPendingInfo
-    rbac: CellRef<AccessControl_Data>
+    rbac: AccessControl_Data
 }
 
 export const Timelock_Data = {
     create(args: {
         id: uint32
         minDelay: uint32
-        timestamps: c.Dictionary<uint256, uint64>
+        timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
-        blockedFnSelectors: c.Dictionary<uint32, boolean>
+        blockedFnSelectors: Map<uint32, boolean>
         executorRoleCheckEnabled: boolean
         opPendingInfo: Timelock_OpPendingInfo
-        rbac: CellRef<AccessControl_Data>
+        rbac: AccessControl_Data
     }): Timelock_Data {
         return {
             $: 'Timelock_Data',
@@ -1334,9 +1370,9 @@ export const Timelock_Data = {
             $: 'Timelock_Data',
             id: s.loadUintBig(32),
             minDelay: s.loadUintBig(32),
-            timestamps: c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s),
+            timestamps: dictToMap(c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s)),
             blockedFnSelectorsLen: s.loadUintBig(32),
-            blockedFnSelectors: c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s),
+            blockedFnSelectors: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
             executorRoleCheckEnabled: s.loadBoolean(),
             opPendingInfo: Timelock_OpPendingInfo.fromSlice(s),
             rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
@@ -1345,9 +1381,9 @@ export const Timelock_Data = {
     store(self: Timelock_Data, b: c.Builder): void {
         b.storeUint(self.id, 32);
         b.storeUint(self.minDelay, 32);
-        b.storeDict<uint256, uint64>(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
+        b.storeDict<uint256, uint64>(mapToDict(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
         b.storeUint(self.blockedFnSelectorsLen, 32);
-        b.storeDict<uint32, boolean>(self.blockedFnSelectors, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
+        b.storeDict<uint32, boolean>(mapToDict(self.blockedFnSelectors, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
         b.storeBit(self.executorRoleCheckEnabled);
         Timelock_OpPendingInfo.store(self.opPendingInfo, b);
         storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
@@ -1428,13 +1464,13 @@ export const Timelock_OperationBatch = {
     fromSlice(s: c.Slice): Timelock_OperationBatch {
         return {
             $: 'Timelock_OperationBatch',
-            calls: s.loadRef(),
+            calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
         }
     },
     store(self: Timelock_OperationBatch, b: c.Builder): void {
-        b.storeRef(self.calls);
+        storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
     },
@@ -1456,7 +1492,7 @@ export interface Timelock_OpPendingInfo {
     validAfter: uint64
     opFinalizationTimeout: uint32
     opPendingId: uint256
-    opPendingCalls: c.Dictionary<uint256, boolean>
+    opPendingCalls: Map<uint256, boolean>
 }
 
 export const Timelock_OpPendingInfo = {
@@ -1464,7 +1500,7 @@ export const Timelock_OpPendingInfo = {
         validAfter: uint64
         opFinalizationTimeout: uint32
         opPendingId: uint256
-        opPendingCalls: c.Dictionary<uint256, boolean>
+        opPendingCalls: Map<uint256, boolean>
     }): Timelock_OpPendingInfo {
         return {
             $: 'Timelock_OpPendingInfo',
@@ -1477,14 +1513,14 @@ export const Timelock_OpPendingInfo = {
             validAfter: s.loadUintBig(64),
             opFinalizationTimeout: s.loadUintBig(32),
             opPendingId: s.loadUintBig(256),
-            opPendingCalls: c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s),
+            opPendingCalls: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: Timelock_OpPendingInfo, b: c.Builder): void {
         b.storeUint(self.validAfter, 64);
         b.storeUint(self.opFinalizationTimeout, 32);
         b.storeUint(self.opPendingId, 256);
-        b.storeDict<uint256, boolean>(self.opPendingCalls, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
+        b.storeDict<uint256, boolean>(mapToDict(self.opPendingCalls, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
     },
     toCell(self: Timelock_OpPendingInfo): c.Cell {
         return makeCellFrom<Timelock_OpPendingInfo>(self, Timelock_OpPendingInfo.store);
@@ -1494,7 +1530,49 @@ export const Timelock_OpPendingInfo = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct (0xcf3ca837) AccessControl_RoleGranted {
@@ -1516,14 +1594,15 @@ export const AccessControl_RoleGranted = {
     PREFIX: 0xcf3ca837,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         role: uint256
         account: c.Address
         sender: c.Address
     }): AccessControl_RoleGranted {
         return {
             $: 'AccessControl_RoleGranted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RoleGranted {
@@ -1568,14 +1647,15 @@ export const AccessControl_RoleRevoked = {
     PREFIX: 0x990fe1c7,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         role: uint256
         account: c.Address
         sender: c.Address
     }): AccessControl_RoleRevoked {
         return {
             $: 'AccessControl_RoleRevoked',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RoleRevoked {
@@ -1620,14 +1700,15 @@ export const AccessControl_RoleAdminChanged = {
     PREFIX: 0xbd7e8bce,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         role: uint256
         previousAdminRole: uint256
         newAdminRole: uint256
     }): AccessControl_RoleAdminChanged {
         return {
             $: 'AccessControl_RoleAdminChanged',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RoleAdminChanged {
@@ -1659,12 +1740,12 @@ export const AccessControl_RoleAdminChanged = {
  */
 export interface AccessControl_Data {
     readonly $: 'AccessControl_Data'
-    roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+    roles: Map<uint256, AccessControl_RoleData>
 }
 
 export const AccessControl_Data = {
     create(args: {
-        roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+        roles: Map<uint256, AccessControl_RoleData>
     }): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
@@ -1674,14 +1755,17 @@ export const AccessControl_Data = {
     fromSlice(s: c.Slice): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
-            roles: c.Dictionary.load<uint256, CellRef<AccessControl_RoleData>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
-                (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
-                (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
-            ), s),
+            roles: dictToMap(c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                        ), s)),
         }
     },
     store(self: AccessControl_Data, b: c.Builder): void {
-        b.storeDict<uint256, CellRef<AccessControl_RoleData>>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+        b.storeDict<uint256, AccessControl_RoleData>(mapToDict(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                        (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                        (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                    )), c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
             (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
             (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
         ));
@@ -1702,14 +1786,14 @@ export interface AccessControl_RoleData {
     readonly $: 'AccessControl_RoleData'
     adminRole: uint256
     membersLen: uint64
-    hasRole: c.Dictionary<c.Address, boolean>
+    hasRole: Map<c.Address, boolean>
 }
 
 export const AccessControl_RoleData = {
     create(args: {
         adminRole: uint256
         membersLen: uint64
-        hasRole: c.Dictionary<c.Address, boolean>
+        hasRole: Map<c.Address, boolean>
     }): AccessControl_RoleData {
         return {
             $: 'AccessControl_RoleData',
@@ -1721,13 +1805,13 @@ export const AccessControl_RoleData = {
             $: 'AccessControl_RoleData',
             adminRole: s.loadUintBig(256),
             membersLen: s.loadUintBig(64),
-            hasRole: c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s),
+            hasRole: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: AccessControl_RoleData, b: c.Builder): void {
         b.storeUint(self.adminRole, 256);
         b.storeUint(self.membersLen, 64);
-        b.storeDict<c.Address, boolean>(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        b.storeDict<c.Address, boolean>(mapToDict(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
     },
     toCell(self: AccessControl_RoleData): c.Cell {
         return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
@@ -1808,12 +1892,12 @@ export class Timelock implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         minDelay: uint32
-        timestamps: c.Dictionary<uint256, uint64>
+        timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
-        blockedFnSelectors: c.Dictionary<uint32, boolean>
+        blockedFnSelectors: Map<uint32, boolean>
         executorRoleCheckEnabled: boolean
         opPendingInfo: Timelock_OpPendingInfo
-        rbac: CellRef<AccessControl_Data>
+        rbac: AccessControl_Data
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? Timelock.CodeCell,
@@ -1824,7 +1908,7 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockInit(body: {
-        queryId: uint64
+        queryId?: uint64
         minDelay: uint32
         admin: c.Address
         proposers: SnakedCell<c.Address>
@@ -1838,7 +1922,7 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockScheduleBatch(body: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -1848,14 +1932,14 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockCancel(body: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
     }) {
         return Timelock_Cancel.toCell(Timelock_Cancel.create(body));
     }
 
     static createCellOfTimelockExecuteBatch(body: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -1864,50 +1948,50 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockUpdateDelay(body: {
-        queryId: uint64
+        queryId?: uint64
         newDelay: uint32
     }) {
         return Timelock_UpdateDelay.toCell(Timelock_UpdateDelay.create(body));
     }
 
     static createCellOfTimelockUpdateOpFinalizationTimeout(body: {
-        queryId: uint64
+        queryId?: uint64
         newOpFinalizationTimeout: uint32
     }) {
         return Timelock_UpdateOpFinalizationTimeout.toCell(Timelock_UpdateOpFinalizationTimeout.create(body));
     }
 
     static createCellOfTimelockBlockFunctionSelector(body: {
-        queryId: uint64
+        queryId?: uint64
         selector: uint32
     }) {
         return Timelock_BlockFunctionSelector.toCell(Timelock_BlockFunctionSelector.create(body));
     }
 
     static createCellOfTimelockUnblockFunctionSelector(body: {
-        queryId: uint64
+        queryId?: uint64
         selector: uint32
     }) {
         return Timelock_UnblockFunctionSelector.toCell(Timelock_UnblockFunctionSelector.create(body));
     }
 
     static createCellOfTimelockBypasserExecuteBatch(body: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
     }) {
         return Timelock_BypasserExecuteBatch.toCell(Timelock_BypasserExecuteBatch.create(body));
     }
 
     static createCellOfTimelockUpdateExecutorRoleCheck(body: {
-        queryId: uint64
+        queryId?: uint64
         enabled: boolean
     }) {
         return Timelock_UpdateExecutorRoleCheck.toCell(Timelock_UpdateExecutorRoleCheck.create(body));
     }
 
     static createCellOfTimelockSubmitErrorReport(body: {
-        queryId: uint64
-        opBatch: CellRef<Timelock_OperationBatch>
+        queryId?: uint64
+        opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
@@ -1924,7 +2008,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         minDelay: uint32
         admin: c.Address
         proposers: SnakedCell<c.Address>
@@ -1942,7 +2026,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockScheduleBatch(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -1956,7 +2040,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockCancel(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         id: uint256
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1967,7 +2051,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockExecuteBatch(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -1980,7 +2064,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUpdateDelay(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newDelay: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1991,7 +2075,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUpdateOpFinalizationTimeout(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newOpFinalizationTimeout: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2002,7 +2086,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockBlockFunctionSelector(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         selector: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2013,7 +2097,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUnblockFunctionSelector(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         selector: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2024,7 +2108,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockBypasserExecuteBatch(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         calls: SnakedCell<Timelock_Call>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2035,7 +2119,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUpdateExecutorRoleCheck(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         enabled: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2046,8 +2130,8 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockSubmitErrorReport(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        opBatch: CellRef<Timelock_OperationBatch>
+        queryId?: uint64
+        opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
@@ -2129,7 +2213,7 @@ export class Timelock implements c.Contract {
 
     async getHashOperationBatch(provider: ContractProvider, op: Timelock_OperationBatch): Promise<uint256> {
         const r = StackReader.fromGetMethod(1, await provider.get('hashOperationBatch', [
-            { type: 'cell', cell: op.calls },
+            { type: 'cell', cell: makeCellFrom<SnakedCell<Timelock_Call>>(op.calls, (v,b) => storeSnakedCellOf(v, b, Timelock_Call.store)) },
             { type: 'int', value: op.predecessor },
             { type: 'int', value: op.salt },
         ]));
@@ -2165,7 +2249,7 @@ export class Timelock implements c.Contract {
             validAfter: r.readBigInt(),
             opFinalizationTimeout: r.readBigInt(),
             opPendingId: r.readBigInt(),
-            opPendingCalls: r.readDictionary<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()),
+            opPendingCalls: dictToMap(r.readDictionary<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool())),
         });
     }
 
@@ -2224,10 +2308,10 @@ export class Timelock implements c.Contract {
         return r.readBigInt();
     }
 
-    async getRoleMembers(provider: ContractProvider, role: uint256): Promise<c.Dictionary<c.Address, boolean>> {
+    async getRoleMembers(provider: ContractProvider, role: uint256): Promise<Map<c.Address, boolean>> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRoleMembers', [
             { type: 'int', value: role },
         ]));
-        return r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        return dictToMap(r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()));
     }
 }

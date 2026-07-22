@@ -63,7 +63,7 @@ async function setUpTest(
 describe('WithdrawableWallet - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => withdrawableWallet.ContractClient.code(),
-    ContractConstructor: withdrawableWallet.ContractClient,
+    ContractConstructor: withdrawableWallet.ContractClient.createFromAddress,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: async (blockchain, owner) => {
       const code = await withdrawableWallet.ContractClient.code()

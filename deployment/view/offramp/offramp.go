@@ -9,11 +9,11 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const latestPriceSequenceNumberGetter = "latestPriceSequenceNumber"
@@ -21,7 +21,7 @@ const latestPriceSequenceNumberGetter = "latestPriceSequenceNumber"
 type View struct {
 	view.MetaData
 	LatestPriceSequenceNumber uint64                               `json:"latestPriceSequenceNumber,omitempty"`
-	Config                    offramp.Config                       `json:"Config,omitempty"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
+	Config                    offramp.Config                       `json:"Config"` //nolint:modernize // modernize tells omitempty has no effect on nested struct fields, suggesting replacing with omitzero. TODO review if change is backwards compatible.
 	SourceChainConfigs        map[uint64]offramp.SourceChainConfig `json:"sourceChainConfigs,omitempty"`
 }
 

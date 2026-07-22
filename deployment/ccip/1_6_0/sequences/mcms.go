@@ -19,7 +19,7 @@ import (
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 func (a *TonDeployAdapter) DeployMCMS() *cldfops.Sequence[ccipddeploy.MCMSDeploymentConfigPerChainWithAddress, ccipdseq.OnChainOutput, cldfchain.BlockChains] {

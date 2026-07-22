@@ -11,6 +11,8 @@ import * as rx from '../wrappers/ccip/ReceiveExecutor'
 import * as rt from '../wrappers/ccip/Router'
 import * as rece from '../wrappers/examples/Receiver'
 
+import * as offrGen from '../wrappers/gen/ccip/OffRamp'
+
 import * as deployable from '../wrappers/libraries/Deployable'
 import * as rec from '../wrappers/libraries/Receiver'
 import * as ownable2step from '../wrappers/libraries/access/Ownable2Step'
@@ -50,7 +52,7 @@ describe('Exit Codes', () => {
         facilityId: offr.FACILITY_ID,
         facilityName: offr.FACILITY_NAME,
         errorCode: offr.ERROR_CODE,
-        error0: offr.OffRampError.MessageNotFromOwnedContract,
+        error0: offrGen.OffRamp.Errors['Error.MessageNotFromOwnedContract'],
       },
       {
         facilityId: onr.FACILITY_ID,

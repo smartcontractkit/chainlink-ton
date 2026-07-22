@@ -222,5 +222,10 @@ async function withdrawFromContract(
   }
 
   // Send withdraw transaction with 0.1 TON for gas using withdrawable module directly
-  await withdrawable.sendWithdraw(contractProvider, sender, toNano('0.1'), withdrawParams)
+  await withdrawable.sendWithdrawableWithdraw(
+    contractProvider,
+    sender,
+    toNano('0.1'),
+    withdrawParams,
+  )
 }

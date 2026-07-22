@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
-import { createEmptyTensorValue, loadMap } from '../../../src/utils/dict'
+import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -30,17 +29,10 @@ import {
   JettonClient,
   LockReleaseTokenPool,
 } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
-import { setupGenBindings } from '../../../wrappers/gen'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-import * as rtOld from '../../../wrappers/ccip/Router'
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
-import { asSnakedCell, asSnakedCellEmpty } from '../../../src/utils'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-
-function crossChainAddressFromBuffer(buffer: Buffer): CrossChainAddress {
-  const addrSlice = rtOld.builder.data.crossChainAddress.encode(buffer).asSlice()
-  return CrossChainAddress.fromSlice(addrSlice)
-}
 
 describe('LockReleaseTokenPool', () => {
   let blockchain: Blockchain
@@ -63,11 +55,9 @@ describe('LockReleaseTokenPool', () => {
   let receiverAddress: CrossChainAddress
 
   beforeAll(async () => {
-    setupGenBindings()
-
-    sourcePoolAddress = crossChainAddressFromBuffer(Buffer.from('source-pool'))
-    destTokenAddress = crossChainAddressFromBuffer(Buffer.from('dest-token'))
-    receiverAddress = crossChainAddressFromBuffer(Buffer.from('receiver'))
+    sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
+    destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
+    receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))
   })
 
   beforeEach(async () => {
@@ -109,44 +99,34 @@ describe('LockReleaseTokenPool', () => {
 
     lockReleasePool = blockchain.openContract(
       LockReleaseTokenPool.fromStorage({
-        poolData: {
-          ref: TokenPool_Data.create({
-            adminConfig: {
-              ref: TokenPool_AdminConfig.create({
-                ownable: {
-                  ref: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-                },
-                rmnProxy: deployer.address,
-                dynamicConfig: {
-                  ref: TokenPool_DynamicConfig.create({
-                    router: deployer.address,
-                    rateLimitAdmin: null,
-                    feeAdmin: null,
-                  }),
-                },
-                jettonClient: JettonClient.create({
-                  masterAddress: jettonMinter.address,
-                  jettonWalletCode,
-                }),
-                allowedFinalityConfig: 0n,
-                advancedPoolHooks: null,
-              }),
-            },
-            mirroredPolicy: {
-              ref: TokenPool_MirroredPolicy.create({
-                onRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-                offRamps: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-                cursedSubjects: CursedSubjects.create({
-                  data: Dictionary.empty(Dictionary.Keys.BigInt(128)),
-                }),
-              }),
-            },
-            tokenDecimals: 9n,
-            remoteChainConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
-            tokenTransferFeeConfigs: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+        poolData: TokenPool_Data.create({
+          adminConfig: TokenPool_AdminConfig.create({
+            ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+            rmnProxy: deployer.address,
+            dynamicConfig: TokenPool_DynamicConfig.create({
+              router: deployer.address,
+              rateLimitAdmin: null,
+              feeAdmin: null,
+            }),
+            jettonClient: JettonClient.create({
+              masterAddress: jettonMinter.address,
+              jettonWalletCode,
+            }),
+            allowedFinalityConfig: 0n,
+            advancedPoolHooks: null,
           }),
-        },
-        pendingReleases: Dictionary.empty(Dictionary.Keys.BigInt(64)),
+          mirroredPolicy: TokenPool_MirroredPolicy.create({
+            onRamps: new Map(),
+            offRamps: new Map(),
+            cursedSubjects: CursedSubjects.create({
+              data: new Set(),
+            }),
+          }),
+          tokenDecimals: 9n,
+          remoteChainConfigs: new Map(),
+          tokenTransferFeeConfigs: new Map(),
+        }),
+        pendingReleases: new Map(),
       }),
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))
@@ -159,39 +139,26 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.2'),
       {
         queryId: 1n,
-        remoteChainSelectorsToRemove: asSnakedCellEmpty<bigint>(),
-        chainsToAdd: asSnakedCell(
-          [
-            TokenPool_ChainUpdate.create({
-              remoteChainSelector,
-              remotePoolAddresses: asSnakedCell([sourcePoolAddress], (item) => {
-                let b = beginCell()
-                CrossChainAddress.store(item, b)
-                return b
+        remoteChainSelectorsToRemove: [],
+        chainsToAdd: [
+          TokenPool_ChainUpdate.create({
+            remoteChainSelector,
+            remotePoolAddresses: [sourcePoolAddress],
+            remoteTokenAddress: destTokenAddress,
+            rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+              outbound: RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: toNano('100'),
+                rate: 1n,
               }),
-              remoteTokenAddress: { ref: destTokenAddress },
-              rateLimitConfigs: {
-                ref: TokenPool_RateLimitConfigPair.create({
-                  outbound: {
-                    ref: RateLimiter_Config.create({
-                      isEnabled: true,
-                      capacity: toNano('100'),
-                      rate: 1n,
-                    }),
-                  },
-                  inbound: {
-                    ref: RateLimiter_Config.create({
-                      isEnabled: true,
-                      capacity: toNano('100'),
-                      rate: 1n,
-                    }),
-                  },
-                }),
-              },
+              inbound: RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: toNano('100'),
+                rate: 1n,
+              }),
             }),
-          ],
-          (item) => TokenPool_ChainUpdate.toCell(item).asBuilder(),
-        ),
+          }),
+        ],
       },
     )
 
@@ -206,16 +173,13 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.2'),
       {
         queryId: 2n,
-        updates: asSnakedCell(
-          [
-            TokenPool_RampUpdate.create({
-              remoteChainSelector,
-              onRamp: deployer.address,
-              offRamp: offRamp.address,
-            }),
-          ],
-          (item) => TokenPool_RampUpdate.toCell(item).asBuilder(),
-        ),
+        updates: [
+          TokenPool_RampUpdate.create({
+            remoteChainSelector,
+            onRamp: deployer.address,
+            offRamp: offRamp.address,
+          }),
+        ],
       },
     )
 
@@ -318,22 +282,18 @@ describe('LockReleaseTokenPool', () => {
         forwardPayload: TokenPool_LockOrBurn.toCell(
           TokenPool_LockOrBurn.create({
             queryId: 44n,
-            request: {
-              ref: TokenPool_LockOrBurnInV1.create({
-                transfer: TokenPool_Transfer.create({
-                  id: 44n,
-                  details: {
-                    ref: TokenPool_TransferDetails.create({
-                      receiver: { ref: receiverAddress },
-                      remoteChainSelector,
-                      originalSender: deployer.address,
-                      amount: toNano('2'),
-                      localToken: jettonMinter.address,
-                    }),
-                  },
+            request: TokenPool_LockOrBurnInV1.create({
+              transfer: TokenPool_Transfer.create({
+                id: 44n,
+                details: TokenPool_TransferDetails.create({
+                  receiver: receiverAddress,
+                  remoteChainSelector,
+                  originalSender: deployer.address,
+                  amount: toNano('2'),
+                  localToken: jettonMinter.address,
                 }),
               }),
-            },
+            }),
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: deployer.address,
@@ -378,25 +338,21 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.4'),
       {
         queryId: 46n,
-        request: {
-          ref: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 46n,
-              details: {
-                ref: TokenPool_TransferDetails.create({
-                  originalSender: { ref: sourcePoolAddress },
-                  remoteChainSelector,
-                  receiver: recipient.address,
-                  amount: toNano('999999'),
-                  localToken: jettonMinter.address,
-                }),
-              },
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 46n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('999999'),
+              localToken: jettonMinter.address,
             }),
-            sourcePoolAddress: { ref: sourcePoolAddress },
-            sourcePoolData: null,
-            offchainTokenData: null,
           }),
-        },
+          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
         requestedFinalityConfig: 0n,
         replyTo: deployer.address,
       },
@@ -416,32 +372,28 @@ describe('LockReleaseTokenPool', () => {
     // capacity it consumed at admission, leaving the bucket as it started (full).
     const releaseAmount = toNano('5') // < inbound capacity (100), so admission succeeds
     const before = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
-    expect(before.inbound.ref.tokens).toEqual(toNano('100'))
+    expect(before.inbound.tokens).toEqual(toNano('100'))
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
       offRamp.getSender(),
       toNano('0.4'),
       {
         queryId: 77n,
-        request: {
-          ref: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 77n,
-              details: {
-                ref: TokenPool_TransferDetails.create({
-                  originalSender: { ref: sourcePoolAddress },
-                  remoteChainSelector,
-                  receiver: recipient.address,
-                  amount: releaseAmount,
-                  localToken: jettonMinter.address,
-                }),
-              },
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 77n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: releaseAmount,
+              localToken: jettonMinter.address,
             }),
-            sourcePoolAddress: { ref: sourcePoolAddress },
-            sourcePoolData: null,
-            offchainTokenData: null,
           }),
-        },
+          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
         requestedFinalityConfig: 0n,
         replyTo: deployer.address,
       },
@@ -457,7 +409,7 @@ describe('LockReleaseTokenPool', () => {
 
     // Consumed capacity (5) was refunded: the bucket is restored to its starting balance.
     const after = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
-    expect(after.inbound.ref.tokens).toEqual(before.inbound.ref.tokens)
+    expect(after.inbound.tokens).toEqual(before.inbound.tokens)
   })
 
   it('locks tokens through a jetton transfer notification and credits the pool wallet', async () => {
@@ -475,22 +427,18 @@ describe('LockReleaseTokenPool', () => {
         forwardPayload: TokenPool_LockOrBurn.toCell(
           TokenPool_LockOrBurn.create({
             queryId: 11n,
-            request: {
-              ref: TokenPool_LockOrBurnInV1.create({
-                transfer: TokenPool_Transfer.create({
-                  id: 11n,
-                  details: {
-                    ref: TokenPool_TransferDetails.create({
-                      receiver: { ref: receiverAddress },
-                      remoteChainSelector,
-                      originalSender: deployer.address,
-                      amount: toNano('3'),
-                      localToken: jettonMinter.address,
-                    }),
-                  },
+            request: TokenPool_LockOrBurnInV1.create({
+              transfer: TokenPool_Transfer.create({
+                id: 11n,
+                details: TokenPool_TransferDetails.create({
+                  receiver: receiverAddress,
+                  remoteChainSelector,
+                  originalSender: deployer.address,
+                  amount: toNano('3'),
+                  localToken: jettonMinter.address,
                 }),
               }),
-            },
+            }),
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: deployer.address,
@@ -530,25 +478,21 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.4'),
       {
         queryId: 22n,
-        request: {
-          ref: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 46n,
-              details: {
-                ref: TokenPool_TransferDetails.create({
-                  originalSender: { ref: sourcePoolAddress },
-                  remoteChainSelector,
-                  receiver: recipient.address,
-                  amount: toNano('2'),
-                  localToken: jettonMinter.address,
-                }),
-              },
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 46n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('2'),
+              localToken: jettonMinter.address,
             }),
-            sourcePoolAddress: { ref: sourcePoolAddress },
-            sourcePoolData: null,
-            offchainTokenData: null,
           }),
-        },
+          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
         requestedFinalityConfig: 0n,
         replyTo: deployer.address,
       },
@@ -572,7 +516,7 @@ describe('LockReleaseTokenPool', () => {
       body(body) {
         if (!body) return false
         const response = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
-        return response.queryId === 22n && response.out.ref.destinationAmount === toNano('2')
+        return response.queryId === 22n && response.out.destinationAmount === toNano('2')
       },
     })
   })
@@ -584,11 +528,7 @@ describe('LockReleaseTokenPool', () => {
       {
         queryId: 901n,
         cursedSubjects: CursedSubjects.create({
-          data: loadMap(
-            Dictionary.Keys.BigInt(128),
-            createEmptyTensorValue(),
-            new Map([[remoteChainSelector, []]]),
-          ),
+          data: new Set([remoteChainSelector]),
         }),
       },
     )
@@ -606,25 +546,21 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.3'),
       {
         queryId: 33n,
-        request: {
-          ref: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 33n,
-              details: {
-                ref: TokenPool_TransferDetails.create({
-                  originalSender: { ref: sourcePoolAddress },
-                  remoteChainSelector,
-                  receiver: recipient.address,
-                  amount: toNano('1'),
-                  localToken: jettonMinter.address,
-                }),
-              },
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 33n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('1'),
+              localToken: jettonMinter.address,
             }),
-            sourcePoolAddress: { ref: sourcePoolAddress },
-            sourcePoolData: null,
-            offchainTokenData: null,
           }),
-        },
+          sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
         requestedFinalityConfig: 0n,
         replyTo: deployer.address,
       },

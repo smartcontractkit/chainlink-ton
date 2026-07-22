@@ -26,11 +26,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	jettoncommon "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/mocktokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -612,21 +612,21 @@ func (a *TonTokenAdapter) MigrateLockReleasePoolLiquiditySequence() *cldf_ops.Se
 // configured bucket: return a disabled zero-value config. FastFinality is not a
 // concept on TON, so reject that bucket per the interface contract.
 func (a *TonTokenAdapter) GetOnchainInboundRateLimit(
-      e deployment.Environment,
-      chainSelector uint64,
-      poolRef datastore.AddressRef,
-      tokenRef datastore.AddressRef,
-      remoteSelector uint64,
-      fastFinality bool,
+	e deployment.Environment,
+	chainSelector uint64,
+	poolRef datastore.AddressRef,
+	tokenRef datastore.AddressRef,
+	remoteSelector uint64,
+	fastFinality bool,
 ) (tokensapi.RateLimiterConfig, error) {
-      if fastFinality {
-              return tokensapi.RateLimiterConfig{}, fmt.Errorf("fast finality rate limits are not supported on TON (chain selector %d)", chainSelector)
-      }
-      return tokensapi.RateLimiterConfig{
-              IsEnabled: false,
-              Capacity:  big.NewInt(0),
-              Rate:      big.NewInt(0),
-      }, nil
+	if fastFinality {
+		return tokensapi.RateLimiterConfig{}, fmt.Errorf("fast finality rate limits are not supported on TON (chain selector %d)", chainSelector)
+	}
+	return tokensapi.RateLimiterConfig{
+		IsEnabled: false,
+		Capacity:  big.NewInt(0),
+		Rate:      big.NewInt(0),
+	}, nil
 }
 
 // ---------------------------------------------------------------------------

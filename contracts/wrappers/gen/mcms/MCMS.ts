@@ -12,9 +12,6 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,16 +34,33 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     if (v === null) {
@@ -177,7 +191,7 @@ export const MCMS_SetRoot = {
     PREFIX: 0xe7fabde3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -186,7 +200,8 @@ export const MCMS_SetRoot = {
     }): MCMS_SetRoot {
         return {
             $: 'MCMS_SetRoot',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_SetRoot {
@@ -197,8 +212,8 @@ export const MCMS_SetRoot = {
             root: s.loadUintBig(256),
             validUntil: s.loadUintBig(64),
             metadata: RootMetadata.fromSlice(s),
-            metadataProof: s.loadRef(),
-            signatures: s.loadRef(),
+            metadataProof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            signatures: loadSnakedCellOf(s, Signature.fromSlice),
         }
     },
     store(self: MCMS_SetRoot, b: c.Builder): void {
@@ -207,8 +222,8 @@ export const MCMS_SetRoot = {
         b.storeUint(self.root, 256);
         b.storeUint(self.validUntil, 64);
         RootMetadata.store(self.metadata, b);
-        b.storeRef(self.metadataProof);
-        b.storeRef(self.signatures);
+        storeSnakedCellOf(self.metadataProof, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.signatures, b, Signature.store);
     },
     toCell(self: MCMS_SetRoot): c.Cell {
         return makeCellFrom<MCMS_SetRoot>(self, MCMS_SetRoot.store);
@@ -225,7 +240,7 @@ export const MCMS_SetRoot = {
 export interface MCMS_Execute {
     readonly $: 'MCMS_Execute'
     queryId: uint64
-    op: CellRef<Op>
+    op: Op
     proof: SnakedCell<uint256>
 }
 
@@ -233,13 +248,14 @@ export const MCMS_Execute = {
     PREFIX: 0x9b9ce96a,
 
     create(args: {
-        queryId: uint64
-        op: CellRef<Op>
+        queryId?: uint64
+        op: Op
         proof: SnakedCell<uint256>
     }): MCMS_Execute {
         return {
             $: 'MCMS_Execute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_Execute {
@@ -248,14 +264,14 @@ export const MCMS_Execute = {
             $: 'MCMS_Execute',
             queryId: s.loadUintBig(64),
             op: loadCellRef<Op>(s, Op.fromSlice),
-            proof: s.loadRef(),
+            proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: MCMS_Execute, b: c.Builder): void {
         b.storeUint(0x9b9ce96a, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Op>(self.op, b, Op.store);
-        b.storeRef(self.proof);
+        storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: MCMS_Execute): c.Cell {
         return makeCellFrom<MCMS_Execute>(self, MCMS_Execute.store);
@@ -277,8 +293,8 @@ export interface MCMS_SetConfig {
     queryId: uint64
     signerAddresses: SnakedCell<uint160>
     signerGroups: SnakedCell<uint8>
-    groupQuorums: c.Dictionary<uint8, uint8>
-    groupParents: c.Dictionary<uint8, uint8>
+    groupQuorums: Map<uint8, uint8>
+    groupParents: Map<uint8, uint8>
     clearRoot: boolean
 }
 
@@ -286,16 +302,17 @@ export const MCMS_SetConfig = {
     PREFIX: 0x89277f4b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
         clearRoot: boolean
     }): MCMS_SetConfig {
         return {
             $: 'MCMS_SetConfig',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_SetConfig {
@@ -303,20 +320,20 @@ export const MCMS_SetConfig = {
         return {
             $: 'MCMS_SetConfig',
             queryId: s.loadUintBig(64),
-            signerAddresses: s.loadRef(),
-            signerGroups: s.loadRef(),
-            groupQuorums: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
-            groupParents: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
+            signerAddresses: loadSnakedCellOf(s, (s) => s.loadUintBig(160)),
+            signerGroups: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
+            groupQuorums: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+            groupParents: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
             clearRoot: s.loadBoolean(),
         }
     },
     store(self: MCMS_SetConfig, b: c.Builder): void {
         b.storeUint(0x89277f4b, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.signerAddresses);
-        b.storeRef(self.signerGroups);
-        b.storeDict<uint8, uint8>(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
-        b.storeDict<uint8, uint8>(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        storeSnakedCellOf(self.signerAddresses, b, (v, b) => b.storeUint(v, 160));
+        storeSnakedCellOf(self.signerGroups, b, (v, b) => b.storeUint(v, 8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
         b.storeBit(self.clearRoot);
     },
     toCell(self: MCMS_SetConfig): c.Cell {
@@ -340,12 +357,13 @@ export const MCMS_UpdateOpFinalizationTimeout = {
     PREFIX: 0x9dcbbab1,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOpFinalizationTimeout: uint32
     }): MCMS_UpdateOpFinalizationTimeout {
         return {
             $: 'MCMS_UpdateOpFinalizationTimeout',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_UpdateOpFinalizationTimeout {
@@ -379,7 +397,7 @@ export const MCMS_UpdateOpFinalizationTimeout = {
 export interface MCMS_SubmitErrorReport {
     readonly $: 'MCMS_SubmitErrorReport'
     queryId: uint64
-    op: CellRef<Op>
+    op: Op
     proof: SnakedCell<uint256>
     opTxHash: uint256
     errorTxHash: uint256
@@ -390,8 +408,8 @@ export const MCMS_SubmitErrorReport = {
     PREFIX: 0x4b3af0b5,
 
     create(args: {
-        queryId: uint64
-        op: CellRef<Op>
+        queryId?: uint64
+        op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
         errorTxHash: uint256
@@ -399,7 +417,8 @@ export const MCMS_SubmitErrorReport = {
     }): MCMS_SubmitErrorReport {
         return {
             $: 'MCMS_SubmitErrorReport',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_SubmitErrorReport {
@@ -408,7 +427,7 @@ export const MCMS_SubmitErrorReport = {
             $: 'MCMS_SubmitErrorReport',
             queryId: s.loadUintBig(64),
             op: loadCellRef<Op>(s, Op.fromSlice),
-            proof: s.loadRef(),
+            proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
             errorCode: s.loadUintBig(32),
@@ -418,7 +437,7 @@ export const MCMS_SubmitErrorReport = {
         b.storeUint(0x4b3af0b5, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Op>(self.op, b, Op.store);
-        b.storeRef(self.proof);
+        storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.opTxHash, 256);
         b.storeUint(self.errorTxHash, 256);
         b.storeUint(self.errorCode, 32);
@@ -444,12 +463,13 @@ export const MCMS_TransferOracleRole = {
     PREFIX: 0xf275742f,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOracle: c.Address
     }): MCMS_TransferOracleRole {
         return {
             $: 'MCMS_TransferOracleRole',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_TransferOracleRole {
@@ -486,12 +506,13 @@ export const MCMS_CleanExpiredRoots = {
     PREFIX: 0xa903c276,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         roots: SnakedCell<RootDescriptor>
     }): MCMS_CleanExpiredRoots {
         return {
             $: 'MCMS_CleanExpiredRoots',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_CleanExpiredRoots {
@@ -499,13 +520,13 @@ export const MCMS_CleanExpiredRoots = {
         return {
             $: 'MCMS_CleanExpiredRoots',
             queryId: s.loadUintBig(64),
-            roots: s.loadRef(),
+            roots: loadSnakedCellOf(s, RootDescriptor.fromSlice),
         }
     },
     store(self: MCMS_CleanExpiredRoots, b: c.Builder): void {
         b.storeUint(0xa903c276, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.roots);
+        storeSnakedCellOf(self.roots, b, RootDescriptor.store);
     },
     toCell(self: MCMS_CleanExpiredRoots): c.Cell {
         return makeCellFrom<MCMS_CleanExpiredRoots>(self, MCMS_CleanExpiredRoots.store);
@@ -532,14 +553,15 @@ export const MCMS_NewRoot = {
     PREFIX: 0xa6533a3d,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
     }): MCMS_NewRoot {
         return {
             $: 'MCMS_NewRoot',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_NewRoot {
@@ -582,13 +604,14 @@ export const MCMS_ConfigSet = {
     PREFIX: 0xd80be574,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         config: Config
         isRootCleared: boolean
     }): MCMS_ConfigSet {
         return {
             $: 'MCMS_ConfigSet',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_ConfigSet {
@@ -633,7 +656,7 @@ export const MCMS_OpExecuted = {
     PREFIX: 0x7cf37cbf,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         nonce: uint40
         to: c.Address
         data: c.Cell
@@ -641,7 +664,8 @@ export const MCMS_OpExecuted = {
     }): MCMS_OpExecuted {
         return {
             $: 'MCMS_OpExecuted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_OpExecuted {
@@ -686,13 +710,14 @@ export const MCMS_OpFinalizationTimeoutChange = {
     PREFIX: 0x16fc10e6,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldDuration: uint32
         newDuration: uint32
     }): MCMS_OpFinalizationTimeoutChange {
         return {
             $: 'MCMS_OpFinalizationTimeoutChange',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_OpFinalizationTimeoutChange {
@@ -733,7 +758,7 @@ export interface MCMS_ErrorReportSubmitted {
     opTxHash: uint256
     errorTxHash: uint256
     errorCode: uint32
-    root: CellRef<uint256>
+    root: uint256
     matchesPendingOp: boolean
 }
 
@@ -741,17 +766,18 @@ export const MCMS_ErrorReportSubmitted = {
     PREFIX: 0xbbc4deb4,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         opLeafHash: uint256
         opTxHash: uint256
         errorTxHash: uint256
         errorCode: uint32
-        root: CellRef<uint256>
+        root: uint256
         matchesPendingOp: boolean
     }): MCMS_ErrorReportSubmitted {
         return {
             $: 'MCMS_ErrorReportSubmitted',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_ErrorReportSubmitted {
@@ -804,13 +830,14 @@ export const MCMS_OracleRoleTransferred = {
     PREFIX: 0xff4176a3,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOracle: c.Address
         newOracle: c.Address
     }): MCMS_OracleRoleTransferred {
         return {
             $: 'MCMS_OracleRoleTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_OracleRoleTransferred {
@@ -849,12 +876,13 @@ export const MCMS_ExpiredRootsCleaned = {
     PREFIX: 0xa86846d5,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         roots: SnakedCell<RootDescriptor>
     }): MCMS_ExpiredRootsCleaned {
         return {
             $: 'MCMS_ExpiredRootsCleaned',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_ExpiredRootsCleaned {
@@ -862,13 +890,13 @@ export const MCMS_ExpiredRootsCleaned = {
         return {
             $: 'MCMS_ExpiredRootsCleaned',
             queryId: s.loadUintBig(64),
-            roots: s.loadRef(),
+            roots: loadSnakedCellOf(s, RootDescriptor.fromSlice),
         }
     },
     store(self: MCMS_ExpiredRootsCleaned, b: c.Builder): void {
         b.storeUint(0xa86846d5, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.roots);
+        storeSnakedCellOf(self.roots, b, RootDescriptor.store);
     },
     toCell(self: MCMS_ExpiredRootsCleaned): c.Cell {
         return makeCellFrom<MCMS_ExpiredRootsCleaned>(self, MCMS_ExpiredRootsCleaned.store);
@@ -953,10 +981,10 @@ export interface MCMS_Data {
     id: uint32
     ownable: Ownable2Step
     oracle: c.Address
-    signers: c.Dictionary<uint160, Signer>
-    config: CellRef<Config>
-    seenSignedHashes: c.Dictionary<uint256, boolean>
-    rootInfo: CellRef<RootInfo>
+    signers: Map<uint160, Signer>
+    config: Config
+    seenSignedHashes: Map<uint256, boolean>
+    rootInfo: RootInfo
 }
 
 export const MCMS_Data = {
@@ -964,10 +992,10 @@ export const MCMS_Data = {
         id: uint32
         ownable: Ownable2Step
         oracle: c.Address
-        signers: c.Dictionary<uint160, Signer>
-        config: CellRef<Config>
-        seenSignedHashes: c.Dictionary<uint256, boolean>
-        rootInfo: CellRef<RootInfo>
+        signers: Map<uint160, Signer>
+        config: Config
+        seenSignedHashes: Map<uint256, boolean>
+        rootInfo: RootInfo
     }): MCMS_Data {
         return {
             $: 'MCMS_Data',
@@ -980,9 +1008,9 @@ export const MCMS_Data = {
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
             oracle: s.loadAddress(),
-            signers: c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s),
+            signers: dictToMap(c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
             config: loadCellRef<Config>(s, Config.fromSlice),
-            seenSignedHashes: c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s),
+            seenSignedHashes: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
             rootInfo: loadCellRef<RootInfo>(s, RootInfo.fromSlice),
         }
     },
@@ -990,9 +1018,9 @@ export const MCMS_Data = {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
         b.storeAddress(self.oracle);
-        b.storeDict<uint160, Signer>(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
+        b.storeDict<uint160, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
         storeCellRef<Config>(self.config, b, Config.store);
-        b.storeDict<uint256, boolean>(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
+        b.storeDict<uint256, boolean>(mapToDict(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
         storeCellRef<RootInfo>(self.rootInfo, b, RootInfo.store);
     },
     toCell(self: MCMS_Data): c.Cell {
@@ -1052,16 +1080,16 @@ export const Signer = {
  */
 export interface Config {
     readonly $: 'Config'
-    signers: c.Dictionary<uint8, Signer>
-    groupQuorums: c.Dictionary<uint8, uint8>
-    groupParents: c.Dictionary<uint8, uint8>
+    signers: Map<uint8, Signer>
+    groupQuorums: Map<uint8, uint8>
+    groupParents: Map<uint8, uint8>
 }
 
 export const Config = {
     create(args: {
-        signers: c.Dictionary<uint8, Signer>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        signers: Map<uint8, Signer>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
     }): Config {
         return {
             $: 'Config',
@@ -1071,15 +1099,15 @@ export const Config = {
     fromSlice(s: c.Slice): Config {
         return {
             $: 'Config',
-            signers: c.Dictionary.load<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s),
-            groupQuorums: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
-            groupParents: c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s),
+            signers: dictToMap(c.Dictionary.load<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
+            groupQuorums: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+            groupParents: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
         }
     },
     store(self: Config, b: c.Builder): void {
-        b.storeDict<uint8, Signer>(self.signers, c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
-        b.storeDict<uint8, uint8>(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
-        b.storeDict<uint8, uint8>(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
@@ -1137,7 +1165,7 @@ export interface ExpiringRootAndOpCount {
     root: uint256
     validUntil: uint64
     opCount: uint40
-    opPendingInfo: CellRef<OpPendingInfo>
+    opPendingInfo: OpPendingInfo
 }
 
 export const ExpiringRootAndOpCount = {
@@ -1145,7 +1173,7 @@ export const ExpiringRootAndOpCount = {
         root: uint256
         validUntil: uint64
         opCount: uint40
-        opPendingInfo: CellRef<OpPendingInfo>
+        opPendingInfo: OpPendingInfo
     }): ExpiringRootAndOpCount {
         return {
             $: 'ExpiringRootAndOpCount',
@@ -1415,7 +1443,49 @@ export const RootDescriptor = {
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct Ownable2Step {
@@ -1469,12 +1539,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -1509,13 +1580,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -1626,10 +1698,10 @@ export class MCMS implements c.Contract {
         id: uint32
         ownable: Ownable2Step
         oracle: c.Address
-        signers: c.Dictionary<uint160, Signer>
-        config: CellRef<Config>
-        seenSignedHashes: c.Dictionary<uint256, boolean>
-        rootInfo: CellRef<RootInfo>
+        signers: Map<uint160, Signer>
+        config: Config
+        seenSignedHashes: Map<uint256, boolean>
+        rootInfo: RootInfo
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? MCMS.CodeCell,
@@ -1640,7 +1712,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSSetRoot(body: {
-        queryId: uint64
+        queryId?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -1651,34 +1723,34 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSExecute(body: {
-        queryId: uint64
-        op: CellRef<Op>
+        queryId?: uint64
+        op: Op
         proof: SnakedCell<uint256>
     }) {
         return MCMS_Execute.toCell(MCMS_Execute.create(body));
     }
 
     static createCellOfMCMSSetConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
         clearRoot: boolean
     }) {
         return MCMS_SetConfig.toCell(MCMS_SetConfig.create(body));
     }
 
     static createCellOfMCMSUpdateOpFinalizationTimeout(body: {
-        queryId: uint64
+        queryId?: uint64
         newOpFinalizationTimeout: uint32
     }) {
         return MCMS_UpdateOpFinalizationTimeout.toCell(MCMS_UpdateOpFinalizationTimeout.create(body));
     }
 
     static createCellOfMCMSSubmitErrorReport(body: {
-        queryId: uint64
-        op: CellRef<Op>
+        queryId?: uint64
+        op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
         errorTxHash: uint256
@@ -1688,21 +1760,21 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSTransferOracleRole(body: {
-        queryId: uint64
+        queryId?: uint64
         newOracle: c.Address
     }) {
         return MCMS_TransferOracleRole.toCell(MCMS_TransferOracleRole.create(body));
     }
 
     static createCellOfMCMSCleanExpiredRoots(body: {
-        queryId: uint64
+        queryId?: uint64
         roots: SnakedCell<RootDescriptor>
     }) {
         return MCMS_CleanExpiredRoots.toCell(MCMS_CleanExpiredRoots.create(body));
     }
 
     static createCellOfMCMSConfigSet(body: {
-        queryId: uint64
+        queryId?: uint64
         config: Config
         isRootCleared: boolean
     }) {
@@ -1710,7 +1782,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSOracleRoleTransferred(body: {
-        queryId: uint64
+        queryId?: uint64
         oldOracle: c.Address
         newOracle: c.Address
     }) {
@@ -1718,7 +1790,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSExpiredRootsCleaned(body: {
-        queryId: uint64
+        queryId?: uint64
         roots: SnakedCell<RootDescriptor>
     }) {
         return MCMS_ExpiredRootsCleaned.toCell(MCMS_ExpiredRootsCleaned.create(body));
@@ -1733,7 +1805,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSSetRoot(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -1748,8 +1820,8 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        op: CellRef<Op>
+        queryId?: uint64
+        op: Op
         proof: SnakedCell<uint256>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1760,11 +1832,11 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSSetConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
-        groupQuorums: c.Dictionary<uint8, uint8>
-        groupParents: c.Dictionary<uint8, uint8>
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
         clearRoot: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1775,7 +1847,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSUpdateOpFinalizationTimeout(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newOpFinalizationTimeout: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1786,8 +1858,8 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSSubmitErrorReport(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        op: CellRef<Op>
+        queryId?: uint64
+        op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
         errorTxHash: uint256
@@ -1801,7 +1873,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSTransferOracleRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         newOracle: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1812,7 +1884,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSCleanExpiredRoots(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         roots: SnakedCell<RootDescriptor>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1823,7 +1895,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSConfigSet(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         config: Config
         isRootCleared: boolean
     }, extraOptions?: ExtraSendOptions) {
@@ -1835,7 +1907,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSOracleRoleTransferred(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         oldOracle: c.Address
         newOracle: c.Address
     }, extraOptions?: ExtraSendOptions) {
@@ -1847,7 +1919,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSExpiredRootsCleaned(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         roots: SnakedCell<RootDescriptor>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1877,9 +1949,9 @@ export class MCMS implements c.Contract {
         const r = StackReader.fromGetMethod(3, await provider.get('getConfig', []));
         return ({
             $: 'Config',
-            signers: r.readDictionary<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)),
-            groupQuorums: r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)),
-            groupParents: r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)),
+            signers: dictToMap(r.readDictionary<uint8, Signer>(c.Dictionary.Keys.BigUint(8), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store))),
+            groupQuorums: dictToMap(r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8))),
+            groupParents: dictToMap(r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8))),
         });
     }
 

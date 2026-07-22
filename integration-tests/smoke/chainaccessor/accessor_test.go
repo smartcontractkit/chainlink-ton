@@ -18,15 +18,15 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	postgresstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
 	logpoller_testdata "github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
 	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"

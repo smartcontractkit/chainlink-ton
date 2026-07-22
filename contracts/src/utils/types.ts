@@ -82,6 +82,7 @@ export function asSnakeBytes(data: Buffer): Cell {
   return asSnakedCell(Array.from(data), (item: number) => new Builder().storeUint(item, 8))
 }
 
+// TODO we should be able to get rid of SnakeData helpers after migrating to the new gen bindings
 export function asSnakeDataUint(data: bigint[] | number[], bits: number): Cell {
   return asSnakedCell(data, (item: bigint | number) => new Builder().storeUint(item, bits))
 }
@@ -109,6 +110,13 @@ export const tonEquals: Tester = function (this, a, b) {
   if (a instanceof Cell) {
     if (!(b instanceof Cell)) return false
     return a.equals(b)
+  }
+
+  if (a instanceof Slice) {
+    if (!(b instanceof Slice)) return false
+    // Compare by converting to cells — two slices with the same bits/refs
+    // produce equal cells, regardless of their internal reader state.
+    return a.asCell().equals(b.asCell())
   }
 
   if (a instanceof Dictionary) {

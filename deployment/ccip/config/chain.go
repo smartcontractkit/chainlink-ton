@@ -8,7 +8,7 @@ import (
 
 	evm_fee_quoter "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 
-	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 )
 
 const (

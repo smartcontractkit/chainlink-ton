@@ -15,7 +15,6 @@ import {
   JettonLockBox_Deposited,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
-import { setupGenBindings } from '../../../wrappers/gen'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 
@@ -58,10 +57,6 @@ describe('JettonLockBox', () => {
   let lockboxWallet: SandboxContract<JettonWallet>
 
   const remoteChainSelector = 91000001n
-
-  beforeAll(async () => {
-    setupGenBindings()
-  })
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()

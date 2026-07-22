@@ -14,9 +14,6 @@ type RemainingBitsAndRefs = c.Slice
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -39,16 +36,33 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
@@ -200,14 +214,15 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
     }): TransferNotificationForRecipient {
         return {
             $: 'TransferNotificationForRecipient',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
@@ -239,12 +254,12 @@ export const TransferNotificationForRecipient = {
  */
 export interface AccessControl_Data {
     readonly $: 'AccessControl_Data'
-    roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+    roles: Map<uint256, AccessControl_RoleData>
 }
 
 export const AccessControl_Data = {
     create(args: {
-        roles: c.Dictionary<uint256, CellRef<AccessControl_RoleData>>
+        roles: Map<uint256, AccessControl_RoleData>
     }): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
@@ -254,14 +269,17 @@ export const AccessControl_Data = {
     fromSlice(s: c.Slice): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
-            roles: c.Dictionary.load<uint256, CellRef<AccessControl_RoleData>>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
-                (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
-                (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
-            ), s),
+            roles: dictToMap(c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                        ), s)),
         }
     },
     store(self: AccessControl_Data, b: c.Builder): void {
-        b.storeDict<uint256, CellRef<AccessControl_RoleData>>(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<CellRef<AccessControl_RoleData>>(
+        b.storeDict<uint256, AccessControl_RoleData>(mapToDict(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                        (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                        (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                    )), c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
             (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
             (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
         ));
@@ -282,14 +300,14 @@ export interface AccessControl_RoleData {
     readonly $: 'AccessControl_RoleData'
     adminRole: uint256
     membersLen: uint64
-    hasRole: c.Dictionary<c.Address, boolean>
+    hasRole: Map<c.Address, boolean>
 }
 
 export const AccessControl_RoleData = {
     create(args: {
         adminRole: uint256
         membersLen: uint64
-        hasRole: c.Dictionary<c.Address, boolean>
+        hasRole: Map<c.Address, boolean>
     }): AccessControl_RoleData {
         return {
             $: 'AccessControl_RoleData',
@@ -301,13 +319,13 @@ export const AccessControl_RoleData = {
             $: 'AccessControl_RoleData',
             adminRole: s.loadUintBig(256),
             membersLen: s.loadUintBig(64),
-            hasRole: c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s),
+            hasRole: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: AccessControl_RoleData, b: c.Builder): void {
         b.storeUint(self.adminRole, 256);
         b.storeUint(self.membersLen, 64);
-        b.storeDict<c.Address, boolean>(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        b.storeDict<c.Address, boolean>(mapToDict(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
     },
     toCell(self: AccessControl_RoleData): c.Cell {
         return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
@@ -382,14 +400,15 @@ export const JettonLockBox_Deposit = {
     PREFIX: 0x9e9ec361,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
     }): JettonLockBox_Deposit {
         return {
             $: 'JettonLockBox_Deposit',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposit {
@@ -464,23 +483,24 @@ export interface JettonLockBox_Withdraw {
     remoteChainSelector: uint64
     amount: coins
     recipientWallet: c.Address
-    extra: CellRef<JettonLockBox_WithdrawExtra> | null
+    extra: JettonLockBox_WithdrawExtra | null
 }
 
 export const JettonLockBox_Withdraw = {
     PREFIX: 0xd065c306,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }): JettonLockBox_Withdraw {
         return {
             $: 'JettonLockBox_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Withdraw {
@@ -502,7 +522,7 @@ export const JettonLockBox_Withdraw = {
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
         b.storeAddress(self.recipientWallet);
-        storeTolkNullable<CellRef<JettonLockBox_WithdrawExtra>>(self.extra, b,
+        storeTolkNullable<JettonLockBox_WithdrawExtra>(self.extra, b,
             (v,b) => storeCellRef<JettonLockBox_WithdrawExtra>(v, b, JettonLockBox_WithdrawExtra.store)
         );
     },
@@ -531,14 +551,15 @@ export const JettonLockBox_Deposited = {
     PREFIX: 0x6d077f2e,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
     }): JettonLockBox_Deposited {
         return {
             $: 'JettonLockBox_Deposited',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposited {
@@ -583,14 +604,15 @@ export const JettonLockBox_Init = {
     PREFIX: 0xffa6eeb9,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
     }): JettonLockBox_Init {
         return {
             $: 'JettonLockBox_Init',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Init {
@@ -635,14 +657,15 @@ export const JettonLockBox_Initialized = {
     PREFIX: 0xe9f4e311,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address
     }): JettonLockBox_Initialized {
         return {
             $: 'JettonLockBox_Initialized',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Initialized {
@@ -687,14 +710,15 @@ export const JettonLockBox_WithdrawFailed = {
     PREFIX: 0x60bae556,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         amount: coins
         recipientWallet: c.Address
     }): JettonLockBox_WithdrawFailed {
         return {
             $: 'JettonLockBox_WithdrawFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_WithdrawFailed {
@@ -797,7 +821,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfJettonLockBoxInit(body: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -806,18 +830,18 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfJettonLockBoxWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }) {
         return JettonLockBox_Withdraw.toCell(JettonLockBox_Withdraw.create(body));
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -834,7 +858,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendJettonLockBoxInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -847,12 +871,12 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendJettonLockBoxWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
         recipientWallet: c.Address
-        extra: CellRef<JettonLockBox_WithdrawExtra> | null
+        extra: JettonLockBox_WithdrawExtra | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -862,7 +886,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -961,10 +985,10 @@ export class JettonLockBox implements c.Contract {
         );
     }
 
-    async getRoleMembers(provider: ContractProvider, role: uint256): Promise<c.Dictionary<c.Address, boolean>> {
+    async getRoleMembers(provider: ContractProvider, role: uint256): Promise<Map<c.Address, boolean>> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRoleMembers', [
             { type: 'int', value: role },
         ]));
-        return r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+        return dictToMap(r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()));
     }
 }

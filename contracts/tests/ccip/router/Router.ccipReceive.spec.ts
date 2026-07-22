@@ -5,6 +5,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
 import * as rec from '../../../wrappers/libraries/Receiver'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
@@ -49,10 +50,12 @@ describe('Router', () => {
   })
 
   const any2tvmMessage = {
+    $: 'Any2TVMMessage' as const,
     messageId: 42n,
     sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-    sender: EVM_ADDRESS,
+    sender: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
     data: beginCell().storeUint(0x1234, 32).endCell(),
+    tokenAmounts: null,
   }
 
   it('should route message from OffRamp to receiver', async () => {

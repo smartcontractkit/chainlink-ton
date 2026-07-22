@@ -10,6 +10,7 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: '@ton/sandbox/jest-environment',
   testMatch: ['**/tests/gas-report/ccip/**/*.spec.ts'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   modulePathIgnorePatterns: ['/node_modules/', '/dist/', '/vendor/'],
   testTimeout: 120000, // 120 seconds for long-running gas tests
   reporters: [
