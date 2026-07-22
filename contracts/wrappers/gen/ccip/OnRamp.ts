@@ -1747,7 +1747,7 @@ export const TVM2AnyRampMessage = {
  >     receiver: Cell<CrossChainAddress>
  >     data: cell
  >     extraArgs: cell
- >     tokenAmounts: SnakedCell<TokenAmount>
+ >     tokenTransfer: Cell<TVM2AnyTokenTransfer>
  >     feeToken: address
  >     feeTokenAmount: coins
  > }
@@ -1757,7 +1757,7 @@ export interface TVM2AnyRampMessageBody {
     receiver: CrossChainAddress
     data: c.Cell
     extraArgs: c.Cell
-    tokenAmounts: SnakedCell<TokenAmount>
+    tokenTransfer: TVM2AnyTokenTransfer
     feeToken: c.Address
     feeTokenAmount: coins
 }
@@ -1767,7 +1767,7 @@ export const TVM2AnyRampMessageBody = {
         receiver: CrossChainAddress
         data: c.Cell
         extraArgs: c.Cell
-        tokenAmounts: SnakedCell<TokenAmount>
+        tokenTransfer: TVM2AnyTokenTransfer
         feeToken: c.Address
         feeTokenAmount: coins
     }): TVM2AnyRampMessageBody {
@@ -1782,7 +1782,7 @@ export const TVM2AnyRampMessageBody = {
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             data: s.loadRef(),
             extraArgs: s.loadRef(),
-            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+            tokenTransfer: loadCellRef<TVM2AnyTokenTransfer>(s, TVM2AnyTokenTransfer.fromSlice),
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
         }
@@ -1791,12 +1791,50 @@ export const TVM2AnyRampMessageBody = {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeRef(self.data);
         b.storeRef(self.extraArgs);
-        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        storeCellRef<TVM2AnyTokenTransfer>(self.tokenTransfer, b, TVM2AnyTokenTransfer.store);
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
     },
     toCell(self: TVM2AnyRampMessageBody): c.Cell {
         return makeCellFrom<TVM2AnyRampMessageBody>(self, TVM2AnyRampMessageBody.store);
+    }
+}
+
+/**
+ > struct TVM2AnyTokenTransfer {
+ >     tokenAmounts: SnakedCell<TokenAmount>
+ >     destTokenAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface TVM2AnyTokenTransfer {
+    readonly $: 'TVM2AnyTokenTransfer'
+    tokenAmounts: SnakedCell<TokenAmount>
+    destTokenAddress: CrossChainAddress
+}
+
+export const TVM2AnyTokenTransfer = {
+    create(args: {
+        tokenAmounts: SnakedCell<TokenAmount>
+        destTokenAddress: CrossChainAddress
+    }): TVM2AnyTokenTransfer {
+        return {
+            $: 'TVM2AnyTokenTransfer',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TVM2AnyTokenTransfer {
+        return {
+            $: 'TVM2AnyTokenTransfer',
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: TVM2AnyTokenTransfer, b: c.Builder): void {
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: TVM2AnyTokenTransfer): c.Cell {
+        return makeCellFrom<TVM2AnyTokenTransfer>(self, TVM2AnyTokenTransfer.store);
     }
 }
 
@@ -2064,6 +2102,7 @@ export const OnRamp_SetDynamicConfig = {
  >     fee: Fee
  >     msg: Cell<Router_CCIPSend>
  >     metadata: Metadata
+ >     destTokenAddress: Cell<CrossChainAddress>
  > }
  */
 export interface OnRamp_ExecutorFinishedSuccessfully {
@@ -2072,6 +2111,7 @@ export interface OnRamp_ExecutorFinishedSuccessfully {
     fee: Fee
     msg: Router_CCIPSend
     metadata: Metadata
+    destTokenAddress: CrossChainAddress
 }
 
 export const OnRamp_ExecutorFinishedSuccessfully = {
@@ -2082,6 +2122,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
         fee: Fee
         msg: Router_CCIPSend
         metadata: Metadata
+        destTokenAddress: CrossChainAddress
     }): OnRamp_ExecutorFinishedSuccessfully {
         return {
             $: 'OnRamp_ExecutorFinishedSuccessfully',
@@ -2096,6 +2137,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
             fee: Fee.fromSlice(s),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
+            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
     },
     store(self: OnRamp_ExecutorFinishedSuccessfully, b: c.Builder): void {
@@ -2104,6 +2146,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
         Fee.store(self.fee, b);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
+        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
     },
     toCell(self: OnRamp_ExecutorFinishedSuccessfully): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFinishedSuccessfully>(self, OnRamp_ExecutorFinishedSuccessfully.store);
@@ -2407,7 +2450,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRamp implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -2520,6 +2563,7 @@ export class OnRamp implements c.Contract {
         fee: Fee
         msg: Router_CCIPSend
         metadata: Metadata
+        destTokenAddress: CrossChainAddress
     }) {
         return OnRamp_ExecutorFinishedSuccessfully.toCell(OnRamp_ExecutorFinishedSuccessfully.create(body));
     }
@@ -2657,6 +2701,7 @@ export class OnRamp implements c.Contract {
         fee: Fee
         msg: Router_CCIPSend
         metadata: Metadata
+        destTokenAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

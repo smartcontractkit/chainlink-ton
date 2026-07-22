@@ -150,7 +150,7 @@ describe('SendExecutor - Unit tests', () => {
   }> {
     const send = opts?.send ?? { ...onrampSend, tokenRegistry: null }
     const { sendExecutor, result } = await sendDeploy({
-      value: toNano('0.3'),
+      value: toNano('1'),
       body: sx.builder.message.in.execute
         .encode({
           onrampSend: send,
@@ -191,7 +191,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw execute from non-self', async () => {
     const { sendExecutor, result } = await sendDeploy()
 
-    const execResult = await sendExecutor.sendExecute(sender.getSender(), toNano('0.3'), {
+    const execResult = await sendExecutor.sendExecute(sender.getSender(), toNano('1'), {
       onrampSend,
       config: {
         feeQuoter: feeQuoterMock.address,
@@ -209,7 +209,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw on execute after execute', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const execResult = await sendExecutor.sendExecute(deployer.getSender(), toNano('0.3'), {
+    const execResult = await sendExecutor.sendExecute(deployer.getSender(), toNano('1'), {
       onrampSend,
       config: {
         feeQuoter: feeQuoterMock.address,
@@ -227,7 +227,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw execute from non-self with tokenRegistry payload', async () => {
     const { sendExecutor, result } = await sendDeploy()
 
-    const execResult = await sendExecutor.sendExecute(sender.getSender(), toNano('0.3'), {
+    const execResult = await sendExecutor.sendExecute(sender.getSender(), toNano('1'), {
       onrampSend: { ...onrampSend, tokenRegistry: null },
       config: {
         feeQuoter: feeQuoterMock.address,
@@ -245,7 +245,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw on execute after execute with tokenRegistry payload', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const execResult = await sendExecutor.sendExecute(deployer.getSender(), toNano('0.3'), {
+    const execResult = await sendExecutor.sendExecute(deployer.getSender(), toNano('1'), {
       onrampSend: { ...onrampSend, tokenRegistry: null },
       config: {
         feeQuoter: feeQuoterMock.address,

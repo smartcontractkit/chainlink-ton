@@ -138,6 +138,102 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 type coins = bigint
 
 type uint64 = bigint
+type uint120 = bigint
+
+/**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
+
+/**
+ > struct (0x56f73d37) TokenPool_ApplyChainUpdates {
+ >     queryId: uint64
+ >     remoteChainSelectorsToRemove: SnakedCell<uint64>
+ >     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+ > }
+ */
+export interface TokenPool_ApplyChainUpdates {
+    readonly $: 'TokenPool_ApplyChainUpdates'
+    queryId: uint64
+    remoteChainSelectorsToRemove: SnakedCell<uint64>
+    chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+}
+
+export const TokenPool_ApplyChainUpdates = {
+    PREFIX: 0x56f73d37,
+
+    create(args: {
+        queryId?: uint64
+        remoteChainSelectorsToRemove: SnakedCell<uint64>
+        chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+    }): TokenPool_ApplyChainUpdates {
+        return {
+            $: 'TokenPool_ApplyChainUpdates',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ApplyChainUpdates {
+        loadAndCheckPrefix32(s, 0x56f73d37, 'TokenPool_ApplyChainUpdates');
+        return {
+            $: 'TokenPool_ApplyChainUpdates',
+            queryId: s.loadUintBig(64),
+            remoteChainSelectorsToRemove: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
+            chainsToAdd: loadSnakedCellOf(s, TokenPool_ChainUpdate.fromSlice),
+        }
+    },
+    store(self: TokenPool_ApplyChainUpdates, b: c.Builder): void {
+        b.storeUint(0x56f73d37, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.remoteChainSelectorsToRemove, b, (v, b) => b.storeUint(v, 64));
+        storeSnakedCellOf(self.chainsToAdd, b, TokenPool_ChainUpdate.store);
+    },
+    toCell(self: TokenPool_ApplyChainUpdates): c.Cell {
+        return makeCellFrom<TokenPool_ApplyChainUpdates>(self, TokenPool_ApplyChainUpdates.store);
+    }
+}
 
 /**
  > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
@@ -188,6 +284,92 @@ export const TokenPool_LockOrBurnFinished = {
 }
 
 /**
+ > struct TokenPool_RateLimitConfigPair {
+ >     outbound: Cell<RateLimiter_Config>
+ >     inbound: Cell<RateLimiter_Config>
+ > }
+ */
+export interface TokenPool_RateLimitConfigPair {
+    readonly $: 'TokenPool_RateLimitConfigPair'
+    outbound: RateLimiter_Config
+    inbound: RateLimiter_Config
+}
+
+export const TokenPool_RateLimitConfigPair = {
+    create(args: {
+        outbound: RateLimiter_Config
+        inbound: RateLimiter_Config
+    }): TokenPool_RateLimitConfigPair {
+        return {
+            $: 'TokenPool_RateLimitConfigPair',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RateLimitConfigPair {
+        return {
+            $: 'TokenPool_RateLimitConfigPair',
+            outbound: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+            inbound: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+        }
+    },
+    store(self: TokenPool_RateLimitConfigPair, b: c.Builder): void {
+        storeCellRef<RateLimiter_Config>(self.outbound, b, RateLimiter_Config.store);
+        storeCellRef<RateLimiter_Config>(self.inbound, b, RateLimiter_Config.store);
+    },
+    toCell(self: TokenPool_RateLimitConfigPair): c.Cell {
+        return makeCellFrom<TokenPool_RateLimitConfigPair>(self, TokenPool_RateLimitConfigPair.store);
+    }
+}
+
+/**
+ > struct TokenPool_ChainUpdate {
+ >     remoteChainSelector: uint64
+ >     remotePoolAddresses: SnakedCell<CrossChainAddress>
+ >     remoteTokenAddress: Cell<CrossChainAddress>
+ >     rateLimitConfigs: Cell<TokenPool_RateLimitConfigPair>
+ > }
+ */
+export interface TokenPool_ChainUpdate {
+    readonly $: 'TokenPool_ChainUpdate'
+    remoteChainSelector: uint64
+    remotePoolAddresses: SnakedCell<CrossChainAddress>
+    remoteTokenAddress: CrossChainAddress
+    rateLimitConfigs: TokenPool_RateLimitConfigPair
+}
+
+export const TokenPool_ChainUpdate = {
+    create(args: {
+        remoteChainSelector: uint64
+        remotePoolAddresses: SnakedCell<CrossChainAddress>
+        remoteTokenAddress: CrossChainAddress
+        rateLimitConfigs: TokenPool_RateLimitConfigPair
+    }): TokenPool_ChainUpdate {
+        return {
+            $: 'TokenPool_ChainUpdate',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ChainUpdate {
+        return {
+            $: 'TokenPool_ChainUpdate',
+            remoteChainSelector: s.loadUintBig(64),
+            remotePoolAddresses: loadSnakedCellOf(s, CrossChainAddress.fromSlice),
+            remoteTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            rateLimitConfigs: loadCellRef<TokenPool_RateLimitConfigPair>(s, TokenPool_RateLimitConfigPair.fromSlice),
+        }
+    },
+    store(self: TokenPool_ChainUpdate, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        storeSnakedCellOf(self.remotePoolAddresses, b, CrossChainAddress.store);
+        storeCellRef<CrossChainAddress>(self.remoteTokenAddress, b, CrossChainAddress.store);
+        storeCellRef<TokenPool_RateLimitConfigPair>(self.rateLimitConfigs, b, TokenPool_RateLimitConfigPair.store);
+    },
+    toCell(self: TokenPool_ChainUpdate): c.Cell {
+        return makeCellFrom<TokenPool_ChainUpdate>(self, TokenPool_ChainUpdate.store);
+    }
+}
+
+/**
  > struct TokenPool_LockOrBurnOutV1 {
  >     destTokenAddress: Cell<CrossChainAddress>
  >     destPoolData: cell
@@ -222,48 +404,6 @@ export const TokenPool_LockOrBurnOutV1 = {
     },
     toCell(self: TokenPool_LockOrBurnOutV1): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnOutV1>(self, TokenPool_LockOrBurnOutV1.store);
-    }
-}
-
-/**
- > struct (0x7dd8f942) MockTokenPool_LockOrBurn {
- >     tokenAmount: TokenAmount
- >     notify: address
- > }
- */
-export interface MockTokenPool_LockOrBurn {
-    readonly $: 'MockTokenPool_LockOrBurn'
-    tokenAmount: TokenAmount
-    notify: c.Address
-}
-
-export const MockTokenPool_LockOrBurn = {
-    PREFIX: 0x7dd8f942,
-
-    create(args: {
-        tokenAmount: TokenAmount
-        notify: c.Address
-    }): MockTokenPool_LockOrBurn {
-        return {
-            $: 'MockTokenPool_LockOrBurn',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): MockTokenPool_LockOrBurn {
-        loadAndCheckPrefix32(s, 0x7dd8f942, 'MockTokenPool_LockOrBurn');
-        return {
-            $: 'MockTokenPool_LockOrBurn',
-            tokenAmount: TokenAmount.fromSlice(s),
-            notify: s.loadAddress(),
-        }
-    },
-    store(self: MockTokenPool_LockOrBurn, b: c.Builder): void {
-        b.storeUint(0x7dd8f942, 32);
-        TokenAmount.store(self.tokenAmount, b);
-        b.storeAddress(self.notify);
-    },
-    toCell(self: MockTokenPool_LockOrBurn): c.Cell {
-        return makeCellFrom<MockTokenPool_LockOrBurn>(self, MockTokenPool_LockOrBurn.store);
     }
 }
 
@@ -322,6 +462,124 @@ export const TokenAmount = {
     }
 }
 
+/**
+ > struct (0x7dd8f942) MockTokenPool_LockOrBurn {
+ >     tokenAmount: TokenAmount
+ >     notify: address
+ > }
+ */
+export interface MockTokenPool_LockOrBurn {
+    readonly $: 'MockTokenPool_LockOrBurn'
+    tokenAmount: TokenAmount
+    notify: c.Address
+}
+
+export const MockTokenPool_LockOrBurn = {
+    PREFIX: 0x7dd8f942,
+
+    create(args: {
+        tokenAmount: TokenAmount
+        notify: c.Address
+    }): MockTokenPool_LockOrBurn {
+        return {
+            $: 'MockTokenPool_LockOrBurn',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MockTokenPool_LockOrBurn {
+        loadAndCheckPrefix32(s, 0x7dd8f942, 'MockTokenPool_LockOrBurn');
+        return {
+            $: 'MockTokenPool_LockOrBurn',
+            tokenAmount: TokenAmount.fromSlice(s),
+            notify: s.loadAddress(),
+        }
+    },
+    store(self: MockTokenPool_LockOrBurn, b: c.Builder): void {
+        b.storeUint(0x7dd8f942, 32);
+        TokenAmount.store(self.tokenAmount, b);
+        b.storeAddress(self.notify);
+    },
+    toCell(self: MockTokenPool_LockOrBurn): c.Cell {
+        return makeCellFrom<MockTokenPool_LockOrBurn>(self, MockTokenPool_LockOrBurn.store);
+    }
+}
+
+/**
+ > struct MockTokenPool_Storage {
+ >     destTokenAddress: Cell<CrossChainAddress>
+ > }
+ */
+export interface MockTokenPool_Storage {
+    readonly $: 'MockTokenPool_Storage'
+    destTokenAddress: CrossChainAddress
+}
+
+export const MockTokenPool_Storage = {
+    create(args: {
+        destTokenAddress: CrossChainAddress
+    }): MockTokenPool_Storage {
+        return {
+            $: 'MockTokenPool_Storage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MockTokenPool_Storage {
+        return {
+            $: 'MockTokenPool_Storage',
+            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: MockTokenPool_Storage, b: c.Builder): void {
+        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
+    },
+    toCell(self: MockTokenPool_Storage): c.Cell {
+        return makeCellFrom<MockTokenPool_Storage>(self, MockTokenPool_Storage.store);
+    }
+}
+
+/**
+ > struct RateLimiter_Config {
+ >     isEnabled: bool
+ >     capacity: uint120
+ >     rate: uint120
+ > }
+ */
+export interface RateLimiter_Config {
+    readonly $: 'RateLimiter_Config'
+    isEnabled: boolean
+    capacity: uint120
+    rate: uint120
+}
+
+export const RateLimiter_Config = {
+    create(args: {
+        isEnabled: boolean
+        capacity: uint120
+        rate: uint120
+    }): RateLimiter_Config {
+        return {
+            $: 'RateLimiter_Config',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RateLimiter_Config {
+        return {
+            $: 'RateLimiter_Config',
+            isEnabled: s.loadBoolean(),
+            capacity: s.loadUintBig(120),
+            rate: s.loadUintBig(120),
+        }
+    },
+    store(self: RateLimiter_Config, b: c.Builder): void {
+        b.storeBit(self.isEnabled);
+        b.storeUint(self.capacity, 120);
+        b.storeUint(self.rate, 120);
+    },
+    toCell(self: RateLimiter_Config): c.Cell {
+        return makeCellFrom<RateLimiter_Config>(self, RateLimiter_Config.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class MockTokenPool
 //
@@ -361,9 +619,10 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockTokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAWQABFP8A9KQT9LzyyAsBAY7T+JHyQNcsI+7HyhTyv/oAMfpIMfpIMIjIz4UIEvpSjQaAAAAAAAAAAAAAAAAAAHoZUnGAAAAAAAAAAEDPFszPhCDJgwb7AAIAAA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBBAEAqQABFP8A9KQT9LzyyAsBAZ7T+JHyQNcsIre56byONe1E0NTRAdQx10zQlCDHALOOHDEg10sBkTCbgTS8AcAB8vTXTNDi0z8x1DHU1DHoMMjMye1U4NcsI+7HyhTjAvI/AgGK7UTQ1NEB+gD6SDH6SDCIA8jME8zJyM+FCBP6Uo0GgAAAAAAAAAAAAAAAAAB6GVJxgAAAAAAAAABAzxYSzAH6AsmDBvsAAwAA');
 
     static Errors = {
+        'Utils_Error.InvalidData': 13500,
     }
 
     readonly address: c.Address
@@ -389,11 +648,30 @@ export class MockTokenPool implements c.Contract {
         return new MockTokenPool(address);
     }
 
+    static fromStorage(emptyStorage: {
+        destTokenAddress: CrossChainAddress
+    }, deployedOptions?: DeployedAddrOptions) {
+        const initialState = {
+            code: deployedOptions?.overrideContractCode ?? MockTokenPool.CodeCell,
+            data: MockTokenPool_Storage.toCell(MockTokenPool_Storage.create(emptyStorage)),
+        };
+        const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
+        return new MockTokenPool(address, initialState);
+    }
+
     static createCellOfMockTokenPoolLockOrBurn(body: {
         tokenAmount: TokenAmount
         notify: c.Address
     }) {
         return MockTokenPool_LockOrBurn.toCell(MockTokenPool_LockOrBurn.create(body));
+    }
+
+    static createCellOfTokenPoolApplyChainUpdates(body: {
+        queryId?: uint64
+        remoteChainSelectorsToRemove: SnakedCell<uint64>
+        chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+    }) {
+        return TokenPool_ApplyChainUpdates.toCell(TokenPool_ApplyChainUpdates.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -411,6 +689,18 @@ export class MockTokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: MockTokenPool_LockOrBurn.toCell(MockTokenPool_LockOrBurn.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolApplyChainUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        remoteChainSelectorsToRemove: SnakedCell<uint64>
+        chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ApplyChainUpdates.toCell(TokenPool_ApplyChainUpdates.create(body)),
             ...extraOptions
         });
     }

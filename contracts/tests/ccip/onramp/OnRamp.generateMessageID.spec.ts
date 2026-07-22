@@ -159,7 +159,12 @@ describe('OnRamp - generate message id', () => {
         receiver: rt.builder.data.crossChainAddress.encode(ccipSend.receiver).asCell(),
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
-        tokenAmounts: asSnakedCell(ccipSend.tokenAmounts, rt.builder.data.tokenAmount.encode),
+        tokenTransfer: or.builder.data.tvm2AnyTokenTransfer
+          .encode({
+            tokenAmounts: asSnakedCell(ccipSend.tokenAmounts, rt.builder.data.tokenAmount.encode),
+            destTokenAddress: rt.builder.data.crossChainAddress.encode(Buffer.alloc(0)).asCell(),
+          })
+          .asCell(),
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       },
@@ -222,8 +227,8 @@ describe('OnRamp - generate message id', () => {
               expect(event.message.body.extraArgs).toEqual(
                 expectedTVM2AnyRampMessage.body.extraArgs,
               )
-              expect(event.message.body.tokenAmounts).toEqual(
-                expectedTVM2AnyRampMessage.body.tokenAmounts,
+              expect(event.message.body.tokenTransfer).toEqual(
+                expectedTVM2AnyRampMessage.body.tokenTransfer,
               )
               expect(event.message.body.feeToken).toEqual(expectedTVM2AnyRampMessage.body.feeToken)
               expect(event.message.body.feeTokenAmount).toBe(

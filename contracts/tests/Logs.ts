@@ -253,15 +253,17 @@ export const testLogCCIPMessageSent = (
     )
     const sender = msg.message.sender
 
-    // Decode tokenAmounts from its raw Cell into an array so matches can use plain objects.
+    // Decode the token transfer (tokenAmounts + destTokenAddress) so matches can use
+    // plain objects. tokenAmounts is unpacked from its snaked cell into an array.
+    const transfer = onramp.builder.data.tvm2AnyTokenTransfer.load(
+      msg.message.body.tokenTransfer.beginParse(),
+    )
     const decodedMessage = {
       ...msg.message,
       body: {
         ...msg.message.body,
-        tokenAmounts: fromSnakeData(
-          msg.message.body.tokenAmounts,
-          router.builder.data.tokenAmount.load,
-        ),
+        tokenAmounts: fromSnakeData(transfer.tokenAmounts, router.builder.data.tokenAmount.load),
+        destTokenAddress: transfer.destTokenAddress,
       },
     }
 

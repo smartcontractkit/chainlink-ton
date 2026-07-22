@@ -12,6 +12,7 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as exe from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
+import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import {
   TokenRegistry,
   TokenRegistry_GetTokenInfo,
@@ -26,10 +27,20 @@ import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup, CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
 
+// Destination-chain token address the mock pool returns from lockOrBurn. In production this
+// is configured on the pool via TokenPool_ApplyChainUpdates; the mock keeps it in storage.
+const DEST_TOKEN_ADDRESS = Buffer.from(
+  '000000000000000000000000abababababababababababababababababababab',
+  'hex',
+)
+
 // The gen wrapper's constructor is protected and has no fromStorage (no storage fields).
+// The mock's storage is a single boxed CrossChainAddress ref (MockTokenPool_Storage), which
+// must be present or MockTokenPool_Storage.load() underflows on the first lockOrBurn.
 class DeployableMockTokenPool extends MockTokenPool {
-  static create() {
-    const init = { code: MockTokenPool.CodeCell, data: Cell.EMPTY }
+  static create(destTokenAddress: Buffer) {
+    const data = beginCell().storeRef(cca.codec.encode(destTokenAddress).endCell()).endCell()
+    const init = { code: MockTokenPool.CodeCell, data }
     return new DeployableMockTokenPool(contractAddress(0, init), init)
   }
 }
@@ -42,7 +53,7 @@ const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 const TOKEN_AMOUNT = toNano('5')
 
 // Native TON attached to the transfer notification, used to pay fees + execution costs.
-const FORWARD_TON_AMOUNT = toNano('1')
+const FORWARD_TON_AMOUNT = toNano('10')
 
 describe('CCIPSend with token transfer (e2e)', () => {
   let blockchain: Blockchain
@@ -110,7 +121,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
 
     // 3. Deploy the MockTokenPool that performs the (mock) lock/burn.
-    mockTokenPool = blockchain.openContract(DeployableMockTokenPool.create())
+    mockTokenPool = blockchain.openContract(DeployableMockTokenPool.create(DEST_TOKEN_ADDRESS))
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     // Deploy router/feeQuoter/onRamp/offRamp.
@@ -330,6 +341,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
         sender: sender.address,
         body: {
           tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
+          // The pool's lockOrBurn destTokenAddress reaches the event end to end.
+          destTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell(),
         },
       },
     } as any)

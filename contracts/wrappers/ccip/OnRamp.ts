@@ -107,7 +107,16 @@ export type ExecutorFinishedSuccessfully = {
   fee: fq.Fee
   msg: Cell | rt.CCIPSend
   metadata: Metadata
+  // Destination token address returned by the pool's lockOrBurn, forwarded so the OnRamp
+  // can include it in the CCIPMessageSent event. Defaults to an empty CrossChainAddress
+  // when the message carries no token transfer.
+  destTokenAddress?: Cell
 }
+
+// Boxed empty CrossChainAddress (0-byte address), matching the contract's
+// `beginCell().storeUint(0, 8).endCell()`.
+const emptyCrossChainAddress = (): Cell =>
+  rt.builder.data.crossChainAddress.encode(Buffer.alloc(0)).asCell()
 
 export type ExecutorFinishedWithError = {
   executorID: bigint
@@ -167,11 +176,16 @@ export type RampMessageHeader = {
   nonce: bigint
 }
 
+export type TVM2AnyTokenTransfer = {
+  tokenAmounts: Cell // SnakedCell<TokenAmount>
+  destTokenAddress: Cell // Cell<CrossChainAddress>
+}
+
 export type TVM2AnyRampMessageBody = {
   receiver: Cell
   data: Cell
   extraArgs: Cell
-  tokenAmounts: Cell
+  tokenTransfer: Cell // Cell<TVM2AnyTokenTransfer>
   feeToken: Address
   feeTokenAmount: bigint
 }
@@ -323,13 +337,25 @@ export const builder = (() => {
       },
     }
 
+    const tvm2AnyTokenTransfer: CellCodec<TVM2AnyTokenTransfer> = {
+      encode: function (data: TVM2AnyTokenTransfer): Builder {
+        return beginCell().storeRef(data.tokenAmounts).storeRef(data.destTokenAddress)
+      },
+      load: function (src: Slice): TVM2AnyTokenTransfer {
+        return {
+          tokenAmounts: src.loadRef(),
+          destTokenAddress: src.loadRef(),
+        }
+      },
+    }
+
     const tvm2AnyRampMessageBody: CellCodec<TVM2AnyRampMessageBody> = {
       encode: function (data: TVM2AnyRampMessageBody): Builder {
         return beginCell()
           .storeRef(data.receiver)
           .storeRef(data.data)
           .storeRef(data.extraArgs)
-          .storeRef(data.tokenAmounts)
+          .storeRef(data.tokenTransfer)
           .storeAddress(data.feeToken)
           .storeCoins(data.feeTokenAmount)
       },
@@ -338,7 +364,7 @@ export const builder = (() => {
           receiver: src.loadRef(),
           data: src.loadRef(),
           extraArgs: src.loadRef(),
-          tokenAmounts: src.loadRef(),
+          tokenTransfer: src.loadRef(),
           feeToken: src.loadAddress(),
           feeTokenAmount: src.loadCoins(),
         }
@@ -372,6 +398,7 @@ export const builder = (() => {
       updateAllowlist,
       getValidatedFeeContext,
       rampMessageHeader,
+      tvm2AnyTokenTransfer,
       tvm2AnyRampMessageBody,
       tvm2AnyRampMessage,
     }
@@ -422,6 +449,7 @@ export const builder = (() => {
               data.msg instanceof Cell ? data.msg : rt.builder.message.in.ccipSend.encode(data.msg),
             )
             .storeBuilder(metadataCodec.encode(data.metadata))
+            .storeRef(data.destTokenAddress ?? emptyCrossChainAddress())
         },
         load: function (src: Slice): ExecutorFinishedSuccessfully {
           src.skip(32)
@@ -430,6 +458,7 @@ export const builder = (() => {
             fee: fq.builder.data.fee.load(src),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             metadata: metadataCodec.load(src),
+            destTokenAddress: src.loadRef(),
           }
         },
       }

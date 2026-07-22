@@ -45,11 +45,11 @@ export async function sendDeployOnBlockchain(
     },
   }
   let result = selfMessage
-    ? await deployable.sendInitializeAndSend(deployer.getSender(), toNano('0.5'), {
+    ? await deployable.sendInitializeAndSend(deployer.getSender(), toNano('2'), {
         ...initialize,
         selfMessage,
       })
-    : await deployable.sendInitialize(deployer.getSender(), toNano('0.5'), initialize)
+    : await deployable.sendInitialize(deployer.getSender(), toNano('2'), initialize)
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: deployable.address,
