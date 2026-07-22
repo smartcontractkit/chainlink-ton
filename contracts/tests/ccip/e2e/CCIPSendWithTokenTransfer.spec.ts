@@ -37,6 +37,7 @@ const DEST_TOKEN_ADDRESS = Buffer.from(
 // The gen wrapper's constructor is protected and has no fromStorage (no storage fields).
 // The mock's storage is a single boxed CrossChainAddress ref (MockTokenPool_Storage), which
 // must be present or MockTokenPool_Storage.load() underflows on the first lockOrBurn.
+// TODO: I think we can use the wrapper now that the contract has storage
 class DeployableMockTokenPool extends MockTokenPool {
   static create(destTokenAddress: Buffer) {
     const data = beginCell().storeRef(cca.codec.encode(destTokenAddress).endCell()).endCell()
