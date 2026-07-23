@@ -12,6 +12,7 @@ import { skip } from 'node:test'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -49,7 +50,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         premiumMultiplierWeiPerEth
       const calldataLen = BigInt(message.data.beginParse().remainingBits / 8)
       const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        ChainSelectors.testnet.evm,
         FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         calldataLen,
         BigInt(message.tokenAmounts.length),
@@ -64,7 +65,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should handle zero data availability multiplier', async () => {
     const destChainConfig = await setup.bind.feeQuoter.getDestChainConfig(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      ChainSelectors.testnet.evm,
     )
     // Update dest chain config to set data availability multiplier to 0
     {
@@ -74,7 +75,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           value: toNano('1'),
           updates: [
             {
-              destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+              destChainSelector: ChainSelectors.testnet.evm,
               config: {
                 ...destChainConfig,
                 destDataAvailabilityMultiplierBps: 0,
@@ -117,7 +118,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     for (const token of testTokens) {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: asSnakeBytes(Buffer.alloc(customDataSize)),
         tokenAmounts: [],
@@ -157,7 +158,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         premiumMultiplierWeiPerEth
 
       const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        ChainSelectors.testnet.evm,
         FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         calldataLen,
         BigInt(message.tokenAmounts.length),
@@ -173,7 +174,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should allow out of order execution when not enforced', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -195,7 +196,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should allow fail when allow out of order execution is false', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -216,7 +217,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   it('should revert when destination chain not enabled', async () => {
-    const invalidChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM + 1n
+    const invalidChainSelector = ChainSelectors.testnet.evm + 1n
     const message: rt.CCIPSend = {
       destChainSelector: invalidChainSelector,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
@@ -267,7 +268,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should revert when message too large', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE + 1)),
       tokenAmounts: [],
@@ -317,7 +318,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
 
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: tooManyTokens.map((token) => ({
@@ -387,7 +388,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should revert when gas limit too high', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -437,7 +438,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const notAFeeToken = FeeQuoterSetup.CUSTOM_TOKEN.token
 
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -527,7 +528,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           overrides.dataAvailabilityGasPrice !== undefined
             ? [
                 {
-                  chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+                  chainSelector: ChainSelectors.testnet.evm,
                   executionGasPrice: overrides.executionGasPrice ?? FeeQuoterSetup.USD_PER_GAS,
                   dataAvailabilityGasPrice:
                     overrides.dataAvailabilityGasPrice ??
@@ -584,7 +585,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             value: toNano('1'),
             updates: [
               {
-                destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+                destChainSelector: ChainSelectors.testnet.evm,
                 config: {
                   ...FeeQuoterSetup.destChainConfig,
                   ...destConfigOverrides,
@@ -641,7 +642,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
 
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: asSnakeBytes(Buffer.alloc(dataSize)),
         tokenAmounts: [],
@@ -671,7 +672,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
 
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: asSnakeBytes(Buffer.alloc(dataSize)),
         tokenAmounts: [],
@@ -881,7 +882,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   describe('EVMExtraArgs', () => {
     it('valid extra args', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -908,7 +909,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('valid extra args', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -922,7 +923,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('reverts with empty extra args', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -937,7 +938,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('reverts with invalid tag', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -952,7 +953,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('reverts if out of order execution is false', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -982,7 +983,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('valid extra args', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+        destChainSelector: ChainSelectors.testnet.sui,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -996,7 +997,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('reverts with empty extra args', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -1011,7 +1012,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('reverts with invalid tag', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+        destChainSelector: ChainSelectors.testnet.sui,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -1026,7 +1027,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('reverts if out of order execution is false', async () => {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+        destChainSelector: ChainSelectors.testnet.sui,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
@@ -1052,7 +1053,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const invalidSnakeCell = beginCell().storeUint(3, 3).endCell()
 
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: invalidSnakeCell,
         tokenAmounts: [],
@@ -1082,7 +1083,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
 
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: invalidSnakeCell,
         tokenAmounts: [],
@@ -1160,7 +1161,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         validEvmAddress.writeUInt32BE(0x1000, 28) // Address 0x1000 (above precompile space)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          destChainSelector: ChainSelectors.testnet.evm,
           receiver: validEvmAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1184,7 +1185,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         precompileAddress.writeUInt32BE(100, 28) // Address 100 (in precompile space)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          destChainSelector: ChainSelectors.testnet.evm,
           receiver: precompileAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1207,7 +1208,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         oversizedAddress[10] = 0x01 // This sets a bit in position > 160
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          destChainSelector: ChainSelectors.testnet.evm,
           receiver: oversizedAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1230,7 +1231,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         boundaryAddress.writeUInt32BE(EVM_PRECOMPILE_SPACE, 28)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          destChainSelector: ChainSelectors.testnet.evm,
           receiver: boundaryAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1254,7 +1255,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const validSvmAddress = Buffer.alloc(32, 1) // Non-zero address
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+          destChainSelector: ChainSelectors.testnet.solana,
           receiver: validSvmAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1279,7 +1280,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const zeroAddress = Buffer.alloc(32, 0)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+          destChainSelector: ChainSelectors.testnet.solana,
           receiver: zeroAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1304,7 +1305,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const zeroAddress = Buffer.alloc(32, 0)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+          destChainSelector: ChainSelectors.testnet.solana,
           receiver: zeroAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1334,7 +1335,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         validAptosAddress[31] = APTOS_PRECOMPILE_SPACE + 1
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
+          destChainSelector: ChainSelectors.testnet.aptos,
           receiver: validAptosAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1357,7 +1358,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         precompileAddress[31] = APTOS_PRECOMPILE_SPACE - 1
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
+          destChainSelector: ChainSelectors.testnet.aptos,
           receiver: precompileAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1387,7 +1388,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         validSuiAddress[31] = 9 + 1
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+          destChainSelector: ChainSelectors.testnet.sui,
           receiver: validSuiAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1411,7 +1412,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const zeroAddress = Buffer.alloc(32, 0)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+          destChainSelector: ChainSelectors.testnet.sui,
           receiver: zeroAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1435,7 +1436,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const precompileAddress = Buffer.alloc(32)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+          destChainSelector: ChainSelectors.testnet.sui,
           receiver: precompileAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1461,7 +1462,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const zeroReceiver = Buffer.alloc(32, 0)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+          destChainSelector: ChainSelectors.testnet.sui,
           receiver: zeroReceiver,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1487,7 +1488,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const zeroReceiver = Buffer.alloc(32, 0)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+          destChainSelector: ChainSelectors.testnet.sui,
           receiver: zeroReceiver,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1511,7 +1512,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const zeroReceiver = Buffer.alloc(32, 0)
 
         const message: rt.CCIPSend = {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+          destChainSelector: ChainSelectors.testnet.sui,
           receiver: zeroReceiver,
           data: beginCell().endCell(),
           tokenAmounts: [],

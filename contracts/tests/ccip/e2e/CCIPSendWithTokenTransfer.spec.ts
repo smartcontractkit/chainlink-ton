@@ -24,7 +24,8 @@ import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
-import { setup, CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
+import { setup, EVM_ADDRESS } from '../router/Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 // The gen wrapper's constructor is protected and has no fromStorage (no storage fields).
 class DeployableMockTokenPool extends MockTokenPool {
@@ -156,7 +157,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
   it('propagates a token-transfer-initiated CCIP send end to end', async () => {
     const ccipSend: rt.CCIPSend = {
       queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
@@ -325,7 +326,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
         header: {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         },
         sender: sender.address,
         body: {

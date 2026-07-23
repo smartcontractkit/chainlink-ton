@@ -21,13 +21,13 @@ const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
 
 struct TokenPool_DynamicConfig {
     router: address;
-    rateLimitAdmin: address?;
-    feeAdmin: address?;
+    rateLimitAdmin: address? = null;
+    feeAdmin: address?; // TODO this is not being used?
 }
 
 struct TokenPool_MirroredPolicy {
-    onRamps: map<uint64, address>;
-    offRamps: map<uint64, address>;
+    onRamps: map<uint64, address> = [];
+    offRamps: map<uint64, address> = [];
     cursedSubjects: CursedSubjects;
 }
 
@@ -57,7 +57,7 @@ struct TokenPool_ChainUpdate {
 struct TokenPool_RemoteChainConfig {
     remoteTokenAddress: Cell<CrossChainAddress>;               // Address of the remote token, ABI encoded in the case of a remote EVM chain.
     // TODO: EnumerableSet.Bytes32Set remotePools;
-    remotePools: map<uint256, Cell<CrossChainAddress>>;        // Set of remote pool hashes, ABI encoded in the case of a remote EVM chain.
+    remotePools: map<uint256, Cell<CrossChainAddress>> = [];   // Set of remote pool hashes, ABI encoded in the case of a remote EVM chain.
     rateLimiters: Cell<TokenPool_RateLimiterPair>;             // Rate limiter configs.
     fastFinalityRateLimiters: Cell<TokenPool_RateLimiterPair>; // Rate limiter configs for fast finality transfers.
 }

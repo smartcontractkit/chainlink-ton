@@ -8,8 +8,9 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
-import { CHAINSEL_EVM_TEST, setup } from './OnRamp.Setup'
+import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { ChainSelectors } from '../../utils/Selectors'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -29,7 +30,7 @@ describe('OnRamp - executor exit', () => {
 
   const ccipSend: rt.CCIPSend = {
     queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
@@ -76,7 +77,7 @@ describe('OnRamp - executor exit', () => {
         value: toNano('0.5'),
         destChainConfigs: [
           {
-            destChainSelector: CHAINSEL_EVM_TEST,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: false,
           },
@@ -130,7 +131,9 @@ describe('OnRamp - executor exit', () => {
   })
 
   it('should return message sent to router', async () => {
-    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)
+    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    )
     const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
       value: toNano('0.5'),
       body: {
@@ -161,11 +164,17 @@ describe('OnRamp - executor exit', () => {
       },
     })
 
-    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum + 1n)
+    expect(
+      await onramp.getExpectedNextSequenceNumber(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      ),
+    ).toBe(nextSeqNum + 1n)
   })
 
   it('should return message rejected to router', async () => {
-    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)
+    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    )
     const result = await onramp.sendExecutorFinishedWithError(executorSender, {
       value: toNano('0.5'),
       body: {
@@ -194,7 +203,11 @@ describe('OnRamp - executor exit', () => {
         )
       },
     })
-    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum)
+    expect(
+      await onramp.getExpectedNextSequenceNumber(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      ),
+    ).toBe(nextSeqNum)
   })
 
   it('should fail to send message sent if sender is not executor', async () => {

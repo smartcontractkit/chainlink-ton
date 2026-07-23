@@ -11,8 +11,8 @@ struct Storage {
     poolData: Cell<TokenPool_Data>;
     lockbox: address;
     // Pending contexts keyed by queryId for async flow completion.
-    pendingLocks: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingLock>>;
-    pendingReleases: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingRelease>>;
+    pendingLocks: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingLock>> = [];
+    pendingReleases: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingRelease>> = [];
 }
 
 fun Storage.load(): Storage {

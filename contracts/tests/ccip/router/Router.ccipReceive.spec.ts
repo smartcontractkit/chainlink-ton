@@ -6,13 +6,8 @@ import * as coverage from '../../coverage/coverage'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as rec from '../../../wrappers/libraries/Receiver'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-  genExecID,
-} from './Router.Setup'
+import { setup, EVM_ADDRESS, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -52,7 +47,7 @@ describe('Router', () => {
   const any2tvmMessage = {
     $: 'Any2TVMMessage' as const,
     messageId: 42n,
-    sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+    sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     sender: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
     data: beginCell().storeUint(0x1234, 32).endCell(),
     tokenAmounts: null,
@@ -63,7 +58,10 @@ describe('Router', () => {
       value: toNano('1'),
       body: {
         message: any2tvmMessage,
-        execID: genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 1n }),
+        execID: genExecID({
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          messageID: 1n,
+        }),
         receiver: receiver.address,
         gasLimit: toNano('0.5'),
       },
@@ -92,7 +90,10 @@ describe('Router', () => {
           ...any2tvmMessage,
           sourceChainSelector: any2tvmMessage.sourceChainSelector + 1n,
         },
-        execID: genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 2n }),
+        execID: genExecID({
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          messageID: 2n,
+        }),
         receiver: receiver.address,
         gasLimit: toNano('0.5'),
       },
@@ -111,7 +112,10 @@ describe('Router', () => {
       value: toNano('1'),
       body: {
         message: any2tvmMessage,
-        execID: genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 3n }),
+        execID: genExecID({
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          messageID: 3n,
+        }),
         receiver: receiver.address,
         gasLimit: toNano('0.5'),
       },

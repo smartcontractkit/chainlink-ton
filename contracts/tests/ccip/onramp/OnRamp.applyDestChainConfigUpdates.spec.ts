@@ -4,7 +4,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
-import { CHAINSEL_EVM_TEST, CHAINSEL_EVM_TEST_90000002, setup } from './OnRamp.Setup'
+import { setup } from './OnRamp.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let blockchain: Blockchain
@@ -51,12 +52,12 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       value: toNano('0.5'),
       destChainConfigs: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           router: mockRouter.address,
           allowlistEnabled: true,
         },
         {
-          destChainSelector: CHAINSEL_EVM_TEST_90000002,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
           router: mockRouter.address,
           allowlistEnabled: true,
         },
@@ -69,18 +70,30 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       success: true,
     })
 
-    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(1n)
-    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST_90000002)).toBe(1n)
-    const loadedConfig = await onramp.getDestChainConfig(CHAINSEL_EVM_TEST)
+    expect(
+      await onramp.getExpectedNextSequenceNumber(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      ),
+    ).toBe(1n)
+    expect(
+      await onramp.getExpectedNextSequenceNumber(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+      ),
+    ).toBe(1n)
+    const loadedConfig = await onramp.getDestChainConfig(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    )
     expect(loadedConfig.allowlistEnabled).toBe(true)
     expect(loadedConfig.router).toEqual(mockRouter.address)
-    const loadedConfig2 = await onramp.getDestChainConfig(CHAINSEL_EVM_TEST_90000002)
+    const loadedConfig2 = await onramp.getDestChainConfig(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+    )
     expect(loadedConfig2.allowlistEnabled).toBe(true)
     expect(loadedConfig2.router).toEqual(mockRouter.address)
 
     const destChainSelectors = await onramp.getDestChainSelectors()
-    expect(destChainSelectors).toContain(CHAINSEL_EVM_TEST)
-    expect(destChainSelectors).toContain(CHAINSEL_EVM_TEST_90000002)
+    expect(destChainSelectors).toContain(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001)
+    expect(destChainSelectors).toContain(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002)
   }
 
   const expectedAllowlistMatches = async (
@@ -97,12 +110,12 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     const updates: or.UpdateAllowlists = {
       updates: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           add: allowedSendersGroup1.map((s) => s.address),
           remove: [],
         },
         {
-          destChainSelector: CHAINSEL_EVM_TEST_90000002,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
           add: allowedSendersGroup2.map((s) => s.address),
           remove: [],
         },
@@ -121,8 +134,12 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     })
 
     expect(await onramp.getIsChainSupported(0n /*random selector*/)).toBe(false)
-    expect(await onramp.getIsChainSupported(CHAINSEL_EVM_TEST)).toBe(true)
-    expect(await onramp.getIsChainSupported(CHAINSEL_EVM_TEST_90000002)).toBe(true)
+    expect(
+      await onramp.getIsChainSupported(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+    ).toBe(true)
+    expect(
+      await onramp.getIsChainSupported(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002),
+    ).toBe(true)
   }
 
   it('allows owner to add multiple addresses per chain', async () => {
@@ -130,8 +147,14 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
 
     await seedInitialAllowlists()
 
-    await expectedAllowlistMatches(CHAINSEL_EVM_TEST, allowedSendersGroup1)
-    await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, allowedSendersGroup2)
+    await expectedAllowlistMatches(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      allowedSendersGroup1,
+    )
+    await expectedAllowlistMatches(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+      allowedSendersGroup2,
+    )
   })
 
   it('allows allowlist admin to delete multiple addresses', async () => {
@@ -141,12 +164,12 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     const removeUpdates: or.UpdateAllowlists = {
       updates: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           add: [],
           remove: allowedSendersGroup1.map((s) => s.address),
         },
         {
-          destChainSelector: CHAINSEL_EVM_TEST_90000002,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
           add: [],
           remove: allowedSendersGroup2.map((s) => s.address),
         },
@@ -165,8 +188,14 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     })
 
     const emptyGroup: SandboxContract<TreasuryContract>[] = []
-    await expectedAllowlistMatches(CHAINSEL_EVM_TEST, emptyGroup)
-    await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, emptyGroup)
+    await expectedAllowlistMatches(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      emptyGroup,
+    )
+    await expectedAllowlistMatches(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+      emptyGroup,
+    )
   })
 
   it('handles simultaneous adds and deletes', async () => {
@@ -179,12 +208,12 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     const mixedUpdates: or.UpdateAllowlists = {
       updates: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           add: [additionalSenderGroup1.address],
           remove: [allowedSendersGroup1[0].address],
         },
         {
-          destChainSelector: CHAINSEL_EVM_TEST_90000002,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
           add: [additionalSenderGroup2.address],
           remove: [allowedSendersGroup2[1].address],
         },
@@ -202,11 +231,11 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       success: true,
     })
 
-    await expectedAllowlistMatches(CHAINSEL_EVM_TEST, [
+    await expectedAllowlistMatches(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001, [
       allowedSendersGroup1[1],
       additionalSenderGroup1,
     ])
-    await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, [
+    await expectedAllowlistMatches(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002, [
       allowedSendersGroup2[0],
       additionalSenderGroup2,
     ])
@@ -220,7 +249,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     const updateAllowlists: or.UpdateAllowlists = {
       updates: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           add: allowedSendersGroup1.map((s) => s.address),
           remove: [],
         },

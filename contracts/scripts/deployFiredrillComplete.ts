@@ -6,8 +6,8 @@ import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
 import { generateRandomContractId, LINK_TOKEN } from '../src/utils'
 import * as CrossChainAddressCodec from '../wrappers/ccip/common/CrossChainAddressCodec'
 import { randomAddress } from '@ton/test-utils'
+import { ChainSelectors } from '../tests/utils/Selectors'
 
-const CHAINSEL_TON = 1399300952838017768n
 export async function run(provider: NetworkProvider) {
   // Compile contracts
   console.log('📦 Compiling contracts...')
@@ -48,7 +48,7 @@ export async function run(provider: NetworkProvider) {
       owner: senderAddress,
       pendingOwner: null,
     },
-    chainSelector: CHAINSEL_TON,
+    chainSelector: ChainSelectors.testnet.ton,
     tokenAddress: tokenAddress,
     firedrillContracts: undefined,
     sSendLast: 0n,
@@ -63,9 +63,9 @@ export async function run(provider: NetworkProvider) {
 
   // Verify entrypoint deployed correctly
   const initialChainSelector = await entrypoint.getChainSelector()
-  if (initialChainSelector !== CHAINSEL_TON) {
+  if (initialChainSelector !== ChainSelectors.testnet.ton) {
     throw new Error(
-      `Entrypoint chain selector mismatch: expected ${CHAINSEL_TON}, got ${initialChainSelector}`,
+      `Entrypoint chain selector mismatch: expected ${ChainSelectors.testnet.ton}, got ${initialChainSelector}`,
     )
   }
   console.log(`✅ Entrypoint deployed at: ${entrypoint.address.toString()}\n`)
@@ -75,7 +75,7 @@ export async function run(provider: NetworkProvider) {
   const onRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
-    chainSelector: CHAINSEL_TON,
+    chainSelector: ChainSelectors.testnet.ton,
     tokenAddress: tokenAddress,
   }
 
@@ -97,7 +97,7 @@ export async function run(provider: NetworkProvider) {
   const offRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
-    chainSelector: CHAINSEL_TON,
+    chainSelector: ChainSelectors.testnet.ton,
     onRampAddress: CrossChainAddressCodec.FromTonAddress(onramp.address),
   }
 

@@ -6,7 +6,7 @@ import "types"
 struct RMNRemote {
     admin: Ownable2Step;
     cursedSubjects: CursedSubjects;
-    forwardUpdates: map<address, ()>;
+    forwardUpdates: map<address, ()> = [];
 }
 
 struct Storage {
@@ -16,8 +16,8 @@ struct Storage {
     // TON technically doesn't have a wrapped native yet so we use an internal identifier
     wrappedNative: address;
 
-    onRamps: map<uint64, address>; // destChainSelector -> onRamp address
-    offRamps: map<uint64, address>; // sourceChainSelector -> offRamp address
+    onRamps: map<uint64, address> = []; // destChainSelector -> onRamp address
+    offRamps: map<uint64, address> = []; // sourceChainSelector -> offRamp address
 
     rmnRemote: Cell<RMNRemote>,
 

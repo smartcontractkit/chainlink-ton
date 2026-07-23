@@ -12,11 +12,7 @@ import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
-import {
-  CHAIN_FAMILY_SELECTOR_SVM,
-  CHAIN_FAMILY_SELECTOR_SUI,
-  CHAIN_FAMILY_SELECTOR_APTOS,
-} from '../../gas-report/constants'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -73,18 +69,6 @@ export class FeeQuoterSetup {
     (32 * 31 + 4) * this.DEST_GAS_PER_DATA_AVAILABILITY_BYTE +
     (32 * 34 + 4) * this.DEST_GAS_PER_DATA_AVAILABILITY_BYTE
   static readonly DEST_GAS_DATA_AVAILABILITY_MULTIPLIER_BPS = 6840
-
-  // Chain selectors
-  static readonly CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
-  static readonly CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
-  static readonly CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
-  static readonly CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
-
-  static readonly DEST_CHAIN_SELECTOR_EVM = 909606746561742123n // EVM test chain (same as CHAINSEL_EVM_TEST_90000001)
-  static readonly DEST_CHAIN_SELECTOR_SVM = 16423721717087811551n // SVM test chain
-  static readonly DEST_CHAIN_SELECTOR_APTOS = 77777n // Aptos test chain
-  static readonly DEST_CHAIN_SELECTOR_SUI = 9762610643973837292n // SUI test chain
-  static readonly SOURCE_CHAIN_SELECTOR = 13879075125137744094n // TON test chain
 
   // Packed gas price (L1 gas price left-shifted + L2 gas price)
   static readonly PACKED_USD_PER_GAS =
@@ -155,7 +139,7 @@ export class FeeQuoterSetup {
     destDataAvailabilityOverheadGas: FeeQuoterSetup.DEST_DATA_AVAILABILITY_OVERHEAD_GAS,
     destGasPerDataAvailabilityByte: FeeQuoterSetup.DEST_GAS_PER_DATA_AVAILABILITY_BYTE,
     destDataAvailabilityMultiplierBps: FeeQuoterSetup.DEST_GAS_DATA_AVAILABILITY_MULTIPLIER_BPS,
-    chainFamilySelector: FeeQuoterSetup.CHAIN_FAMILY_SELECTOR_EVM,
+    chainFamilySelector: ChainFamilySelectors.evm,
     defaultTokenFeeUsdCents: FeeQuoterSetup.DEFAULT_TOKEN_FEE_USD_CENTS,
     defaultTokenDestGasOverhead: FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD,
     defaultTxGasLimit: FeeQuoterSetup.GAS_LIMIT,
@@ -293,28 +277,28 @@ export class FeeQuoterSetup {
         value: toNano('1'),
         updates: [
           {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+            destChainSelector: ChainSelectors.testnet.evm,
             config: FeeQuoterSetup.destChainConfig,
           },
           {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+            destChainSelector: ChainSelectors.testnet.solana,
             config: {
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SVM,
+              chainFamilySelector: ChainFamilySelectors.svm,
             },
           },
           {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
+            destChainSelector: ChainSelectors.testnet.aptos,
             config: {
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_APTOS,
+              chainFamilySelector: ChainFamilySelectors.aptos,
             },
           },
           {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+            destChainSelector: ChainSelectors.testnet.sui,
             config: {
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SUI,
+              chainFamilySelector: ChainFamilySelectors.sui,
             },
           },
         ],
@@ -351,7 +335,7 @@ export class FeeQuoterSetup {
       tokenPricesUpdates: pricedTokens,
       gasPricesUpdates: [
         {
-          chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+          chainSelector: ChainSelectors.testnet.evm,
           executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
           dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         },
@@ -391,7 +375,7 @@ export class FeeQuoterSetup {
         msg: {
           updates: new Map([
             [
-              FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+              ChainSelectors.testnet.evm,
               {
                 add: new Map([
                   [
@@ -491,7 +475,7 @@ export class FeeQuoterSetup {
     feeToken?: Address
   }): rt.CCIPSend {
     return {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts,

@@ -6,8 +6,9 @@ import * as coverage from '../../coverage/coverage'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import { CHAINSEL_EVM_TEST_90000002, deployOnRampContract, setup } from './OnRamp.Setup'
+import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
+import { ChainSelectors } from '../../utils/Selectors'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -23,7 +24,7 @@ describe('OnRamp - Get Fee', () => {
 
   const ccipSend: rt.CCIPSend = {
     queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST_90000002,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
@@ -64,7 +65,9 @@ describe('OnRamp - Get Fee', () => {
     // 2. get fee quoter address from onramp <=
     // 3. get validated fee from fee quoter
 
-    const queriedFeeQuoter = await onramp.getFeeQuoter(CHAINSEL_EVM_TEST_90000002) // We don't validate chain selector here yet. We might enable different fee quoters per chain later.
+    const queriedFeeQuoter = await onramp.getFeeQuoter(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+    ) // We don't validate chain selector here yet. We might enable different fee quoters per chain later.
     expect(queriedFeeQuoter).toEqual(mockFeeQuoter.address)
   })
 

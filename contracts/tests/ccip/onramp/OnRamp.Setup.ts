@@ -4,16 +4,13 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { generateRandomContractId } from '../../../src/utils'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import { randomAddress } from '@ton/test-utils'
+import { ChainSelectors } from '../../utils/Selectors'
 
 type OnRampOverrides = Partial<Omit<or.OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
   config?: Partial<or.OnRampStorage['config']>
   executor?: Partial<or.OnRampStorage['executor']>
   ownable?: Partial<or.OnRampStorage['ownable']>
 }
-
-export const CHAINSEL_EVM_TEST = 909606746561742123n
-export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
-export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
 // Deprecated, use deployOnRampContractW instead for more flexibility in tests. Will be removed in a future version.
 // TODO: refactor existing tests to use deployOnRampContractW and remove this function.
@@ -40,7 +37,7 @@ export async function deployOnRampContractW(
       owner: owner.address,
       pendingOwner: null,
     },
-    chainSelector: CHAINSEL_TON,
+    chainSelector: ChainSelectors.testnet.ton,
     config: {
       feeQuoter: randomAddress(),
       feeAggregator: (await blockchain.treasury('fee-aggregator')).address,

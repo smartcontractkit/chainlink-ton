@@ -1,11 +1,12 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 import { beginCell, toNano } from '@ton/core'
+import { ChainSelectors } from '../../utils/Selectors'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { errorCode, facilityId } from '../../../wrappers/utils'
-import { CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
+import { EVM_ADDRESS } from '../router/Router.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
@@ -75,7 +76,7 @@ describe('SendExecutor - Unit tests', () => {
     onrampSend = {
       msg: {
         queryID: 1,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         receiver: EVM_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],

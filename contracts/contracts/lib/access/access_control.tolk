@@ -187,7 +187,7 @@ struct AccessControl<T> {
 
 /// AccessControl data struct, auto-serialized to/from cell.
 struct AccessControl_Data {
-    roles: map<uint256, Cell<AccessControl_RoleData>>;
+    roles: map<uint256, Cell<AccessControl_RoleData>> = [];
 }
 
 /// Internal storage struct for role data
@@ -200,7 +200,7 @@ struct AccessControl_RoleData {
     // Number of members in the role
     membersLen: uint64;
     // Members of the role, indexed by their address hash.
-    hasRole: map<address, bool>;
+    hasRole: map<address, bool> = [];
 }
 
 // --- Hooks struct (extensions) ---

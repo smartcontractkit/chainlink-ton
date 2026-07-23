@@ -11,8 +11,8 @@ const OCR_PLUGIN_TYPE_EXECUTE: int = 1;
 
 struct OCRConfig {
 	configInfo: ConfigInfo;
-	signers: map<uint256, uint8>;
-	transmitters: map<address, uint8>;
+	signers: map<uint256, uint8> = [];
+	transmitters: map<address, uint8> = [];
 }
 
 fun newOCRConfig(): OCRConfig {
@@ -78,6 +78,6 @@ struct SignatureEd25519 {
 
 struct ReportContext {
 	configDigest: uint256;
-	_padding: bytes24;
+	_padding: bytes24 = "000000000000000000000000000000000000000000000000".hexToSlice() as bytes24;
 	sequenceBytes: uint64
 }

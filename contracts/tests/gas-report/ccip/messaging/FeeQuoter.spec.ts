@@ -16,13 +16,13 @@ import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { WRAPPED_NATIVE } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { CHAINSEL_TON, CHAINSEL_EVM_TEST, CHAIN_FAMILY_SELECTOR_EVM } from '../../constants'
 import { createMaxPayload, createExtraArgs, MAX_DATA_PAYLOAD_SIZE, createPayload } from './config'
 import { analyzeSnapshot, printFlowAnalysis, formatRow } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
 import { opMapFunc } from './opMapFunc'
 import { contractCode } from '../../../../wrappers/codeLoader'
+import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -72,7 +72,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       value: toNano('1'),
       updates: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testnet.evm,
           config: {
             isEnabled: true,
             maxNumberOfTokensPerMsg: 0,
@@ -85,7 +85,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
             destDataAvailabilityOverheadGas: 0,
             destGasPerDataAvailabilityByte: 0,
             destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: CHAIN_FAMILY_SELECTOR_EVM,
+            chainFamilySelector: ChainFamilySelectors.evm,
             defaultTokenFeeUsdCents: 0,
             defaultTokenDestGasOverhead: 0,
             defaultTxGasLimit: 1,
@@ -124,7 +124,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         owner: deployer.address,
         pendingOwner: null,
       },
-      chainSelector: CHAINSEL_TON,
+      chainSelector: ChainSelectors.testnet.ton,
       config: {
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
@@ -146,7 +146,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       data: {
         queryID: BigInt(0),
         onRamps: {
-          destChainSelectors: [CHAINSEL_EVM_TEST],
+          destChainSelectors: [ChainSelectors.testnet.evm],
           onRamp: onRamp.address,
         },
       },
@@ -157,7 +157,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       value: toNano('0.1'),
       destChainConfigs: [
         {
-          destChainSelector: CHAINSEL_EVM_TEST,
+          destChainSelector: ChainSelectors.testnet.evm,
           router: router.address,
           allowlistEnabled: false,
         },
@@ -267,7 +267,7 @@ async function messureGetValidatedFee(
     toNano('1'),
     {
       queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST,
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: EVM_ADDRESS,
       data: payload,
       tokenAmounts: [],

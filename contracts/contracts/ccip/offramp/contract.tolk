@@ -34,6 +34,8 @@ contract OffRamp {
 
     storage: Storage
     incomingMessages: OffRamp_InMessage | Ownable2Step_Messages
+
+    forceAbiExport: (Any2TVMMessageV1Metadata, Any2TVMRampMessageIDData)
 }
 
 
@@ -683,7 +685,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     //  Hashing all of the message fields ensures that the message being executed is correct and not tampered with.
     //Including the known OnRamp ensures that the message originates from the correct OnRamp version.
     //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
-    val metadataHash = MessageMetadata {
+    val metadataHash = Any2TVMMessageV1Metadata {
         sourceChainSelector: report.sourceChainSelector,
         destChainSelector: st.chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),

@@ -7,12 +7,8 @@ import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as rt from '../../../wrappers/ccip/Router'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-} from './Router.Setup'
+import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router.cursing', () => {
   let blockchain: Blockchain
@@ -46,7 +42,7 @@ describe('Router.cursing', () => {
   it('router respects cursing', async () => {
     const msg = {
       queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
@@ -64,7 +60,7 @@ describe('Router.cursing', () => {
     {
       const result = await router.sendRMNRemoteCurse(deployer.getSender(), {
         value: toNano('1'),
-        body: { queryID: 0n, subjects: [CHAINSEL_EVM_TEST_90000001] },
+        body: { queryID: 0n, subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001] },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -73,12 +69,12 @@ describe('Router.cursing', () => {
       })
 
       assertLog(result.transactions, router.address, LogTypes.Cursed, {
-        subject: CHAINSEL_EVM_TEST_90000001,
+        subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       })
 
       await verifyNotCursed(router, deployer, false)
       const cursedSubjects = await router.getCursedSubjects()
-      expect(cursedSubjects).toEqual([CHAINSEL_EVM_TEST_90000001])
+      expect(cursedSubjects).toEqual([ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001])
     }
 
     // Fail router.ccipSend
@@ -102,7 +98,7 @@ describe('Router.cursing', () => {
     {
       const result = await router.sendRMNRemoteUncurse(deployer.getSender(), {
         value: toNano('1'),
-        body: { queryID: 0n, subjects: [CHAINSEL_EVM_TEST_90000001] },
+        body: { queryID: 0n, subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001] },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -111,7 +107,7 @@ describe('Router.cursing', () => {
       })
 
       assertLog(result.transactions, router.address, LogTypes.Uncursed, {
-        subject: CHAINSEL_EVM_TEST_90000001,
+        subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       })
 
       await verifyNotCursed(router, deployer, true)
@@ -199,11 +195,13 @@ async function verifyNotCursed(
   deployer: SandboxContract<TreasuryContract>,
   expected: boolean,
 ) {
-  expect(await router.getVerifyNotCursed(CHAINSEL_EVM_TEST_90000001)).toBe(expected)
+  expect(
+    await router.getVerifyNotCursed(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+  ).toBe(expected)
 
   const verification = await router.sendRMNRemoteVerifyNotCursed(deployer.getSender(), {
     value: toNano('1'),
-    body: { queryID: 0n, subject: CHAINSEL_EVM_TEST_90000001 },
+    body: { queryID: 0n, subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 },
   })
   expect(verification.transactions).toHaveTransaction({
     from: deployer.address,

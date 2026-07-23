@@ -133,10 +133,17 @@ depends = []
 # domain = "mcms"
 # depends = []
 
-# Testing #
+# Testing wrappers
+
 [contracts.TestLibMath]
 display-name = "link.chain.ton.test.lib.math"
 src = "contracts/test/lib/math.tolk"
+domain = "test"
+depends = []
+
+[contracts.TestMsgHasher]
+display-name = "link.chain.ton.test.lib.MsgHasher"
+src = "contracts/test/lib/msg_hasher.tolk"
 domain = "test"
 depends = []
 

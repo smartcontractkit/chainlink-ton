@@ -1,10 +1,12 @@
 import { Builder, Slice, beginCell, toNano } from '@ton/core'
 import { Router } from './ccip/Router';
 import { OffRamp } from './ccip/OffRamp';
+import { OnRamp } from './ccip/OnRamp';
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
+import { TestMsgHasher } from './test/TestMsgHasher'
 import * as CrossChainAddressCodec from '../ccip/common/CrossChainAddressCodec'
 
 export function setupGenBindings() {
@@ -39,7 +41,19 @@ export function setupGenBindings() {
       CrossChainAddressCodec.unpackFromSlice,
     )
 
+    OnRamp.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
     LockReleaseLockboxTokenPool.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    TestMsgHasher.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,
