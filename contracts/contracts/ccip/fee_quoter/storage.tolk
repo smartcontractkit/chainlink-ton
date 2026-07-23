@@ -4,18 +4,18 @@ import "types"
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;
-    allowedPriceUpdaters: map<address, ()>;
+    allowedPriceUpdaters: map<address, ()> = [];
 
     maxFeeJuelsPerMsg: uint96;
     linkToken: address;
     tokenPriceStalenessThreshold: uint32;
 
     // NOTE: usdPerUnitGasByDestChain is on DestChainConfig instead (same as Solana)
-    usdPerToken: map<address, TimestampedPrice>;
+    usdPerToken: map<address, TimestampedPrice> = [];
     // NOTE: use presence in this map to validate a token as feeToken
-    premiumMultiplierWeiPerEth: map<address, uint64>;
+    premiumMultiplierWeiPerEth: map<address, uint64> = [];
 
-    destChainConfigs: map<uint64, DestChainConfig>
+    destChainConfigs: map<uint64, DestChainConfig> = []
 }
 
 fun Storage.load(): Storage {

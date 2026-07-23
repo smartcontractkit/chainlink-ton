@@ -16,7 +16,7 @@ enum Ownable2Step_Error {
 /// Ownable2Step trait provides ownership two-step transfer functionality.
 struct Ownable2Step {
     owner: address;
-    pendingOwner: address?;
+    pendingOwner: address? = null;
 }
 
 // --- Message Structs ---

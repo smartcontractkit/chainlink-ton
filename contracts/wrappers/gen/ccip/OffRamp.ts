@@ -466,16 +466,17 @@ export const Deployable_Initialize = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -940,15 +941,15 @@ export const OCR3Base = {
 export interface OCRConfig {
     readonly $: 'OCRConfig'
     configInfo: ConfigInfo
-    signers: Map<uint256, uint8>
-    transmitters: Map<c.Address, uint8>
+    signers: Map<uint256, uint8> /* = [] as map<uint256, uint8> */
+    transmitters: Map<c.Address, uint8> /* = [] as map<address, uint8> */
 }
 
 export const OCRConfig = {
     create(args: {
         configInfo: ConfigInfo
-        signers: Map<uint256, uint8>
-        transmitters: Map<c.Address, uint8>
+        signers: Map<uint256, uint8> /* = [] as map<uint256, uint8> */
+        transmitters: Map<c.Address, uint8> /* = [] as map<address, uint8> */
     }): OCRConfig {
         return {
             $: 'OCRConfig',
@@ -1291,12 +1292,12 @@ export const RampMessageHeader = {
  */
 export interface CursedSubjects {
     readonly $: 'CursedSubjects'
-    data: Set<uint128>
+    data: Set<uint128> /* = [] as map<uint128, ()> */
 }
 
 export const CursedSubjects = {
     create(args: {
-        data: Set<uint128>
+        data: Set<uint128> /* = [] as map<uint128, ()> */
     }): CursedSubjects {
         return {
             $: 'CursedSubjects',
@@ -2390,17 +2391,18 @@ export const ExecutionReport = {
  */
 export interface CommitReport {
     readonly $: 'CommitReport'
-    priceUpdates: PriceUpdates | null
+    priceUpdates: PriceUpdates | null /* = null */
     merkleRoots: SnakedCell<MerkleRoot>
 }
 
 export const CommitReport = {
     create(args: {
-        priceUpdates: PriceUpdates | null
+        priceUpdates?: PriceUpdates | null /* = null */
         merkleRoots: SnakedCell<MerkleRoot>
     }): CommitReport {
         return {
             $: 'CommitReport',
+            priceUpdates: null,
             ...args
         }
     },
@@ -3014,8 +3016,8 @@ export interface Storage {
     cursedSubjects: CursedSubjects
     chainSelector: uint64
     permissionlessExecutionThresholdSeconds: uint32
-    sourceChainConfigs: Map<uint64, SourceChainConfig>
-    latestPriceSequenceNumber: uint64
+    sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
+    latestPriceSequenceNumber: uint64 /* = 0 */
 }
 
 export const Storage = {
@@ -3028,11 +3030,12 @@ export const Storage = {
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: Map<uint64, SourceChainConfig>
-        latestPriceSequenceNumber: uint64
+        sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
+        latestPriceSequenceNumber?: uint64 /* = 0 */
     }): Storage {
         return {
             $: 'Storage',
+            latestPriceSequenceNumber: 0n,
             ...args
         }
     },
@@ -3622,8 +3625,8 @@ export class OffRamp implements c.Contract {
         cursedSubjects: CursedSubjects
         chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: Map<uint64, SourceChainConfig>
-        latestPriceSequenceNumber: uint64
+        sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
+        latestPriceSequenceNumber?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? OffRamp.CodeCell,

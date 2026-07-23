@@ -507,7 +507,7 @@ export const FeeQuoter_GetValidatedFee = {
  */
 export interface FeeQuoter_UpdateFeeTokens {
     readonly $: 'FeeQuoter_UpdateFeeTokens'
-    add: Map<c.Address, FeeToken>
+    add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
     remove: SnakedCell<c.Address>
 }
 
@@ -515,7 +515,7 @@ export const FeeQuoter_UpdateFeeTokens = {
     PREFIX: 0xd0984986,
 
     create(args: {
-        add: Map<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
         remove: SnakedCell<c.Address>
     }): FeeQuoter_UpdateFeeTokens {
         return {
@@ -1134,14 +1134,14 @@ export interface DestChainConfig {
     readonly $: 'DestChainConfig'
     config: FeeQuoterDestChainConfig
     usdPerUnitGas: GasPrice
-    tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig>
+    tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
 }
 
 export const DestChainConfig = {
     create(args: {
         config: FeeQuoterDestChainConfig
         usdPerUnitGas: GasPrice
-        tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig>
+        tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
     }): DestChainConfig {
         return {
             $: 'DestChainConfig',
@@ -1174,13 +1174,13 @@ export const DestChainConfig = {
  */
 export interface UpdateTokenTransferFeeConfig {
     readonly $: 'UpdateTokenTransferFeeConfig'
-    add: Map<c.Address, TokenTransferFeeConfig>
+    add: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
     remove: SnakedCell<c.Address>
 }
 
 export const UpdateTokenTransferFeeConfig = {
     create(args: {
-        add: Map<c.Address, TokenTransferFeeConfig>
+        add: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
         remove: SnakedCell<c.Address>
     }): UpdateTokenTransferFeeConfig {
         return {
@@ -1330,26 +1330,26 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    allowedPriceUpdaters: Set<c.Address>
+    allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
     maxFeeJuelsPerMsg: uint96
     linkToken: c.Address
     tokenPriceStalenessThreshold: uint32
-    usdPerToken: Map<c.Address, TimestampedPrice>
-    premiumMultiplierWeiPerEth: Map<c.Address, uint64>
-    destChainConfigs: Map<uint64, DestChainConfig>
+    usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
+    premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
+    destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
 }
 
 export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        allowedPriceUpdaters: Set<c.Address>
+        allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
         maxFeeJuelsPerMsg: uint96
         linkToken: c.Address
         tokenPriceStalenessThreshold: uint32
-        usdPerToken: Map<c.Address, TimestampedPrice>
-        premiumMultiplierWeiPerEth: Map<c.Address, uint64>
-        destChainConfigs: Map<uint64, DestChainConfig>
+        usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
+        premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
+        destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
     }): Storage {
         return {
             $: 'Storage',
@@ -1612,16 +1612,17 @@ export const TokenAmount = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -2095,13 +2096,13 @@ export class FeeQuoter implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        allowedPriceUpdaters: Set<c.Address>
+        allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
         maxFeeJuelsPerMsg: uint96
         linkToken: c.Address
         tokenPriceStalenessThreshold: uint32
-        usdPerToken: Map<c.Address, TimestampedPrice>
-        premiumMultiplierWeiPerEth: Map<c.Address, uint64>
-        destChainConfigs: Map<uint64, DestChainConfig>
+        usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
+        premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
+        destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? FeeQuoter.CodeCell,
@@ -2131,7 +2132,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     static createCellOfFeeQuoterUpdateFeeTokens(body: {
-        add: Map<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
         remove: SnakedCell<c.Address>
     }) {
         return FeeQuoter_UpdateFeeTokens.toCell(FeeQuoter_UpdateFeeTokens.create(body));
@@ -2217,7 +2218,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendFeeQuoterUpdateFeeTokens(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        add: Map<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
         remove: SnakedCell<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

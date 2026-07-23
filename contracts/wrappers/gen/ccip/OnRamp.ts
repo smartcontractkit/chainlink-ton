@@ -338,16 +338,17 @@ export const UnsafeBodyNoRef = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -1969,7 +1970,7 @@ export interface OnRamp_Storage {
     ownable: Ownable2Step
     chainSelector: uint64
     config: OnRamp_DynamicConfig
-    destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+    destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
     executor: ExecutorDeployment
 }
 
@@ -1979,7 +1980,7 @@ export const OnRamp_Storage = {
         ownable: Ownable2Step
         chainSelector: uint64
         config: OnRamp_DynamicConfig
-        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
         executor: ExecutorDeployment
     }): OnRamp_Storage {
         return {
@@ -2603,7 +2604,7 @@ export class OnRamp implements c.Contract {
         ownable: Ownable2Step
         chainSelector: uint64
         config: OnRamp_DynamicConfig
-        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
         executor: ExecutorDeployment
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {

@@ -23,7 +23,6 @@ export async function deployOffRampContract(
     id: generateRandomContractId(),
     ownable: of.Ownable2Step.create({
       owner: owner.address,
-      pendingOwner: null,
     }),
     deployables: of.OffRamp_Deployables.create({
       rmnRouter: owner.address, // used to determine who can send RMN updates

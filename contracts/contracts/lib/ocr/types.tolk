@@ -11,8 +11,8 @@ const OCR_PLUGIN_TYPE_EXECUTE: int = 1;
 
 struct OCRConfig {
 	configInfo: ConfigInfo;
-	signers: map<uint256, uint8>;
-	transmitters: map<address, uint8>;
+	signers: map<uint256, uint8> = [];
+	transmitters: map<address, uint8> = [];
 }
 
 fun newOCRConfig(): OCRConfig {

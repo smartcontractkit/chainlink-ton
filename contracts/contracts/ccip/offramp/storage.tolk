@@ -18,10 +18,10 @@ struct Storage {
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
-    sourceChainConfigs: map<uint64, SourceChainConfig>;
+    sourceChainConfigs: map<uint64, SourceChainConfig> = [];
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
-    latestPriceSequenceNumber: uint64;
+    latestPriceSequenceNumber: uint64 = 0;
 }
 
 fun Storage.load(): Storage {

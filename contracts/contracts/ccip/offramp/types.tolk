@@ -17,7 +17,7 @@ struct ExecutionReport {
 
 // Matches the EVM struct
 struct CommitReport {
-    priceUpdates: Cell<PriceUpdates>?; // Price updates for the fee_quoter
+    priceUpdates: Cell<PriceUpdates>? = null; // Price updates for the fee_quoter
     merkleRoots: SnakedCell<MerkleRoot>; // Merkle roots is always size one, but interface is set up to possibly support multiple in the future
 }
 

@@ -28,7 +28,7 @@ struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
 }
 
 struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
-    add: map<address, FeeToken>; // token -> config
+    add: map<address, FeeToken> = []; // token -> config
     remove: SnakedCell<address>;
 }
 

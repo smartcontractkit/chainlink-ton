@@ -49,15 +49,15 @@ struct TokenPool_AdminConfig {
     /// FinalityCodec.WAIT_FOR_FINALITY_FLAG means wait for finality.
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
     /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
-    advancedPoolHooks: address?;
+    advancedPoolHooks: address? = null;
 }
 
 struct TokenPool_Data {
     adminConfig: Cell<TokenPool_AdminConfig>;
     mirroredPolicy: Cell<TokenPool_MirroredPolicy>;
     tokenDecimals: uint8;
-    remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig>;
-    tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>;
+    remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig> = [];
+    tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig> = [];
 }
 
 @inline

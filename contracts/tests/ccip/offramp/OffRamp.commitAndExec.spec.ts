@@ -704,7 +704,6 @@ describe('OffRamp - Unit Tests', () => {
 
     // Create a commit report with empty merkleRoots and undefined priceUpdates
     const report = of.CommitReport.create({
-      priceUpdates: null,
       merkleRoots: [],
     })
     const reportContext: ocr.ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
@@ -950,7 +949,6 @@ describe('OffRamp - Unit Tests', () => {
     await setupSourceChainConfig({ isEnabled: false }) // disabled source chain
 
     const report = of.CommitReport.create({
-      priceUpdates: null,
       merkleRoots: [root],
     })
     const reportContext: ocr.ReportContext = {
