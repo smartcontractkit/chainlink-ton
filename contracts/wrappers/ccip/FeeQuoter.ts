@@ -19,6 +19,7 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
+import { CellCodec as GenCellCodec } from '../gen/index'
 import { asSnakedCell } from '../../src/utils'
 import { contractCode } from '../codeLoader'
 
@@ -149,6 +150,31 @@ export type MessageValidationFailed = {
   error: bigint
   msg: rt.CCIPSend
   context: Slice
+}
+
+// This is required to parse the messageValidationFailed message without parsing the CCIPSend message, which can be corrupted
+export type ShallowMessageValidationFailed = {
+  error: bigint
+  msg: Cell
+  context: Slice
+}
+
+export const shallowMessageValidationFailedCodec: GenCellCodec<ShallowMessageValidationFailed> = {
+  store: (data: ShallowMessageValidationFailed, builder): TonBuilder => {
+    return beginCell()
+      .storeUint(opcodes.out.messageValidationFailed, 32)
+      .storeUint(data.error, 256)
+      .storeRef(data.msg)
+      .storeSlice(data.context)
+  },
+  fromSlice: (src: Slice): ShallowMessageValidationFailed => {
+    src.skip(32) // opcode
+    return {
+      error: src.loadUintBig(256),
+      msg: src.loadRef(),
+      context: src,
+    }
+  },
 }
 
 export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {

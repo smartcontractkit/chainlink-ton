@@ -293,14 +293,19 @@ describe('wGRAM gas calibration', () => {
         .asCell(),
     )
     const notificationBodyStats = cellStats(
-      walletBuilder.messages.out.transferNotificationForRecipient
-        .encode({
-          queryId: 1,
-          jettonAmount: toNano('0.7'),
-          senderAddress: alice.address,
-          forwardPayload,
-        })
-        .asCell(),
+      (() => {
+        const b = beginCell()
+        walletBuilder.messages.out.transferNotificationForRecipient.store(
+          {
+            queryId: 1,
+            jettonAmount: toNano('0.7'),
+            senderAddress: alice.address,
+            forwardPayload,
+          },
+          b,
+        )
+        return b.endCell()
+      })(),
     )
     const burnNotificationLiveStats = cellStats(
       walletBuilder.messages.out.burnNotificationForMinter
@@ -350,19 +355,24 @@ describe('wGRAM gas calibration', () => {
     // beyond AskToTransfer (transfer flow) or beyond MintNewJettons (mint flow) will break the
     // budget silently in gas terms, so we catch it here at the shape level.
     const askToTransferBodyStats = cellStats(
-      walletBuilder.messages.in.askToTransfer
-        .encode({
-          queryId: 1,
-          jettonAmount: toNano('0.7'),
-          // SMALLEST realistic incoming: customPayload is null (one bit, no ref). Any real call
-          // is at least this big.
-          customPayload: null,
-          destination: alice.address,
-          responseDestination: deployer.address,
-          forwardTonAmount: toNano('0.05'),
-          forwardPayload,
-        })
-        .asCell(),
+      (() => {
+        const b = beginCell()
+        walletBuilder.messages.in.askToTransfer.store(
+          {
+            queryId: 1,
+            jettonAmount: toNano('0.7'),
+            // SMALLEST realistic incoming: customPayload is null (one bit, no ref). Any real call
+            // is at least this big.
+            customPayload: null,
+            destination: alice.address,
+            responseDestination: deployer.address,
+            forwardTonAmount: toNano('0.05'),
+            forwardPayload,
+          },
+          b,
+        )
+        return b.endCell()
+      })(),
     )
     expect(transferBodyStats.bits).toBeLessThan(askToTransferBodyStats.bits)
     expect(transferBodyStats.cells).toBeLessThanOrEqual(askToTransferBodyStats.cells)

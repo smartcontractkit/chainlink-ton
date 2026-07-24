@@ -237,7 +237,7 @@ describe('OnRamp - executor exit', () => {
 
   it('should fail to send message rejected if executorID is incorrect', async () => {
     const result = await onramp.sendExecutorFinishedWithError(executorSender, {
-      value: toNano('0.5'),
+      value: toNano('3'),
       body: {
         executorID: executorID + 1n, // incorrect ID
         error: 42n,

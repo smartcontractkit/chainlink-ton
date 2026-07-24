@@ -812,12 +812,12 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDgEAAi8AART/APSkE/S88sgLAQIBYgIDAvjQ+JHyQCDXLCMmaX6Ujmkx7UTQ+kjU+kjTv9MBMdM/MdGCAJLj+JIlxwXy9ATTAAGT+gAwkjBt4vgjyM+FiFJQ+lKCEFjPywLPC44kzxQmzwu/Im6UbBLPgZXPg1j6AuLJgED7AAPI+lISzPpSEsu/z4WAyz/J7VTgidcnBAUCAUgKCwAIAOXdlwIm4wLXLCAu9w3c4wIwhA8BxwDy9AYHAf4x7UTQ+kjU+kjTv9MB0z/RggCS4/iSJ8cF8vQG+kgwggCS4QLAARLy9CPQ0//TP9M/0z/TP9Qx1DH6SPoAMfQEMdEGggCS4gfHBRby9MjPkWeVhcIUy/8Syz/LP8s/yz8hzwu/UiD6UsnIz4WIUlD6UnHPC27MyYMG+wADyPpSCAH+Me1E0PpI1PpI07/TAdM/0YIAkuP4kifHBfL0BvpI1wsHIMICMfJFggCS4QLAARLy9CPQ0//TP9M/0z/TP9Qx1DH6SPoAMfQEMdEGggCS4gfHBRby9MjPkF369A4Uy/8Syz/LP8s/yz8hzwu/UiD6UsnIz4WIUlD6UnHPC27MyQkAHBLM+lLLv8+HgMs/ye1UACyAQPsAA8j6UhLM+lLLv8+GgMs/ye1UAgEgDA0AC7hoWBAXiABftivxoRtjS3NZcxtDC0txc6N7cXMbG0uBcpMrGytLsyorwysbq6N7lBFqYlxsXGUQABu1xRBAElwUBBCB935QkA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDgEAAi8AART/APSkE/S88sgLAQIBYgIDAvjQ+JHyQCDXLCMmaX6Ujmkx7UTQ+kjU+kjTv9MBMdM/MdGCAJLi+JIlxwXy9ATTAAGT+gAwkjBt4vgjyM+FiFJQ+lKCEFjPywLPC44kzxQmzwu/Im6UbBLPgZXPg1j6AuLJgED7AAPI+lISzPpSEsu/z4WAyz/J7VTgidcnBAUCAUgKCwAIAOXdlwIm4wLXLCAu9w3c4wIwhA8BxwDy9AYHAf4x7UTQ+kjU+kjTv9MB0z/RggCS4viSJ8cF8vQG+kgwggCS4ALAARLy9CPQ0//TP9M/0z/TP9Qx1DH6SPoAMfQEMdEGggCS4QfHBRby9MjPkWeVhcIUy/8Syz/LP8s/yz8hzwu/UiD6UsnIz4WIUlD6UnHPC27MyYMG+wADyPpSCAH+Me1E0PpI1PpI07/TAdM/0YIAkuL4kifHBfL0BvpI1wsHIMICMfJFggCS4ALAARLy9CPQ0//TP9M/0z/TP9Qx1DH6SPoAMfQEMdEGggCS4QfHBRby9MjPkF369A4Uy/8Syz/LP8s/yz8hzwu/UiD6UsnIz4WIUlD6UnHPC27MyQkAHBLM+lLLv8+HgMs/ye1UACyAQPsAA8j6UhLM+lLLv8+GgMs/ye1UAgEgDA0AC7hoWBAXiABftivxoRtjS3NZcxtDC0txc6N7cXMbG0uBcpMrGytLsyorwysbq6N7lBFqYlxsXGUQABu1xRBAElwUBBCB935QkA==');
 
     static Errors = {
-        'Error.UpdatingStateOfNonExecutedMessage': 37601,
-        'Error.NotificationFromInvalidReceiver': 37602,
-        'Error.Unauthorized': 37603,
+        'Error.UpdatingStateOfNonExecutedMessage': 37600,
+        'Error.NotificationFromInvalidReceiver': 37601,
+        'Error.Unauthorized': 37602,
     }
 
     readonly address: c.Address

@@ -1,12 +1,13 @@
 import { Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { randomAddress } from '@ton/test-utils'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
-import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
@@ -127,19 +128,23 @@ describe('OnRamp - Send', () => {
     )
 
     expect(msg.stateInit.code).toEqual(executorCode)
-    expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.opcodes.in.execute)
-    const selfMsg = sx.builder.message.in.execute.load(msg.selfMessage.body.beginParse())
+    expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.CCIPSendExecutor_Execute.PREFIX)
+    const selfMsg = sx.CCIPSendExecutor_Execute.fromSlice(msg.selfMessage.body.beginParse())
     expect(selfMsg.config.feeQuoter).toEqual(mockFeeQuoter.address)
     expect(selfMsg.onrampSend.metadata.sender).toEqual(senderAddress)
     expect(selfMsg.onrampSend.metadata.value).toBe(toNano('42'))
     expect(selfMsg.onrampSend.msg.destChainSelector).toBe(ccipSend.destChainSelector)
     expect(selfMsg.onrampSend.msg.feeToken).toEqual(ccipSend.feeToken)
-    expect(selfMsg.onrampSend.msg.queryID).toBe(ccipSend.queryID)
-    expect(selfMsg.onrampSend.msg.receiver.toString('hex')).toBe(ccipSend.receiver.toString('hex'))
+    expect(selfMsg.onrampSend.msg.queryID).toBe(BigInt(ccipSend.queryID!))
+    expect(CrossChainAddressCodec.ToBuffer(selfMsg.onrampSend.msg.receiver).toString('hex')).toBe(
+      ccipSend.receiver.toString('hex'),
+    )
     expect(selfMsg.onrampSend.msg.tokenAmounts.length).toBe(0)
     expect(selfMsg.onrampSend.msg.data).toEqual(ccipSend.data)
 
-    const executableData = sx.builder.data.contractInitData.load(msg.stateInit.data.beginParse())
+    const executableData = sx.CCIPSendExecutor_InitialData.fromSlice(
+      msg.stateInit.data.beginParse(),
+    )
     expect(executableData.onramp).toEqual(onramp.address)
   })
 

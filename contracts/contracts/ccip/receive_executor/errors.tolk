@@ -2,8 +2,7 @@
 import "types"
 
 enum Error {
-    StateIsNotUntouched = ReceiveExecutor_FACILITY_ID * 100
-    UpdatingStateOfNonExecutedMessage
+    UpdatingStateOfNonExecutedMessage = ReceiveExecutor_FACILITY_ID * 100
     NotificationFromInvalidReceiver
     Unauthorized
 }

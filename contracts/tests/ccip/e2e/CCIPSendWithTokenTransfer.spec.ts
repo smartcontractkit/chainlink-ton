@@ -1,39 +1,27 @@
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { toNano, Cell, Address, beginCell, contractAddress } from '@ton/core'
+import { toNano, Cell, Address, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import { WRAPPED_NATIVE } from '../../../src/utils'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as exe from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import { Router as ManualRouter } from '../../../wrappers/ccip/Router'
+import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
-import {
-  TokenRegistry,
-  TokenRegistry_GetTokenInfo,
-  TokenRegistry_ReturnTokenInfo,
-  TokenRegistry_TokenInfo,
-} from '../../../wrappers/gen/ccip/TokenRegistry'
-import { MockTokenPool, MockTokenPool_LockOrBurn } from '../../../wrappers/gen/ccip/MockTokenPool'
-import { TokenPool_LockOrBurnFinished } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as tr from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup, EVM_ADDRESS } from '../router/Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
-
-// The gen wrapper's constructor is protected and has no fromStorage (no storage fields).
-class DeployableMockTokenPool extends MockTokenPool {
-  static create() {
-    const init = { code: MockTokenPool.CodeCell, data: Cell.EMPTY }
-    return new DeployableMockTokenPool(contractAddress(0, init), init)
-  }
-}
 
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
@@ -43,7 +31,9 @@ const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 const TOKEN_AMOUNT = toNano('5')
 
 // Native TON attached to the transfer notification, used to pay fees + execution costs.
-const FORWARD_TON_AMOUNT = toNano('1')
+const FORWARD_TON_AMOUNT = toNano('3')
+
+const DestChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
 describe('CCIPSend with token transfer (e2e)', () => {
   let blockchain: Blockchain
@@ -55,12 +45,13 @@ describe('CCIPSend with token transfer (e2e)', () => {
   let sender: SandboxContract<TreasuryContract>
 
   let minter: SandboxContract<JettonMinter>
-  let mockTokenPool: SandboxContract<MockTokenPool>
-  let tokenRegistry: SandboxContract<TokenRegistry>
+  let mockTokenPool: SandboxContract<mtp.MockTokenPool>
+  let tokenRegistry: SandboxContract<tr.TokenRegistry>
 
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<fq.FeeQuoter>
   let onRamp: SandboxContract<or.OnRamp>
+  let sendExecutor: SandboxContract<exe.CCIPSendExecutor>
 
   beforeAll(async () => {
     minterCode = await compile('wgram.JettonMinter')
@@ -111,29 +102,34 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
 
     // 3. Deploy the MockTokenPool that performs the (mock) lock/burn.
-    mockTokenPool = blockchain.openContract(DeployableMockTokenPool.create())
+    mockTokenPool = blockchain.openContract(mtp.MockTokenPool.fromStorage({}))
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
-    // Deploy router/feeQuoter/onRamp/offRamp.
-    ;({ router, feeQuoter, onRamp } = await setup(blockchain, {
+    // 4. Deploy Router/feeQuoter/onRamp/offRamp
+    var routerManual: SandboxContract<ManualRouter>
+    ;({
+      router: routerManual,
+      feeQuoter,
+      onRamp,
+    } = await setup(blockchain, {
       deployer,
       sender,
     }))
+    router = blockchain.openContract(rt.Router.fromAddress(routerManual.address))
 
-    const setTokenInfoResult = await router.sendTokenRegistrySetTokenInfo(deployer.getSender(), {
-      value: toNano('0.2'),
-      body: {
+    const setTokenInfoResult = await router.sendRouterTokenRegistrySetTokenInfo(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
         tokenAddress: minter.address,
-        tokenInfo: TokenRegistry_TokenInfo.toCell(
-          TokenRegistry_TokenInfo.create({
-            tokenPool: mockTokenPool.address,
-            minterAddress: minter.address,
-            enabled: true,
-          }),
-        ),
+        tokenInfo: tr.TokenRegistry_TokenInfo.create({
+          tokenPool: mockTokenPool.address,
+          minterAddress: minter.address,
+          enabled: true,
+        }),
         isNewEntry: true,
       },
-    })
+    )
 
     const tokenRegistryAddress = ((): Address => {
       for (const tx of setTokenInfoResult.transactions) {
@@ -142,8 +138,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
           inMsg?.info.type === 'internal' &&
           inMsg.info.src instanceof Address &&
           inMsg.info.src.equals(router.address) &&
-          inMsg.info.dest instanceof Address &&
-          !inMsg.info.dest.equals(router.address)
+          inMsg.body.beginParse().preloadUint(32) === tr.TokenRegistry_SetTokenInfo.PREFIX
         ) {
           return inMsg.info.dest
         }
@@ -151,28 +146,31 @@ describe('CCIPSend with token transfer (e2e)', () => {
       throw new Error('TokenRegistry address not found')
     })()
 
-    tokenRegistry = blockchain.openContract(TokenRegistry.fromAddress(tokenRegistryAddress))
+    tokenRegistry = blockchain.openContract(tr.TokenRegistry.fromAddress(tokenRegistryAddress))
+    expect(setTokenInfoResult.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenRegistry.address,
+      success: true,
+      deploy: true,
+    })
   })
 
   it('propagates a token-transfer-initiated CCIP send end to end', async () => {
-    const ccipSend: rt.CCIPSend = {
-      queryID: 1,
-      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      receiver: EVM_ADDRESS,
+    const ccipSend = rt.Router_CCIPSend.create({
+      queryID: 1n,
+      destChainSelector: DestChainSelector,
+      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
       data: Cell.EMPTY,
-      tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
-      feeToken: WRAPPED_NATIVE,
-      extraArgs: rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: 100n,
-          allowOutOfOrderExecution: true,
-        })
-        .asCell(),
-    }
+      tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: minter.address })],
+      feeToken: WRAPPED_NATIVE, // TODO should be just native?
+      extraArgs: rt.GenericExtraArgsV2.create({
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      }),
+    })
 
     // The CCIPSend payload travels as the forward payload of the jetton transfer.
-    const forwardPayload = rt.builder.message.in.ccipSend.encode(ccipSend).asCell()
+    const forwardPayload = rt.Router_CCIPSend.toCell(ccipSend)
 
     const routerWalletAddress = await minter.getWalletAddress(router.address)
     const senderWallet = blockchain.openContract(
@@ -208,6 +206,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
       }
       throw new Error('Executor address not found')
     })()
+
+    sendExecutor = blockchain.openContract(exe.CCIPSendExecutor.fromAddress(executorAddress))
 
     // --- jetton transfer leg ---
     // user -> user wallet
@@ -258,7 +258,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: executorAddress,
-      op: exe.opcodes.in.execute,
+      op: exe.CCIPSendExecutor_Execute.PREFIX,
       success: true,
     })
     // executor -> feeQuoter and back
@@ -278,13 +278,13 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: tokenRegistry.address,
-      op: TokenRegistry_GetTokenInfo.PREFIX,
+      op: tr.TokenRegistry_GetTokenInfo.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: tokenRegistry.address,
       to: executorAddress,
-      op: TokenRegistry_ReturnTokenInfo.PREFIX,
+      op: tr.TokenRegistry_ReturnTokenInfo.PREFIX,
       success: true,
     })
     // executor -> onRamp (requests lock/burn)
@@ -298,20 +298,20 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
       to: router.address,
-      op: rt.opcodes.in.lockOrBurn,
+      op: rt.Router_LockOrBurn.PREFIX,
       success: true,
     })
     // router -> mockTokenPool (lock/burn) and back to the executor (confirmation)
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: mockTokenPool.address,
-      op: MockTokenPool_LockOrBurn.PREFIX,
+      op: mtp.MockTokenPool_LockOrBurn.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: mockTokenPool.address,
       to: executorAddress,
-      op: TokenPool_LockOrBurnFinished.PREFIX,
+      op: mtp.TokenPool_LockOrBurnFinished.PREFIX,
       success: true,
     })
     // executor -> onRamp (finished successfully) and self-destructs
@@ -326,7 +326,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
         header: {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          destChainSelector: DestChainSelector,
         },
         sender: sender.address,
         body: {
@@ -339,7 +339,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
       to: router.address,
-      op: rt.opcodes.in.messageSent,
+      op: rt.Router_MessageSent.PREFIX,
       success: true,
     })
 
@@ -347,7 +347,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: sender.address,
-      op: rt.opcodes.out.ccipSendACK,
+      op: rt.Router_CCIPSendACK.PREFIX,
       success: true,
     })
   })

@@ -6,11 +6,25 @@ import "messages"
 contract MockTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.1"
-    description: "link.chain.ton.ccip.test.MockTokenPool"
+    description: "link.chain.ton.ccip.test.TokenPool"
+	storage: Storage
     incomingMessages: MockTokenPool_LockOrBurn
 }
 
 const CONTRACT_VERSION = "0.0.1".literalSlice();
+
+struct Storage {
+}
+
+
+fun Storage.load(): Storage {
+    return Storage.fromCell(contract.getData());
+}
+
+fun Storage.store(self) {
+    contract.setData(self.toCell());
+}
+
 
 fun onInternalMessage(in: InMessage) {
 	val msg = lazy MockTokenPool_LockOrBurn.fromSlice(in.body);

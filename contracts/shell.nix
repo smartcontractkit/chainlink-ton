@@ -37,6 +37,8 @@ pkgs.mkShell {
   PATH_CONTRACTS_1_6_2 = "${contracts_1_6_2}"; # Notice: loaded from GH release, artifacts in root of the package
 
   shellHook = ''
+    source ~/.zshrc
+
     echo "Loaded TVM contracts at following paths:"
     echo "  - CCIP 1.6.0: (env:PATH_CONTRACTS_1_6)    $PATH_CONTRACTS_1_6"
     echo "  - CCIP 1.6.1: (env:PATH_CONTRACTS_1_6_1)    $PATH_CONTRACTS_1_6_1"

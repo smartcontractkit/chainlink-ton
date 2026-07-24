@@ -5,10 +5,10 @@ import { toNano, beginCell, Cell } from '@ton/core'
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import { ExtraArgs } from '../../../wrappers/ccip/Router'
-import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
-import { skip } from 'node:test'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
@@ -249,12 +249,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.DestChainNotEnabled)
@@ -298,12 +298,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.MsgDataTooLarge)
@@ -351,12 +351,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.UnsupportedNumberOfTokens)
@@ -418,12 +418,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.GasLimitTooHigh)
@@ -468,12 +468,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.FeeTokenNotSupported)

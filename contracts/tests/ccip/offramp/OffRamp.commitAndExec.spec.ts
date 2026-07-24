@@ -19,7 +19,7 @@ import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import * as mr from '../../../wrappers/ccip/MerkleRoot'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as ofManual from '../../../wrappers/ccip/OffRamp'
-import * as rx from '../../../wrappers/ccip/ReceiveExecutor'
+import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as tr from '../../../wrappers/examples/Receiver'
@@ -1439,7 +1439,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       success: true,
-      op: rx.opcodes.in.bounced,
+      op: rx.ReceiveExecutor_Bounced.PREFIX,
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {

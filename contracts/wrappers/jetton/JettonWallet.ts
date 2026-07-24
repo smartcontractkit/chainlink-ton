@@ -12,6 +12,8 @@ import {
 } from '@ton/core'
 import { JettonOpcodes } from './constants'
 import { CellCodec } from '../utils'
+import { CellCodec as GenCellCodec } from '../gen/index'
+import * as jetton from '../gen/ccip/cct/JettonWallet'
 
 export type JettonWalletConfig = {
   ownerAddress: Address
@@ -80,14 +82,14 @@ export type InternalTransferStep = {
 export type TransferNotificationForRecipient = {
   queryId: number | bigint
   jettonAmount: bigint
-  senderAddress: Address
+  senderAddress: Address | null
   forwardPayload: Cell | null
 }
 
 export type TransferNotificationWithFwdPayload<T> = {
   queryId: number | bigint
   jettonAmount: bigint
-  senderAddress: Address
+  senderAddress: Address | null
   forwardPayload: T
 }
 
@@ -176,10 +178,12 @@ export class JettonWallet implements Contract {
       message: AskToTransfer
     },
   ) {
+    const b = beginCell()
+    builder.messages.in.askToTransfer.store(opts.message, b)
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.askToTransfer.encode(opts.message).asCell(),
+      body: b.endCell(),
     })
   }
 
@@ -270,28 +274,31 @@ export const builder = {
   },
   messages: {
     in: (() => {
-      const askToTransfer: CellCodec<AskToTransfer> = {
-        encode: function (data: AskToTransfer): Builder {
-          const body = beginCell()
-            .storeUint(opcodes.in.TRANSFER, 32)
-            .storeUint(data.queryId, 64)
-            .storeCoins(data.jettonAmount)
-            .storeAddress(data.destination)
-            .storeAddress(data.responseDestination)
-            .storeMaybeRef(data.customPayload)
-            .storeCoins(data.forwardTonAmount)
+      const askToTransfer: GenCellCodec<AskToTransfer> = {
+        store: function (data: AskToTransfer, b: Builder): void {
+          const forwardPayloadSlice = beginCell()
 
           const forwardPayload = data.forwardPayload
           const byRef = forwardPayload instanceof Cell
-          body.storeBit(byRef)
+          forwardPayloadSlice.storeBit(byRef)
           if (byRef) {
-            body.storeRef(forwardPayload)
+            forwardPayloadSlice.storeRef(forwardPayload)
           } else if (forwardPayload) {
-            body.storeSlice(forwardPayload)
+            forwardPayloadSlice.storeSlice(forwardPayload)
           }
-          return body
+          jetton.AskToTransfer.store(
+            jetton.AskToTransfer.create({
+              jettonAmount: data.jettonAmount,
+              transferRecipient: data.destination,
+              sendExcessesTo: data.responseDestination,
+              customPayload: data.customPayload,
+              forwardTonAmount: data.forwardTonAmount,
+              forwardPayload: forwardPayloadSlice.asSlice(),
+            }),
+            b,
+          )
         },
-        load: function (src: Slice): AskToTransfer {
+        fromSlice: function (src: Slice): AskToTransfer {
           let op = src.loadUint(32)
           if (op !== opcodes.in.TRANSFER) {
             throw new Error(`Invalid opcode, expected ${opcodes.in.TRANSFER}, got ${op}`)
@@ -309,22 +316,28 @@ export const builder = {
         },
       }
       const askToTransferWithFwdPayload = <T>(
-        payloadCodec: CellCodec<T>,
-      ): CellCodec<AskToTransferWithFwdPayload<T>> => {
+        payloadCodec: GenCellCodec<T>,
+      ): GenCellCodec<AskToTransferWithFwdPayload<T>> => {
         return {
-          encode: function (data: AskToTransferWithFwdPayload<T>): Builder {
+          store: function (data: AskToTransferWithFwdPayload<T>, b: Builder): void {
             let tr: AskToTransfer = {
               ...data,
-              forwardPayload: payloadCodec.encode(data.forwardPayload).endCell(),
+              forwardPayload: ((): Cell => {
+                const pb = beginCell()
+                payloadCodec.store(data.forwardPayload, pb)
+                return pb.endCell()
+              })(),
             }
-            return askToTransfer.encode(tr)
+            askToTransfer.store(tr, b)
           },
-          load: function (src: Slice): AskToTransferWithFwdPayload<T> {
-            let transferRequest = askToTransfer.load(src)
+          fromSlice: function (src: Slice): AskToTransferWithFwdPayload<T> {
+            let transferRequest = askToTransfer.fromSlice(src)
             if (!transferRequest.forwardPayload) {
               throw new Error('forwardPayload is null')
             }
-            let payload = payloadCodec.load(toForwardPayloadSlice(transferRequest.forwardPayload))
+            let payload = payloadCodec.fromSlice(
+              toForwardPayloadSlice(transferRequest.forwardPayload),
+            )
             return {
               ...transferRequest,
               forwardPayload: payload,
@@ -406,42 +419,49 @@ export const builder = {
       }
     })(),
     out: (() => {
-      const transferNotificationForRecipient: CellCodec<TransferNotificationForRecipient> = {
-        encode: function (data: TransferNotificationForRecipient): Builder {
-          return beginCell()
-            .storeUint(opcodes.in.TRANSFER_NOTIFICATION, 32)
-            .storeUint(data.queryId, 64)
-            .storeCoins(data.jettonAmount)
-            .storeAddress(data.senderAddress)
-            .storeMaybeRef(data.forwardPayload)
+      const transferNotificationForRecipient: GenCellCodec<TransferNotificationForRecipient> = {
+        store: function (data: TransferNotificationForRecipient): Builder {
+          return jetton.TransferNotificationForRecipient.toCell(
+            jetton.TransferNotificationForRecipient.create({
+              jettonAmount: data.jettonAmount,
+              transferInitiator: data.senderAddress,
+              forwardPayload: beginCell().storeMaybeRef(data.forwardPayload).asSlice(),
+            }),
+          ).asBuilder()
         },
-        load: function (src: Slice): TransferNotificationForRecipient {
-          src.skip(32)
+        fromSlice: function (src: Slice): TransferNotificationForRecipient {
+          const tn = jetton.TransferNotificationForRecipient.fromSlice(src)
           return {
-            queryId: src.loadUint(64),
-            jettonAmount: src.loadCoins(),
-            senderAddress: src.loadAddress(),
-            forwardPayload: src.loadMaybeRef(),
+            queryId: tn.queryId,
+            jettonAmount: tn.jettonAmount,
+            senderAddress: tn.transferInitiator ?? new Address(0, Buffer.alloc(32)),
+            forwardPayload: tn.forwardPayload.loadMaybeRef(),
           }
         },
       }
       const transferNotificationWithFwdPayload = <T>(
-        payloadCodec: CellCodec<T>,
-      ): CellCodec<TransferNotificationWithFwdPayload<T>> => {
+        payloadCodec: GenCellCodec<T>,
+      ): GenCellCodec<TransferNotificationWithFwdPayload<T>> => {
         return {
-          encode: function (data: TransferNotificationWithFwdPayload<T>): Builder {
+          store: function (data: TransferNotificationWithFwdPayload<T>): Builder {
             let tn: TransferNotificationForRecipient = {
               ...data,
-              forwardPayload: payloadCodec.encode(data.forwardPayload).endCell(),
+              forwardPayload: (() => {
+                const b = beginCell()
+                payloadCodec.store(data.forwardPayload, b)
+                return b.endCell()
+              })(),
             }
-            return transferNotificationForRecipient.encode(tn)
+            const b = beginCell()
+            transferNotificationForRecipient.store(tn, b)
+            return b.endCell().asBuilder()
           },
-          load: function (src: Slice): TransferNotificationWithFwdPayload<T> {
-            let tn = transferNotificationForRecipient.load(src)
+          fromSlice: function (src: Slice): TransferNotificationWithFwdPayload<T> {
+            let tn = transferNotificationForRecipient.fromSlice(src)
             if (!tn.forwardPayload) {
               throw new Error('forwardPayload is null')
             }
-            let payload = payloadCodec.load(toForwardPayloadSlice(tn.forwardPayload))
+            let payload = payloadCodec.fromSlice(toForwardPayloadSlice(tn.forwardPayload))
             return {
               ...tn,
               forwardPayload: payload,
