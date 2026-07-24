@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
@@ -69,7 +69,7 @@ describe('Router.ccipSend', () => {
       from: router.address,
       to: onRamp.address,
       success: true,
-      op: or.opcodes.in.onrampSend,
+      op: or.OnRamp_Send.PREFIX,
     })
   })
 

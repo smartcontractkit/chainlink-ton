@@ -4,7 +4,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import * as orManual from '../../../wrappers/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
@@ -33,21 +34,18 @@ describe('OnRamp - generate message id', () => {
   let deployableCode: Cell
   let executorID: bigint
 
-  const ccipSend: rt.CCIPSend = {
-    queryID: 1,
+  const ccipSend = or.Router_CCIPSend.create({
+    queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    receiver: EVM_ADDRESS,
+    receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
-    extraArgs: rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      })
-      .asCell(),
-  }
+    extraArgs: or.GenericExtraArgsV2.create({
+      gasLimit: 100n,
+      allowOutOfOrderExecution: true,
+    }),
+  })
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -90,16 +88,16 @@ describe('OnRamp - generate message id', () => {
       },
     }))
 
-    const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
+    const resultUpdateDestChainConfigs = await onramp.sendOnRampUpdateDestChainConfigs(
       deployer.getSender(),
+      toNano('0.5'),
       {
-        value: toNano('0.5'),
-        destChainConfigs: [
-          {
+        updates: [
+          or.OnRampUpdateDestChainConfig.create({
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: false,
-          },
+          }),
         ],
       },
     )
@@ -109,19 +107,20 @@ describe('OnRamp - generate message id', () => {
       success: true,
     })
 
-    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+    const result = await onramp.sendOnRampSend(mockRouter.getSender(), toNano('1'), {
       msg: ccipSend,
-      metadata: {
+      metadata: or.Metadata.create({
         sender: senderAddress,
         value: toNano('42'),
-      },
+      }),
+      tokenRegistry: null,
     })
 
     expect(result.transactions).toHaveTransaction({
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.onrampSend,
+      op: or.OnRamp_Send.PREFIX,
     })
 
     const deployTX = result.transactions.find(
@@ -150,21 +149,22 @@ describe('OnRamp - generate message id', () => {
   })
 
   it('should generate same message id with same message', async () => {
-    const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
-      value: toNano('0.5'),
-      body: {
+    const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
+      executorSender,
+      toNano('0.5'),
+      {
         executorID: executorID,
-        fee: {
+        fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
-        },
+        }),
         msg: ccipSend,
-        metadata: {
+        metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
-        },
+        }),
       },
-    })
+    )
 
     const expectedTVM2AnyRampMessage = on.TVM2AnyRampMessage.create({
       header: on.RampMessageHeader.create({
@@ -176,9 +176,9 @@ describe('OnRamp - generate message id', () => {
       }),
       sender: senderAddress,
       body: on.TVM2AnyRampMessageBody.create({
-        receiver: CrossChainAddressCodec.FromBuffer(ccipSend.receiver),
+        receiver: ccipSend.receiver,
         data: ccipSend.data,
-        extraArgs: ccipSend.extraArgs,
+        extraArgs: or.GenericExtraArgsV2.toCell(ccipSend.extraArgs as or.GenericExtraArgsV2),
         tokenAmounts: ccipSend.tokenAmounts.map((ta) => on.TokenAmount.create(ta)),
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
@@ -214,7 +214,7 @@ describe('OnRamp - generate message id', () => {
       from: executorSender.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.executorFinishedSuccessfully,
+      op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
     })
 
     for (const tx of result.transactions) {
@@ -224,14 +224,14 @@ describe('OnRamp - generate message id', () => {
       ) {
         for (const msg of tx.outMessages.values()) {
           if (msg.info.type === 'external-out') {
-            const event = or.builder.events.ccipMessageSent.load(msg.body.beginParse())
+            const event = orManual.builder.events.ccipMessageSent.load(msg.body.beginParse())
             if (event.message.header.messageId !== expectedTVM2AnyRampMessage.header.messageId) {
               expect(event.message.sender).toEqual(expectedTVM2AnyRampMessage.sender)
               expect(
                 rt.builder.data.crossChainAddress
                   .load(event.message.body.receiver.beginParse())
                   .toString('hex'),
-              ).toBe(ccipSend.receiver.toString('hex'))
+              ).toBe(CrossChainAddressCodec.ToBuffer(ccipSend.receiver).toString('hex'))
               expect(event.message.body.data).toEqual(expectedTVM2AnyRampMessage.body.data)
               expect(event.message.body.extraArgs).toEqual(
                 expectedTVM2AnyRampMessage.body.extraArgs,
@@ -289,7 +289,7 @@ describe('OnRamp - generate message id', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_generate_message_id', [
         {
-          code: await onramp.getCode(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])

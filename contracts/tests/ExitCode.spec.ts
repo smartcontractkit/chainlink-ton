@@ -12,6 +12,7 @@ import * as rt from '../wrappers/ccip/Router'
 import * as rece from '../wrappers/examples/Receiver'
 
 import * as offrGen from '../wrappers/gen/ccip/OffRamp'
+import * as onrGen from '../wrappers/gen/ccip/OnRamp'
 import * as rxGen from '../wrappers/gen/ccip/ReceiveExecutor'
 
 import * as deployable from '../wrappers/libraries/Deployable'
@@ -58,7 +59,7 @@ describe('Exit Codes', () => {
       facilityId: onr.FACILITY_ID,
       facilityName: onr.FACILITY_NAME,
       errorCode: onr.ERROR_CODE,
-      error0: onr.Errors.UnknownDestChainSelector,
+      error0: onrGen.OnRamp.Errors['OnRamp_Error.UnknownDestChainSelector'],
     },
     {
       facilityId: rx.FACILITY_ID,

@@ -5,9 +5,10 @@ import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = beginCell().storeBuffer(EVM_ADDRESS).asSlice()
 
@@ -76,18 +77,19 @@ describe('Router', () => {
       from: router.address,
       to: onRamp.address,
       success: true,
-      op: or.opcodes.in.getValidatedFee,
+      op: or.OnRamp_GetValidatedFee.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = or.builder.messages.in.getValidatedFee.load(x.beginParse())
+        const decoded = or.OnRamp_GetValidatedFee_ToOnRamp.fromSlice(x.beginParse())
         return (
-          decoded.msg.queryID === 1 &&
-          decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector ===
+          decoded.ccipSend.queryID === 1n &&
+          decoded.ccipSend.data.equals(Cell.EMPTY) &&
+          decoded.ccipSend.destChainSelector ===
             ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
-          decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+          CrossChainAddressCodec.ToBuffer(decoded.ccipSend.receiver).toString('hex') ===
+            EVM_ADDRESS.toString('hex') &&
+          decoded.ccipSend.tokenAmounts.length === 0 &&
+          decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })

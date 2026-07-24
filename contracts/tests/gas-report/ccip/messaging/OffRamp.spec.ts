@@ -10,7 +10,7 @@ import {
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/ccip/Router'
-import * as or from '../../../../wrappers/ccip/OnRamp'
+import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
 import '@ton/test-utils'
@@ -151,27 +151,25 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy OnRamp
     {
-      let code = await or.OnRamp.code()
-      let data: or.OnRampStorage = {
+      const onRampData = or.OnRamp_Storage.create({
         id: 0n,
-        ownable: {
+        ownable: or.Ownable2Step.create({
           owner: deployer.address,
-          pendingOwner: null,
-        },
+        }),
         chainSelector: ChainSelectors.testnet.ton,
-        config: {
+        config: or.OnRamp_DynamicConfig.create({
           feeQuoter: feeQuoter.address,
           feeAggregator: deployer.address,
           allowlistAdmin: deployer.address,
           reserve: toNano('1'),
-        },
-        destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        executor: {
-          executorCode: await CCIPSendExecutorContract.code(),
-          deployableCode: await DeployableContract.code(),
-        },
-      }
-      onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
+        }),
+        destChainConfigs: new Map(),
+        executor: or.ExecutorDeployment.create({
+          executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
+          deployableCode: await contractCode.ccip.local('Deployable'),
+        }),
+      })
+      onRamp = blockchain.openContract(or.OnRamp.fromStorage(onRampData))
       const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -197,16 +195,19 @@ describe('CCIP OffRamp Gas Estimation', () => {
       })
 
       // Add destChainConfig to OnRamp
-      const configResult = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
-        value: toNano('1'),
-        destChainConfigs: [
-          {
-            destChainSelector: ChainSelectors.testnet.evm,
-            router: router.address,
-            allowlistEnabled: false,
-          },
-        ],
-      })
+      const configResult = await onRamp.sendOnRampUpdateDestChainConfigs(
+        deployer.getSender(),
+        toNano('1'),
+        {
+          updates: [
+            or.OnRampUpdateDestChainConfig.create({
+              destChainSelector: ChainSelectors.testnet.evm,
+              router: router.address,
+              allowlistEnabled: false,
+            }),
+          ],
+        },
+      )
       expect(configResult.transactions).toHaveTransaction({
         to: onRamp.address,
         success: true,

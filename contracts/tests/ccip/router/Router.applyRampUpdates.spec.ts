@@ -8,7 +8,7 @@ import * as coverage from '../../coverage/coverage'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 
 import * as rt from '../../../wrappers/ccip/Router'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as Setup from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'

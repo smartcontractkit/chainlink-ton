@@ -11,7 +11,7 @@ import {
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/ccip/Router'
-import * as or from '../../../../wrappers/ccip/OnRamp'
+import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { WRAPPED_NATIVE } from '../../../../src/utils'
@@ -117,27 +117,25 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
 
     // Deploy OnRamp
-    const code = await contractCode.ccip.local('OnRamp')
-    const onRampData: or.OnRampStorage = {
+    const onRampData = or.OnRamp_Storage.create({
       id: 0n,
-      ownable: {
+      ownable: or.Ownable2Step.create({
         owner: deployer.address,
-        pendingOwner: null,
-      },
+      }),
       chainSelector: ChainSelectors.testnet.ton,
-      config: {
+      config: or.OnRamp_DynamicConfig.create({
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
         allowlistAdmin: deployer.address,
         reserve: toNano('1'),
-      },
-      destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-      executor: {
+      }),
+      destChainConfigs: new Map(),
+      executor: or.ExecutorDeployment.create({
         executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
         deployableCode: await contractCode.ccip.local('Deployable'),
-      },
-    }
-    onRamp = blockchain.openContract(or.OnRamp.createFromConfig(onRampData, code))
+      }),
+    })
+    onRamp = blockchain.openContract(or.OnRamp.fromStorage(onRampData))
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Configure Router
@@ -153,14 +151,13 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     })
 
     // Configure OnRamp
-    await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('0.1'),
-      destChainConfigs: [
-        {
+    await onRamp.sendOnRampUpdateDestChainConfigs(deployer.getSender(), toNano('0.1'), {
+      updates: [
+        or.OnRampUpdateDestChainConfig.create({
           destChainSelector: ChainSelectors.testnet.evm,
           router: router.address,
           allowlistEnabled: false,
-        },
+        }),
       ],
     })
   })

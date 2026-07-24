@@ -9,14 +9,22 @@ import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import {
+  FACILITY_NAME,
+  CONTRACT_VERSION,
+  SUPPORTED_PREV_VERSIONS,
+  FACILITY_ID,
+  ERROR_CODE,
+} from '../../../wrappers/ccip/OnRamp'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { deployOnRampContract, setup, deployOnRampContractW } from './OnRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: or.OnRamp.type(),
-    version: or.OnRamp.version(),
+    type: FACILITY_NAME,
+    version: CONTRACT_VERSION,
     deployContract: (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
       deployOnRampContract(blockchain, owner).then((c) => c.onramp),
   })
@@ -30,8 +38,8 @@ describe('OnRamp - TypeAndVersion Tests', () => {
 
 describe('OnRamp - Upgrade Tests', () => {
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: or.OnRamp.type(),
-    prevVersionConfigs: Object.entries(or.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+    contractType: FACILITY_NAME,
+    prevVersionConfigs: Object.entries(SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
       version,
       getCode,
       deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) => {
@@ -41,9 +49,9 @@ describe('OnRamp - Upgrade Tests', () => {
         return dep.onramp
       },
     })),
-    currentVersion: or.OnRamp.version(),
-    getCurrentCode: () => or.OnRamp.code(),
-    CurrentVersionConstructor: or.OnRamp.createFromAddress,
+    currentVersion: CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('OnRamp'),
+    CurrentVersionConstructor: or.OnRamp.fromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -72,7 +80,7 @@ describe('OnRamp - Ownable Tests', () => {
         blockchain,
         conf: [
           {
-            code: await onramp.getCode(),
+            code: await contractCode.ccip.local('OnRamp'),
             name: 'onramp',
           },
         ],
@@ -83,10 +91,10 @@ describe('OnRamp - Ownable Tests', () => {
 
 describe('OnRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: or.OnRamp.type(),
-    currentVersion: or.OnRamp.version(),
-    getCurrentCode: () => or.OnRamp.code(),
-    CurrentVersionConstructor: or.OnRamp.createFromAddress,
+    contractType: FACILITY_NAME,
+    currentVersion: CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('OnRamp'),
+    CurrentVersionConstructor: or.OnRamp.fromAddress,
     deployCurrentContract: (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
       deployOnRampContract(blockchain, owner).then((c) => c.onramp),
   })
@@ -95,22 +103,24 @@ describe('OnRamp - Current Version Tests', () => {
 
 describe('OnRamp - Opcodes', () => {
   it('should match in opcodes', () => {
-    expect(or.opcodes.in.onrampSend).toBe(crc32('OnRamp_Send'))
-    expect(or.opcodes.in.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
-    expect(or.opcodes.in.executorFinishedSuccessfully).toBe(
+    expect(or.OnRamp_Send.PREFIX).toBe(crc32('OnRamp_Send'))
+    expect(or.OnRamp_GetValidatedFee.PREFIX).toBe(crc32('OnRamp_GetValidatedFee'))
+    expect(or.OnRamp_ExecutorFinishedSuccessfully.PREFIX).toBe(
       crc32('OnRamp_ExecutorFinishedSuccessfully'),
     )
-    expect(or.opcodes.in.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
-    expect(or.opcodes.in.setDynamicConfig).toBe(crc32('OnRamp_SetDynamicConfig'))
-    expect(or.opcodes.in.updateDestChainConfigs).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
-    expect(or.opcodes.in.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
-    expect(or.opcodes.in.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
-    expect(or.opcodes.in.withdrawFeeTokens).toBe(crc32('OnRamp_WithdrawFeeTokens'))
+    expect(or.OnRamp_ExecutorFinishedWithError.PREFIX).toBe(
+      crc32('OnRamp_ExecutorFinishedWithError'),
+    )
+    expect(or.OnRamp_SetDynamicConfig.PREFIX).toBe(crc32('OnRamp_SetDynamicConfig'))
+    expect(or.OnRamp_UpdateDestChainConfigs.PREFIX).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
+    expect(or.OnRamp_UpdateSendExecutor.PREFIX).toBe(crc32('OnRamp_UpdateSendExecutor'))
+    expect(or.OnRamp_UpdateAllowlists.PREFIX).toBe(crc32('OnRamp_UpdateAllowlists'))
+    expect(or.OnRamp_WithdrawFeeTokens.PREFIX).toBe(crc32('OnRamp_WithdrawFeeTokens'))
   })
 
   it('should match out opcodes', () => {
-    expect(or.opcodes.out.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
-    expect(or.opcodes.out.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+    expect(or.OnRamp_MessageValidated.PREFIX).toBe(crc32('OnRamp_MessageValidated'))
+    expect(or.OnRamp_MessageValidationFailed.PREFIX).toBe(crc32('OnRamp_MessageValidationFailed'))
   })
 })
 
@@ -136,19 +146,19 @@ describe('OnRamp - Unit Tests', () => {
 
   it('should match facility name and ID', async () => {
     const facilityIdVal = await onramp.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(or.FACILITY_ID))
+    expect(facilityIdVal).toBe(BigInt(FACILITY_ID))
 
     const [typeSlice] = await onramp.getTypeAndVersion()
-    expect(typeSlice.loadStringTail()).toBe(or.FACILITY_NAME)
+    expect(typeSlice.loadStringTail()).toBe(FACILITY_NAME)
 
-    expect(or.FACILITY_ID).toEqual(facilityId(crc32(or.FACILITY_NAME)))
+    expect(FACILITY_ID).toEqual(facilityId(crc32(FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
     const errorCodeVal = await onramp.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(or.ERROR_CODE))
+    expect(errorCodeVal).toBe(BigInt(ERROR_CODE))
 
-    expect(or.ERROR_CODE).toEqual(errorCode(crc32(or.FACILITY_NAME)))
+    expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
   })
 
   it('getStaticConfig should return chain selector', async () => {
@@ -158,8 +168,7 @@ describe('OnRamp - Unit Tests', () => {
 
   it('should allow owner to updateSendExecutor', async () => {
     const newExecutor = beginCell().storeUint(12345678, 32).endCell()
-    const result = await onramp.sendUpdateSendExecutor(deployer.getSender(), {
-      value: toNano('0.05'),
+    const result = await onramp.sendOnRampUpdateSendExecutor(deployer.getSender(), toNano('0.05'), {
       code: newExecutor,
     })
 
@@ -177,8 +186,7 @@ describe('OnRamp - Unit Tests', () => {
   it('should not allow non-owner to updateSendExecutor', async () => {
     const other = await blockchain.treasury('other')
     const newExecutor = beginCell().storeUint(12345678, 32).endCell()
-    const result = await onramp.sendUpdateSendExecutor(other.getSender(), {
-      value: toNano('0.05'),
+    const result = await onramp.sendOnRampUpdateSendExecutor(other.getSender(), toNano('0.05'), {
       code: newExecutor,
     })
 
@@ -198,7 +206,7 @@ describe('OnRamp - Unit Tests', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
         {
-          code: await or.OnRamp.code(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])

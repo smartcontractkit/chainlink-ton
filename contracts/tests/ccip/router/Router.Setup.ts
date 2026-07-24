@@ -10,7 +10,7 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
@@ -269,28 +269,26 @@ async function deployOnRampInstance(
   router: Address,
   feeQuoter: Address,
 ) {
-  const code = await contractCode.ccip.local('OnRamp')
-  const data: or.OnRampStorage = {
+  const data = or.OnRamp_Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: or.Ownable2Step.create({
       owner: deployer.address,
-      pendingOwner: null,
-    },
+    }),
     chainSelector: CHAINSEL_TON,
-    config: {
+    config: or.OnRamp_DynamicConfig.create({
       feeQuoter,
       feeAggregator: deployer.address,
       allowlistAdmin: deployer.address,
       reserve: toNano('10'),
-    },
-    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-    executor: {
+    }),
+    destChainConfigs: new Map(),
+    executor: or.ExecutorDeployment.create({
       deployableCode: await contractCode.ccip.local('Deployable'),
       executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-    },
-  }
+    }),
+  })
 
-  const onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
+  const onRamp = blockchain.openContract(or.OnRamp.fromStorage(data))
 
   {
     const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -309,16 +307,19 @@ async function deployOnRampInstance(
       allowlistEnabled: false,
     }
 
-    const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('1'),
-      destChainConfigs: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          router: config.router,
-          allowlistEnabled: config.allowlistEnabled,
-        },
-      ],
-    })
+    const result = await onRamp.sendOnRampUpdateDestChainConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      {
+        updates: [
+          or.OnRampUpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            router: config.router,
+            allowlistEnabled: config.allowlistEnabled,
+          }),
+        ],
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: onRamp.address,
@@ -502,7 +503,7 @@ export async function contractsCoverageConfig(): Promise<ContractCoverageConfig[
       name: 'feequoter',
     },
     {
-      code: await or.OnRamp.code(),
+      code: await contractCode.ccip.local('OnRamp'),
       name: 'onramp',
     },
     {
