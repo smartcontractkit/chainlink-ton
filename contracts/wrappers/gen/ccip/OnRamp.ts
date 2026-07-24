@@ -964,6 +964,10 @@ export interface Router_CCIPSend {
     extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
+export type Router_CCIPSend_Shallow = Omit<Router_CCIPSend, 'extraArgs'> & {
+    extraArgs: c.Cell
+}
+
 export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
@@ -999,6 +1003,19 @@ export const Router_CCIPSend = {
                     throwNonePrefixMatch('Router_CCIPSend.extraArgs')
             ),
         }
+    },
+    fromSliceShallow(s: c.Slice): Router_CCIPSend_Shallow {
+        loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
+        return {
+                    $: 'Router_CCIPSend',
+                    queryID: s.loadUintBig(64),
+                    destChainSelector: s.loadUintBig(64),
+                    receiver: CrossChainAddress.fromSlice(s),
+                    data: s.loadRef(),
+                    tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+                    feeToken: s.loadMaybeAddress(),
+                    extraArgs: s.loadRef()
+                };
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
@@ -1197,6 +1214,10 @@ export interface FeeQuoter_GetValidatedFee<T> {
     context: T
 }
 
+export type FeeQuoter_GetValidatedFee_Shallow<T> = Omit<FeeQuoter_GetValidatedFee<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
@@ -1223,6 +1244,10 @@ export interface FeeQuoter_MessageValidated<T> {
     fee: Fee
     msg: Router_CCIPSend
     context: T
+}
+
+export type FeeQuoter_MessageValidated_Shallow<T> = Omit<FeeQuoter_MessageValidated<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const FeeQuoter_MessageValidated = {
@@ -1252,6 +1277,10 @@ export interface FeeQuoter_MessageValidationFailed<T> {
     error: uint256
     msg: Router_CCIPSend
     context: T
+}
+
+export type FeeQuoter_MessageValidationFailed_Shallow<T> = Omit<FeeQuoter_MessageValidationFailed<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const FeeQuoter_MessageValidationFailed = {
@@ -1772,6 +1801,10 @@ export interface TVM2AnyRampMessage {
     feeValueJuels: uint96
 }
 
+export type TVM2AnyRampMessage_Shallow = Omit<TVM2AnyRampMessage, 'body'> & {
+    body: c.Cell
+}
+
 export const TVM2AnyRampMessage = {
     create(args: {
         header: RampMessageHeader
@@ -1792,6 +1825,15 @@ export const TVM2AnyRampMessage = {
             body: loadCellRef<TVM2AnyRampMessageBody>(s, TVM2AnyRampMessageBody.fromSlice),
             feeValueJuels: s.loadUintBig(96),
         }
+    },
+    fromSliceShallow(s: c.Slice): TVM2AnyRampMessage_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessage',
+                    header: RampMessageHeader.fromSlice(s),
+                    sender: s.loadAddress(),
+                    body: s.loadRef(),
+                    feeValueJuels: s.loadUintBig(96)
+                };
     },
     store(self: TVM2AnyRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
@@ -1824,6 +1866,10 @@ export interface TVM2AnyRampMessageBody {
     feeTokenAmount: coins
 }
 
+export type TVM2AnyRampMessageBody_Shallow = Omit<TVM2AnyRampMessageBody, 'receiver'> & {
+    receiver: c.Cell
+}
+
 export const TVM2AnyRampMessageBody = {
     create(args: {
         receiver: CrossChainAddress
@@ -1848,6 +1894,17 @@ export const TVM2AnyRampMessageBody = {
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
         }
+    },
+    fromSliceShallow(s: c.Slice): TVM2AnyRampMessageBody_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessageBody',
+                    receiver: s.loadRef(),
+                    data: s.loadRef(),
+                    extraArgs: s.loadRef(),
+                    tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+                    feeToken: s.loadAddress(),
+                    feeTokenAmount: s.loadCoins()
+                };
     },
     store(self: TVM2AnyRampMessageBody, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
@@ -1974,6 +2031,10 @@ export interface OnRamp_Storage {
     executor: ExecutorDeployment
 }
 
+export type OnRamp_Storage_Shallow = Omit<OnRamp_Storage, 'config'> & {
+    config: c.Cell
+}
+
 export const OnRamp_Storage = {
     create(args: {
         id: uint32
@@ -1998,6 +2059,17 @@ export const OnRamp_Storage = {
             destChainConfigs: dictToMap(c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s)),
             executor: ExecutorDeployment.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): OnRamp_Storage_Shallow {
+        return {
+                    $: 'OnRamp_Storage',
+                    id: s.loadUintBig(32),
+                    ownable: Ownable2Step.fromSlice(s),
+                    chainSelector: s.loadUintBig(64),
+                    config: s.loadRef(),
+                    destChainConfigs: dictToMap(c.Dictionary.load<uint64, OnRamp_DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store), s)),
+                    executor: ExecutorDeployment.fromSlice(s)
+                };
     },
     store(self: OnRamp_Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
@@ -2026,6 +2098,10 @@ export interface OnRamp_Send {
     tokenRegistry: c.Address | null
 }
 
+export type OnRamp_Send_Shallow = Omit<OnRamp_Send, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
@@ -2048,6 +2124,15 @@ export const OnRamp_Send = {
             tokenRegistry: s.loadMaybeAddress(),
         }
     },
+    fromSliceShallow(s: c.Slice): OnRamp_Send_Shallow {
+        loadAndCheckPrefix32(s, 0xdcf993c2, 'OnRamp_Send');
+        return {
+                    $: 'OnRamp_Send',
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s),
+                    tokenRegistry: s.loadMaybeAddress()
+                };
+    },
     store(self: OnRamp_Send, b: c.Builder): void {
         b.storeUint(0xdcf993c2, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
@@ -2069,6 +2154,10 @@ export interface OnRamp_GetValidatedFee<T> {
     readonly $: 'OnRamp_GetValidatedFee'
     ccipSend: Router_CCIPSend
     context: T
+}
+
+export type OnRamp_GetValidatedFee_Shallow<T> = Omit<OnRamp_GetValidatedFee<T>, 'ccipSend'> & {
+    ccipSend: c.Cell
 }
 
 export const OnRamp_GetValidatedFee = {
@@ -2228,6 +2317,10 @@ export interface OnRamp_ExecutorFinishedSuccessfully {
     metadata: Metadata
 }
 
+export type OnRamp_ExecutorFinishedSuccessfully_Shallow = Omit<OnRamp_ExecutorFinishedSuccessfully, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_ExecutorFinishedSuccessfully = {
     PREFIX: 0xcfa6b336,
 
@@ -2251,6 +2344,16 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): OnRamp_ExecutorFinishedSuccessfully_Shallow {
+        loadAndCheckPrefix32(s, 0xcfa6b336, 'OnRamp_ExecutorFinishedSuccessfully');
+        return {
+                    $: 'OnRamp_ExecutorFinishedSuccessfully',
+                    executorID: CCIPSendExecutor_ID.fromSlice(s),
+                    fee: Fee.fromSlice(s),
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s)
+                };
     },
     store(self: OnRamp_ExecutorFinishedSuccessfully, b: c.Builder): void {
         b.storeUint(0xcfa6b336, 32);
@@ -2280,6 +2383,10 @@ export interface OnRamp_ExecutorFinishedWithError {
     metadata: Metadata
 }
 
+export type OnRamp_ExecutorFinishedWithError_Shallow = Omit<OnRamp_ExecutorFinishedWithError, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_ExecutorFinishedWithError = {
     PREFIX: 0xc4068e21,
 
@@ -2303,6 +2410,16 @@ export const OnRamp_ExecutorFinishedWithError = {
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): OnRamp_ExecutorFinishedWithError_Shallow {
+        loadAndCheckPrefix32(s, 0xc4068e21, 'OnRamp_ExecutorFinishedWithError');
+        return {
+                    $: 'OnRamp_ExecutorFinishedWithError',
+                    executorID: CCIPSendExecutor_ID.fromSlice(s),
+                    error: s.loadUintBig(256),
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s)
+                };
     },
     store(self: OnRamp_ExecutorFinishedWithError, b: c.Builder): void {
         b.storeUint(0xc4068e21, 32);
@@ -2441,6 +2558,10 @@ export interface OnRamp_MessageValidated<T> {
     context: T
 }
 
+export type OnRamp_MessageValidated_Shallow<T> = Omit<OnRamp_MessageValidated<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_MessageValidated = {
     PREFIX: 0x2afb11bd,
 
@@ -2468,6 +2589,10 @@ export interface OnRamp_MessageValidationFailed<T> {
     error: uint256
     msg: Router_CCIPSend
     context: T
+}
+
+export type OnRamp_MessageValidationFailed_Shallow<T> = Omit<OnRamp_MessageValidationFailed<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const OnRamp_MessageValidationFailed = {

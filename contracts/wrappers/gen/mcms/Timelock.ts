@@ -670,6 +670,10 @@ export interface Timelock_SubmitErrorReport {
     errorCode: uint32
 }
 
+export type Timelock_SubmitErrorReport_Shallow = Omit<Timelock_SubmitErrorReport, 'opBatch'> & {
+    opBatch: c.Cell
+}
+
 export const Timelock_SubmitErrorReport = {
     PREFIX: 0xf4538b79,
 
@@ -696,6 +700,17 @@ export const Timelock_SubmitErrorReport = {
             errorTxHash: s.loadUintBig(256),
             errorCode: s.loadUintBig(32),
         }
+    },
+    fromSliceShallow(s: c.Slice): Timelock_SubmitErrorReport_Shallow {
+        loadAndCheckPrefix32(s, 0xf4538b79, 'Timelock_SubmitErrorReport');
+        return {
+                    $: 'Timelock_SubmitErrorReport',
+                    queryId: s.loadUintBig(64),
+                    opBatch: s.loadRef(),
+                    opTxHash: s.loadUintBig(256),
+                    errorTxHash: s.loadUintBig(256),
+                    errorCode: s.loadUintBig(32)
+                };
     },
     store(self: Timelock_SubmitErrorReport, b: c.Builder): void {
         b.storeUint(0xf4538b79, 32);
@@ -832,6 +847,10 @@ export interface Timelock_CallScheduled {
     delay: uint32
 }
 
+export type Timelock_CallScheduled_Shallow = Omit<Timelock_CallScheduled, 'call'> & {
+    call: c.Cell
+}
+
 export const Timelock_CallScheduled = {
     PREFIX: 0xc55fca54,
 
@@ -862,6 +881,19 @@ export const Timelock_CallScheduled = {
             salt: s.loadUintBig(256),
             delay: s.loadUintBig(32),
         }
+    },
+    fromSliceShallow(s: c.Slice): Timelock_CallScheduled_Shallow {
+        loadAndCheckPrefix32(s, 0xc55fca54, 'Timelock_CallScheduled');
+        return {
+                    $: 'Timelock_CallScheduled',
+                    queryId: s.loadUintBig(64),
+                    id: s.loadUintBig(256),
+                    index: s.loadUintBig(64),
+                    call: s.loadRef(),
+                    predecessor: s.loadUintBig(256),
+                    salt: s.loadUintBig(256),
+                    delay: s.loadUintBig(32)
+                };
     },
     store(self: Timelock_CallScheduled, b: c.Builder): void {
         b.storeUint(0xc55fca54, 32);
@@ -1349,6 +1381,10 @@ export interface Timelock_Data {
     rbac: AccessControl_Data
 }
 
+export type Timelock_Data_Shallow = Omit<Timelock_Data, 'rbac'> & {
+    rbac: c.Cell
+}
+
 export const Timelock_Data = {
     create(args: {
         id: uint32
@@ -1377,6 +1413,19 @@ export const Timelock_Data = {
             opPendingInfo: Timelock_OpPendingInfo.fromSlice(s),
             rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): Timelock_Data_Shallow {
+        return {
+                    $: 'Timelock_Data',
+                    id: s.loadUintBig(32),
+                    minDelay: s.loadUintBig(32),
+                    timestamps: dictToMap(c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s)),
+                    blockedFnSelectorsLen: s.loadUintBig(32),
+                    blockedFnSelectors: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
+                    executorRoleCheckEnabled: s.loadBoolean(),
+                    opPendingInfo: Timelock_OpPendingInfo.fromSlice(s),
+                    rbac: s.loadRef()
+                };
     },
     store(self: Timelock_Data, b: c.Builder): void {
         b.storeUint(self.id, 32);

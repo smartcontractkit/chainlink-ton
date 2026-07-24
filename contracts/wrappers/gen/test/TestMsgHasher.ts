@@ -296,6 +296,10 @@ export interface Any2TVMRampMessage {
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
 }
 
+export type Any2TVMRampMessage_Shallow = Omit<Any2TVMRampMessage, 'sender'> & {
+    sender: c.Cell
+}
+
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
@@ -320,6 +324,17 @@ export const Any2TVMRampMessage = {
             gasLimit: s.loadCoins(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    header: RampMessageHeader.fromSlice(s),
+                    sender: s.loadRef(),
+                    data: s.loadRef(),
+                    receiver: s.loadAddress(),
+                    gasLimit: s.loadCoins(),
+                    tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null
+                };
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
@@ -352,6 +367,10 @@ export interface Any2TVMTokenTransfer {
     amount: uint256
 }
 
+export type Any2TVMTokenTransfer_Shallow = Omit<Any2TVMTokenTransfer, 'sourcePoolAddress'> & {
+    sourcePoolAddress: c.Cell
+}
+
 export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
@@ -374,6 +393,16 @@ export const Any2TVMTokenTransfer = {
             extraData: s.loadRef(),
             amount: s.loadUintBig(256),
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    sourcePoolAddress: s.loadRef(),
+                    destPoolAddress: s.loadAddress(),
+                    destGasAmount: s.loadUintBig(32),
+                    extraData: s.loadRef(),
+                    amount: s.loadUintBig(256)
+                };
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
@@ -403,6 +432,10 @@ export interface TVM2AnyRampMessage {
     feeValueJuels: uint96
 }
 
+export type TVM2AnyRampMessage_Shallow = Omit<TVM2AnyRampMessage, 'body'> & {
+    body: c.Cell
+}
+
 export const TVM2AnyRampMessage = {
     create(args: {
         header: RampMessageHeader
@@ -423,6 +456,15 @@ export const TVM2AnyRampMessage = {
             body: loadCellRef<TVM2AnyRampMessageBody>(s, TVM2AnyRampMessageBody.fromSlice),
             feeValueJuels: s.loadUintBig(96),
         }
+    },
+    fromSliceShallow(s: c.Slice): TVM2AnyRampMessage_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessage',
+                    header: RampMessageHeader.fromSlice(s),
+                    sender: s.loadAddress(),
+                    body: s.loadRef(),
+                    feeValueJuels: s.loadUintBig(96)
+                };
     },
     store(self: TVM2AnyRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
@@ -455,6 +497,10 @@ export interface TVM2AnyRampMessageBody {
     feeTokenAmount: coins
 }
 
+export type TVM2AnyRampMessageBody_Shallow = Omit<TVM2AnyRampMessageBody, 'receiver'> & {
+    receiver: c.Cell
+}
+
 export const TVM2AnyRampMessageBody = {
     create(args: {
         receiver: CrossChainAddress
@@ -479,6 +525,17 @@ export const TVM2AnyRampMessageBody = {
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
         }
+    },
+    fromSliceShallow(s: c.Slice): TVM2AnyRampMessageBody_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessageBody',
+                    receiver: s.loadRef(),
+                    data: s.loadRef(),
+                    extraArgs: s.loadRef(),
+                    tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+                    feeToken: s.loadAddress(),
+                    feeTokenAmount: s.loadCoins()
+                };
     },
     store(self: TVM2AnyRampMessageBody, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);

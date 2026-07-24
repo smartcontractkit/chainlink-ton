@@ -236,6 +236,10 @@ export interface Router_CCIPSend {
     extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
+export type Router_CCIPSend_Shallow = Omit<Router_CCIPSend, 'extraArgs'> & {
+    extraArgs: c.Cell
+}
+
 export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
@@ -271,6 +275,19 @@ export const Router_CCIPSend = {
                     throwNonePrefixMatch('Router_CCIPSend.extraArgs')
             ),
         }
+    },
+    fromSliceShallow(s: c.Slice): Router_CCIPSend_Shallow {
+        loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
+        return {
+                    $: 'Router_CCIPSend',
+                    queryID: s.loadUintBig(64),
+                    destChainSelector: s.loadUintBig(64),
+                    receiver: CrossChainAddress.fromSlice(s),
+                    data: s.loadRef(),
+                    tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+                    feeToken: s.loadMaybeAddress(),
+                    extraArgs: s.loadRef()
+                };
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
@@ -313,6 +330,10 @@ export interface OnRamp_Send {
     tokenRegistry: c.Address | null
 }
 
+export type OnRamp_Send_Shallow = Omit<OnRamp_Send, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
@@ -334,6 +355,15 @@ export const OnRamp_Send = {
             metadata: Metadata.fromSlice(s),
             tokenRegistry: s.loadMaybeAddress(),
         }
+    },
+    fromSliceShallow(s: c.Slice): OnRamp_Send_Shallow {
+        loadAndCheckPrefix32(s, 0xdcf993c2, 'OnRamp_Send');
+        return {
+                    $: 'OnRamp_Send',
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s),
+                    tokenRegistry: s.loadMaybeAddress()
+                };
     },
     store(self: OnRamp_Send, b: c.Builder): void {
         b.storeUint(0xdcf993c2, 32);
@@ -414,6 +444,10 @@ export interface OnRamp_ExecutorFinishedSuccessfully {
     metadata: Metadata
 }
 
+export type OnRamp_ExecutorFinishedSuccessfully_Shallow = Omit<OnRamp_ExecutorFinishedSuccessfully, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_ExecutorFinishedSuccessfully = {
     PREFIX: 0xcfa6b336,
 
@@ -437,6 +471,16 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): OnRamp_ExecutorFinishedSuccessfully_Shallow {
+        loadAndCheckPrefix32(s, 0xcfa6b336, 'OnRamp_ExecutorFinishedSuccessfully');
+        return {
+                    $: 'OnRamp_ExecutorFinishedSuccessfully',
+                    executorID: CCIPSendExecutor_ID.fromSlice(s),
+                    fee: Fee.fromSlice(s),
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s)
+                };
     },
     store(self: OnRamp_ExecutorFinishedSuccessfully, b: c.Builder): void {
         b.storeUint(0xcfa6b336, 32);
@@ -466,6 +510,10 @@ export interface OnRamp_ExecutorFinishedWithError {
     metadata: Metadata
 }
 
+export type OnRamp_ExecutorFinishedWithError_Shallow = Omit<OnRamp_ExecutorFinishedWithError, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_ExecutorFinishedWithError = {
     PREFIX: 0xc4068e21,
 
@@ -490,6 +538,16 @@ export const OnRamp_ExecutorFinishedWithError = {
             metadata: Metadata.fromSlice(s),
         }
     },
+    fromSliceShallow(s: c.Slice): OnRamp_ExecutorFinishedWithError_Shallow {
+        loadAndCheckPrefix32(s, 0xc4068e21, 'OnRamp_ExecutorFinishedWithError');
+        return {
+                    $: 'OnRamp_ExecutorFinishedWithError',
+                    executorID: CCIPSendExecutor_ID.fromSlice(s),
+                    error: s.loadUintBig(256),
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s)
+                };
+    },
     store(self: OnRamp_ExecutorFinishedWithError, b: c.Builder): void {
         b.storeUint(0xc4068e21, 32);
         CCIPSendExecutor_ID.store(self.executorID, b);
@@ -512,6 +570,10 @@ export interface FeeQuoter_GetValidatedFee<T> {
     readonly $: 'FeeQuoter_GetValidatedFee'
     msg: Router_CCIPSend
     context: T
+}
+
+export type FeeQuoter_GetValidatedFee_Shallow<T> = Omit<FeeQuoter_GetValidatedFee<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const FeeQuoter_GetValidatedFee = {
@@ -542,6 +604,10 @@ export interface FeeQuoter_MessageValidated<T> {
     context: T
 }
 
+export type FeeQuoter_MessageValidated_Shallow<T> = Omit<FeeQuoter_MessageValidated<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const FeeQuoter_MessageValidated = {
     PREFIX: 0x1fa60374,
 
@@ -569,6 +635,10 @@ export interface FeeQuoter_MessageValidationFailed<T> {
     error: uint256
     msg: Router_CCIPSend
     context: T
+}
+
+export type FeeQuoter_MessageValidationFailed_Shallow<T> = Omit<FeeQuoter_MessageValidationFailed<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const FeeQuoter_MessageValidationFailed = {
@@ -710,6 +780,10 @@ export interface TokenPool_LockOrBurnFinished {
     destTokenAmount: coins
 }
 
+export type TokenPool_LockOrBurnFinished_Shallow = Omit<TokenPool_LockOrBurnFinished, 'out'> & {
+    out: c.Cell
+}
+
 export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
@@ -732,6 +806,15 @@ export const TokenPool_LockOrBurnFinished = {
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
             destTokenAmount: s.loadCoins(),
         }
+    },
+    fromSliceShallow(s: c.Slice): TokenPool_LockOrBurnFinished_Shallow {
+        loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
+        return {
+                    $: 'TokenPool_LockOrBurnFinished',
+                    queryId: s.loadUintBig(64),
+                    out: s.loadRef(),
+                    destTokenAmount: s.loadCoins()
+                };
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0xf432a4e3, 32);
@@ -815,6 +898,10 @@ export interface CCIPSendExecutor_Data {
     state: CCIPSendExecutor_State
 }
 
+export type CCIPSendExecutor_Data_Shallow = Omit<CCIPSendExecutor_Data, 'addresses'> & {
+    addresses: c.Cell
+}
+
 export const CCIPSendExecutor_Data = {
     create(args: {
         id: CCIPSendExecutor_ID
@@ -835,6 +922,15 @@ export const CCIPSendExecutor_Data = {
             addresses: loadCellRef<CCIPSendExecutor_Addresses>(s, CCIPSendExecutor_Addresses.fromSlice),
             state: CCIPSendExecutor_State.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): CCIPSendExecutor_Data_Shallow {
+        return {
+                    $: 'CCIPSendExecutor_Data',
+                    id: CCIPSendExecutor_ID.fromSlice(s),
+                    onrampSend: OnRamp_Send.fromSlice(s),
+                    addresses: s.loadRef(),
+                    state: CCIPSendExecutor_State.fromSlice(s)
+                };
     },
     store(self: CCIPSendExecutor_Data, b: c.Builder): void {
         CCIPSendExecutor_ID.store(self.id, b);
@@ -1132,6 +1228,10 @@ export interface CCIPSendExecutor_Execute {
     config: CCIPSendExecutor_Config
 }
 
+export type CCIPSendExecutor_Execute_Shallow = Omit<CCIPSendExecutor_Execute, 'config'> & {
+    config: c.Cell
+}
+
 export const CCIPSendExecutor_Execute = {
     PREFIX: 0xaf3c62b3,
 
@@ -1151,6 +1251,14 @@ export const CCIPSendExecutor_Execute = {
             onrampSend: OnRamp_Send.fromSlice(s),
             config: loadCellRef<CCIPSendExecutor_Config>(s, CCIPSendExecutor_Config.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): CCIPSendExecutor_Execute_Shallow {
+        loadAndCheckPrefix32(s, 0xaf3c62b3, 'CCIPSendExecutor_Execute');
+        return {
+                    $: 'CCIPSendExecutor_Execute',
+                    onrampSend: OnRamp_Send.fromSlice(s),
+                    config: s.loadRef()
+                };
     },
     store(self: CCIPSendExecutor_Execute, b: c.Builder): void {
         b.storeUint(0xaf3c62b3, 32);
@@ -1420,6 +1528,10 @@ export interface TokenPool_LockOrBurnOutV1 {
     destPoolData: c.Cell
 }
 
+export type TokenPool_LockOrBurnOutV1_Shallow = Omit<TokenPool_LockOrBurnOutV1, 'destTokenAddress'> & {
+    destTokenAddress: c.Cell
+}
+
 export const TokenPool_LockOrBurnOutV1 = {
     create(args: {
         destTokenAddress: CrossChainAddress
@@ -1436,6 +1548,13 @@ export const TokenPool_LockOrBurnOutV1 = {
             destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             destPoolData: s.loadRef(),
         }
+    },
+    fromSliceShallow(s: c.Slice): TokenPool_LockOrBurnOutV1_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnOutV1',
+                    destTokenAddress: s.loadRef(),
+                    destPoolData: s.loadRef()
+                };
     },
     store(self: TokenPool_LockOrBurnOutV1, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);

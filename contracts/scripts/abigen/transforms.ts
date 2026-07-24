@@ -26,6 +26,17 @@ interface StructBlock {
   objectLiteral: ObjectLiteralExpression
 }
 
+interface CellRefFieldInfo {
+  fieldName: string
+  nullable: boolean
+}
+
+interface CellRefStructInfo {
+  name: string
+  fields: CellRefFieldInfo[]
+  typeParams: string[]
+}
+
 /** Object-literal methods (`create(...) {}`) aren't exposed via a `getMethod` lookup. */
 function getObjectMethod(
   obj: ObjectLiteralExpression,
@@ -404,8 +415,159 @@ function removeRefPropertyAccesses(sourceFile: SourceFile): void {
   }
 }
 
+function getCellRefFields(block: ObjectLiteralExpression): CellRefFieldInfo[] {
+  const fields: CellRefFieldInfo[] = []
+  const createMethod = getObjectMethod(block, 'create')
+  const typeNode = createMethod?.getParameters()[0]?.getTypeNode()
+  if (!typeNode || !Node.isTypeLiteral(typeNode)) return fields
+
+  for (const member of typeNode.getMembers()) {
+    if (!Node.isPropertySignature(member)) continue
+    const fieldType = member.getTypeNode()
+    if (!fieldType) continue
+
+    const { inner, nullable } = unwrapNullable(fieldType)
+    if (!Node.isTypeReference(inner) || inner.getTypeName().getText() !== 'CellRef') continue
+
+    fields.push({ fieldName: member.getName(), nullable })
+  }
+
+  return fields
+}
+
+function collectCellRefStructs(sourceFile: SourceFile): CellRefStructInfo[] {
+  const structs: CellRefStructInfo[] = []
+
+  for (const block of getStructBlocks(sourceFile)) {
+    const fields = getCellRefFields(block.objectLiteral)
+    if (fields.length === 0) continue
+
+    const iface = sourceFile.getInterface(block.name)
+    if (!iface) continue
+
+    structs.push({
+      name: block.name,
+      fields,
+      typeParams: iface.getTypeParameters().map((p) => p.getName()),
+    })
+  }
+
+  return structs
+}
+
+function getGenericsDecl(typeParams: string[]): string {
+  return typeParams.length > 0 ? `<${typeParams.join(', ')}>` : ''
+}
+
+function renderShallowTypeAlias(info: CellRefStructInfo): string {
+  const generics = getGenericsDecl(info.typeParams)
+  const omittedKeys = info.fields.map((f) => `'${f.fieldName}'`).join(' | ')
+  const replacements = info.fields
+    .map((f) => `    ${f.fieldName}: ${f.nullable ? 'c.Cell | null' : 'c.Cell'}`)
+    .join('\n')
+
+  return [
+    `export type ${info.name}_Shallow${generics} = Omit<${info.name}${generics}, ${omittedKeys}> & {`,
+    replacements,
+    '}',
+  ].join('\n')
+}
+
+function getShallowFieldInitializer(init: Node): string | null {
+  if (Node.isCallExpression(init) && init.getExpression().getText() === 'loadCellRef') {
+    const [firstArg] = init.getArguments()
+    if (firstArg?.getText() === 's') {
+      return 's.loadRef()'
+    }
+  }
+
+  if (Node.isConditionalExpression(init)) {
+    const whenTrue = init.getWhenTrue()
+    const whenFalse = init.getWhenFalse()
+    if (
+      Node.isCallExpression(whenTrue) &&
+      whenTrue.getExpression().getText() === 'loadCellRef' &&
+      whenFalse.getText() === 'null'
+    ) {
+      const [firstArg] = whenTrue.getArguments()
+      if (firstArg?.getText() === 's') {
+        return `${init.getCondition().getText()} ? s.loadRef() : null`
+      }
+    }
+  }
+
+  return null
+}
+
+function addShallowFromSliceMethod(sourceFile: SourceFile, info: CellRefStructInfo): void {
+  const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
+  if (!block) return
+
+  const fromSlice = getObjectMethod(block.objectLiteral, 'fromSlice')
+  if (!fromSlice) return
+
+  const returnStmt = fromSlice.getStatements().find(Node.isReturnStatement)
+  const returned = returnStmt?.getExpression()
+  if (!returned || !Node.isObjectLiteralExpression(returned)) return
+
+  const shallowFields = new Set(info.fields.map((f) => f.fieldName))
+  const propLines: string[] = []
+
+  for (const prop of returned.getProperties()) {
+    if (!Node.isPropertyAssignment(prop)) {
+      propLines.push(`            ${prop.getText()}`)
+      continue
+    }
+
+    const fieldName = prop.getName()
+    const init = prop.getInitializer()
+    if (!init || !shallowFields.has(fieldName)) {
+      propLines.push(`            ${fieldName}: ${init?.getText() ?? ''}`)
+      continue
+    }
+
+    const shallowInit = getShallowFieldInitializer(init)
+    propLines.push(`            ${fieldName}: ${shallowInit ?? init.getText()}`)
+  }
+
+  const methodStatements = fromSlice
+    .getStatements()
+    .filter((stmt) => !Node.isReturnStatement(stmt))
+    .map((stmt) => stmt.getText())
+
+  methodStatements.push(`return {\n${propLines.join(',\n')}\n        };`)
+
+  const fromSliceIndex = block.objectLiteral
+    .getProperties()
+    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === 'fromSlice')
+  if (fromSliceIndex < 0) return
+
+  block.objectLiteral.insertMethod(fromSliceIndex + 1, {
+    name: 'fromSliceShallow',
+    parameters: [{ name: 's', type: 'c.Slice' }],
+    returnType: `${info.name}_Shallow${getGenericsDecl(info.typeParams)}`,
+    statements: methodStatements,
+  })
+}
+
+function addShallowCellRefVariants(sourceFile: SourceFile, infos: CellRefStructInfo[]): void {
+  if (infos.length === 0) return
+
+  for (const info of infos) {
+    const iface = sourceFile.getInterface(info.name)
+    if (!iface) continue
+    sourceFile.insertText(iface.getEnd(), `\n\n${renderShallowTypeAlias(info)}`)
+  }
+
+  for (const info of infos) {
+    addShallowFromSliceMethod(sourceFile, info)
+  }
+}
+
 export function transformCellRef(sourceFile: SourceFile): void {
   if (!sourceFile.getTypeAlias('CellRef')) return
+
+  const shallowStructs = collectCellRefStructs(sourceFile)
 
   transformStoreCellRefHelper(sourceFile)
   transformLoadCellRefHelper(sourceFile)
@@ -414,6 +576,7 @@ export function transformCellRef(sourceFile: SourceFile): void {
   removeCellRefTypeAlias(sourceFile)
   replaceCellRefTypeReferences(sourceFile)
   removeRefPropertyAccesses(sourceFile)
+  addShallowCellRefVariants(sourceFile, shallowStructs)
 }
 
 /**

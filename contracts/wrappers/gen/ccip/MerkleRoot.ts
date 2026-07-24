@@ -208,6 +208,10 @@ export interface OffRamp_ExecuteValidated {
     executionState: ExecutionState
 }
 
+export type OffRamp_ExecuteValidated_Shallow = Omit<OffRamp_ExecuteValidated, 'message'> & {
+    message: c.Cell
+}
+
 export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
@@ -233,6 +237,17 @@ export const OffRamp_ExecuteValidated = {
             gasOverride: s.loadBoolean() ? s.loadCoins() : null,
             executionState: ExecutionState.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): OffRamp_ExecuteValidated_Shallow {
+        loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
+        return {
+                    $: 'OffRamp_ExecuteValidated',
+                    message: s.loadRef(),
+                    root: MerkleRootId.fromSlice(s),
+                    metadataHash: s.loadUintBig(256),
+                    gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+                    executionState: ExecutionState.fromSlice(s)
+                };
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
@@ -269,6 +284,10 @@ export interface Any2TVMRampMessage {
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
 }
 
+export type Any2TVMRampMessage_Shallow = Omit<Any2TVMRampMessage, 'sender'> & {
+    sender: c.Cell
+}
+
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
@@ -293,6 +312,17 @@ export const Any2TVMRampMessage = {
             gasLimit: s.loadCoins(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    header: RampMessageHeader.fromSlice(s),
+                    sender: s.loadRef(),
+                    data: s.loadRef(),
+                    receiver: s.loadAddress(),
+                    gasLimit: s.loadCoins(),
+                    tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null
+                };
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
@@ -325,6 +355,10 @@ export interface Any2TVMTokenTransfer {
     amount: uint256
 }
 
+export type Any2TVMTokenTransfer_Shallow = Omit<Any2TVMTokenTransfer, 'sourcePoolAddress'> & {
+    sourcePoolAddress: c.Cell
+}
+
 export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
@@ -347,6 +381,16 @@ export const Any2TVMTokenTransfer = {
             extraData: s.loadRef(),
             amount: s.loadUintBig(256),
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    sourcePoolAddress: s.loadRef(),
+                    destPoolAddress: s.loadAddress(),
+                    destGasAmount: s.loadUintBig(32),
+                    extraData: s.loadRef(),
+                    amount: s.loadUintBig(256)
+                };
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
@@ -415,6 +459,10 @@ export interface MerkleRoot_Validate {
     gasOverride: coins | null
 }
 
+export type MerkleRoot_Validate_Shallow = Omit<MerkleRoot_Validate, 'message'> & {
+    message: c.Cell
+}
+
 export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
@@ -438,6 +486,16 @@ export const MerkleRoot_Validate = {
             metadataHash: s.loadUintBig(256),
             gasOverride: s.loadBoolean() ? s.loadCoins() : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): MerkleRoot_Validate_Shallow {
+        loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
+        return {
+                    $: 'MerkleRoot_Validate',
+                    message: s.loadRef(),
+                    permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+                    metadataHash: s.loadUintBig(256),
+                    gasOverride: s.loadBoolean() ? s.loadCoins() : null
+                };
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);

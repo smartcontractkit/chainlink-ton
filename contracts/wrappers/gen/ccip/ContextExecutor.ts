@@ -239,6 +239,10 @@ export interface ContextExecutor_Set<T> {
     forwardFrom: array<c.Address>
 }
 
+export type ContextExecutor_Set_Shallow<T> = Omit<ContextExecutor_Set<T>, 'context'> & {
+    context: c.Cell
+}
+
 export const ContextExecutor_Set = {
     PREFIX: 0x44e61eec,
 
@@ -323,6 +327,10 @@ export interface ContextExecutor_Reply<T> {
     done: boolean
 }
 
+export type ContextExecutor_Reply_Shallow<T> = Omit<ContextExecutor_Reply<T>, 'context'> & {
+    context: c.Cell
+}
+
 export const ContextExecutor_Reply = {
     PREFIX: 0x93e5bbc5,
 
@@ -358,6 +366,11 @@ export interface ContextExecutor_ForwardNotification<T> {
     message: ContextExecutor_InMessageForward
 }
 
+export type ContextExecutor_ForwardNotification_Shallow<T> = Omit<ContextExecutor_ForwardNotification<T>, 'context' | 'message'> & {
+    context: c.Cell
+    message: c.Cell
+}
+
 export const ContextExecutor_ForwardNotification = {
     PREFIX: 0x55b412b9,
 
@@ -388,6 +401,10 @@ export interface ContextExecutor_Data<C> {
     owner: c.Address
     context: C
     forwardFrom: array<c.Address>
+}
+
+export type ContextExecutor_Data_Shallow<C> = Omit<ContextExecutor_Data<C>, 'context'> & {
+    context: c.Cell
 }
 
 export const ContextExecutor_Data = {

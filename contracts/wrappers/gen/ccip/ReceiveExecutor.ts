@@ -163,6 +163,10 @@ export interface Any2TVMRampMessage {
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
 }
 
+export type Any2TVMRampMessage_Shallow = Omit<Any2TVMRampMessage, 'sender'> & {
+    sender: c.Cell
+}
+
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
@@ -187,6 +191,17 @@ export const Any2TVMRampMessage = {
             gasLimit: s.loadCoins(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    header: RampMessageHeader.fromSlice(s),
+                    sender: s.loadRef(),
+                    data: s.loadRef(),
+                    receiver: s.loadAddress(),
+                    gasLimit: s.loadCoins(),
+                    tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null
+                };
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
@@ -219,6 +234,10 @@ export interface Any2TVMTokenTransfer {
     amount: uint256
 }
 
+export type Any2TVMTokenTransfer_Shallow = Omit<Any2TVMTokenTransfer, 'sourcePoolAddress'> & {
+    sourcePoolAddress: c.Cell
+}
+
 export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
@@ -241,6 +260,16 @@ export const Any2TVMTokenTransfer = {
             extraData: s.loadRef(),
             amount: s.loadUintBig(256),
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    sourcePoolAddress: s.loadRef(),
+                    destPoolAddress: s.loadAddress(),
+                    destGasAmount: s.loadUintBig(32),
+                    extraData: s.loadRef(),
+                    amount: s.loadUintBig(256)
+                };
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
@@ -291,6 +320,10 @@ export interface ReceiveExecutor_Storage {
     lastExecutionTimestamp: uint64 /* = 0 */
 }
 
+export type ReceiveExecutor_Storage_Shallow = Omit<ReceiveExecutor_Storage, 'message'> & {
+    message: c.Cell
+}
+
 export const ReceiveExecutor_Storage = {
     create(args: {
         owner: c.Address
@@ -317,6 +350,17 @@ export const ReceiveExecutor_Storage = {
             state: ReceiveExecutor_MessageState.fromSlice(s),
             lastExecutionTimestamp: s.loadUintBig(64),
         }
+    },
+    fromSliceShallow(s: c.Slice): ReceiveExecutor_Storage_Shallow {
+        return {
+                    $: 'ReceiveExecutor_Storage',
+                    owner: s.loadAddress(),
+                    message: s.loadRef(),
+                    root: s.loadAddress(),
+                    execId: s.loadUintBig(192),
+                    state: ReceiveExecutor_MessageState.fromSlice(s),
+                    lastExecutionTimestamp: s.loadUintBig(64)
+                };
     },
     store(self: ReceiveExecutor_Storage, b: c.Builder): void {
         b.storeAddress(self.owner);
@@ -527,6 +571,10 @@ export interface OffRamp_DispatchValidated {
     gasOverride: coins | null
 }
 
+export type OffRamp_DispatchValidated_Shallow = Omit<OffRamp_DispatchValidated, 'message'> & {
+    message: c.Cell
+}
+
 export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
@@ -548,6 +596,15 @@ export const OffRamp_DispatchValidated = {
             execId: s.loadUintBig(192),
             gasOverride: s.loadBoolean() ? s.loadCoins() : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): OffRamp_DispatchValidated_Shallow {
+        loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');
+        return {
+                    $: 'OffRamp_DispatchValidated',
+                    message: s.loadRef(),
+                    execId: s.loadUintBig(192),
+                    gasOverride: s.loadBoolean() ? s.loadCoins() : null
+                };
     },
     store(self: OffRamp_DispatchValidated, b: c.Builder): void {
         b.storeUint(0x58cfcb02, 32);

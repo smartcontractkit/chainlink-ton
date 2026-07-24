@@ -486,6 +486,10 @@ export interface JettonLockBox_Withdraw {
     extra: JettonLockBox_WithdrawExtra | null
 }
 
+export type JettonLockBox_Withdraw_Shallow = Omit<JettonLockBox_Withdraw, 'extra'> & {
+    extra: c.Cell | null
+}
+
 export const JettonLockBox_Withdraw = {
     PREFIX: 0xd065c306,
 
@@ -514,6 +518,18 @@ export const JettonLockBox_Withdraw = {
             recipientWallet: s.loadAddress(),
             extra: s.loadBoolean() ? loadCellRef<JettonLockBox_WithdrawExtra>(s, JettonLockBox_WithdrawExtra.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): JettonLockBox_Withdraw_Shallow {
+        loadAndCheckPrefix32(s, 0xd065c306, 'JettonLockBox_Withdraw');
+        return {
+                    $: 'JettonLockBox_Withdraw',
+                    queryId: s.loadUintBig(64),
+                    token: s.loadAddress(),
+                    remoteChainSelector: s.loadUintBig(64),
+                    amount: s.loadCoins(),
+                    recipientWallet: s.loadAddress(),
+                    extra: s.loadBoolean() ? s.loadRef() : null
+                };
     },
     store(self: JettonLockBox_Withdraw, b: c.Builder): void {
         b.storeUint(0xd065c306, 32);

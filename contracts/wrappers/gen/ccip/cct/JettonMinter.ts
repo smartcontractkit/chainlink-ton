@@ -201,6 +201,10 @@ export interface JettonDataReply {
     jettonWalletCode: c.Cell
 }
 
+export type JettonDataReply_Shallow = Omit<JettonDataReply, 'jettonContent'> & {
+    jettonContent: c.Cell
+}
+
 export const JettonDataReply = {
     create(args: {
         totalSupply: bigint
@@ -565,6 +569,10 @@ export interface ResponseWalletAddress {
     ownerAddress: c.Address | null
 }
 
+export type ResponseWalletAddress_Shallow = Omit<ResponseWalletAddress, 'ownerAddress'> & {
+    ownerAddress: c.Cell | null
+}
+
 export const ResponseWalletAddress = {
     PREFIX: 0xd1735400,
 
@@ -589,6 +597,15 @@ export const ResponseWalletAddress = {
                 (s) => s.loadAddress()
             ) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): ResponseWalletAddress_Shallow {
+        loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
+        return {
+                    $: 'ResponseWalletAddress',
+                    queryId: s.loadUintBig(64),
+                    jettonWalletAddress: s.loadMaybeAddress(),
+                    ownerAddress: s.loadBoolean() ? s.loadRef() : null
+                };
     },
     store(self: ResponseWalletAddress, b: c.Builder): void {
         b.storeUint(0xd1735400, 32);
@@ -621,6 +638,10 @@ export interface MintNewJettons {
     internalTransferMsg: InternalTransferStep
 }
 
+export type MintNewJettons_Shallow = Omit<MintNewJettons, 'internalTransferMsg'> & {
+    internalTransferMsg: c.Cell
+}
+
 export const MintNewJettons = {
     PREFIX: 0x00000015,
 
@@ -645,6 +666,16 @@ export const MintNewJettons = {
             tonAmount: s.loadCoins(),
             internalTransferMsg: loadCellRef<InternalTransferStep>(s, InternalTransferStep.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): MintNewJettons_Shallow {
+        loadAndCheckPrefix32(s, 0x00000015, 'MintNewJettons');
+        return {
+                    $: 'MintNewJettons',
+                    queryId: s.loadUintBig(64),
+                    mintRecipient: s.loadAddress(),
+                    tonAmount: s.loadCoins(),
+                    internalTransferMsg: s.loadRef()
+                };
     },
     store(self: MintNewJettons, b: c.Builder): void {
         b.storeUint(0x00000015, 32);

@@ -244,6 +244,10 @@ export interface MCMS_Execute {
     proof: SnakedCell<uint256>
 }
 
+export type MCMS_Execute_Shallow = Omit<MCMS_Execute, 'op'> & {
+    op: c.Cell
+}
+
 export const MCMS_Execute = {
     PREFIX: 0x9b9ce96a,
 
@@ -266,6 +270,15 @@ export const MCMS_Execute = {
             op: loadCellRef<Op>(s, Op.fromSlice),
             proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
+    },
+    fromSliceShallow(s: c.Slice): MCMS_Execute_Shallow {
+        loadAndCheckPrefix32(s, 0x9b9ce96a, 'MCMS_Execute');
+        return {
+                    $: 'MCMS_Execute',
+                    queryId: s.loadUintBig(64),
+                    op: s.loadRef(),
+                    proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256))
+                };
     },
     store(self: MCMS_Execute, b: c.Builder): void {
         b.storeUint(0x9b9ce96a, 32);
@@ -404,6 +417,10 @@ export interface MCMS_SubmitErrorReport {
     errorCode: uint32
 }
 
+export type MCMS_SubmitErrorReport_Shallow = Omit<MCMS_SubmitErrorReport, 'op'> & {
+    op: c.Cell
+}
+
 export const MCMS_SubmitErrorReport = {
     PREFIX: 0x4b3af0b5,
 
@@ -432,6 +449,18 @@ export const MCMS_SubmitErrorReport = {
             errorTxHash: s.loadUintBig(256),
             errorCode: s.loadUintBig(32),
         }
+    },
+    fromSliceShallow(s: c.Slice): MCMS_SubmitErrorReport_Shallow {
+        loadAndCheckPrefix32(s, 0x4b3af0b5, 'MCMS_SubmitErrorReport');
+        return {
+                    $: 'MCMS_SubmitErrorReport',
+                    queryId: s.loadUintBig(64),
+                    op: s.loadRef(),
+                    proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+                    opTxHash: s.loadUintBig(256),
+                    errorTxHash: s.loadUintBig(256),
+                    errorCode: s.loadUintBig(32)
+                };
     },
     store(self: MCMS_SubmitErrorReport, b: c.Builder): void {
         b.storeUint(0x4b3af0b5, 32);
@@ -762,6 +791,10 @@ export interface MCMS_ErrorReportSubmitted {
     matchesPendingOp: boolean
 }
 
+export type MCMS_ErrorReportSubmitted_Shallow = Omit<MCMS_ErrorReportSubmitted, 'root'> & {
+    root: c.Cell
+}
+
 export const MCMS_ErrorReportSubmitted = {
     PREFIX: 0xbbc4deb4,
 
@@ -794,6 +827,19 @@ export const MCMS_ErrorReportSubmitted = {
             ),
             matchesPendingOp: s.loadBoolean(),
         }
+    },
+    fromSliceShallow(s: c.Slice): MCMS_ErrorReportSubmitted_Shallow {
+        loadAndCheckPrefix32(s, 0xbbc4deb4, 'MCMS_ErrorReportSubmitted');
+        return {
+                    $: 'MCMS_ErrorReportSubmitted',
+                    queryId: s.loadUintBig(64),
+                    opLeafHash: s.loadUintBig(256),
+                    opTxHash: s.loadUintBig(256),
+                    errorTxHash: s.loadUintBig(256),
+                    errorCode: s.loadUintBig(32),
+                    root: s.loadRef(),
+                    matchesPendingOp: s.loadBoolean()
+                };
     },
     store(self: MCMS_ErrorReportSubmitted, b: c.Builder): void {
         b.storeUint(0xbbc4deb4, 32);
@@ -987,6 +1033,11 @@ export interface MCMS_Data {
     rootInfo: RootInfo
 }
 
+export type MCMS_Data_Shallow = Omit<MCMS_Data, 'config' | 'rootInfo'> & {
+    config: c.Cell
+    rootInfo: c.Cell
+}
+
 export const MCMS_Data = {
     create(args: {
         id: uint32
@@ -1013,6 +1064,18 @@ export const MCMS_Data = {
             seenSignedHashes: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
             rootInfo: loadCellRef<RootInfo>(s, RootInfo.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): MCMS_Data_Shallow {
+        return {
+                    $: 'MCMS_Data',
+                    id: s.loadUintBig(32),
+                    ownable: Ownable2Step.fromSlice(s),
+                    oracle: s.loadAddress(),
+                    signers: dictToMap(c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
+                    config: s.loadRef(),
+                    seenSignedHashes: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
+                    rootInfo: s.loadRef()
+                };
     },
     store(self: MCMS_Data, b: c.Builder): void {
         b.storeUint(self.id, 32);
@@ -1168,6 +1231,10 @@ export interface ExpiringRootAndOpCount {
     opPendingInfo: OpPendingInfo
 }
 
+export type ExpiringRootAndOpCount_Shallow = Omit<ExpiringRootAndOpCount, 'opPendingInfo'> & {
+    opPendingInfo: c.Cell
+}
+
 export const ExpiringRootAndOpCount = {
     create(args: {
         root: uint256
@@ -1188,6 +1255,15 @@ export const ExpiringRootAndOpCount = {
             opCount: s.loadUintBig(40),
             opPendingInfo: loadCellRef<OpPendingInfo>(s, OpPendingInfo.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): ExpiringRootAndOpCount_Shallow {
+        return {
+                    $: 'ExpiringRootAndOpCount',
+                    root: s.loadUintBig(256),
+                    validUntil: s.loadUintBig(64),
+                    opCount: s.loadUintBig(40),
+                    opPendingInfo: s.loadRef()
+                };
     },
     store(self: ExpiringRootAndOpCount, b: c.Builder): void {
         b.storeUint(self.root, 256);

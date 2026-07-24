@@ -153,6 +153,10 @@ export interface TokenPool_LockOrBurnFinished {
     destTokenAmount: coins
 }
 
+export type TokenPool_LockOrBurnFinished_Shallow = Omit<TokenPool_LockOrBurnFinished, 'out'> & {
+    out: c.Cell
+}
+
 export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
@@ -175,6 +179,15 @@ export const TokenPool_LockOrBurnFinished = {
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
             destTokenAmount: s.loadCoins(),
         }
+    },
+    fromSliceShallow(s: c.Slice): TokenPool_LockOrBurnFinished_Shallow {
+        loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
+        return {
+                    $: 'TokenPool_LockOrBurnFinished',
+                    queryId: s.loadUintBig(64),
+                    out: s.loadRef(),
+                    destTokenAmount: s.loadCoins()
+                };
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0xf432a4e3, 32);
@@ -199,6 +212,10 @@ export interface TokenPool_LockOrBurnOutV1 {
     destPoolData: c.Cell
 }
 
+export type TokenPool_LockOrBurnOutV1_Shallow = Omit<TokenPool_LockOrBurnOutV1, 'destTokenAddress'> & {
+    destTokenAddress: c.Cell
+}
+
 export const TokenPool_LockOrBurnOutV1 = {
     create(args: {
         destTokenAddress: CrossChainAddress
@@ -215,6 +232,13 @@ export const TokenPool_LockOrBurnOutV1 = {
             destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             destPoolData: s.loadRef(),
         }
+    },
+    fromSliceShallow(s: c.Slice): TokenPool_LockOrBurnOutV1_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnOutV1',
+                    destTokenAddress: s.loadRef(),
+                    destPoolData: s.loadRef()
+                };
     },
     store(self: TokenPool_LockOrBurnOutV1, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);

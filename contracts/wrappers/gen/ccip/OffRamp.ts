@@ -898,6 +898,11 @@ export interface OCR3Base {
     execute: OCRConfig | null
 }
 
+export type OCR3Base_Shallow = Omit<OCR3Base, 'commit' | 'execute'> & {
+    commit: c.Cell | null
+    execute: c.Cell | null
+}
+
 export const OCR3Base = {
     create(args: {
         chainId: uint8
@@ -916,6 +921,14 @@ export const OCR3Base = {
             commit: s.loadBoolean() ? loadCellRef<OCRConfig>(s, OCRConfig.fromSlice) : null,
             execute: s.loadBoolean() ? loadCellRef<OCRConfig>(s, OCRConfig.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): OCR3Base_Shallow {
+        return {
+                    $: 'OCR3Base',
+                    chainId: s.loadUintBig(8),
+                    commit: s.loadBoolean() ? s.loadRef() : null,
+                    execute: s.loadBoolean() ? s.loadRef() : null
+                };
     },
     store(self: OCR3Base, b: c.Builder): void {
         b.storeUint(self.chainId, 8);
@@ -1385,6 +1398,10 @@ export interface MerkleRoot_Validate {
     gasOverride: coins | null
 }
 
+export type MerkleRoot_Validate_Shallow = Omit<MerkleRoot_Validate, 'message'> & {
+    message: c.Cell
+}
+
 export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
@@ -1408,6 +1425,16 @@ export const MerkleRoot_Validate = {
             metadataHash: s.loadUintBig(256),
             gasOverride: s.loadBoolean() ? s.loadCoins() : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): MerkleRoot_Validate_Shallow {
+        loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
+        return {
+                    $: 'MerkleRoot_Validate',
+                    message: s.loadRef(),
+                    permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+                    metadataHash: s.loadUintBig(256),
+                    gasOverride: s.loadBoolean() ? s.loadCoins() : null
+                };
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);
@@ -1641,6 +1668,10 @@ export interface Router_RouteMessage {
     gasLimit: coins
 }
 
+export type Router_RouteMessage_Shallow = Omit<Router_RouteMessage, 'message'> & {
+    message: c.Cell
+}
+
 export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
@@ -1664,6 +1695,16 @@ export const Router_RouteMessage = {
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
         }
+    },
+    fromSliceShallow(s: c.Slice): Router_RouteMessage_Shallow {
+        loadAndCheckPrefix32(s, 0xfc69c50b, 'Router_RouteMessage');
+        return {
+                    $: 'Router_RouteMessage',
+                    message: s.loadRef(),
+                    execId: ReceiveExecutorId.fromSlice(s),
+                    receiver: s.loadAddress(),
+                    gasLimit: s.loadCoins()
+                };
     },
     store(self: Router_RouteMessage, b: c.Builder): void {
         b.storeUint(0xfc69c50b, 32);
@@ -1796,6 +1837,10 @@ export interface OffRamp_ExecuteValidated {
     executionState: ExecutionState
 }
 
+export type OffRamp_ExecuteValidated_Shallow = Omit<OffRamp_ExecuteValidated, 'message'> & {
+    message: c.Cell
+}
+
 export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
@@ -1821,6 +1866,17 @@ export const OffRamp_ExecuteValidated = {
             gasOverride: s.loadBoolean() ? s.loadCoins() : null,
             executionState: ExecutionState.fromSlice(s),
         }
+    },
+    fromSliceShallow(s: c.Slice): OffRamp_ExecuteValidated_Shallow {
+        loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
+        return {
+                    $: 'OffRamp_ExecuteValidated',
+                    message: s.loadRef(),
+                    root: MerkleRootId.fromSlice(s),
+                    metadataHash: s.loadUintBig(256),
+                    gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+                    executionState: ExecutionState.fromSlice(s)
+                };
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
@@ -1980,6 +2036,10 @@ export interface OffRamp_DispatchValidated {
     gasOverride: coins | null
 }
 
+export type OffRamp_DispatchValidated_Shallow = Omit<OffRamp_DispatchValidated, 'message'> & {
+    message: c.Cell
+}
+
 export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
@@ -2001,6 +2061,15 @@ export const OffRamp_DispatchValidated = {
             execId: s.loadUintBig(192),
             gasOverride: s.loadBoolean() ? s.loadCoins() : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): OffRamp_DispatchValidated_Shallow {
+        loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');
+        return {
+                    $: 'OffRamp_DispatchValidated',
+                    message: s.loadRef(),
+                    execId: s.loadUintBig(192),
+                    gasOverride: s.loadBoolean() ? s.loadCoins() : null
+                };
     },
     store(self: OffRamp_DispatchValidated, b: c.Builder): void {
         b.storeUint(0x58cfcb02, 32);
@@ -2395,6 +2464,10 @@ export interface CommitReport {
     merkleRoots: SnakedCell<MerkleRoot>
 }
 
+export type CommitReport_Shallow = Omit<CommitReport, 'priceUpdates'> & {
+    priceUpdates: c.Cell | null
+}
+
 export const CommitReport = {
     create(args: {
         priceUpdates?: PriceUpdates | null /* = null */
@@ -2412,6 +2485,13 @@ export const CommitReport = {
             priceUpdates: s.loadBoolean() ? loadCellRef<PriceUpdates>(s, PriceUpdates.fromSlice) : null,
             merkleRoots: loadSnakedCellOf(s, MerkleRoot.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): CommitReport_Shallow {
+        return {
+                    $: 'CommitReport',
+                    priceUpdates: s.loadBoolean() ? s.loadRef() : null,
+                    merkleRoots: loadSnakedCellOf(s, MerkleRoot.fromSlice)
+                };
     },
     store(self: CommitReport, b: c.Builder): void {
         storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
@@ -2440,6 +2520,10 @@ export interface Any2TVMMessageV1Metadata {
     onRamp: CrossChainAddress
 }
 
+export type Any2TVMMessageV1Metadata_Shallow = Omit<Any2TVMMessageV1Metadata, 'onRamp'> & {
+    onRamp: c.Cell
+}
+
 export const Any2TVMMessageV1Metadata = {
     create(args: {
         _header?: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
@@ -2461,6 +2545,15 @@ export const Any2TVMMessageV1Metadata = {
             destChainSelector: s.loadUintBig(64),
             onRamp: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMMessageV1Metadata_Shallow {
+        return {
+                    $: 'Any2TVMMessageV1Metadata',
+                    _header: s.loadUintBig(256),
+                    sourceChainSelector: s.loadUintBig(64),
+                    destChainSelector: s.loadUintBig(64),
+                    onRamp: s.loadRef()
+                };
     },
     store(self: Any2TVMMessageV1Metadata, b: c.Builder): void {
         b.storeUint(self._header, 256);
@@ -2632,6 +2725,10 @@ export interface Any2TVMRampMessage {
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
 }
 
+export type Any2TVMRampMessage_Shallow = Omit<Any2TVMRampMessage, 'sender'> & {
+    sender: c.Cell
+}
+
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
@@ -2656,6 +2753,17 @@ export const Any2TVMRampMessage = {
             gasLimit: s.loadCoins(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    header: RampMessageHeader.fromSlice(s),
+                    sender: s.loadRef(),
+                    data: s.loadRef(),
+                    receiver: s.loadAddress(),
+                    gasLimit: s.loadCoins(),
+                    tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null
+                };
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
@@ -2690,6 +2798,11 @@ export interface Any2TVMRampMessageIDData {
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
 }
 
+export type Any2TVMRampMessageIDData_Shallow = Omit<Any2TVMRampMessageIDData, 'metadata' | 'sender'> & {
+    metadata: c.Cell
+    sender: c.Cell
+}
+
 export const Any2TVMRampMessageIDData = {
     create(args: {
         _leafDomainSeparator?: bits256 /* = hex('0000000000000000000000000000000000000000000000000000000000000000') as slice as bits256 */
@@ -2715,6 +2828,17 @@ export const Any2TVMRampMessageIDData = {
             data: s.loadRef(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMRampMessageIDData_Shallow {
+        return {
+                    $: 'Any2TVMRampMessageIDData',
+                    _leafDomainSeparator: loadTolkBitsN(s, 256),
+                    metadataHash: s.loadUintBig(256),
+                    metadata: s.loadRef(),
+                    sender: s.loadRef(),
+                    data: s.loadRef(),
+                    tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null
+                };
     },
     store(self: Any2TVMRampMessageIDData, b: c.Builder): void {
         storeTolkBitsN(self._leafDomainSeparator, 256, b);
@@ -2853,6 +2977,10 @@ export interface Any2TVMTokenTransfer {
     amount: uint256
 }
 
+export type Any2TVMTokenTransfer_Shallow = Omit<Any2TVMTokenTransfer, 'sourcePoolAddress'> & {
+    sourcePoolAddress: c.Cell
+}
+
 export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
@@ -2875,6 +3003,16 @@ export const Any2TVMTokenTransfer = {
             extraData: s.loadRef(),
             amount: s.loadUintBig(256),
         }
+    },
+    fromSliceShallow(s: c.Slice): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    sourcePoolAddress: s.loadRef(),
+                    destPoolAddress: s.loadAddress(),
+                    destGasAmount: s.loadUintBig(32),
+                    extraData: s.loadRef(),
+                    amount: s.loadUintBig(256)
+                };
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
@@ -3020,6 +3158,11 @@ export interface Storage {
     latestPriceSequenceNumber: uint64 /* = 0 */
 }
 
+export type Storage_Shallow = Omit<Storage, 'deployables' | 'ocr3Base'> & {
+    deployables: c.Cell
+    ocr3Base: c.Cell
+}
+
 export const Storage = {
     create(args: {
         id: uint32
@@ -3053,6 +3196,21 @@ export const Storage = {
             sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
             latestPriceSequenceNumber: s.loadUintBig(64),
         }
+    },
+    fromSliceShallow(s: c.Slice): Storage_Shallow {
+        return {
+                    $: 'Storage',
+                    id: s.loadUintBig(32),
+                    ownable: Ownable2Step.fromSlice(s),
+                    deployables: s.loadRef(),
+                    feeQuoter: s.loadAddress(),
+                    ocr3Base: s.loadRef(),
+                    cursedSubjects: CursedSubjects.fromSlice(s),
+                    chainSelector: s.loadUintBig(64),
+                    permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+                    sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
+                    latestPriceSequenceNumber: s.loadUintBig(64)
+                };
     },
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
@@ -3131,6 +3289,10 @@ export interface CommitReportAccepted {
     priceUpdates: PriceUpdates | null
 }
 
+export type CommitReportAccepted_Shallow = Omit<CommitReportAccepted, 'priceUpdates'> & {
+    priceUpdates: c.Cell | null
+}
+
 export const CommitReportAccepted = {
     create(args: {
         merkleRoot: MerkleRoot | null
@@ -3147,6 +3309,13 @@ export const CommitReportAccepted = {
             merkleRoot: s.loadBoolean() ? MerkleRoot.fromSlice(s) : null,
             priceUpdates: s.loadBoolean() ? loadCellRef<PriceUpdates>(s, PriceUpdates.fromSlice) : null,
         }
+    },
+    fromSliceShallow(s: c.Slice): CommitReportAccepted_Shallow {
+        return {
+                    $: 'CommitReportAccepted',
+                    merkleRoot: s.loadBoolean() ? MerkleRoot.fromSlice(s) : null,
+                    priceUpdates: s.loadBoolean() ? s.loadRef() : null
+                };
     },
     store(self: CommitReportAccepted, b: c.Builder): void {
         storeTolkNullable<MerkleRoot>(self.merkleRoot, b, MerkleRoot.store);

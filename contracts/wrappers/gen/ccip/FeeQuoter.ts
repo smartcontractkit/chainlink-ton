@@ -485,6 +485,10 @@ export interface FeeQuoter_GetValidatedFee<T> {
     context: T
 }
 
+export type FeeQuoter_GetValidatedFee_Shallow<T> = Omit<FeeQuoter_GetValidatedFee<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
@@ -555,6 +559,10 @@ export interface FeeQuoter_MessageValidated<T> {
     context: T
 }
 
+export type FeeQuoter_MessageValidated_Shallow<T> = Omit<FeeQuoter_MessageValidated<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const FeeQuoter_MessageValidated = {
     PREFIX: 0x1fa60374,
 
@@ -582,6 +590,10 @@ export interface FeeQuoter_MessageValidationFailed<T> {
     error: uint256
     msg: Router_CCIPSend
     context: T
+}
+
+export type FeeQuoter_MessageValidationFailed_Shallow<T> = Omit<FeeQuoter_MessageValidationFailed<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const FeeQuoter_MessageValidationFailed = {
@@ -1137,6 +1149,10 @@ export interface DestChainConfig {
     tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
 }
 
+export type DestChainConfig_Shallow = Omit<DestChainConfig, 'usdPerUnitGas'> & {
+    usdPerUnitGas: c.Cell
+}
+
 export const DestChainConfig = {
     create(args: {
         config: FeeQuoterDestChainConfig
@@ -1155,6 +1171,14 @@ export const DestChainConfig = {
             usdPerUnitGas: loadCellRef<GasPrice>(s, GasPrice.fromSlice),
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s)),
         }
+    },
+    fromSliceShallow(s: c.Slice): DestChainConfig_Shallow {
+        return {
+                    $: 'DestChainConfig',
+                    config: FeeQuoterDestChainConfig.fromSlice(s),
+                    usdPerUnitGas: s.loadRef(),
+                    tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s))
+                };
     },
     store(self: DestChainConfig, b: c.Builder): void {
         FeeQuoterDestChainConfig.store(self.config, b);
@@ -1935,6 +1959,10 @@ export interface Router_CCIPSend {
     extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
+export type Router_CCIPSend_Shallow = Omit<Router_CCIPSend, 'extraArgs'> & {
+    extraArgs: c.Cell
+}
+
 export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
@@ -1970,6 +1998,19 @@ export const Router_CCIPSend = {
                     throwNonePrefixMatch('Router_CCIPSend.extraArgs')
             ),
         }
+    },
+    fromSliceShallow(s: c.Slice): Router_CCIPSend_Shallow {
+        loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
+        return {
+                    $: 'Router_CCIPSend',
+                    queryID: s.loadUintBig(64),
+                    destChainSelector: s.loadUintBig(64),
+                    receiver: CrossChainAddress.fromSlice(s),
+                    data: s.loadRef(),
+                    tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+                    feeToken: s.loadMaybeAddress(),
+                    extraArgs: s.loadRef()
+                };
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);

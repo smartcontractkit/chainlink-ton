@@ -901,6 +901,10 @@ export interface OnRamp_Send {
     tokenRegistry: c.Address | null
 }
 
+export type OnRamp_Send_Shallow = Omit<OnRamp_Send, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_Send = {
     PREFIX: 0xdcf993c2,
 
@@ -923,6 +927,15 @@ export const OnRamp_Send = {
             tokenRegistry: s.loadMaybeAddress(),
         }
     },
+    fromSliceShallow(s: c.Slice): OnRamp_Send_Shallow {
+        loadAndCheckPrefix32(s, 0xdcf993c2, 'OnRamp_Send');
+        return {
+                    $: 'OnRamp_Send',
+                    msg: s.loadRef(),
+                    metadata: Metadata.fromSlice(s),
+                    tokenRegistry: s.loadMaybeAddress()
+                };
+    },
     store(self: OnRamp_Send, b: c.Builder): void {
         b.storeUint(0xdcf993c2, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
@@ -944,6 +957,10 @@ export interface OnRamp_GetValidatedFee<T> {
     readonly $: 'OnRamp_GetValidatedFee'
     ccipSend: Router_CCIPSend
     context: T
+}
+
+export type OnRamp_GetValidatedFee_Shallow<T> = Omit<OnRamp_GetValidatedFee<T>, 'ccipSend'> & {
+    ccipSend: c.Cell
 }
 
 export const OnRamp_GetValidatedFee = {
@@ -974,6 +991,10 @@ export interface OnRamp_MessageValidated<T> {
     context: T
 }
 
+export type OnRamp_MessageValidated_Shallow<T> = Omit<OnRamp_MessageValidated<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const OnRamp_MessageValidated = {
     PREFIX: 0x2afb11bd,
 
@@ -1001,6 +1022,10 @@ export interface OnRamp_MessageValidationFailed<T> {
     error: uint256
     msg: Router_CCIPSend
     context: T
+}
+
+export type OnRamp_MessageValidationFailed_Shallow<T> = Omit<OnRamp_MessageValidationFailed<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const OnRamp_MessageValidationFailed = {
@@ -1586,6 +1611,10 @@ export interface Router_CCIPSend {
     extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 }
 
+export type Router_CCIPSend_Shallow = Omit<Router_CCIPSend, 'extraArgs'> & {
+    extraArgs: c.Cell
+}
+
 export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
@@ -1621,6 +1650,19 @@ export const Router_CCIPSend = {
                     throwNonePrefixMatch('Router_CCIPSend.extraArgs')
             ),
         }
+    },
+    fromSliceShallow(s: c.Slice): Router_CCIPSend_Shallow {
+        loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
+        return {
+                    $: 'Router_CCIPSend',
+                    queryID: s.loadUintBig(64),
+                    destChainSelector: s.loadUintBig(64),
+                    receiver: CrossChainAddress.fromSlice(s),
+                    data: s.loadRef(),
+                    tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+                    feeToken: s.loadMaybeAddress(),
+                    extraArgs: s.loadRef()
+                };
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
@@ -1665,6 +1707,10 @@ export interface Router_RouteMessage {
     gasLimit: coins
 }
 
+export type Router_RouteMessage_Shallow = Omit<Router_RouteMessage, 'message'> & {
+    message: c.Cell
+}
+
 export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
@@ -1688,6 +1734,16 @@ export const Router_RouteMessage = {
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
         }
+    },
+    fromSliceShallow(s: c.Slice): Router_RouteMessage_Shallow {
+        loadAndCheckPrefix32(s, 0xfc69c50b, 'Router_RouteMessage');
+        return {
+                    $: 'Router_RouteMessage',
+                    message: s.loadRef(),
+                    execId: ReceiveExecutorId.fromSlice(s),
+                    receiver: s.loadAddress(),
+                    gasLimit: s.loadCoins()
+                };
     },
     store(self: Router_RouteMessage, b: c.Builder): void {
         b.storeUint(0xfc69c50b, 32);
@@ -2151,6 +2207,10 @@ export interface Router_GetValidatedFee<T> {
     context: T
 }
 
+export type Router_GetValidatedFee_Shallow<T> = Omit<Router_GetValidatedFee<T>, 'ccipSend'> & {
+    ccipSend: c.Cell
+}
+
 export const Router_GetValidatedFee = {
     PREFIX: 0x4dd6aa82,
 
@@ -2344,6 +2404,10 @@ export interface Router_MessageValidated<T> {
     context: RemainingBitsOrRef<T>
 }
 
+export type Router_MessageValidated_Shallow<T> = Omit<Router_MessageValidated<T>, 'msg'> & {
+    msg: c.Cell
+}
+
 export const Router_MessageValidated = {
     PREFIX: 0x9e2155ec,
 
@@ -2399,6 +2463,10 @@ export interface Router_MessageValidationFailed<T> {
     error: uint256
     msg: Router_CCIPSend
     context: RemainingBitsOrRef<T>
+}
+
+export type Router_MessageValidationFailed_Shallow<T> = Omit<Router_MessageValidationFailed<T>, 'msg'> & {
+    msg: c.Cell
 }
 
 export const Router_MessageValidationFailed = {
@@ -2490,6 +2558,11 @@ export interface Storage {
     tokenRegistryDeployment: Router_TokenRegistryDeployment
 }
 
+export type Storage_Shallow = Omit<Storage, 'rmnRemote' | 'tokenRegistryDeployment'> & {
+    rmnRemote: c.Cell
+    tokenRegistryDeployment: c.Cell
+}
+
 export const Storage = {
     create(args: {
         id: uint32
@@ -2522,6 +2595,24 @@ export const Storage = {
             rmnRemote: loadCellRef<RMNRemote>(s, RMNRemote.fromSlice),
             tokenRegistryDeployment: loadCellRef<Router_TokenRegistryDeployment>(s, Router_TokenRegistryDeployment.fromSlice),
         }
+    },
+    fromSliceShallow(s: c.Slice): Storage_Shallow {
+        return {
+                    $: 'Storage',
+                    id: s.loadUintBig(32),
+                    ownable: Ownable2Step.fromSlice(s),
+                    wrappedNative: s.loadAddress(),
+                    onRamps: dictToMap(c.Dictionary.load<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                                            (s) => s.loadAddress(),
+                                            (v,b) => b.storeAddress(v)
+                                        ), s)),
+                    offRamps: dictToMap(c.Dictionary.load<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                                            (s) => s.loadAddress(),
+                                            (v,b) => b.storeAddress(v)
+                                        ), s)),
+                    rmnRemote: s.loadRef(),
+                    tokenRegistryDeployment: s.loadRef()
+                };
     },
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
