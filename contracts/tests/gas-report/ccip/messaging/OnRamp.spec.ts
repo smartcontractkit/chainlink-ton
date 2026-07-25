@@ -9,8 +9,8 @@ import {
   resetMetricStore,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address } from '@ton/core'
-import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
+import * as rt from '../../../../wrappers/gen/ccip/Router'
 import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { WRAPPED_NATIVE } from '../../../../src/utils'
@@ -23,6 +23,7 @@ import { getValidatedFee } from '../../../../src/ccipSend/fee'
 import { opMapFunc } from './opMapFunc'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
+import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -99,22 +100,28 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
     // Deploy Router
     const routerCode = await contractCode.ccip.local('Router')
-    const routerData: rt.Storage = {
+    const routerData = rt.Storage.create({
       id: 0n,
-      ownable: {
+      ownable: rt.Ownable2Step.create({
         owner: deployer.address,
-        pendingOwner: null,
-      },
+      }),
       wrappedNative: WRAPPED_NATIVE,
-      offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-      onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-      tokenRegistryDeployment: {
+      offRamps: new Map(),
+      onRamps: new Map(),
+      rmnRemote: rt.RMNRemote.create({
+        admin: rt.Ownable2Step.create({ owner: deployer.address }),
+        cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+        forwardUpdates: new Set(),
+      }),
+      tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
         deployableCode: await contractCode.ccip.local('Deployable'),
         tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-      },
-    }
-    router = blockchain.openContract(rt.Router.createFromConfig(routerData, routerCode))
-    await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      }),
+    })
+    router = blockchain.openContract(
+      rt.Router.fromStorage(routerData, { overrideContractCode: routerCode }),
+    )
+    await router.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Deploy OnRamp
     const onRampData = or.OnRamp_Storage.create({
@@ -139,16 +146,17 @@ describe('CCIP OnRamp Gas Estimation', () => {
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Configure Router
-    await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-      value: toNano('0.1'),
-      data: {
-        queryID: BigInt(0),
-        onRamps: {
+    await router.sendRouterApplyRampUpdates(
+      deployer.getSender(),
+      toNano('0.1'),
+      rt.Router_ApplyRampUpdates.create({
+        queryId: 0n,
+        onRampUpdates: rt.OnRamps.create({
           destChainSelectors: [ChainSelectors.testnet.evm],
           onRamp: onRamp.address,
-        },
-      },
-    })
+        }),
+      }),
+    )
 
     // Configure OnRamp
     await onRamp.sendOnRampUpdateDestChainConfigs(deployer.getSender(), toNano('0.1'), {
@@ -176,13 +184,24 @@ describe('CCIP OnRamp Gas Estimation', () => {
       extraArgs: createExtraArgs(),
     }
 
-    const fee = await getValidatedFee(blockchain, router.address, msg)
+    const generatedMsg = rt.Router_CCIPSend.create({
+      queryID: 1n,
+      destChainSelector: ChainSelectors.testnet.evm,
+      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+      data: msg.data,
+      tokenAmounts: [],
+      feeToken: msg.feeToken,
+      extraArgs: rt.GenericExtraArgsV2.fromSlice(msg.extraArgs.beginParse()),
+    })
+
+    const fee = await getValidatedFee(blockchain, router.address, generatedMsg)
     console.log(`Validated fee for message: ${fee.toString()} nanotons`)
 
-    const result = await router.sendCcipSend(sender.getSender(), {
-      value: fee + toNano('1'),
-      body: msg,
-    })
+    const result = await router.sendRouterCCIPSend(
+      sender.getSender(),
+      fee + toNano('1'),
+      generatedMsg,
+    )
 
     // Assert all expected transactions
     expect(result.transactions).toHaveTransaction({

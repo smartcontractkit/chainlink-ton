@@ -7,6 +7,7 @@ import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { generateRandomTonAddress } from '../../../src/utils'
 import { ChainSelectors } from '../../utils/Selectors'
+import { GenToMsg } from '../../../wrappers/ccip/FeeQuoter'
 
 describe('FeeQuoter Getters', () => {
   let setup: FeeQuoterSetup
@@ -150,12 +151,12 @@ describe('FeeQuoter Getters', () => {
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
       })
 
-      const fee = await setup.bind.feeQuoter.getValidatedFeeCell(message)
+      const fee = await setup.bind.feeQuoter.getValidatedFeeCell(GenToMsg(message))
 
       expect(fee).toBeGreaterThan(0n)
 
       // Verify it matches the non-cell version
-      const feeFromMessage = await setup.bind.feeQuoter.getValidatedFee(message)
+      const feeFromMessage = await setup.bind.feeQuoter.getValidatedFee(GenToMsg(message))
       expect(fee).toBe(feeFromMessage)
     })
   })

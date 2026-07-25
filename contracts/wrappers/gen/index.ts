@@ -3,6 +3,7 @@ import * as c from '@ton/core';
 import { Router } from './ccip/Router';
 import { OffRamp } from './ccip/OffRamp';
 import { OnRamp } from './ccip/OnRamp';
+import { FeeQuoter } from './ccip/FeeQuoter';
 import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
 
@@ -62,6 +63,12 @@ export function setupGenBindings() {
     )
 
     OnRamp.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    FeeQuoter.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,

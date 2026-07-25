@@ -1,16 +1,20 @@
 import { Cell, Sender, Slice, toNano } from '@ton/core'
 import { SandboxContract } from '@ton/sandbox'
 
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 
 // Helper function to send a GetValidatedFee request to router and parse the response
 export async function sendGetValidatedFee(
   sender: Sender,
   router: SandboxContract<rt.Router>,
-  msg: rt.CCIPSend,
+  msg: rt.Router_CCIPSend,
   context: Slice,
 ): Promise<bigint> {
-  const result = await router.sendGetValidatedFee(sender, toNano('1'), msg, context)
+  const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
+    sender,
+    toNano('1'),
+    rt.Router_GetValidatedFee.create({ ccipSend: msg, context }),
+  )
 
   // request
   expect(result.transactions).toHaveTransaction({
@@ -38,9 +42,9 @@ export async function sendGetValidatedFee(
   const resp = tx.inMessage
 
   const body = resp.body.beginParse()
-  if (body.preloadUint(32) !== rt.opcodes.out.messageValidated) {
-    if (body.preloadUint(32) === rt.opcodes.out.messageValidationFailed) {
-      const msgValidationFailed = rt.builder.message.out.messageValidationFailed.load(
+  if (body.preloadUint(32) !== rt.Router_MessageValidated.PREFIX) {
+    if (body.preloadUint(32) === rt.Router_MessageValidationFailed.PREFIX) {
+      const msgValidationFailed = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
         resp.body.beginParse(),
       )
       throw new Error(
@@ -49,6 +53,8 @@ export async function sendGetValidatedFee(
     }
     throw new Error('Unexpected response opcode')
   }
-  const messageValidated = rt.builder.message.out.messageValidated.load(resp.body.beginParse())
+  const messageValidated = rt.Router_MessageValidated_RemainingBitsAndRefs.fromSlice(
+    resp.body.beginParse(),
+  )
   return messageValidated.fee
 }

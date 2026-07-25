@@ -9,7 +9,7 @@ import {
   resetMetricStore,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
-import * as rt from '../../../../wrappers/ccip/Router'
+import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
@@ -121,23 +121,29 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy Router
     {
-      let routerCode = await rt.Router.code()
-      let data: rt.Storage = {
+      let routerCode = await contractCode.ccip.local('Router')
+      let data = rt.Storage.create({
         id: 0n,
-        ownable: {
+        ownable: rt.Ownable2Step.create({
           owner: deployer.address,
-          pendingOwner: null,
-        },
+        }),
         wrappedNative: WRAPPED_NATIVE,
-        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-        offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-        tokenRegistryDeployment: {
+        onRamps: new Map(),
+        offRamps: new Map(),
+        rmnRemote: rt.RMNRemote.create({
+          admin: rt.Ownable2Step.create({ owner: deployer.address }),
+          cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+          forwardUpdates: new Set(),
+        }),
+        tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
           deployableCode: deployerCode,
           tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-        },
-      }
-      router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
-      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+        }),
+      })
+      router = blockchain.openContract(
+        rt.Router.fromStorage(data, { overrideContractCode: routerCode }),
+      )
+      const result = await router.sendDeploy(deployer.getSender(), toNano('1'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: router.address,
@@ -179,15 +185,12 @@ describe('CCIP OffRamp Gas Estimation', () => {
       })
 
       // Add onRamp to router
-      const addResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-        value: toNano('1'),
-        data: {
-          queryID: BigInt(0),
-          onRamps: {
-            destChainSelectors: [ChainSelectors.testnet.evm],
-            onRamp: onRamp.address,
-          },
-        },
+      const addResult = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
+        queryId: 0n,
+        onRampUpdates: rt.OnRamps.create({
+          destChainSelectors: [ChainSelectors.testnet.evm],
+          onRamp: onRamp.address,
+        }),
       })
       expect(addResult.transactions).toHaveTransaction({
         to: router.address,

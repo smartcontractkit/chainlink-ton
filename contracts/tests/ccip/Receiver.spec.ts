@@ -9,7 +9,6 @@ import { contractCode } from '../../wrappers/codeLoader'
 
 import * as r from '../../wrappers/libraries/Receiver'
 import * as tr from '../../wrappers/examples/Receiver'
-import * as rtManual from '../../wrappers/ccip/Router'
 import * as rt from '../../wrappers/gen/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
@@ -171,9 +170,9 @@ describe('Receiver', () => {
       to: deployer.address,
       success: true,
       deploy: false,
-      body: rtManual.builder.message.in.ccipReceiveConfirm
-        .encode({ execID: ccipReceiveSampleMessage.rootId })
-        .endCell(),
+      body: rt.Router_CCIPReceiveConfirm.toCell(
+        rt.Router_CCIPReceiveConfirm.create({ execId: ccipReceiveSampleMessage.rootId }),
+      ),
     })
 
     assertLog(

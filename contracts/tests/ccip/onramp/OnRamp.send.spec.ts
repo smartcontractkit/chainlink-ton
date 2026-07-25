@@ -6,7 +6,7 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
@@ -250,10 +250,10 @@ describe('OnRamp - Send', () => {
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       success: true,
-      op: rt.opcodes.in.messageRejected,
+      op: rt.Router_MessageRejected.PREFIX,
       body: (body) => {
         if (!body) return false
-        const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
+        const msg = rt.Router_MessageRejected.fromSlice(body.beginParse())
         return (
           msg.destChainSelector === ccipSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
@@ -285,10 +285,10 @@ describe('OnRamp - Send', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.opcodes.in.messageRejected,
+      op: rt.Router_MessageRejected.PREFIX,
       body: (body) => {
         if (!body) return false
-        const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
+        const msg = rt.Router_MessageRejected.fromSlice(body.beginParse())
         return (
           msg.destChainSelector === unknownChainCCIPSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&

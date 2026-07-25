@@ -3,7 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
@@ -37,14 +37,11 @@ describe('Router', () => {
   })
 
   it('should forward message sent from onRamp', async () => {
-    const result = await router.sendMessageSent(onRamp.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 0n,
-        messageId: 42n,
-        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        sender: sender.address,
-      },
+    const result = await router.sendRouterMessageSent(onRamp.getSender(), toNano('1'), {
+      queryID: 0n,
+      messageId: 42n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      sender: sender.address,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -57,43 +54,37 @@ describe('Router', () => {
       from: router.address,
       to: sender.address,
       success: true,
-      op: rt.opcodes.out.ccipSendACK,
+      op: rt.Router_CCIPSendACK.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.builder.message.out.ccipSendACK.load(x.beginParse())
+        const decoded = rt.Router_CCIPSendACK.fromSlice(x.beginParse())
         return decoded.queryID === 0n && decoded.messageId === 42n
       },
     })
   })
 
   it('should not forward message sent from non onRamp', async () => {
-    const result = await router.sendMessageSent(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 0n,
-        messageId: 42n,
-        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        sender: sender.address,
-      },
+    const result = await router.sendRouterMessageSent(deployer.getSender(), toNano('1'), {
+      queryID: 0n,
+      messageId: 42n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      sender: sender.address,
     })
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.NotOnRamp,
+      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
     })
   })
 
   it('should forward message rejected from onRamp', async () => {
-    const result = await router.sendMessageRejected(onRamp.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 0n,
-        error: 42n,
-        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        sender: sender.address,
-      },
+    const result = await router.sendRouterMessageRejected(onRamp.getSender(), toNano('1'), {
+      queryID: 0n,
+      error: 42n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      sender: sender.address,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -106,31 +97,28 @@ describe('Router', () => {
       from: router.address,
       to: sender.address,
       success: true,
-      op: rt.opcodes.out.ccipSendNACK,
+      op: rt.Router_CCIPSendNACK.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.builder.message.out.ccipSendNACK.load(x.beginParse())
+        const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
         return decoded.queryID === 0n && decoded.error === 42n
       },
     })
   })
 
   it('should not forward message rejected from non onRamp', async () => {
-    const result = await router.sendMessageRejected(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 0n,
-        error: 42n,
-        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        sender: sender.address,
-      },
+    const result = await router.sendRouterMessageRejected(deployer.getSender(), toNano('1'), {
+      queryID: 0n,
+      error: 42n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      sender: sender.address,
     })
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.NotOnRamp,
+      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
     })
   })
 

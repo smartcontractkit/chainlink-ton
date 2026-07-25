@@ -62,7 +62,7 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: DeepPartial<of.SourceChainSelectorAdded>
   [CCIPLogs.LogTypes.SourceChainConfigUpdated]: DeepPartial<of.SourceChainConfigUpdated>
   [CCIPLogs.LogTypes.DestChainSelectorAdded]: DeepPartial<on.DestChainSelectorAdded>
-  [CCIPLogs.LogTypes.DestChainConfigUpdated]: DeepPartial<CCIPLogs.DestChainConfigUpdated>
+  [CCIPLogs.LogTypes.DestChainConfigUpdated]: DeepPartial<on.DestChainConfigUpdated>
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: CCIPLogs.ReceiverCCIPMessageReceived
@@ -143,18 +143,14 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
       on.DestChainSelectorAdded,
     ),
 
-  [CCIPLogs.LogTypes.DestChainConfigUpdated]: (actual, from, expected) => {
-    const { config, ...rest } = expected as DeepPartial<CCIPLogs.DestChainConfigUpdated> & {
-      config?: unknown
-    }
-    return testLogGen(
+  [CCIPLogs.LogTypes.DestChainConfigUpdated]: (actual, from, expected) =>
+    testLogGen(
       actual,
       from,
       CCIPLogs.LogTypes.DestChainConfigUpdated,
-      { ...rest, destChainConfig: config } as DeepPartial<on.DestChainConfigUpdated>,
+      expected,
       on.DestChainConfigUpdated,
-    )
-  },
+    ),
 
   [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: (actual, from, expected) =>
     testLogReceiverCCIPMessageReceived(

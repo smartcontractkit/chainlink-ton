@@ -44,9 +44,9 @@ type Router_BouncedMessage =
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
     queryId: uint64;
-    onRampUpdates: OnRamps?;
-    offRampAdds: OffRamps?;
-    offRampRemoves: OffRamps?;
+    onRampUpdates: OnRamps? = null;
+    offRampAdds: OffRamps? = null;
+    offRampRemoves: OffRamps? = null;
 }
 
 // Answers with Router_CCIPReceive
@@ -57,9 +57,10 @@ struct (0x31768d95) Router_CCIPSend {
     data: cell;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address?;
-    @abi.clientType(Cell<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>)
-    extraArgs: cell;
+    extraArgs: Cell<ExtraArgs>;
 }
+
+type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1;
 
 struct (0xfc69c50b) Router_RouteMessage {
     message: Cell<Any2TVMMessage>;

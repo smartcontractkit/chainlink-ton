@@ -10,7 +10,7 @@ import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-const EVM_CC_ADDRESS: rt.CrossChainAddress = beginCell().storeBuffer(EVM_ADDRESS).asSlice()
+const EVM_CC_ADDRESS: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(EVM_ADDRESS)
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -100,7 +100,7 @@ describe('Router', () => {
       $: 'Router_CCIPSend',
       queryID: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
-      receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
+      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
       data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: WRAPPED_NATIVE,

@@ -40,7 +40,7 @@ struct (0xdcf993c2) OnRamp_Send {
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata;
     // TODO: consider introducing OnRamp_SendV2 instead of mutating OnRamp_Send to maintain backwards compatibility on the OnRamp upgrade path.
-    tokenRegistry: address?;
+    tokenRegistry: address? = null;
 }
 
 // So that ABIgen can generate codec for OnRamp_GetValidatedFee<RemainingBitsAndRefs>

@@ -37,7 +37,7 @@ contract Router {
     description: "link.chain.ton.ccip.Router"
 
     storage: Storage
-    incomingMessages: Router_InMsg
+    incomingMessages: Router_InMsg | Ownable2Step_Messages
     forceAbiExport: (Router_MessageValidationFailed_RemainingBitsAndRefs, Router_MessageValidated_RemainingBitsAndRefs)
 }
 

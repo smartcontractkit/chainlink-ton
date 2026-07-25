@@ -10,7 +10,7 @@ import {
   BlockchainTransaction,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
-import * as rt from '../../../../wrappers/ccip/Router'
+import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
@@ -23,6 +23,7 @@ import * as fs from 'fs'
 import { opMapFunc } from './opMapFunc'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
+import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -99,22 +100,28 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
     // Deploy Router
     const routerCode = await contractCode.ccip.local('Router')
-    const routerData: rt.Storage = {
+    const routerData = rt.Storage.create({
       id: 0n,
-      ownable: {
+      ownable: rt.Ownable2Step.create({
         owner: deployer.address,
-        pendingOwner: null,
-      },
+      }),
       wrappedNative: WRAPPED_NATIVE,
-      offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-      onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-      tokenRegistryDeployment: {
+      offRamps: new Map(),
+      onRamps: new Map(),
+      rmnRemote: rt.RMNRemote.create({
+        admin: rt.Ownable2Step.create({ owner: deployer.address }),
+        cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+        forwardUpdates: new Set(),
+      }),
+      tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
         deployableCode: await contractCode.ccip.local('Deployable'),
         tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-      },
-    }
-    router = blockchain.openContract(rt.Router.createFromConfig(routerData, routerCode))
-    await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      }),
+    })
+    router = blockchain.openContract(
+      rt.Router.fromStorage(routerData, { overrideContractCode: routerCode }),
+    )
+    await router.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Deploy OnRamp
     const onRampData = or.OnRamp_Storage.create({
@@ -139,15 +146,12 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Configure Router
-    await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-      value: toNano('0.1'),
-      data: {
-        queryID: BigInt(0),
-        onRamps: {
-          destChainSelectors: [ChainSelectors.testnet.evm],
-          onRamp: onRamp.address,
-        },
-      },
+    await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('0.1'), {
+      queryId: 0n,
+      onRampUpdates: rt.OnRamps.create({
+        destChainSelectors: [ChainSelectors.testnet.evm],
+        onRamp: onRamp.address,
+      }),
     })
 
     // Configure OnRamp
@@ -259,19 +263,21 @@ async function messureGetValidatedFee(
   feeQuoter: SandboxContract<fq.FeeQuoter>,
 ) {
   resetMetricStore()
-  const result = await router.sendGetValidatedFee(
+  const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
     sender.getSender(),
     toNano('1'),
-    {
-      queryID: 1,
-      destChainSelector: ChainSelectors.testnet.evm,
-      receiver: EVM_ADDRESS,
-      data: payload,
-      tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
-      extraArgs: createExtraArgs(),
-    },
-    beginCell().asSlice(),
+    rt.Router_GetValidatedFee.create({
+      ccipSend: rt.Router_CCIPSend.create({
+        queryID: 1n,
+        destChainSelector: ChainSelectors.testnet.evm,
+        receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+        data: payload,
+        tokenAmounts: [],
+        feeToken: WRAPPED_NATIVE,
+        extraArgs: rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse()),
+      }),
+      context: Cell.EMPTY.asSlice(),
+    }),
   )
 
   // Assert all expected transactions

@@ -30,6 +30,120 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as rt from './Router'
+import * as rtGen from '../gen/ccip/Router'
+import { FromBuffer, ToBuffer } from './common/CrossChainAddressCodec'
+
+/* Temporary compatibility converters */
+
+export function MsgToGen(msg: rt.CCIPSend): rtGen.Router_CCIPSend {
+  return rtGen.Router_CCIPSend.create({
+    destChainSelector: msg.destChainSelector,
+    receiver: FromBuffer(msg.receiver),
+    data: msg.data,
+    tokenAmounts: msg.tokenAmounts.map((ta) =>
+      rtGen.TokenAmount.create({ token: ta.token, amount: ta.amount }),
+    ),
+    feeToken: msg.feeToken ?? null,
+    extraArgs: decodeExtraArgs(msg.extraArgs.beginParse()),
+  })
+}
+
+export function GenToMsg(msg: rtGen.Router_CCIPSend): rt.CCIPSend {
+  return {
+    destChainSelector: msg.destChainSelector,
+    receiver: ToBuffer(msg.receiver),
+    data: msg.data,
+    tokenAmounts: msg.tokenAmounts.map((ta) => ({ token: ta.token, amount: ta.amount })),
+    feeToken: msg.feeToken ?? undefined,
+    extraArgs: encodeExtraArgs(msg.extraArgs),
+  }
+}
+
+function lookupPrefix(s: Slice, expected: number, prefixLen: number): boolean {
+  return s.remainingBits >= prefixLen && s.preloadUint(prefixLen) === expected
+}
+
+export function decodeExtraArgs(
+  s: Slice,
+): rtGen.GenericExtraArgsV2 | rtGen.SVMExtraArgsV1 | rtGen.SuiExtraArgsV1 {
+  return lookupPrefix(s, 0x181dcf10, 32)
+    ? rtGen.GenericExtraArgsV2.fromSlice(s)
+    : lookupPrefix(s, 0x1f3b3aba, 32)
+      ? rtGen.SVMExtraArgsV1.fromSlice(s)
+      : lookupPrefix(s, 0x21ea4ca9, 32)
+        ? rtGen.SuiExtraArgsV1.fromSlice(s)
+        : (() => {
+            throw new Error('Invalid extraArgs prefix')
+          })()
+}
+
+export function encodeExtraArgs(
+  extraArgs: rtGen.GenericExtraArgsV2 | rtGen.SVMExtraArgsV1 | rtGen.SuiExtraArgsV1,
+): Cell {
+  return (() => {
+    switch (extraArgs.$) {
+      case 'GenericExtraArgsV2':
+        return rtGen.GenericExtraArgsV2.toCell(extraArgs)
+      case 'SVMExtraArgsV1':
+        return rtGen.SVMExtraArgsV1.toCell(extraArgs)
+      case 'SuiExtraArgsV1':
+        return rtGen.SuiExtraArgsV1.toCell(extraArgs)
+    }
+  })()
+}
+
+/// Copied from rtGen.Router_CCIPSend.store, but with the extraArgs as Cell
+
+export interface FeeQuoter_GetValidatedFee_ToFeeQuoter {
+  msg: Router_CCIPSend
+}
+
+export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
+  store(self: FeeQuoter_GetValidatedFee_ToFeeQuoter, b: Builder): void {
+    b.storeUint(0x7496ff56, 32)
+    b.storeRef(Router_CCIPSend.toCell(self.msg))
+    b.storeSlice(beginCell().asSlice())
+  },
+  toCell(self: FeeQuoter_GetValidatedFee_ToFeeQuoter): Cell {
+    const b = beginCell()
+    FeeQuoter_GetValidatedFee_ToFeeQuoter.store(self, b)
+    return b.endCell()
+  },
+}
+
+export interface Router_CCIPSend {
+  queryID: bigint
+  destChainSelector: bigint
+  receiver: rtGen.CrossChainAddress
+  data: Cell
+  tokenAmounts: rtGen.SnakedCell<rtGen.TokenAmount>
+  feeToken: Address | null
+  extraArgs: Cell
+}
+
+export const Router_CCIPSend = {
+  store: (self: Router_CCIPSend, b: Builder): void => {
+    b.storeUint(0x31768d95, 32)
+    b.storeUint(self.queryID, 64)
+    b.storeUint(self.destChainSelector, 64)
+    rtGen.CrossChainAddress.store(self.receiver, b)
+    b.storeRef(self.data)
+    b.storeRef(
+      asSnakedCell(self.tokenAmounts, (item: rtGen.TokenAmount): Builder => {
+        const b = beginCell()
+        rtGen.TokenAmount.store(item, b)
+        return b
+      }).asBuilder(),
+    )
+    b.storeAddress(self.feeToken)
+    b.storeRef(self.extraArgs)
+  },
+  toCell: (self: Router_CCIPSend): Cell => {
+    const b = beginCell()
+    Router_CCIPSend.store(self, b)
+    return b.endCell()
+  },
+}
 
 export const ARTIFACT_NAME = 'FeeQuoter'
 export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.2'] as const

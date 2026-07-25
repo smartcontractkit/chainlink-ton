@@ -5,9 +5,7 @@ import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import * as orManual from '../../../wrappers/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
-import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -224,13 +222,11 @@ describe('OnRamp - generate message id', () => {
       ) {
         for (const msg of tx.outMessages.values()) {
           if (msg.info.type === 'external-out') {
-            const event = orManual.builder.events.ccipMessageSent.load(msg.body.beginParse())
+            const event = or.CCIPMessageSent.fromSlice(msg.body.beginParse())
             if (event.message.header.messageId !== expectedTVM2AnyRampMessage.header.messageId) {
               expect(event.message.sender).toEqual(expectedTVM2AnyRampMessage.sender)
               expect(
-                rt.builder.data.crossChainAddress
-                  .load(event.message.body.receiver.beginParse())
-                  .toString('hex'),
+                CrossChainAddressCodec.ToBuffer(event.message.body.receiver).toString('hex'),
               ).toBe(CrossChainAddressCodec.ToBuffer(ccipSend.receiver).toString('hex'))
               expect(event.message.body.data).toEqual(expectedTVM2AnyRampMessage.body.data)
               expect(event.message.body.extraArgs).toEqual(

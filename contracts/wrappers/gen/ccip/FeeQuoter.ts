@@ -474,6 +474,32 @@ export const FeeQuoter_UpdatePrices = {
 }
 
 /**
+ > type FeeQuoter_GetValidatedFee_ToFeeQuoter = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+ */
+export type FeeQuoter_GetValidatedFee_ToFeeQuoter = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+
+export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
+    fromSlice(s: c.Slice): FeeQuoter_GetValidatedFee_ToFeeQuoter {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x7496ff56, 'FeeQuoter_GetValidatedFee');
+            return {
+                $: 'FeeQuoter_GetValidatedFee',
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: FeeQuoter_GetValidatedFee_ToFeeQuoter, b: c.Builder): void {
+        b.storeUint(0x7496ff56, 32);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: FeeQuoter_GetValidatedFee_ToFeeQuoter): c.Cell {
+        return makeCellFrom<FeeQuoter_GetValidatedFee_ToFeeQuoter>(self, FeeQuoter_GetValidatedFee_ToFeeQuoter.store);
+    }
+}
+
+/**
  > struct (0x7496ff56) FeeQuoter_GetValidatedFee<T> {
  >     msg: Cell<Router_CCIPSend>
  >     context: T
@@ -1921,7 +1947,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -1932,7 +1958,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
@@ -1945,7 +1971,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -1963,12 +1989,7 @@ export const Router_CCIPSend = {
             data: s.loadRef(),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -1979,22 +2000,43 @@ export const Router_CCIPSend = {
         b.storeRef(self.data);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    }
+}
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
     }
 }
 
@@ -2150,15 +2192,8 @@ export class FeeQuoter implements c.Contract {
         return FeeQuoter_UpdateDestChainConfigs.toCell(FeeQuoter_UpdateDestChainConfigs.create(body));
     }
 
-    static createCellOfFeeQuoterGetValidatedFeeRemainingBitsAndRefs_(body: {
-        msg: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }) {
-        return makeCellFrom<FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>>(FeeQuoter_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-            (v,b) => { b.storeUint(0x7496ff56, 32);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            storeTolkRemaining(v.context, b); }
-        );
+    static createCellOfFeeQuoterGetValidatedFeeToFeeQuoter(body: FeeQuoter_GetValidatedFee_ToFeeQuoter) {
+        return FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell(body);
     }
 
     static createCellOfWithdrawableWithdraw(body: {
@@ -2256,17 +2291,10 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async sendFeeQuoterGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        msg: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterGetValidatedFeeToFeeQuoter(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_GetValidatedFee_ToFeeQuoter, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>>(FeeQuoter_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-                (v,b) => { b.storeUint(0x7496ff56, 32);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                storeTolkRemaining(v.context, b); }
-            ),
+            body: FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell(body),
             ...extraOptions
         });
     }
@@ -2303,16 +2331,7 @@ export class FeeQuoter implements c.Contract {
         return r.readBigInt();
     }
 
-    async getValidatedFee(provider: ContractProvider, msg: {
-        readonly $: 'Router_CCIPSend'
-        queryID?: uint64
-        destChainSelector: uint64
-        receiver: CrossChainAddress
-        data: c.Cell
-        tokenAmounts: SnakedCell<TokenAmount>
-        feeToken: c.Address | null
-        extraArgs: c.Cell
-    }): Promise<coins> {
+    async getValidatedFee(provider: ContractProvider, msg: Router_CCIPSend): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('validatedFee', [
             { type: 'int', value: msg.queryID ?? 0n },
             { type: 'int', value: msg.destChainSelector },
@@ -2322,7 +2341,7 @@ export class FeeQuoter implements c.Contract {
             msg.feeToken === null ? { type: 'null' } : { type: 'slice', cell: makeCellFrom<c.Address | null>(msg.feeToken,
                 (v,b) => b.storeAddress(v)
             ) },
-            { type: 'cell', cell: msg.extraArgs },
+            { type: 'cell', cell: ExtraArgs.toCell(msg.extraArgs) },
         ]));
         return r.readBigInt();
     }

@@ -11,7 +11,6 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import { Router as ManualRouter } from '../../../wrappers/ccip/Router'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import * as tr from '../../../wrappers/gen/ccip/TokenRegistry'
@@ -106,16 +105,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     // 4. Deploy Router/feeQuoter/onRamp/offRamp
-    var routerManual: SandboxContract<ManualRouter>
-    ;({
-      router: routerManual,
-      feeQuoter,
-      onRamp,
-    } = await setup(blockchain, {
+    ;({ router, feeQuoter, onRamp } = await setup(blockchain, {
       deployer,
       sender,
     }))
-    router = blockchain.openContract(rt.Router.fromAddress(routerManual.address))
 
     const setTokenInfoResult = await router.sendRouterTokenRegistrySetTokenInfo(
       deployer.getSender(),
@@ -333,7 +326,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
           tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
         },
       },
-    } as any)
+    })
 
     // OnRamp -> router (Router_MessageSent)
     expect(result.transactions).toHaveTransaction({

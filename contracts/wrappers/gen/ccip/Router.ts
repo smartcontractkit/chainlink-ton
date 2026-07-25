@@ -520,6 +520,87 @@ export const Ownable2Step = {
 }
 
 /**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct Ownable2Step_OwnershipTransferRequested {
  >     queryId: uint64
  >     newOwner: address
@@ -898,7 +979,7 @@ export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: Router_CCIPSend
     metadata: Metadata
-    tokenRegistry: c.Address | null
+    tokenRegistry: c.Address | null /* = null */
 }
 
 export const OnRamp_Send = {
@@ -907,10 +988,11 @@ export const OnRamp_Send = {
     create(args: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
+            tokenRegistry: null,
             ...args
         }
     },
@@ -1522,9 +1604,9 @@ export const OnRamp_MessageValidationFailed_GetValidatedFeeContext = {
 export interface Router_ApplyRampUpdates {
     readonly $: 'Router_ApplyRampUpdates'
     queryId: uint64
-    onRampUpdates: OnRamps | null
-    offRampAdds: OffRamps | null
-    offRampRemoves: OffRamps | null
+    onRampUpdates: OnRamps | null /* = null */
+    offRampAdds: OffRamps | null /* = null */
+    offRampRemoves: OffRamps | null /* = null */
 }
 
 export const Router_ApplyRampUpdates = {
@@ -1532,12 +1614,15 @@ export const Router_ApplyRampUpdates = {
 
     create(args: {
         queryId?: uint64
-        onRampUpdates: OnRamps | null
-        offRampAdds: OffRamps | null
-        offRampRemoves: OffRamps | null
+        onRampUpdates?: OnRamps | null /* = null */
+        offRampAdds?: OffRamps | null /* = null */
+        offRampRemoves?: OffRamps | null /* = null */
     }): Router_ApplyRampUpdates {
         return {
             $: 'Router_ApplyRampUpdates',
+            onRampUpdates: null,
+            offRampAdds: null,
+            offRampRemoves: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -1572,7 +1657,7 @@ export const Router_ApplyRampUpdates = {
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -1583,7 +1668,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
@@ -1596,7 +1681,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -1614,12 +1699,7 @@ export const Router_CCIPSend = {
             data: s.loadRef(),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -1630,22 +1710,43 @@ export const Router_CCIPSend = {
         b.storeRef(self.data);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    }
+}
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
     }
 }
 
@@ -3130,16 +3231,16 @@ export class Router implements c.Contract {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }) {
         return Router_CCIPSend.toCell(Router_CCIPSend.create(body));
     }
 
     static createCellOfRouterApplyRampUpdates(body: {
         queryId?: uint64
-        onRampUpdates: OnRamps | null
-        offRampAdds: OffRamps | null
-        offRampRemoves: OffRamps | null
+        onRampUpdates?: OnRamps | null /* = null */
+        offRampAdds?: OffRamps | null /* = null */
+        offRampRemoves?: OffRamps | null /* = null */
     }) {
         return Router_ApplyRampUpdates.toCell(Router_ApplyRampUpdates.create(body));
     }
@@ -3259,6 +3360,19 @@ export class Router implements c.Contract {
         return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
     }
 
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3282,7 +3396,7 @@ export class Router implements c.Contract {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3293,9 +3407,9 @@ export class Router implements c.Contract {
 
     async sendRouterApplyRampUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        onRampUpdates: OnRamps | null
-        offRampAdds: OffRamps | null
-        offRampRemoves: OffRamps | null
+        onRampUpdates?: OnRamps | null /* = null */
+        offRampAdds?: OffRamps | null /* = null */
+        offRampRemoves?: OffRamps | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3479,6 +3593,27 @@ export class Router implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }

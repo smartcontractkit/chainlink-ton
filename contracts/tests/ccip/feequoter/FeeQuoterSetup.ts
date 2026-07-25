@@ -7,13 +7,16 @@ import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import * as feeQuoterGen from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as sxManual from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import { FromBuffer, ToBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { encodeExtraArgs } from '../../../wrappers/ccip/FeeQuoter'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -474,15 +477,15 @@ export class FeeQuoterSetup {
   }: {
     tokenAmounts?: rt.TokenAmount[]
     feeToken?: Address
-  }): rt.CCIPSend {
-    return {
+  }): rt.Router_CCIPSend {
+    return rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
-      receiver: FeeQuoterSetup.DEST_ADDRESS,
+      receiver: FromBuffer(FeeQuoterSetup.DEST_ADDRESS),
       data: Cell.EMPTY,
       tokenAmounts,
       feeToken,
       extraArgs: this.generateExtraArgs(FeeQuoterSetup.GAS_LIMIT),
-    }
+    })
   }
 
   /**
@@ -496,13 +499,13 @@ export class FeeQuoterSetup {
     token: Address
     amount: bigint
     feeToken?: Address
-  }): rt.CCIPSend {
+  }): rt.Router_CCIPSend {
     return this.generateEmptyMessage({
       tokenAmounts: [
-        {
+        rt.TokenAmount.create({
           token,
           amount,
-        },
+        }),
       ],
       feeToken,
     })
@@ -511,24 +514,28 @@ export class FeeQuoterSetup {
   /**
    * Generate extra args for TON (equivalent to Client._argsToBytes)
    */
-  generateExtraArgs(gasLimit: number): Cell {
-    return rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
-        allowOutOfOrderExecution: true,
-        gasLimit: BigInt(gasLimit),
-      })
-      .endCell()
+  generateExtraArgs(gasLimit: number): rt.GenericExtraArgsV2 {
+    return rt.GenericExtraArgsV2.create({
+      allowOutOfOrderExecution: true,
+      gasLimit: BigInt(gasLimit),
+    })
   }
 
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(msg: rt.CCIPSend): Promise<feeQuoter.MessageValidated> {
+  async getValidatedFee(msg: rt.Router_CCIPSend): Promise<feeQuoter.MessageValidated> {
     const res = await this.bind.feeQuoter.sendGetValidatedFee(this.acc.externalCaller.getSender(), {
       value: toNano('1'),
       msg: {
-        msg,
+        msg: {
+          destChainSelector: msg.destChainSelector,
+          receiver: ToBuffer(msg.receiver),
+          data: msg.data,
+          tokenAmounts: msg.tokenAmounts,
+          feeToken: msg.feeToken,
+          extraArgs: encodeExtraArgs(msg.extraArgs),
+        },
         context: beginCell().asSlice(),
       },
     })
@@ -577,13 +584,23 @@ export class FeeQuoterSetup {
     return messageValidated
   }
 
-  async assertGetFeeValidationError(message: rt.CCIPSend, expectedError: number): Promise<void> {
-    const result = await this.bind.feeQuoter.sendGetValidatedFee(
+  async assertGetFeeValidationError(
+    message: rt.Router_CCIPSend | Cell,
+    expectedError: number,
+  ): Promise<void> {
+    const body =
+      message instanceof Cell
+        ? message
+        : feeQuoterGen.FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell(
+            feeQuoterGen.FeeQuoter_GetValidatedFee.create({
+              msg: message,
+              context: beginCell().asSlice(),
+            }),
+          )
+    const result = await this.bind.feeQuoter.sendInternal(
       this.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: message, context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      body,
     )
 
     // It should return failure due to overflow

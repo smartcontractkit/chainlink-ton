@@ -242,7 +242,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -253,7 +253,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
@@ -266,7 +266,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -284,12 +284,7 @@ export const Router_CCIPSend = {
             data: s.loadRef(),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -300,22 +295,43 @@ export const Router_CCIPSend = {
         b.storeRef(self.data);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    }
+}
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
     }
 }
 
@@ -330,7 +346,7 @@ export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: Router_CCIPSend
     metadata: Metadata
-    tokenRegistry: c.Address | null
+    tokenRegistry: c.Address | null /* = null */
 }
 
 export const OnRamp_Send = {
@@ -339,10 +355,11 @@ export const OnRamp_Send = {
     create(args: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
+            tokenRegistry: null,
             ...args
         }
     },

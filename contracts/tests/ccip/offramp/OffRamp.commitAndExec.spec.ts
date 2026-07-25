@@ -20,7 +20,8 @@ import * as mr from '../../../wrappers/ccip/MerkleRoot'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as ofManual from '../../../wrappers/ccip/OffRamp'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as tr from '../../../wrappers/examples/Receiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
@@ -488,24 +489,30 @@ describe('OffRamp - Unit Tests', () => {
     // setup router
     //
     {
-      let data: rt.Storage = {
+      let data = rt.Storage.create({
         id: generateRandomContractId(),
-        ownable: {
+        ownable: rt.Ownable2Step.create({
           owner: deployer.address,
-          pendingOwner: null,
-        },
+        }),
         wrappedNative: WRAPPED_NATIVE,
-        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-        offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-        tokenRegistryDeployment: {
+        onRamps: new Map(),
+        offRamps: new Map(),
+        rmnRemote: rt.RMNRemote.create({
+          admin: rt.Ownable2Step.create({ owner: deployer.address }),
+          cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+          forwardUpdates: new Set(),
+        }),
+        tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
           deployableCode: deployerCode,
           tokenRegistryCode: tokenRegistryCodeRaw,
-        },
-      }
+        }),
+      })
 
-      router = blockchain.openContract(rt.Router.createFromConfig(data, routerCodeRaw))
+      router = blockchain.openContract(
+        rt.Router.fromStorage(data, { overrideContractCode: routerCodeRaw }),
+      )
 
-      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      const result = await router.sendDeploy(deployer.getSender(), toNano('1'))
 
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -515,16 +522,17 @@ describe('OffRamp - Unit Tests', () => {
       })
 
       // setup ramp
-      const updateRampsResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-        value: toNano('1'),
-        data: {
-          queryID: BigInt(0),
-          offRampAdds: {
+      const updateRampsResult = await router.sendRouterApplyRampUpdates(
+        deployer.getSender(),
+        toNano('1'),
+        {
+          queryId: 0n,
+          offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRamp.address,
-          },
+          }),
         },
-      })
+      )
       expect(updateRampsResult.transactions).toHaveTransaction({
         from: deployer.address,
         to: router.address,
@@ -805,7 +813,7 @@ describe('OffRamp - Unit Tests', () => {
       toNano('0.5'),
       {
         cursedSubjects: of.CursedSubjects.create({
-          data: new Set([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
+          data: new Set([RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
         }),
       },
     )
@@ -815,7 +823,7 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
     let cursedSubjects = await offRamp.getCursedSubjects()
-    expect(cursedSubjects).toEqual([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT])
+    expect(cursedSubjects).toEqual([RMNREMOTE_GLOBAL_CURSE_SUBJECT])
 
     // Attempt to commit - should fail with SubjectCursed
     await commitReport(
@@ -1355,7 +1363,7 @@ describe('OffRamp - Unit Tests', () => {
       toNano('0.5'),
       {
         cursedSubjects: of.CursedSubjects.create({
-          data: new Set([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
+          data: new Set([RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
         }),
       },
     )

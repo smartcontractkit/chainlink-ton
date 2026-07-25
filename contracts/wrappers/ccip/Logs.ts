@@ -1,6 +1,4 @@
-import { Address } from '@ton/core'
 import { crc32 } from 'zlib'
-import { DestChainConfig } from './OnRamp'
 import * as of from '../gen/ccip/OffRamp'
 
 export const LogTypes = {
@@ -51,82 +49,6 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
 }
 
-export type ExecutionStateChanged = {
-  sourceChainSelector: bigint //64
-  sequenceNumber: bigint //64
-  messageId: bigint //256
-  state: bigint //8
-}
-
-export type SourceChainSelectorAdded = {
-  sourceChainSelector: bigint //64
-}
-
-export type DestChainSelectorAdded = {
-  destChainSelector: bigint //64
-}
-
-export type DestChainConfigUpdated = {
-  destChainSelector: bigint //64
-  config: DestChainConfig
-}
-
 export type ReceiverCCIPMessageReceived = {
   message: of.Any2TVMMessage
-}
-
-export type OnRampSet = {
-  destChainSelectors: bigint[]
-  onRamp?: Address
-}
-
-export type OffRampAdded = {
-  sourceChainSelectors: bigint[]
-  offRampAdded: Address
-}
-
-export type OffRampRemoved = {
-  sourceChainSelectors: bigint[]
-  offRampRemoved: Address
-}
-
-export type Cursed = {
-  subject: bigint
-}
-
-export type Uncursed = {
-  subject: bigint
-}
-
-export type UsdPerTokenUpdated = {
-  sourceToken: Address
-  usdPerToken: bigint // uint224
-  timestamp: bigint // uint64
-}
-
-export type UsdPerUnitGasUpdated = {
-  destChainSelector: bigint // uint64
-  executionGasPrice: bigint // uint112
-  dataAvailabilityGasPrice: bigint // uint112
-  timestamp: bigint // uint64
-}
-
-export type ReceiveExecutorInitExecuteBounced = {
-  receiveExecutor: Address
-  root: Address
-  sequenceNumber: bigint
-}
-
-export type DeployableInitializeBounced = {
-  deployableAddress: Address
-}
-
-export type RouteMessageBounced = {
-  router: Address
-  execId: bigint
-}
-
-export type MessageToOffRampBounced = {
-  offRamp: Address
-  execId: bigint
 }

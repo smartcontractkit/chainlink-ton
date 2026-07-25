@@ -6,7 +6,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -154,10 +154,10 @@ describe('OnRamp - executor exit', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.opcodes.in.messageSent,
+      op: rt.Router_MessageSent.PREFIX,
       body(x) {
         if (!x) return false
-        const msgSent = rt.builder.message.in.messageSent.load(x.beginParse())
+        const msgSent = rt.Router_MessageSent.fromSlice(x.beginParse())
         return (
           msgSent.sender.equals(senderAddress) && msgSent.queryID === BigInt(ccipSend.queryID ?? 0)
         )
@@ -189,10 +189,10 @@ describe('OnRamp - executor exit', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.opcodes.in.messageRejected,
+      op: rt.Router_MessageRejected.PREFIX,
       body(x) {
         if (!x) return false
-        const msgSent = rt.builder.message.in.messageRejected.load(x.beginParse())
+        const msgSent = rt.Router_MessageRejected.fromSlice(x.beginParse())
         return (
           msgSent.sender.equals(senderAddress) &&
           msgSent.queryID === BigInt(ccipSend.queryID ?? 0) &&
