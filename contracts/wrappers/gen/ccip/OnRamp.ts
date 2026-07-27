@@ -856,6 +856,39 @@ export const RampMessageHeader = {
 }
 
 /**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
+    }
+}
+
+/**
  > struct (0x181dcf10) GenericExtraArgsV2 {
  >     gasLimit: uint256?
  >     allowOutOfOrderExecution: bool
@@ -1128,39 +1161,6 @@ export const Router_CCIPSend = {
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
-    }
-}
-
-/**
- > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
- */
-export type ExtraArgs =
-    | GenericExtraArgsV2
-    | SVMExtraArgsV1
-    | SuiExtraArgsV1
-
-export const ExtraArgs = {
-    fromSlice(s: c.Slice): ExtraArgs {
-        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-            throwNonePrefixMatch('ExtraArgs');
-    },
-    store(self: ExtraArgs, b: c.Builder): void {
-        switch (self.$) {
-            case 'GenericExtraArgsV2':
-                GenericExtraArgsV2.store(self, b);
-                break;
-            case 'SVMExtraArgsV1':
-                SVMExtraArgsV1.store(self, b);
-                break;
-            case 'SuiExtraArgsV1':
-                SuiExtraArgsV1.store(self, b);
-                break;
-        }
-    },
-    toCell(self: ExtraArgs): c.Cell {
-        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
     }
 }
 
@@ -1945,7 +1945,7 @@ export const TVM2AnyRampMessage = {
  > struct TVM2AnyRampMessageBody {
  >     receiver: Cell<CrossChainAddress>
  >     data: cell
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address
  >     feeTokenAmount: coins
@@ -1955,7 +1955,7 @@ export interface TVM2AnyRampMessageBody {
     readonly $: 'TVM2AnyRampMessageBody'
     receiver: CrossChainAddress
     data: c.Cell
-    extraArgs: c.Cell
+    extraArgs: ExtraArgs
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address
     feeTokenAmount: coins
@@ -1965,7 +1965,7 @@ export const TVM2AnyRampMessageBody = {
     create(args: {
         receiver: CrossChainAddress
         data: c.Cell
-        extraArgs: c.Cell
+        extraArgs: ExtraArgs
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address
         feeTokenAmount: coins
@@ -1980,7 +1980,7 @@ export const TVM2AnyRampMessageBody = {
             $: 'TVM2AnyRampMessageBody',
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             data: s.loadRef(),
-            extraArgs: s.loadRef(),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
@@ -1989,7 +1989,7 @@ export const TVM2AnyRampMessageBody = {
     store(self: TVM2AnyRampMessageBody, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeRef(self.data);
-        b.storeRef(self.extraArgs);
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);

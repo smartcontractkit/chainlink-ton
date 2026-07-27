@@ -76,7 +76,7 @@ struct TVM2AnyRampMessage {
 struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
-    extraArgs: cell;
+    extraArgs: Cell<ExtraArgs>;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address;
     feeTokenAmount: coins;

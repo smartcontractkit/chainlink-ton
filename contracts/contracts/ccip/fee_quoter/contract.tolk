@@ -364,7 +364,7 @@ fun _dataAvailabilityCost(
     return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow);
 }
 
-fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
     // NOTE: token transfers are allowed; their extra fee is currently ignored (priced as a plain message).
@@ -439,7 +439,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int {
+fun resolveGenericGasLimit(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int {
     val gasLimit = parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
     if (gasLimit != null) {
         return gasLimit as int
@@ -447,7 +447,7 @@ fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsg
     return 0;
 }
 
-fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
+fun parseGenericExtraArgs(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
     val extra = _parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
@@ -455,7 +455,7 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     return extra;
 }
 
-fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
+fun _parseUnvalidatedEVMExtraArgs(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
     if (extraArgs.beginParse().isEmpty()) {
         return GenericExtraArgsV2 {
             gasLimit: defaultTxGasLimit as uint256,
@@ -465,7 +465,7 @@ fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): G
     return GenericExtraArgsV2.fromCell(extraArgs);
 }
 
-fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV1 {
+fun parseSvmExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): SVMExtraArgsV1 {
     val extra = SVMExtraArgsV1.fromCell(extraArgs, {
         throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData,
     });
@@ -475,7 +475,7 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV
     return extra;
 }
 
-fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV1 {
+fun parseSuiExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): SuiExtraArgsV1 {
     val extra = SuiExtraArgsV1.fromCell(extraArgs, {
         throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData,
     });

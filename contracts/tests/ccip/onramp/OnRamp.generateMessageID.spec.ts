@@ -176,8 +176,8 @@ describe('OnRamp - generate message id', () => {
       body: on.TVM2AnyRampMessageBody.create({
         receiver: ccipSend.receiver,
         data: ccipSend.data,
-        extraArgs: or.GenericExtraArgsV2.toCell(ccipSend.extraArgs as or.GenericExtraArgsV2),
-        tokenAmounts: ccipSend.tokenAmounts.map((ta) => on.TokenAmount.create(ta)),
+        extraArgs: ccipSend.extraArgs,
+        tokenAmounts: ccipSend.tokenAmounts,
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       }),

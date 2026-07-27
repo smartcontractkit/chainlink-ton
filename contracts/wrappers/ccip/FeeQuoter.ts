@@ -44,7 +44,7 @@ export function MsgToGen(msg: rt.CCIPSend): rtGen.Router_CCIPSend {
       rtGen.TokenAmount.create({ token: ta.token, amount: ta.amount }),
     ),
     feeToken: msg.feeToken ?? null,
-    extraArgs: decodeExtraArgs(msg.extraArgs.beginParse()),
+    extraArgs: rtGen.ExtraArgs.fromSlice(msg.extraArgs.beginParse()),
   })
 }
 
@@ -55,44 +55,11 @@ export function GenToMsg(msg: rtGen.Router_CCIPSend): rt.CCIPSend {
     data: msg.data,
     tokenAmounts: msg.tokenAmounts.map((ta) => ({ token: ta.token, amount: ta.amount })),
     feeToken: msg.feeToken ?? undefined,
-    extraArgs: encodeExtraArgs(msg.extraArgs),
+    extraArgs: rtGen.ExtraArgs.toCell(msg.extraArgs),
   }
 }
 
-function lookupPrefix(s: Slice, expected: number, prefixLen: number): boolean {
-  return s.remainingBits >= prefixLen && s.preloadUint(prefixLen) === expected
-}
-
-export function decodeExtraArgs(
-  s: Slice,
-): rtGen.GenericExtraArgsV2 | rtGen.SVMExtraArgsV1 | rtGen.SuiExtraArgsV1 {
-  return lookupPrefix(s, 0x181dcf10, 32)
-    ? rtGen.GenericExtraArgsV2.fromSlice(s)
-    : lookupPrefix(s, 0x1f3b3aba, 32)
-      ? rtGen.SVMExtraArgsV1.fromSlice(s)
-      : lookupPrefix(s, 0x21ea4ca9, 32)
-        ? rtGen.SuiExtraArgsV1.fromSlice(s)
-        : (() => {
-            throw new Error('Invalid extraArgs prefix')
-          })()
-}
-
-export function encodeExtraArgs(
-  extraArgs: rtGen.GenericExtraArgsV2 | rtGen.SVMExtraArgsV1 | rtGen.SuiExtraArgsV1,
-): Cell {
-  return (() => {
-    switch (extraArgs.$) {
-      case 'GenericExtraArgsV2':
-        return rtGen.GenericExtraArgsV2.toCell(extraArgs)
-      case 'SVMExtraArgsV1':
-        return rtGen.SVMExtraArgsV1.toCell(extraArgs)
-      case 'SuiExtraArgsV1':
-        return rtGen.SuiExtraArgsV1.toCell(extraArgs)
-    }
-  })()
-}
-
-/// Copied from rtGen.Router_CCIPSend.store, but with the extraArgs as Cell
+// Copied from rtGen.Router_CCIPSend.store, but with the extraArgs as Cell
 
 export interface FeeQuoter_GetValidatedFee_ToFeeQuoter {
   msg: Router_CCIPSend

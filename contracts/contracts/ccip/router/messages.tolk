@@ -60,8 +60,6 @@ struct (0x31768d95) Router_CCIPSend {
     extraArgs: Cell<ExtraArgs>;
 }
 
-type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1;
-
 struct (0xfc69c50b) Router_RouteMessage {
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;

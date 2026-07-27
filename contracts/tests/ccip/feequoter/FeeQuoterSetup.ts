@@ -16,7 +16,6 @@ import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import { FromBuffer, ToBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import { encodeExtraArgs } from '../../../wrappers/ccip/FeeQuoter'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -534,7 +533,7 @@ export class FeeQuoterSetup {
           data: msg.data,
           tokenAmounts: msg.tokenAmounts,
           feeToken: msg.feeToken,
-          extraArgs: encodeExtraArgs(msg.extraArgs),
+          extraArgs: rt.ExtraArgs.toCell(msg.extraArgs),
         },
         context: beginCell().asSlice(),
       },
