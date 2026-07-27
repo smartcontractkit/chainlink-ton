@@ -16,6 +16,7 @@ import * as offrGen from '../wrappers/gen/ccip/OffRamp'
 import * as onrGen from '../wrappers/gen/ccip/OnRamp'
 import * as rxGen from '../wrappers/gen/ccip/ReceiveExecutor'
 import * as sxGen from '../wrappers/gen/ccip/CCIPSendExecutor'
+import * as mrGen from '../wrappers/gen/ccip/MerkleRoot'
 
 import * as deployable from '../wrappers/libraries/Deployable'
 import * as rec from '../wrappers/libraries/Receiver'
@@ -49,7 +50,7 @@ describe('Exit Codes', () => {
       facilityId: mr.FACILITY_ID,
       facilityName: mr.FACILITY_NAME,
       errorCode: mr.ERROR_CODE,
-      error0: mr.MerkleRootError.AlreadyExecuted,
+      error0: mrGen.MerkleRoot.Errors['MerkleRoot_Error.AlreadyExecuted'],
     },
     {
       facilityId: offr.FACILITY_ID,

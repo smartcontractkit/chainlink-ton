@@ -108,7 +108,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Compile contracts
     deployerCode = await DeployableContract.code()
-    merkleRootCodeRaw = await mr.MerkleRoot.code()
+    merkleRootCodeRaw = await contractCode.ccip.local('MerkleRoot')
 
     // Setup blockchain libs for MerkleRoot
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
