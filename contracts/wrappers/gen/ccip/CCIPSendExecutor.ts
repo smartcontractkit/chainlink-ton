@@ -258,6 +258,21 @@ export const Router_CCIPSend = {
             queryID: args.queryID ?? 0n
         }
     },
+    createShallow(args: {
+        queryID?: uint64
+        destChainSelector: uint64
+        receiver: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address | null
+        extraArgs: c.Cell
+        }): Router_CCIPSend_Shallow {
+        return {
+                    $: 'Router_CCIPSend',
+                    ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
@@ -359,6 +374,16 @@ export const OnRamp_Send = {
             $: 'OnRamp_Send',
             ...args
         }
+    },
+    createShallow(args: {
+        msg: c.Cell
+        metadata: Metadata
+        tokenRegistry: c.Address | null
+        }): OnRamp_Send_Shallow {
+        return {
+                    $: 'OnRamp_Send',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): OnRamp_Send {
         loadAndCheckPrefix32(s, 0xdcf993c2, 'OnRamp_Send');
@@ -484,6 +509,17 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
             ...args
         }
     },
+    createShallow(args: {
+        executorID: CCIPSendExecutor_ID
+        fee: Fee
+        msg: c.Cell
+        metadata: Metadata
+        }): OnRamp_ExecutorFinishedSuccessfully_Shallow {
+        return {
+                    $: 'OnRamp_ExecutorFinishedSuccessfully',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OnRamp_ExecutorFinishedSuccessfully {
         loadAndCheckPrefix32(s, 0xcfa6b336, 'OnRamp_ExecutorFinishedSuccessfully');
         return {
@@ -560,6 +596,17 @@ export const OnRamp_ExecutorFinishedWithError = {
             ...args
         }
     },
+    createShallow(args: {
+        executorID: CCIPSendExecutor_ID
+        error: uint256
+        msg: c.Cell
+        metadata: Metadata
+        }): OnRamp_ExecutorFinishedWithError_Shallow {
+        return {
+                    $: 'OnRamp_ExecutorFinishedWithError',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OnRamp_ExecutorFinishedWithError {
         loadAndCheckPrefix32(s, 0xc4068e21, 'OnRamp_ExecutorFinishedWithError');
         return {
@@ -630,6 +677,15 @@ export const FeeQuoter_GetValidatedFee = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_GetValidatedFee_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_GetValidatedFee',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -663,6 +719,16 @@ export const FeeQuoter_MessageValidated = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        fee: Fee
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_MessageValidated_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_MessageValidated',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -696,6 +762,16 @@ export const FeeQuoter_MessageValidationFailed = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        error: uint256
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_MessageValidationFailed_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_MessageValidationFailed',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -840,6 +916,17 @@ export const TokenPool_LockOrBurnFinished = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        out: c.Cell
+        destTokenAmount: coins
+        }): TokenPool_LockOrBurnFinished_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnFinished',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
         loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
         return {
@@ -964,6 +1051,17 @@ export const CCIPSendExecutor_Data = {
             $: 'CCIPSendExecutor_Data',
             ...args
         }
+    },
+    createShallow(args: {
+        id: CCIPSendExecutor_ID
+        onrampSend: OnRamp_Send
+        addresses: c.Cell
+        state: CCIPSendExecutor_State
+        }): CCIPSendExecutor_Data_Shallow {
+        return {
+                    $: 'CCIPSendExecutor_Data',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): CCIPSendExecutor_Data {
         return {
@@ -1304,6 +1402,15 @@ export const CCIPSendExecutor_Execute = {
             ...args
         }
     },
+    createShallow(args: {
+        onrampSend: OnRamp_Send
+        config: c.Cell
+        }): CCIPSendExecutor_Execute_Shallow {
+        return {
+                    $: 'CCIPSendExecutor_Execute',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): CCIPSendExecutor_Execute {
         loadAndCheckPrefix32(s, 0xaf3c62b3, 'CCIPSendExecutor_Execute');
         return {
@@ -1609,6 +1716,15 @@ export const TokenPool_LockOrBurnOutV1 = {
             $: 'TokenPool_LockOrBurnOutV1',
             ...args
         }
+    },
+    createShallow(args: {
+        destTokenAddress: c.Cell
+        destPoolData: c.Cell
+        }): TokenPool_LockOrBurnOutV1_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnOutV1',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnOutV1 {
         return {

@@ -181,6 +181,19 @@ export const Any2TVMRampMessage = {
             ...args
         }
     },
+    createShallow(args: {
+        header: RampMessageHeader
+        sender: c.Cell
+        data: c.Cell
+        receiver: c.Address
+        gasLimit: coins
+        tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+        }): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Any2TVMRampMessage {
         return {
             $: 'Any2TVMRampMessage',
@@ -261,6 +274,18 @@ export const Any2TVMTokenTransfer = {
             $: 'Any2TVMTokenTransfer',
             ...args
         }
+    },
+    createShallow(args: {
+        sourcePoolAddress: c.Cell
+        destPoolAddress: c.Address
+        destGasAmount: uint32
+        extraData: c.Cell
+        amount: uint256
+        }): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Any2TVMTokenTransfer {
         return {
@@ -360,6 +385,21 @@ export const ReceiveExecutor_Storage = {
             lastExecutionTimestamp: 0n,
             ...args
         }
+    },
+    createShallow(args: {
+        owner: c.Address
+        message: c.Cell
+        root: c.Address
+        execId: uint192
+        state?: ReceiveExecutor_MessageState
+        lastExecutionTimestamp?: uint64
+        }): ReceiveExecutor_Storage_Shallow {
+        return {
+                    $: 'ReceiveExecutor_Storage',
+                    state: 0n,
+                    lastExecutionTimestamp: 0n,
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_Storage {
         return {
@@ -619,6 +659,16 @@ export const OffRamp_DispatchValidated = {
             $: 'OffRamp_DispatchValidated',
             ...args
         }
+    },
+    createShallow(args: {
+        message: c.Cell
+        execId: uint192
+        gasOverride: coins | null
+        }): OffRamp_DispatchValidated_Shallow {
+        return {
+                    $: 'OffRamp_DispatchValidated',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): OffRamp_DispatchValidated {
         loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');

@@ -227,6 +227,18 @@ export const OffRamp_ExecuteValidated = {
             ...args
         }
     },
+    createShallow(args: {
+        message: c.Cell
+        root: MerkleRootId
+        metadataHash: uint256
+        gasOverride: coins | null
+        executionState: ExecutionState
+        }): OffRamp_ExecuteValidated_Shallow {
+        return {
+                    $: 'OffRamp_ExecuteValidated',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
         return {
@@ -315,6 +327,19 @@ export const Any2TVMRampMessage = {
             ...args
         }
     },
+    createShallow(args: {
+        header: RampMessageHeader
+        sender: c.Cell
+        data: c.Cell
+        receiver: c.Address
+        gasLimit: coins
+        tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+        }): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Any2TVMRampMessage {
         return {
             $: 'Any2TVMRampMessage',
@@ -395,6 +420,18 @@ export const Any2TVMTokenTransfer = {
             $: 'Any2TVMTokenTransfer',
             ...args
         }
+    },
+    createShallow(args: {
+        sourcePoolAddress: c.Cell
+        destPoolAddress: c.Address
+        destGasAmount: uint32
+        extraData: c.Cell
+        amount: uint256
+        }): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Any2TVMTokenTransfer {
         return {
@@ -510,6 +547,17 @@ export const MerkleRoot_Validate = {
             $: 'MerkleRoot_Validate',
             ...args
         }
+    },
+    createShallow(args: {
+        message: c.Cell
+        permissionlessExecutionThresholdSeconds: uint32
+        metadataHash: uint256
+        gasOverride: coins | null
+        }): MerkleRoot_Validate_Shallow {
+        return {
+                    $: 'MerkleRoot_Validate',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');

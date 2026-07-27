@@ -690,6 +690,19 @@ export const Timelock_SubmitErrorReport = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        opBatch: c.Cell
+        opTxHash: uint256
+        errorTxHash: uint256
+        errorCode: uint32
+        }): Timelock_SubmitErrorReport_Shallow {
+        return {
+                    $: 'Timelock_SubmitErrorReport',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): Timelock_SubmitErrorReport {
         loadAndCheckPrefix32(s, 0xf4538b79, 'Timelock_SubmitErrorReport');
         return {
@@ -877,6 +890,21 @@ export const Timelock_CallScheduled = {
         return {
             $: 'Timelock_CallScheduled',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        id: uint256
+        index: uint64
+        call: c.Cell
+        predecessor: uint256
+        salt: uint256
+        delay: uint32
+        }): Timelock_CallScheduled_Shallow {
+        return {
+                    $: 'Timelock_CallScheduled',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -1424,6 +1452,21 @@ export const Timelock_Data = {
             $: 'Timelock_Data',
             ...args
         }
+    },
+    createShallow(args: {
+        id: uint32
+        minDelay: uint32
+        timestamps: Map<uint256, uint64>
+        blockedFnSelectorsLen: uint32
+        blockedFnSelectors: Map<uint32, boolean>
+        executorRoleCheckEnabled: boolean
+        opPendingInfo: Timelock_OpPendingInfo
+        rbac: c.Cell
+        }): Timelock_Data_Shallow {
+        return {
+                    $: 'Timelock_Data',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Timelock_Data {
         return {

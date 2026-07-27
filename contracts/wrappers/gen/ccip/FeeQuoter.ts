@@ -501,6 +501,15 @@ export const FeeQuoter_GetValidatedFee = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_GetValidatedFee_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_GetValidatedFee',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -576,6 +585,16 @@ export const FeeQuoter_MessageValidated = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        fee: Fee
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_MessageValidated_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_MessageValidated',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -609,6 +628,16 @@ export const FeeQuoter_MessageValidationFailed = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        error: uint256
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_MessageValidationFailed_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_MessageValidationFailed',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1163,6 +1192,16 @@ export const DestChainConfig = {
             $: 'DestChainConfig',
             ...args
         }
+    },
+    createShallow(args: {
+        config: FeeQuoterDestChainConfig
+        usdPerUnitGas: c.Cell
+        tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig>
+        }): DestChainConfig_Shallow {
+        return {
+                    $: 'DestChainConfig',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): DestChainConfig {
         return {
@@ -1986,6 +2025,21 @@ export const Router_CCIPSend = {
         return {
             $: 'Router_CCIPSend',
             ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryID?: uint64
+        destChainSelector: uint64
+        receiver: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address | null
+        extraArgs: c.Cell
+        }): Router_CCIPSend_Shallow {
+        return {
+                    $: 'Router_CCIPSend',
+                    ...args,
             queryID: args.queryID ?? 0n
         }
     },

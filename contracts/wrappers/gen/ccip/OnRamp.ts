@@ -986,6 +986,21 @@ export const Router_CCIPSend = {
             queryID: args.queryID ?? 0n
         }
     },
+    createShallow(args: {
+        queryID?: uint64
+        destChainSelector: uint64
+        receiver: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address | null
+        extraArgs: c.Cell
+        }): Router_CCIPSend_Shallow {
+        return {
+                    $: 'Router_CCIPSend',
+                    ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
@@ -1243,6 +1258,15 @@ export const FeeQuoter_GetValidatedFee = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_GetValidatedFee_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_GetValidatedFee',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1276,6 +1300,16 @@ export const FeeQuoter_MessageValidated = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        fee: Fee
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_MessageValidated_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_MessageValidated',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1309,6 +1343,16 @@ export const FeeQuoter_MessageValidationFailed = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        error: uint256
+        msg: c.Cell
+        context: T
+        }): FeeQuoter_MessageValidationFailed_Shallow<T> {
+        return {
+                    $: 'FeeQuoter_MessageValidationFailed',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1830,6 +1874,17 @@ export const TVM2AnyRampMessage = {
             ...args
         }
     },
+    createShallow(args: {
+        header: RampMessageHeader
+        sender: c.Address
+        body: c.Cell
+        feeValueJuels: uint96
+        }): TVM2AnyRampMessage_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TVM2AnyRampMessage {
         return {
             $: 'TVM2AnyRampMessage',
@@ -1905,6 +1960,19 @@ export const TVM2AnyRampMessageBody = {
             $: 'TVM2AnyRampMessageBody',
             ...args
         }
+    },
+    createShallow(args: {
+        receiver: c.Cell
+        data: c.Cell
+        extraArgs: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address
+        feeTokenAmount: coins
+        }): TVM2AnyRampMessageBody_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessageBody',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TVM2AnyRampMessageBody {
         return {
@@ -2082,6 +2150,19 @@ export const OnRamp_Storage = {
             ...args
         }
     },
+    createShallow(args: {
+        id: uint32
+        ownable: Ownable2Step
+        chainSelector: uint64
+        config: c.Cell
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+        executor: ExecutorDeployment
+        }): OnRamp_Storage_Shallow {
+        return {
+                    $: 'OnRamp_Storage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OnRamp_Storage {
         return {
             $: 'OnRamp_Storage',
@@ -2159,6 +2240,16 @@ export const OnRamp_Send = {
             ...args
         }
     },
+    createShallow(args: {
+        msg: c.Cell
+        metadata: Metadata
+        tokenRegistry: c.Address | null
+        }): OnRamp_Send_Shallow {
+        return {
+                    $: 'OnRamp_Send',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OnRamp_Send {
         loadAndCheckPrefix32(s, 0xdcf993c2, 'OnRamp_Send');
         return {
@@ -2225,6 +2316,15 @@ export const OnRamp_GetValidatedFee = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        ccipSend: c.Cell
+        context: T
+        }): OnRamp_GetValidatedFee_Shallow<T> {
+        return {
+                    $: 'OnRamp_GetValidatedFee',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -2388,6 +2488,17 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
             ...args
         }
     },
+    createShallow(args: {
+        executorID: CCIPSendExecutor_ID
+        fee: Fee
+        msg: c.Cell
+        metadata: Metadata
+        }): OnRamp_ExecutorFinishedSuccessfully_Shallow {
+        return {
+                    $: 'OnRamp_ExecutorFinishedSuccessfully',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OnRamp_ExecutorFinishedSuccessfully {
         loadAndCheckPrefix32(s, 0xcfa6b336, 'OnRamp_ExecutorFinishedSuccessfully');
         return {
@@ -2463,6 +2574,17 @@ export const OnRamp_ExecutorFinishedWithError = {
             $: 'OnRamp_ExecutorFinishedWithError',
             ...args
         }
+    },
+    createShallow(args: {
+        executorID: CCIPSendExecutor_ID
+        error: uint256
+        msg: c.Cell
+        metadata: Metadata
+        }): OnRamp_ExecutorFinishedWithError_Shallow {
+        return {
+                    $: 'OnRamp_ExecutorFinishedWithError',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): OnRamp_ExecutorFinishedWithError {
         loadAndCheckPrefix32(s, 0xc4068e21, 'OnRamp_ExecutorFinishedWithError');
@@ -2648,6 +2770,16 @@ export const OnRamp_MessageValidated = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        fee: coins
+        msg: c.Cell
+        context: T
+        }): OnRamp_MessageValidated_Shallow<T> {
+        return {
+                    $: 'OnRamp_MessageValidated',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -2681,6 +2813,16 @@ export const OnRamp_MessageValidationFailed = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        error: uint256
+        msg: c.Cell
+        context: T
+        }): OnRamp_MessageValidationFailed_Shallow<T> {
+        return {
+                    $: 'OnRamp_MessageValidationFailed',
+                    ...args
+                }
+    }
 }
 
 /**

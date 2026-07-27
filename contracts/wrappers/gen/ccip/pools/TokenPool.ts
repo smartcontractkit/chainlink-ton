@@ -488,6 +488,15 @@ export const TokenPool_RateLimiterPair = {
             ...args
         }
     },
+    createShallow(args: {
+        outbound: c.Cell
+        inbound: c.Cell
+        }): TokenPool_RateLimiterPair_Shallow {
+        return {
+                    $: 'TokenPool_RateLimiterPair',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TokenPool_RateLimiterPair {
         return {
             $: 'TokenPool_RateLimiterPair',
@@ -544,6 +553,15 @@ export const TokenPool_RateLimitConfigPair = {
             $: 'TokenPool_RateLimitConfigPair',
             ...args
         }
+    },
+    createShallow(args: {
+        outbound: c.Cell
+        inbound: c.Cell
+        }): TokenPool_RateLimitConfigPair_Shallow {
+        return {
+                    $: 'TokenPool_RateLimitConfigPair',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_RateLimitConfigPair {
         return {
@@ -607,6 +625,17 @@ export const TokenPool_ChainUpdate = {
             $: 'TokenPool_ChainUpdate',
             ...args
         }
+    },
+    createShallow(args: {
+        remoteChainSelector: uint64
+        remotePoolAddresses: SnakedCell<CrossChainAddress>
+        remoteTokenAddress: c.Cell
+        rateLimitConfigs: c.Cell
+        }): TokenPool_ChainUpdate_Shallow {
+        return {
+                    $: 'TokenPool_ChainUpdate',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_ChainUpdate {
         return {
@@ -679,6 +708,17 @@ export const TokenPool_RemoteChainConfig = {
             $: 'TokenPool_RemoteChainConfig',
             ...args
         }
+    },
+    createShallow(args: {
+        remoteTokenAddress: c.Cell
+        remotePools: Map<uint256, CrossChainAddress>
+        rateLimiters: c.Cell
+        fastFinalityRateLimiters: c.Cell
+        }): TokenPool_RemoteChainConfig_Shallow {
+        return {
+                    $: 'TokenPool_RemoteChainConfig',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_RemoteChainConfig {
         return {
@@ -768,6 +808,17 @@ export const TokenPool_RateLimitConfigArgs = {
             $: 'TokenPool_RateLimitConfigArgs',
             ...args
         }
+    },
+    createShallow(args: {
+        remoteChainSelector: uint64
+        fastFinality: boolean
+        outboundRateLimiterConfig: c.Cell
+        inboundRateLimiterConfig: c.Cell
+        }): TokenPool_RateLimitConfigArgs_Shallow {
+        return {
+                    $: 'TokenPool_RateLimitConfigArgs',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_RateLimitConfigArgs {
         return {
@@ -1020,6 +1071,15 @@ export const TokenPool_Transfer = {
             ...args
         }
     },
+    createShallow<S, R, C>(args: {
+        id: uint256
+        details: c.Cell
+        }): TokenPool_Transfer_Shallow<S, R, C> {
+        return {
+                    $: 'TokenPool_Transfer',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1196,6 +1256,15 @@ export const TokenPool_LockOrBurnOutV1 = {
             ...args
         }
     },
+    createShallow(args: {
+        destTokenAddress: c.Cell
+        destPoolData: c.Cell
+        }): TokenPool_LockOrBurnOutV1_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnOutV1',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnOutV1 {
         return {
             $: 'TokenPool_LockOrBurnOutV1',
@@ -1257,6 +1326,17 @@ export const TokenPool_ReleaseOrMintInV1 = {
             $: 'TokenPool_ReleaseOrMintInV1',
             ...args
         }
+    },
+    createShallow(args: {
+        transfer: TokenPool_ReleaseOrMintTransfer
+        sourcePoolAddress: c.Cell
+        sourcePoolData: c.Cell | null
+        offchainTokenData: c.Cell | null
+        }): TokenPool_ReleaseOrMintInV1_Shallow {
+        return {
+                    $: 'TokenPool_ReleaseOrMintInV1',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintInV1 {
         return {
@@ -1378,6 +1458,21 @@ export const TokenPool_AdminConfig = {
             ...args
         }
     },
+    createShallow(args: {
+        ownable: c.Cell
+        rmnProxy: c.Address
+        dynamicConfig: c.Cell
+        jettonClient: JettonClient
+        allowedFinalityConfig?: uint32
+        advancedPoolHooks?: c.Address | null
+        }): TokenPool_AdminConfig_Shallow {
+        return {
+                    $: 'TokenPool_AdminConfig',
+                    allowedFinalityConfig: 0n,
+                    advancedPoolHooks: null,
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TokenPool_AdminConfig {
         return {
             $: 'TokenPool_AdminConfig',
@@ -1459,6 +1554,18 @@ export const TokenPool_Data = {
             $: 'TokenPool_Data',
             ...args
         }
+    },
+    createShallow(args: {
+        adminConfig: c.Cell
+        mirroredPolicy: c.Cell
+        tokenDecimals: uint8
+        remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig>
+        tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig>
+        }): TokenPool_Data_Shallow {
+        return {
+                    $: 'TokenPool_Data',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_Data {
         return {
@@ -1582,6 +1689,17 @@ export const TokenPool_AddRemotePool = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: c.Cell
+        }): TokenPool_AddRemotePool_Shallow {
+        return {
+                    $: 'TokenPool_AddRemotePool',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_AddRemotePool {
         loadAndCheckPrefix32(s, 0x17c242dc, 'TokenPool_AddRemotePool');
         return {
@@ -1649,6 +1767,17 @@ export const TokenPool_RemoveRemotePool = {
         return {
             $: 'TokenPool_RemoveRemotePool',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: c.Cell
+        }): TokenPool_RemoveRemotePool_Shallow {
+        return {
+                    $: 'TokenPool_RemoveRemotePool',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -2089,6 +2218,19 @@ export const TokenPool_LockOrBurn = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        request: c.Cell
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        replyTo: c.Address | null
+        }): TokenPool_LockOrBurn_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurn',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_LockOrBurn {
         loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurn');
         return {
@@ -2169,6 +2311,16 @@ export const TokenPool_LockOrBurnForwardPayload = {
             ...args
         }
     },
+    createShallow(args: {
+        originalSender: c.Address
+        requestMsg: c.Cell
+        prepared: c.Cell
+        }): TokenPool_LockOrBurnForwardPayload_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnForwardPayload',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnForwardPayload {
         return {
             $: 'TokenPool_LockOrBurnForwardPayload',
@@ -2236,6 +2388,19 @@ export const TokenPool_ReleaseOrMint = {
             $: 'TokenPool_ReleaseOrMint',
             replyTo: null,
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        request: c.Cell
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null
+        }): TokenPool_ReleaseOrMint_Shallow {
+        return {
+                    $: 'TokenPool_ReleaseOrMint',
+                    replyTo: null,
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -2310,6 +2475,16 @@ export const TokenPool_PreflightCheckFinished = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell
+        }): TokenPool_PreflightCheckFinished_Shallow {
+        return {
+                    $: 'TokenPool_PreflightCheckFinished',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_PreflightCheckFinished {
         loadAndCheckPrefix32(s, 0x08f2ffb7, 'TokenPool_PreflightCheckFinished');
         return {
@@ -2370,6 +2545,16 @@ export const TokenPool_PreflightCheckFailed = {
         return {
             $: 'TokenPool_PreflightCheckFailed',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell
+        }): TokenPool_PreflightCheckFailed_Shallow {
+        return {
+                    $: 'TokenPool_PreflightCheckFailed',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -2437,6 +2622,16 @@ export const TokenPool_ReleaseOrMintForwardPayload = {
             ...args
         }
     },
+    createShallow(args: {
+        originalSender: c.Address
+        requestMsg: c.Cell
+        prepared: c.Cell
+        }): TokenPool_ReleaseOrMintForwardPayload_Shallow {
+        return {
+                    $: 'TokenPool_ReleaseOrMintForwardPayload',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintForwardPayload {
         return {
             $: 'TokenPool_ReleaseOrMintForwardPayload',
@@ -2500,6 +2695,16 @@ export const TokenPool_PostflightCheckFinished = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell
+        }): TokenPool_PostflightCheckFinished_Shallow {
+        return {
+                    $: 'TokenPool_PostflightCheckFinished',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_PostflightCheckFinished {
         loadAndCheckPrefix32(s, 0x9e2a6b66, 'TokenPool_PostflightCheckFinished');
         return {
@@ -2560,6 +2765,16 @@ export const TokenPool_PostflightCheckFailed = {
         return {
             $: 'TokenPool_PostflightCheckFailed',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell
+        }): TokenPool_PostflightCheckFailed_Shallow {
+        return {
+                    $: 'TokenPool_PostflightCheckFailed',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -2669,6 +2884,17 @@ export const TokenPool_LockOrBurnFinished = {
         return {
             $: 'TokenPool_LockOrBurnFinished',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        out: c.Cell
+        destTokenAmount: coins
+        }): TokenPool_LockOrBurnFinished_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnFinished',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -2782,6 +3008,16 @@ export const TokenPool_ReleaseOrMintFinished = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        out: c.Cell
+        }): TokenPool_ReleaseOrMintFinished_Shallow {
+        return {
+                    $: 'TokenPool_ReleaseOrMintFinished',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFinished {
         loadAndCheckPrefix32(s, 0xe0e882f5, 'TokenPool_ReleaseOrMintFinished');
         return {
@@ -2891,6 +3127,17 @@ export const TokenPool_RemotePoolAddedNotification = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: c.Cell
+        }): TokenPool_RemotePoolAddedNotification_Shallow {
+        return {
+                    $: 'TokenPool_RemotePoolAddedNotification',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_RemotePoolAddedNotification {
         loadAndCheckPrefix32(s, 0x12cc4985, 'TokenPool_RemotePoolAddedNotification');
         return {
@@ -2958,6 +3205,17 @@ export const TokenPool_RemotePoolRemovedNotification = {
         return {
             $: 'TokenPool_RemotePoolRemovedNotification',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        remoteChainSelector: uint64
+        remotePoolAddress: c.Cell
+        }): TokenPool_RemotePoolRemovedNotification_Shallow {
+        return {
+                    $: 'TokenPool_RemotePoolRemovedNotification',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -3359,6 +3617,15 @@ export const TokenPool_ChainAdded = {
             ...args
         }
     },
+    createShallow(args: {
+        remoteChainSelector: uint64
+        remoteTokenAddress: c.Cell
+        }): TokenPool_ChainAdded_Shallow {
+        return {
+                    $: 'TokenPool_ChainAdded',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): TokenPool_ChainAdded {
         return {
             $: 'TokenPool_ChainAdded',
@@ -3705,6 +3972,15 @@ export const TokenPool_TokenTransferFeeConfigUpdated = {
             $: 'TokenPool_TokenTransferFeeConfigUpdated',
             ...args
         }
+    },
+    createShallow(args: {
+        destChainSelector: uint64
+        tokenTransferFeeConfig: c.Cell
+        }): TokenPool_TokenTransferFeeConfigUpdated_Shallow {
+        return {
+                    $: 'TokenPool_TokenTransferFeeConfigUpdated',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_TokenTransferFeeConfigUpdated {
         return {

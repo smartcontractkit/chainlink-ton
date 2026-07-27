@@ -218,6 +218,18 @@ export const JettonDataReply = {
             ...args
         }
     },
+    createShallow(args: {
+        totalSupply: bigint
+        mintable: boolean
+        adminAddress: c.Address | null
+        jettonContent: c.Cell
+        jettonWalletCode: c.Cell
+        }): JettonDataReply_Shallow {
+        return {
+                    $: 'JettonDataReply',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): JettonDataReply {
         throw new Error(`Can't unpack 'JettonDataReply' from cell, because 'JettonDataReply.totalSupply' is 'int' (not int32/uint64/etc.)`);
     },
@@ -593,6 +605,17 @@ export const ResponseWalletAddress = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        jettonWalletAddress: c.Address | null
+        ownerAddress: c.Cell | null
+        }): ResponseWalletAddress_Shallow {
+        return {
+                    $: 'ResponseWalletAddress',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): ResponseWalletAddress {
         loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
         return {
@@ -673,6 +696,18 @@ export const MintNewJettons = {
         return {
             $: 'MintNewJettons',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        mintRecipient: c.Address
+        tonAmount: coins
+        internalTransferMsg: c.Cell
+        }): MintNewJettons_Shallow {
+        return {
+                    $: 'MintNewJettons',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },

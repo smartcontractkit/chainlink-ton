@@ -59,7 +59,7 @@ function getStructBlocks(sourceFile: SourceFile): StructBlock[] {
 
     const init = varDecl.getInitializer()
     if (!init || !Node.isObjectLiteralExpression(init)) continue
-    if (!getObjectMethod(init, 'create')) continue
+    if (!getObjectMethod(init, codecInterface.create)) continue
 
     blocks.push({ name: nameNode.getText(), objectLiteral: init })
   }
@@ -198,7 +198,7 @@ interface SnakedFieldInfo {
 /** Snaked-cell fields declared in a struct's `create(args: { ... })` parameter type. */
 function getSnakedFields(block: ObjectLiteralExpression): Map<string, SnakedFieldInfo> {
   const fields = new Map<string, SnakedFieldInfo>()
-  const createMethod = getObjectMethod(block, 'create')
+  const createMethod = getObjectMethod(block, codecInterface.create)
   const typeNode = createMethod?.getParameters()[0]?.getTypeNode()
   if (!typeNode || !Node.isTypeLiteral(typeNode)) return fields
 
@@ -221,7 +221,7 @@ function transformSnakedStore(
   field: string,
   info: SnakedFieldInfo,
 ): void {
-  const storeMethod = getObjectMethod(block, 'store')
+  const storeMethod = getObjectMethod(block, codecInterface.store)
   if (!storeMethod) return
   const storeExpr = snakeStoreExpr(info.itemType)
 
@@ -255,7 +255,7 @@ function transformSnakedLoad(
   field: string,
   info: SnakedFieldInfo,
 ): void {
-  const fromSliceMethod = getObjectMethod(block, 'fromSlice')
+  const fromSliceMethod = getObjectMethod(block, codecInterface.fromSlice)
   const returnStmt = fromSliceMethod?.getStatements().find(Node.isReturnStatement)
   const obj = returnStmt?.getExpression()
   if (!obj || !Node.isObjectLiteralExpression(obj)) return
@@ -351,6 +351,20 @@ export function transformSnakedCell(sourceFile: SourceFile): void {
 //   handle the cell-ref wrapping internally.
 // ---------------------------------------------------------------------------
 
+const codecInterface = {
+  create: 'create',
+  fromSlice: 'fromSlice',
+  store: 'store',
+  toCell: 'toCell',
+}
+
+const shallowInterface = {
+  create: 'createShallow',
+  fromSlice: 'fromSliceShallow',
+  store: 'storeShallow',
+  toCell: 'toCellShallow',
+}
+
 function transformStoreCellRefHelper(sourceFile: SourceFile): void {
   const fn = sourceFile.getFunction('storeCellRef')
   if (!fn) return
@@ -420,7 +434,7 @@ function removeRefPropertyAccesses(sourceFile: SourceFile): void {
 
 function getCellRefFields(block: ObjectLiteralExpression): CellRefFieldInfo[] {
   const fields: CellRefFieldInfo[] = []
-  const createMethod = getObjectMethod(block, 'create')
+  const createMethod = getObjectMethod(block, codecInterface.create)
   const typeNode = createMethod?.getParameters()[0]?.getTypeNode()
   if (!typeNode || !Node.isTypeLiteral(typeNode)) return fields
 
@@ -502,11 +516,86 @@ function getShallowFieldInitializer(init: Node): string | null {
   return null
 }
 
+function addShallowCreateMethod(sourceFile: SourceFile, info: CellRefStructInfo): void {
+  const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
+  if (!block) return
+
+  const create = getObjectMethod(block.objectLiteral, codecInterface.create)
+  if (!create) return
+
+  const returnStmt = create.getStatements().find(Node.isReturnStatement)
+  const returned = returnStmt?.getExpression()
+  if (!returned || !Node.isObjectLiteralExpression(returned)) return
+
+  const shallowFields = new Set(info.fields.map((f) => f.fieldName))
+  const propLines: string[] = []
+
+  for (const prop of returned.getProperties()) {
+    if (!Node.isPropertyAssignment(prop)) {
+      propLines.push(`            ${prop.getText()}`)
+      continue
+    }
+
+    const fieldName = prop.getName()
+    const init = prop.getInitializer()
+    if (!init || !shallowFields.has(fieldName)) {
+      propLines.push(`            ${fieldName}: ${init?.getText() ?? ''}`)
+      continue
+    }
+
+    const shallowInit = getShallowFieldInitializer(init)
+    propLines.push(`            ${fieldName}: ${shallowInit ?? init.getText()}`)
+  }
+
+  const methodStatements = create.getStatements().map((stmt) => stmt.getText())
+
+  const typeParams = create.getTypeParameters()
+
+  const shallowTypeParams = typeParams.map((tp) => ({
+    name: tp.getName(),
+    constraint: tp.getConstraint()?.getText(),
+    default: tp.getDefault()?.getText(),
+  }))
+
+  const argsParam = create.getParameter('args')
+  if (!argsParam) return
+  const argsType = argsParam.getTypeNode()
+  if (!argsType || !Node.isTypeLiteral(argsType)) return
+  const fieldMap = new Map(info.fields.map((f) => [f.fieldName, f]))
+  const shallowArgMembers = argsType.getMembers().map((member) => {
+    if (!Node.isPropertySignature(member)) return member.getText()
+    const name = member.getName()
+    const fieldInfo = fieldMap.get(name)
+    if (!fieldInfo) return member.getText()
+
+    const typeText = fieldInfo.nullable ? 'c.Cell | null' : 'c.Cell'
+    const readonly = member.hasModifier(ts.SyntaxKind.ReadonlyKeyword) ? 'readonly ' : ''
+    const optional = member.hasQuestionToken() ? '?' : ''
+
+    return `${readonly}${name}${optional}: ${typeText}`
+  })
+
+  const shallowArgType = `{\n${shallowArgMembers.join('\n')}\n}`
+
+  const createIndex = block.objectLiteral
+    .getProperties()
+    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === codecInterface.create)
+  if (createIndex < 0) return
+
+  block.objectLiteral.insertMethod(createIndex + 1, {
+    name: shallowInterface.create,
+    typeParameters: shallowTypeParams,
+    parameters: [{ name: 'args', type: shallowArgType }],
+    returnType: nameShallowObject(info),
+    statements: methodStatements,
+  })
+}
+
 function addShallowFromSliceMethod(sourceFile: SourceFile, info: CellRefStructInfo): void {
   const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
   if (!block) return
 
-  const fromSlice = getObjectMethod(block.objectLiteral, 'fromSlice')
+  const fromSlice = getObjectMethod(block.objectLiteral, codecInterface.fromSlice)
   if (!fromSlice) return
 
   const returnStmt = fromSlice.getStatements().find(Node.isReturnStatement)
@@ -542,11 +631,13 @@ function addShallowFromSliceMethod(sourceFile: SourceFile, info: CellRefStructIn
 
   const fromSliceIndex = block.objectLiteral
     .getProperties()
-    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === 'fromSlice')
+    .findIndex(
+      (prop) => Node.isMethodDeclaration(prop) && prop.getName() === codecInterface.fromSlice,
+    )
   if (fromSliceIndex < 0) return
 
   block.objectLiteral.insertMethod(fromSliceIndex + 1, {
-    name: 'fromSliceShallow',
+    name: shallowInterface.fromSlice,
     parameters: [{ name: 's', type: 'c.Slice' }],
     returnType: nameShallowObject(info),
     statements: methodStatements,
@@ -563,18 +654,18 @@ function addShallowStoreMethod(sourceFile: SourceFile, info: CellRefStructInfo):
   const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
   if (!block) return
 
-  const store = getObjectMethod(block.objectLiteral, 'store')
+  const store = getObjectMethod(block.objectLiteral, codecInterface.store)
   if (!store) return
 
   // Finally, we insert the new storeShallow method after the existing store method.
   const storeIndex = block.objectLiteral
     .getProperties()
-    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === 'store')
+    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === codecInterface.store)
   if (storeIndex < 0) return
 
   const shallowName = nameShallowObject(info)
   block.objectLiteral.insertMethod(storeIndex + 1, {
-    name: 'storeShallow',
+    name: shallowInterface.store,
     parameters: [
       { name: 'self', type: shallowName },
       { name: 'b', type: 'c.Builder' },
@@ -625,17 +716,17 @@ function addShallowToCellMethod(sourceFile: SourceFile, info: CellRefStructInfo)
   const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
   if (!block) return
 
-  const toCell = getObjectMethod(block.objectLiteral, 'toCell')
+  const toCell = getObjectMethod(block.objectLiteral, codecInterface.toCell)
   if (!toCell) return
 
   const toCellIndex = block.objectLiteral
     .getProperties()
-    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === 'toCell')
+    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === codecInterface.toCell)
   if (toCellIndex < 0) return
 
   const shallowName = nameShallowObject(info)
   block.objectLiteral.insertMethod(toCellIndex + 1, {
-    name: 'toCellShallow',
+    name: shallowInterface.toCell,
     parameters: [{ name: 'self', type: shallowName }],
     returnType: 'c.Cell',
     statements: `return makeCellFrom<${shallowName}>(self, ${info.name}.storeShallow);`,
@@ -652,6 +743,7 @@ function addShallowCellRefVariants(sourceFile: SourceFile, infos: CellRefStructI
   }
 
   for (const info of infos) {
+    addShallowCreateMethod(sourceFile, info)
     addShallowFromSliceMethod(sourceFile, info)
     addShallowStoreMethod(sourceFile, info)
     addShallowToCellMethod(sourceFile, info)
@@ -724,27 +816,29 @@ function makeQueryIdFieldsOptional(sourceFile: SourceFile): void {
 /** In every struct's create(), default the omitted queryId/queryID to 0n after the `...args` spread. */
 function addQueryIdCreateDefaults(sourceFile: SourceFile): void {
   for (const block of getStructBlocks(sourceFile)) {
-    const createMethod = getObjectMethod(block.objectLiteral, 'create')
-    const typeNode = createMethod?.getParameters()[0]?.getTypeNode()
-    if (!typeNode || !Node.isTypeLiteral(typeNode)) continue
+    for (const methodName of [codecInterface.create, shallowInterface.create]) {
+      const createMethod = getObjectMethod(block.objectLiteral, methodName)
+      const typeNode = createMethod?.getParameters()[0]?.getTypeNode()
+      if (!typeNode || !Node.isTypeLiteral(typeNode)) continue
 
-    const field = typeNode
-      .getMembers()
-      .find((m) => Node.isPropertySignature(m) && QUERY_ID_NAMES.has(m.getName()))
-    if (!field || !Node.isPropertySignature(field)) continue
-    const fieldName = field.getName()
+      const field = typeNode
+        .getMembers()
+        .find((m) => Node.isPropertySignature(m) && QUERY_ID_NAMES.has(m.getName()))
+      if (!field || !Node.isPropertySignature(field)) continue
+      const fieldName = field.getName()
 
-    const returnStmt = createMethod!.getStatements().find(Node.isReturnStatement)
-    const obj = returnStmt?.getExpression()
-    if (!obj || !Node.isObjectLiteralExpression(obj)) continue
-    if (obj.getProperty(fieldName)) continue
+      const returnStmt = createMethod!.getStatements().find(Node.isReturnStatement)
+      const obj = returnStmt?.getExpression()
+      if (!obj || !Node.isObjectLiteralExpression(obj)) continue
+      if (obj.getProperty(fieldName)) continue
 
-    const hasSpreadArgs = obj
-      .getProperties()
-      .some((p) => Node.isSpreadAssignment(p) && p.getExpression().getText() === 'args')
-    if (!hasSpreadArgs) continue
+      const hasSpreadArgs = obj
+        .getProperties()
+        .some((p) => Node.isSpreadAssignment(p) && p.getExpression().getText() === 'args')
+      if (!hasSpreadArgs) continue
 
-    obj.addPropertyAssignment({ name: fieldName, initializer: `args.${fieldName} ?? 0n` })
+      obj.addPropertyAssignment({ name: fieldName, initializer: `args.${fieldName} ?? 0n` })
+    }
   }
 }
 

@@ -914,6 +914,16 @@ export const OCR3Base = {
             ...args
         }
     },
+    createShallow(args: {
+        chainId: uint8
+        commit: c.Cell | null
+        execute: c.Cell | null
+        }): OCR3Base_Shallow {
+        return {
+                    $: 'OCR3Base',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OCR3Base {
         return {
             $: 'OCR3Base',
@@ -1432,6 +1442,17 @@ export const MerkleRoot_Validate = {
             ...args
         }
     },
+    createShallow(args: {
+        message: c.Cell
+        permissionlessExecutionThresholdSeconds: uint32
+        metadataHash: uint256
+        gasOverride: coins | null
+        }): MerkleRoot_Validate_Shallow {
+        return {
+                    $: 'MerkleRoot_Validate',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
         return {
@@ -1714,6 +1735,17 @@ export const Router_RouteMessage = {
             ...args
         }
     },
+    createShallow(args: {
+        message: c.Cell
+        execId: ReceiveExecutorId
+        receiver: c.Address
+        gasLimit: coins
+        }): Router_RouteMessage_Shallow {
+        return {
+                    $: 'Router_RouteMessage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Router_RouteMessage {
         loadAndCheckPrefix32(s, 0xfc69c50b, 'Router_RouteMessage');
         return {
@@ -1893,6 +1925,18 @@ export const OffRamp_ExecuteValidated = {
             $: 'OffRamp_ExecuteValidated',
             ...args
         }
+    },
+    createShallow(args: {
+        message: c.Cell
+        root: MerkleRootId
+        metadataHash: uint256
+        gasOverride: coins | null
+        executionState: ExecutionState
+        }): OffRamp_ExecuteValidated_Shallow {
+        return {
+                    $: 'OffRamp_ExecuteValidated',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
@@ -2103,6 +2147,16 @@ export const OffRamp_DispatchValidated = {
             $: 'OffRamp_DispatchValidated',
             ...args
         }
+    },
+    createShallow(args: {
+        message: c.Cell
+        execId: uint192
+        gasOverride: coins | null
+        }): OffRamp_DispatchValidated_Shallow {
+        return {
+                    $: 'OffRamp_DispatchValidated',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): OffRamp_DispatchValidated {
         loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');
@@ -2541,6 +2595,16 @@ export const CommitReport = {
             ...args
         }
     },
+    createShallow(args: {
+        priceUpdates?: c.Cell | null
+        merkleRoots: SnakedCell<MerkleRoot>
+        }): CommitReport_Shallow {
+        return {
+                    $: 'CommitReport',
+                    priceUpdates: null,
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): CommitReport {
         return {
             $: 'CommitReport',
@@ -2609,6 +2673,18 @@ export const Any2TVMMessageV1Metadata = {
             _header: 94125445462166101730960845378898357591674356293939125390047719859241158747070n,
             ...args
         }
+    },
+    createShallow(args: {
+        _header?: uint256
+        sourceChainSelector: uint64
+        destChainSelector: uint64
+        onRamp: c.Cell
+        }): Any2TVMMessageV1Metadata_Shallow {
+        return {
+                    $: 'Any2TVMMessageV1Metadata',
+                    _header: 94125445462166101730960845378898357591674356293939125390047719859241158747070n,
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Any2TVMMessageV1Metadata {
         return {
@@ -2825,6 +2901,19 @@ export const Any2TVMRampMessage = {
             ...args
         }
     },
+    createShallow(args: {
+        header: RampMessageHeader
+        sender: c.Cell
+        data: c.Cell
+        receiver: c.Address
+        gasLimit: coins
+        tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+        }): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Any2TVMRampMessage {
         return {
             $: 'Any2TVMRampMessage',
@@ -2910,6 +2999,20 @@ export const Any2TVMRampMessageIDData = {
             _leafDomainSeparator: new c.Slice(new c.BitReader(new c.BitString(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0, 256)), []),
             ...args
         }
+    },
+    createShallow(args: {
+        _leafDomainSeparator?: bits256
+        metadataHash: uint256
+        metadata: c.Cell
+        sender: c.Cell
+        data: c.Cell
+        tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+        }): Any2TVMRampMessageIDData_Shallow {
+        return {
+                    $: 'Any2TVMRampMessageIDData',
+                    _leafDomainSeparator: new c.Slice(new c.BitReader(new c.BitString(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0, 256)), []),
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Any2TVMRampMessageIDData {
         return {
@@ -3097,6 +3200,18 @@ export const Any2TVMTokenTransfer = {
             $: 'Any2TVMTokenTransfer',
             ...args
         }
+    },
+    createShallow(args: {
+        sourcePoolAddress: c.Cell
+        destPoolAddress: c.Address
+        destGasAmount: uint32
+        extraData: c.Cell
+        amount: uint256
+        }): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Any2TVMTokenTransfer {
         return {
@@ -3296,6 +3411,24 @@ export const Storage = {
             ...args
         }
     },
+    createShallow(args: {
+        id: uint32
+        ownable: Ownable2Step
+        deployables: c.Cell
+        feeQuoter: c.Address
+        ocr3Base: c.Cell
+        cursedSubjects: CursedSubjects
+        chainSelector: uint64
+        permissionlessExecutionThresholdSeconds: uint32
+        sourceChainConfigs: Map<uint64, SourceChainConfig>
+        latestPriceSequenceNumber?: uint64
+        }): Storage_Shallow {
+        return {
+                    $: 'Storage',
+                    latestPriceSequenceNumber: 0n,
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Storage {
         return {
             $: 'Storage',
@@ -3431,6 +3564,15 @@ export const CommitReportAccepted = {
             $: 'CommitReportAccepted',
             ...args
         }
+    },
+    createShallow(args: {
+        merkleRoot: MerkleRoot | null
+        priceUpdates: c.Cell | null
+        }): CommitReportAccepted_Shallow {
+        return {
+                    $: 'CommitReportAccepted',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): CommitReportAccepted {
         return {

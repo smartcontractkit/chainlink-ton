@@ -507,6 +507,20 @@ export const JettonLockBox_Withdraw = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        token: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        recipientWallet: c.Address
+        extra: c.Cell | null
+        }): JettonLockBox_Withdraw_Shallow {
+        return {
+                    $: 'JettonLockBox_Withdraw',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): JettonLockBox_Withdraw {
         loadAndCheckPrefix32(s, 0xd065c306, 'JettonLockBox_Withdraw');
         return {

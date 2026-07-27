@@ -171,6 +171,17 @@ export const TokenPool_LockOrBurnFinished = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        out: c.Cell
+        destTokenAmount: coins
+        }): TokenPool_LockOrBurnFinished_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnFinished',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
         loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
         return {
@@ -234,6 +245,15 @@ export const TokenPool_LockOrBurnOutV1 = {
             $: 'TokenPool_LockOrBurnOutV1',
             ...args
         }
+    },
+    createShallow(args: {
+        destTokenAddress: c.Cell
+        destPoolData: c.Cell
+        }): TokenPool_LockOrBurnOutV1_Shallow {
+        return {
+                    $: 'TokenPool_LockOrBurnOutV1',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnOutV1 {
         return {

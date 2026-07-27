@@ -918,6 +918,16 @@ export const OnRamp_Send = {
             ...args
         }
     },
+    createShallow(args: {
+        msg: c.Cell
+        metadata: Metadata
+        tokenRegistry: c.Address | null
+        }): OnRamp_Send_Shallow {
+        return {
+                    $: 'OnRamp_Send',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): OnRamp_Send {
         loadAndCheckPrefix32(s, 0xdcf993c2, 'OnRamp_Send');
         return {
@@ -984,6 +994,15 @@ export const OnRamp_GetValidatedFee = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        ccipSend: c.Cell
+        context: T
+        }): OnRamp_GetValidatedFee_Shallow<T> {
+        return {
+                    $: 'OnRamp_GetValidatedFee',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1017,6 +1036,16 @@ export const OnRamp_MessageValidated = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        fee: coins
+        msg: c.Cell
+        context: T
+        }): OnRamp_MessageValidated_Shallow<T> {
+        return {
+                    $: 'OnRamp_MessageValidated',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1050,6 +1079,16 @@ export const OnRamp_MessageValidationFailed = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        error: uint256
+        msg: c.Cell
+        context: T
+        }): OnRamp_MessageValidationFailed_Shallow<T> {
+        return {
+                    $: 'OnRamp_MessageValidationFailed',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -1642,6 +1681,21 @@ export const Router_CCIPSend = {
             queryID: args.queryID ?? 0n
         }
     },
+    createShallow(args: {
+        queryID?: uint64
+        destChainSelector: uint64
+        receiver: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address | null
+        extraArgs: c.Cell
+        }): Router_CCIPSend_Shallow {
+        return {
+                    $: 'Router_CCIPSend',
+                    ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
@@ -1746,6 +1800,17 @@ export const Router_RouteMessage = {
             $: 'Router_RouteMessage',
             ...args
         }
+    },
+    createShallow(args: {
+        message: c.Cell
+        execId: ReceiveExecutorId
+        receiver: c.Address
+        gasLimit: coins
+        }): Router_RouteMessage_Shallow {
+        return {
+                    $: 'Router_RouteMessage',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Router_RouteMessage {
         loadAndCheckPrefix32(s, 0xfc69c50b, 'Router_RouteMessage');
@@ -2255,6 +2320,15 @@ export const Router_GetValidatedFee = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        ccipSend: c.Cell
+        context: T
+        }): Router_GetValidatedFee_Shallow<T> {
+        return {
+                    $: 'Router_GetValidatedFee',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -2453,6 +2527,16 @@ export const Router_MessageValidated = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        fee: coins
+        msg: c.Cell
+        context: RemainingBitsOrRef<T>
+        }): Router_MessageValidated_Shallow<T> {
+        return {
+                    $: 'Router_MessageValidated',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -2514,6 +2598,16 @@ export const Router_MessageValidationFailed = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        error: uint256
+        msg: c.Cell
+        context: RemainingBitsOrRef<T>
+        }): Router_MessageValidationFailed_Shallow<T> {
+        return {
+                    $: 'Router_MessageValidationFailed',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -2609,6 +2703,20 @@ export const Storage = {
             $: 'Storage',
             ...args
         }
+    },
+    createShallow(args: {
+        id: uint32
+        ownable: Ownable2Step
+        wrappedNative: c.Address
+        onRamps: Map<uint64, c.Address>
+        offRamps: Map<uint64, c.Address>
+        rmnRemote: c.Cell
+        tokenRegistryDeployment: c.Cell
+        }): Storage_Shallow {
+        return {
+                    $: 'Storage',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): Storage {
         return {

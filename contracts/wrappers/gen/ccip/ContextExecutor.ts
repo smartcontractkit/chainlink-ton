@@ -257,6 +257,17 @@ export const ContextExecutor_Set = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow<T>(args: {
+        queryId?: uint64
+        context: c.Cell
+        forwardFrom: array<c.Address>
+        }): ContextExecutor_Set_Shallow<T> {
+        return {
+                    $: 'ContextExecutor_Set',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    }
 }
 
 /**
@@ -348,6 +359,20 @@ export const ContextExecutor_Reply = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow<T>(args: {
+        queryId?: uint64
+        id: uint64
+        context: c.Cell
+        forwardFrom: array<c.Address>
+        forwardPayload: c.Cell
+        done: boolean
+        }): ContextExecutor_Reply_Shallow<T> {
+        return {
+                    $: 'ContextExecutor_Reply',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    }
 }
 
 /**
@@ -385,6 +410,17 @@ export const ContextExecutor_ForwardNotification = {
             ...args
         }
     },
+    createShallow<T>(args: {
+        id: uint64
+        context: c.Cell
+        forwardFrom: array<c.Address>
+        message: c.Cell
+        }): ContextExecutor_ForwardNotification_Shallow<T> {
+        return {
+                    $: 'ContextExecutor_ForwardNotification',
+                    ...args
+                }
+    }
 }
 
 /**
@@ -419,6 +455,17 @@ export const ContextExecutor_Data = {
             ...args
         }
     },
+    createShallow<C>(args: {
+        id: uint64
+        owner: c.Address
+        context: c.Cell
+        forwardFrom: array<c.Address>
+        }): ContextExecutor_Data_Shallow<C> {
+        return {
+                    $: 'ContextExecutor_Data',
+                    ...args
+                }
+    }
 }
 
 /**

@@ -262,6 +262,17 @@ export const MCMS_Execute = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        op: c.Cell
+        proof: SnakedCell<uint256>
+        }): MCMS_Execute_Shallow {
+        return {
+                    $: 'MCMS_Execute',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): MCMS_Execute {
         loadAndCheckPrefix32(s, 0x9b9ce96a, 'MCMS_Execute');
         return {
@@ -444,6 +455,20 @@ export const MCMS_SubmitErrorReport = {
         return {
             $: 'MCMS_SubmitErrorReport',
             ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    createShallow(args: {
+        queryId?: uint64
+        op: c.Cell
+        proof: SnakedCell<uint256>
+        opTxHash: uint256
+        errorTxHash: uint256
+        errorCode: uint32
+        }): MCMS_SubmitErrorReport_Shallow {
+        return {
+                    $: 'MCMS_SubmitErrorReport',
+                    ...args,
             queryId: args.queryId ?? 0n
         }
     },
@@ -834,6 +859,21 @@ export const MCMS_ErrorReportSubmitted = {
             queryId: args.queryId ?? 0n
         }
     },
+    createShallow(args: {
+        queryId?: uint64
+        opLeafHash: uint256
+        opTxHash: uint256
+        errorTxHash: uint256
+        errorCode: uint32
+        root: c.Cell
+        matchesPendingOp: boolean
+        }): MCMS_ErrorReportSubmitted_Shallow {
+        return {
+                    $: 'MCMS_ErrorReportSubmitted',
+                    ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
     fromSlice(s: c.Slice): MCMS_ErrorReportSubmitted {
         loadAndCheckPrefix32(s, 0xbbc4deb4, 'MCMS_ErrorReportSubmitted');
         return {
@@ -1087,6 +1127,20 @@ export const MCMS_Data = {
             ...args
         }
     },
+    createShallow(args: {
+        id: uint32
+        ownable: Ownable2Step
+        oracle: c.Address
+        signers: Map<uint160, Signer>
+        config: c.Cell
+        seenSignedHashes: Map<uint256, boolean>
+        rootInfo: c.Cell
+        }): MCMS_Data_Shallow {
+        return {
+                    $: 'MCMS_Data',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): MCMS_Data {
         return {
             $: 'MCMS_Data',
@@ -1292,6 +1346,17 @@ export const ExpiringRootAndOpCount = {
             $: 'ExpiringRootAndOpCount',
             ...args
         }
+    },
+    createShallow(args: {
+        root: uint256
+        validUntil: uint64
+        opCount: uint40
+        opPendingInfo: c.Cell
+        }): ExpiringRootAndOpCount_Shallow {
+        return {
+                    $: 'ExpiringRootAndOpCount',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): ExpiringRootAndOpCount {
         return {

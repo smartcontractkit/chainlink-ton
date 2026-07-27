@@ -314,6 +314,19 @@ export const Any2TVMRampMessage = {
             ...args
         }
     },
+    createShallow(args: {
+        header: RampMessageHeader
+        sender: c.Cell
+        data: c.Cell
+        receiver: c.Address
+        gasLimit: coins
+        tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+        }): Any2TVMRampMessage_Shallow {
+        return {
+                    $: 'Any2TVMRampMessage',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Any2TVMRampMessage {
         return {
             $: 'Any2TVMRampMessage',
@@ -395,6 +408,18 @@ export const Any2TVMTokenTransfer = {
             ...args
         }
     },
+    createShallow(args: {
+        sourcePoolAddress: c.Cell
+        destPoolAddress: c.Address
+        destGasAmount: uint32
+        extraData: c.Cell
+        amount: uint256
+        }): Any2TVMTokenTransfer_Shallow {
+        return {
+                    $: 'Any2TVMTokenTransfer',
+                    ...args
+                }
+    },
     fromSlice(s: c.Slice): Any2TVMTokenTransfer {
         return {
             $: 'Any2TVMTokenTransfer',
@@ -468,6 +493,17 @@ export const TVM2AnyRampMessage = {
             $: 'TVM2AnyRampMessage',
             ...args
         }
+    },
+    createShallow(args: {
+        header: RampMessageHeader
+        sender: c.Address
+        body: c.Cell
+        feeValueJuels: uint96
+        }): TVM2AnyRampMessage_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessage',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TVM2AnyRampMessage {
         return {
@@ -544,6 +580,19 @@ export const TVM2AnyRampMessageBody = {
             $: 'TVM2AnyRampMessageBody',
             ...args
         }
+    },
+    createShallow(args: {
+        receiver: c.Cell
+        data: c.Cell
+        extraArgs: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address
+        feeTokenAmount: coins
+        }): TVM2AnyRampMessageBody_Shallow {
+        return {
+                    $: 'TVM2AnyRampMessageBody',
+                    ...args
+                }
     },
     fromSlice(s: c.Slice): TVM2AnyRampMessageBody {
         return {
