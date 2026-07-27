@@ -311,8 +311,21 @@ export const Router_CCIPSend = {
             } }
         );
     },
+    storeShallow(self: Router_CCIPSend_Shallow, b: c.Builder): void {
+        b.storeUint(0x31768d95, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.destChainSelector, 64);
+        CrossChainAddress.store(self.receiver, b);
+        b.storeRef(self.data);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        b.storeRef(self.extraArgs);
+    },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    },
+    toCellShallow(self: Router_CCIPSend_Shallow): c.Cell {
+        return makeCellFrom<Router_CCIPSend_Shallow>(self, Router_CCIPSend.storeShallow);
     }
 }
 
@@ -371,8 +384,17 @@ export const OnRamp_Send = {
         Metadata.store(self.metadata, b);
         b.storeAddress(self.tokenRegistry);
     },
+    storeShallow(self: OnRamp_Send_Shallow, b: c.Builder): void {
+        b.storeUint(0xdcf993c2, 32);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+        b.storeAddress(self.tokenRegistry);
+    },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
+    },
+    toCellShallow(self: OnRamp_Send_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_Send_Shallow>(self, OnRamp_Send.storeShallow);
     }
 }
 
@@ -489,8 +511,18 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
     },
+    storeShallow(self: OnRamp_ExecutorFinishedSuccessfully_Shallow, b: c.Builder): void {
+        b.storeUint(0xcfa6b336, 32);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+        Fee.store(self.fee, b);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+    },
     toCell(self: OnRamp_ExecutorFinishedSuccessfully): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFinishedSuccessfully>(self, OnRamp_ExecutorFinishedSuccessfully.store);
+    },
+    toCellShallow(self: OnRamp_ExecutorFinishedSuccessfully_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorFinishedSuccessfully_Shallow>(self, OnRamp_ExecutorFinishedSuccessfully.storeShallow);
     }
 }
 
@@ -555,8 +587,18 @@ export const OnRamp_ExecutorFinishedWithError = {
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
     },
+    storeShallow(self: OnRamp_ExecutorFinishedWithError_Shallow, b: c.Builder): void {
+        b.storeUint(0xc4068e21, 32);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+        b.storeUint(self.error, 256);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+    },
     toCell(self: OnRamp_ExecutorFinishedWithError): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFinishedWithError>(self, OnRamp_ExecutorFinishedWithError.store);
+    },
+    toCellShallow(self: OnRamp_ExecutorFinishedWithError_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorFinishedWithError_Shallow>(self, OnRamp_ExecutorFinishedWithError.storeShallow);
     }
 }
 
@@ -822,8 +864,17 @@ export const TokenPool_LockOrBurnFinished = {
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
         b.storeCoins(self.destTokenAmount);
     },
+    storeShallow(self: TokenPool_LockOrBurnFinished_Shallow, b: c.Builder): void {
+        b.storeUint(0xf432a4e3, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.out);
+        b.storeCoins(self.destTokenAmount);
+    },
     toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
+    },
+    toCellShallow(self: TokenPool_LockOrBurnFinished_Shallow): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFinished_Shallow>(self, TokenPool_LockOrBurnFinished.storeShallow);
     }
 }
 
@@ -938,8 +989,17 @@ export const CCIPSendExecutor_Data = {
         storeCellRef<CCIPSendExecutor_Addresses>(self.addresses, b, CCIPSendExecutor_Addresses.store);
         CCIPSendExecutor_State.store(self.state, b);
     },
+    storeShallow(self: CCIPSendExecutor_Data_Shallow, b: c.Builder): void {
+        CCIPSendExecutor_ID.store(self.id, b);
+        OnRamp_Send.store(self.onrampSend, b);
+        b.storeRef(self.addresses);
+        CCIPSendExecutor_State.store(self.state, b);
+    },
     toCell(self: CCIPSendExecutor_Data): c.Cell {
         return makeCellFrom<CCIPSendExecutor_Data>(self, CCIPSendExecutor_Data.store);
+    },
+    toCellShallow(self: CCIPSendExecutor_Data_Shallow): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_Data_Shallow>(self, CCIPSendExecutor_Data.storeShallow);
     }
 }
 
@@ -1265,8 +1325,16 @@ export const CCIPSendExecutor_Execute = {
         OnRamp_Send.store(self.onrampSend, b);
         storeCellRef<CCIPSendExecutor_Config>(self.config, b, CCIPSendExecutor_Config.store);
     },
+    storeShallow(self: CCIPSendExecutor_Execute_Shallow, b: c.Builder): void {
+        b.storeUint(0xaf3c62b3, 32);
+        OnRamp_Send.store(self.onrampSend, b);
+        b.storeRef(self.config);
+    },
     toCell(self: CCIPSendExecutor_Execute): c.Cell {
         return makeCellFrom<CCIPSendExecutor_Execute>(self, CCIPSendExecutor_Execute.store);
+    },
+    toCellShallow(self: CCIPSendExecutor_Execute_Shallow): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_Execute_Shallow>(self, CCIPSendExecutor_Execute.storeShallow);
     }
 }
 
@@ -1560,8 +1628,15 @@ export const TokenPool_LockOrBurnOutV1 = {
         storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
         b.storeRef(self.destPoolData);
     },
+    storeShallow(self: TokenPool_LockOrBurnOutV1_Shallow, b: c.Builder): void {
+        b.storeRef(self.destTokenAddress);
+        b.storeRef(self.destPoolData);
+    },
     toCell(self: TokenPool_LockOrBurnOutV1): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnOutV1>(self, TokenPool_LockOrBurnOutV1.store);
+    },
+    toCellShallow(self: TokenPool_LockOrBurnOutV1_Shallow): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnOutV1_Shallow>(self, TokenPool_LockOrBurnOutV1.storeShallow);
     }
 }
 

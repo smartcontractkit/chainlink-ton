@@ -195,8 +195,17 @@ export const TokenPool_LockOrBurnFinished = {
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
         b.storeCoins(self.destTokenAmount);
     },
+    storeShallow(self: TokenPool_LockOrBurnFinished_Shallow, b: c.Builder): void {
+        b.storeUint(0xf432a4e3, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.out);
+        b.storeCoins(self.destTokenAmount);
+    },
     toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
+    },
+    toCellShallow(self: TokenPool_LockOrBurnFinished_Shallow): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFinished_Shallow>(self, TokenPool_LockOrBurnFinished.storeShallow);
     }
 }
 
@@ -244,8 +253,15 @@ export const TokenPool_LockOrBurnOutV1 = {
         storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
         b.storeRef(self.destPoolData);
     },
+    storeShallow(self: TokenPool_LockOrBurnOutV1_Shallow, b: c.Builder): void {
+        b.storeRef(self.destTokenAddress);
+        b.storeRef(self.destPoolData);
+    },
     toCell(self: TokenPool_LockOrBurnOutV1): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnOutV1>(self, TokenPool_LockOrBurnOutV1.store);
+    },
+    toCellShallow(self: TokenPool_LockOrBurnOutV1_Shallow): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnOutV1_Shallow>(self, TokenPool_LockOrBurnOutV1.storeShallow);
     }
 }
 

@@ -542,8 +542,24 @@ export const JettonLockBox_Withdraw = {
             (v,b) => storeCellRef<JettonLockBox_WithdrawExtra>(v, b, JettonLockBox_WithdrawExtra.store)
         );
     },
+    storeShallow(self: JettonLockBox_Withdraw_Shallow, b: c.Builder): void {
+        b.storeUint(0xd065c306, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeCoins(self.amount);
+        b.storeAddress(self.recipientWallet);
+        storeTolkNullable<c.Cell>(self.extra, b,
+            (v,b) => { storeCellRef<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+    },
     toCell(self: JettonLockBox_Withdraw): c.Cell {
         return makeCellFrom<JettonLockBox_Withdraw>(self, JettonLockBox_Withdraw.store);
+    },
+    toCellShallow(self: JettonLockBox_Withdraw_Shallow): c.Cell {
+        return makeCellFrom<JettonLockBox_Withdraw_Shallow>(self, JettonLockBox_Withdraw.storeShallow);
     }
 }
 

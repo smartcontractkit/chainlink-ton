@@ -942,8 +942,17 @@ export const OnRamp_Send = {
         Metadata.store(self.metadata, b);
         b.storeAddress(self.tokenRegistry);
     },
+    storeShallow(self: OnRamp_Send_Shallow, b: c.Builder): void {
+        b.storeUint(0xdcf993c2, 32);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+        b.storeAddress(self.tokenRegistry);
+    },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
+    },
+    toCellShallow(self: OnRamp_Send_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_Send_Shallow>(self, OnRamp_Send.storeShallow);
     }
 }
 
@@ -1686,8 +1695,21 @@ export const Router_CCIPSend = {
             } }
         );
     },
+    storeShallow(self: Router_CCIPSend_Shallow, b: c.Builder): void {
+        b.storeUint(0x31768d95, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.destChainSelector, 64);
+        CrossChainAddress.store(self.receiver, b);
+        b.storeRef(self.data);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        b.storeRef(self.extraArgs);
+    },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    },
+    toCellShallow(self: Router_CCIPSend_Shallow): c.Cell {
+        return makeCellFrom<Router_CCIPSend_Shallow>(self, Router_CCIPSend.storeShallow);
     }
 }
 
@@ -1752,8 +1774,18 @@ export const Router_RouteMessage = {
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
     },
+    storeShallow(self: Router_RouteMessage_Shallow, b: c.Builder): void {
+        b.storeUint(0xfc69c50b, 32);
+        b.storeRef(self.message);
+        ReceiveExecutorId.store(self.execId, b);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.gasLimit);
+    },
     toCell(self: Router_RouteMessage): c.Cell {
         return makeCellFrom<Router_RouteMessage>(self, Router_RouteMessage.store);
+    },
+    toCellShallow(self: Router_RouteMessage_Shallow): c.Cell {
+        return makeCellFrom<Router_RouteMessage_Shallow>(self, Router_RouteMessage.storeShallow);
     }
 }
 
@@ -2635,8 +2667,32 @@ export const Storage = {
         storeCellRef<RMNRemote>(self.rmnRemote, b, RMNRemote.store);
         storeCellRef<Router_TokenRegistryDeployment>(self.tokenRegistryDeployment, b, Router_TokenRegistryDeployment.store);
     },
+    storeShallow(self: Storage_Shallow, b: c.Builder): void {
+        b.storeUint(self.id, 32);
+        Ownable2Step.store(self.ownable, b);
+        b.storeAddress(self.wrappedNative);
+        b.storeDict<uint64, c.Address>(mapToDict(self.onRamps, c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                                (s) => s.loadAddress(),
+                                (v,b) => b.storeAddress(v)
+                            )), c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                    (s) => s.loadAddress(),
+                    (v,b) => b.storeAddress(v)
+                ));
+        b.storeDict<uint64, c.Address>(mapToDict(self.offRamps, c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                                (s) => s.loadAddress(),
+                                (v,b) => b.storeAddress(v)
+                            )), c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
+                    (s) => s.loadAddress(),
+                    (v,b) => b.storeAddress(v)
+                ));
+        b.storeRef(self.rmnRemote);
+        b.storeRef(self.tokenRegistryDeployment);
+    },
     toCell(self: Storage): c.Cell {
         return makeCellFrom<Storage>(self, Storage.store);
+    },
+    toCellShallow(self: Storage_Shallow): c.Cell {
+        return makeCellFrom<Storage_Shallow>(self, Storage.storeShallow);
     }
 }
 

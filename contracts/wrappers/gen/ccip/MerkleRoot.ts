@@ -259,8 +259,21 @@ export const OffRamp_ExecuteValidated = {
         );
         ExecutionState.store(self.executionState, b);
     },
+    storeShallow(self: OffRamp_ExecuteValidated_Shallow, b: c.Builder): void {
+        b.storeUint(0xc73d5a8a, 32);
+        b.storeRef(self.message);
+        MerkleRootId.store(self.root, b);
+        b.storeUint(self.metadataHash, 256);
+        storeTolkNullable<coins>(self.gasOverride, b,
+                    (v,b) => b.storeCoins(v)
+                );
+        ExecutionState.store(self.executionState, b);
+    },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
+    },
+    toCellShallow(self: OffRamp_ExecuteValidated_Shallow): c.Cell {
+        return makeCellFrom<OffRamp_ExecuteValidated_Shallow>(self, OffRamp_ExecuteValidated.storeShallow);
     }
 }
 
@@ -332,8 +345,19 @@ export const Any2TVMRampMessage = {
         b.storeCoins(self.gasLimit);
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
+    storeShallow(self: Any2TVMRampMessage_Shallow, b: c.Builder): void {
+        RampMessageHeader.store(self.header, b);
+        b.storeRef(self.sender);
+        b.storeRef(self.data);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.gasLimit);
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
+    },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
+    },
+    toCellShallow(self: Any2TVMRampMessage_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMRampMessage_Shallow>(self, Any2TVMRampMessage.storeShallow);
     }
 }
 
@@ -399,8 +423,18 @@ export const Any2TVMTokenTransfer = {
         b.storeRef(self.extraData);
         b.storeUint(self.amount, 256);
     },
+    storeShallow(self: Any2TVMTokenTransfer_Shallow, b: c.Builder): void {
+        b.storeRef(self.sourcePoolAddress);
+        b.storeAddress(self.destPoolAddress);
+        b.storeUint(self.destGasAmount, 32);
+        b.storeRef(self.extraData);
+        b.storeUint(self.amount, 256);
+    },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
         return makeCellFrom<Any2TVMTokenTransfer>(self, Any2TVMTokenTransfer.store);
+    },
+    toCellShallow(self: Any2TVMTokenTransfer_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMTokenTransfer_Shallow>(self, Any2TVMTokenTransfer.storeShallow);
     }
 }
 
@@ -506,8 +540,20 @@ export const MerkleRoot_Validate = {
             (v,b) => b.storeCoins(v)
         );
     },
+    storeShallow(self: MerkleRoot_Validate_Shallow, b: c.Builder): void {
+        b.storeUint(0x038ede91, 32);
+        b.storeRef(self.message);
+        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        b.storeUint(self.metadataHash, 256);
+        storeTolkNullable<coins>(self.gasOverride, b,
+                    (v,b) => b.storeCoins(v)
+                );
+    },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
+    },
+    toCellShallow(self: MerkleRoot_Validate_Shallow): c.Cell {
+        return makeCellFrom<MerkleRoot_Validate_Shallow>(self, MerkleRoot_Validate.storeShallow);
     }
 }
 

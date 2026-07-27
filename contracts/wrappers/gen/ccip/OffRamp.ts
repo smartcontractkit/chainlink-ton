@@ -939,8 +939,24 @@ export const OCR3Base = {
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
     },
+    storeShallow(self: OCR3Base_Shallow, b: c.Builder): void {
+        b.storeUint(self.chainId, 8);
+        storeTolkNullable<c.Cell>(self.commit, b,
+            (v,b) => { storeCellRef<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+        storeTolkNullable<c.Cell>(self.execute, b,
+            (v,b) => { storeCellRef<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+    },
     toCell(self: OCR3Base): c.Cell {
         return makeCellFrom<OCR3Base>(self, OCR3Base.store);
+    },
+    toCellShallow(self: OCR3Base_Shallow): c.Cell {
+        return makeCellFrom<OCR3Base_Shallow>(self, OCR3Base.storeShallow);
     }
 }
 
@@ -1445,8 +1461,20 @@ export const MerkleRoot_Validate = {
             (v,b) => b.storeCoins(v)
         );
     },
+    storeShallow(self: MerkleRoot_Validate_Shallow, b: c.Builder): void {
+        b.storeUint(0x038ede91, 32);
+        b.storeRef(self.message);
+        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        b.storeUint(self.metadataHash, 256);
+        storeTolkNullable<coins>(self.gasOverride, b,
+                    (v,b) => b.storeCoins(v)
+                );
+    },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
+    },
+    toCellShallow(self: MerkleRoot_Validate_Shallow): c.Cell {
+        return makeCellFrom<MerkleRoot_Validate_Shallow>(self, MerkleRoot_Validate.storeShallow);
     }
 }
 
@@ -1713,8 +1741,18 @@ export const Router_RouteMessage = {
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
     },
+    storeShallow(self: Router_RouteMessage_Shallow, b: c.Builder): void {
+        b.storeUint(0xfc69c50b, 32);
+        b.storeRef(self.message);
+        ReceiveExecutorId.store(self.execId, b);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.gasLimit);
+    },
     toCell(self: Router_RouteMessage): c.Cell {
         return makeCellFrom<Router_RouteMessage>(self, Router_RouteMessage.store);
+    },
+    toCellShallow(self: Router_RouteMessage_Shallow): c.Cell {
+        return makeCellFrom<Router_RouteMessage_Shallow>(self, Router_RouteMessage.storeShallow);
     }
 }
 
@@ -1888,8 +1926,21 @@ export const OffRamp_ExecuteValidated = {
         );
         ExecutionState.store(self.executionState, b);
     },
+    storeShallow(self: OffRamp_ExecuteValidated_Shallow, b: c.Builder): void {
+        b.storeUint(0xc73d5a8a, 32);
+        b.storeRef(self.message);
+        MerkleRootId.store(self.root, b);
+        b.storeUint(self.metadataHash, 256);
+        storeTolkNullable<coins>(self.gasOverride, b,
+                    (v,b) => b.storeCoins(v)
+                );
+        ExecutionState.store(self.executionState, b);
+    },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
+    },
+    toCellShallow(self: OffRamp_ExecuteValidated_Shallow): c.Cell {
+        return makeCellFrom<OffRamp_ExecuteValidated_Shallow>(self, OffRamp_ExecuteValidated.storeShallow);
     }
 }
 
@@ -2079,8 +2130,19 @@ export const OffRamp_DispatchValidated = {
             (v,b) => b.storeCoins(v)
         );
     },
+    storeShallow(self: OffRamp_DispatchValidated_Shallow, b: c.Builder): void {
+        b.storeUint(0x58cfcb02, 32);
+        b.storeRef(self.message);
+        b.storeUint(self.execId, 192);
+        storeTolkNullable<coins>(self.gasOverride, b,
+                    (v,b) => b.storeCoins(v)
+                );
+    },
     toCell(self: OffRamp_DispatchValidated): c.Cell {
         return makeCellFrom<OffRamp_DispatchValidated>(self, OffRamp_DispatchValidated.store);
+    },
+    toCellShallow(self: OffRamp_DispatchValidated_Shallow): c.Cell {
+        return makeCellFrom<OffRamp_DispatchValidated_Shallow>(self, OffRamp_DispatchValidated.storeShallow);
     }
 }
 
@@ -2499,8 +2561,19 @@ export const CommitReport = {
         );
         storeSnakedCellOf(self.merkleRoots, b, MerkleRoot.store);
     },
+    storeShallow(self: CommitReport_Shallow, b: c.Builder): void {
+        storeTolkNullable<c.Cell>(self.priceUpdates, b,
+            (v,b) => { storeCellRef<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+        storeSnakedCellOf(self.merkleRoots, b, MerkleRoot.store);
+    },
     toCell(self: CommitReport): c.Cell {
         return makeCellFrom<CommitReport>(self, CommitReport.store);
+    },
+    toCellShallow(self: CommitReport_Shallow): c.Cell {
+        return makeCellFrom<CommitReport_Shallow>(self, CommitReport.storeShallow);
     }
 }
 
@@ -2561,8 +2634,17 @@ export const Any2TVMMessageV1Metadata = {
         b.storeUint(self.destChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.onRamp, b, CrossChainAddress.store);
     },
+    storeShallow(self: Any2TVMMessageV1Metadata_Shallow, b: c.Builder): void {
+        b.storeUint(self._header, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeRef(self.onRamp);
+    },
     toCell(self: Any2TVMMessageV1Metadata): c.Cell {
         return makeCellFrom<Any2TVMMessageV1Metadata>(self, Any2TVMMessageV1Metadata.store);
+    },
+    toCellShallow(self: Any2TVMMessageV1Metadata_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMMessageV1Metadata_Shallow>(self, Any2TVMMessageV1Metadata.storeShallow);
     }
 }
 
@@ -2773,8 +2855,19 @@ export const Any2TVMRampMessage = {
         b.storeCoins(self.gasLimit);
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
+    storeShallow(self: Any2TVMRampMessage_Shallow, b: c.Builder): void {
+        RampMessageHeader.store(self.header, b);
+        b.storeRef(self.sender);
+        b.storeRef(self.data);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.gasLimit);
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
+    },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
+    },
+    toCellShallow(self: Any2TVMRampMessage_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMRampMessage_Shallow>(self, Any2TVMRampMessage.storeShallow);
     }
 }
 
@@ -2848,8 +2941,19 @@ export const Any2TVMRampMessageIDData = {
         b.storeRef(self.data);
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
+    storeShallow(self: Any2TVMRampMessageIDData_Shallow, b: c.Builder): void {
+        storeTolkBitsN(self._leafDomainSeparator, 256, b);
+        b.storeUint(self.metadataHash, 256);
+        b.storeRef(self.metadata);
+        b.storeRef(self.sender);
+        b.storeRef(self.data);
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
+    },
     toCell(self: Any2TVMRampMessageIDData): c.Cell {
         return makeCellFrom<Any2TVMRampMessageIDData>(self, Any2TVMRampMessageIDData.store);
+    },
+    toCellShallow(self: Any2TVMRampMessageIDData_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMRampMessageIDData_Shallow>(self, Any2TVMRampMessageIDData.storeShallow);
     }
 }
 
@@ -3021,8 +3125,18 @@ export const Any2TVMTokenTransfer = {
         b.storeRef(self.extraData);
         b.storeUint(self.amount, 256);
     },
+    storeShallow(self: Any2TVMTokenTransfer_Shallow, b: c.Builder): void {
+        b.storeRef(self.sourcePoolAddress);
+        b.storeAddress(self.destPoolAddress);
+        b.storeUint(self.destGasAmount, 32);
+        b.storeRef(self.extraData);
+        b.storeUint(self.amount, 256);
+    },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
         return makeCellFrom<Any2TVMTokenTransfer>(self, Any2TVMTokenTransfer.store);
+    },
+    toCellShallow(self: Any2TVMTokenTransfer_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMTokenTransfer_Shallow>(self, Any2TVMTokenTransfer.storeShallow);
     }
 }
 
@@ -3224,8 +3338,23 @@ export const Storage = {
         b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
     },
+    storeShallow(self: Storage_Shallow, b: c.Builder): void {
+        b.storeUint(self.id, 32);
+        Ownable2Step.store(self.ownable, b);
+        b.storeRef(self.deployables);
+        b.storeAddress(self.feeQuoter);
+        b.storeRef(self.ocr3Base);
+        CursedSubjects.store(self.cursedSubjects, b);
+        b.storeUint(self.chainSelector, 64);
+        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        b.storeUint(self.latestPriceSequenceNumber, 64);
+    },
     toCell(self: Storage): c.Cell {
         return makeCellFrom<Storage>(self, Storage.store);
+    },
+    toCellShallow(self: Storage_Shallow): c.Cell {
+        return makeCellFrom<Storage_Shallow>(self, Storage.storeShallow);
     }
 }
 
@@ -3323,8 +3452,19 @@ export const CommitReportAccepted = {
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
     },
+    storeShallow(self: CommitReportAccepted_Shallow, b: c.Builder): void {
+        storeTolkNullable<MerkleRoot>(self.merkleRoot, b, MerkleRoot.store);
+        storeTolkNullable<c.Cell>(self.priceUpdates, b,
+            (v,b) => { storeCellRef<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+    },
     toCell(self: CommitReportAccepted): c.Cell {
         return makeCellFrom<CommitReportAccepted>(self, CommitReportAccepted.store);
+    },
+    toCellShallow(self: CommitReportAccepted_Shallow): c.Cell {
+        return makeCellFrom<CommitReportAccepted_Shallow>(self, CommitReportAccepted.storeShallow);
     }
 }
 

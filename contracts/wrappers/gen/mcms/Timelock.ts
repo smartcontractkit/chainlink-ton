@@ -720,8 +720,19 @@ export const Timelock_SubmitErrorReport = {
         b.storeUint(self.errorTxHash, 256);
         b.storeUint(self.errorCode, 32);
     },
+    storeShallow(self: Timelock_SubmitErrorReport_Shallow, b: c.Builder): void {
+        b.storeUint(0xf4538b79, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.opBatch);
+        b.storeUint(self.opTxHash, 256);
+        b.storeUint(self.errorTxHash, 256);
+        b.storeUint(self.errorCode, 32);
+    },
     toCell(self: Timelock_SubmitErrorReport): c.Cell {
         return makeCellFrom<Timelock_SubmitErrorReport>(self, Timelock_SubmitErrorReport.store);
+    },
+    toCellShallow(self: Timelock_SubmitErrorReport_Shallow): c.Cell {
+        return makeCellFrom<Timelock_SubmitErrorReport_Shallow>(self, Timelock_SubmitErrorReport.storeShallow);
     }
 }
 
@@ -905,8 +916,21 @@ export const Timelock_CallScheduled = {
         b.storeUint(self.salt, 256);
         b.storeUint(self.delay, 32);
     },
+    storeShallow(self: Timelock_CallScheduled_Shallow, b: c.Builder): void {
+        b.storeUint(0xc55fca54, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.id, 256);
+        b.storeUint(self.index, 64);
+        b.storeRef(self.call);
+        b.storeUint(self.predecessor, 256);
+        b.storeUint(self.salt, 256);
+        b.storeUint(self.delay, 32);
+    },
     toCell(self: Timelock_CallScheduled): c.Cell {
         return makeCellFrom<Timelock_CallScheduled>(self, Timelock_CallScheduled.store);
+    },
+    toCellShallow(self: Timelock_CallScheduled_Shallow): c.Cell {
+        return makeCellFrom<Timelock_CallScheduled_Shallow>(self, Timelock_CallScheduled.storeShallow);
     }
 }
 
@@ -1437,8 +1461,21 @@ export const Timelock_Data = {
         Timelock_OpPendingInfo.store(self.opPendingInfo, b);
         storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
     },
+    storeShallow(self: Timelock_Data_Shallow, b: c.Builder): void {
+        b.storeUint(self.id, 32);
+        b.storeUint(self.minDelay, 32);
+        b.storeDict<uint256, uint64>(mapToDict(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
+        b.storeUint(self.blockedFnSelectorsLen, 32);
+        b.storeDict<uint32, boolean>(mapToDict(self.blockedFnSelectors, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
+        b.storeBit(self.executorRoleCheckEnabled);
+        Timelock_OpPendingInfo.store(self.opPendingInfo, b);
+        b.storeRef(self.rbac);
+    },
     toCell(self: Timelock_Data): c.Cell {
         return makeCellFrom<Timelock_Data>(self, Timelock_Data.store);
+    },
+    toCellShallow(self: Timelock_Data_Shallow): c.Cell {
+        return makeCellFrom<Timelock_Data_Shallow>(self, Timelock_Data.storeShallow);
     }
 }
 

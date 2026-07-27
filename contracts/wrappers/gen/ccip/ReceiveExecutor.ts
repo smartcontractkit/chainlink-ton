@@ -211,8 +211,19 @@ export const Any2TVMRampMessage = {
         b.storeCoins(self.gasLimit);
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
+    storeShallow(self: Any2TVMRampMessage_Shallow, b: c.Builder): void {
+        RampMessageHeader.store(self.header, b);
+        b.storeRef(self.sender);
+        b.storeRef(self.data);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.gasLimit);
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
+    },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
+    },
+    toCellShallow(self: Any2TVMRampMessage_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMRampMessage_Shallow>(self, Any2TVMRampMessage.storeShallow);
     }
 }
 
@@ -278,8 +289,18 @@ export const Any2TVMTokenTransfer = {
         b.storeRef(self.extraData);
         b.storeUint(self.amount, 256);
     },
+    storeShallow(self: Any2TVMTokenTransfer_Shallow, b: c.Builder): void {
+        b.storeRef(self.sourcePoolAddress);
+        b.storeAddress(self.destPoolAddress);
+        b.storeUint(self.destGasAmount, 32);
+        b.storeRef(self.extraData);
+        b.storeUint(self.amount, 256);
+    },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
         return makeCellFrom<Any2TVMTokenTransfer>(self, Any2TVMTokenTransfer.store);
+    },
+    toCellShallow(self: Any2TVMTokenTransfer_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMTokenTransfer_Shallow>(self, Any2TVMTokenTransfer.storeShallow);
     }
 }
 
@@ -370,8 +391,19 @@ export const ReceiveExecutor_Storage = {
         ReceiveExecutor_MessageState.store(self.state, b);
         b.storeUint(self.lastExecutionTimestamp, 64);
     },
+    storeShallow(self: ReceiveExecutor_Storage_Shallow, b: c.Builder): void {
+        b.storeAddress(self.owner);
+        b.storeRef(self.message);
+        b.storeAddress(self.root);
+        b.storeUint(self.execId, 192);
+        ReceiveExecutor_MessageState.store(self.state, b);
+        b.storeUint(self.lastExecutionTimestamp, 64);
+    },
     toCell(self: ReceiveExecutor_Storage): c.Cell {
         return makeCellFrom<ReceiveExecutor_Storage>(self, ReceiveExecutor_Storage.store);
+    },
+    toCellShallow(self: ReceiveExecutor_Storage_Shallow): c.Cell {
+        return makeCellFrom<ReceiveExecutor_Storage_Shallow>(self, ReceiveExecutor_Storage.storeShallow);
     }
 }
 
@@ -614,8 +646,19 @@ export const OffRamp_DispatchValidated = {
             (v,b) => b.storeCoins(v)
         );
     },
+    storeShallow(self: OffRamp_DispatchValidated_Shallow, b: c.Builder): void {
+        b.storeUint(0x58cfcb02, 32);
+        b.storeRef(self.message);
+        b.storeUint(self.execId, 192);
+        storeTolkNullable<coins>(self.gasOverride, b,
+                    (v,b) => b.storeCoins(v)
+                );
+    },
     toCell(self: OffRamp_DispatchValidated): c.Cell {
         return makeCellFrom<OffRamp_DispatchValidated>(self, OffRamp_DispatchValidated.store);
+    },
+    toCellShallow(self: OffRamp_DispatchValidated_Shallow): c.Cell {
+        return makeCellFrom<OffRamp_DispatchValidated_Shallow>(self, OffRamp_DispatchValidated.storeShallow);
     }
 }
 

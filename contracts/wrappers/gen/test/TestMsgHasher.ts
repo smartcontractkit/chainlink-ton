@@ -344,8 +344,19 @@ export const Any2TVMRampMessage = {
         b.storeCoins(self.gasLimit);
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
+    storeShallow(self: Any2TVMRampMessage_Shallow, b: c.Builder): void {
+        RampMessageHeader.store(self.header, b);
+        b.storeRef(self.sender);
+        b.storeRef(self.data);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.gasLimit);
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
+    },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
+    },
+    toCellShallow(self: Any2TVMRampMessage_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMRampMessage_Shallow>(self, Any2TVMRampMessage.storeShallow);
     }
 }
 
@@ -411,8 +422,18 @@ export const Any2TVMTokenTransfer = {
         b.storeRef(self.extraData);
         b.storeUint(self.amount, 256);
     },
+    storeShallow(self: Any2TVMTokenTransfer_Shallow, b: c.Builder): void {
+        b.storeRef(self.sourcePoolAddress);
+        b.storeAddress(self.destPoolAddress);
+        b.storeUint(self.destGasAmount, 32);
+        b.storeRef(self.extraData);
+        b.storeUint(self.amount, 256);
+    },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
         return makeCellFrom<Any2TVMTokenTransfer>(self, Any2TVMTokenTransfer.store);
+    },
+    toCellShallow(self: Any2TVMTokenTransfer_Shallow): c.Cell {
+        return makeCellFrom<Any2TVMTokenTransfer_Shallow>(self, Any2TVMTokenTransfer.storeShallow);
     }
 }
 
@@ -472,8 +493,17 @@ export const TVM2AnyRampMessage = {
         storeCellRef<TVM2AnyRampMessageBody>(self.body, b, TVM2AnyRampMessageBody.store);
         b.storeUint(self.feeValueJuels, 96);
     },
+    storeShallow(self: TVM2AnyRampMessage_Shallow, b: c.Builder): void {
+        RampMessageHeader.store(self.header, b);
+        b.storeAddress(self.sender);
+        b.storeRef(self.body);
+        b.storeUint(self.feeValueJuels, 96);
+    },
     toCell(self: TVM2AnyRampMessage): c.Cell {
         return makeCellFrom<TVM2AnyRampMessage>(self, TVM2AnyRampMessage.store);
+    },
+    toCellShallow(self: TVM2AnyRampMessage_Shallow): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessage_Shallow>(self, TVM2AnyRampMessage.storeShallow);
     }
 }
 
@@ -545,8 +575,19 @@ export const TVM2AnyRampMessageBody = {
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
     },
+    storeShallow(self: TVM2AnyRampMessageBody_Shallow, b: c.Builder): void {
+        b.storeRef(self.receiver);
+        b.storeRef(self.data);
+        b.storeRef(self.extraArgs);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        b.storeCoins(self.feeTokenAmount);
+    },
     toCell(self: TVM2AnyRampMessageBody): c.Cell {
         return makeCellFrom<TVM2AnyRampMessageBody>(self, TVM2AnyRampMessageBody.store);
+    },
+    toCellShallow(self: TVM2AnyRampMessageBody_Shallow): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessageBody_Shallow>(self, TVM2AnyRampMessageBody.storeShallow);
     }
 }
 

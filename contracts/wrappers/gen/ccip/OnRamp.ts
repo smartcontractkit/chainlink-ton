@@ -1039,8 +1039,21 @@ export const Router_CCIPSend = {
             } }
         );
     },
+    storeShallow(self: Router_CCIPSend_Shallow, b: c.Builder): void {
+        b.storeUint(0x31768d95, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.destChainSelector, 64);
+        CrossChainAddress.store(self.receiver, b);
+        b.storeRef(self.data);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        b.storeRef(self.extraArgs);
+    },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    },
+    toCellShallow(self: Router_CCIPSend_Shallow): c.Cell {
+        return makeCellFrom<Router_CCIPSend_Shallow>(self, Router_CCIPSend.storeShallow);
     }
 }
 
@@ -1841,8 +1854,17 @@ export const TVM2AnyRampMessage = {
         storeCellRef<TVM2AnyRampMessageBody>(self.body, b, TVM2AnyRampMessageBody.store);
         b.storeUint(self.feeValueJuels, 96);
     },
+    storeShallow(self: TVM2AnyRampMessage_Shallow, b: c.Builder): void {
+        RampMessageHeader.store(self.header, b);
+        b.storeAddress(self.sender);
+        b.storeRef(self.body);
+        b.storeUint(self.feeValueJuels, 96);
+    },
     toCell(self: TVM2AnyRampMessage): c.Cell {
         return makeCellFrom<TVM2AnyRampMessage>(self, TVM2AnyRampMessage.store);
+    },
+    toCellShallow(self: TVM2AnyRampMessage_Shallow): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessage_Shallow>(self, TVM2AnyRampMessage.storeShallow);
     }
 }
 
@@ -1914,8 +1936,19 @@ export const TVM2AnyRampMessageBody = {
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
     },
+    storeShallow(self: TVM2AnyRampMessageBody_Shallow, b: c.Builder): void {
+        b.storeRef(self.receiver);
+        b.storeRef(self.data);
+        b.storeRef(self.extraArgs);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        b.storeCoins(self.feeTokenAmount);
+    },
     toCell(self: TVM2AnyRampMessageBody): c.Cell {
         return makeCellFrom<TVM2AnyRampMessageBody>(self, TVM2AnyRampMessageBody.store);
+    },
+    toCellShallow(self: TVM2AnyRampMessageBody_Shallow): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessageBody_Shallow>(self, TVM2AnyRampMessageBody.storeShallow);
     }
 }
 
@@ -2079,8 +2112,19 @@ export const OnRamp_Storage = {
         b.storeDict<uint64, OnRamp_DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
         ExecutorDeployment.store(self.executor, b);
     },
+    storeShallow(self: OnRamp_Storage_Shallow, b: c.Builder): void {
+        b.storeUint(self.id, 32);
+        Ownable2Step.store(self.ownable, b);
+        b.storeUint(self.chainSelector, 64);
+        b.storeRef(self.config);
+        b.storeDict<uint64, OnRamp_DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
+        ExecutorDeployment.store(self.executor, b);
+    },
     toCell(self: OnRamp_Storage): c.Cell {
         return makeCellFrom<OnRamp_Storage>(self, OnRamp_Storage.store);
+    },
+    toCellShallow(self: OnRamp_Storage_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_Storage_Shallow>(self, OnRamp_Storage.storeShallow);
     }
 }
 
@@ -2139,8 +2183,17 @@ export const OnRamp_Send = {
         Metadata.store(self.metadata, b);
         b.storeAddress(self.tokenRegistry);
     },
+    storeShallow(self: OnRamp_Send_Shallow, b: c.Builder): void {
+        b.storeUint(0xdcf993c2, 32);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+        b.storeAddress(self.tokenRegistry);
+    },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
+    },
+    toCellShallow(self: OnRamp_Send_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_Send_Shallow>(self, OnRamp_Send.storeShallow);
     }
 }
 
@@ -2362,8 +2415,18 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
     },
+    storeShallow(self: OnRamp_ExecutorFinishedSuccessfully_Shallow, b: c.Builder): void {
+        b.storeUint(0xcfa6b336, 32);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+        Fee.store(self.fee, b);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+    },
     toCell(self: OnRamp_ExecutorFinishedSuccessfully): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFinishedSuccessfully>(self, OnRamp_ExecutorFinishedSuccessfully.store);
+    },
+    toCellShallow(self: OnRamp_ExecutorFinishedSuccessfully_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorFinishedSuccessfully_Shallow>(self, OnRamp_ExecutorFinishedSuccessfully.storeShallow);
     }
 }
 
@@ -2428,8 +2491,18 @@ export const OnRamp_ExecutorFinishedWithError = {
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
     },
+    storeShallow(self: OnRamp_ExecutorFinishedWithError_Shallow, b: c.Builder): void {
+        b.storeUint(0xc4068e21, 32);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+        b.storeUint(self.error, 256);
+        b.storeRef(self.msg);
+        Metadata.store(self.metadata, b);
+    },
     toCell(self: OnRamp_ExecutorFinishedWithError): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFinishedWithError>(self, OnRamp_ExecutorFinishedWithError.store);
+    },
+    toCellShallow(self: OnRamp_ExecutorFinishedWithError_Shallow): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorFinishedWithError_Shallow>(self, OnRamp_ExecutorFinishedWithError.storeShallow);
     }
 }
 

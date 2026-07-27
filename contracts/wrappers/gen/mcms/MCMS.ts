@@ -286,8 +286,17 @@ export const MCMS_Execute = {
         storeCellRef<Op>(self.op, b, Op.store);
         storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
     },
+    storeShallow(self: MCMS_Execute_Shallow, b: c.Builder): void {
+        b.storeUint(0x9b9ce96a, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.op);
+        storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
+    },
     toCell(self: MCMS_Execute): c.Cell {
         return makeCellFrom<MCMS_Execute>(self, MCMS_Execute.store);
+    },
+    toCellShallow(self: MCMS_Execute_Shallow): c.Cell {
+        return makeCellFrom<MCMS_Execute_Shallow>(self, MCMS_Execute.storeShallow);
     }
 }
 
@@ -471,8 +480,20 @@ export const MCMS_SubmitErrorReport = {
         b.storeUint(self.errorTxHash, 256);
         b.storeUint(self.errorCode, 32);
     },
+    storeShallow(self: MCMS_SubmitErrorReport_Shallow, b: c.Builder): void {
+        b.storeUint(0x4b3af0b5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.op);
+        storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
+        b.storeUint(self.opTxHash, 256);
+        b.storeUint(self.errorTxHash, 256);
+        b.storeUint(self.errorCode, 32);
+    },
     toCell(self: MCMS_SubmitErrorReport): c.Cell {
         return makeCellFrom<MCMS_SubmitErrorReport>(self, MCMS_SubmitErrorReport.store);
+    },
+    toCellShallow(self: MCMS_SubmitErrorReport_Shallow): c.Cell {
+        return makeCellFrom<MCMS_SubmitErrorReport_Shallow>(self, MCMS_SubmitErrorReport.storeShallow);
     }
 }
 
@@ -853,8 +874,21 @@ export const MCMS_ErrorReportSubmitted = {
         );
         b.storeBit(self.matchesPendingOp);
     },
+    storeShallow(self: MCMS_ErrorReportSubmitted_Shallow, b: c.Builder): void {
+        b.storeUint(0xbbc4deb4, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.opLeafHash, 256);
+        b.storeUint(self.opTxHash, 256);
+        b.storeUint(self.errorTxHash, 256);
+        b.storeUint(self.errorCode, 32);
+        b.storeRef(self.root);
+        b.storeBit(self.matchesPendingOp);
+    },
     toCell(self: MCMS_ErrorReportSubmitted): c.Cell {
         return makeCellFrom<MCMS_ErrorReportSubmitted>(self, MCMS_ErrorReportSubmitted.store);
+    },
+    toCellShallow(self: MCMS_ErrorReportSubmitted_Shallow): c.Cell {
+        return makeCellFrom<MCMS_ErrorReportSubmitted_Shallow>(self, MCMS_ErrorReportSubmitted.storeShallow);
     }
 }
 
@@ -1086,8 +1120,20 @@ export const MCMS_Data = {
         b.storeDict<uint256, boolean>(mapToDict(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
         storeCellRef<RootInfo>(self.rootInfo, b, RootInfo.store);
     },
+    storeShallow(self: MCMS_Data_Shallow, b: c.Builder): void {
+        b.storeUint(self.id, 32);
+        Ownable2Step.store(self.ownable, b);
+        b.storeAddress(self.oracle);
+        b.storeDict<uint160, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
+        b.storeRef(self.config);
+        b.storeDict<uint256, boolean>(mapToDict(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
+        b.storeRef(self.rootInfo);
+    },
     toCell(self: MCMS_Data): c.Cell {
         return makeCellFrom<MCMS_Data>(self, MCMS_Data.store);
+    },
+    toCellShallow(self: MCMS_Data_Shallow): c.Cell {
+        return makeCellFrom<MCMS_Data_Shallow>(self, MCMS_Data.storeShallow);
     }
 }
 
@@ -1271,8 +1317,17 @@ export const ExpiringRootAndOpCount = {
         b.storeUint(self.opCount, 40);
         storeCellRef<OpPendingInfo>(self.opPendingInfo, b, OpPendingInfo.store);
     },
+    storeShallow(self: ExpiringRootAndOpCount_Shallow, b: c.Builder): void {
+        b.storeUint(self.root, 256);
+        b.storeUint(self.validUntil, 64);
+        b.storeUint(self.opCount, 40);
+        b.storeRef(self.opPendingInfo);
+    },
     toCell(self: ExpiringRootAndOpCount): c.Cell {
         return makeCellFrom<ExpiringRootAndOpCount>(self, ExpiringRootAndOpCount.store);
+    },
+    toCellShallow(self: ExpiringRootAndOpCount_Shallow): c.Cell {
+        return makeCellFrom<ExpiringRootAndOpCount_Shallow>(self, ExpiringRootAndOpCount.storeShallow);
     }
 }
 

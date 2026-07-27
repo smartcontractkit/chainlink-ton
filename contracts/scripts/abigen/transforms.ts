@@ -13,9 +13,12 @@ import {
   Node,
   ObjectLiteralExpression,
   SourceFile,
+  Statement,
   SyntaxKind,
   TypeNode,
 } from 'ts-morph'
+
+import { ts } from '@ts-morph/common'
 
 // ---------------------------------------------------------------------------
 //   shared struct-block helpers
@@ -545,8 +548,97 @@ function addShallowFromSliceMethod(sourceFile: SourceFile, info: CellRefStructIn
   block.objectLiteral.insertMethod(fromSliceIndex + 1, {
     name: 'fromSliceShallow',
     parameters: [{ name: 's', type: 'c.Slice' }],
-    returnType: `${info.name}_Shallow${getGenericsDecl(info.typeParams)}`,
+    returnType: nameShallowObject(info),
     statements: methodStatements,
+  })
+}
+
+function nameShallowObject(
+  info: CellRefStructInfo,
+): string | import('ts-morph').WriterFunction | undefined {
+  return `${info.name}_Shallow${getGenericsDecl(info.typeParams)}`
+}
+
+function addShallowStoreMethod(sourceFile: SourceFile, info: CellRefStructInfo): void {
+  const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
+  if (!block) return
+
+  const store = getObjectMethod(block.objectLiteral, 'store')
+  if (!store) return
+
+  // Finally, we insert the new storeShallow method after the existing store method.
+  const storeIndex = block.objectLiteral
+    .getProperties()
+    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === 'store')
+  if (storeIndex < 0) return
+
+  const shallowName = nameShallowObject(info)
+  block.objectLiteral.insertMethod(storeIndex + 1, {
+    name: 'storeShallow',
+    parameters: [
+      { name: 'self', type: shallowName },
+      { name: 'b', type: 'c.Builder' },
+    ],
+    returnType: 'void',
+    statements: store.getStatements().map((stmt) => {
+      const storeRef = replaceStoreCellRef(stmt, info.fields)
+      if (!storeRef) return stmt.getText()
+      return storeRef
+    }),
+  })
+}
+
+function replaceStoreCellRef(
+  stmt: Statement<ts.Statement>,
+  fields: CellRefFieldInfo[],
+): string | null {
+  if (!Node.isExpressionStatement(stmt)) return null
+  const expr = stmt.getExpression()
+  if (!Node.isCallExpression(expr)) return null
+
+  const callee = expr.getExpression()
+  const functionCall = callee.getText()
+  if (
+    !Node.isIdentifier(callee) ||
+    (functionCall !== 'storeCellRef' && functionCall !== 'storeTolkNullable')
+  )
+    return null
+  const fieldMap = new Map(fields.map((f) => [f.fieldName, f.nullable]))
+  const [prop, _builder] = expr.getArguments()
+  if (!prop || !_builder) return null
+
+  if (!Node.isPropertyAccessExpression(prop)) return null
+  const isNullable = fieldMap.get(prop.getName())
+  if (isNullable === undefined) return null
+
+  if (functionCall === 'storeCellRef' && !isNullable) return `b.storeRef(${prop.getText()});`
+  if (functionCall === 'storeTolkNullable' && isNullable)
+    return `storeTolkNullable<c.Cell>(self.${prop.getName()}, b,
+    (v,b) => { storeCellRef<c.Cell>(v, b,
+        (v,b) => b.storeRef(v)
+    ); }
+);`
+  return null
+}
+
+function addShallowToCellMethod(sourceFile: SourceFile, info: CellRefStructInfo): void {
+  const block = getStructBlocks(sourceFile).find((b) => b.name === info.name)
+  if (!block) return
+
+  const toCell = getObjectMethod(block.objectLiteral, 'toCell')
+  if (!toCell) return
+
+  const toCellIndex = block.objectLiteral
+    .getProperties()
+    .findIndex((prop) => Node.isMethodDeclaration(prop) && prop.getName() === 'toCell')
+  if (toCellIndex < 0) return
+
+  const shallowName = nameShallowObject(info)
+  block.objectLiteral.insertMethod(toCellIndex + 1, {
+    name: 'toCellShallow',
+    parameters: [{ name: 'self', type: shallowName }],
+    returnType: 'c.Cell',
+    statements: `return makeCellFrom<${shallowName}>(self, ${info.name}.storeShallow);`,
   })
 }
 
@@ -561,6 +653,8 @@ function addShallowCellRefVariants(sourceFile: SourceFile, infos: CellRefStructI
 
   for (const info of infos) {
     addShallowFromSliceMethod(sourceFile, info)
+    addShallowStoreMethod(sourceFile, info)
+    addShallowToCellMethod(sourceFile, info)
   }
 }
 

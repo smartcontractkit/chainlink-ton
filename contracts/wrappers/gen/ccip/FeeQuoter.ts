@@ -1185,8 +1185,16 @@ export const DestChainConfig = {
         storeCellRef<GasPrice>(self.usdPerUnitGas, b, GasPrice.store);
         b.storeDict<c.Address, TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
     },
+    storeShallow(self: DestChainConfig_Shallow, b: c.Builder): void {
+        FeeQuoterDestChainConfig.store(self.config, b);
+        b.storeRef(self.usdPerUnitGas);
+        b.storeDict<c.Address, TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
+    },
     toCell(self: DestChainConfig): c.Cell {
         return makeCellFrom<DestChainConfig>(self, DestChainConfig.store);
+    },
+    toCellShallow(self: DestChainConfig_Shallow): c.Cell {
+        return makeCellFrom<DestChainConfig_Shallow>(self, DestChainConfig.storeShallow);
     }
 }
 
@@ -2034,8 +2042,21 @@ export const Router_CCIPSend = {
             } }
         );
     },
+    storeShallow(self: Router_CCIPSend_Shallow, b: c.Builder): void {
+        b.storeUint(0x31768d95, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.destChainSelector, 64);
+        CrossChainAddress.store(self.receiver, b);
+        b.storeRef(self.data);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        b.storeRef(self.extraArgs);
+    },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    },
+    toCellShallow(self: Router_CCIPSend_Shallow): c.Cell {
+        return makeCellFrom<Router_CCIPSend_Shallow>(self, Router_CCIPSend.storeShallow);
     }
 }
 

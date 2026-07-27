@@ -224,8 +224,14 @@ export const JettonDataReply = {
     store(self: JettonDataReply, b: c.Builder): void {
         throw new Error(`Can't pack 'JettonDataReply' to cell, because 'self.totalSupply' is 'int' (not int32/uint64/etc.)`);
     },
+    storeShallow(self: JettonDataReply_Shallow, b: c.Builder): void {
+        throw new Error(`Can't pack 'JettonDataReply' to cell, because 'self.totalSupply' is 'int' (not int32/uint64/etc.)`);
+    },
     toCell(self: JettonDataReply): c.Cell {
         return makeCellFrom<JettonDataReply>(self, JettonDataReply.store);
+    },
+    toCellShallow(self: JettonDataReply_Shallow): c.Cell {
+        return makeCellFrom<JettonDataReply_Shallow>(self, JettonDataReply.storeShallow);
     }
 }
 
@@ -617,8 +623,21 @@ export const ResponseWalletAddress = {
             ); }
         );
     },
+    storeShallow(self: ResponseWalletAddress_Shallow, b: c.Builder): void {
+        b.storeUint(0xd1735400, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.jettonWalletAddress);
+        storeTolkNullable<c.Cell>(self.ownerAddress, b,
+            (v,b) => { storeCellRef<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+    },
     toCell(self: ResponseWalletAddress): c.Cell {
         return makeCellFrom<ResponseWalletAddress>(self, ResponseWalletAddress.store);
+    },
+    toCellShallow(self: ResponseWalletAddress_Shallow): c.Cell {
+        return makeCellFrom<ResponseWalletAddress_Shallow>(self, ResponseWalletAddress.storeShallow);
     }
 }
 
@@ -684,8 +703,18 @@ export const MintNewJettons = {
         b.storeCoins(self.tonAmount);
         storeCellRef<InternalTransferStep>(self.internalTransferMsg, b, InternalTransferStep.store);
     },
+    storeShallow(self: MintNewJettons_Shallow, b: c.Builder): void {
+        b.storeUint(0x00000015, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.mintRecipient);
+        b.storeCoins(self.tonAmount);
+        b.storeRef(self.internalTransferMsg);
+    },
     toCell(self: MintNewJettons): c.Cell {
         return makeCellFrom<MintNewJettons>(self, MintNewJettons.store);
+    },
+    toCellShallow(self: MintNewJettons_Shallow): c.Cell {
+        return makeCellFrom<MintNewJettons_Shallow>(self, MintNewJettons.storeShallow);
     }
 }
 
