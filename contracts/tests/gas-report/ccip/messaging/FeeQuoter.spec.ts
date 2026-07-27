@@ -12,7 +12,7 @@ import {
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
-import * as fq from '../../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { WRAPPED_NATIVE } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
@@ -69,32 +69,31 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
 
     // Override FeeQuoter config for large payloads (gas testing)
-    await feeQuoter.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('1'),
+    await feeQuoter.sendFeeQuoterUpdateDestChainConfigs(deployer.getSender(), toNano('1'), {
       updates: [
-        {
+        fq.FeeQuoter_UpdateDestChainConfig.create({
           destChainSelector: ChainSelectors.testnet.evm,
-          config: {
+          destChainConfig: fq.FeeQuoterDestChainConfig.create({
             isEnabled: true,
-            maxNumberOfTokensPerMsg: 0,
-            maxDataBytes: 10000,
-            maxPerMsgGasLimit: 100000,
-            destGasOverhead: 0,
-            destGasPerPayloadByteBase: 0,
-            destGasPerPayloadByteHigh: 0,
-            destGasPerPayloadByteThreshold: 0,
-            destDataAvailabilityOverheadGas: 0,
-            destGasPerDataAvailabilityByte: 0,
-            destDataAvailabilityMultiplierBps: 0,
+            maxNumberOfTokensPerMsg: 0n,
+            maxDataBytes: 10000n,
+            maxPerMsgGasLimit: 100000n,
+            destGasOverhead: 0n,
+            destGasPerPayloadByteBase: 0n,
+            destGasPerPayloadByteHigh: 0n,
+            destGasPerPayloadByteThreshold: 0n,
+            destDataAvailabilityOverheadGas: 0n,
+            destGasPerDataAvailabilityByte: 0n,
+            destDataAvailabilityMultiplierBps: 0n,
             chainFamilySelector: ChainFamilySelectors.evm,
-            defaultTokenFeeUsdCents: 0,
-            defaultTokenDestGasOverhead: 0,
-            defaultTxGasLimit: 1,
+            defaultTokenFeeUsdCents: 0n,
+            defaultTokenDestGasOverhead: 0n,
+            defaultTxGasLimit: 1n,
             gasMultiplierWeiPerEth: 0n,
-            gasPriceStalenessThreshold: 0,
-            networkFeeUsdCents: 0,
-          },
-        },
+            gasPriceStalenessThreshold: 0n,
+            networkFeeUsdCents: 0n,
+          }),
+        }),
       ],
     })
 
@@ -303,7 +302,7 @@ async function messureGetValidatedFee(
     from: feeQuoter.address,
     to: onRamp.address,
     success: true,
-    op: fq.opcodes.out.messageValidated,
+    op: fq.FeeQuoter_MessageValidated.PREFIX,
   })
   return result
 }

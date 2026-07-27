@@ -9,7 +9,7 @@ import { LogTypes } from '../../../wrappers/ccip/Logs'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as Setup from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 

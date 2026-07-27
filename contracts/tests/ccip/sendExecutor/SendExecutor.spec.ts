@@ -15,7 +15,7 @@ import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as sxManual from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 import { dump } from '../../utils/prettyPrint'
@@ -193,7 +193,7 @@ describe('SendExecutor - Unit tests', () => {
       from: sendExecutor.address,
       to: feeQuoterMock.address,
       success: true,
-      op: fq.opcodes.in.getValidatedFee,
+      op: fq.FeeQuoter_GetValidatedFee.PREFIX,
     })
   })
 
@@ -296,7 +296,7 @@ describe('SendExecutor - Unit tests', () => {
       from: sendExecutor.address,
       to: feeQuoterMock.address,
       success: true,
-      op: fq.opcodes.in.getValidatedFee,
+      op: fq.FeeQuoter_GetValidatedFee.PREFIX,
     })
   })
 
@@ -307,7 +307,7 @@ describe('SendExecutor - Unit tests', () => {
       from: sendExecutor.address,
       to: feeQuoterMock.address,
       success: true,
-      op: fq.opcodes.in.getValidatedFee,
+      op: fq.FeeQuoter_GetValidatedFee.PREFIX,
     })
   })
 

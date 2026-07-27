@@ -19,7 +19,7 @@ type FeeQuoter_InMessage =
 
 struct (0xde852b1b) FeeQuoter_UpdatePrices {
     updates: PriceUpdates
-    sendExcessesTo: address?;
+    sendExcessesTo: address? = null;
 }
 
 // Typealias needed so that abigen generates builder

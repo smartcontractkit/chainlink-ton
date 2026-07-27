@@ -9,7 +9,7 @@ import { ContractCoverageConfig } from '../../coverage/coverage'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
@@ -40,13 +40,13 @@ type RouterSetupResultBase = {
 }
 
 type RouterSetupResultFor<TOverrides extends RouterSetupOverrides> = RouterSetupResultBase &
-  ([TOverrides] extends [{ feeQuoter: SandboxContract<any> }]
+  ([TOverrides] extends [{ feeQuoter: SandboxContract<infer _FeeQuoter> }]
     ? {}
     : { feeQuoter: SandboxContract<fq.FeeQuoter> }) &
-  ([TOverrides] extends [{ onRamp: SandboxContract<any> }]
+  ([TOverrides] extends [{ onRamp: SandboxContract<infer _OnRamp> }]
     ? {}
     : { onRamp: SandboxContract<or.OnRamp> }) &
-  ([TOverrides] extends [{ offRamp: SandboxContract<any> }]
+  ([TOverrides] extends [{ offRamp: SandboxContract<infer _OffRamp> }]
     ? {}
     : { offRamp: SandboxContract<of.OffRamp> })
 
@@ -160,25 +160,23 @@ async function deployFeeQuoterInstance(
   deployer: SandboxContract<TreasuryContract>,
 ) {
   const code = await contractCode.ccip.local('FeeQuoter')
-  const data: fq.FeeQuoterStorage = {
+  const data = fq.Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: fq.Ownable2Step.create({
       owner: deployer.address,
-      pendingOwner: null,
-    },
-    allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
+    }),
+    allowedPriceUpdaters: new Set(),
     maxFeeJuelsPerMsg: 100000000n,
     linkToken: LINK_TOKEN,
-    tokenPriceStalenessThreshold: 1000,
-    usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
-    premiumMultiplierWeiPerEth: Dictionary.empty(
-      Dictionary.Keys.Address(),
-      Dictionary.Values.BigUint(64),
-    ),
-    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
-  }
+    tokenPriceStalenessThreshold: 1000n,
+    usdPerToken: new Map(),
+    premiumMultiplierWeiPerEth: new Map(),
+    destChainConfigs: new Map(),
+  })
 
-  const feeQuoter = blockchain.openContract(fq.FeeQuoter.createFromConfig(data, code))
+  const feeQuoter = blockchain.openContract(
+    fq.FeeQuoter.fromStorage(data, { overrideContractCode: code }),
+  )
 
   {
     const result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -190,27 +188,31 @@ async function deployFeeQuoterInstance(
     })
   }
   {
-    const addPriceUpdaterResult = await feeQuoter.sendAddPriceUpdater(deployer.getSender(), {
-      value: toNano('1'),
-      msg: { priceUpdater: deployer.address },
-    })
+    const addPriceUpdaterResult = await feeQuoter.sendFeeQuoterAddPriceUpdater(
+      deployer.getSender(),
+      toNano('1'),
+      { priceUpdater: deployer.address },
+    )
     expect(addPriceUpdaterResult.transactions).toHaveTransaction({
       to: feeQuoter.address,
       success: true,
     })
 
-    const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
-      value: toNano('1'),
-      msg: {
-        updates: {
-          gasPricesUpdates: [],
-          tokenPricesUpdates: [
-            { token: WRAPPED_NATIVE, price: Decimals.TESTING_VALUES.tokenPrice.eth },
-            { token: LINK_TOKEN, price: Decimals.TESTING_VALUES.tokenPrice.link },
-          ],
-        },
-        sendExcessesTo: null,
-      },
+    const result = await feeQuoter.sendFeeQuoterUpdatePrices(deployer.getSender(), toNano('1'), {
+      updates: fq.PriceUpdates.create({
+        gasPriceUpdates: [],
+        tokenPriceUpdates: [
+          fq.TokenPriceUpdate.create({
+            sourceToken: WRAPPED_NATIVE,
+            usdPerToken: Decimals.TESTING_VALUES.tokenPrice.eth,
+          }),
+          fq.TokenPriceUpdate.create({
+            sourceToken: LINK_TOKEN,
+            usdPerToken: Decimals.TESTING_VALUES.tokenPrice.link,
+          }),
+        ],
+      }),
+      sendExcessesTo: null,
     })
     expect(result.transactions).toHaveTransaction({
       to: feeQuoter.address,
@@ -219,34 +221,37 @@ async function deployFeeQuoterInstance(
   }
 
   {
-    const result = await feeQuoter.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('1'),
-      updates: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          config: {
-            isEnabled: true,
-            maxNumberOfTokensPerMsg: 1,
-            maxDataBytes: 100,
-            maxPerMsgGasLimit: 100,
-            destGasOverhead: 0,
-            destGasPerPayloadByteBase: 0,
-            destGasPerPayloadByteHigh: 0,
-            destGasPerPayloadByteThreshold: 0,
-            destDataAvailabilityOverheadGas: 0,
-            destGasPerDataAvailabilityByte: 0,
-            destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: ChainFamilySelectors.evm,
-            defaultTokenFeeUsdCents: 0,
-            defaultTokenDestGasOverhead: 0,
-            defaultTxGasLimit: 1,
-            gasMultiplierWeiPerEth: 0n,
-            gasPriceStalenessThreshold: 0,
-            networkFeeUsdCents: 0,
-          },
-        },
-      ],
-    })
+    const result = await feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      {
+        updates: [
+          fq.FeeQuoter_UpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            destChainConfig: fq.FeeQuoterDestChainConfig.create({
+              isEnabled: true,
+              maxNumberOfTokensPerMsg: 1n,
+              maxDataBytes: 100n,
+              maxPerMsgGasLimit: 100n,
+              destGasOverhead: 0n,
+              destGasPerPayloadByteBase: 0n,
+              destGasPerPayloadByteHigh: 0n,
+              destGasPerPayloadByteThreshold: 0n,
+              destDataAvailabilityOverheadGas: 0n,
+              destGasPerDataAvailabilityByte: 0n,
+              destDataAvailabilityMultiplierBps: 0n,
+              chainFamilySelector: ChainFamilySelectors.evm,
+              defaultTokenFeeUsdCents: 0n,
+              defaultTokenDestGasOverhead: 0n,
+              defaultTxGasLimit: 1n,
+              gasMultiplierWeiPerEth: 0n,
+              gasPriceStalenessThreshold: 0n,
+              networkFeeUsdCents: 0n,
+            }),
+          }),
+        ],
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       to: feeQuoter.address,
       success: true,
@@ -254,12 +259,9 @@ async function deployFeeQuoterInstance(
   }
 
   {
-    const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map([[WRAPPED_NATIVE, { premiumMultiplierWeiPerEth: 1n }]]),
-        remove: [],
-      },
+    const result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
+      add: new Map([[WRAPPED_NATIVE, fq.FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
+      remove: [],
     })
     expect(result.transactions).toHaveTransaction({
       to: feeQuoter.address,
@@ -510,7 +512,7 @@ export async function contractsCoverageConfig(): Promise<ContractCoverageConfig[
       name: 'router',
     },
     {
-      code: await fq.FeeQuoter.code(),
+      code: await contractCode.ccip.local('FeeQuoter'),
       name: 'feequoter',
     },
     {

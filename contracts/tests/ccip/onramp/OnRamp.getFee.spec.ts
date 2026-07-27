@@ -6,7 +6,7 @@ import * as coverage from '../../coverage/coverage'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -88,7 +88,7 @@ describe('OnRamp - Get Fee', () => {
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockFeeQuoter.address,
-      op: fq.opcodes.in.getValidatedFee,
+      op: fq.FeeQuoter_GetValidatedFee.PREFIX,
     })
 
     const tx = result.transactions.find(
@@ -109,11 +109,12 @@ describe('OnRamp - Get Fee', () => {
     if (outMsg.info.type !== 'internal') {
       throw new Error('Unexpected message type')
     }
-    expect(outMsg.body.beginParse().loadUint(32)).toBe(fq.opcodes.in.getValidatedFee)
-    const decoded = fq.builder.message.in.getValidatedFee.load(outMsg.body.beginParse())
-    expect(decoded.msg.queryID).toBe(Number(ccipSend.queryID))
-    expect(decoded.msg.destChainSelector).toBe(ccipSend.destChainSelector)
-    expect(decoded.msg.feeToken).toEqual(ccipSend.feeToken)
+    const body = outMsg.body.beginParse()
+    expect(body.loadUint(32)).toBe(fq.FeeQuoter_GetValidatedFee.PREFIX)
+    const decoded = fq.Router_CCIPSend.fromSlice(body.loadRef().beginParse())
+    expect(decoded.queryID).toBe(ccipSend.queryID)
+    expect(decoded.destChainSelector).toBe(ccipSend.destChainSelector)
+    expect(decoded.feeToken).toEqual(ccipSend.feeToken)
   })
 
   it('should throw error if message validated comes from non-feequoter', async () => {

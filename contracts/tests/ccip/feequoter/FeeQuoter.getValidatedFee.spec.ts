@@ -3,9 +3,9 @@ import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
-import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import * as feeQuoterManual from '../../../wrappers/ccip/FeeQuoter'
+import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
-import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
@@ -42,7 +42,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         message.feeToken!,
       )
 
-      const gasUsed = BigInt(FeeQuoterSetup.GAS_LIMIT) + BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD)
+      const gasUsed = FeeQuoterSetup.GAS_LIMIT + FeeQuoterSetup.DEST_GAS_OVERHEAD
       const gasFeeUSD =
         gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
       const messageFeeUSD =
@@ -69,18 +69,18 @@ describe('FeeQuoter GetValidatedFee', () => {
     )
     // Update dest chain config to set data availability multiplier to 0
     {
-      const result = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
         setup.acc.owner.getSender(),
+        toNano('1'),
         {
-          value: toNano('1'),
           updates: [
-            {
+            feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
               destChainSelector: ChainSelectors.testnet.evm,
-              config: {
-                ...destChainConfig,
-                destDataAvailabilityMultiplierBps: 0,
+              destChainConfig: {
+                ...destChainConfig.config,
+                destDataAvailabilityMultiplierBps: 0n,
               },
-            },
+            }),
           ],
         },
       )
@@ -98,7 +98,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     const feeResult = await setup.getValidatedFee(message)
 
-    const gasUsed = BigInt(FeeQuoterSetup.GAS_LIMIT) + BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD)
+    const gasUsed = FeeQuoterSetup.GAS_LIMIT + FeeQuoterSetup.DEST_GAS_OVERHEAD
     const gasFeeUSD =
       gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
     const messageFeeUSD =
@@ -112,15 +112,17 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should handle high gas limit message', async () => {
     const testTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS
-    const customGasLimit = BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
+    const customGasLimit = FeeQuoterSetup.MAX_GAS_LIMIT
     const customDataSize = FeeQuoterSetup.MAX_DATA_SIZE
-    expect(customDataSize).toBeGreaterThan(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD)
+    expect(customDataSize).toBeGreaterThan(
+      Number(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD),
+    )
 
     for (const token of testTokens) {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FromBuffer(FeeQuoterSetup.DEST_ADDRESS),
-        data: asSnakeBytes(Buffer.alloc(customDataSize)),
+        data: asSnakeBytes(Buffer.alloc(Number(customDataSize))),
         tokenAmounts: [],
         feeToken: token.token,
         extraArgs: rt.GenericExtraArgsV2.create({
@@ -140,12 +142,12 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       // Calculate calldata cost with threshold
       const callDataCostHigh =
-        (calldataLen - BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD)) *
-          BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_HIGH) +
-        BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD) *
-          BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE)
+        (calldataLen - FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD) *
+          FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_HIGH +
+        FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD *
+          FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
 
-      const gasUsed = customGasLimit + BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD) + callDataCostHigh
+      const gasUsed = customGasLimit + FeeQuoterSetup.DEST_GAS_OVERHEAD + callDataCostHigh
 
       const gasFeeUSD =
         gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
@@ -177,7 +179,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        gasLimit: FeeQuoterSetup.GAS_LIMIT,
         allowOutOfOrderExecution: true,
       }),
     })
@@ -196,14 +198,14 @@ describe('FeeQuoter GetValidatedFee', () => {
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        gasLimit: FeeQuoterSetup.GAS_LIMIT,
         allowOutOfOrderExecution: false,
       }),
     })
 
     await setup.assertGetFeeValidationError(
       message,
-      feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue,
+      feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue'],
     )
   })
 
@@ -216,17 +218,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        gasLimit: FeeQuoterSetup.GAS_LIMIT,
         allowOutOfOrderExecution: false,
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendGetValidatedFee(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeToFeeQuoter(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: feeQuoter.GenToMsg(message), context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
     )
 
     // Should return failure - destination chain not configured
@@ -237,7 +237,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
+      op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
         return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
@@ -245,7 +245,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.DestChainNotEnabled)
+              return (
+                msg.error ===
+                BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.DestChainNotEnabled'])
+              )
               // return true
             },
           ],
@@ -258,21 +261,19 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FromBuffer(FeeQuoterSetup.DEST_ADDRESS),
-      data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE + 1)),
+      data: asSnakeBytes(Buffer.alloc(Number(FeeQuoterSetup.MAX_DATA_SIZE + 1n))),
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        gasLimit: FeeQuoterSetup.GAS_LIMIT,
         allowOutOfOrderExecution: false,
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendGetValidatedFee(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeToFeeQuoter(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: feeQuoter.GenToMsg(message), context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
     )
 
     // Should return failure - destination chain not configured
@@ -283,7 +284,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
+      op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
         return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
@@ -291,7 +292,9 @@ describe('FeeQuoter GetValidatedFee', () => {
           sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.MsgDataTooLarge)
+              return (
+                msg.error === BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge'])
+              )
             },
           ],
         )
@@ -314,17 +317,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       ),
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        gasLimit: FeeQuoterSetup.GAS_LIMIT,
         allowOutOfOrderExecution: false,
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendGetValidatedFee(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeToFeeQuoter(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: feeQuoter.GenToMsg(message), context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
     )
 
     // Should return failure - destination chain not configured
@@ -335,7 +336,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
+      op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
         return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
@@ -343,7 +344,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.UnsupportedNumberOfTokens)
+              return (
+                msg.error ===
+                BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens'])
+              )
             },
           ],
         )
@@ -378,17 +382,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT + 1),
+        gasLimit: FeeQuoterSetup.MAX_GAS_LIMIT + 1n,
         allowOutOfOrderExecution: false,
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendGetValidatedFee(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeToFeeQuoter(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: feeQuoter.GenToMsg(message), context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
     )
 
     // should return failure - destination chain not configured
@@ -399,7 +401,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
+      op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
         return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
@@ -407,7 +409,9 @@ describe('FeeQuoter GetValidatedFee', () => {
           sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.GasLimitTooHigh)
+              return (
+                msg.error === BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.GasLimitTooHigh'])
+              )
             },
           ],
         )
@@ -425,17 +429,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       tokenAmounts: [],
       feeToken: notAFeeToken,
       extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        gasLimit: FeeQuoterSetup.GAS_LIMIT,
         allowOutOfOrderExecution: false,
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendGetValidatedFee(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeToFeeQuoter(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: feeQuoter.GenToMsg(message), context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
     )
 
     // should return failure - destination chain not configured
@@ -446,7 +448,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
+      op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
         return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
@@ -454,7 +456,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.FeeTokenNotSupported)
+              return (
+                msg.error ===
+                BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeTokenNotSupported'])
+              )
             },
           ],
         )
@@ -464,7 +469,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // Overflow/Underflow Edge Case Tests
   describe('Overflow and Underflow Edge Cases', () => {
-    interface FeeQuoterOverrides extends Partial<feeQuoter.DestChainConfig> {
+    interface FeeQuoterOverrides extends Omit<Partial<feeQuoter.FeeQuoterDestChainConfig>, '$'> {
       // Gas prices - constrained by serialization limits
       executionGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
       dataAvailabilityGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
@@ -479,51 +484,49 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     async function feequoterOverwrite(overrides: FeeQuoterOverrides) {
       // Set up token prices
-      const tokenPricesUpdates: Token[] = [
+      const tokenPriceUpdates: feeQuoter.TokenPriceUpdate[] = [
         ...(overrides.feeTokenPrice === undefined
           ? []
           : [
-              {
-                token: FeeQuoterSetup.NATIVE_TON.token,
-                price: overrides.feeTokenPrice,
-              },
+              feeQuoter.TokenPriceUpdate.create({
+                sourceToken: FeeQuoterSetup.NATIVE_TON.token,
+                usdPerToken: overrides.feeTokenPrice,
+              }),
             ]),
         ...(overrides.linkTokenPrice === undefined
           ? []
           : [
-              {
-                token: FeeQuoterSetup.SOURCE_LINK.token,
-                price: overrides.linkTokenPrice,
-              },
+              feeQuoter.TokenPriceUpdate.create({
+                sourceToken: FeeQuoterSetup.SOURCE_LINK.token,
+                usdPerToken: overrides.linkTokenPrice,
+              }),
             ]),
       ]
 
       // Set up gas prices if specified
-      const priceUpdates: feeQuoter.PriceUpdates = {
-        tokenPricesUpdates: tokenPricesUpdates,
-        gasPricesUpdates:
+      const priceUpdates = feeQuoter.PriceUpdates.create({
+        tokenPriceUpdates,
+        gasPriceUpdates:
           overrides.executionGasPrice !== undefined ||
           overrides.dataAvailabilityGasPrice !== undefined
             ? [
-                {
-                  chainSelector: ChainSelectors.testnet.evm,
+                feeQuoter.GasPriceUpdate.create({
+                  destChainSelector: ChainSelectors.testnet.evm,
                   executionGasPrice: overrides.executionGasPrice ?? FeeQuoterSetup.USD_PER_GAS,
                   dataAvailabilityGasPrice:
                     overrides.dataAvailabilityGasPrice ??
                     FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-                },
+                }),
               ]
             : [],
-      }
+      })
 
       // Update prices if needed
-      if (priceUpdates.gasPricesUpdates.length > 0 || priceUpdates.tokenPricesUpdates.length > 0) {
-        const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      if (priceUpdates.gasPriceUpdates.length > 0 || priceUpdates.tokenPriceUpdates.length > 0) {
+        const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
           setup.acc.owner.getSender(),
-          {
-            value: toNano('1'),
-            msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-          },
+          toNano('1'),
+          { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
         )
         expect(updateResult.transactions).toHaveTransaction({
           to: setup.bind.feeQuoter.address,
@@ -532,13 +535,13 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
 
       // Get dest chain config keys for filtering
-      const destChainConfigKeys = Object.keys(FeeQuoterSetup.destChainConfig) as Array<
-        keyof feeQuoter.DestChainConfig
-      >
+      const destChainConfigKeys = Object.keys(FeeQuoterSetup.destChainConfig).filter(
+        (key): key is keyof Omit<feeQuoter.FeeQuoterDestChainConfig, '$'> => key !== '$',
+      )
 
       // Update dest chain config if needed
       const hasDestConfigOverrides = Object.keys(overrides).some((key) =>
-        destChainConfigKeys.includes(key as keyof feeQuoter.DestChainConfig),
+        destChainConfigKeys.includes(key as keyof Omit<feeQuoter.FeeQuoterDestChainConfig, '$'>),
       )
 
       if (overrides.maxDataBytes) {
@@ -552,26 +555,28 @@ describe('FeeQuoter GetValidatedFee', () => {
         const destConfigOverrides = Object.fromEntries(
           Object.entries(overrides).filter(
             ([key, value]) =>
-              destChainConfigKeys.includes(key as keyof feeQuoter.DestChainConfig) &&
-              value !== undefined,
+              destChainConfigKeys.includes(
+                key as keyof Omit<feeQuoter.FeeQuoterDestChainConfig, '$'>,
+              ) && value !== undefined,
           ),
-        ) as Partial<feeQuoter.DestChainConfig>
+        ) as Omit<Partial<feeQuoter.FeeQuoterDestChainConfig>, '$'>
 
-        const destChainConfigResult = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
-          setup.acc.owner.getSender(),
-          {
-            value: toNano('1'),
-            updates: [
-              {
-                destChainSelector: ChainSelectors.testnet.evm,
-                config: {
-                  ...FeeQuoterSetup.destChainConfig,
-                  ...destConfigOverrides,
-                },
-              },
-            ],
-          },
-        )
+        const destChainConfigResult =
+          await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
+            setup.acc.owner.getSender(),
+            toNano('1'),
+            {
+              updates: [
+                feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+                  destChainSelector: ChainSelectors.testnet.evm,
+                  destChainConfig: {
+                    ...FeeQuoterSetup.destChainConfig,
+                    ...destConfigOverrides,
+                  },
+                }),
+              ],
+            },
+          )
         expect(destChainConfigResult.transactions).toHaveTransaction({
           to: setup.bind.feeQuoter.address,
           success: true,
@@ -580,19 +585,19 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       // Update fee token premium multiplier if specified
       if (overrides.premiumMultiplier !== undefined) {
-        const feeTokenResult = await setup.bind.feeQuoter.sendUpdateFeeTokens(
+        const feeTokenResult = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
           setup.acc.owner.getSender(),
+          toNano('1'),
           {
-            value: toNano('1'),
-            msg: {
-              add: new Map([
-                [
-                  FeeQuoterSetup.NATIVE_TON.token,
-                  { premiumMultiplierWeiPerEth: overrides.premiumMultiplier },
-                ],
-              ]),
-              remove: [],
-            },
+            add: new Map([
+              [
+                FeeQuoterSetup.NATIVE_TON.token,
+                feeQuoter.FeeToken.create({
+                  premiumMultiplierWeiPerEth: overrides.premiumMultiplier,
+                }),
+              ],
+            ]),
+            remove: [],
           },
         )
         expect(feeTokenResult.transactions).toHaveTransaction({
@@ -617,7 +622,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       // Create message with specified parameters
       const dataSize = overrides.dataSize ?? 10
-      const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
+      const gasLimit = overrides.gasLimit ?? FeeQuoterSetup.MAX_GAS_LIMIT
 
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
@@ -644,7 +649,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       // Create message with specified parameters
       const dataSize = overrides.dataSize ?? 10
-      const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
+      const gasLimit = overrides.gasLimit ?? FeeQuoterSetup.MAX_GAS_LIMIT
 
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
@@ -665,7 +670,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('should handle extreme gas price that could cause message fee too high error', async () => {
       await testOverflowScenario(
         'extreme gas price causing MessageFeeTooHigh',
-        feeQuoter.errors.MessageFeeTooHigh,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MessageFeeTooHigh'],
         {
           // Max uint112 gas prices
           executionGasPrice: 2n ** 112n - 1n,
@@ -679,7 +684,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('should handle extreme gas price that could cause overflow in final fee calculation', async () => {
       await testOverflowScenario(
         'extreme gas price causing FeeOverflow',
-        feeQuoter.errors.FeeOverflow,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeOverflow'],
         {
           // Max uint112 gas prices
           executionGasPrice: 2n ** 112n - 1n,
@@ -698,7 +703,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         // premiumFee = premiumFeeUsdWei * premiumMultiplier
         // With max values: (2^32-1) * 10^16 * (2^64-1) = very large but likely within int257
         // This overflow may not be achievable with realistic constraints
-        networkFeeUsdCents: 2 ** 32 - 1, // Max uint32
+        networkFeeUsdCents: BigInt(2 ** 32 - 1), // Max uint32
         premiumMultiplier: 2n ** 64n - 1n, // Max uint64
         linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e18), // Inflate link price to prevent MessageFeeTooHigh error
       })
@@ -717,15 +722,15 @@ describe('FeeQuoter GetValidatedFee', () => {
           dataAvailabilityGasPrice: 2n ** 112n - 1n, // Max uint112
           gasMultiplierWeiPerEth: 2n ** 64n - 1n, // Max uint64
           gasLimit: BigInt(2 ** 32 - 1), // Max uint32
-          destGasOverhead: 2 ** 32 - 1, // Max uint32
-          destGasPerDataAvailabilityByte: 2 ** 16 - 1, // Max uint16
-          destDataAvailabilityOverheadGas: 2 ** 32 - 1, // Max uint32
-          destGasPerPayloadByteBase: 255, // Max uint8
-          destGasPerPayloadByteHigh: 255, // Max uint8
-          destGasPerPayloadByteThreshold: 1, // Trigger high calculation
-          maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
+          destGasOverhead: BigInt(2 ** 32 - 1), // Max uint32
+          destGasPerDataAvailabilityByte: BigInt(2 ** 16 - 1), // Max uint16
+          destDataAvailabilityOverheadGas: BigInt(2 ** 32 - 1), // Max uint32
+          destGasPerPayloadByteBase: 255n, // Max uint8
+          destGasPerPayloadByteHigh: 255n, // Max uint8
+          destGasPerPayloadByteThreshold: 1n, // Trigger high calculation
+          maxPerMsgGasLimit: BigInt(2 ** 32 - 1), // Allow max gas
           dataSize: 16000,
-          maxDataBytes: 16001,
+          maxDataBytes: 16001n,
           linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
@@ -734,19 +739,23 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('should handle token price too low error', async () => {
-      await testOverflowScenario('token price too low', feeQuoter.errors.TokenPriceTooLow, {
-        feeTokenPrice: 0n, // Zero token price should trigger error
-      })
+      await testOverflowScenario(
+        'token price too low',
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenPriceTooLow'],
+        {
+          feeTokenPrice: 0n, // Zero token price should trigger error
+        },
+      )
     })
 
     it('should never throw data availability cost overflow', async () => {
       const overrides = {
         dataAvailabilityGasPrice: 2n ** 112n - 1n, // Max uint112
-        destDataAvailabilityOverheadGas: 2 ** 32 - 1, // Max uint32
-        destGasPerDataAvailabilityByte: 2 ** 16 - 1, // Max uint16 (65535)
-        destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16 (65535)
+        destDataAvailabilityOverheadGas: BigInt(2 ** 32 - 1), // Max uint32
+        destGasPerDataAvailabilityByte: BigInt(2 ** 16 - 1), // Max uint16 (65535)
+        destDataAvailabilityMultiplierBps: BigInt(2 ** 16 - 1), // Max uint16 (65535)
         dataSize: 16000,
-        maxDataBytes: 16001,
+        maxDataBytes: 16001n,
         linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
       }
 
@@ -774,17 +783,17 @@ describe('FeeQuoter GetValidatedFee', () => {
         // This is the intermediate calculation before dividing by token price
         executionGasPrice: 2n ** 111n, // Very high execution gas price
         dataAvailabilityGasPrice: 2n ** 111n, // Very high DA gas price
-        networkFeeUsdCents: 2 ** 32 - 1, // Max network fee
+        networkFeeUsdCents: BigInt(2 ** 32 - 1), // Max network fee
         premiumMultiplier: 2n ** 63n, // Very high premium multiplier
         gasMultiplierWeiPerEth: 2n ** 63n, // Very high gas multiplier
-        destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max DA multiplier
+        destDataAvailabilityMultiplierBps: BigInt(2 ** 16 - 1), // Max DA multiplier
         gasLimit: BigInt(2 ** 32 - 1), // Max gas limit
-        destGasOverhead: 2 ** 32 - 1, // Max gas overhead
-        destGasPerDataAvailabilityByte: 2 ** 16 - 1, // Max DA byte cost
-        destDataAvailabilityOverheadGas: 2 ** 32 - 1, // Max DA overhead
-        maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
+        destGasOverhead: BigInt(2 ** 32 - 1), // Max gas overhead
+        destGasPerDataAvailabilityByte: BigInt(2 ** 16 - 1), // Max DA byte cost
+        destDataAvailabilityOverheadGas: BigInt(2 ** 32 - 1), // Max DA overhead
+        maxPerMsgGasLimit: BigInt(2 ** 32 - 1), // Allow max gas
         dataSize: 16000, // Data size to calculate DA cost
-        maxDataBytes: 2 ** 32 - 1, // Max allowed data size
+        maxDataBytes: BigInt(2 ** 32 - 1), // Max allowed data size
         feeTokenPrice: 2n ** 200n, // Very high token price (so final division doesn't overflow)
         linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
       }
@@ -822,23 +831,23 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('should handle final fee overflow when casting to uint120', async () => {
       await testOverflowScenario(
         'final fee overflow when casting to uint120',
-        feeQuoter.errors.FeeOverflow,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeOverflow'],
         {
           // Try to create a fee that exceeds uint120 max (2^120 - 1 ≈ 1.3e36)
           // Final fee = (premiumFee + executionCost + dataAvailabilityCost) / tokenPrice
           // To exceed uint120: need result > 2^120
           executionGasPrice: 2n ** 111n, // Very high but within uint112
           dataAvailabilityGasPrice: 2n ** 111n, // Very high but within uint112
-          networkFeeUsdCents: 2 ** 32 - 1, // Max uint32
+          networkFeeUsdCents: BigInt(2 ** 32 - 1), // Max uint32
           premiumMultiplier: 2n ** 50n, // Large premium multiplier
           gasMultiplierWeiPerEth: 2n ** 63n, // Near max uint64
-          destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16
+          destDataAvailabilityMultiplierBps: BigInt(2 ** 16 - 1), // Max uint16
           feeTokenPrice: 1n, // Very small token price to maximize final result
           gasLimit: 2n ** 32n - 1n, // Max gas limit
-          destGasOverhead: 2 ** 32 - 1, // Max overhead
-          maxPerMsgGasLimit: 2 ** 32 - 1,
+          destGasOverhead: BigInt(2 ** 32 - 1), // Max overhead
+          maxPerMsgGasLimit: BigInt(2 ** 32 - 1),
           dataSize: 10000, // Large data size
-          maxDataBytes: 10001,
+          maxDataBytes: 10001n,
           linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
@@ -847,7 +856,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // extraArgs validation
   const validEVMExtraArgs = rt.GenericExtraArgsV2.create({
-    gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+    gasLimit: FeeQuoterSetup.GAS_LIMIT,
     allowOutOfOrderExecution: true,
   })
   describe('EVMExtraArgs', () => {
@@ -869,7 +878,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   describe('SVMExtraArgs', () => {
     const validSVMExtraArgs = rt.SVMExtraArgsV1.create({
-      computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+      computeUnits: FeeQuoterSetup.GAS_LIMIT,
       accountIsWritableBitmap: 0n,
       allowOutOfOrderExecution: true,
       tokenReceiver: 0n,
@@ -890,7 +899,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts with empty extra args', async () => {
-      const message = feeQuoter.FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell({
+      const message = feeQuoterManual.FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell({
         msg: {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
@@ -903,7 +912,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
@@ -918,7 +927,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
@@ -936,14 +945,14 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue'],
       )
     })
   })
 
   describe('SuiExtraArgs', () => {
     const validSVMExtraArgs = rt.SuiExtraArgsV1.create({
-      gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+      gasLimit: FeeQuoterSetup.GAS_LIMIT,
       allowOutOfOrderExecution: true,
       tokenReceiver: 0n,
       receiverObjectIds: [0n],
@@ -963,7 +972,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts with empty extra args', async () => {
-      const message = feeQuoter.FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell({
+      const message = feeQuoterManual.FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell({
         msg: {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
@@ -976,7 +985,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
@@ -991,7 +1000,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
@@ -1009,7 +1018,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue'],
       )
     })
   })
@@ -1027,12 +1036,15 @@ describe('FeeQuoter GetValidatedFee', () => {
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({
-          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          gasLimit: FeeQuoterSetup.GAS_LIMIT,
           allowOutOfOrderExecution: true,
         }),
       })
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidMsgData'],
+      )
     })
 
     it('should throw InvalidMsgData error for snake data over 128 cells', async () => {
@@ -1054,12 +1066,15 @@ describe('FeeQuoter GetValidatedFee', () => {
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({
-          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          gasLimit: FeeQuoterSetup.GAS_LIMIT,
           allowOutOfOrderExecution: true,
         }),
       })
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.MsgDataTooLarge)
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge'],
+      )
     })
   })
 
@@ -1068,18 +1083,18 @@ describe('FeeQuoter GetValidatedFee', () => {
       // Create a destination chain config with invalid family selector
       const invalidFamilySelector = 0x99999999
 
-      const result = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
         setup.acc.owner.getSender(),
+        toNano('1'),
         {
-          value: toNano('1'),
           updates: [
-            {
+            feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
               destChainSelector: 88888n,
-              config: {
+              destChainConfig: {
                 ...FeeQuoterSetup.destChainConfig,
-                chainFamilySelector: invalidFamilySelector,
+                chainFamilySelector: BigInt(invalidFamilySelector),
               },
-            },
+            }),
           ],
         },
       )
@@ -1096,14 +1111,14 @@ describe('FeeQuoter GetValidatedFee', () => {
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({
-          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          gasLimit: FeeQuoterSetup.GAS_LIMIT,
           allowOutOfOrderExecution: true,
         }),
       })
 
       await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.UnsupportedChainFamilySelector,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedChainFamilySelector'],
       )
     })
   })
@@ -1126,7 +1141,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
           }),
         })
@@ -1147,11 +1162,14 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
           }),
         })
-        await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidEVMReceiverAddress)
+        await setup.assertGetFeeValidationError(
+          message,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress'],
+        )
       })
 
       it('should reject EVM address exceeding uint160 max', async () => {
@@ -1167,12 +1185,15 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
           }),
         })
 
-        await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidEVMReceiverAddress)
+        await setup.assertGetFeeValidationError(
+          message,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress'],
+        )
       })
 
       it('should accept EVM address at precompile boundary', async () => {
@@ -1187,7 +1208,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
           }),
         })
@@ -1208,7 +1229,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SVMExtraArgsV1.create({
-            computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            computeUnits: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
             accountIsWritableBitmap: 0n,
             tokenReceiver: 0n,
@@ -1252,7 +1273,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SVMExtraArgsV1.create({
-            computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT), // Non-zero
+            computeUnits: FeeQuoterSetup.GAS_LIMIT, // Non-zero
             allowOutOfOrderExecution: true,
             accountIsWritableBitmap: 0n,
             tokenReceiver: 0n,
@@ -1262,7 +1283,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
         )
       })
     })
@@ -1279,7 +1300,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
           }),
         })
@@ -1299,14 +1320,14 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
           }),
         })
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
         )
       })
     })
@@ -1326,7 +1347,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
             tokenReceiver: 0n,
             receiverObjectIds: [],
@@ -1368,7 +1389,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
             tokenReceiver: 0n,
             receiverObjectIds: [],
@@ -1377,7 +1398,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
         )
       })
 
@@ -1391,7 +1412,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
-            gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+            gasLimit: FeeQuoterSetup.GAS_LIMIT,
             allowOutOfOrderExecution: true,
             tokenReceiver: 0n,
             receiverObjectIds: [1n], // Non-empty receiver object IDs
@@ -1400,7 +1421,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
         )
       })
 
@@ -1442,7 +1463,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           }),
         })
 
-        await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidSuiReceiverAddress)
+        await setup.assertGetFeeValidationError(
+          message,
+          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSuiReceiverAddress'],
+        )
       })
     })
   })

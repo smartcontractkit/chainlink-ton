@@ -11,7 +11,7 @@ import {
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
-import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
+import { FeeQuoter } from '../../../../wrappers/gen/ccip/FeeQuoter'
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
 import '@ton/test-utils'
 import {

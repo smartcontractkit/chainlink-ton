@@ -8,7 +8,7 @@ import { assertLog } from '../../Logs'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
@@ -258,13 +258,13 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: feeQuoter.address,
-      op: fq.opcodes.in.getValidatedFee,
+      op: fq.FeeQuoter_GetValidatedFee.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: feeQuoter.address,
       to: executorAddress,
-      op: fq.opcodes.out.messageValidated,
+      op: fq.FeeQuoter_MessageValidated.PREFIX,
       success: true,
     })
     // executor -> tokenRegistry and back

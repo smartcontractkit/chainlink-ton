@@ -1336,7 +1336,7 @@ export const CursedSubjects = {
 export interface FeeQuoter_UpdatePrices {
     readonly $: 'FeeQuoter_UpdatePrices'
     updates: PriceUpdates
-    sendExcessesTo: c.Address | null
+    sendExcessesTo: c.Address | null /* = null */
 }
 
 export const FeeQuoter_UpdatePrices = {
@@ -1344,10 +1344,11 @@ export const FeeQuoter_UpdatePrices = {
 
     create(args: {
         updates: PriceUpdates
-        sendExcessesTo: c.Address | null
+        sendExcessesTo?: c.Address | null /* = null */
     }): FeeQuoter_UpdatePrices {
         return {
             $: 'FeeQuoter_UpdatePrices',
+            sendExcessesTo: null,
             ...args
         }
     },

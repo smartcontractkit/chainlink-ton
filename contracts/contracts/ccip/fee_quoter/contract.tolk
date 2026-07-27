@@ -22,7 +22,8 @@ contract FeeQuoter {
     description: "link.chain.ton.ccip.FeeQuoter"
 
     storage: Storage
-    incomingMessages: FeeQuoter_InMessage
+    incomingMessages: FeeQuoter_InMessage | Ownable2Step_Messages
+    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error
 }
 
 const CONTRACT_VERSION = "1.6.3".literalSlice();
@@ -577,7 +578,7 @@ get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
     return prices;
 }
 
-get fun destinationChainGasPrice(destChainSelector: uint64): cell {
+get fun destinationChainGasPrice(destChainSelector: uint64): Cell<GasPrice> {
     val st = lazy Storage.load();
     var entry = st.destChainConfigs.get(destChainSelector);
     assert (entry.isFound, FeeQuoter_Error.UnknownDestChainSelector);

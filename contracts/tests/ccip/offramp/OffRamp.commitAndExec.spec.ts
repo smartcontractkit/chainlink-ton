@@ -14,7 +14,7 @@ import {
   generateRandomTonAddress,
 } from '../../../src/utils'
 import * as dict from '../../../src/utils/dict'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import * as mr from '../../../wrappers/ccip/MerkleRoot'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
@@ -471,14 +471,10 @@ describe('OffRamp - Unit Tests', () => {
         feeQuoter: feeQuoter.address,
       })
 
-      let resultFeeQuoterAddAuthorizedCaller = await feeQuoter.sendAddPriceUpdater(
+      let resultFeeQuoterAddAuthorizedCaller = await feeQuoter.sendFeeQuoterAddPriceUpdater(
         deployer.getSender(),
-        {
-          value: toNano('0.01'),
-          msg: {
-            priceUpdater: offRamp.address,
-          },
-        },
+        toNano('0.01'),
+        { priceUpdater: offRamp.address },
       )
       expect(resultFeeQuoterAddAuthorizedCaller.transactions).toHaveTransaction({
         from: deployer.address,

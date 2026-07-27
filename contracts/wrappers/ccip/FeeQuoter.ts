@@ -20,7 +20,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
 import { CellCodec as GenCellCodec } from '../gen/index'
-import { asSnakedCell } from '../../src/utils'
+import { asSnakedCell, fromSnakeData } from '../../src/utils'
 import { contractCode } from '../codeLoader'
 
 import { Maybe } from '@ton/core/dist/utils/maybe'
@@ -31,14 +31,15 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as rt from './Router'
 import * as rtGen from '../gen/ccip/Router'
-import { FromBuffer, ToBuffer } from './common/CrossChainAddressCodec'
+import * as fqGen from '../gen/ccip/FeeQuoter'
+import * as CrossChainAddressCodec from './common/CrossChainAddressCodec'
 
 /* Temporary compatibility converters */
 
 export function MsgToGen(msg: rt.CCIPSend): rtGen.Router_CCIPSend {
   return rtGen.Router_CCIPSend.create({
     destChainSelector: msg.destChainSelector,
-    receiver: FromBuffer(msg.receiver),
+    receiver: CrossChainAddressCodec.FromBuffer(msg.receiver),
     data: msg.data,
     tokenAmounts: msg.tokenAmounts.map((ta) =>
       rtGen.TokenAmount.create({ token: ta.token, amount: ta.amount }),
@@ -51,7 +52,7 @@ export function MsgToGen(msg: rt.CCIPSend): rtGen.Router_CCIPSend {
 export function GenToMsg(msg: rtGen.Router_CCIPSend): rt.CCIPSend {
   return {
     destChainSelector: msg.destChainSelector,
-    receiver: ToBuffer(msg.receiver),
+    receiver: CrossChainAddressCodec.ToBuffer(msg.receiver),
     data: msg.data,
     tokenAmounts: msg.tokenAmounts.map((ta) => ({ token: ta.token, amount: ta.amount })),
     feeToken: msg.feeToken ?? undefined,
@@ -65,9 +66,40 @@ export interface FeeQuoter_GetValidatedFee_ToFeeQuoter {
   msg: Router_CCIPSend
 }
 
+function loadAndCheckPrefix32(s: Slice, expected: number, structName: string): void {
+  let prefix = s.loadUint(32)
+  if (prefix !== expected) {
+    throw new Error(
+      `Incorrect prefix for '${structName}': expected 0x${expected.toString(16).padStart(8, '0')}, got 0x${prefix.toString(16).padStart(8, '0')}`,
+    )
+  }
+}
+
+function loadTolkRemaining(s: Slice): Slice {
+  let rest = s.clone()
+  s.loadBits(s.remainingBits)
+  while (s.remainingRefs) {
+    s.loadRef()
+  }
+  return rest
+}
+
 export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
+  fromSlice(s: Slice): FeeQuoter_GetValidatedFee_ToFeeQuoter {
+    return (() => {
+      loadAndCheckPrefix32(
+        s,
+        fqGen.FeeQuoter_GetValidatedFee.PREFIX,
+        'FeeQuoter_GetValidatedFee_ToFeeQuoter',
+      )
+      return {
+        msg: Router_CCIPSend.fromSlice(s),
+        context: loadTolkRemaining(s),
+      }
+    })()
+  },
   store(self: FeeQuoter_GetValidatedFee_ToFeeQuoter, b: Builder): void {
-    b.storeUint(0x7496ff56, 32)
+    b.storeUint(fqGen.FeeQuoter_GetValidatedFee.PREFIX, 32)
     b.storeRef(Router_CCIPSend.toCell(self.msg))
     b.storeSlice(beginCell().asSlice())
   },
@@ -89,6 +121,18 @@ export interface Router_CCIPSend {
 }
 
 export const Router_CCIPSend = {
+  fromSlice(s: Slice): Router_CCIPSend {
+    loadAndCheckPrefix32(s, rtGen.Router_CCIPSend.PREFIX, 'Router_CCIPSend')
+    return {
+      queryID: s.loadUintBig(64),
+      destChainSelector: s.loadUintBig(64),
+      receiver: CrossChainAddressCodec.unpackFromSlice(s),
+      data: s.loadRef(),
+      tokenAmounts: fromSnakeData(s.loadRef(), rtGen.TokenAmount.fromSlice),
+      feeToken: s.loadMaybeAddress(),
+      extraArgs: s.loadRef(),
+    }
+  },
   store: (self: Router_CCIPSend, b: Builder): void => {
     b.storeUint(0x31768d95, 32)
     b.storeUint(self.queryID, 64)
@@ -108,6 +152,45 @@ export const Router_CCIPSend = {
   toCell: (self: Router_CCIPSend): Cell => {
     const b = beginCell()
     Router_CCIPSend.store(self, b)
+    return b.endCell()
+  },
+}
+
+export interface FeeQuoter_MessageValidationFailed<T> {
+  readonly $: 'FeeQuoter_MessageValidationFailed'
+  error: bigint
+  msg: Router_CCIPSend
+  context: T
+}
+
+export type FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs =
+  FeeQuoter_MessageValidationFailed<Slice>
+
+export const FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = {
+  fromSlice(s: Slice): FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs {
+    return (() => {
+      loadAndCheckPrefix32(
+        s,
+        fqGen.FeeQuoter_MessageValidationFailed.PREFIX,
+        'FeeQuoter_MessageValidationFailed',
+      )
+      return {
+        $: 'FeeQuoter_MessageValidationFailed',
+        error: s.loadUintBig(256),
+        msg: Router_CCIPSend.fromSlice(s.loadRef().beginParse()),
+        context: loadTolkRemaining(s),
+      }
+    })()
+  },
+  store(self: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs, b: Builder): void {
+    b.storeUint(fqGen.FeeQuoter_MessageValidationFailed.PREFIX, 32)
+    b.storeUint(self.error, 256)
+    b.storeRef(Router_CCIPSend.toCell(self.msg))
+    b.storeSlice(self.context)
+  },
+  toCell(self: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs): Cell {
+    const b = beginCell()
+    FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs.store(self, b)
     return b.endCell()
   },
 }

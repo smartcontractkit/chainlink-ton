@@ -3,7 +3,8 @@ import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../wrappers/utils'
 
 import * as sendExecutor from '../wrappers/ccip/CCIPSendExecutor'
-import * as fq from '../wrappers/ccip/FeeQuoter'
+import { ERROR_CODE, FACILITY_ID, FACILITY_NAME } from '../wrappers/ccip/FeeQuoter'
+import * as fq from '../wrappers/gen/ccip/FeeQuoter'
 import * as mr from '../wrappers/ccip/MerkleRoot'
 import * as offr from '../wrappers/ccip/OffRamp'
 import * as onr from '../wrappers/ccip/OnRamp'
@@ -38,10 +39,10 @@ describe('Exit Codes', () => {
       error0: sendExecutor.error.StateNotExpected,
     },
     {
-      facilityId: fq.FACILITY_ID,
-      facilityName: fq.FACILITY_NAME,
-      errorCode: fq.ERROR_CODE,
-      error0: fq.errors.UnsupportedChainFamilySelector,
+      facilityId: FACILITY_ID,
+      facilityName: FACILITY_NAME,
+      errorCode: ERROR_CODE,
+      error0: fq.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedChainFamilySelector'],
     },
     {
       facilityId: mr.FACILITY_ID,

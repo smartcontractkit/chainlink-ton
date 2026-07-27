@@ -12,7 +12,7 @@ import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import { getValidatedFee } from '../../../src/ccipSend/fee'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
