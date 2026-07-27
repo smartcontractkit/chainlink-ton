@@ -12,7 +12,12 @@ import { WRAPPED_NATIVE } from '../../../src/utils'
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
-import * as sxManual from '../../../wrappers/ccip/CCIPSendExecutor'
+import {
+  FACILITY_NAME,
+  CONTRACT_VERSION,
+  FACILITY_ID,
+  ERROR_CODE,
+} from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as dep from '../../../wrappers/libraries/Deployable'
@@ -20,8 +25,8 @@ import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 
 describe('SendExecutor - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: sxManual.ContractClient.type(),
-    version: sxManual.ContractClient.version(),
+    type: FACILITY_NAME,
+    version: CONTRACT_VERSION,
     deployContract: async (
       blockchain: Blockchain,
       deployer: SandboxContract<TreasuryContract>,
@@ -127,21 +132,21 @@ describe('SendExecutor - Unit tests', () => {
   it('should match facility name and ID', async () => {
     const { sendExecutor } = await sendDeploy()
     const facilityIdVal = await sendExecutor.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(sxManual.FACILITY_ID))
+    expect(facilityIdVal).toBe(BigInt(FACILITY_ID))
 
     const [typeSlice] = await sendExecutor.getTypeAndVersion()
-    expect(typeSlice.loadStringTail()).toBe(sxManual.FACILITY_NAME)
+    expect(typeSlice.loadStringTail()).toBe(FACILITY_NAME)
 
-    expect(sxManual.FACILITY_ID).toEqual(facilityId(crc32(sxManual.FACILITY_NAME)))
+    expect(FACILITY_ID).toEqual(facilityId(crc32(FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
     const { sendExecutor } = await sendDeploy()
 
     const errorCodeVal = await sendExecutor.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(sxManual.ERROR_CODE))
+    expect(errorCodeVal).toBe(BigInt(ERROR_CODE))
 
-    expect(sxManual.ERROR_CODE).toEqual(errorCode(crc32(sxManual.FACILITY_NAME)))
+    expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
   })
 
   // Deploys and runs the execute self-message. The payload can optionally carry a tokenRegistry,

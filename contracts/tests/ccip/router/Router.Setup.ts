@@ -12,7 +12,6 @@ import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 
@@ -513,7 +512,7 @@ export async function contractsCoverageConfig(): Promise<ContractCoverageConfig[
       name: 'onramp',
     },
     {
-      code: await sendExecutor.ContractClient.code(),
+      code: await contractCode.ccip.local('OffRamp'),
       name: 'send_executor',
     },
   ]

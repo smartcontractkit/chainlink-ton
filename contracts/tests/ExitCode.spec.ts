@@ -2,7 +2,7 @@ import '@ton/test-utils'
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../wrappers/utils'
 
-import * as sendExecutor from '../wrappers/ccip/CCIPSendExecutor'
+import * as sx from '../wrappers/ccip/CCIPSendExecutor'
 import { ERROR_CODE, FACILITY_ID, FACILITY_NAME } from '../wrappers/ccip/FeeQuoter'
 import * as fq from '../wrappers/gen/ccip/FeeQuoter'
 import * as mr from '../wrappers/ccip/MerkleRoot'
@@ -15,6 +15,7 @@ import * as rece from '../wrappers/examples/Receiver'
 import * as offrGen from '../wrappers/gen/ccip/OffRamp'
 import * as onrGen from '../wrappers/gen/ccip/OnRamp'
 import * as rxGen from '../wrappers/gen/ccip/ReceiveExecutor'
+import * as sxGen from '../wrappers/gen/ccip/CCIPSendExecutor'
 
 import * as deployable from '../wrappers/libraries/Deployable'
 import * as rec from '../wrappers/libraries/Receiver'
@@ -33,10 +34,10 @@ import * as rbact from '../wrappers/mcms/RBACTimelock'
 describe('Exit Codes', () => {
   const cases = [
     {
-      facilityId: sendExecutor.FACILITY_ID,
-      facilityName: sendExecutor.FACILITY_NAME,
-      errorCode: sendExecutor.ERROR_CODE,
-      error0: sendExecutor.error.StateNotExpected,
+      facilityId: sx.FACILITY_ID,
+      facilityName: sx.FACILITY_NAME,
+      errorCode: sx.ERROR_CODE,
+      error0: sxGen.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.StateNotExpected'],
     },
     {
       facilityId: FACILITY_ID,

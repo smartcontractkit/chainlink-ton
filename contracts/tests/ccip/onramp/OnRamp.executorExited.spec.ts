@@ -5,7 +5,7 @@ import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
@@ -120,7 +120,7 @@ describe('OnRamp - executor exit', () => {
     executorSender = await relayContract.getSender(deployer.getSender())
 
     const executorStorageCell = await relayContract.getStorage()
-    const storage = executor.builder.data.contractInitData.load(executorStorageCell.beginParse())
+    const storage = ex.CCIPSendExecutor_InitialData.fromSlice(executorStorageCell.beginParse())
     executorID = storage.id
   })
 
