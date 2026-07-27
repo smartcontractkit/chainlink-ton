@@ -12,6 +12,7 @@ import * as rx from '../wrappers/ccip/ReceiveExecutor'
 import * as rt from '../wrappers/ccip/Router'
 import * as rece from '../wrappers/examples/Receiver'
 
+import * as rtGen from '../wrappers/gen/ccip/Router'
 import * as offrGen from '../wrappers/gen/ccip/OffRamp'
 import * as onrGen from '../wrappers/gen/ccip/OnRamp'
 import * as rxGen from '../wrappers/gen/ccip/ReceiveExecutor'
@@ -74,7 +75,7 @@ describe('Exit Codes', () => {
       facilityId: rt.FACILITY_ID,
       facilityName: rt.FACILITY_NAME,
       errorCode: rt.ERROR_CODE,
-      error0: rt.RouterError.DestChainNotEnabled,
+      error0: rtGen.Router.Errors['Router_Error.DestChainNotEnabled'],
     },
     {
       facilityId: rece.FACILITY_ID,
