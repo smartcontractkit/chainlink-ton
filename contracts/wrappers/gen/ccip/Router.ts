@@ -3267,6 +3267,14 @@ export class Router implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendRouterCCIPSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryID?: uint64
         destChainSelector: uint64

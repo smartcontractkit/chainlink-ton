@@ -404,6 +404,14 @@ export class MockTokenPool implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendMockTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         tokenAmount: TokenAmount
         notify: c.Address

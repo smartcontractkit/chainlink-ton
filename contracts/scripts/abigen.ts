@@ -84,6 +84,7 @@ function main(): void {
     sortErrorsBlocks(sourceFile)
     unwrapSnakedCell(sourceFile)
     transformCellRef(sourceFile)
+    addSend(sourceFile)
     makeQueryIDOptional(sourceFile)
     transformDictionaryMaps(sourceFile)
 

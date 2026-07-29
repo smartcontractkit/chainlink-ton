@@ -625,6 +625,14 @@ export class TestMsgHasher implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async getAny2TVMRampMessageID(provider: ContractProvider, msg: Any2TVMRampMessage, metadataHash: bigint): Promise<bigint> {
         const r = StackReader.fromGetMethod(1, await provider.get('getAny2TVMRampMessageID', [
             { type: 'cell', cell: Any2TVMRampMessage.toCell(msg) },
