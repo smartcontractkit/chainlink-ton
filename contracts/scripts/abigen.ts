@@ -5,13 +5,12 @@ import * as path from 'path'
 import { Project } from 'ts-morph'
 
 import { parseToml } from './abigen/toml'
-import {
-  sortErrorsBlocks,
-  transformCellRef,
-  transformDictionaryMaps,
-  transformQueryId,
-  transformSnakedCell,
-} from './abigen/transforms'
+import transformCellRef from './abigen/transforms/cellRefs'
+import addSend from './abigen/transforms/addSend'
+import sortErrorsBlocks from './abigen/transforms/sortErrorsBlocks'
+import unwrapSnakedCell from './abigen/transforms/unwrapSnakedCell'
+import makeQueryIDOptional from './abigen/transforms/makeQueryIDOptional'
+import transformDictionaryMaps from './abigen/transforms/maps'
 
 // ---------------------------------------------------------------------------
 //   manifest resolution + acton invocation
@@ -83,9 +82,9 @@ function main(): void {
     const sourceFile = project.createSourceFile(outputPath, original, { overwrite: true })
 
     sortErrorsBlocks(sourceFile)
-    transformSnakedCell(sourceFile)
+    unwrapSnakedCell(sourceFile)
     transformCellRef(sourceFile)
-    transformQueryId(sourceFile)
+    makeQueryIDOptional(sourceFile)
     transformDictionaryMaps(sourceFile)
 
     const transformed = sourceFile.getFullText()
