@@ -12,6 +12,7 @@ import {
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
   TokenPool_MirroredPolicy,
+  TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnInV1,
@@ -29,10 +30,41 @@ import {
   JettonClient,
   LockReleaseTokenPool,
 } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
+import {
+  ContextExecutor,
+  ContextExecutor_ForwardNotification,
+  ContextExecutor_InMessageForward,
+} from '../../../wrappers/gen/ccip/ContextExecutor'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
+import {
+  runTokenPoolAsyncHookBehaviorTests,
+  runTokenPoolBehaviorTests,
+} from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
+
+function buildSpoofedExecutorForwardNotification(senderAddress: Address): Cell {
+  const forwarded = ContextExecutor_InMessageForward.toCell(
+    ContextExecutor_InMessageForward.create({
+      senderAddress,
+      valueCoins: 0n,
+      valueExtra: new Map(),
+      originalForwardFee: 0n,
+      createdLt: 0n,
+      createdAt: 0n,
+      body: Cell.EMPTY,
+    }),
+  )
+
+  return beginCell()
+    .storeUint(ContextExecutor_ForwardNotification.PREFIX, 32)
+    .storeUint(999n, 64)
+    .storeRef(Cell.EMPTY)
+    .storeUint(0, 8)
+    .storeMaybeRef(null)
+    .storeRef(forwarded)
+    .endCell()
+}
 
 describe('LockReleaseTokenPool', () => {
   let blockchain: Blockchain
@@ -116,17 +148,16 @@ describe('LockReleaseTokenPool', () => {
             advancedPoolHooks: null,
           }),
           mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: new Map(),
-            offRamps: new Map(),
-            cursedSubjects: CursedSubjects.create({
-              data: new Set(),
-            }),
+            onRamps: new Map<bigint, Address>(),
+            offRamps: new Map<bigint, Address>(),
+            cursedSubjects: CursedSubjects.create({ data: new Set<bigint>() }),
           }),
           tokenDecimals: 9n,
           remoteChainConfigs: new Map(),
           tokenTransferFeeConfigs: new Map(),
         }),
-        pendingReleases: new Map(),
+        contextExecutorCode: ContextExecutor.CodeCell,
+        contextExecutorNextId: 1n,
       }),
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))
@@ -139,26 +170,26 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.2'),
       {
         queryId: 1n,
-        remoteChainSelectorsToRemove: [],
-        chainsToAdd: [
+          remoteChainSelectorsToRemove: [],
+          chainsToAdd: [
           TokenPool_ChainUpdate.create({
             remoteChainSelector,
-            remotePoolAddresses: [sourcePoolAddress],
-            remoteTokenAddress: destTokenAddress,
-            rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
-              outbound: RateLimiter_Config.create({
+              remotePoolAddresses: [sourcePoolAddress],
+              remoteTokenAddress: destTokenAddress,
+              rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+                outbound: RateLimiter_Config.create({
                 isEnabled: true,
                 capacity: toNano('100'),
                 rate: 1n,
-              }),
-              inbound: RateLimiter_Config.create({
+                }),
+                inbound: RateLimiter_Config.create({
                 isEnabled: true,
                 capacity: toNano('100'),
                 rate: 1n,
+                }),
               }),
-            }),
           }),
-        ],
+          ],
       },
     )
 
@@ -214,6 +245,21 @@ describe('LockReleaseTokenPool', () => {
     }
   })
 
+  const setupTokenPoolBehaviorContext = async () => {
+    await jettonMinter.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      message: {
+        queryId: 0n,
+        destination: lockReleasePool.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('10'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: 0n,
+      },
+    })
+  }
+
   runTokenPoolBehaviorTests('LockReleaseTokenPool', async () => ({
     pool,
     deployer,
@@ -225,7 +271,9 @@ describe('LockReleaseTokenPool', () => {
     destTokenAddress,
     sourcePoolAddress,
     localToken: jettonMinter.address,
-  }))
+  }), {
+    setup: setupTokenPoolBehaviorContext,
+  })
 
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseTokenPool', async () => {
@@ -261,10 +309,6 @@ describe('LockReleaseTokenPool', () => {
       localToken: jettonMinter.address,
       hooks,
     }
-  })
-
-  it('has no pending release by default', async () => {
-    expect(await lockReleasePool.getHasPendingRelease(999n)).toBe(false)
   })
 
   it('reverts lockOrBurn when forwarded amount does not match transfer amount', async () => {
@@ -349,7 +393,7 @@ describe('LockReleaseTokenPool', () => {
               localToken: jettonMinter.address,
             }),
           }),
-          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolAddress,
           sourcePoolData: null,
           offchainTokenData: null,
         }),
@@ -363,7 +407,6 @@ describe('LockReleaseTokenPool', () => {
       to: lockReleasePool.address,
       success: false,
     })
-    expect(await lockReleasePool.getHasPendingRelease(46n)).toBe(false)
   })
 
   it('refunds inbound rate-limit capacity when a release bounces (TON-TP/5)', async () => {
@@ -390,7 +433,7 @@ describe('LockReleaseTokenPool', () => {
               localToken: jettonMinter.address,
             }),
           }),
-          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolAddress,
           sourcePoolData: null,
           offchainTokenData: null,
         }),
@@ -405,7 +448,18 @@ describe('LockReleaseTokenPool', () => {
       inMessageBounced: true,
       success: true,
     })
-    expect(await lockReleasePool.getHasPendingRelease(77n)).toBe(false)
+
+    expect(result.transactions).toHaveTransaction({
+      from: lockReleasePool.address,
+      to: deployer.address,
+      success: true,
+      op: TokenPool_ReleaseOrMintFailure.PREFIX,
+      body(body) {
+        if (!body) return false
+        const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse())
+        return failure.queryId === 77n
+      },
+    })
 
     // Consumed capacity (5) was refunded: the bucket is restored to its starting balance.
     const after = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
@@ -456,7 +510,7 @@ describe('LockReleaseTokenPool', () => {
     expect(await poolWallet.getJettonBalance()).toEqual(toNano('3'))
   })
 
-  it('releases tokens from pool custody after off-ramp request and clears pending state on confirmation', async () => {
+  it('releases tokens from pool custody after off-ramp request and finalizes through the executor notification', async () => {
     const poolWallet = await userWallet(lockReleasePool.address)
     const recipientWallet = await userWallet(recipient.address)
 
@@ -489,7 +543,7 @@ describe('LockReleaseTokenPool', () => {
               localToken: jettonMinter.address,
             }),
           }),
-          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolAddress,
           sourcePoolData: null,
           offchainTokenData: null,
         }),
@@ -506,7 +560,6 @@ describe('LockReleaseTokenPool', () => {
 
     expect(await recipientWallet.getJettonBalance()).toEqual(toNano('2'))
     expect(await poolWallet.getJettonBalance()).toEqual(toNano('3'))
-    expect(await lockReleasePool.getHasPendingRelease(22n)).toBe(false)
 
     expect(result.transactions).toHaveTransaction({
       from: lockReleasePool.address,
@@ -521,15 +574,92 @@ describe('LockReleaseTokenPool', () => {
     })
   })
 
+  it('releases tokens with null replyTo without emitting a response message', async () => {
+    const poolWallet = await userWallet(lockReleasePool.address)
+    const recipientWallet = await userWallet(recipient.address)
+
+    await jettonMinter.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      message: {
+        queryId: 0n,
+        destination: lockReleasePool.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('4'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: 0n,
+      },
+    })
+
+    const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.4'),
+      {
+        queryId: 223n,
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 223n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('1'),
+              localToken: jettonMinter.address,
+            }),
+          }),
+          sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
+        requestedFinalityConfig: 0n,
+        replyTo: null,
+      },
+    )
+
+    expect(await recipientWallet.getJettonBalance()).toEqual(toNano('1'))
+    expect(await poolWallet.getJettonBalance()).toEqual(toNano('3'))
+
+    const releaseResponses = result.transactions.filter((tx: any) => {
+      const body = tx.inMessage?.body
+      if (!body) {
+        return false
+      }
+
+      const slice = body.beginParse()
+      if (slice.remainingBits < 32) {
+        return false
+      }
+
+      return (
+        tx.inMessage?.info?.src?.equals?.(lockReleasePool.address) &&
+        slice.preloadUint(32) === TokenPool_ReleaseOrMintFinished.PREFIX
+      )
+    })
+    expect(releaseResponses.length).toBe(0)
+  })
+
+  it('rejects forged executor forward notifications', async () => {
+    const forged = await recipient.send({
+      to: lockReleasePool.address,
+      value: toNano('0.1'),
+      bounce: false,
+      body: buildSpoofedExecutorForwardNotification(recipient.address),
+    })
+
+    expect(forged.transactions).toHaveTransaction({
+      from: recipient.address,
+      to: lockReleasePool.address,
+      success: false,
+    })
+  })
+
   it('mirrors cursed state locally and blocks release while cursed', async () => {
     const curseUpdate = await lockReleasePool.sendTokenPoolSetCursedSubjects(
       deployer.getSender(),
       toNano('0.2'),
       {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set([remoteChainSelector]),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set([remoteChainSelector]) }),
       },
     )
 

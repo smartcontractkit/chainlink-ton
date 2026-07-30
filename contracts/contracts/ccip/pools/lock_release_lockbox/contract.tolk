@@ -5,6 +5,7 @@ import "@stdlib/lisp-lists"
 
 import "../../../lib/utils"
 import "../../../lib/jetton/messages"
+import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../common/types"
 import "../../rmn_remote/lib"
@@ -105,11 +106,7 @@ fun onLockOrBurnTransferContinue(
 
     // Calculate addresses.
     val jettonClient = st.poolData.load().jettonClient();
-    val ownWallet = calcAddressOfJettonWallet(
-        contract.getAddress(),
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
-    );
+    val ownWallet = jettonClient.walletAddress();
     val lockboxWallet = calcAddressOfJettonWallet(
         st.lockbox,
         jettonClient.masterAddress,

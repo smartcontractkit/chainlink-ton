@@ -9,6 +9,8 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
 import "../../common/types"
+import "../../executors/context_executor/messages"
+import "../../executors/context_executor/types"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -45,8 +47,8 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
-        ReturnExcessesBack => {
-            onReturnExcessesBack(mutate st, in.senderAddress, msg);
+        ContextExecutor_ForwardNotification<LockReleaseTokenPool_ReleaseContext> => {
+            onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
         }
         else => {
@@ -55,13 +57,22 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// TODO: implement me
+fun deployLockReleaseContextExecutor(executor: AutoDeployAddress): void {
+    val deploy = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: LockReleaseTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
+        dest: executor,
+        body: beginCell().endCell().beginParse(),
+    });
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
 fun onBouncedMessage(in: InMessageBounced) {
-    // TODO: use TokenPool.onBouncedMessage (lib) handler
-    val msg = lazy LockReleaseTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    var st = Storage.load();
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy LockReleaseTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
-            var st = Storage.load();
             onReleaseTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
@@ -76,11 +87,15 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    assert(!st.pendingReleases.get(msg.queryId).isFound, Error.PendingReleaseAlreadyExists);
     val jettonClient = st.poolData.load().jettonClient();
 
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
+    val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
+        originalSender: sender,
+        requestMsg: msg.toCell(),
+        prepared: prepared.toCell(),
+    };
 
     val recipientWallet = calcAddressOfJettonWallet(
         details.receiver,
@@ -88,33 +103,33 @@ fun onReleaseOrMintContinue(
         jettonClient.jettonWalletCode,
     );
 
-    st.pendingReleases.set(msg.queryId, LockReleaseTokenPool_PendingRelease {
-        replyTo: msg.replyTo,
-        request: request.toCell(),
-        out: prepared.out.toCell(),
-        expectedSender: recipientWallet,
-    }.toCell());
-
-    val ownWallet = calcAddressOfJettonWallet(
+    val context = LockReleaseTokenPool_ReleaseContext {
+        forwardPayload: forwardPayload.toCell(),
+    };
+    val contextExecutorId = st.takeContextExecutorNextId();
+    val executor = ContextExecutor<LockReleaseTokenPool_ReleaseContext>.getAddress(
+        st.contextExecutorCode,
+        contextExecutorId,
         contract.getAddress(),
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
+        context.toCell(),
+        [recipientWallet],
     );
 
+    deployLockReleaseContextExecutor(executor);
+
+    val ownWallet = jettonClient.walletAddress();
+
     val transfer = createMessage({
-        // TODO: use RichBounce to recover context, currently breaks with exitCode: 63 b/x
-        // `skipBouncedPrefix` in the handler.
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
         dest: ownWallet,
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: prepared.localAmount,
             transferRecipient: details.receiver,
-            sendExcessesTo: contract.getAddress(), // TODO: ContextExecutor
-            customPayload: null,
-            forwardTonAmount: 0, // TODO: add fwdp amount
-            // TODO: add fwdp
+            sendExcessesTo: executor.calculateAddress(),
+            customPayload: context.toCell(),
+            forwardTonAmount: 0,
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     });
@@ -123,40 +138,48 @@ fun onReleaseOrMintContinue(
     return st;
 }
 
-fun onReturnExcessesBack(
+fun refundReleaseOrMintRateLimit(
     mutate st: Storage,
-    sender: address,
-    msg: ReturnExcessesBack,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
 ) {
-    val pendingEntry = st.pendingReleases.get(msg.queryId);
-    assert(pendingEntry.isFound, Error.PendingReleaseNotFound);
-
-    val pending = pendingEntry.loadValue().load();
-    assert(sender == pending.expectedSender, Error.UnexpectedReleaseConfirmationSender);
-
-    st.pendingReleases.delete(msg.queryId);
-    val request = lazy pending.request.load();
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
-    val out = lazy pending.out.load();
+    val prepared = lazy forwardPayload.prepared.load();
+    var pool = loadPool(st);
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        pool.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    } else {
+        pool.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    }
+    st.poolData = pool.data.toCell();
+}
+
+fun sendReleaseOrMintFinished(forwardPayload: TokenPool_ReleaseOrMintForwardPayload) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+    val out = prepared.out;
 
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
             token: details.localToken,
-            sender: contract.getAddress(), // TODO: who should we put as sender? (msg.sender on EVM)
+            sender: contract.getAddress(),
             amount: out.destinationAmount,
             recipient: details.receiver.toCell(),
         }.toCell(),
     });
 
-    if (pending.replyTo != null) {
+    if (requestMsg.replyTo != null) {
         val notify = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
-            dest: pending.replyTo!,
+            dest: requestMsg.replyTo!,
             body: TokenPool_ReleaseOrMintFinished {
-                queryId: msg.queryId,
-                out: pending.out,
+                queryId: requestMsg.queryId,
+                out: prepared.out.toCell(),
             },
         });
         notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -168,39 +191,56 @@ fun onReleaseTransferBounced(
     sender: address,
     msg: AskToTransfer,
 ) {
-    val jettonClient = st.poolData.load().jettonClient();
-    assert(jettonClient.isWallet(sender), Error.UnexpectedReleaseBounce);
+    assert(st.poolData.load().jettonClient().isWallet(sender)) throw Error.UnexpectedReleaseBounce;
+    assert(msg.customPayload != null) throw Error.UnexpectedReleaseBounce;
 
-    val pendingEntry = st.pendingReleases.get(msg.queryId);
-    assert(pendingEntry.isFound, Error.PendingReleaseNotFound);
+    val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(msg.customPayload!);
+    val operation = context.forwardPayload.load();
+    refundReleaseOrMintRateLimit(mutate st, operation);
+    sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
+}
 
-    val pending = pendingEntry.loadValue().load();
-    st.pendingReleases.delete(msg.queryId);
-
-    // TODO: should use shared onBouncedMessage handler from TokenPool lib to
-    // reuse the logic across pool implementations.
-    // The release consumed inbound rate-limit capacity at admission, but the transfer
-    // bounced so no tokens were delivered. Return that capacity to the bucket.
-    val request = lazy pending.request.load();
-    val details = lazy request.transfer.details.load();
-    val out = lazy pending.out.load();
-    var pool: TokenPool<Storage> = loadPool(st);
-    pool.releaseInboundRateLimit(details.remoteChainSelector, out.destinationAmount);
-    st.poolData = pool.data.toCell();
-
-    // TODO: we should always reply back
-    if (pending.replyTo != null) {
+fun sendReleaseOrMintFailure(
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+    errorCode: uint16,
+) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
         val fail = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
-            dest: pending.replyTo!,
+            dest: requestMsg.replyTo!,
             body: TokenPool_ReleaseOrMintFailure {
-                queryId: msg.queryId,
-                errorCode: Error.UnexpectedReleaseBounce as uint16,
+                queryId: requestMsg.queryId,
+                errorCode,
             },
         });
         fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+}
+
+fun onContextExecutorForwardNotification(
+    mutate st: Storage,
+    sender: address,
+    msg: ContextExecutor_ForwardNotification<LockReleaseTokenPool_ReleaseContext>,
+) {
+    val expectedExecutor = ContextExecutor<LockReleaseTokenPool_ReleaseContext>.getAddress(
+        st.contextExecutorCode,
+        msg.id,
+        contract.getAddress(),
+        msg.context,
+        msg.forwardFrom,
+    );
+    assert(sender == expectedExecutor.calculateAddress(), TokenPool_Error.Unauthorized);
+
+    val forwarded = msg.message.load();
+    val returnExcesses = ReturnExcessesBack.fromCell(forwarded.body);
+
+    val context = msg.context.load();
+    val operation = context.forwardPayload.load();
+    assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
+
+    sendReleaseOrMintFinished(operation);
 }
 
 fun loadPool(st: Storage): TokenPool<Storage> {
@@ -248,10 +288,6 @@ get fun onRamp(remoteChainSelector: uint64): address? {
 get fun offRamp(remoteChainSelector: uint64): address? {
     val entry = Storage.load().poolData.load().mirroredPolicy.load().offRamps.get(remoteChainSelector);
     return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun hasPendingRelease(queryId: uint64): bool {
-    return Storage.load().pendingReleases.get(queryId).isFound;
 }
 
 get fun getRMNProxy(): address {

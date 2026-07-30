@@ -271,6 +271,21 @@ describe('LockReleaseLockboxTokenPool', () => {
     }
   })
 
+  const setupTokenPoolBehaviorContext = async () => {
+    await jettonMinter.sendMint(deployer.getSender(), {
+      value: toNano('2'),
+      message: {
+        queryId: 0n,
+        destination: jettonLockBox.address,
+        tonAmount: toNano('0.5'),
+        jettonAmount: toNano('10'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: toNano('0.3'),
+      },
+    })
+  }
+
   runTokenPoolBehaviorTests('LockReleaseLockboxTokenPool', async () => ({
     pool,
     deployer,
@@ -282,7 +297,9 @@ describe('LockReleaseLockboxTokenPool', () => {
     destTokenAddress,
     sourcePoolAddress,
     localToken: jettonMinter.address,
-  }))
+  }), {
+    setup: setupTokenPoolBehaviorContext,
+  })
 
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseLockboxTokenPool', async () => {

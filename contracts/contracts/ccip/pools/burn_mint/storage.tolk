@@ -8,11 +8,17 @@ import "types"
 
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    // Local storage used for MVP, won't scale to high volume of concurrent messages
-    // with 65,536 cells per contract limit.
-    // TODO: replace with sharded ContextExecutor per message
-    pendingBurns: map<uint64, Cell<BurnMintTokenPool_PendingBurn>> = [];
-    pendingMints: map<uint64, Cell<BurnMintTokenPool_PendingMint>> = [];
+    contextExecutorCode: cell;
+    contextExecutorNextId: uint64;
+}
+
+@inline
+fun Storage.takeContextExecutorNextId(mutate self): uint64 {
+    val id = self.contextExecutorNextId;
+    assert(id != 0) throw 0xFFFF;
+    assert(id != 18446744073709551615) throw 0xFFFF;
+    self.contextExecutorNextId = id + 1;
+    return id;
 }
 
 fun Storage.load(): Storage {
@@ -53,7 +59,7 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        pendingBurns: createEmptyMap(),
-        pendingMints: createEmptyMap(),
+        contextExecutorCode: config.contextExecutorCode,
+        contextExecutorNextId: 1,
     };
 }

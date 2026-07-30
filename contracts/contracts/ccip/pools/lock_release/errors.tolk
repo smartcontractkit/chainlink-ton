@@ -4,8 +4,5 @@ const LockReleaseTokenPool_FACILITY_NAME = "link.chain.ton.ccip.LockReleaseToken
 const LockReleaseTokenPool_FACILITY_ID = 263;  // (crc32(<facility>) % 640) + 10
 
 enum Error {
-    PendingReleaseAlreadyExists = LockReleaseTokenPool_FACILITY_ID * 100
-    PendingReleaseNotFound
-    UnexpectedReleaseConfirmationSender
-    UnexpectedReleaseBounce
+    UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100
 }

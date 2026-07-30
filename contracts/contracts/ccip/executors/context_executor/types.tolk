@@ -1,10 +1,36 @@
 // SPDX-License-Identifier: BUSL-1.1
 
+import "../../../lib/utils"
+
 struct ContextExecutor_Data<C> {
-    id: uint64; // 64bit addr space for a unique identity, for more use context C
+    id: uint64; // owner-scoped deployment nonce used to derive a unique executor address
     owner: address;
     context: Cell<C>;
     forwardFrom: array<address>;
+}
+
+struct ContextExecutor<T> {
+    data: ContextExecutor_Data<T>;
+}
+
+fun ContextExecutor<T>.getAddress(
+    code: cell,
+    id: uint64,
+    owner: address,
+    context: Cell<T>,
+    forwardFrom: array<address>,
+): AutoDeployAddress {
+    return AutoDeployAddress {
+        stateInit: ContractState {
+            code,
+            data: ContextExecutor_Data<T> {
+                id,
+                owner,
+                context,
+                forwardFrom,
+            }.toCell(),
+        },
+    };
 }
 
 struct ContextExecutor_InMessageForward {

@@ -8,8 +8,17 @@ import "types"
 
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    // TODO: replace with sharded ContextExecutor per message
-    pendingReleases: map<uint64, Cell<LockReleaseTokenPool_PendingRelease>> = [];
+    contextExecutorCode: cell;
+    contextExecutorNextId: uint64;
+}
+
+@inline
+fun Storage.takeContextExecutorNextId(mutate self): uint64 {
+    val id = self.contextExecutorNextId;
+    assert(id != 0) throw 0xFFFF;
+    assert(id != 18446744073709551615) throw 0xFFFF;
+    self.contextExecutorNextId = id + 1;
+    return id;
 }
 
 fun Storage.load(): Storage {
@@ -50,6 +59,7 @@ fun Storage.init(config: LockReleaseTokenPool_InitConfig): Storage {
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        pendingReleases: createEmptyMap(),
+        contextExecutorCode: config.contextExecutorCode,
+        contextExecutorNextId: 1,
     };
 }

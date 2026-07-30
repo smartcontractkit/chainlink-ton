@@ -8,22 +8,25 @@ const BurnMintTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
 const BurnMintTokenPool_BURN_VALUE = ton("0.05");
 const BurnMintTokenPool_MINT_VALUE = ton("0.1");
+const BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02");
 
-struct BurnMintTokenPool_PendingBurn {
-    forwardPayload: TokenPool_LockOrBurnForwardPayload;
-    expectedSender: address;
+struct (0x0d49d523) BurnMintTokenPool_BurnContext {
+    wallet: address;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-struct BurnMintTokenPool_PendingMint {
-    replyTo: address?;
-    request: Cell<TokenPool_ReleaseOrMintInV1>;
-    out: Cell<TokenPool_ReleaseOrMintOutV1>;
-    expectedSender: address;
+struct (0x723f6ea1) BurnMintTokenPool_MintContext {
+    forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
+
+type BurnMintTokenPool_ContextExecutorContext =
+    | BurnMintTokenPool_BurnContext
+    | BurnMintTokenPool_MintContext;
 
 struct BurnMintTokenPool_InitConfig {
     owner: address;
     jettonClient: JettonClient;
+    contextExecutorCode: cell;
     tokenDecimals: uint8;
     router: address;
     rmnProxy: address;

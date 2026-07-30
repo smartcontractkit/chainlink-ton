@@ -6,8 +6,11 @@ import "@stdlib/lisp-lists"
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
+import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../common/types"
+import "../../executors/context_executor/messages"
+import "../../executors/context_executor/types"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -48,8 +51,8 @@ fun onInternalMessage(in: InMessage) {
             onClaimMinterAdmin(mutate st, in.senderAddress, msg.queryId);
             st.store();
         }
-        ReturnExcessesBack => {
-            onReturnExcessesBack(mutate st, in.senderAddress, msg);
+        ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext> => {
+            onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
         }
         else => {
@@ -58,9 +61,46 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// TODO: implement me
+fun deployBurnMintContextExecutor(executor: AutoDeployAddress): void {
+    val deploy = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
+        dest: executor,
+        body: beginCell().endCell().beginParse(),
+    });
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
 fun onBouncedMessage(in: InMessageBounced) {
-    // TODO: use TokenPool.onBouncedMessage (lib) handler
+    val st = Storage.load();
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
+    match (msg) {
+        AskToBurn => {
+            assert(msg.customPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.customPayload!);
+            assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+
+            val operation = context.forwardPayload.load();
+            var mutableSt = st;
+            refundLockOrBurnRateLimit(mutate mutableSt, operation);
+            mutableSt.store();
+            sendLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16);
+        }
+        MintNewJettons => {
+            assert(in.senderAddress == st.poolData.load().jettonClient().masterAddress) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            val internalTransfer = lazy msg.internalTransferMsg.load();
+            val contextCell = loadForwardPayloadAsCell(internalTransfer.forwardPayload);
+            assert(contextCell != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            val context = lazy BurnMintTokenPool_MintContext.fromCell(contextCell!);
+
+            val operation = context.forwardPayload.load();
+            var mutableSt = st;
+            refundReleaseOrMintRateLimit(mutate mutableSt, operation);
+            mutableSt.store();
+            sendReleaseOrMintFailure(operation, BurnMintTokenPool_Error.UnexpectedMintBounce as uint16);
+        }
+    }
 }
 
 /// @notice Token pool used for burn and mint tokens. This uses a burn and mint mechanism.
@@ -71,25 +111,32 @@ fun onLockOrBurnTransferContinue(
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
-    val prepared = lazy fwdPayload.prepared.load();
-
-    assert(!st.pendingBurns.get(requestMsg.queryId).isFound, BurnMintTokenPool_Error.PendingBurnAlreadyExists);
-
     val jettonClient = st.poolData.load().jettonClient();
-    st.pendingBurns.set(requestMsg.queryId, BurnMintTokenPool_PendingBurn {
-        forwardPayload: fwdPayload,
-        expectedSender: jettonClient.masterAddress,
-    }.toCell());
+    val context = BurnMintTokenPool_BurnContext {
+        wallet: sender,
+        forwardPayload: fwdPayload.toCell(),
+    };
+    val contextExecutorId = st.takeContextExecutorNextId();
+    val executor = ContextExecutor<BurnMintTokenPool_BurnContext>.getAddress(
+        st.contextExecutorCode,
+        contextExecutorId,
+        contract.getAddress(),
+        context.toCell(),
+        [jettonClient.masterAddress],
+    );
 
+    deployBurnMintContextExecutor(executor);
+
+    val prepared = lazy fwdPayload.prepared.load();
     val burnMsg = createMessage({
-        bounce: BounceMode.RichBounce, // used to recover sendExcessesTo address (context)
+        bounce: BounceMode.RichBounce,
         value: BurnMintTokenPool_BURN_VALUE,
         dest: sender,
         body: AskToBurn {
             queryId: requestMsg.queryId,
             jettonAmount: prepared.destTokenAmount,
-            sendExcessesTo: contract.getAddress(), // TODO: use ContextExecutor addr as proxy
-            customPayload: null,
+            sendExcessesTo: executor.calculateAddress(),
+            customPayload: context.toCell(),
         },
     });
     burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -105,10 +152,14 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    assert(!st.pendingMints.get(msg.queryId).isFound, BurnMintTokenPool_Error.PendingMintAlreadyExists);
     val jettonClient = st.poolData.load().jettonClient();
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
+    val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
+        originalSender: sender,
+        requestMsg: msg.toCell(),
+        prepared: prepared.toCell(),
+    };
 
     val recipientWallet = calcAddressOfJettonWallet(
         details.receiver,
@@ -116,17 +167,22 @@ fun onReleaseOrMintContinue(
         jettonClient.jettonWalletCode,
     );
 
-    // TODO: use transfer.id
+    val context = BurnMintTokenPool_MintContext {
+        forwardPayload: forwardPayload.toCell(),
+    };
+    val contextExecutorId = st.takeContextExecutorNextId();
+    val executor = ContextExecutor<BurnMintTokenPool_MintContext>.getAddress(
+        st.contextExecutorCode,
+        contextExecutorId,
+        contract.getAddress(),
+        context.toCell(),
+        [recipientWallet],
+    );
 
-    st.pendingMints.set(msg.queryId, BurnMintTokenPool_PendingMint {
-        replyTo: msg.replyTo,
-        request: request.toCell(),
-        out: prepared.out.toCell(),
-        expectedSender: recipientWallet,
-    }.toCell());
+    deployBurnMintContextExecutor(executor);
 
     val mint = createMessage({
-        bounce: BounceMode.RichBounce, // used to recover sendExcessesTo address (context)
+        bounce: BounceMode.RichBounce,
         value: BurnMintTokenPool_MINT_VALUE,
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
@@ -137,15 +193,118 @@ fun onReleaseOrMintContinue(
                 queryId: msg.queryId,
                 jettonAmount: prepared.localAmount,
                 transferInitiator: null,
-                sendExcessesTo: contract.getAddress(),
+                sendExcessesTo: executor.calculateAddress(),
                 forwardTonAmount: 0,
-                forwardPayload: beginCell().storeUint(0, 1).endCell().beginParse(),
+                forwardPayload: beginCell().storeBool(true).storeRef(context.toCell()).endCell().beginParse(),
             }.toCell(),
         },
     });
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     return st;
+}
+
+fun refundLockOrBurnRateLimit(
+    mutate st: Storage,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+    var pool = loadPool(st);
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        pool.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    } else {
+        pool.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    }
+    st.poolData = pool.data.toCell();
+}
+
+fun refundReleaseOrMintRateLimit(
+    mutate st: Storage,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+    var pool = loadPool(st);
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        pool.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    } else {
+        pool.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    }
+    st.poolData = pool.data.toCell();
+}
+
+fun sendLockOrBurnFailure(
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
+        val fail = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFailure {
+                queryId: requestMsg.queryId,
+                errorCode,
+            },
+        });
+        fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+fun sendReleaseOrMintFinished(forwardPayload: TokenPool_ReleaseOrMintForwardPayload) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+    val out = prepared.out;
+
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: details.remoteChainSelector,
+        details: TokenPool_ReleasedOrMintedDetails {
+            token: details.localToken,
+            sender: contract.getAddress(),
+            amount: out.destinationAmount,
+            recipient: details.receiver.toCell(),
+        }.toCell(),
+    });
+
+    if (requestMsg.replyTo != null) {
+        val notify = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_ReleaseOrMintFinished {
+                queryId: requestMsg.queryId,
+                out: prepared.out.toCell(),
+            },
+        });
+        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+fun sendReleaseOrMintFailure(
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+    errorCode: uint16,
+) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
+        val fail = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_ReleaseOrMintFailure {
+                queryId: requestMsg.queryId,
+                errorCode,
+            },
+        });
+        fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
 }
 
 fun onClaimMinterAdmin(
@@ -164,54 +323,41 @@ fun onClaimMinterAdmin(
     claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onReturnExcessesBack(
+fun onContextExecutorForwardNotification(
     mutate st: Storage,
     sender: address,
-    msg: ReturnExcessesBack,
+    msg: ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext>,
 ) {
-    val burnEntry = st.pendingBurns.get(msg.queryId);
-    if (burnEntry.isFound) {
-        val pending = burnEntry.loadValue().load();
-        assert(sender == pending.expectedSender, BurnMintTokenPool_Error.UnexpectedBurnConfirmationSender);
+    val expectedExecutor = ContextExecutor<BurnMintTokenPool_ContextExecutorContext>.getAddress(
+        st.contextExecutorCode,
+        msg.id,
+        contract.getAddress(),
+        msg.context,
+        msg.forwardFrom,
+    );
+    assert(sender == expectedExecutor.calculateAddress(), TokenPool_Error.Unauthorized);
 
-        st.pendingBurns.delete(msg.queryId);
+    val forwarded = msg.message.load();
+    val returnExcesses = ReturnExcessesBack.fromCell(forwarded.body);
 
-        var pool = loadPool(st);
-        return pool.onLockOrBurnTransferFinalize(pending.forwardPayload);
-    }
+    val context = msg.context.load();
+    match (context) {
+        BurnMintTokenPool_BurnContext => {
+            val operation = context.forwardPayload.load();
+            assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
-    val mintEntry = st.pendingMints.get(msg.queryId);
-    assert(mintEntry.isFound, BurnMintTokenPool_Error.PendingMintNotFound);
+            var pool = loadPool(st);
+            pool.onLockOrBurnTransferFinalize(operation);
+            st.poolData = pool.data.toCell();
 
-    val pending = mintEntry.loadValue().load();
-    assert(sender == pending.expectedSender, BurnMintTokenPool_Error.UnexpectedMintConfirmationSender);
+            return;
+        }
+        BurnMintTokenPool_MintContext => {
+            val operation = context.forwardPayload.load();
+            assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
-    st.pendingMints.delete(msg.queryId);
-    val request = pending.request.load();
-    val details = request.transfer.details.load();
-    val out = pending.out.load();
-
-    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: details.remoteChainSelector,
-        details: TokenPool_ReleasedOrMintedDetails {
-            token: details.localToken,
-            sender: contract.getAddress(), // TODO: who should we put as sender? (msg.sender on EVM)
-            amount: out.destinationAmount,
-            recipient: details.receiver.toCell(),
-        }.toCell(),
-    });
-
-    if (pending.replyTo != null) {
-        val notify = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: pending.replyTo!,
-            body: TokenPool_ReleaseOrMintFinished {
-                queryId: msg.queryId,
-                out: pending.out,
-            },
-        });
-        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            sendReleaseOrMintFinished(operation);
+        }
     }
 }
 
@@ -260,14 +406,6 @@ get fun onRamp(remoteChainSelector: uint64): address? {
 get fun offRamp(remoteChainSelector: uint64): address? {
     val entry = Storage.load().poolData.load().mirroredPolicy.load().offRamps.get(remoteChainSelector);
     return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun hasPendingBurn(queryId: uint64): bool {
-    return Storage.load().pendingBurns.get(queryId).isFound;
-}
-
-get fun hasPendingMint(queryId: uint64): bool {
-    return Storage.load().pendingMints.get(queryId).isFound;
 }
 
 get fun getRMNProxy(): address {

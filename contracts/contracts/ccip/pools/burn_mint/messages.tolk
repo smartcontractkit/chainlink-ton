@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/messages"
+import "../../executors/context_executor/messages"
+import "types"
 
 struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;
@@ -7,9 +9,13 @@ struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
 
 type BurnMintTokenPool_InMessage =
     | BurnMintTokenPool_ClaimMinterAdmin
-    | ReturnExcessesBack;
+    | ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext>;
 
 type BurnMintTokenPool_OutMessage =
     | ClaimMinterAdmin
     | MintNewJettons
     | AskToBurn;
+
+type BurnMintTokenPool_BouncedMessage =
+    | AskToBurn
+    | MintNewJettons;
