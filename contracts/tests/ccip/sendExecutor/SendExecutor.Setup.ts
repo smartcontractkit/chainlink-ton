@@ -7,6 +7,7 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
+import { deploySendExecutorCost } from '../../../wrappers/ccip/CCIPSendExecutor'
 
 export async function setup(
   blockchain: Blockchain,
@@ -45,7 +46,7 @@ export async function sendDeployOnBlockchain(
     },
   }
   let result = selfMessage
-    ? await deployable.sendInitializeAndSend(deployer.getSender(), toNano('0.5'), {
+    ? await deployable.sendInitializeAndSend(deployer.getSender(), deploySendExecutorCost, {
         ...initialize,
         selfMessage,
       })

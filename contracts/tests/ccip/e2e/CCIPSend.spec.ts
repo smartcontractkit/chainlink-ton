@@ -18,6 +18,7 @@ import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
 import { setup, contractsCoverageConfig } from '../router/Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
+import { ccipSendCost } from '../../../wrappers/ccip/Router'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -67,11 +68,9 @@ describe('Router', () => {
     )
     expect(onchainFee).toBe(offchainFee)
 
-    const totalSendValue = offchainFee + toNano('0.5')
-    // router.ccipSend
+    const totalSendValue = offchainFee + ccipSendCost + toNano('3') // TODO temporarily raise value to cover for fixed cost of TokenPool
     {
       const result = await router.sendRouterCCIPSend(sender.getSender(), totalSendValue, ccipSend)
-      // console.log('MsgTrace: \n', (await dump(result.transactions)).join('\n'))
       // we called the router
       expect(result.transactions).toHaveTransaction({
         from: sender.address,

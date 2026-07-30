@@ -7,7 +7,7 @@ import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
+import { ccipSendCost, RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -75,7 +75,7 @@ describe('Router.cursing', () => {
 
     // Fail router.ccipSend
     {
-      const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('1'), msg)
+      const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
@@ -110,7 +110,7 @@ describe('Router.cursing', () => {
 
     // Succeed router.ccipSend
     {
-      const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('1'), msg)
+      const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
 
       expect(result.transactions).toHaveTransaction({
         from: sender.address,

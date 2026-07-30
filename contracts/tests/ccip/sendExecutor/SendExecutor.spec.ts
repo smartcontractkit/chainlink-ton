@@ -51,6 +51,12 @@ describe('SendExecutor - Opcodes', () => {
   })
 })
 
+// Value that is sent by the user and should be enough to pay for fees and gas
+const SentValue = toNano('5')
+const CCISendCost = toNano('3.0')
+const FeeTokenAmount = toNano('0.1')
+const AmountOfTokens = toNano('1')
+
 describe('SendExecutor - Unit tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -96,7 +102,7 @@ describe('SendExecutor - Unit tests', () => {
       }),
       metadata: or.Metadata.create({
         sender: sender.address,
-        value: toNano('0.6'),
+        value: SentValue,
       }),
       tokenRegistry: null,
     })
@@ -104,13 +110,13 @@ describe('SendExecutor - Unit tests', () => {
     tokenOnrampSend = or.OnRamp_Send.create({
       msg: {
         ...onrampSend.msg,
-        tokenAmounts: [or.TokenAmount.create({ amount: toNano('1'), token: WRAPPED_NATIVE })],
+        tokenAmounts: [or.TokenAmount.create({ amount: AmountOfTokens, token: WRAPPED_NATIVE })],
       },
       metadata: or.Metadata.create({
         sender: sender.address,
         // Must comfortably exceed fee + Router_Costs.CCIPSend() so the executor proceeds to the
         // token-transfer path instead of exiting with InsufficientFunds.
-        value: toNano('5'),
+        value: SentValue,
       }),
       tokenRegistry: tokenRegistryMock.address,
     })
@@ -164,7 +170,7 @@ describe('SendExecutor - Unit tests', () => {
   }> {
     const send = opts?.send ?? { ...onrampSend, tokenRegistry: null }
     const { sendExecutor, result } = await sendDeploy({
-      value: toNano('0.3'),
+      value: toNano('3'), // TODO temporarily raise value to cover for fixed cost of TokenPool. Entry point could check whether the user has to do a token transfer or not
       body: sx.CCIPSendExecutor_Execute.toCell(
         sx.CCIPSendExecutor_Execute.create({
           onrampSend: send,
@@ -335,7 +341,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: tokenOnrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -364,7 +370,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -390,7 +396,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -423,7 +429,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -457,7 +463,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -481,7 +487,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -550,7 +556,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -570,7 +576,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
-          fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+          fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           msg: onrampSend.msg,
           context: beginCell().asSlice(),
         }),
@@ -597,7 +603,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -618,7 +624,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
-          fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+          fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           msg: onrampSend.msg,
           context: beginCell().asSlice(),
         }),
