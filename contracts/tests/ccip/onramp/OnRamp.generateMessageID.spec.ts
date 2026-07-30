@@ -6,8 +6,7 @@ import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
-import * as relay from '../../../wrappers/test/mock/Relay'
-import { setup } from './OnRamp.Setup'
+import { getStorage, setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
@@ -77,7 +76,7 @@ describe('OnRamp - generate message id', () => {
       },
       executor: {
         deployableCode: deployableCode,
-        executorCode: await relay.ContractClient.code(),
+        executorCode: Cell.EMPTY,
       },
     }))
 
@@ -131,12 +130,9 @@ describe('OnRamp - generate message id', () => {
       throw new Error('Executor address not found')
     }
 
-    const relayContract = blockchain.openContract(
-      relay.ContractClient.createFromAddress(executorAddress),
-    )
-    executorSender = await relayContract.getSender(deployer.getSender())
+    executorSender = blockchain.sender(executorAddress)
 
-    const executorStorageCell = await relayContract.getStorage()
+    const executorStorageCell = await getStorage(blockchain, executorAddress)
     const storage = ex.CCIPSendExecutor_InitialData.fromSlice(executorStorageCell.beginParse())
     executorID = storage.id
   })

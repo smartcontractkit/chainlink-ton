@@ -83,3 +83,10 @@ export async function setup(blockchain: Blockchain, overrides: OnRampOverrides =
   const { onramp, config } = await deployOnRampContract(blockchain, deployer, overrides)
   return { deployer, onramp, config }
 }
+export async function getStorage(blockchain: Blockchain, addr: Address): Promise<Cell> {
+  const contract = await blockchain.getContract(addr)
+  if (contract.accountState == undefined) throw new Error('Contract account state is undefined')
+  const state = contract.accountState
+  if (state.type !== 'active') throw new Error('Contract account state is not active')
+  return state.state.data!
+}
