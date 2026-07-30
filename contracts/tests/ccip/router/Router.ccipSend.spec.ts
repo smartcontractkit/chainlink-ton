@@ -2,11 +2,11 @@ import { toNano, Cell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
-import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import { setup, contractsCoverageConfig } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router.ccipSend', () => {
@@ -41,7 +41,7 @@ describe('Router.ccipSend', () => {
   const msg = rt.Router_CCIPSend.create({
     queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    receiver: FromBuffer(EVM_ADDRESS),
+    receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: null, // defaults to WRAPPED_NATIVE

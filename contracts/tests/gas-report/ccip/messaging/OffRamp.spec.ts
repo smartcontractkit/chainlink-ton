@@ -16,7 +16,6 @@ import * as of from '../../../../wrappers/gen/ccip/OffRamp'
 import '@ton/test-utils'
 import {
   generateMockTonAddress,
-  bigIntToBuffer,
   uint8ArrayToBigInt,
   generateEd25519KeyPair,
   WRAPPED_NATIVE,
@@ -29,9 +28,9 @@ import {
   OCR3_PLUGIN_TYPE_EXECUTE,
   ReportContext,
 } from '../../../../wrappers/libraries/ocr/MultiOCR3Base'
-import { KeyPair, sha256_sync } from '@ton/crypto'
+import { KeyPair } from '@ton/crypto'
 import { EVM_SENDER_ADDRESS_TEST, EVM_ONRAMP_ADDRESS_TEST } from '../../constants'
-import { createMaxPayload, createExtraArgs, MESSAGE_COUNT_IN_COMMIT } from './config'
+import { createMaxPayload } from './config'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
@@ -39,8 +38,6 @@ import * as fs from 'fs'
 import { opMapFunc } from './opMapFunc'
 import { ContractClient as DeployableContract } from '../../../../wrappers/libraries/Deployable'
 import * as mr from '../../../../wrappers/ccip/MerkleRoot'
-import { ContractClient as CCIPSendExecutorContract } from '../../../../wrappers/ccip/CCIPSendExecutor'
-import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { asSnakedCell } from '../../../../src/utils'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../../utils/Selectors'
@@ -309,7 +306,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
                 isEnabled: true,
                 minSeqNr: 1n,
                 isRMNVerificationDisabled: false,
-                onRamp: CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
+                onRamp: EVM_ONRAMP_ADDRESS_TEST,
               }),
             }),
           ],
@@ -358,7 +355,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         nonce: 0n,
       }),
       gasLimit: 500000n,
-      sender: CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_SENDER_ADDRESS_TEST)),
+      sender: EVM_SENDER_ADDRESS_TEST,
       data: maxPayload,
       receiver: receiver.address,
       tokenAmounts: null,
@@ -367,7 +364,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const metadataHash = getMetadataHash(
       ChainSelectors.testnet.evm,
       ChainSelectors.testnet.ton,
-      CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
+      EVM_ONRAMP_ADDRESS_TEST,
     )
     const messageIdForProof = generateMessageID(testMessage, metadataHash)
 
@@ -376,7 +373,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     merkleRoots.push(
       of.MerkleRoot.create({
         sourceChainSelector: ChainSelectors.testnet.evm,
-        onRampAddress: CrossChainAddressCodec.FromBuffer(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST)),
+        onRampAddress: EVM_ONRAMP_ADDRESS_TEST,
         minSeqNr: 1n,
         maxSeqNr: 10n,
         merkleRoot: messageIdForProof + 0n,

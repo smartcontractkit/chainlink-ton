@@ -6,11 +6,11 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
-import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import { setup, contractsCoverageConfig } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-const EVM_CC_ADDRESS: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(EVM_ADDRESS)
+const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -86,8 +86,7 @@ describe('Router', () => {
           decoded.ccipSend.data.equals(Cell.EMPTY) &&
           decoded.ccipSend.destChainSelector ===
             ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
-          CrossChainAddressCodec.ToBuffer(decoded.ccipSend.receiver).toString('hex') ===
-            EVM_ADDRESS.toString('hex') &&
+          decoded.ccipSend.receiver.toString() === EVM_ADDRESS.toString() &&
           decoded.ccipSend.tokenAmounts.length === 0 &&
           decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
         )
@@ -100,7 +99,7 @@ describe('Router', () => {
       $: 'Router_CCIPSend',
       queryID: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
-      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+      receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: WRAPPED_NATIVE,

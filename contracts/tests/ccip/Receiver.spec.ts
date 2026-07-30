@@ -14,7 +14,7 @@ import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
-import * as CrossChainAddressCodec from '../../wrappers/ccip/common/CrossChainAddressCodec'
+import EVM_ADDRESS from '../utils/evmAddress'
 
 async function deployReceiverContract(
   blockchain: Blockchain,
@@ -43,7 +43,7 @@ const ccipReceiveSampleMessage: r.CCIPReceive = {
   message: rt.Any2TVMMessage.create({
     messageId: BigInt(1),
     sourceChainSelector: BigInt(2),
-    sender: CrossChainAddressCodec.FromBuffer(Buffer.from('cross chain address')),
+    sender: EVM_ADDRESS,
     data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
     tokenAmounts: null,
   }),

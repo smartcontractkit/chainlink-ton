@@ -1,7 +1,6 @@
 import { Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { randomAddress } from '@ton/test-utils'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as coverage from '../../coverage/coverage'
 
@@ -13,11 +12,7 @@ import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 describe('OnRamp - Send', () => {
   let blockchain: Blockchain
@@ -32,7 +27,7 @@ describe('OnRamp - Send', () => {
   const ccipSend = or.Router_CCIPSend.create({
     queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+    receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
@@ -139,9 +134,7 @@ describe('OnRamp - Send', () => {
     expect(selfMsg.onrampSend.msg.destChainSelector).toBe(ccipSend.destChainSelector)
     expect(selfMsg.onrampSend.msg.feeToken).toEqual(ccipSend.feeToken)
     expect(selfMsg.onrampSend.msg.queryID).toBe(ccipSend.queryID)
-    expect(CrossChainAddressCodec.ToBuffer(selfMsg.onrampSend.msg.receiver).toString('hex')).toBe(
-      CrossChainAddressCodec.ToBuffer(ccipSend.receiver).toString('hex'),
-    )
+    expect(selfMsg.onrampSend.msg.receiver.toString()).toBe(ccipSend.receiver.toString())
     expect(selfMsg.onrampSend.msg.tokenAmounts.length).toBe(0)
     expect(selfMsg.onrampSend.msg.data).toEqual(ccipSend.data)
 

@@ -13,12 +13,7 @@ import { ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -35,7 +30,7 @@ describe('OnRamp - generate message id', () => {
   const ccipSend = or.Router_CCIPSend.create({
     queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+    receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
@@ -225,9 +220,7 @@ describe('OnRamp - generate message id', () => {
             const event = or.CCIPMessageSent.fromSlice(msg.body.beginParse())
             if (event.message.header.messageId !== expectedTVM2AnyRampMessage.header.messageId) {
               expect(event.message.sender).toEqual(expectedTVM2AnyRampMessage.sender)
-              expect(
-                CrossChainAddressCodec.ToBuffer(event.message.body.receiver).toString('hex'),
-              ).toBe(CrossChainAddressCodec.ToBuffer(ccipSend.receiver).toString('hex'))
+              expect(event.message.body.receiver.toString()).toBe(ccipSend.receiver.toString())
               expect(event.message.body.data).toEqual(expectedTVM2AnyRampMessage.body.data)
               expect(event.message.body.extraArgs).toEqual(
                 expectedTVM2AnyRampMessage.body.extraArgs,

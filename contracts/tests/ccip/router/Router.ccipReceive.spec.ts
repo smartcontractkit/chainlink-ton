@@ -5,8 +5,8 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as rec from '../../../wrappers/libraries/Receiver'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import { setup, EVM_ADDRESS, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
@@ -48,7 +48,7 @@ describe('Router', () => {
     $: 'Any2TVMMessage' as const,
     messageId: 42n,
     sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    sender: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+    sender: EVM_ADDRESS,
     data: beginCell().storeUint(0x1234, 32).endCell(),
     tokenAmounts: null,
   }

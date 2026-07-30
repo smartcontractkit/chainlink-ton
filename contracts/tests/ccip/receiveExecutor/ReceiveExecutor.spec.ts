@@ -17,9 +17,8 @@ import {
   ERROR_CODE,
 } from '../../../wrappers/ccip/ReceiveExecutor'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
-import { EVM_ADDRESS } from '.././router/Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 export async function setupTestReceiveExecutor(
   blockchain: Blockchain,
@@ -38,7 +37,7 @@ export async function setupTestReceiveExecutor(
             sequenceNumber: 0n,
             nonce: 0n,
           }),
-          sender: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+          sender: EVM_ADDRESS,
           data: Cell.EMPTY,
           receiver: deployer.address,
           gasLimit: 0n,

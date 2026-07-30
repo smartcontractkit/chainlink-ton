@@ -6,7 +6,6 @@ import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -15,6 +14,7 @@ import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
@@ -283,7 +283,7 @@ async function deployOnRampInstance(
     ownable: or.Ownable2Step.create({
       owner: deployer.address,
     }),
-    chainSelector: CHAINSEL_TON,
+    chainSelector: ChainSelectors.testnet.ton,
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter,
       feeAggregator: deployer.address,
@@ -359,7 +359,7 @@ async function deployOffRampInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    chainSelector: CHAINSEL_TON,
+    chainSelector: ChainSelectors.testnet.ton,
     deployables: of.OffRamp_Deployables.create({
       deployer: await contractCode.ccip.local('Deployable'),
       merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
@@ -411,7 +411,7 @@ async function deployOffRampInstance(
               isEnabled: true,
               minSeqNr: 0n,
               isRMNVerificationDisabled: false,
-              onRamp: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+              onRamp: EVM_ADDRESS,
             }),
           }),
         ],
@@ -497,13 +497,6 @@ export function genExecID(opts: {
 }): bigint {
   return (opts.sourceChainSelector << (192n - 64n)) | (opts.messageID >> 64n)
 }
-
-export const CHAINSEL_TON = 13879075125137744094n
-// TODO migrate to Slice
-export const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
 
 export async function contractsCoverageConfig(): Promise<ContractCoverageConfig[]> {
   return [

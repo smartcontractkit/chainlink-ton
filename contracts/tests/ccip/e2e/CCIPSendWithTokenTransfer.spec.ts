@@ -6,7 +6,6 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import { WRAPPED_NATIVE } from '../../../src/utils'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
@@ -19,7 +18,8 @@ import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
-import { setup, EVM_ADDRESS } from '../router/Router.Setup'
+import { setup } from '../router/Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
@@ -152,7 +152,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     const ccipSend = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: DestChainSelector,
-      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+      receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: minter.address })],
       feeToken: WRAPPED_NATIVE, // TODO should be just native?

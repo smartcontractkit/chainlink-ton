@@ -9,7 +9,7 @@ import {
   resetMetricStore,
   BlockchainTransaction,
 } from '@ton/sandbox'
-import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
+import { toNano, Cell, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
@@ -23,12 +23,12 @@ import * as fs from 'fs'
 import { opMapFunc } from './opMapFunc'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
-import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-)
+const EVM_ADDRESS = beginCell()
+  .storeBuffer(
+    Buffer.from('0000000000000000000000001234567890123456789012345678901234567890', 'hex'),
+  )
+  .asSlice()
 
 // Override console to remove Jest's "console.log" prefixes
 const jestConsole = console
@@ -269,7 +269,7 @@ async function messureGetValidatedFee(
       ccipSend: rt.Router_CCIPSend.create({
         queryID: 1n,
         destChainSelector: ChainSelectors.testnet.evm,
-        receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+        receiver: EVM_ADDRESS,
         data: payload,
         tokenAmounts: [],
         feeToken: WRAPPED_NATIVE,

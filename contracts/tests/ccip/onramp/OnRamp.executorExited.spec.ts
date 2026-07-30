@@ -11,12 +11,7 @@ import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 describe('OnRamp - executor exit', () => {
   let blockchain: Blockchain
@@ -32,7 +27,7 @@ describe('OnRamp - executor exit', () => {
   const ccipSend = or.Router_CCIPSend.create({
     queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+    receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,

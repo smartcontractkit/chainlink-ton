@@ -8,7 +8,7 @@ import {
   ContractDatabase,
   resetMetricStore,
 } from '@ton/sandbox'
-import { toNano, Cell, Dictionary, Address } from '@ton/core'
+import { toNano, Address } from '@ton/core'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
@@ -23,12 +23,8 @@ import { getValidatedFee } from '../../../../src/ccipSend/fee'
 import { opMapFunc } from './opMapFunc'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
-import * as CrossChainAddressCodec from '../../../../wrappers/ccip/common/CrossChainAddressCodec'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-)
+import '../../../utils/evmAddress'
+import EVM_ADDRESS from '../../../utils/evmAddress'
 
 // Override console to remove Jest's "console.log" prefixes
 const jestConsole = console
@@ -186,7 +182,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
     const generatedMsg = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: ChainSelectors.testnet.evm,
-      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+      receiver: EVM_ADDRESS,
       data: msg.data,
       tokenAmounts: [],
       feeToken: msg.feeToken,

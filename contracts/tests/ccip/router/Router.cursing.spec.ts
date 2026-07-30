@@ -5,11 +5,11 @@ import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
-import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import { setup, contractsCoverageConfig } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router.cursing', () => {
@@ -45,7 +45,7 @@ describe('Router.cursing', () => {
     const msg = {
       queryID: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+      receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: WRAPPED_NATIVE,

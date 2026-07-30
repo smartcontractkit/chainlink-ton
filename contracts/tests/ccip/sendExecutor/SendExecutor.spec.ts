@@ -6,9 +6,8 @@ import { crc32 } from 'zlib'
 import * as coverage from '../../coverage/coverage'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { errorCode, facilityId } from '../../../wrappers/utils'
-import { EVM_ADDRESS } from '../router/Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { WRAPPED_NATIVE } from '../../../src/utils'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
@@ -18,7 +17,6 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
-import { dump } from '../../utils/prettyPrint'
 
 describe('SendExecutor - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -80,7 +78,7 @@ describe('SendExecutor - Unit tests', () => {
       msg: or.Router_CCIPSend.create({
         queryID: 1n,
         destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+        receiver: EVM_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: WRAPPED_NATIVE,

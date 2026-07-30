@@ -5,7 +5,6 @@ import { FiredrillOnRamp } from '../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
 import { generateRandomContractId, LINK_TOKEN } from '../src/utils'
 import * as CrossChainAddressCodec from '../wrappers/ccip/common/CrossChainAddressCodec'
-import { randomAddress } from '@ton/test-utils'
 import { ChainSelectors } from '../tests/utils/Selectors'
 
 export async function run(provider: NetworkProvider) {

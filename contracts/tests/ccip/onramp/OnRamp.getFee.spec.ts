@@ -5,16 +5,11 @@ import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 import { ChainSelectors } from '../../utils/Selectors'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 describe('OnRamp - Get Fee', () => {
   let blockchain: Blockchain
@@ -26,7 +21,7 @@ describe('OnRamp - Get Fee', () => {
   const ccipSend = or.Router_CCIPSend.create({
     queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
-    receiver: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+    receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,

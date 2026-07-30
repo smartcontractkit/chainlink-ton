@@ -14,7 +14,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
-import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -44,10 +44,7 @@ export class FeeQuoterSetup {
   static readonly USD_PER_DATA_AVAILABILITY_GAS = 1000000000n // 1 gwei in wei
 
   // Ethereum address
-  static readonly DEST_ADDRESS = Buffer.from(
-    '0000000000000000000000001234567890123456789012345678901234567890',
-    'hex',
-  ) // 32 bytes
+  static readonly DEST_ADDRESS = EVM_ADDRESS
 
   static readonly MAX_DATA_SIZE = 300n
   static readonly MAX_TOKENS_LENGTH = 0n // We don't support token transfers in TON yet
@@ -474,7 +471,7 @@ export class FeeQuoterSetup {
   }): rt.Router_CCIPSend {
     return rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
-      receiver: FromBuffer(FeeQuoterSetup.DEST_ADDRESS),
+      receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts,
       feeToken,

@@ -34,32 +34,6 @@ import * as rtGen from '../gen/ccip/Router'
 import * as fqGen from '../gen/ccip/FeeQuoter'
 import * as CrossChainAddressCodec from './common/CrossChainAddressCodec'
 
-/* Temporary compatibility converters */
-
-export function MsgToGen(msg: rt.CCIPSend): rtGen.Router_CCIPSend {
-  return rtGen.Router_CCIPSend.create({
-    destChainSelector: msg.destChainSelector,
-    receiver: CrossChainAddressCodec.FromBuffer(msg.receiver),
-    data: msg.data,
-    tokenAmounts: msg.tokenAmounts.map((ta) =>
-      rtGen.TokenAmount.create({ token: ta.token, amount: ta.amount }),
-    ),
-    feeToken: msg.feeToken ?? null,
-    extraArgs: rtGen.ExtraArgs.fromSlice(msg.extraArgs.beginParse()),
-  })
-}
-
-export function GenToMsg(msg: rtGen.Router_CCIPSend): rt.CCIPSend {
-  return {
-    destChainSelector: msg.destChainSelector,
-    receiver: CrossChainAddressCodec.ToBuffer(msg.receiver),
-    data: msg.data,
-    tokenAmounts: msg.tokenAmounts.map((ta) => ({ token: ta.token, amount: ta.amount })),
-    feeToken: msg.feeToken ?? undefined,
-    extraArgs: rtGen.ExtraArgs.toCell(msg.extraArgs),
-  }
-}
-
 // Copied from rtGen.Router_CCIPSend.store, but with the extraArgs as Cell
 
 export interface FeeQuoter_GetValidatedFee_ToFeeQuoter {
