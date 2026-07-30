@@ -56,6 +56,8 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     tokenPool: address,
     destChainSelector: uint64,
     executorID: CCIPSendExecutor_ID,
+    receiver: CrossChainAddress,
+    originalSender: address,
 }
 
 struct OnRamp_GetValidatedFeeContext {

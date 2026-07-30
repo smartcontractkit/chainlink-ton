@@ -299,6 +299,8 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
             tokenAmount: msg.tokenAmount,
             destChainSelector: msg.destChainSelector,
             executorAddress: sender,
+            receiver: msg.receiver,
+            originalSender: msg.originalSender,
         }
     });
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

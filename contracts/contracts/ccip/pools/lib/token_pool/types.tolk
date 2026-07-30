@@ -136,6 +136,7 @@ type TokenPool_LockOrBurnTransfer = TokenPool_Transfer<
     Cell<CrossChainAddress>, // receiver addr
     coins,                   // amount
 >;
+
 type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<
     Cell<CrossChainAddress>, // sender addr
     address,                 // receiver addr

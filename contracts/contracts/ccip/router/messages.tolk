@@ -131,6 +131,8 @@ struct (0x6f2d00df) Router_LockOrBurn {
     tokenAmount: TokenAmount,
     destChainSelector: uint64,
     executorAddress: address,
+    receiver: CrossChainAddress,
+    originalSender: address,
 }
 
 struct (0xfed7cfba) Router_TokenRegistrySetTokenInfo {

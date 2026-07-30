@@ -1,10 +1,9 @@
-tolk 1.4.1
 import "@stdlib/gas-payments"
-import "../../lib/utils"
 
-import "../router/messages"
-import "../onramp/messages"
 import "../fee_quoter/messages"
+import "../onramp/messages"
+import "../../lib/utils"
+import "../router/messages"
 import "../fee_quoter/types"
 import "../token_registry/messages"
 import "../pools/lib/token_pool/messages"
@@ -13,6 +12,8 @@ import "types"
 import "messages"
 import "storage"
 import "errors"
+
+tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
@@ -160,8 +161,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     //TODO validate sender wallet address by querying the jettonMinter
     //TODO instead of throw maybe this should exit with error?
     assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
-    val onrampSend = lazy self.onrampSend.msg.load();
-    val tokenAmount = onrampSend.tokenAmounts.iter().next();
+    val ccipSend = lazy self.onrampSend.msg.load();
+    val tokenAmount = ccipSend.tokenAmounts.iter().next();
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
@@ -170,8 +171,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         body: OnRamp_ExecutorRequestsLockOrBurn {
             tokenAmount,
             tokenPool: msg.tokenPool,
-            destChainSelector: onrampSend.destChainSelector,
+            destChainSelector: ccipSend.destChainSelector,
             executorID: self.id,
+            receiver: ccipSend.receiver,
+            originalSender: self.onrampSend.metadata.sender,
         }
     });
     requestLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

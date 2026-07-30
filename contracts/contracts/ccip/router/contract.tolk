@@ -4,12 +4,12 @@ import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
-import "../../lib/deployable/namespace"
 import "../../lib/deployable/types"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
 import "../onramp/types"
@@ -18,13 +18,16 @@ import "../offramp/types"
 import "../rmn_remote/lib"
 import "../token_registry/storage"
 import "../token_registry/messages"
-import "../test/tokenPool/messages"
+import "../token_registry/types"
+import "../pools/lib/token_pool/messages"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
 import "events"
+import "../pools/lib/token_pool/types"
+import "../common/types"
 
 tolk 1.4.1
 
@@ -201,7 +204,7 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_TokenRegistrySetTokenInfo => {
             val st = Storage.load();
-            val registryAddress = getTokenRegistryDeployAddress(st, msg.tokenAddress);
+            val registryAddress = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().tokenRegistryCode, msg.tokenAddress);
             if (msg.isNewEntry) {
                 val deployMsg = createMessage({
                     bounce: false,
@@ -562,7 +565,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (!msg.tokenAmounts.empty()) {
         val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
         //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
-        tokenRegistry = getTokenRegistryDeployAddress(st, tokenAmount.token).calculateAddress();
+        tokenRegistry = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().tokenRegistryCode, tokenAmount.token).calculateAddress();
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
@@ -716,9 +719,24 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
         bounce: true,
         value: 0,
         dest: msg.tokenPool,
-        body: MockTokenPool_LockOrBurn {
-            tokenAmount: msg.tokenAmount,
-            notify: msg.executorAddress,
+        body: TokenPool_LockOrBurn {
+            queryId: 0, // TODO msg.queryId
+            // TODO consider if TokenPool_LockOrBurnInV1 should be a field of Router_LockOrBurn directly
+            request: TokenPool_LockOrBurnInV1{
+                transfer: TokenPool_Transfer {
+                    id: 0, // TODO
+                    details: TokenPool_TransferDetails {
+                        receiver: msg.receiver.toCell(), // TODO why toCell()?
+                        remoteChainSelector: 0,
+                        originalSender: msg.originalSender,
+                        amount: msg.tokenAmount.amount,
+                        localToken: msg.tokenAmount.token,
+                    }.toCell(),
+                },
+            }.toCell(),
+            requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
+            tokenArgs: null, // TBD?
+            replyTo: msg.executorAddress,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -738,22 +756,6 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
-}
-
-/*
-Derives the token registry contract address from the token address
-*/
-fun getTokenRegistryDeployAddress(st: Storage, tokenAddress: address): AutoDeployAddress {
-    return {
-        stateInit: {
-            code: st.tokenRegistryDeployment.load().deployableCode,
-            data: NamespacedDeployableData({
-                namespace: DeployableNamespace_TokenRegistry,
-                owner: contract.getAddress(),
-                id: tokenAddress,
-            }),
-        }
-    }
 }
 
 @method_id(1000)
