@@ -13,9 +13,13 @@ struct Storage {
 }
 
 @inline
+fun Storage.canTakeContextExecutorNextId(self): bool {
+    return self.contextExecutorNextId != 18446744073709551615;
+}
+
+@inline
 fun Storage.takeContextExecutorNextId(mutate self): uint64 {
     val id = self.contextExecutorNextId;
-    assert(id != 0) throw 0xFFFF;
     assert(id != 18446744073709551615) throw 0xFFFF;
     self.contextExecutorNextId = id + 1;
     return id;

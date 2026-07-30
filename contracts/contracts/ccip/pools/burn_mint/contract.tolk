@@ -204,6 +204,20 @@ fun onReleaseOrMintContinue(
     return st;
 }
 
+fun onLockOrBurnTransfer(
+    st: Storage,
+    _sender: address,
+    _msg: TransferNotificationForRecipient,
+): Storage {
+    assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
+    return st;
+}
+
+fun onReleaseOrMint(st: Storage, _msg: TokenPool_ReleaseOrMint): Storage {
+    assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
+    return st;
+}
+
 fun refundLockOrBurnRateLimit(
     mutate st: Storage,
     forwardPayload: TokenPool_LockOrBurnForwardPayload,
@@ -255,6 +269,27 @@ fun sendLockOrBurnFailure(
         });
         fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+}
+
+fun returnLockOrBurnTransfer(sender: address, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val returnTransfer = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: AskToTransfer {
+            queryId: requestMsg.queryId,
+            jettonAmount: details.amount,
+            transferRecipient: details.originalSender,
+            sendExcessesTo: details.originalSender,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    });
+    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun sendReleaseOrMintFinished(forwardPayload: TokenPool_ReleaseOrMintForwardPayload) {
@@ -372,9 +407,9 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onLockOrBurn: null,
             validateLockOrBurn: null,
             preflightCheck: null,
-            onLockOrBurnTransfer: null,
+            onLockOrBurnTransfer,
             onLockOrBurnTransferContinue,
-            onReleaseOrMint: null,
+            onReleaseOrMint,
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,

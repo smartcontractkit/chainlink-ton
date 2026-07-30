@@ -138,6 +138,11 @@ fun onReleaseOrMintContinue(
     return st;
 }
 
+fun onReleaseOrMint(st: Storage, _msg: TokenPool_ReleaseOrMint): Storage {
+    assert(st.canTakeContextExecutorNextId()) throw Error.ContextExecutorUnavailable;
+    return st;
+}
+
 fun refundReleaseOrMintRateLimit(
     mutate st: Storage,
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
@@ -256,7 +261,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             preflightCheck: null,
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue: null,
-            onReleaseOrMint: null,
+            onReleaseOrMint,
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,

@@ -311,68 +311,70 @@ describe('LockReleaseTokenPool', () => {
     }
   })
 
-  it('reverts lockOrBurn when forwarded amount does not match transfer amount', async () => {
-    const onRampWallet = await userWallet(jettonSender.address)
-    const poolWallet = await userWallet(lockReleasePool.address)
+  describe('lockOrBurn transfer input validation (current behavior)', () => {
+    it('currently aborts when forwarded amount does not match transfer amount', async () => {
+      const onRampWallet = await userWallet(jettonSender.address)
+      const poolWallet = await userWallet(lockReleasePool.address)
 
-    const result = await jettonSender.sendJettonsExtended(deployer.getSender(), {
-      value: toNano('2'),
-      message: {
-        queryId: 44n,
-        amount: toNano('3'),
-        destination: lockReleasePool.address,
-        customPayload: beginCell().storeBit(1).endCell(),
-        forwardTonAmount: toNano('0.2'),
-        forwardPayload: TokenPool_LockOrBurn.toCell(
-          TokenPool_LockOrBurn.create({
-            queryId: 44n,
-            request: TokenPool_LockOrBurnInV1.create({
-              transfer: TokenPool_Transfer.create({
-                id: 44n,
-                details: TokenPool_TransferDetails.create({
-                  receiver: receiverAddress,
-                  remoteChainSelector,
-                  originalSender: deployer.address,
-                  amount: toNano('2'),
-                  localToken: jettonMinter.address,
+      const result = await jettonSender.sendJettonsExtended(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 44n,
+          amount: toNano('3'),
+          destination: lockReleasePool.address,
+          customPayload: beginCell().storeBit(1).endCell(),
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: TokenPool_LockOrBurn.toCell(
+            TokenPool_LockOrBurn.create({
+              queryId: 44n,
+              request: TokenPool_LockOrBurnInV1.create({
+                transfer: TokenPool_Transfer.create({
+                  id: 44n,
+                  details: TokenPool_TransferDetails.create({
+                    receiver: receiverAddress,
+                    remoteChainSelector,
+                    originalSender: deployer.address,
+                    amount: toNano('2'),
+                    localToken: jettonMinter.address,
+                  }),
                 }),
               }),
+              requestedFinalityConfig: 0n,
+              tokenArgs: null,
+              replyTo: deployer.address,
             }),
-            requestedFinalityConfig: 0n,
-            tokenArgs: null,
-            replyTo: deployer.address,
-          }),
-        ),
-      },
+          ),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: lockReleasePool.address,
+        success: false,
+      })
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: poolWallet.address,
-      to: lockReleasePool.address,
-      success: false,
-    })
-  })
+    it('currently aborts when forward payload is malformed', async () => {
+      const onRampWallet = await userWallet(jettonSender.address)
+      const poolWallet = await userWallet(lockReleasePool.address)
 
-  it('reverts lockOrBurn when forward payload is malformed', async () => {
-    const onRampWallet = await userWallet(jettonSender.address)
-    const poolWallet = await userWallet(lockReleasePool.address)
+      const result = await jettonSender.sendJettonsExtended(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 45n,
+          amount: toNano('1'),
+          destination: lockReleasePool.address,
+          customPayload: beginCell().storeBit(1).endCell(),
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: beginCell().storeUint(0, 32).endCell(),
+        },
+      })
 
-    const result = await jettonSender.sendJettonsExtended(deployer.getSender(), {
-      value: toNano('2'),
-      message: {
-        queryId: 45n,
-        amount: toNano('1'),
-        destination: lockReleasePool.address,
-        customPayload: beginCell().storeBit(1).endCell(),
-        forwardTonAmount: toNano('0.2'),
-        forwardPayload: beginCell().storeUint(0, 32).endCell(),
-      },
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: poolWallet.address,
-      to: lockReleasePool.address,
-      success: false,
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: lockReleasePool.address,
+        success: false,
+      })
     })
   })
 
@@ -573,6 +575,7 @@ describe('LockReleaseTokenPool', () => {
       },
     })
   })
+
 
   it('releases tokens with null replyTo without emitting a response message', async () => {
     const poolWallet = await userWallet(lockReleasePool.address)

@@ -384,45 +384,85 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  it('reverts lockOrBurn when payload amount does not match transferred amount', async () => {
-    const onRampWallet = await userWallet(deployer.address)
-    const poolWallet = await userWallet(burnMintPool.address)
-    const result = await onRampWallet.sendTransfer(deployer.getSender(), {
-      value: toNano('2'),
-      message: {
-        queryId: 304,
-        jettonAmount: toNano('2'),
-        destination: burnMintPool.address,
-        responseDestination: deployer.address,
-        customPayload: null,
-        forwardTonAmount: toNano('0.2'),
-        forwardPayload: TokenPool_LockOrBurn.toCell(
-          TokenPool_LockOrBurn.create({
-            queryId: 304n,
-            request: TokenPool_LockOrBurnInV1.create({
-              transfer: TokenPool_Transfer.create({
-                id: 304n,
-                details: TokenPool_TransferDetails.create({
-                  receiver: receiverAddress,
-                  remoteChainSelector,
-                  originalSender: deployer.address,
-                  amount: toNano('1'),
-                  localToken: cctMinter.address,
+  describe('lockOrBurn transfer input validation (current behavior)', () => {
+    it('currently aborts when payload amount does not match transferred amount', async () => {
+      const onRampWallet = await userWallet(deployer.address)
+      const poolWallet = await userWallet(burnMintPool.address)
+      const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 304,
+          jettonAmount: toNano('2'),
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: TokenPool_LockOrBurn.toCell(
+            TokenPool_LockOrBurn.create({
+              queryId: 304n,
+              request: TokenPool_LockOrBurnInV1.create({
+                transfer: TokenPool_Transfer.create({
+                  id: 304n,
+                  details: TokenPool_TransferDetails.create({
+                    receiver: receiverAddress,
+                    remoteChainSelector,
+                    originalSender: deployer.address,
+                    amount: toNano('1'),
+                    localToken: cctMinter.address,
+                  }),
                 }),
               }),
+              requestedFinalityConfig: 0n,
+              tokenArgs: null,
+              replyTo: deployer.address,
             }),
-            requestedFinalityConfig: 0n,
-            tokenArgs: null,
-            replyTo: deployer.address,
-          }),
-        ),
-      },
+          ),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        success: false,
+      })
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: poolWallet.address,
-      to: burnMintPool.address,
-      success: false,
+    it('currently aborts when transfer forward payload is malformed', async () => {
+      await cctMinterRuntime.sendMint(deployer.getSender(), {
+        value: toNano('1'),
+        mintOpcode: 0x00000015,
+        message: {
+          queryId: 101n,
+          destination: deployer.address,
+          tonAmount: toNano('0.05'),
+          jettonAmount: toNano('10'),
+          from: deployer.address,
+          responseDestination: deployer.address,
+          forwardTonAmount: 0n,
+        },
+      })
+
+      const deployerWallet = await userWallet(deployer.address)
+      const poolWallet = await userWallet(burnMintPool.address)
+
+      const result = await deployerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 45,
+          jettonAmount: toNano('1'),
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: beginCell().storeUint(0, 32).endCell(),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        success: false,
+      })
     })
   })
 
@@ -549,6 +589,7 @@ describe('BurnMintTokenPool', () => {
       op: TokenPool_LockOrBurnFinished.PREFIX,
     })
   })
+
 
   it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(
