@@ -21,7 +21,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         TokenRegistry_GetTokenInfo => {
             //TODO: min value assertion
-            onGetTokenInfo(msg, in.senderAddress);
+            onGetTokenInfo(in.senderAddress);
         }
         TokenRegistry_SetTokenInfo => {
             onSetTokenInfo(msg, in.senderAddress);
@@ -34,12 +34,12 @@ fun onInternalMessage(in: InMessage) {
 
 fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
     //TODO access control
-    var st = TokenRegistry_Storage.load();
+    var st = lazy TokenRegistry_Storage.load();
     st.tokenInfo = msg.info;
     st.store();
 }
 
-fun onGetTokenInfo(msg: TokenRegistry_GetTokenInfo, sender: address) {
+fun onGetTokenInfo(sender: address) {
     val st = TokenRegistry_Storage.load();
     var tokenPool: address? = null;
     if (st.tokenInfo.enabled) {

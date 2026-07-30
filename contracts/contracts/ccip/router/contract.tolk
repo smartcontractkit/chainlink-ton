@@ -9,6 +9,7 @@ import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../../lib/jetton/jetton_client"
 import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
@@ -93,6 +94,12 @@ fun onInternalMessage(in: InMessage) {
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onRouteMessage(msg, message);
+        }
+        // Sender must be OnRamp
+        Router_WithdrawToTokenPool => {
+            var st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onWithdrawToTokenPool(mutate st, msg);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -204,7 +211,7 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_TokenRegistrySetTokenInfo => {
             val st = Storage.load();
-            val registryAddress = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().tokenRegistryCode, msg.tokenAddress);
+            val registryAddress = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().deployableCode, msg.tokenAddress);
             if (msg.isNewEntry) {
                 val deployMsg = createMessage({
                     bounce: false,
@@ -293,6 +300,25 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
         body: ccipReceive,
     });
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val transferRequest = createMessage({
+        bounce: true,
+        value: 0,
+        dest: withdrawRequest.routerWalletAddress,
+        body: AskToTransfer {
+            queryId: msg.queryID,
+            jettonAmount: withdrawRequest.amount,
+            transferRecipient: withdrawRequest.tokenPool,
+            sendExcessesTo: null, // TBD
+            customPayload: null, // TBD
+            forwardTonAmount: ton("0.5"), // TODO
+            forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+        },
+    });
+    transferRequest.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
@@ -565,7 +591,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (!msg.tokenAmounts.empty()) {
         val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
         //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
-        tokenRegistry = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().tokenRegistryCode, tokenAmount.token).calculateAddress();
+        tokenRegistry = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().deployableCode, tokenAmount.token).calculateAddress();
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
@@ -715,6 +741,7 @@ We don't want to move funds then return if any of those fail, but ideally we do 
 withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
+    val tokenAmount = msg.tokenAmount.load();
     val tokenPoolLockOrBurn = createMessage({
         bounce: true,
         value: 0,
@@ -726,11 +753,11 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
                 transfer: TokenPool_Transfer {
                     id: 0, // TODO
                     details: TokenPool_TransferDetails {
-                        receiver: msg.receiver.toCell(), // TODO why toCell()?
-                        remoteChainSelector: 0,
+                        receiver: msg.receiver,
+                        remoteChainSelector: msg.destChainSelector,
                         originalSender: msg.originalSender,
-                        amount: msg.tokenAmount.amount,
-                        localToken: msg.tokenAmount.token,
+                        amount: tokenAmount.amount,
+                        localToken: tokenAmount.token,
                     }.toCell(),
                 },
             }.toCell(),

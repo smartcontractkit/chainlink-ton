@@ -57,6 +57,7 @@ describe('SendExecutor - Unit tests', () => {
   let sender: SandboxContract<TreasuryContract>
   let deployable: SandboxContract<dep.ContractClient>
   let onrampSend: or.OnRamp_Send
+  let routerMock: SandboxContract<TreasuryContract>
   let onRampMock: SandboxContract<TreasuryContract>
   let feeQuoterMock: SandboxContract<TreasuryContract>
   let tokenRegistryMock: SandboxContract<TreasuryContract>
@@ -75,6 +76,7 @@ describe('SendExecutor - Unit tests', () => {
 
     deployer = await blockchain.treasury('deployer')
     onRampMock = await blockchain.treasury('onrampMock')
+    routerMock = await blockchain.treasury('router')
     feeQuoterMock = await blockchain.treasury('feeQuoterMock')
     tokenRegistryMock = await blockchain.treasury('tokenRegistryMock')
     sender = await blockchain.treasury('sender')
@@ -167,6 +169,7 @@ describe('SendExecutor - Unit tests', () => {
         sx.CCIPSendExecutor_Execute.create({
           onrampSend: send,
           config: sx.CCIPSendExecutor_Config.create({
+            router: routerMock.address,
             feeQuoter: opts?.feeQuoterBouncer
               ? opts.feeQuoterBouncer.address
               : feeQuoterMock.address,
@@ -209,6 +212,7 @@ describe('SendExecutor - Unit tests', () => {
       {
         onrampSend,
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -231,6 +235,7 @@ describe('SendExecutor - Unit tests', () => {
       {
         onrampSend,
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -253,6 +258,7 @@ describe('SendExecutor - Unit tests', () => {
       {
         onrampSend: { ...onrampSend, tokenRegistry: null },
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -275,6 +281,7 @@ describe('SendExecutor - Unit tests', () => {
       {
         onrampSend: { ...onrampSend, tokenRegistry: null },
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },

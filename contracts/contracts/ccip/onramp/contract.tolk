@@ -74,11 +74,17 @@ fun onInternalMessage(in: InMessage) {
             assert(destChainConfig.router == in.senderAddress, OnRamp_Error.Unauthorized);
             onSend(st, destChainConfig, msg)
         }
-        OnRamp_ExecutorRequestsLockOrBurn => {
         // Sender must be Send Executor
+        OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
             assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
+        }
+        // Sender must be Send Executor
+        OnRamp_ExecutorRequestsWithdraw =>  {
+            var st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
@@ -276,6 +282,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
+                        router: destChainConfig.router,
                         feeQuoter: config.feeQuoter,
                     }.toCell(),
                 }.toCell(),
@@ -304,6 +311,21 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
         }
     });
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+    val routerWithdraw = createMessage({
+        bounce: true,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_WithdrawToTokenPool {
+            queryID: msg.queryID,
+            destChainSelector: msg.destChainSelector,
+            withdrawRequest: msg.withdrawRequest,
+        }
+    });
+    routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
