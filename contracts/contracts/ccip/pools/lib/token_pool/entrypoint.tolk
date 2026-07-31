@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
+import "@stdlib/gas-payments"
 
 import "../../../../lib/math"
 import "../../../../lib/utils"
@@ -32,6 +33,11 @@ import "../rate_limiter"
 /// 0.000567 tokens.
 /// In the case of a burnMint pool on chain A, these funds are burned in the pool on chain A.
 /// In the case of a lockRelease pool on chain A, these funds accumulate in the pool on chain A.
+/// TON value needed to return Jettons after a recoverable transfer failure.
+/// Any value left from the inbound notification is forwarded with the failure
+/// notification after the pool's pre-message balance has been reserved.
+const TokenPool_RETURN_TRANSFER_VALUE = ton("0.1");
+
 struct TokenPool<T> {
     data: TokenPool_Data;
     context: T? = null;
@@ -89,7 +95,7 @@ struct TokenPool_Hooks<T> {
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
     preflightCheck: ((T?, TokenPool_LockOrBurn, TokenPool_LockOrBurnForwardPayload) -> bool)?;
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
-    onLockOrBurnTransferContinue: ((T, address, TokenPool_LockOrBurnForwardPayload) -> T)?;
+    onLockOrBurnTransferContinue: ((T, address, TransferNotificationForRecipient, TokenPool_LockOrBurnForwardPayload) -> T)?;
 }
 
 @inline
@@ -564,7 +570,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         //
         // In the worst case, not enough funds, received Jettons are burned.
         TransferNotificationForRecipient => {
-            self.onLockOrBurnTransfer(msgSender, msg);
+            self.onLockOrBurnTransfer(msgSender, msg, msgValue);
         }
         TokenPool_ReleaseOrMint => {
             self.onReleaseOrMint(msgSender, msg);
@@ -676,7 +682,7 @@ fun TokenPool<T>.onPreflightCheckFailed(
             dest: requestMsg.replyTo!,
             body: TokenPool_LockOrBurnFailure {
                 queryId: requestMsg.queryId,
-                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
+                errorCode: TokenPool_Error.UnsupportedOperation as uint16,
             },
         });
         failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -727,7 +733,7 @@ fun TokenPool<T>.onPostflightCheckFailed(
             dest: requestMsg.replyTo!,
             body: TokenPool_ReleaseOrMintFailure {
                 queryId: requestMsg.queryId,
-                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
+                errorCode: TokenPool_Error.UnsupportedOperation as uint16,
             },
         });
         failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -983,14 +989,45 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     mutate self,
     sender: address,
     msg: TransferNotificationForRecipient,
+    msgValue: coins,
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurnTransfer != null) {
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
+
+        return;
     }
 
-    // Check the notification originates from a valid Jetton wallet
+    // This is a trust boundary, rather than a recoverable transfer failure.
+    // Never return tokens in response to a notification from an arbitrary
+    // contract: only this pool's Jetton wallet can have credited custody.
     assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
 
+    try {
+        val forwardPayload = loadForwardPayloadAsSlice(msg.forwardPayload);
+        val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(forwardPayload!);
+
+        // A valid pool wallet has already credited the tokens before it
+        // delivers this notification. Once its payload is decoded, every
+        // failure can return custody and notify the original requester.
+        try {
+            self.processLockOrBurnTransfer(sender, msg, fwdp);
+        } catch (errorCode) {
+            self.failLockOrBurnTransfer(sender, msg, fwdp, errorCode as uint16, msgValue);
+        }
+    } catch {
+        // A malformed payload has no reliable reply target, but custody can
+        // still be returned to a valid pool wallet.
+        self.bestEffortReturnTransfer(sender, msg);
+    }
+}
+
+/// Process a decoded Jetton transfer notification after its sender has been authenticated.
+fun TokenPool<T>.processLockOrBurnTransfer(
+    mutate self,
+    sender: address,
+    msg: TransferNotificationForRecipient,
+    fwdp: TokenPool_LockOrBurnForwardPayload,
+): void {
     // We either get this transfer from the Router, in which case we trust the transfer is valid;
     // Or for a different sender (e.g., per-user deposit account), we need to validate the transfer,
     // which we can only do with context -> recover from ContextExecutor.
@@ -998,52 +1035,93 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     // The context contains info about the sender, the amount, etc. that we can use to validate the transfer.
     // If we can't validate the transfer, we try to return the funds.
 
-    // TODO: check message value is enough to cover full flow, or error
-    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
-    if (fwdps == null) {
-        self.returnTransfer(sender, msg);
-        return;
-    }
-    val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
 
-    // TODO: can we trust (any) JettonWallet forward payloads?
-    // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
-
-    // Continue if transfer initiator is the Router, otherwise try to validate the transfer
-    val router = self.data.adminConfig.load().dynamicConfig.load().router;
-    // TODO: should check if transferInitiator == walletAddress(router) - missing info for now
-    // if (msg.transferInitiator != null && msg.transferInitiator! == router) {
-    if (msg.transferInitiator != null) {
-        self.onLockOrBurnTransferContinue(sender, fwdp);
-        return;
-    }
-
-    // TODO: should throw as unsupported for now
-    // TODO: check if this is a registered deposit account
-    // ContextExecutor_Ask(fwdp: msg + fwdp) -> ContextExecutor_Reply(ctx, fwdp)
-    // if reply is valid, continue, else return transfer
+    assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+    assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
+    self.onLockOrBurnTransferContinue(sender, msg, fwdp);
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(
     mutate self,
     sender: address,
+    msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurnTransferContinue != null) {
-        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, fwdPayload);
-
+        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, msg, fwdPayload);
         return;
     }
 
     return self.onLockOrBurnTransferFinalize(fwdPayload);
 }
 
-fun TokenPool<T>.returnTransfer(self, sender: address, msg: TransferNotificationForRecipient): void {
-    // TODO: check available gas, we don't want to drain the contract with return transfers
-    // send back the tokens, we don't support direct transfers to the pool
+/// Returns a failure notification to the original requester, carrying the remaining value of the inbound transfer.
+/// The pool's balance is reserved to ensure that the notification can be sent safely (without consuming the pool's balance).
+fun TokenPool<T>.notifyLockOrBurnFailure(
+    self,
+    msgValue: coins,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+): void {
+    self.reserveLockOrBurnFailureValue(msgValue);
+
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
+        val failure = createMessage({
+            bounce: false,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFailure {
+                queryId: requestMsg.queryId,
+                errorCode,
+            },
+        });
+        failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+    }
+}
+
+/// Keep the pool's balance from before the inbound Jetton notification, then
+/// allow recovery messages to carry only the notification's remaining value.
+fun TokenPool<T>.reserveLockOrBurnFailureValue(self, msgValue: coins): void {
+    // Storage accounting can leave a minimally funded pool with less balance
+    // than the forwarded value. Saturate rather than throwing before recovery.
+    val originalBalance = contract.getOriginalBalance();
+    val balanceBeforeMessage = originalBalance > msgValue
+        ? originalBalance - msgValue
+        : 0 as coins;
+    val toLeaveOnBalance = balanceBeforeMessage + contract.getStorageDuePayment();
+    reserveToncoinsOnBalance(toLeaveOnBalance, RESERVE_MODE_AT_MOST);
+}
+
+/// Returns custody to the sender and notifies the original requester of a failed transfer.
+fun TokenPool<T>.failLockOrBurnTransfer(
+    self,
+    sender: address,
+    msg: TransferNotificationForRecipient,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+    msgValue: coins,
+): void {
+    self.bestEffortReturnTransfer(sender, msg);
+    self.notifyLockOrBurnFailure(msgValue, forwardPayload, errorCode);
+}
+
+fun TokenPool<T>.bestEffortReturnTransfer(self, sender: address, msg: TransferNotificationForRecipient): void {
+    // Keep the helper safe if a future caller uses it directly. The outer
+    // entrypoint performs the same assertion before any recoverable catch.
+    assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
+
+    if (msg.transferInitiator == null) {
+        return; // nothing to do, no one to return to
+    }
+
+    // Send back tokens; direct transfers to the pool are not supported.
     val returnTransfer = createMessage({
         bounce: BounceMode.NoBounce,
-        value: 0,
+        value: TokenPool_RETURN_TRANSFER_VALUE,
         dest: sender, // the wallet we own which sent us the notification
         body: AskToTransfer {
             queryId: msg.queryId,
@@ -1055,7 +1133,9 @@ fun TokenPool<T>.returnTransfer(self, sender: address, msg: TransferNotification
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     });
-    returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // Returning custody is best-effort. The remaining inbound value is carried
+    // by the subsequent failure notification, after reserving pool balance.
+    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
 }
 
 fun TokenPool<T>.onLockOrBurnTransferFinalize(

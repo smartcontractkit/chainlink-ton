@@ -91,12 +91,13 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
+    _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val prepared = lazy fwdPayload.prepared.load();
 
-    assert(!st.pendingLocks.get(requestMsg.queryId).isFound, LockReleaseLockBoxTokenPool_Error.PendingLockAlreadyExists);
+    assert(!st.pendingLocks.get(requestMsg.queryId).isFound) throw LockReleaseLockBoxTokenPool_Error.PendingLockAlreadyExists;
 
     // Store pending lock data for finalization.
     st.pendingLocks.set(requestMsg.queryId, LockReleaseLockboxTokenPool_PendingLock {

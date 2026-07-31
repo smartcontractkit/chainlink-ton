@@ -14,6 +14,7 @@ import {
   TokenPool_MirroredPolicy,
   TokenPool_ReleaseOrMintFinished,
   TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnForwardPayload,
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnOutV1,
@@ -755,23 +756,9 @@ describe('LockReleaseLockboxTokenPool', () => {
       // clearing the pending lock and emitting TokenPool_LockedOrBurned.
     })
 
-    it('should return jettons for transfers without transferInitiator (direct user transfers)', async () => {
-      // When a user sends jettons directly to the pool wallet (not through on-ramp),
-      // the transferInitiator will be null (user's own wallet).
-      // The pool should detect this and return the jettons instead of processing.
-      // This is tested by verifying that onLockOrBurnTransfer checks transferInitiator != null.
-      // The TokenPool library handles this - if transferInitiator is null, it calls returnTransfer().
-      // In the current test setup, all transfers go through JettonWallet which sets transferInitiator.
-      // The onLockOrBurnTransfer hook in token_pool.tolk asserts:
-      //   if (msg.transferInitiator != null) { onLockOrBurnTransferContinue(); return; }
-      //   else { returnTransfer(); }
-      // This prevents rogue transfers from being processed as locks.
-    })
-
-    it('should reject duplicate lock requests with PendingLockAlreadyExists', async () => {
-      // This tests the onLockOrBurnTransferContinue hook directly.
-      // When a lock request with the same queryId arrives twice, the second should be rejected.
-      // The contract asserts: !pendingLocks.get(msg.queryId).isFound -> PendingLockAlreadyExists
+    it('returns duplicate lock transfers and notifies the requester', async () => {
+      // The pending lock from the first request makes the second continuation fail.
+      // The shared TP path must recover those already-received jettons.
 
       const onRampWallet = await userWallet(deployer.address)
       const poolWallet = await userWallet(lockReleaseLockboxPool.address)
@@ -828,10 +815,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
       expect(await lockReleaseLockboxPool.getHasPendingLock(310n)).toBe(true)
 
-      // Second lock request with same queryId - should be rejected by onLockOrBurnTransferContinue
-      // The pool's jetton wallet will forward this back to the pool
-      // The pool processes it in onLockOrBurnTransfer which checks transferInitiator
-      // Then calls onLockOrBurnTransferContinue which checks for duplicate queryId
+      // Second lock request with the same queryId is returned by the shared continuation path.
       const secondResult = await onRampWallet.sendTransfer(deployer.getSender(), {
         value: toNano('3'),
         message: {
@@ -845,15 +829,36 @@ describe('LockReleaseLockboxTokenPool', () => {
         },
       })
 
-      // The pool rejects duplicate with exit code 48700 (PendingLockAlreadyExists)
       expect(secondResult.transactions).toHaveTransaction({
+        from: poolWallet.address,
         to: lockReleaseLockboxPool.address,
-        success: false,
-        exitCode: 48700,
+        success: true,
+      })
+      expect(secondResult.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: poolWallet.address,
+        success: true,
+        op: 0x0f8a7ea5, // AskToTransfer
+      })
+      expect(secondResult.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: deployer.address,
+        // The Treasury test recipient does not implement this callback. Assert
+        // the emitted message, including that it carries the residual inbound
+        // value instead of consuming it in the pool.
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        value: (value) => value !== undefined && value > 0n,
+        body(body) {
+          if (!body) return false
+          const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
+          return failure.queryId === 310n && failure.errorCode === 48700n
+        },
       })
 
       // Original pending lock should still exist
       expect(await lockReleaseLockboxPool.getHasPendingLock(310n)).toBe(true)
+      expect(await onRampWallet.getJettonBalance()).toEqual(toNano('995'))
+      expect(await poolWallet.getJettonBalance()).toEqual(0n)
     })
   })
 

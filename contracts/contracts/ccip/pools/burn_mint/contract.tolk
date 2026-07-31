@@ -108,8 +108,11 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
+    _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
+    assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
+
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val jettonClient = st.poolData.load().jettonClient();
     val context = BurnMintTokenPool_BurnContext {
@@ -201,15 +204,6 @@ fun onReleaseOrMintContinue(
     });
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
-    return st;
-}
-
-fun onLockOrBurnTransfer(
-    st: Storage,
-    _sender: address,
-    _msg: TransferNotificationForRecipient,
-): Storage {
-    assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
     return st;
 }
 
@@ -407,7 +401,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onLockOrBurn: null,
             validateLockOrBurn: null,
             preflightCheck: null,
-            onLockOrBurnTransfer,
+            onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue,
             onReleaseOrMint,
             validateReleaseOrMint: null,
