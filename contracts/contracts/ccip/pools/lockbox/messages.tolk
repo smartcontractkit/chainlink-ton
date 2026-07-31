@@ -11,11 +11,13 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
     token: address;
     remoteChainSelector: uint64;
     amount: coins;
+    context: cell?;
 }
 
 /// Optional extra fields for JettonLockBox_Withdraw (stored in a cell ref to avoid overflow).
 struct JettonLockBox_WithdrawExtra {
     sendExcessesTo: address?;
+    failureContext: cell?;
 }
 
 /// Withdraws tokens to a specific recipient.
@@ -42,6 +44,7 @@ struct (0x6d077f2e) JettonLockBox_Deposited {
     token: address;
     remoteChainSelector: uint64;
     amount: coins;
+    context: cell?;
 }
 
 /// Contract initialization message.
@@ -75,6 +78,7 @@ struct (0x60bae556) JettonLockBox_WithdrawFailed {
     token: address;
     amount: coins;
     recipientWallet: address;
+    context: cell?;
 }
 
 /// Union of all incoming messages this contract handles.

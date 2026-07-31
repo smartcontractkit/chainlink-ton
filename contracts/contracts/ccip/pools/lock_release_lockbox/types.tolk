@@ -7,25 +7,20 @@ import "../lib/token_pool/messages"
 const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool".literalSlice();
 const LockReleaseLockboxTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 
-// Pending lock context stored by queryId until lockbox confirms deposit.
-// On JettonLockBox_Deposited, pool restores this and finalizes the lock flow.
-struct LockReleaseLockboxTokenPool_PendingLock {
-    queryId: uint64;
+const LockReleaseLockboxTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02");
+
+struct (0x4b92a8e8) LockReleaseLockboxTokenPool_LockContext {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-// Pending release context stored by queryId until ReturnExcessesBack arrives.
-// On ReturnExcessesBack, pool restores this and finalizes the release flow.
-struct LockReleaseLockboxTokenPool_PendingRelease {
-    queryId: uint64;
-    replyTo: Cell<address?>;
-    request: Cell<TokenPool_ReleaseOrMintInV1>;
-    out: Cell<TokenPool_ReleaseOrMintOutV1>;
+struct (0xad5476ce) LockReleaseLockboxTokenPool_ReleaseContext {
+    forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
 struct LockReleaseLockboxTokenPool_InitConfig {
     owner: address;
     jettonClient: JettonClient;
+    contextExecutorCode: cell;
     tokenDecimals: uint8;
     router: address;
     rmnProxy: address;

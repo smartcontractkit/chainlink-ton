@@ -10,9 +10,21 @@ import "types"
 struct Storage {
     poolData: Cell<TokenPool_Data>;
     lockbox: address;
-    // Pending contexts keyed by queryId for async flow completion.
-    pendingLocks: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingLock>> = [];
-    pendingReleases: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingRelease>> = [];
+    contextExecutorCode: cell;
+    contextExecutorNextId: uint64;
+}
+
+@inline
+fun Storage.canTakeContextExecutorNextId(self): bool {
+    return self.contextExecutorNextId != 18446744073709551615;
+}
+
+@inline
+fun Storage.takeContextExecutorNextId(mutate self): uint64 {
+    val id = self.contextExecutorNextId;
+    assert(id != 18446744073709551615) throw 0xFFFF;
+    self.contextExecutorNextId = id + 1;
+    return id;
 }
 
 fun Storage.load(): Storage {
@@ -54,7 +66,7 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
         lockbox: config.lockbox,
-        pendingLocks: createEmptyMap(),
-        pendingReleases: createEmptyMap(),
+        contextExecutorCode: config.contextExecutorCode,
+        contextExecutorNextId: 1,
     };
 }

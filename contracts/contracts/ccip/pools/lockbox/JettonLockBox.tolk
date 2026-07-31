@@ -155,7 +155,6 @@ fun onDepositNotification(mutate st: Storage, sender: address, msg: TransferNoti
     // Emit deposit event.
     emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, fwdp);
 
-    // TODO: needs to include more context/fwdPayload
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
@@ -165,6 +164,7 @@ fun onDepositNotification(mutate st: Storage, sender: address, msg: TransferNoti
             token: fwdp.token,
             remoteChainSelector: fwdp.remoteChainSelector,
             amount: fwdp.amount,
+            context: fwdp.context,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -193,6 +193,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
         .storeUint(0x17c24007, 32) // JettonLockBox_WithdrawRequest marker
         .storeUint(msg.queryId, 64)
         .storeAddress(sender)
+        .storeMaybeRef(msg.extra != null ? msg.extra!.load().failureContext : null)
         .endCell();
 
     val fwdPayload = beginCell()
@@ -233,7 +234,6 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
 }
 
 /// Handle bounced AskToTransfer (withdraw failed) - send error message to initiator.
-/// The pool stores pending releases by queryId and restores context on JettonLockBox_WithdrawFailed.
 fun onBouncedMessage(in: InMessageBounced) {
     val st = lazy Storage.load();
 
@@ -253,6 +253,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             val marker = bounceData.loadUint(32);
             val queryId = bounceData.loadUint(64);
             val withdrawInitiator = bounceData.loadAddress();
+            val failureContext = bounceData.loadMaybeRef();
 
             // Send error message to withdraw initiator
             val errorMsg = createMessage({
@@ -264,6 +265,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                     token: st.minterAddress,
                     amount: msg.jettonAmount,
                     recipientWallet: msg.transferRecipient,
+                    context: failureContext,
                 },
             });
             errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

@@ -192,6 +192,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount,
+          context: null,
         }),
       )
 
@@ -248,6 +249,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: 0n,
+          context: null,
         }),
       )
 
@@ -304,6 +306,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount,
+          context: null,
         }),
       )
 
@@ -363,6 +366,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: depositAmount,
+          context: null,
         }),
       )
 
