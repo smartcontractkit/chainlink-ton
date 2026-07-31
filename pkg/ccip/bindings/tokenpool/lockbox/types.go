@@ -5,6 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
@@ -19,14 +20,16 @@ const OperatorRole = 1735955001 // crc32("OPERATOR_ROLE")
 type Deposit struct {
 	_                   tlb.Magic        `tlb:"#9e9ec361" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`   // The address of the token to deposit.
-	RemoteChainSelector uint64           `tlb:"## 64"`  // The chain selector of the remote chain.
-	Amount              *big.Int         `tlb:"## 256"` // The amount of tokens to deposit.
+	Token               *address.Address `tlb:"addr"`    // The address of the token to deposit.
+	RemoteChainSelector uint64           `tlb:"## 64"`   // The chain selector of the remote chain.
+	Amount              *big.Int         `tlb:"## 256"`  // The amount of tokens to deposit.
+	Context             *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
 }
 
 // WithdrawExtra holds optional extra fields for Withdraw.
 type WithdrawExtra struct {
 	SendExcessesTo *address.Address `tlb:"addr"`
+	FailureContext *cell.Cell       `tlb:"maybe ^"` // Optional context carried through withdrawal failure chain.
 }
 
 // Withdraws tokens to a specific recipient.
@@ -43,9 +46,10 @@ type Withdraw struct {
 type Deposited struct {
 	_                   tlb.Magic        `tlb:"#6d077f2e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`   // The token address.
-	RemoteChainSelector uint64           `tlb:"## 64"`  // The chain selector of the remote chain.
-	Amount              *big.Int         `tlb:"## 256"` // The amount of tokens deposited.
+	Token               *address.Address `tlb:"addr"`    // The token address.
+	RemoteChainSelector uint64           `tlb:"## 64"`   // The chain selector of the remote chain.
+	Amount              *big.Int         `tlb:"## 256"`  // The amount of tokens deposited.
+	Context             *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
 }
 
 // Init initializes the lockbox with a jetton minter/wallet and admin.
@@ -71,9 +75,10 @@ type Initialized struct {
 type WithdrawFailed struct {
 	_               tlb.Magic        `tlb:"#60bae556" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID         uint64           `tlb:"## 64"`
-	Token           *address.Address `tlb:"addr"`   // The token address.
-	Amount          *big.Int         `tlb:"## 256"` // The amount that failed to withdraw.
-	RecipientWallet *address.Address `tlb:"addr"`   // The jetton wallet address of the intended recipient.
+	Token           *address.Address `tlb:"addr"`    // The token address.
+	Amount          *big.Int         `tlb:"## 256"`  // The amount that failed to withdraw.
+	RecipientWallet *address.Address `tlb:"addr"`    // The jetton wallet address of the intended recipient.
+	Context         *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the failure chain.
 }
 
 // ExitCode represents a JettonLockBox-specific error code.

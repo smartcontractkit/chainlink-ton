@@ -1,11 +1,9 @@
 package lockrelease
 
 import (
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
@@ -20,17 +18,17 @@ const (
 	ReleaseTransferValue = 50000000 // 0.05 TON in nanotons
 	// ReplyValue is the TON value for reply messages.
 	ReplyValue = 10000000 // 0.01 TON in nanotons
+	// ContextExecutorDeployValue is the TON value for deploying a ContextExecutor.
+	ContextExecutorDeployValue = 20000000 // 0.02 TON in nanotons
 )
 
 // --- Data types ---
 
-// PendingRelease represents a pending release operation.
-// Corresponds to LockReleaseTokenPool_PendingRelease in the Tolk contract.
-type PendingRelease struct {
-	ReplyTo        *address.Address              `tlb:"addr"`
-	Request        *tokenpool.ReleaseOrMintInV1  `tlb:"^"`
-	Out            *tokenpool.ReleaseOrMintOutV1 `tlb:"^"`
-	ExpectedSender *address.Address              `tlb:"addr"`
+// ReleaseContext represents the context for a release operation managed by ContextExecutor.
+// Corresponds to LockReleaseTokenPool_ReleaseContext in the Tolk contract (opcode: 0xed696f9b).
+type ReleaseContext struct {
+	_              tlb.Magic                             `tlb:"#ed696f9b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
 }
 
 // --- Messages (incoming) ---
@@ -45,11 +43,11 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the LockReleaseTokenPool contract storage.
-// Extends the common TokenPool storage with lock/release specific state.
+// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; contextExecutorCode: cell; contextExecutorNextId: uint64; }
 type Storage struct {
-	PoolData        tokenpool.Storage              `tlb:"^"`
-	JettonClient    *cell.Cell                     `tlb:"^"`       // Cell<JettonClient> - TODO: define JettonClient type in common/jetton bindings
-	PendingReleases *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingRelease>>
+	PoolData              tokenpool.Storage `tlb:"^"`
+	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
+	ContextExecutorNextId uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
 }
 
 // --- Exit Codes ---
@@ -61,10 +59,8 @@ type ExitCode tvm.ExitCode
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodePendingReleaseAlreadyExists ExitCode = iota + 26300 // Facility ID 263 * 100
-	ExitCodePendingReleaseNotFound
-	ExitCodeUnexpectedReleaseConfirmationSender
-	ExitCodeUnexpectedReleaseBounce
+	ExitCodeUnexpectedReleaseBounce ExitCode = iota + 26300 // Facility ID 263 * 100
+	ExitCodeContextExecutorUnavailable
 )
 
 // New converts an ExitCode to a tvm.ExitCode.
@@ -77,6 +73,8 @@ func (e ExitCode) New() tvm.ExitCode {
 var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	ReturnExcessesBack{},
+	// Context types
+	ReleaseContext{},
 }).MustWithStorageType(Storage{})
 
 // --- Standard interface ---
