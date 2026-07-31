@@ -36,10 +36,7 @@ import {
   ContextExecutor_ForwardNotification,
   ContextExecutor_InMessageForward,
 } from '../../../wrappers/gen/ccip/ContextExecutor'
-import {
-  runTokenPoolAsyncHookBehaviorTests,
-  runTokenPoolBehaviorTests,
-} from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
@@ -624,7 +621,6 @@ describe('BurnMintTokenPool', () => {
       op: TokenPool_LockOrBurnFinished.PREFIX,
     })
   })
-
 
   it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(

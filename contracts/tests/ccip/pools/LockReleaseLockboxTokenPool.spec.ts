@@ -290,20 +290,24 @@ describe('LockReleaseLockboxTokenPool', () => {
     })
   }
 
-  runTokenPoolBehaviorTests('LockReleaseLockboxTokenPool', async () => ({
-    pool,
-    deployer,
-    offRamp,
-    unauthorized: recipient,
-    recipient,
-    remoteChainSelector,
-    onRampAddress: deployer.address,
-    destTokenAddress,
-    sourcePoolAddress,
-    localToken: jettonMinter.address,
-  }), {
-    setup: setupTokenPoolBehaviorContext,
-  })
+  runTokenPoolBehaviorTests(
+    'LockReleaseLockboxTokenPool',
+    async () => ({
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+    }),
+    {
+      setup: setupTokenPoolBehaviorContext,
+    },
+  )
 
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseLockboxTokenPool', async () => {
@@ -352,7 +356,6 @@ describe('LockReleaseLockboxTokenPool', () => {
       expect(await lockReleaseLockboxPool.getToken()).toEqualAddress(jettonMinter.address)
       expect(await lockReleaseLockboxPool.getTokenDecimals()).toBe(9n)
     })
-
   })
 
   describe('lock flow (jetton transfer -> lockbox custody)', () => {
@@ -412,7 +415,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: lockReleaseLockboxPool.address,
         success: true,
       })
-
     })
 
     it('should store pending lock when forwarded amount matches transfer amount', async () => {
@@ -463,7 +465,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
         },
       })
-
     })
   })
 
@@ -515,7 +516,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: lockReleaseLockboxPool.address,
         success: true,
       })
-
 
       // Pool sends JettonLockBox_Withdraw to the lockbox (lockbox will handle the jetton transfer)
       expect(result.transactions).toHaveTransaction({
@@ -651,7 +651,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: true,
       })
     })
-
   })
 
   describe('full release flow (end-to-end through lockbox)', () => {

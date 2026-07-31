@@ -41,10 +41,7 @@ import {
 } from '../../../wrappers/gen/ccip/ContextExecutor'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-import {
-  runTokenPoolAsyncHookBehaviorTests,
-  runTokenPoolBehaviorTests,
-} from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 function buildSpoofedExecutorForwardNotification(senderAddress: Address): Cell {
@@ -174,26 +171,26 @@ describe('LockReleaseTokenPool', () => {
       toNano('0.2'),
       {
         queryId: 1n,
-          remoteChainSelectorsToRemove: [],
-          chainsToAdd: [
+        remoteChainSelectorsToRemove: [],
+        chainsToAdd: [
           TokenPool_ChainUpdate.create({
             remoteChainSelector,
-              remotePoolAddresses: [sourcePoolAddress],
-              remoteTokenAddress: destTokenAddress,
-              rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
-                outbound: RateLimiter_Config.create({
+            remotePoolAddresses: [sourcePoolAddress],
+            remoteTokenAddress: destTokenAddress,
+            rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+              outbound: RateLimiter_Config.create({
                 isEnabled: true,
                 capacity: toNano('100'),
                 rate: 1n,
-                }),
-                inbound: RateLimiter_Config.create({
-                isEnabled: true,
-                capacity: toNano('100'),
-                rate: 1n,
-                }),
               }),
+              inbound: RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: toNano('100'),
+                rate: 1n,
+              }),
+            }),
           }),
-          ],
+        ],
       },
     )
 
@@ -264,20 +261,24 @@ describe('LockReleaseTokenPool', () => {
     })
   }
 
-  runTokenPoolBehaviorTests('LockReleaseTokenPool', async () => ({
-    pool,
-    deployer,
-    offRamp,
-    unauthorized: recipient,
-    recipient,
-    remoteChainSelector,
-    onRampAddress: deployer.address,
-    destTokenAddress,
-    sourcePoolAddress,
-    localToken: jettonMinter.address,
-  }), {
-    setup: setupTokenPoolBehaviorContext,
-  })
+  runTokenPoolBehaviorTests(
+    'LockReleaseTokenPool',
+    async () => ({
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+    }),
+    {
+      setup: setupTokenPoolBehaviorContext,
+    },
+  )
 
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseTokenPool', async () => {
@@ -636,7 +637,6 @@ describe('LockReleaseTokenPool', () => {
       },
     })
   })
-
 
   it('releases tokens with null replyTo without emitting a response message', async () => {
     const poolWallet = await userWallet(lockReleasePool.address)

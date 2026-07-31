@@ -899,7 +899,10 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }
 
         const slice = body.beginParse()
-        return slice.remainingBits >= 32 && slice.preloadUint(32) === TokenPool_ReleaseOrMintFailure.PREFIX
+        return (
+          slice.remainingBits >= 32 &&
+          slice.preloadUint(32) === TokenPool_ReleaseOrMintFailure.PREFIX
+        )
       })
 
       expect(failures).toHaveLength(0)
