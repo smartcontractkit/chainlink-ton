@@ -66,7 +66,7 @@ fun deployBurnMintContextExecutor(executor: AutoDeployAddress): void {
         bounce: BounceMode.NoBounce,
         value: BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
         dest: executor,
-        body: beginCell().endCell().beginParse(),
+        body: createEmptyCell().beginParse(),
     });
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }

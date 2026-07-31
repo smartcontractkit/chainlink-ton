@@ -9,7 +9,7 @@ const LockReleaseTokenPool_RELEASE_TRANSFER_VALUE = ton("0.05");
 const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
 const LockReleaseTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02");
 
-struct (0x54e6870c) LockReleaseTokenPool_ReleaseContext {
+struct (0xed696f9b) LockReleaseTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 

@@ -10,12 +10,12 @@ const BurnMintTokenPool_BURN_VALUE = ton("0.05");
 const BurnMintTokenPool_MINT_VALUE = ton("0.1");
 const BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02");
 
-struct (0x0d49d523) BurnMintTokenPool_BurnContext {
+struct (0xba302a47) BurnMintTokenPool_BurnContext {
     wallet: address;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-struct (0x723f6ea1) BurnMintTokenPool_MintContext {
+struct (0xb3d52361) BurnMintTokenPool_MintContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
