@@ -558,7 +558,7 @@ func SendCCIPMessage(
 	l.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
 		sourceChain, msg.DestChainSelector, senderAddr.String())
 
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
+	value := big.NewInt(0).Add(fee, tlb.MustFromTON("3").Nano() /* To cover for gas */)
 
 	// Check sender balance before sending
 	senderAccount, err := waiterClient.GetAccount(ctx, block, senderAddr)
