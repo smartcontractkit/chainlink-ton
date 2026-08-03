@@ -1,12 +1,21 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { Slice } from '@ton/core'
+import { setupGenBindings } from '../../wrappers/gen'
 
 const GEN_DIR = path.resolve(__dirname, '../../wrappers/gen')
 
 export interface OpcodeEntry {
   name: string
   fromSlice: (s: Slice) => Record<string, unknown> & { readonly $: string }
+}
+
+function hasPrefix(value: unknown): value is { PREFIX: number } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).PREFIX === 'number'
+  )
 }
 
 function collectGenFiles(dir: string): string[] {
@@ -35,6 +44,7 @@ function isOpcodeStruct(value: unknown): value is {
 }
 
 let registry: Map<number, OpcodeEntry[]> | undefined
+let names: Map<number, Set<string>> | undefined
 
 /**
  * Builds a map of 32-bit opcode prefix -> candidate decoders, by scanning every generated
@@ -48,7 +58,18 @@ let registry: Map<number, OpcodeEntry[]> | undefined
  */
 export function getOpcodeRegistry(): Map<number, OpcodeEntry[]> {
   if (registry) return registry
-  registry = new Map()
+  try {
+    // Individual spec files call this themselves when they need it directly; here we call it
+    // defensively so decoding still works even for specs (like debugging via `dump()`) that
+    // never call it. Swallow "already registered" errors since a spec file may have called it
+    // first.
+    setupGenBindings()
+  } catch {
+    // already registered by the spec under test
+  }
+
+  let localRegistry = new Map<number, OpcodeEntry[]>()
+  let localNames = new Map<number, Set<string>>()
   for (const file of collectGenFiles(GEN_DIR)) {
     let mod: Record<string, unknown>
     try {
@@ -57,12 +78,30 @@ export function getOpcodeRegistry(): Map<number, OpcodeEntry[]> {
       continue
     }
     for (const [exportName, value] of Object.entries(mod)) {
+      if (hasPrefix(value)) {
+        const nameSet = localNames.get(value.PREFIX) ?? new Set<string>()
+        nameSet.add(exportName)
+        localNames.set(value.PREFIX, nameSet)
+      }
       if (isOpcodeStruct(value)) {
-        const entries = registry.get(value.PREFIX) ?? []
+        const entries = localRegistry.get(value.PREFIX) ?? []
         entries.push({ name: exportName, fromSlice: value.fromSlice })
-        registry.set(value.PREFIX, entries)
+        localRegistry.set(value.PREFIX, entries)
       }
     }
   }
+  registry = localRegistry
+  names = localNames
   return registry
+}
+
+/**
+ * Names of every struct declaring a given opcode `PREFIX`, even ones with no `fromSlice` (e.g.
+ * generic structs like `FeeQuoter_GetValidatedFee<T>`, whose `context: T` field depends on the
+ * call site and so can't be decoded generically). Used as a fallback label when nothing in
+ * `getOpcodeRegistry()` can actually decode the body.
+ */
+export function getOpcodeNames(opcode: number): string[] {
+  getOpcodeRegistry()
+  return Array.from(names?.get(opcode) ?? [])
 }

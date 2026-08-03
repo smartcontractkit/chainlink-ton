@@ -8,7 +8,7 @@ import {
 } from '@ton/core'
 import { BlockchainTransaction } from '@ton/sandbox'
 import { prettifyTransaction, PrettyTransaction } from '@ton/test-utils'
-import { getOpcodeRegistry } from './opcodeRegistry'
+import { getOpcodeRegistry, getOpcodeNames } from './opcodeRegistry'
 
 /**
  * Exit code type - represents TVM exit codes
@@ -144,27 +144,31 @@ function describeExitCode(exitCode?: ExitCode): string {
 }
 
 /**
- * Formats a decoded struct field value for display, recursing into nested
- * structs (values carrying a `$` discriminant, as produced by generated `fromSlice`).
+ * Formats a decoded struct field value for display, recursing into nested structs (values
+ * carrying a `$` discriminant, as produced by generated `fromSlice`) and plain-object wrappers
+ * like `CellRef<T> = { ref: T }`. Anything else (e.g. a `@ton/core` `Slice`) falls back to its
+ * own `toString()`.
  */
 function formatFieldValue(value: unknown): string {
   if (typeof value === 'bigint') return value.toString()
+  if (value === null || value === undefined) return String(value)
   if (value instanceof Address) return value.toString()
   if (value instanceof Cell) return `${value.toBoc().toString('hex').substring(0, 16)}...`
   if (Buffer.isBuffer(value)) return value.toString('hex')
   if (Array.isArray(value)) return `[${value.map(formatFieldValue).join(', ')}]`
-  if (value !== null && typeof value === 'object' && '$' in value) {
-    return formatStruct(value as Record<string, unknown> & { $: string })
+  if (typeof value === 'object' && value.constructor === Object) {
+    return formatStruct(value as Record<string, unknown>)
   }
   return String(value)
 }
 
-function formatStruct(struct: Record<string, unknown> & { $: string }): string {
+function formatStruct(struct: Record<string, unknown>): string {
+  const name = typeof struct.$ === 'string' ? struct.$ : ''
   const fields = Object.entries(struct)
     .filter(([key]) => key !== '$')
     .map(([key, value]) => `${key}: ${formatFieldValue(value)}`)
     .join(', ')
-  return `${struct.$}{${fields}}`
+  return `${name}{${fields}}`
 }
 
 /**
@@ -195,7 +199,9 @@ function describeBody(body: Cell): string {
             // pack/unpack registration in this contract file); try the next candidate.
           }
         }
-        return `opcode: 0x${opcode.toString(16).padStart(8, '0')}`
+        const hex = `opcode: 0x${opcode.toString(16).padStart(8, '0')}`
+        const names = getOpcodeNames(opcode)
+        return names.length > 0 ? `${hex} (${names.join(' | ')})` : hex
       } catch {
         // Fall through to string parsing
       }
