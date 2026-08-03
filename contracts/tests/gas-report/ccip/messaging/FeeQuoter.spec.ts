@@ -262,7 +262,7 @@ async function messureGetValidatedFee(
   feeQuoter: SandboxContract<fq.FeeQuoter>,
 ) {
   resetMetricStore()
-  const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
+  const result = await router.sendRouterGetValidatedFeeAny(
     sender.getSender(),
     toNano('1'),
     rt.Router_GetValidatedFee.create({

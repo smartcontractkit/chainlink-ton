@@ -2278,12 +2278,12 @@ export const OnRamp_Send = {
 }
 
 /**
- > type OnRamp_GetValidatedFee_ToOnRamp = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+ > type OnRamp_GetValidatedFee_Any = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
  */
-export type OnRamp_GetValidatedFee_ToOnRamp = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+export type OnRamp_GetValidatedFee_Any = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
 
-export const OnRamp_GetValidatedFee_ToOnRamp = {
-    fromSlice(s: c.Slice): OnRamp_GetValidatedFee_ToOnRamp {
+export const OnRamp_GetValidatedFee_Any = {
+    fromSlice(s: c.Slice): OnRamp_GetValidatedFee_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
             return {
@@ -2293,13 +2293,13 @@ export const OnRamp_GetValidatedFee_ToOnRamp = {
             }
         })();
     },
-    store(self: OnRamp_GetValidatedFee_ToOnRamp, b: c.Builder): void {
+    store(self: OnRamp_GetValidatedFee_Any, b: c.Builder): void {
         b.storeUint(0x9c2ccc7e, 32);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: OnRamp_GetValidatedFee_ToOnRamp): c.Cell {
-        return makeCellFrom<OnRamp_GetValidatedFee_ToOnRamp>(self, OnRamp_GetValidatedFee_ToOnRamp.store);
+    toCell(self: OnRamp_GetValidatedFee_Any): c.Cell {
+        return makeCellFrom<OnRamp_GetValidatedFee_Any>(self, OnRamp_GetValidatedFee_Any.store);
     }
 }
 
@@ -2672,12 +2672,12 @@ export const OnRamp_UpdateAllowlists = {
 }
 
 /**
- > type OnRamp_MessageValidated_FromOnRamp = OnRamp_MessageValidated<RemainingBitsAndRefs>
+ > type OnRamp_MessageValidated_Any = OnRamp_MessageValidated<RemainingBitsAndRefs>
  */
-export type OnRamp_MessageValidated_FromOnRamp = OnRamp_MessageValidated<RemainingBitsAndRefs>
+export type OnRamp_MessageValidated_Any = OnRamp_MessageValidated<RemainingBitsAndRefs>
 
-export const OnRamp_MessageValidated_FromOnRamp = {
-    fromSlice(s: c.Slice): OnRamp_MessageValidated_FromOnRamp {
+export const OnRamp_MessageValidated_Any = {
+    fromSlice(s: c.Slice): OnRamp_MessageValidated_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
             return {
@@ -2688,14 +2688,14 @@ export const OnRamp_MessageValidated_FromOnRamp = {
             }
         })();
     },
-    store(self: OnRamp_MessageValidated_FromOnRamp, b: c.Builder): void {
+    store(self: OnRamp_MessageValidated_Any, b: c.Builder): void {
         b.storeUint(0x2afb11bd, 32);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: OnRamp_MessageValidated_FromOnRamp): c.Cell {
-        return makeCellFrom<OnRamp_MessageValidated_FromOnRamp>(self, OnRamp_MessageValidated_FromOnRamp.store);
+    toCell(self: OnRamp_MessageValidated_Any): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidated_Any>(self, OnRamp_MessageValidated_Any.store);
     }
 }
 
@@ -2729,12 +2729,12 @@ export const OnRamp_MessageValidated = {
 }
 
 /**
- > type OnRamp_MessageValidationFailed_FromOnRamp = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+ > type OnRamp_MessageValidationFailed_Any = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
  */
-export type OnRamp_MessageValidationFailed_FromOnRamp = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+export type OnRamp_MessageValidationFailed_Any = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
 
-export const OnRamp_MessageValidationFailed_FromOnRamp = {
-    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed_FromOnRamp {
+export const OnRamp_MessageValidationFailed_Any = {
+    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
             return {
@@ -2745,14 +2745,14 @@ export const OnRamp_MessageValidationFailed_FromOnRamp = {
             }
         })();
     },
-    store(self: OnRamp_MessageValidationFailed_FromOnRamp, b: c.Builder): void {
+    store(self: OnRamp_MessageValidationFailed_Any, b: c.Builder): void {
         b.storeUint(0xac1dd12e, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: OnRamp_MessageValidationFailed_FromOnRamp): c.Cell {
-        return makeCellFrom<OnRamp_MessageValidationFailed_FromOnRamp>(self, OnRamp_MessageValidationFailed_FromOnRamp.store);
+    toCell(self: OnRamp_MessageValidationFailed_Any): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidationFailed_Any>(self, OnRamp_MessageValidationFailed_Any.store);
     }
 }
 
@@ -2923,8 +2923,8 @@ export class OnRamp implements c.Contract {
         return OnRamp_Send.toCell(OnRamp_Send.create(body));
     }
 
-    static createCellOfOnRampGetValidatedFeeToOnRamp(body: OnRamp_GetValidatedFee_ToOnRamp) {
-        return OnRamp_GetValidatedFee_ToOnRamp.toCell(body);
+    static createCellOfOnRampGetValidatedFeeAny(body: OnRamp_GetValidatedFee_Any) {
+        return OnRamp_GetValidatedFee_Any.toCell(body);
     }
 
     static createCellOfFeeQuoterMessageValidatedToOnRamp(body: FeeQuoter_MessageValidated_ToOnRamp) {
@@ -3040,10 +3040,10 @@ export class OnRamp implements c.Contract {
         });
     }
 
-    async sendOnRampGetValidatedFeeToOnRamp(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_GetValidatedFee_ToOnRamp, extraOptions?: ExtraSendOptions) {
+    async sendOnRampGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: OnRamp_GetValidatedFee_ToOnRamp.toCell(body),
+            body: OnRamp_GetValidatedFee_Any.toCell(body),
             ...extraOptions
         });
     }

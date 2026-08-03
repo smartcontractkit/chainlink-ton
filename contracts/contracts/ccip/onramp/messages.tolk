@@ -11,7 +11,7 @@ import "../common/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
-    | OnRamp_GetValidatedFee_ToOnRamp
+    | OnRamp_GetValidatedFee_Any
     | FeeQuoter_MessageValidated_ToOnRamp
     | FeeQuoter_MessageValidationFailed_ToOnRamp
     | OnRamp_ExecutorRequestsLockOrBurn
@@ -44,7 +44,7 @@ struct (0xdcf993c2) OnRamp_Send {
 }
 
 // So that ABIgen can generate codec for OnRamp_GetValidatedFee<RemainingBitsAndRefs>
-type OnRamp_GetValidatedFee_ToOnRamp = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+type OnRamp_GetValidatedFee_Any = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
 
 struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
     ccipSend: Cell<Router_CCIPSend>;
@@ -96,7 +96,7 @@ struct (0x9dc06185) OnRamp_UpdateAllowlists {
 // --- Outgoing messages ---
 
 // So that ABIgen can generate codec for OnRamp_MessageValidated<RemainingBitsAndRefs>
-type OnRamp_MessageValidated_FromOnRamp = OnRamp_MessageValidated<RemainingBitsAndRefs>
+type OnRamp_MessageValidated_Any = OnRamp_MessageValidated<RemainingBitsAndRefs>
 
 // crc32('OnRamp_MessageValidated')
 struct (0x2afb11bd) OnRamp_MessageValidated<T> {
@@ -106,7 +106,7 @@ struct (0x2afb11bd) OnRamp_MessageValidated<T> {
 }
 
 // So that ABIgen can generate codec for OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
-type OnRamp_MessageValidationFailed_FromOnRamp = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+type OnRamp_MessageValidationFailed_Any = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('OnRamp_MessageValidationFailed')
 struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {

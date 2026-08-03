@@ -15,7 +15,7 @@ import "../token_registry/types"
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
-    | Router_GetValidatedFee_RemainingBitsAndRefs
+    | Router_GetValidatedFee_Any
     | OnRamp_MessageValidated_GetValidatedFeeContext
     | OnRamp_MessageValidationFailed_GetValidatedFeeContext
     | Router_RouteMessage
@@ -32,7 +32,7 @@ type Router_InMsg =
     | Router_TokenRegistrySetTokenInfo
     | TransferNotificationForRecipient;
 
-type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
 type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
 type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
 
@@ -147,7 +147,7 @@ struct Router_GetValidatedFeeContext {
 // --- Outgoing messages ---
 
 /// Alias for ABIgen to generate codec
-type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
+type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
 
 // crc32('Router_MessageValidated')
 struct (0x9e2155ec) Router_MessageValidated<T> {
@@ -157,7 +157,7 @@ struct (0x9e2155ec) Router_MessageValidated<T> {
 }
 
 /// Alias for ABIgen to generate codec
-type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
+type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed<T> {

@@ -12,7 +12,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
     | FeeQuoter_UpdateDestChainConfigs
-    | FeeQuoter_GetValidatedFee_ToFeeQuoter
+    | FeeQuoter_GetValidatedFee_Any
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade;
     ;
@@ -23,7 +23,7 @@ struct (0xde852b1b) FeeQuoter_UpdatePrices {
 }
 
 // Typealias needed so that abigen generates builder
-type FeeQuoter_GetValidatedFee_ToFeeQuoter = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>;
+type FeeQuoter_GetValidatedFee_Any = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>;
 
 struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
     msg: Cell<Router_CCIPSend>

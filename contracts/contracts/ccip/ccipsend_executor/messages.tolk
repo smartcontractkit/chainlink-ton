@@ -6,13 +6,13 @@ import "../pools/lib/token_pool/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | FeeQuoter_MessageValidated_RemainingBitsAndRefs
-    | FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs
+    | FeeQuoter_MessageValidated_Any
+    | FeeQuoter_MessageValidationFailed_Any
     | TokenRegistry_ReturnTokenInfo
     | TokenPool_LockOrBurnFinished;
 
-type FeeQuoter_MessageValidated_RemainingBitsAndRefs = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
-type FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {

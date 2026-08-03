@@ -521,12 +521,12 @@ export const FeeQuoter_UpdatePrices = {
 }
 
 /**
- > type FeeQuoter_GetValidatedFee_ToFeeQuoter = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+ > type FeeQuoter_GetValidatedFee_Any = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
  */
-export type FeeQuoter_GetValidatedFee_ToFeeQuoter = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+export type FeeQuoter_GetValidatedFee_Any = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
 
-export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
-    fromSlice(s: c.Slice): FeeQuoter_GetValidatedFee_ToFeeQuoter {
+export const FeeQuoter_GetValidatedFee_Any = {
+    fromSlice(s: c.Slice): FeeQuoter_GetValidatedFee_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x7496ff56, 'FeeQuoter_GetValidatedFee');
             return {
@@ -536,13 +536,13 @@ export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
             }
         })();
     },
-    store(self: FeeQuoter_GetValidatedFee_ToFeeQuoter, b: c.Builder): void {
+    store(self: FeeQuoter_GetValidatedFee_Any, b: c.Builder): void {
         b.storeUint(0x7496ff56, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: FeeQuoter_GetValidatedFee_ToFeeQuoter): c.Cell {
-        return makeCellFrom<FeeQuoter_GetValidatedFee_ToFeeQuoter>(self, FeeQuoter_GetValidatedFee_ToFeeQuoter.store);
+    toCell(self: FeeQuoter_GetValidatedFee_Any): c.Cell {
+        return makeCellFrom<FeeQuoter_GetValidatedFee_Any>(self, FeeQuoter_GetValidatedFee_Any.store);
     }
 }
 
@@ -2410,8 +2410,8 @@ export class FeeQuoter implements c.Contract {
         return FeeQuoter_UpdateDestChainConfigs.toCell(FeeQuoter_UpdateDestChainConfigs.create(body));
     }
 
-    static createCellOfFeeQuoterGetValidatedFeeToFeeQuoter(body: FeeQuoter_GetValidatedFee_ToFeeQuoter) {
-        return FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell(body);
+    static createCellOfFeeQuoterGetValidatedFeeAny(body: FeeQuoter_GetValidatedFee_Any) {
+        return FeeQuoter_GetValidatedFee_Any.toCell(body);
     }
 
     static createCellOfWithdrawableWithdraw(body: {
@@ -2522,10 +2522,10 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async sendFeeQuoterGetValidatedFeeToFeeQuoter(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_GetValidatedFee_ToFeeQuoter, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell(body),
+            body: FeeQuoter_GetValidatedFee_Any.toCell(body),
             ...extraOptions
         });
     }

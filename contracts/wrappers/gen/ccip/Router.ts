@@ -1512,12 +1512,12 @@ export const Router_TokenRegistryDeployment = {
 }
 
 /**
- > type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+ > type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
  */
-export type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+export type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
 
-export const Router_GetValidatedFee_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): Router_GetValidatedFee_RemainingBitsAndRefs {
+export const Router_GetValidatedFee_Any = {
+    fromSlice(s: c.Slice): Router_GetValidatedFee_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee');
             return {
@@ -1527,13 +1527,13 @@ export const Router_GetValidatedFee_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: Router_GetValidatedFee_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: Router_GetValidatedFee_Any, b: c.Builder): void {
         b.storeUint(0x4dd6aa82, 32);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_GetValidatedFee_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<Router_GetValidatedFee_RemainingBitsAndRefs>(self, Router_GetValidatedFee_RemainingBitsAndRefs.store);
+    toCell(self: Router_GetValidatedFee_Any): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee_Any>(self, Router_GetValidatedFee_Any.store);
     }
 }
 
@@ -2371,12 +2371,12 @@ export const Router_GetValidatedFeeContext = {
 }
 
 /**
- > type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
+ > type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
  */
-export type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
+export type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
 
-export const Router_MessageValidated_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): Router_MessageValidated_RemainingBitsAndRefs {
+export const Router_MessageValidated_Any = {
+    fromSlice(s: c.Slice): Router_MessageValidated_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated');
             return {
@@ -2387,14 +2387,14 @@ export const Router_MessageValidated_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: Router_MessageValidated_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: Router_MessageValidated_Any, b: c.Builder): void {
         b.storeUint(0x9e2155ec, 32);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidated_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<Router_MessageValidated_RemainingBitsAndRefs>(self, Router_MessageValidated_RemainingBitsAndRefs.store);
+    toCell(self: Router_MessageValidated_Any): c.Cell {
+        return makeCellFrom<Router_MessageValidated_Any>(self, Router_MessageValidated_Any.store);
     }
 }
 
@@ -2428,12 +2428,12 @@ export const Router_MessageValidated = {
 }
 
 /**
- > type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
+ > type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
  */
-export type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
+export type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
 
-export const Router_MessageValidationFailed_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): Router_MessageValidationFailed_RemainingBitsAndRefs {
+export const Router_MessageValidationFailed_Any = {
+    fromSlice(s: c.Slice): Router_MessageValidationFailed_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed');
             return {
@@ -2444,14 +2444,14 @@ export const Router_MessageValidationFailed_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: Router_MessageValidationFailed_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: Router_MessageValidationFailed_Any, b: c.Builder): void {
         b.storeUint(0xec23c562, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidationFailed_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<Router_MessageValidationFailed_RemainingBitsAndRefs>(self, Router_MessageValidationFailed_RemainingBitsAndRefs.store);
+    toCell(self: Router_MessageValidationFailed_Any): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed_Any>(self, Router_MessageValidationFailed_Any.store);
     }
 }
 
@@ -3245,8 +3245,8 @@ export class Router implements c.Contract {
         return Router_ApplyRampUpdates.toCell(Router_ApplyRampUpdates.create(body));
     }
 
-    static createCellOfRouterGetValidatedFeeRemainingBitsAndRefs(body: Router_GetValidatedFee_RemainingBitsAndRefs) {
-        return Router_GetValidatedFee_RemainingBitsAndRefs.toCell(body);
+    static createCellOfRouterGetValidatedFeeAny(body: Router_GetValidatedFee_Any) {
+        return Router_GetValidatedFee_Any.toCell(body);
     }
 
     static createCellOfOnRampMessageValidatedGetValidatedFeeContext(body: OnRamp_MessageValidated_GetValidatedFeeContext) {
@@ -3418,10 +3418,10 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterGetValidatedFeeRemainingBitsAndRefs(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_RemainingBitsAndRefs, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_GetValidatedFee_RemainingBitsAndRefs.toCell(body),
+            body: Router_GetValidatedFee_Any.toCell(body),
             ...extraOptions
         });
     }

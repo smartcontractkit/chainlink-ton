@@ -65,7 +65,7 @@ describe('OnRamp - Get Fee', () => {
   })
 
   it('should forward get fee to fee quoter', async () => {
-    const result = await onramp.sendOnRampGetValidatedFeeToOnRamp(
+    const result = await onramp.sendOnRampGetValidatedFeeAny(
       mockRouter.getSender(),
       toNano('0.5'),
       or.OnRamp_GetValidatedFee.create({
@@ -196,7 +196,7 @@ describe('OnRamp - Get Fee', () => {
       op: or.OnRamp_MessageValidationFailed.PREFIX,
       body: (body) => {
         if (!body) return false
-        const decoded = or.OnRamp_MessageValidationFailed_FromOnRamp.fromSlice(body.beginParse())
+        const decoded = or.OnRamp_MessageValidationFailed_Any.fromSlice(body.beginParse())
         return (
           decoded.error === validationFailedMsg.error && decoded.msg.queryID === ccipSend.queryID
         )

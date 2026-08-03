@@ -57,15 +57,11 @@ describe('Router', () => {
   })
 
   it('should forward getValidatedFee to OnRamp', async () => {
-    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
-      sender.getSender(),
-      toNano('0.5'),
-      {
-        $: 'Router_GetValidatedFee',
-        ccipSend: msg,
-        context: beginCell().asSlice(),
-      },
-    )
+    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
+      $: 'Router_GetValidatedFee',
+      ccipSend: msg,
+      context: beginCell().asSlice(),
+    })
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -80,7 +76,7 @@ describe('Router', () => {
       op: or.OnRamp_GetValidatedFee.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = or.OnRamp_GetValidatedFee_ToOnRamp.fromSlice(x.beginParse())
+        const decoded = or.OnRamp_GetValidatedFee_Any.fromSlice(x.beginParse())
         return (
           decoded.ccipSend.queryID === 1n &&
           decoded.ccipSend.data.equals(Cell.EMPTY) &&
@@ -108,15 +104,11 @@ describe('Router', () => {
         allowOutOfOrderExecution: true,
       }),
     }
-    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
-      sender.getSender(),
-      toNano('0.5'),
-      {
-        $: 'Router_GetValidatedFee',
-        ccipSend: badMsg,
-        context: beginCell().asSlice(),
-      },
-    )
+    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
+      $: 'Router_GetValidatedFee',
+      ccipSend: badMsg,
+      context: beginCell().asSlice(),
+    })
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -130,9 +122,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          x.beginParse(),
-        )
+        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
         return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
@@ -172,15 +162,11 @@ describe('Router', () => {
         allowOutOfOrderExecution: true,
       }),
     }
-    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
-      sender.getSender(),
-      toNano('0.5'),
-      {
-        $: 'Router_GetValidatedFee',
-        ccipSend: badMsg,
-        context: beginCell().asSlice(),
-      },
-    )
+    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
+      $: 'Router_GetValidatedFee',
+      ccipSend: badMsg,
+      context: beginCell().asSlice(),
+    })
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -194,9 +180,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          x.beginParse(),
-        )
+        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
         return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
@@ -229,7 +213,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidated.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidated_RemainingBitsAndRefs.fromSlice(x.beginParse())
+        const decoded = rt.Router_MessageValidated_Any.fromSlice(x.beginParse())
         return (
           decoded.fee === toNano('0.5') &&
           decoded.msg.queryID === 1n &&
@@ -294,9 +278,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          x.beginParse(),
-        )
+        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
         return (
           decoded.error === 12345n &&
           decoded.msg.queryID === 1n &&

@@ -1125,12 +1125,12 @@ export const CCIPSendExecutor_Config = {
 }
 
 /**
- > type FeeQuoter_MessageValidated_RemainingBitsAndRefs = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+ > type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
  */
-export type FeeQuoter_MessageValidated_RemainingBitsAndRefs = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+export type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
 
-export const FeeQuoter_MessageValidated_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): FeeQuoter_MessageValidated_RemainingBitsAndRefs {
+export const FeeQuoter_MessageValidated_Any = {
+    fromSlice(s: c.Slice): FeeQuoter_MessageValidated_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x1fa60374, 'FeeQuoter_MessageValidated');
             return {
@@ -1141,24 +1141,24 @@ export const FeeQuoter_MessageValidated_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: FeeQuoter_MessageValidated_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: FeeQuoter_MessageValidated_Any, b: c.Builder): void {
         b.storeUint(0x1fa60374, 32);
         Fee.store(self.fee, b);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: FeeQuoter_MessageValidated_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<FeeQuoter_MessageValidated_RemainingBitsAndRefs>(self, FeeQuoter_MessageValidated_RemainingBitsAndRefs.store);
+    toCell(self: FeeQuoter_MessageValidated_Any): c.Cell {
+        return makeCellFrom<FeeQuoter_MessageValidated_Any>(self, FeeQuoter_MessageValidated_Any.store);
     }
 }
 
 /**
- > type FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+ > type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
  */
-export type FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+export type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
 
-export const FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs {
+export const FeeQuoter_MessageValidationFailed_Any = {
+    fromSlice(s: c.Slice): FeeQuoter_MessageValidationFailed_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0xbcf0ab0f, 'FeeQuoter_MessageValidationFailed');
             return {
@@ -1169,14 +1169,14 @@ export const FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: FeeQuoter_MessageValidationFailed_Any, b: c.Builder): void {
         b.storeUint(0xbcf0ab0f, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(self, FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs.store);
+    toCell(self: FeeQuoter_MessageValidationFailed_Any): c.Cell {
+        return makeCellFrom<FeeQuoter_MessageValidationFailed_Any>(self, FeeQuoter_MessageValidationFailed_Any.store);
     }
 }
 
@@ -1657,12 +1657,12 @@ export class CCIPSendExecutor implements c.Contract {
         return CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body));
     }
 
-    static createCellOfFeeQuoterMessageValidatedRemainingBitsAndRefs(body: FeeQuoter_MessageValidated_RemainingBitsAndRefs) {
-        return FeeQuoter_MessageValidated_RemainingBitsAndRefs.toCell(body);
+    static createCellOfFeeQuoterMessageValidatedAny(body: FeeQuoter_MessageValidated_Any) {
+        return FeeQuoter_MessageValidated_Any.toCell(body);
     }
 
-    static createCellOfFeeQuoterMessageValidationFailedRemainingBitsAndRefs(body: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs) {
-        return FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs.toCell(body);
+    static createCellOfFeeQuoterMessageValidationFailedAny(body: FeeQuoter_MessageValidationFailed_Any) {
+        return FeeQuoter_MessageValidationFailed_Any.toCell(body);
     }
 
     static createCellOfTokenRegistryReturnTokenInfo(body: {
@@ -1707,18 +1707,18 @@ export class CCIPSendExecutor implements c.Contract {
         });
     }
 
-    async sendFeeQuoterMessageValidatedRemainingBitsAndRefs(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidated_RemainingBitsAndRefs, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterMessageValidatedAny(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidated_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: FeeQuoter_MessageValidated_RemainingBitsAndRefs.toCell(body),
+            body: FeeQuoter_MessageValidated_Any.toCell(body),
             ...extraOptions
         });
     }
 
-    async sendFeeQuoterMessageValidationFailedRemainingBitsAndRefs(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterMessageValidationFailedAny(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidationFailed_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs.toCell(body),
+            body: FeeQuoter_MessageValidationFailed_Any.toCell(body),
             ...extraOptions
         });
     }

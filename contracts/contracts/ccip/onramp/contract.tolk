@@ -30,7 +30,7 @@ contract OnRamp {
 
     storage: OnRamp_Storage
     incomingMessages: OnRamp_InMessage | Ownable2Step_Messages
-    forceAbiExport: (TVM2AnyRampMessageV1Metadata, TVM2AnyRampMessageIDData, OnRamp_MessageValidated_FromOnRamp, OnRamp_MessageValidationFailed_FromOnRamp)
+    forceAbiExport: (TVM2AnyRampMessageV1Metadata, TVM2AnyRampMessageIDData, OnRamp_MessageValidated_Any, OnRamp_MessageValidationFailed_Any)
     thrownErrors: OnRamp_Error | Upgradeable_Error | Ownable2Step_Error
 }
 
@@ -42,7 +42,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
         // Permissionless
-        OnRamp_GetValidatedFee_ToOnRamp => {
+        OnRamp_GetValidatedFee_Any => {
             onGetValidatedFee(msg, in.senderAddress)
         }
         // Sender must be the FeeQuoter
@@ -159,7 +159,7 @@ fun onInternalMessage(in: InMessage) {
 //     Router    ->> OnRamp:    OnRamp_GetValidatedFee
 //     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated | FeeQuoter_MessageValidationFailed
-fun onGetValidatedFee(msg: OnRamp_GetValidatedFee_ToOnRamp, sender: address) {
+fun onGetValidatedFee(msg: OnRamp_GetValidatedFee_Any, sender: address) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
@@ -200,7 +200,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: OnRamp_MessageValidated_FromOnRamp {
+        body: OnRamp_MessageValidated_Any {
             fee: msg.fee.feeTokenAmount,
             msg: msg.msg,
             context: userContext,
@@ -230,7 +230,7 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: OnRamp_MessageValidationFailed_FromOnRamp {
+        body: OnRamp_MessageValidationFailed_Any {
             error: msg.error,
             msg: msg.msg,
             context: userContext,

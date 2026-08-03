@@ -11,7 +11,7 @@ import * as CrossChainAddressCodec from './common/CrossChainAddressCodec'
 
 // Copied from rtGen.Router_CCIPSend.store, but with the extraArgs as Cell
 
-export interface FeeQuoter_GetValidatedFee_ToFeeQuoter {
+export interface FeeQuoter_GetValidatedFee_Any {
   msg: Router_CCIPSend
 }
 
@@ -33,13 +33,13 @@ function loadTolkRemaining(s: c.Slice): c.Slice {
   return rest
 }
 
-export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
-  fromSlice(s: c.Slice): FeeQuoter_GetValidatedFee_ToFeeQuoter {
+export const FeeQuoter_GetValidatedFee_Any = {
+  fromSlice(s: c.Slice): FeeQuoter_GetValidatedFee_Any {
     return (() => {
       loadAndCheckPrefix32(
         s,
         fqGen.FeeQuoter_GetValidatedFee.PREFIX,
-        'FeeQuoter_GetValidatedFee_ToFeeQuoter',
+        'FeeQuoter_GetValidatedFee_Any',
       )
       return {
         msg: Router_CCIPSend.fromSlice(s),
@@ -47,14 +47,14 @@ export const FeeQuoter_GetValidatedFee_ToFeeQuoter = {
       }
     })()
   },
-  store(self: FeeQuoter_GetValidatedFee_ToFeeQuoter, b: c.Builder): void {
+  store(self: FeeQuoter_GetValidatedFee_Any, b: c.Builder): void {
     b.storeUint(fqGen.FeeQuoter_GetValidatedFee.PREFIX, 32)
     b.storeRef(Router_CCIPSend.toCell(self.msg))
     b.storeSlice(c.beginCell().asSlice())
   },
-  toCell(self: FeeQuoter_GetValidatedFee_ToFeeQuoter): c.Cell {
+  toCell(self: FeeQuoter_GetValidatedFee_Any): c.Cell {
     const b = c.beginCell()
-    FeeQuoter_GetValidatedFee_ToFeeQuoter.store(self, b)
+    FeeQuoter_GetValidatedFee_Any.store(self, b)
     return b.endCell()
   },
 }
@@ -112,11 +112,10 @@ export interface FeeQuoter_MessageValidationFailed<T> {
   context: T
 }
 
-export type FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs =
-  FeeQuoter_MessageValidationFailed<c.Slice>
+export type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<c.Slice>
 
-export const FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = {
-  fromSlice(s: c.Slice): FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs {
+export const FeeQuoter_MessageValidationFailed_Any = {
+  fromSlice(s: c.Slice): FeeQuoter_MessageValidationFailed_Any {
     return (() => {
       loadAndCheckPrefix32(
         s,
@@ -131,15 +130,15 @@ export const FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs = {
       }
     })()
   },
-  store(self: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs, b: c.Builder): void {
+  store(self: FeeQuoter_MessageValidationFailed_Any, b: c.Builder): void {
     b.storeUint(fqGen.FeeQuoter_MessageValidationFailed.PREFIX, 32)
     b.storeUint(self.error, 256)
     b.storeRef(Router_CCIPSend.toCell(self.msg))
     b.storeSlice(self.context)
   },
-  toCell(self: FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs): c.Cell {
+  toCell(self: FeeQuoter_MessageValidationFailed_Any): c.Cell {
     const b = c.beginCell()
-    FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs.store(self, b)
+    FeeQuoter_MessageValidationFailed_Any.store(self, b)
     return b.endCell()
   },
 }

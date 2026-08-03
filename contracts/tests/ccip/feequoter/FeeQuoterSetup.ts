@@ -515,10 +515,8 @@ export class FeeQuoterSetup {
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(
-    msg: rt.Router_CCIPSend,
-  ): Promise<sx.FeeQuoter_MessageValidated_RemainingBitsAndRefs> {
-    const res = await this.bind.feeQuoter.sendFeeQuoterGetValidatedFeeToFeeQuoter(
+  async getValidatedFee(msg: rt.Router_CCIPSend): Promise<sx.FeeQuoter_MessageValidated_Any> {
+    const res = await this.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
       this.acc.externalCaller.getSender(),
       toNano('1'),
       feeQuoter.FeeQuoter_GetValidatedFee.create({ msg, context: beginCell().asSlice() }),
@@ -552,9 +550,7 @@ export class FeeQuoterSetup {
     const errorCode = body.preloadUint(32)
     if (errorCode !== sx.FeeQuoter_MessageValidated.PREFIX) {
       if (errorCode === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
-        const failure = sx.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          resp.body.beginParse(),
-        )
+        const failure = sx.FeeQuoter_MessageValidationFailed_Any.fromSlice(resp.body.beginParse())
         throw new Error(
           `Message validation failed with error ${printErrorName(Number(failure.error))}`,
         )
@@ -562,9 +558,7 @@ export class FeeQuoterSetup {
         throw new Error(`Unexpected response opcode: ${errorCode}`)
       }
     }
-    const messageValidated = sx.FeeQuoter_MessageValidated_RemainingBitsAndRefs.fromSlice(
-      resp.body.beginParse(),
-    )
+    const messageValidated = sx.FeeQuoter_MessageValidated_Any.fromSlice(resp.body.beginParse())
     return messageValidated
   }
 
@@ -575,7 +569,7 @@ export class FeeQuoterSetup {
     const body =
       message instanceof Cell
         ? message
-        : feeQuoter.FeeQuoter_GetValidatedFee_ToFeeQuoter.toCell(
+        : feeQuoter.FeeQuoter_GetValidatedFee_Any.toCell(
             feeQuoter.FeeQuoter_GetValidatedFee.create({
               msg: message,
               context: beginCell().asSlice(),
@@ -620,9 +614,9 @@ export class FeeQuoterSetup {
         op: sx.FeeQuoter_MessageValidationFailed.PREFIX,
         success: true,
         body(x) {
-          return verifyBodyMessage<manualfq.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs>(
+          return verifyBodyMessage<manualfq.FeeQuoter_MessageValidationFailed_Any>(
             x,
-            manualfq.FeeQuoter_MessageValidationFailed_RemainingBitsAndRefs,
+            manualfq.FeeQuoter_MessageValidationFailed_Any,
             [
               (msg) => {
                 if (msg.error === BigInt(expectedError)) {
