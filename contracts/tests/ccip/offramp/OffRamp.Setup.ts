@@ -7,6 +7,7 @@ import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.commitAndExec.spec'
 import { ChainSelectors } from '../../utils/Selectors'
 import { KeyPair } from '@ton/crypto'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 export async function deployOffRampContract(
   blockchain: Blockchain,
@@ -46,7 +47,9 @@ export async function deployOffRampContract(
   })
 
   const offramp = blockchain.openContract(
-    of.OffRamp.fromStorage(storage, code ? { overrideContractCode: code } : undefined),
+    of.OffRamp.fromStorage(storage, {
+      overrideContractCode: code ?? (await contractCode.ccip.local('OffRamp')),
+    }),
   )
 
   let result = await offramp.sendDeploy(owner.getSender(), toNano('0.05'))

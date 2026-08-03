@@ -17,6 +17,7 @@ import {
   WGRAM_WITHDRAW_EXCESS_OPCODE,
 } from '../../wrappers/wgram'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
+import { contractCode } from '../../wrappers/codeLoader'
 
 const JETTON_DATA_URI = 'wgram.test'
 const MASTERCHAIN_ZERO_ADDRESS = Address.parse(`-1:${'0'.repeat(64)}`)
@@ -50,9 +51,9 @@ describe('wGRAM', () => {
   let nextQueryId: bigint
 
   beforeAll(async () => {
-    minterCode = await compile('wgram.JettonMinter')
-    walletCode = await compile('wgram.JettonWallet')
-    bouncerCode = await compile('tests.mock.Bouncer')
+    minterCode = await contractCode.ccip.local('wgram.JettonMinter')
+    walletCode = await contractCode.ccip.local('wgram.JettonWallet')
+    bouncerCode = await contractCode.ccip.local('ccip.test.mockTokenPool')
   })
 
   async function deployMinter(customWalletCode: Cell = walletCode) {

@@ -33,6 +33,7 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 describe('LockReleaseTokenPool', () => {
   let blockchain: Blockchain
@@ -98,36 +99,39 @@ describe('LockReleaseTokenPool', () => {
     await jettonSender.sendDeploy(deployer.getSender(), toNano('1'))
 
     lockReleasePool = blockchain.openContract(
-      LockReleaseTokenPool.fromStorage({
-        poolData: TokenPool_Data.create({
-          adminConfig: TokenPool_AdminConfig.create({
-            ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-            rmnProxy: deployer.address,
-            dynamicConfig: TokenPool_DynamicConfig.create({
-              router: deployer.address,
-              rateLimitAdmin: null,
-              feeAdmin: null,
+      LockReleaseTokenPool.fromStorage(
+        {
+          poolData: TokenPool_Data.create({
+            adminConfig: TokenPool_AdminConfig.create({
+              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
+              dynamicConfig: TokenPool_DynamicConfig.create({
+                router: deployer.address,
+                rateLimitAdmin: null,
+                feeAdmin: null,
+              }),
+              jettonClient: JettonClient.create({
+                masterAddress: jettonMinter.address,
+                jettonWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
             }),
-            jettonClient: JettonClient.create({
-              masterAddress: jettonMinter.address,
-              jettonWalletCode,
+            mirroredPolicy: TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
-            allowedFinalityConfig: 0n,
-            advancedPoolHooks: null,
+            tokenDecimals: 9n,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
           }),
-          mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: new Map(),
-            offRamps: new Map(),
-            cursedSubjects: CursedSubjects.create({
-              data: new Set(),
-            }),
-          }),
-          tokenDecimals: 9n,
-          remoteChainConfigs: new Map(),
-          tokenTransferFeeConfigs: new Map(),
-        }),
-        pendingReleases: new Map(),
-      }),
+          pendingReleases: new Map(),
+        },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pools.LockReleaseTokenPool') },
+      ),
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))
 
@@ -230,7 +234,14 @@ describe('LockReleaseTokenPool', () => {
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseTokenPool', async () => {
     // Deploy mock hooks
-    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    const hooks = blockchain.openContract(
+      MockAdvancedPoolHooks.fromStorage(
+        { id: 0n },
+        {
+          overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
+        },
+      ),
+    )
     await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
 
     // Register hooks on pool

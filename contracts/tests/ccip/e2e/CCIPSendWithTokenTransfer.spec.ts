@@ -22,6 +22,7 @@ import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 import { setup } from '../router/Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
@@ -55,9 +56,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
   let sendExecutor: SandboxContract<exe.CCIPSendExecutor>
 
   beforeAll(async () => {
-    minterCode = await compile('wgram.JettonMinter')
-    walletCode = await compile('wgram.JettonWallet')
-    mockTokenPoolCode = await compile('ccip.test.mockTokenPool')
+    minterCode = await contractCode.ccip.local('wgram.JettonMinter')
+    walletCode = await contractCode.ccip.local('wgram.JettonWallet')
+    mockTokenPoolCode = await contractCode.ccip.local('ccip.test.mockTokenPool')
   })
 
   beforeEach(async () => {
