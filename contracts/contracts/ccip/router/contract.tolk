@@ -29,6 +29,7 @@ import "errors"
 import "events"
 import "../pools/lib/token_pool/types"
 import "../common/types"
+import "../../lib/jetton/jetton_client"
 
 tolk 1.4.1
 

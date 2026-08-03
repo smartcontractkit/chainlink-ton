@@ -32,7 +32,7 @@ tolk 1.4.1
 
 contract OffRamp {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.3"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.OffRamp"
 
     storage: Storage
@@ -43,7 +43,7 @@ contract OffRamp {
 }
 
 
-const CONTRACT_VERSION = "1.6.3".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
 
