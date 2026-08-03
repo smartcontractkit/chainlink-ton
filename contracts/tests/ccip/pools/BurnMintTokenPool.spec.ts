@@ -268,7 +268,7 @@ describe('BurnMintTokenPool', () => {
     const hooks = blockchain.openContract(
       MockAdvancedPoolHooks.fromStorage(
         { id: 0n },
-        { overrideContractCode: await contractCode.ccip.local('ccip.test.MockAdvancedPoolHooks') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
       ),
     )
     await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
