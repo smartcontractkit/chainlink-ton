@@ -2,6 +2,7 @@ import { Cell, toNano, beginCell, Dictionary, StateInit, contractAddress, Addres
 import { KeyPair } from '@ton/crypto'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
+
 import {
   generateMockTonAddress,
   bigIntToBuffer,
@@ -10,33 +11,35 @@ import {
   generateEd25519KeyPair,
   generateRandomContractId,
   WRAPPED_NATIVE,
-  bigIntToUint8Array,
   generateRandomTonAddress,
 } from '../../../src/utils'
-import * as dict from '../../../src/utils/dict'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import * as CCIPLogs from '../../../wrappers/ccip/Logs'
-import * as mr from '../../../wrappers/ccip/MerkleRoot'
-import * as NameSpace from '../../../wrappers/ccip/NameSpace'
-import * as ofManual from '../../../wrappers/ccip/OffRamp'
-import * as rx from '../../../wrappers/ccip/ReceiveExecutor'
-import * as rt from '../../../wrappers/ccip/Router'
-import { contractCode } from '../../../wrappers/codeLoader'
-import * as tr from '../../../wrappers/examples/Receiver'
-import * as of from '../../../wrappers/gen/ccip/OffRamp'
-import * as deployable from '../../../wrappers/libraries/Deployable'
-import * as OCR3Logs from '../../../wrappers/libraries/ocr/Logs'
-import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
-import { facilityId, errorCode } from '../../../wrappers/utils'
 import * as coverage from '../../coverage/coverage'
 import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { expectSuccessfulTransaction, assertLog, expectFailedTransaction } from '../../Logs'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
-import { deployOffRampContract } from './OffRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
-import { createSignatures, getMerkleRootID } from './OffRamp.Setup'
+
+import { contractCode } from '../../../wrappers/codeLoader'
+import * as tr from '../../../wrappers/examples/Receiver'
+import * as deployable from '../../../wrappers/libraries/Deployable'
+import * as OCR3Logs from '../../../wrappers/libraries/ocr/Logs'
+import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
+import { facilityId, errorCode } from '../../../wrappers/utils'
+
+import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
+import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
+
+import * as CCIPLogs from '../../../wrappers/ccip/Logs'
+import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import * as ofManual from '../../../wrappers/ccip/OffRamp'
+import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
+
+import { deployOffRampContract, createSignatures, getMerkleRootID } from './OffRamp.Setup'
 
 const getDefaultMetadataHash = (sourceChainSelector: bigint): bigint =>
   getMetadataHash(sourceChainSelector, ChainSelectors.testnet.ton, EVM_ONRAMP_ADDRESS_TEST)
@@ -470,14 +473,10 @@ describe('OffRamp - Unit Tests', () => {
         feeQuoter: feeQuoter.address,
       })
 
-      let resultFeeQuoterAddAuthorizedCaller = await feeQuoter.sendAddPriceUpdater(
+      let resultFeeQuoterAddAuthorizedCaller = await feeQuoter.sendFeeQuoterAddPriceUpdater(
         deployer.getSender(),
-        {
-          value: toNano('0.01'),
-          msg: {
-            priceUpdater: offRamp.address,
-          },
-        },
+        toNano('0.01'),
+        { priceUpdater: offRamp.address },
       )
       expect(resultFeeQuoterAddAuthorizedCaller.transactions).toHaveTransaction({
         from: deployer.address,
@@ -488,24 +487,30 @@ describe('OffRamp - Unit Tests', () => {
     // setup router
     //
     {
-      let data: rt.Storage = {
+      let data = rt.Storage.create({
         id: generateRandomContractId(),
-        ownable: {
+        ownable: rt.Ownable2Step.create({
           owner: deployer.address,
-          pendingOwner: null,
-        },
+        }),
         wrappedNative: WRAPPED_NATIVE,
-        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-        offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-        tokenRegistryDeployment: {
+        onRamps: new Map(),
+        offRamps: new Map(),
+        rmnRemote: rt.RMNRemote.create({
+          admin: rt.Ownable2Step.create({ owner: deployer.address }),
+          cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+          forwardUpdates: new Set(),
+        }),
+        tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
           deployableCode: deployerCode,
           tokenRegistryCode: tokenRegistryCodeRaw,
-        },
-      }
+        }),
+      })
 
-      router = blockchain.openContract(rt.Router.createFromConfig(data, routerCodeRaw))
+      router = blockchain.openContract(
+        rt.Router.fromStorage(data, { overrideContractCode: routerCodeRaw }),
+      )
 
-      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      const result = await router.sendDeploy(deployer.getSender(), toNano('1'))
 
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -515,16 +520,17 @@ describe('OffRamp - Unit Tests', () => {
       })
 
       // setup ramp
-      const updateRampsResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-        value: toNano('1'),
-        data: {
-          queryID: BigInt(0),
-          offRampAdds: {
+      const updateRampsResult = await router.sendRouterApplyRampUpdates(
+        deployer.getSender(),
+        toNano('1'),
+        {
+          queryId: 0n,
+          offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRamp.address,
-          },
+          }),
         },
-      })
+      )
       expect(updateRampsResult.transactions).toHaveTransaction({
         from: deployer.address,
         to: router.address,
@@ -805,7 +811,7 @@ describe('OffRamp - Unit Tests', () => {
       toNano('0.5'),
       {
         cursedSubjects: of.CursedSubjects.create({
-          data: new Set([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
+          data: new Set([RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
         }),
       },
     )
@@ -815,7 +821,7 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
     let cursedSubjects = await offRamp.getCursedSubjects()
-    expect(cursedSubjects).toEqual([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT])
+    expect(cursedSubjects).toEqual([RMNREMOTE_GLOBAL_CURSE_SUBJECT])
 
     // Attempt to commit - should fail with SubjectCursed
     await commitReport(
@@ -1238,7 +1244,7 @@ describe('OffRamp - Unit Tests', () => {
     // There should be a failed transaction with the specific error code from offRamp to MerkleRoot
     expect(secondExecuteResult.transactions).toHaveTransaction({
       from: offRamp.address,
-      exitCode: mr.MerkleRootError.SkippedAlreadyExecutedMessage,
+      exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
       success: false,
     })
   })
@@ -1355,7 +1361,7 @@ describe('OffRamp - Unit Tests', () => {
       toNano('0.5'),
       {
         cursedSubjects: of.CursedSubjects.create({
-          data: new Set([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
+          data: new Set([RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
         }),
       },
     )
@@ -1439,7 +1445,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       success: true,
-      op: rx.opcodes.in.bounced,
+      op: rx.ReceiveExecutor_Bounced.PREFIX,
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
@@ -1864,7 +1870,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(manualExecFirstAttempt.transactions).toHaveTransaction({
       from: offRamp.address,
       success: false,
-      exitCode: mr.MerkleRootError.ManualExecutionNotYetEnabled,
+      exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.ManualExecutionNotYetEnabled'],
     })
 
     // Almost there, still needs to fail
@@ -1874,7 +1880,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(manualExecSecondAttempt.transactions).toHaveTransaction({
       from: offRamp.address,
       success: false,
-      exitCode: mr.MerkleRootError.ManualExecutionNotYetEnabled,
+      exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.ManualExecutionNotYetEnabled'],
     })
 
     // One more sec and we are ready to go

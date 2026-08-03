@@ -3,10 +3,10 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as rec from '../../../wrappers/libraries/Receiver'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import { setup, EVM_ADDRESS, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
@@ -48,23 +48,20 @@ describe('Router', () => {
     $: 'Any2TVMMessage' as const,
     messageId: 42n,
     sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    sender: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+    sender: EVM_ADDRESS,
     data: beginCell().storeUint(0x1234, 32).endCell(),
     tokenAmounts: null,
   }
 
   it('should route message from OffRamp to receiver', async () => {
-    const result = await router.sendRouteMessage(offRamp.getSender(), {
-      value: toNano('1'),
-      body: {
-        message: any2tvmMessage,
-        execID: genExecID({
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messageID: 1n,
-        }),
-        receiver: receiver.address,
-        gasLimit: toNano('0.5'),
-      },
+    const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
+      message: any2tvmMessage,
+      execId: genExecID({
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        messageID: 1n,
+      }),
+      receiver: receiver.address,
+      gasLimit: toNano('0.5'),
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -83,49 +80,43 @@ describe('Router', () => {
   })
 
   it('should throw on routeMessage if source chain is not enabled', async () => {
-    const result = await router.sendRouteMessage(offRamp.getSender(), {
-      value: toNano('1'),
-      body: {
-        message: {
-          ...any2tvmMessage,
-          sourceChainSelector: any2tvmMessage.sourceChainSelector + 1n,
-        },
-        execID: genExecID({
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messageID: 2n,
-        }),
-        receiver: receiver.address,
-        gasLimit: toNano('0.5'),
+    const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
+      message: {
+        ...any2tvmMessage,
+        sourceChainSelector: any2tvmMessage.sourceChainSelector + 1n,
       },
+      execId: genExecID({
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        messageID: 2n,
+      }),
+      receiver: receiver.address,
+      gasLimit: toNano('0.5'),
     })
 
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.SourceChainNotEnabled,
+      exitCode: rt.Router.Errors['Router_Error.SourceChainNotEnabled'],
     })
   })
 
   it('should throw on routeMessage from non OffRamp', async () => {
-    const result = await router.sendRouteMessage(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        message: any2tvmMessage,
-        execID: genExecID({
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messageID: 3n,
-        }),
-        receiver: receiver.address,
-        gasLimit: toNano('0.5'),
-      },
+    const result = await router.sendRouterRouteMessage(deployer.getSender(), toNano('1'), {
+      message: any2tvmMessage,
+      execId: genExecID({
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        messageID: 3n,
+      }),
+      receiver: receiver.address,
+      gasLimit: toNano('0.5'),
     })
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.SenderIsNotOffRamp,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOffRamp'],
     })
   })
 

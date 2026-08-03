@@ -140,6 +140,32 @@ type coins = bigint
 type uint64 = bigint
 
 /**
+ > struct Storage {
+ > }
+ */
+export interface Storage {
+    readonly $: 'Storage'
+}
+
+export const Storage = {
+    create(): Storage {
+        return {
+            $: 'Storage',
+        }
+    },
+    fromSlice(s: c.Slice): Storage {
+        return {
+            $: 'Storage',
+        }
+    },
+    store(self: Storage, b: c.Builder): void {
+    },
+    toCell(self: Storage): c.Cell {
+        return makeCellFrom<Storage>(self, Storage.store);
+    }
+}
+
+/**
  > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
  >     queryId: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
@@ -389,6 +415,16 @@ export class MockTokenPool implements c.Contract {
         return new MockTokenPool(address);
     }
 
+    static fromStorage(emptyStorage: {
+    }, deployedOptions?: DeployedAddrOptions) {
+        const initialState = {
+            code: deployedOptions?.overrideContractCode ?? MockTokenPool.CodeCell,
+            data: Storage.toCell(Storage.create()),
+        };
+        const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
+        return new MockTokenPool(address, initialState);
+    }
+
     static createCellOfMockTokenPoolLockOrBurn(body: {
         tokenAmount: TokenAmount
         notify: c.Address
@@ -400,6 +436,14 @@ export class MockTokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }

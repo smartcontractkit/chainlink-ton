@@ -580,6 +580,14 @@ export class ContextExecutor implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendContextExecutorSetCell_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         context: c.Cell

@@ -1,5 +1,5 @@
 import { Cell, beginCell } from '@ton/core'
-import * as rt from '../../../../wrappers/ccip/Router'
+import * as rt from '../../../../wrappers/gen/ccip/Router'
 import { asSnakedCell } from '../../../../src/utils'
 
 // Messaging-specific test parameters
@@ -31,11 +31,10 @@ export function createPayload(size: number): Cell {
 
 export function createExtraArgs(): Cell {
   // Create properly encoded extraArgs for gas testing
-  return rt.builder.data.extraArgs
-    .encode({
-      kind: 'generic-v2',
+  return rt.GenericExtraArgsV2.toCell(
+    rt.GenericExtraArgsV2.create({
       gasLimit: BigInt(MAX_EXTRA_ARGS_SIZE), // Use MAX_EXTRA_ARGS_SIZE as gas limit for worst-case
       allowOutOfOrderExecution: true,
-    })
-    .asCell()
+    }),
+  )
 }

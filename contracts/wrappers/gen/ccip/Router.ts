@@ -520,6 +520,87 @@ export const Ownable2Step = {
 }
 
 /**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct Ownable2Step_OwnershipTransferRequested {
  >     queryId: uint64
  >     newOwner: address
@@ -898,7 +979,7 @@ export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: Router_CCIPSend
     metadata: Metadata
-    tokenRegistry: c.Address | null
+    tokenRegistry: c.Address | null /* = null */
 }
 
 export const OnRamp_Send = {
@@ -907,10 +988,11 @@ export const OnRamp_Send = {
     create(args: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
+            tokenRegistry: null,
             ...args
         }
     },
@@ -1430,12 +1512,12 @@ export const Router_TokenRegistryDeployment = {
 }
 
 /**
- > type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+ > type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
  */
-export type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+export type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
 
-export const Router_GetValidatedFee_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): Router_GetValidatedFee_RemainingBitsAndRefs {
+export const Router_GetValidatedFee_Any = {
+    fromSlice(s: c.Slice): Router_GetValidatedFee_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee');
             return {
@@ -1445,13 +1527,13 @@ export const Router_GetValidatedFee_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: Router_GetValidatedFee_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: Router_GetValidatedFee_Any, b: c.Builder): void {
         b.storeUint(0x4dd6aa82, 32);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_GetValidatedFee_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<Router_GetValidatedFee_RemainingBitsAndRefs>(self, Router_GetValidatedFee_RemainingBitsAndRefs.store);
+    toCell(self: Router_GetValidatedFee_Any): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee_Any>(self, Router_GetValidatedFee_Any.store);
     }
 }
 
@@ -1522,9 +1604,9 @@ export const OnRamp_MessageValidationFailed_GetValidatedFeeContext = {
 export interface Router_ApplyRampUpdates {
     readonly $: 'Router_ApplyRampUpdates'
     queryId: uint64
-    onRampUpdates: OnRamps | null
-    offRampAdds: OffRamps | null
-    offRampRemoves: OffRamps | null
+    onRampUpdates: OnRamps | null /* = null */
+    offRampAdds: OffRamps | null /* = null */
+    offRampRemoves: OffRamps | null /* = null */
 }
 
 export const Router_ApplyRampUpdates = {
@@ -1532,12 +1614,15 @@ export const Router_ApplyRampUpdates = {
 
     create(args: {
         queryId?: uint64
-        onRampUpdates: OnRamps | null
-        offRampAdds: OffRamps | null
-        offRampRemoves: OffRamps | null
+        onRampUpdates?: OnRamps | null /* = null */
+        offRampAdds?: OffRamps | null /* = null */
+        offRampRemoves?: OffRamps | null /* = null */
     }): Router_ApplyRampUpdates {
         return {
             $: 'Router_ApplyRampUpdates',
+            onRampUpdates: null,
+            offRampAdds: null,
+            offRampRemoves: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -1572,7 +1657,7 @@ export const Router_ApplyRampUpdates = {
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -1583,7 +1668,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
@@ -1596,7 +1681,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -1614,12 +1699,7 @@ export const Router_CCIPSend = {
             data: s.loadRef(),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -1630,19 +1710,7 @@ export const Router_CCIPSend = {
         b.storeRef(self.data);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
@@ -2303,12 +2371,12 @@ export const Router_GetValidatedFeeContext = {
 }
 
 /**
- > type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
+ > type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
  */
-export type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
+export type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
 
-export const Router_MessageValidated_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): Router_MessageValidated_RemainingBitsAndRefs {
+export const Router_MessageValidated_Any = {
+    fromSlice(s: c.Slice): Router_MessageValidated_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated');
             return {
@@ -2319,14 +2387,14 @@ export const Router_MessageValidated_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: Router_MessageValidated_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: Router_MessageValidated_Any, b: c.Builder): void {
         b.storeUint(0x9e2155ec, 32);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidated_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<Router_MessageValidated_RemainingBitsAndRefs>(self, Router_MessageValidated_RemainingBitsAndRefs.store);
+    toCell(self: Router_MessageValidated_Any): c.Cell {
+        return makeCellFrom<Router_MessageValidated_Any>(self, Router_MessageValidated_Any.store);
     }
 }
 
@@ -2360,12 +2428,12 @@ export const Router_MessageValidated = {
 }
 
 /**
- > type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
+ > type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
  */
-export type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
+export type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
 
-export const Router_MessageValidationFailed_RemainingBitsAndRefs = {
-    fromSlice(s: c.Slice): Router_MessageValidationFailed_RemainingBitsAndRefs {
+export const Router_MessageValidationFailed_Any = {
+    fromSlice(s: c.Slice): Router_MessageValidationFailed_Any {
         return (() => {
             loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed');
             return {
@@ -2376,14 +2444,14 @@ export const Router_MessageValidationFailed_RemainingBitsAndRefs = {
             }
         })();
     },
-    store(self: Router_MessageValidationFailed_RemainingBitsAndRefs, b: c.Builder): void {
+    store(self: Router_MessageValidationFailed_Any, b: c.Builder): void {
         b.storeUint(0xec23c562, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidationFailed_RemainingBitsAndRefs): c.Cell {
-        return makeCellFrom<Router_MessageValidationFailed_RemainingBitsAndRefs>(self, Router_MessageValidationFailed_RemainingBitsAndRefs.store);
+    toCell(self: Router_MessageValidationFailed_Any): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed_Any>(self, Router_MessageValidationFailed_Any.store);
     }
 }
 
@@ -2785,6 +2853,39 @@ export const CrossChainAddress = {
 }
 
 /**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
+    }
+}
+
+/**
  > struct (0x181dcf10) GenericExtraArgsV2 {
  >     gasLimit: uint256?
  >     allowOutOfOrderExecution: bool
@@ -3130,22 +3231,22 @@ export class Router implements c.Contract {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }) {
         return Router_CCIPSend.toCell(Router_CCIPSend.create(body));
     }
 
     static createCellOfRouterApplyRampUpdates(body: {
         queryId?: uint64
-        onRampUpdates: OnRamps | null
-        offRampAdds: OffRamps | null
-        offRampRemoves: OffRamps | null
+        onRampUpdates?: OnRamps | null /* = null */
+        offRampAdds?: OffRamps | null /* = null */
+        offRampRemoves?: OffRamps | null /* = null */
     }) {
         return Router_ApplyRampUpdates.toCell(Router_ApplyRampUpdates.create(body));
     }
 
-    static createCellOfRouterGetValidatedFeeRemainingBitsAndRefs(body: Router_GetValidatedFee_RemainingBitsAndRefs) {
-        return Router_GetValidatedFee_RemainingBitsAndRefs.toCell(body);
+    static createCellOfRouterGetValidatedFeeAny(body: Router_GetValidatedFee_Any) {
+        return Router_GetValidatedFee_Any.toCell(body);
     }
 
     static createCellOfOnRampMessageValidatedGetValidatedFeeContext(body: OnRamp_MessageValidated_GetValidatedFeeContext) {
@@ -3259,10 +3360,31 @@ export class Router implements c.Contract {
         return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
     }
 
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }
@@ -3274,7 +3396,7 @@ export class Router implements c.Contract {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3285,9 +3407,9 @@ export class Router implements c.Contract {
 
     async sendRouterApplyRampUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        onRampUpdates: OnRamps | null
-        offRampAdds: OffRamps | null
-        offRampRemoves: OffRamps | null
+        onRampUpdates?: OnRamps | null /* = null */
+        offRampAdds?: OffRamps | null /* = null */
+        offRampRemoves?: OffRamps | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3296,10 +3418,10 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterGetValidatedFeeRemainingBitsAndRefs(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_RemainingBitsAndRefs, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_GetValidatedFee_RemainingBitsAndRefs.toCell(body),
+            body: Router_GetValidatedFee_Any.toCell(body),
             ...extraOptions
         });
     }
@@ -3471,6 +3593,27 @@ export class Router implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }

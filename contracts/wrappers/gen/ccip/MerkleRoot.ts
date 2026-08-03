@@ -743,6 +743,14 @@ export class MerkleRoot implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendMerkleRootValidate(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32

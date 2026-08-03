@@ -3,7 +3,7 @@ import '@ton/test-utils'
 import { toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
-import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -22,34 +22,32 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     await setup.setupAll('updateTokenTransferFeeConfigs', blockchain)
   })
 
-  const sampleTokenTransferFeeConfig: feeQuoter.TokenTransferFeeConfig = {
+  const sampleTokenTransferFeeConfig = feeQuoter.TokenTransferFeeConfig.create({
     isEnabled: true,
-    minFeeUsdCents: 50,
-    maxFeeUsdCents: 1000,
-    deciBps: 10,
-    destGasOverhead: 90000,
-    destBytesOverhead: 32,
-  }
+    minFeeUsdCents: 50n,
+    maxFeeUsdCents: 1000n,
+    deciBps: 10n,
+    destGasOverhead: 90000n,
+    destBytesOverhead: 32n,
+  })
 
   it('should add token transfer fee config', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
     const destChainSelector = ChainSelectors.testnet.evm
 
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map([[token, sampleTokenTransferFeeConfig]]),
-                remove: [],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, sampleTokenTransferFeeConfig]]),
+              remove: [],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -73,20 +71,21 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const destChainSelector = ChainSelectors.testnet.evm
 
     // First add the config
-    await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
+    await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
         updates: new Map([
           [
             destChainSelector,
-            {
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
               add: new Map([[token, sampleTokenTransferFeeConfig]]),
               remove: [],
-            },
+            }),
           ],
         ]),
       },
-    })
+    )
 
     // Verify it exists
     const configBefore = await setup.bind.feeQuoter.getTokenTransferFeeConfig(
@@ -96,21 +95,19 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     expect(configBefore.isEnabled).toBe(true)
 
     // Now remove it
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map(),
-                remove: [token],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map(),
+              remove: [token],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -132,28 +129,26 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
 
     const config2 = {
       ...sampleTokenTransferFeeConfig,
-      minFeeUsdCents: 100,
-      maxFeeUsdCents: 2000,
+      minFeeUsdCents: 100n,
+      maxFeeUsdCents: 2000n,
     }
 
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map([
-                  [token1, sampleTokenTransferFeeConfig],
-                  [token2, config2],
-                ]),
-                remove: [],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([
+                [token1, sampleTokenTransferFeeConfig],
+                [token2, config2],
+              ]),
+              remove: [],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -182,40 +177,39 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const destChainSelector = ChainSelectors.testnet.evm
 
     // First add both configs
-    await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
+    await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
         updates: new Map([
           [
             destChainSelector,
-            {
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
               add: new Map([
                 [token1, sampleTokenTransferFeeConfig],
                 [token2, sampleTokenTransferFeeConfig],
               ]),
               remove: [],
-            },
+            }),
           ],
         ]),
       },
-    })
+    )
 
     // Now remove both
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map(),
-                remove: [token1, token2],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map(),
+              remove: [token1, token2],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -241,31 +235,29 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const config1 = sampleTokenTransferFeeConfig
     const config2 = {
       ...sampleTokenTransferFeeConfig,
-      minFeeUsdCents: 100,
+      minFeeUsdCents: 100n,
     }
 
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector1,
-              {
-                add: new Map([[token, config1]]),
-                remove: [],
-              },
-            ],
-            [
-              destChainSelector2,
-              {
-                add: new Map([[token, config2]]),
-                remove: [],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector1,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, config1]]),
+              remove: [],
+            }),
+          ],
+          [
+            destChainSelector2,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, config2]]),
+              remove: [],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -294,37 +286,36 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const destChainSelector = ChainSelectors.testnet.evm
 
     // First add the token to be removed
-    await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
+    await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
         updates: new Map([
           [
             destChainSelector,
-            {
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
               add: new Map([[tokenToRemove, sampleTokenTransferFeeConfig]]),
               remove: [],
-            },
+            }),
           ],
         ]),
       },
-    })
+    )
 
     // Now add one and remove the other in same transaction
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map([[tokenToAdd, sampleTokenTransferFeeConfig]]),
-                remove: [tokenToRemove],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[tokenToAdd, sampleTokenTransferFeeConfig]]),
+              remove: [tokenToRemove],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -351,43 +342,42 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const destChainSelector = ChainSelectors.testnet.evm
 
     // Add initial config
-    await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
+    await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
         updates: new Map([
           [
             destChainSelector,
-            {
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
               add: new Map([[token, sampleTokenTransferFeeConfig]]),
               remove: [],
-            },
+            }),
           ],
         ]),
       },
-    })
+    )
 
     // Update with new config
     const updatedConfig: feeQuoter.TokenTransferFeeConfig = {
       ...sampleTokenTransferFeeConfig,
-      minFeeUsdCents: 200,
-      maxFeeUsdCents: 5000,
+      minFeeUsdCents: 200n,
+      maxFeeUsdCents: 5000n,
     }
 
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map([[token, updatedConfig]]),
-                remove: [],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, updatedConfig]]),
+              remove: [],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -410,21 +400,19 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const destChainSelector = ChainSelectors.testnet.evm
 
     // Try with non-owner
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.externalCaller.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              destChainSelector,
-              {
-                add: new Map([[token, sampleTokenTransferFeeConfig]]),
-                remove: [],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            destChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, sampleTokenTransferFeeConfig]]),
+              remove: [],
+            }),
+          ],
+        ]),
       },
     )
 
@@ -439,21 +427,19 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     const nonExistentChainSelector = 99999n
 
     // This should not fail, but the config won't be added because the dest chain doesn't exist
-    const result = await setup.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          updates: new Map([
-            [
-              nonExistentChainSelector,
-              {
-                add: new Map([[token, sampleTokenTransferFeeConfig]]),
-                remove: [],
-              },
-            ],
-          ]),
-        },
+        updates: new Map([
+          [
+            nonExistentChainSelector,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, sampleTokenTransferFeeConfig]]),
+              remove: [],
+            }),
+          ],
+        ]),
       },
     )
 
