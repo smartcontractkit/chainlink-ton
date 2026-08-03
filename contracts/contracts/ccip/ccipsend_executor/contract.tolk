@@ -57,6 +57,8 @@ fun onInternalMessage(in: InMessage) {
             assert(this.addresses.load().tokenRegistry! == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
+
+        //TODO: Integrate with the interface of the real TokenPool lib instead of using this message
         TokenPool_LockOrBurnFinished => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenTransfer>.load();
             assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);

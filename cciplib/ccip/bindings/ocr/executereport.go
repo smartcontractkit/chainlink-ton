@@ -63,9 +63,6 @@ type TVM2AnyRampMessageBody struct {
 	Receiver  common.CrossChainAddress `tlb:"^"`
 	Data      common.SnakeBytes        `tlb:"^"`
 	ExtraArgs *cell.Cell               `tlb:"^"`
-	// Source token amounts plus the destination token address, grouped into a single
-	// ref to stay within the 4-ref-per-cell limit (matches TVM2AnyTokenTransfer in
-	// contracts/ccip/onramp/types.tolk).
 	TokenTransfer  TVM2AnyTokenTransfer `tlb:"^"`
 	FeeToken       *address.Address     `tlb:"addr"`
 	FeeTokenAmount *tlb.Coins           `tlb:"."`

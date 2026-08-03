@@ -72,6 +72,7 @@ struct TVM2AnyRampMessageBody {
     extraArgs: cell;
     // Source token amounts plus the destination token address, grouped into a single
     // ref to stay within the 4-ref-per-cell limit.
+    //TODO: Maybe it makes sense to keep this struct unchanged and fetch the destTokenAddress from the tokenPool, or add it to the TokenAmount type
     tokenTransfer: Cell<TVM2AnyTokenTransfer>;
     feeToken: address;
     feeTokenAmount: coins;
