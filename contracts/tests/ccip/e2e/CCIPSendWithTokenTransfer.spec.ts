@@ -108,9 +108,11 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
 
     // 3. Deploy the MockTokenPool that performs the (mock) lock/burn.
-    mockTokenPool = blockchain.openContract(mtp.MockTokenPool.fromStorage({ 
-          destTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
-    }))
+    mockTokenPool = blockchain.openContract(
+      mtp.MockTokenPool.fromStorage({
+        destTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
+      }),
+    )
     await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     // 4. Deploy Router/feeQuoter/onRamp/offRamp

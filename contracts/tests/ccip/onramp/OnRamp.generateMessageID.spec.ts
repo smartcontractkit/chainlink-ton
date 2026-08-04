@@ -157,7 +157,7 @@ describe('OnRamp - generate message id', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse()
+        destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
       },
     )
 
@@ -175,9 +175,9 @@ describe('OnRamp - generate message id', () => {
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
         tokenTransfer: on.TVM2AnyTokenTransfer.create({
-            tokenAmounts: ccipSend.tokenAmounts,
-            destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
-          }),
+          tokenAmounts: ccipSend.tokenAmounts,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
+        }),
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       }),
