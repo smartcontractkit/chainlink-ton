@@ -872,7 +872,7 @@ fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTran
         return null;
     }
     val tokenTransfer = tokenAmounts.getTokenTransfer(OffRamp_Error.UnsupportedNumberOfTokens);
-    val registryAddress = TokenRegistry {deployableCode: st.deployables.load().deployer, tokenAddress: tokenTransfer.token}.deriveAddress().calculateAddress();
+    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token).calculateAddress();
     return registryAddress.toCell();
 }
 
