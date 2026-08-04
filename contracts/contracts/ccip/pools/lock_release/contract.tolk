@@ -67,6 +67,7 @@ fun deployLockReleaseContextExecutor(executor: AutoDeployAddress): void {
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
+/// @notice Handles bounced release messages: refunds rate limit and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     var st = Storage.load();
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
@@ -143,54 +144,6 @@ fun onReleaseOrMint(st: Storage, _msg: TokenPool_ReleaseOrMint): Storage {
     return st;
 }
 
-fun refundReleaseOrMintRateLimit(
-    mutate st: Storage,
-    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
-) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    val prepared = lazy forwardPayload.prepared.load();
-    var pool = loadPool(st);
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        pool.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
-    } else {
-        pool.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
-    }
-    st.poolData = pool.data.toCell();
-}
-
-fun sendReleaseOrMintFinished(forwardPayload: TokenPool_ReleaseOrMintForwardPayload) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    val prepared = lazy forwardPayload.prepared.load();
-    val out = prepared.out;
-
-    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: details.remoteChainSelector,
-        details: TokenPool_ReleasedOrMintedDetails {
-            token: details.localToken,
-            sender: contract.getAddress(),
-            amount: out.destinationAmount,
-            recipient: details.receiver.toCell(),
-        }.toCell(),
-    });
-
-    if (requestMsg.replyTo != null) {
-        val notify = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_ReleaseOrMintFinished {
-                queryId: requestMsg.queryId,
-                out: prepared.out.toCell(),
-            },
-        });
-        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
-}
-
 fun onReleaseTransferBounced(
     mutate st: Storage,
     sender: address,
@@ -201,29 +154,14 @@ fun onReleaseTransferBounced(
 
     val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(msg.customPayload!);
     val operation = context.forwardPayload.load();
-    refundReleaseOrMintRateLimit(mutate st, operation);
-    sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
 }
 
-fun sendReleaseOrMintFailure(
-    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
-    errorCode: uint16,
-) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    if (requestMsg.replyTo != null) {
-        val fail = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_ReleaseOrMintFailure {
-                queryId: requestMsg.queryId,
-                errorCode,
-            },
-        });
-        fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
-}
-
+/// @notice Handles ForwardNotification from ContextExecutor after release completion.
+/// Verifies executor identity, then emits event and sends ReleaseOrMintFinished reply.
 fun onContextExecutorForwardNotification(
     mutate st: Storage,
     sender: address,
@@ -245,7 +183,8 @@ fun onContextExecutorForwardNotification(
     val operation = context.forwardPayload.load();
     assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
-    sendReleaseOrMintFinished(operation);
+    var pool = loadPool(st);
+    pool.sendReleaseOrMintFinished(operation);
 }
 
 fun loadPool(st: Storage): TokenPool<Storage> {

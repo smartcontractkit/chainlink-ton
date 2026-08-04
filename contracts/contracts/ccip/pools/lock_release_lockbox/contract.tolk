@@ -80,6 +80,7 @@ fun deployLockReleaseLockboxContextExecutor(executor: AutoDeployAddress): void {
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
+/// @notice Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
@@ -183,8 +184,10 @@ fun onLockTransferBounced(
     assert(st.poolData.load().jettonClient().isWallet(sender)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     assert(msg.customPayload != null) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload!);
-    returnLockOrBurnTransfer(st, context.forwardPayload.load());
-    sendLockOrBurnFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as uint16);
+    val operation = context.forwardPayload.load();
+    returnLockOrBurnTransfer(st, operation);
+    var pool = loadPool(st);
+    pool.sendLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as uint16);
 }
 
 /* === Release (withdraw) flow === */
@@ -289,7 +292,8 @@ fun onWithdrawFailed(
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.context!);
     assert(msg.queryId == context.forwardPayload.load().requestMsg.load().queryId) throw 0xFFFF;
-    sendReleaseOrMintFailure(context.forwardPayload.load(), TokenPool_Error.UnsupportedOperation as uint16);
+    var pool = loadPool(st);
+    pool.sendReleaseOrMintFailure(context.forwardPayload.load(), TokenPool_Error.UnsupportedOperation as uint16);
 }
 
 fun onReturnExcessesBack(
@@ -301,6 +305,8 @@ fun onReturnExcessesBack(
     // routed to a Context Executor and never complete directly at the pool.
 }
 
+/// @notice Handles ForwardNotification from ContextExecutor after release (withdraw) completion.
+/// Verifies executor identity, then emits event and sends ReleaseOrMintFinished reply.
 fun onContextExecutorForwardNotification(
     mutate st: Storage,
     sender: address,
@@ -320,25 +326,12 @@ fun onContextExecutorForwardNotification(
     val operation = msg.context.load().forwardPayload.load();
     assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
-    sendReleaseOrMintFinished(operation);
+    var pool = loadPool(st);
+    pool.sendReleaseOrMintFinished(operation);
 }
 
-fun sendLockOrBurnFailure(
-    forwardPayload: TokenPool_LockOrBurnForwardPayload,
-    errorCode: uint16,
-) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    if (requestMsg.replyTo != null) {
-        val failure = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_LockOrBurnFailure { queryId: requestMsg.queryId, errorCode },
-        });
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
-}
-
+/// @notice Returns jettons to the original sender after a failed lock (deposit) operation.
+/// @dev Sends AskToTransfer to the pool's jetton wallet with original sender as recipient.
 fun returnLockOrBurnTransfer(st: Storage, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val request = lazy requestMsg.request.load();
@@ -358,51 +351,6 @@ fun returnLockOrBurnTransfer(st: Storage, forwardPayload: TokenPool_LockOrBurnFo
         },
     });
     returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
-}
-
-fun sendReleaseOrMintFinished(forwardPayload: TokenPool_ReleaseOrMintForwardPayload) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    val prepared = lazy forwardPayload.prepared.load();
-
-    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: details.remoteChainSelector,
-        details: TokenPool_ReleasedOrMintedDetails {
-            token: details.localToken,
-            sender: contract.getAddress(),
-            amount: prepared.out.destinationAmount,
-            recipient: details.receiver.toCell(),
-        }.toCell(),
-    });
-    if (requestMsg.replyTo != null) {
-        val notify = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_ReleaseOrMintFinished {
-                queryId: requestMsg.queryId,
-                out: prepared.out.toCell(),
-            },
-        });
-        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
-}
-
-fun sendReleaseOrMintFailure(
-    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
-    errorCode: uint16,
-) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    if (requestMsg.replyTo != null) {
-        val failure = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_ReleaseOrMintFailure { queryId: requestMsg.queryId, errorCode },
-        });
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
 }
 
 /* === Pool loader === */

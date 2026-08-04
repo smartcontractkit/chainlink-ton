@@ -7,19 +7,26 @@ import "../lib/token_pool/entrypoint"
 
 import "types"
 
+/// @notice Pool storage: common pool data, lockbox reference, + ContextExecutor deployment state.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
+    /// Address of the JettonLockBox contract used for deposit/withdraw operations.
     lockbox: address;
+    /// Compiled code cell of the ContextExecutor contract (deployed per-operation).
     contextExecutorCode: cell;
+    /// Monotonically increasing ID for deterministic ContextExecutor address derivation.
     contextExecutorNextId: uint64;
 }
 
 @inline
+/// @notice Returns true if the next ContextExecutor ID has not reached max uint64.
 fun Storage.canTakeContextExecutorNextId(self): bool {
     return self.contextExecutorNextId != 18446744073709551615;
 }
 
 @inline
+/// @notice Atomically takes and increments the next ContextExecutor ID.
+/// @dev Throws if the ID counter has reached its maximum value.
 fun Storage.takeContextExecutorNextId(mutate self): uint64 {
     val id = self.contextExecutorNextId;
     assert(id != 18446744073709551615) throw 0xFFFF;

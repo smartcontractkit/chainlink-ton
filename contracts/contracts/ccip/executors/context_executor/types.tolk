@@ -2,13 +2,20 @@
 
 import "../../../lib/utils"
 
+/// @notice Runtime data stored by each ContextExecutor instance.
+/// A pool deploys one executor per async operation with deterministic address.
 struct ContextExecutor_Data<C> {
-    id: uint64; // owner-scoped deployment nonce used to derive a unique executor address
+    /// 64bit addr space for a unique identity, for more use context C
+    id: uint64;
+    /// Address of the owning pool contract (only owner receives forwarded messages).
     owner: address;
+    /// Arbitrary context cell encoding operation-specific data for the owner to consume.
     context: Cell<C>;
+    /// Whitelist of addresses whose messages will be forwarded to the owner.
     forwardFrom: array<address>;
 }
 
+/// @notice Wrapper providing load/store helpers for ContextExecutor instances.
 struct ContextExecutor<T> {
     data: ContextExecutor_Data<T>;
 }
@@ -33,6 +40,8 @@ fun ContextExecutor<T>.getAddress(
     };
 }
 
+/// @notice Forwarded message info passed from ContextExecutor to the owner pool.
+/// Contains the original message metadata plus the message body cell.
 struct ContextExecutor_InMessageForward {
     senderAddress: address          // an internal address from which the message arrived
     valueCoins: coins               // ton amount attached to an incoming message
@@ -47,7 +56,8 @@ const ContextExecutor_FACILITY_NAME = "link.chain.ton.lib.executor.ContextExecut
 const ContextExecutor_FACILITY_ID = ContextExecutor_FACILITY_NAME.crc32() % 640 + 10;
 const ContextExecutor_ERROR_CODE = ContextExecutor_FACILITY_ID * 100;
 
-/// Error codes used by the ContextExecutor contract.
+/// @notice Error codes used by the ContextExecutor contract.
+/// Facility ID: 260 (based on FACILITY_NAME CRC32).
 enum ContextExecutor_Error {
     /// Thrown when a function is called by an address that is not the owner of the contract.
     OnlyCallableByOwner = ContextExecutor_ERROR_CODE

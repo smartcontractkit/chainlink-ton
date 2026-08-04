@@ -5,6 +5,8 @@ import "../../../lib/utils"
 import "types"
 import "messages"
 
+/// @notice Handles incoming messages: Set/Ask are control messages from owner,
+/// all other messages from `forwardFrom` addresses are forwarded to owner.
 fun ContextExecutor<T>.onInternalMessage(
 	mutate self,
 	in: ContextExecutor_InMessageForward,

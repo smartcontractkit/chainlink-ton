@@ -662,31 +662,12 @@ fun TokenPool<T>.onPreflightCheckFailed(
     msg: TokenPool_PreflightCheckFailed,
 ): void {
     val fwdp = msg.forwardPayload.load();
-    val requestMsg = lazy fwdp.requestMsg.load();
-    val prepared = lazy fwdp.prepared.load();
 
     // Refund outbound rate limit that was consumed before the hook check.
-    val request = requestMsg.request.load();
-    val details = request.transfer.details.load();
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        self.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
-    } else {
-        self.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
-    }
+    self.refundLockOrBurnRateLimit(fwdp);
 
     // Send failure response back to the executor (replyTo).
-    if (requestMsg.replyTo != null) {
-        val failure = createMessage({
-            bounce: false,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_LockOrBurnFailure {
-                queryId: requestMsg.queryId,
-                errorCode: TokenPool_Error.UnsupportedOperation as uint16,
-            },
-        });
-        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
+    self.sendLockOrBurnFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16);
 }
 
 /// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check.
@@ -713,30 +694,145 @@ fun TokenPool<T>.onPostflightCheckFailed(
     msg: TokenPool_PostflightCheckFailed,
 ): void {
     val fwdp = msg.forwardPayload.load();
-    val requestMsg = lazy fwdp.requestMsg.load();
-    val prepared = lazy fwdp.prepared.load();
 
     // Refund inbound rate limit that was consumed before the hook check.
-    val request = requestMsg.request.load();
-    val details = request.transfer.details.load();
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        self.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
-    } else {
-        self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
-    }
+    self.refundReleaseOrMintRateLimit(fwdp);
 
     // Send failure response back to the executor (replyTo).
+    self.sendReleaseOrMintFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16);
+}
+
+// ================================================================
+// │      Common notification & rate-limit refund helpers           │
+// ================================================================
+
+/// Sends `LockOrBurnFailure` reply to the executor (replyTo address) when an outbound
+/// operation fails after admission.
+/// @param forwardPayload The full forward payload carrying the original request message.
+/// @param errorCode The pool-specific error code to attach to the failure message.
+/// @dev Only sends a message if `replyTo` is set on the original request. Instance method
+/// so concrete pools can override (e.g. reserve balance before sending).
+fun TokenPool<T>.sendLockOrBurnFailure(
+    self,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
     if (requestMsg.replyTo != null) {
         val failure = createMessage({
-            bounce: false, // TODO: ?
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFailure {
+                queryId: requestMsg.queryId,
+                errorCode,
+            },
+        });
+        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Emits `ReleasedOrMinted` event and sends `ReleaseOrMintFinished` reply to the executor
+/// when an inbound operation completes successfully.
+/// @param forwardPayload The full forward payload carrying the original request and prepared data.
+/// @dev Event is always emitted. Reply message is only sent if `replyTo` is set. Instance method
+/// so concrete pools can override (e.g. customize event or reply body).
+fun TokenPool<T>.sendReleaseOrMintFinished(
+    self,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: details.remoteChainSelector,
+        details: TokenPool_ReleasedOrMintedDetails {
+            token: details.localToken,
+            sender: contract.getAddress(),
+            amount: prepared.out.destinationAmount,
+            recipient: details.receiver.toCell(),
+        }.toCell(),
+    });
+
+    if (requestMsg.replyTo != null) {
+        val notify = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_ReleaseOrMintFinished {
+                queryId: requestMsg.queryId,
+                out: prepared.out.toCell(),
+            },
+        });
+        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Sends `ReleaseOrMintFailure` reply to the executor (replyTo address) when an inbound
+/// operation fails after admission.
+/// @param forwardPayload The full forward payload carrying the original request message.
+/// @param errorCode The pool-specific error code to attach to the failure message.
+/// @dev Only sends a message if `replyTo` is set on the original request. Instance method
+/// so concrete pools can override (e.g. reserve balance before sending).
+fun TokenPool<T>.sendReleaseOrMintFailure(
+    self,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+    errorCode: uint16,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
+        val failure = createMessage({
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: requestMsg.replyTo!,
             body: TokenPool_ReleaseOrMintFailure {
                 queryId: requestMsg.queryId,
-                errorCode: TokenPool_Error.UnsupportedOperation as uint16,
+                errorCode,
             },
         });
-        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Refunds the outbound (or fast-finality outbound) rate limit capacity that was consumed
+/// before a LockOrBurn operation when it later fails.
+/// @param forwardPayload The forward payload carrying the original request and prepared data.
+/// @dev Picks the correct rate limiter bucket based on the requested finality config.
+fun TokenPool<T>.refundLockOrBurnRateLimit(
+    mutate self,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        self.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    } else {
+        self.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    }
+}
+
+/// Refunds the inbound (or fast-finality inbound) rate limit capacity that was consumed
+/// before a ReleaseOrMint operation when it later fails.
+/// @param forwardPayload The forward payload carrying the original request and prepared data.
+/// @dev Picks the correct rate limiter bucket based on the requested finality config.
+fun TokenPool<T>.refundReleaseOrMintRateLimit(
+    mutate self,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        self.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    } else {
+        self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
     }
 }
 
@@ -1071,7 +1167,7 @@ fun TokenPool<T>.notifyLockOrBurnFailure(
     val requestMsg = lazy forwardPayload.requestMsg.load();
     if (requestMsg.replyTo != null) {
         val failure = createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: requestMsg.replyTo!,
             body: TokenPool_LockOrBurnFailure {
