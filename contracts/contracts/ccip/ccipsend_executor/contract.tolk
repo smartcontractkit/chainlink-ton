@@ -212,6 +212,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         value: OnRamp_ExecutorRequestsLockOrBurn.cost(),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
+            queryID: ccipSend.queryID,
             tokenAmount: tokenAmount.toCell(),
             tokenPool: state.tokenPool,
             destChainSelector: ccipSend.destChainSelector,

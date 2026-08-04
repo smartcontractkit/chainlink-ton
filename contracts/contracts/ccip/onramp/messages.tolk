@@ -53,6 +53,7 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
 }
 
 struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
+    queryID: uint64,
     tokenAmount: Cell<TokenAmount>, // Cell<> otherwise they don't fit
     tokenPool: address,
     destChainSelector: uint64,

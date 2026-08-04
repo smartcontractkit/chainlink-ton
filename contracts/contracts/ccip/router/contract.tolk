@@ -175,7 +175,9 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_LockOrBurn => {
             val st = lazy Storage.load();
-            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            val request = lazy msg.request.load();
+            val details = lazy request.transfer.details.load();
+            assertSenderIsOnRamp(st, details.remoteChainSelector, in.senderAddress);
             onLockOrBurn(msg);
         }
         // Sender must be a Jetton Wallet owned by the Router
@@ -741,26 +743,13 @@ We don't want to move funds then return if any of those fail, but ideally we do 
 withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
-    val tokenAmount = msg.tokenAmount.load();
     val tokenPoolLockOrBurn = createMessage({
         bounce: true,
         value: 0,
         dest: msg.tokenPool,
         body: TokenPool_LockOrBurn {
-            queryId: 0, // TODO msg.queryId
-            // TODO consider if TokenPool_LockOrBurnInV1 should be a field of Router_LockOrBurn directly
-            request: TokenPool_LockOrBurnInV1{
-                transfer: TokenPool_Transfer {
-                    id: 0, // TODO
-                    details: TokenPool_TransferDetails {
-                        receiver: msg.receiver,
-                        remoteChainSelector: msg.destChainSelector,
-                        originalSender: msg.originalSender,
-                        amount: tokenAmount.amount,
-                        localToken: tokenAmount.token,
-                    }.toCell(),
-                },
-            }.toCell(),
+            queryId: msg.queryID,
+            request: msg.request,
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,

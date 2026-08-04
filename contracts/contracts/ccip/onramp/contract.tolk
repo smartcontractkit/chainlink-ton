@@ -6,6 +6,7 @@ import "../../lib/deployable/types"
 
 import "../common/types";
 
+import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
@@ -297,17 +298,27 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+    val tokenAmount = msg.tokenAmount.load();
     val routerLockOrBurn = createMessage({
         bounce: true,
         value: 0,
         dest: destChainConfig.router,
         body: Router_LockOrBurn {
+            queryID: msg.queryID,
             tokenPool: msg.tokenPool,
-            tokenAmount: msg.tokenAmount,
-            destChainSelector: msg.destChainSelector,
+            request: TokenPool_LockOrBurnInV1{
+                transfer: TokenPool_Transfer {
+                    id: 0, // TBD is this the same as queryID?
+                    details: TokenPool_TransferDetails {
+                        receiver: msg.receiver,
+                        remoteChainSelector: msg.destChainSelector,
+                        originalSender: msg.originalSender,
+                        amount: tokenAmount.amount,
+                        localToken: tokenAmount.token,
+                    }.toCell(),
+                },
+            }.toCell(),
             executorAddress: sender,
-            receiver: msg.receiver,
-            originalSender: msg.originalSender,
         }
     });
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

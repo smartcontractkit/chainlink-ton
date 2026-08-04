@@ -12,6 +12,7 @@ import "../offramp/messages"
 import "../onramp/messages"
 import "../token_registry/types"
 import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -143,12 +144,10 @@ struct (0x4dd6aa82) Router_GetValidatedFee<T> {
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
+    queryID: uint64,
     tokenPool: address,
-    tokenAmount: Cell<TokenAmount>,
-    destChainSelector: uint64,
+    request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
-    receiver: Cell<CrossChainAddress>,
-    originalSender: address,
 }
 
 struct (0xfed7cfba) Router_TokenRegistrySetTokenInfo {
