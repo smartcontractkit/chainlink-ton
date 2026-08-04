@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
@@ -11,10 +11,13 @@ import {
   SUPPORTED_PREV_VERSIONS,
   ARTIFACT_NAME,
 } from '../../../wrappers/ccip/OffRamp'
-import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
+
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployOffRampContract } from './OffRamp.Setup'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import { generateMockTonAddress } from '../../../src/utils'
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -76,4 +79,40 @@ describe('OffRamp - Current Version Tests', () => {
     deployCurrentContract: deployOffRampContract,
   })
   currentVersionSpec.run('offramp')
+})
+
+describe('OffRamp - Ownable Tests', () => {
+  it('supports ownable messages', async () => {
+    const blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+    const deployer = await blockchain.treasury('deployer')
+    const other = await blockchain.treasury('other')
+    const offRamp = await deployOffRampContract(
+      blockchain,
+      deployer,
+      await contractCode.ccip.local('OffRamp'),
+      {
+        deployerCode: Cell.EMPTY, //await contractCode.ccip.local('Deployable'),
+        merkleRootCode: Cell.EMPTY, //await contractCode.ccip.local('MerkleRoot'),
+        receiveExecutorCode: Cell.EMPTY, //await contractCode.ccip.local('ReceiveExecutor'),
+        feeQuoter: generateMockTonAddress(),
+      },
+    )
+
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: await contractCode.ccip.local('OffRamp'),
+            name: 'offramp',
+          },
+        ],
+      },
+    })
+  })
 })

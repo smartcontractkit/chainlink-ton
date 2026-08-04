@@ -14,7 +14,6 @@ import {
   generateRandomTonAddress,
 } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
-import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { expectSuccessfulTransaction, assertLog, expectFailedTransaction } from '../../Logs'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
@@ -561,11 +560,6 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   }, 60000) // setup can take a while, since we deploy contracts
-
-  it('supports ownable messages', async () => {
-    const other = await blockchain.treasury('other')
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp, {})
-  })
 
   it('should deploy', async () => {
     // the check is done inside beforeEach
