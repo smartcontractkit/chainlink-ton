@@ -7,7 +7,7 @@ import { bigIntToUint8Array } from '../../../src/utils'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
-import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.commitAndExec.spec'
+import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.Setup'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 
 // Single source of truth for the expected MessageID of the fixed message below, shared
