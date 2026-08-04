@@ -1,4 +1,4 @@
-import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { Cell, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'
@@ -82,11 +82,4 @@ export async function setup(blockchain: Blockchain, overrides: OnRampOverrides =
   const deployer = await blockchain.treasury('deployer')
   const { onramp, config } = await deployOnRampContract(blockchain, deployer, overrides)
   return { deployer, onramp, config }
-}
-export async function getStorage(blockchain: Blockchain, addr: Address): Promise<Cell> {
-  const contract = await blockchain.getContract(addr)
-  if (contract.accountState == undefined) throw new Error('Contract account state is undefined')
-  const state = contract.accountState
-  if (state.type !== 'active') throw new Error('Contract account state is not active')
-  return state.state.data!
 }
