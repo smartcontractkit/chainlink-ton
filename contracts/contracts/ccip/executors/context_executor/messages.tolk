@@ -15,7 +15,7 @@ struct (0xcad4d1d0) ContextExecutor_Ask {
     queryId: uint64;
 
     // Per request context
-    forwardPayload: cell;
+    forwardPayload: cell?;
 
     // Close the context executor after this request is processed.
     done: bool;
@@ -34,7 +34,7 @@ struct (0x93e5bbc5) ContextExecutor_Reply<T> {
     forwardFrom: array<address>;
 
     // Per request context
-    forwardPayload: cell;
+    forwardPayload: cell?;
 
     // Whether the context executor was closed.
     done: bool;

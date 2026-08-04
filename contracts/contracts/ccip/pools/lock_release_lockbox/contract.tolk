@@ -60,6 +60,10 @@ fun onInternalMessage(in: InMessage): void {
             onReturnExcessesBack(st, in.senderAddress, msg);
             st.store();
         }
+        ContextExecutor_Reply<LockReleaseLockboxTokenPool_ReleaseContext> => {
+            onContextExecutorReply(mutate st, in.senderAddress, msg);
+            st.store();
+        }
         ContextExecutor_ForwardNotification<LockReleaseLockboxTokenPool_ReleaseContext> => {
             onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
@@ -70,14 +74,74 @@ fun onInternalMessage(in: InMessage): void {
     }
 }
 
-fun deployLockReleaseLockboxContextExecutor(executor: AutoDeployAddress): void {
+/// @notice Deploys a new ContextExecutor with an Ask message.
+/// The Ask carries the release context in forwardPayload. The pool awaits the Reply
+/// before sending the operational message to the lockbox, ensuring sequential execution.
+/// @notice Deploys a ContextExecutor with an Ask message (empty forwardPayload).
+/// The context is already embedded in the CE state from init, so forwardPayload is not needed.
+/// @param executor The deterministic CE address to deploy.
+/// @param queryId QueryId for correlation between Ask and Reply.
+fun deployLockReleaseLockboxContextExecutor(
+    executor: AutoDeployAddress,
+    queryId: uint64,
+): void {
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
         value: LockReleaseLockboxTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
         dest: executor,
-        body: createEmptyCell().beginParse(),
+        body: ContextExecutor_Ask {
+            queryId: queryId,
+            forwardPayload: null,
+            done: false,
+        },
     });
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Validates a ContextExecutor_Reply by recomputing the expected CE address from
+/// the reply fields, then sends the JettonLockBox_Withdraw operational message.
+fun onContextExecutorReply(
+    mutate st: Storage,
+    sender: address,
+    msg: ContextExecutor_Reply<LockReleaseLockboxTokenPool_ReleaseContext>,
+) {
+    // Validate CE identity: recompute address from reply fields and compare to sender.
+    val expectedExecutor = ContextExecutor<LockReleaseLockboxTokenPool_ReleaseContext>.getAddress(
+        st.contextExecutorCode,
+        msg.id,
+        contract.getAddress(),
+        msg.context,
+        msg.forwardFrom,
+    );
+    assert(sender == expectedExecutor.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidContextExecutorReply);
+
+    val context = msg.context.load();
+    val operation = context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+    val requestIn = lazy operation.requestMsg.load().request.load();
+    val details = lazy requestIn.transfer.details.load();
+
+    // Return excesses are the successful withdrawal completion signal.
+    val extra = JettonLockBox_WithdrawExtra {
+        sendExcessesTo: sender,
+        failureContext: context.toCell(),
+    }.toCell();
+
+    // Send JettonLockBox_Withdraw to the lockbox.
+    val withdraw = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: ton("0.1"),
+        dest: st.lockbox,
+        body: JettonLockBox_Withdraw {
+            queryId: msg.queryId,
+            token: st.poolData.load().jettonClient().masterAddress,
+            remoteChainSelector: details.remoteChainSelector,
+            amount: prepared.localAmount,
+            recipientWallet: details.receiver,
+            extra,
+        },
+    });
+    withdraw.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
@@ -248,32 +312,10 @@ fun onReleaseOrMintContinue(
         context.toCell(),
         [recipientWallet],
     );
-    deployLockReleaseLockboxContextExecutor(executor);
 
-    // Return excesses are the successful withdrawal completion signal.
-    val extra = JettonLockBox_WithdrawExtra {
-        sendExcessesTo: executor.calculateAddress(),
-        failureContext: context.toCell(),
-    }.toCell();
-
-    // Send JettonLockBox_Withdraw to the lockbox.
-    // The lockbox passes recipientWallet as transferRecipient in AskToTransfer,
-    // and the CCT JettonWallet computes the wallet from it. So we pass the raw
-    // receiver (owner) address, not the pre-computed wallet address.
-    val withdraw = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: ton("0.1"),
-        dest: st.lockbox,
-        body: JettonLockBox_Withdraw {
-            queryId: msg.queryId,
-            token: jettonClient.masterAddress,
-            remoteChainSelector: details.remoteChainSelector,
-            amount: prepared.localAmount,
-            recipientWallet: details.receiver,
-            extra,
-        },
-    });
-    withdraw.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // Deploy CE with Ask — context is already in CE state from init.
+    // The operational message (JettonLockBox_Withdraw) is sent after CE confirms.
+    deployLockReleaseLockboxContextExecutor(executor, msg.queryId);
 
     return st;
 }

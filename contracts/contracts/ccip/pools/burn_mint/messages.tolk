@@ -9,6 +9,7 @@ struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
 
 type BurnMintTokenPool_InMessage =
     | BurnMintTokenPool_ClaimMinterAdmin
+    | ContextExecutor_Reply<BurnMintTokenPool_ContextExecutorContext>
     | ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext>;
 
 type BurnMintTokenPool_OutMessage =

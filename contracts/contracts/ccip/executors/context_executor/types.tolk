@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-import "../../../lib/utils"
-
 /// @notice Runtime data stored by each ContextExecutor instance.
 /// A pool deploys one executor per async operation with deterministic address.
 struct ContextExecutor_Data<C> {

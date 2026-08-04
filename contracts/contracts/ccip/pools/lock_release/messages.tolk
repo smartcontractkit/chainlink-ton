@@ -4,6 +4,7 @@ import "../../executors/context_executor/messages"
 import "types"
 
 type LockReleaseTokenPool_InMessage =
+    | ContextExecutor_Reply<LockReleaseTokenPool_ReleaseContext>
     | ContextExecutor_ForwardNotification<LockReleaseTokenPool_ReleaseContext>;
 
 type LockReleaseTokenPool_OutMessage =

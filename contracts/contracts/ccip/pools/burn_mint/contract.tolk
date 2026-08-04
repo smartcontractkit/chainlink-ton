@@ -54,6 +54,10 @@ fun onInternalMessage(in: InMessage) {
             onClaimMinterAdmin(mutate st, in.senderAddress, msg.queryId);
             st.store();
         }
+        ContextExecutor_Reply<BurnMintTokenPool_ContextExecutorContext> => {
+            onContextExecutorReply(mutate st, in.senderAddress, msg);
+            st.store();
+        }
         ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext> => {
             onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
@@ -64,16 +68,110 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// @notice Deploys a new ContextExecutor at the given AutoDeployAddress.
-/// @dev The deploy message carries no body — code and data are embedded in the address.
-fun deployBurnMintContextExecutor(executor: AutoDeployAddress): void {
+/// @notice Deploys a new ContextExecutor at the given AutoDeployAddress with an Ask message.
+/// @notice Deploys a ContextExecutor with an Ask message (empty forwardPayload).
+/// The context is already embedded in the CE state from init, so forwardPayload is not needed.
+/// The pool awaits the Reply before sending the operational message, ensuring sequential
+/// execution (no race condition).
+/// @param executor The deterministic CE address to deploy.
+/// @param queryId QueryId for correlation between Ask and Reply.
+fun deployBurnMintContextExecutorWithAsk(
+    executor: AutoDeployAddress,
+    queryId: uint64,
+): void {
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
         value: BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
         dest: executor,
-        body: createEmptyCell().beginParse(),
+        body: ContextExecutor_Ask {
+            queryId: queryId,
+            forwardPayload: null,
+            done: false,
+        },
     });
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Validates a ContextExecutor_Reply by recomputing the expected CE address from
+/// the reply fields, then dispatches the operational message based on the context type.
+fun onContextExecutorReply(
+    mutate st: Storage,
+    sender: address,
+    msg: ContextExecutor_Reply<BurnMintTokenPool_ContextExecutorContext>,
+) {
+    // Validate CE identity: recompute address from reply fields and compare to sender.
+    val expectedExecutor = ContextExecutor<BurnMintTokenPool_ContextExecutorContext>.getAddress(
+        st.contextExecutorCode,
+        msg.id,
+        contract.getAddress(),
+        msg.context,
+        msg.forwardFrom,
+    );
+    assert(sender == expectedExecutor.calculateAddress(), BurnMintTokenPool_Error.InvalidContextExecutorReply);
+
+    val context = msg.context.load();
+    match (context) {
+        BurnMintTokenPool_BurnContext => {
+            sendBurnMessage(st, sender, msg.queryId, context);
+        }
+        BurnMintTokenPool_MintContext => {
+            sendMintMessage(st, sender, msg.queryId, context);
+        }
+    }
+}
+
+/// @notice Sends the AskToBurn operational message after CE deployment is confirmed.
+fun sendBurnMessage(
+    _st: Storage,
+    executorAddress: address,
+    queryId: uint64,
+    context: BurnMintTokenPool_BurnContext,
+) {
+    val operation = context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+    val burnMsg = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: BurnMintTokenPool_BURN_VALUE,
+        dest: context.wallet,
+        body: AskToBurn {
+            queryId: queryId,
+            jettonAmount: prepared.destTokenAmount,
+            sendExcessesTo: executorAddress,
+            customPayload: context.toCell(),
+        },
+    });
+    burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Sends the MintNewJettons operational message after CE deployment is confirmed.
+fun sendMintMessage(
+    st: Storage,
+    executorAddress: address,
+    queryId: uint64,
+    context: BurnMintTokenPool_MintContext,
+) {
+    val jettonClient = st.poolData.load().jettonClient();
+    val operation = context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+    val mint = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: BurnMintTokenPool_MINT_VALUE,
+        dest: jettonClient.masterAddress,
+        body: MintNewJettons {
+            queryId: queryId,
+            mintRecipient: operation.requestMsg.load().request.load().transfer.details.load().receiver,
+            tonAmount: BurnMintTokenPool_MINT_VALUE,
+            internalTransferMsg: InternalTransferStep {
+                queryId: queryId,
+                jettonAmount: prepared.localAmount,
+                transferInitiator: null,
+                sendExcessesTo: executorAddress,
+                forwardTonAmount: 0,
+                forwardPayload: beginCell().storeBool(true).storeRef(context.toCell()).endCell().beginParse(),
+            }.toCell(),
+        },
+    });
+    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Handles bounced burn/mint messages: refunds rate limit and sends failure reply.
@@ -136,21 +234,9 @@ fun onLockOrBurnTransferContinue(
         [jettonClient.masterAddress],
     );
 
-    deployBurnMintContextExecutor(executor);
-
-    val prepared = lazy fwdPayload.prepared.load();
-    val burnMsg = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_BURN_VALUE,
-        dest: sender,
-        body: AskToBurn {
-            queryId: requestMsg.queryId,
-            jettonAmount: prepared.destTokenAmount,
-            sendExcessesTo: executor.calculateAddress(),
-            customPayload: context.toCell(),
-        },
-    });
-    burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // Deploy CE with Ask — context is already in CE state from init.
+    // Reply triggers the operational message (no race condition).
+    deployBurnMintContextExecutorWithAsk(executor, requestMsg.queryId);
 
     return st;
 }
@@ -190,27 +276,12 @@ fun onReleaseOrMintContinue(
         [recipientWallet],
     );
 
-    deployBurnMintContextExecutor(executor);
-
-    val mint = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_MINT_VALUE,
-        dest: jettonClient.masterAddress,
-        body: MintNewJettons {
-            queryId: msg.queryId,
-            mintRecipient: details.receiver,
-            tonAmount: BurnMintTokenPool_MINT_VALUE,
-            internalTransferMsg: InternalTransferStep {
-                queryId: msg.queryId,
-                jettonAmount: prepared.localAmount,
-                transferInitiator: null,
-                sendExcessesTo: executor.calculateAddress(),
-                forwardTonAmount: 0,
-                forwardPayload: beginCell().storeBool(true).storeRef(context.toCell()).endCell().beginParse(),
-            }.toCell(),
-        },
-    });
-    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // Deploy CE with Ask — context is already in CE state from init.
+    // Reply triggers the operational message (no race condition).
+    deployBurnMintContextExecutorWithAsk(
+        executor,
+        msg.queryId,
+    );
 
     return st;
 }

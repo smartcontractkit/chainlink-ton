@@ -9,6 +9,7 @@ type LockReleaseLockboxTokenPool_InMessage =
     | ReturnExcessesBack
     | JettonLockBox_Deposited
     | JettonLockBox_WithdrawFailed
+    | ContextExecutor_Reply<LockReleaseLockboxTokenPool_ReleaseContext>
     | ContextExecutor_ForwardNotification<LockReleaseLockboxTokenPool_ReleaseContext>;
 
 type LockReleaseLockboxTokenPool_OutMessage =

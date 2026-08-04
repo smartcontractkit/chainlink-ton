@@ -258,14 +258,14 @@ export const ContextExecutor_Set = {
 /**
  > struct (0xcad4d1d0) ContextExecutor_Ask {
  >     queryId: uint64
- >     forwardPayload: cell
+ >     forwardPayload: cell?
  >     done: bool
  > }
  */
 export interface ContextExecutor_Ask {
     readonly $: 'ContextExecutor_Ask'
     queryId: uint64
-    forwardPayload: c.Cell
+    forwardPayload: c.Cell | null
     done: boolean
 }
 
@@ -274,7 +274,7 @@ export const ContextExecutor_Ask = {
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell
+        forwardPayload: c.Cell | null
         done: boolean
     }): ContextExecutor_Ask {
         return {
@@ -288,14 +288,16 @@ export const ContextExecutor_Ask = {
         return {
             $: 'ContextExecutor_Ask',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadRef(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
             done: s.loadBoolean(),
         }
     },
     store(self: ContextExecutor_Ask, b: c.Builder): void {
         b.storeUint(0xcad4d1d0, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.forwardPayload);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
         b.storeBit(self.done);
     },
     toCell(self: ContextExecutor_Ask): c.Cell {
@@ -309,7 +311,7 @@ export const ContextExecutor_Ask = {
  >     id: uint64
  >     context: Cell<T>
  >     forwardFrom: array<address>
- >     forwardPayload: cell
+ >     forwardPayload: cell?
  >     done: bool
  > }
  */
@@ -319,7 +321,7 @@ export interface ContextExecutor_Reply<T> {
     id: uint64
     context: T
     forwardFrom: array<c.Address>
-    forwardPayload: c.Cell
+    forwardPayload: c.Cell | null
     done: boolean
 }
 
@@ -331,7 +333,7 @@ export const ContextExecutor_Reply = {
         id: uint64
         context: T
         forwardFrom: array<c.Address>
-        forwardPayload: c.Cell
+        forwardPayload: c.Cell | null
         done: boolean
     }): ContextExecutor_Reply<T> {
         return {
@@ -506,7 +508,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ContextExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFAEAA5UAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASAMDQIBIAYHAElO2i7ftsIjJwIW+Ikly5jhAhpFIzb4EkxwWVXwR/2zHg6F8EcIAas+JHyQO1E0NM/+kjUbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidH4kviX+Jj4k3D4OviU+JUqyM7J8AHjAl8EhA8BxwDy9IAgC9wg0NcsIicw92TjAtcsJlamjoSOZmxh0z/U1woAyM+ST5bvFhPLPyfPCz8lzxQkb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU5BvgVj6UgGk5AHJAqHkMDECywf0AMwhzwoAycjPhQgT+lJxzwtuEszJAYMGgEDjBPsAf+CAJCgB2NALIyz/6Uswhb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU2BvgVj6UgGk5AHJAqHkMDEzzwsH9ADJ7VQB/jhfBjKCAKpQXccF8vTTP9RvAAHTB/QFkyBus44Q0PQEmvpIUERvjCPHABTmMOgwIW+IuvKJcMjLP8nIz5JPlu8WFMs/Js8LPyLPFCFviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTYG+BWPpSAaTkAckCoeQwMQLLB/QAE8zPgckLAPYwVHqYU6nwAo5rbwAHyPpSUAb6AhT0AFj6Ass/yx/MycjPkVbQSuYmzws/JM8UI2+Ic21UciGpBo4bAcj0AFMhtghRIqEimVOAb4FY+lIBpOQByQKh5DAxNc8LBxP0ABLMycjPhQhSQPpScc8LbszJgED7AH/gbGHQxwAAJsjPhQgU+lJxzwtuE8zJgED7AH8CASAODwBtvOyHaiaGmf/SQY6hi3gADpg/oCSZC3WccJAOh6Ak19JCgqt8YSY4AK8xgA9BiRN8QZgV15ROjAICchARAgEgEhMAXqlfjQjbGluay5jaGFpbi50b24uY2NpcC5Db250ZXh0RXhlY3V0b3KCLUwLjEuMIAGyoWu1E0NM/MfpIMdQxbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidEAbbSjvaiaGmfmP0kahi3gADpg/oCSZC3WccJAOh6Ak19JCgqt8YSY4AK8xgA9BiRN8QZgV15ROjAAbbQBfaiaGmfmP0kGOo3gADpg/oCSZC3WccJAOh6Ak19JCgqt8YSY4AK8xgA9BiRN8QZgV15ROjA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFQEAA5kAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASANDgIBIAYHAElO2i7ftsIjJwIW+Ikly5jhAhpFIzb4EkxwWVXwR/2zHg6F8EcIAas+JHyQO1E0NM/+kjUbwAB0wf0BJMhbrOOEgHQ9ASa+khQVW+MJMcAFeYwAegxIm+IWLryidH4kviX+Jj4k3D4OviU+JUqyM7J8AHjAl8EhA8BxwDy9IAgDRwg0NcsIicw92TjAtcsJlamjoTjAjBUephTqfAC4wJsYdDHAIAkKCwB2NALIyz/6Uswhb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU2BvgVj6UgGk5AHJAqHkMDEzzwsH9ADJ7VQB/jhfBjKCAKpQXccF8vTTP9RvAAHTB/QFkyBus44Q0PQEmvpIUERvjCPHABTmMOgwIW+IuvKJcMjLP8nIz5JPlu8WFMs/Js8LPyLPFCFviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTYG+BWPpSAaTkAckCoeQwMQLLB/QAE/QAz4EMANBsYdM/9ATXCgDIz5JPlu8WE8s/J88LPyXPFCRviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTkG+BWPpSAaTkAckCoeQwMQLLB/QA9AAhzwoAycjPhQgT+lJxzwtuEszJAYMGgEDjBPsAfwDWbwAHyPpSUAb6AhT0AFj6Ass/yx/MycjPkVbQSuYmzws/JM8UI2+Ic21UciGpBo4bAcj0AFMhtghRIqEimVOAb4FY+lIBpOQByQKh5DAxNc8LBxP0ABLMycjPhQhSQPpScc8LbszJgED7AH8AKMnIz4UIFPpScc8LbhPMyYBA+wB/AgEgDxAAbbzsh2omhpn/0kGOoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowCAnIREgIBIBMUAF6pX40I2xpbmsuY2hhaW4udG9uLmNjaXAuQ29udGV4dEV4ZWN1dG9ygi1MC4xLjCABsqFrtRNDTPzH6SDHUMW8AAdMH9ASTIW6zjhIB0PQEmvpIUFVvjCTHABXmMAHoMSJviFi68onRAG20o72omhpn5j9JGoYt4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTowAG20AX2omhpn5j9JBjqN4AA6YP6AkmQt1nHCQDoegJNfSQoKrfGEmOACvMYAPQYkTfEGYFdeUTow');
 
     static Errors = {
         'ContextExecutor_Error.OnlyCallableByOwner': 43600,
@@ -566,7 +568,7 @@ export class ContextExecutor implements c.Contract {
 
     static createCellOfContextExecutorAsk(body: {
         queryId?: uint64
-        forwardPayload: c.Cell
+        forwardPayload: c.Cell | null
         done: boolean
     }) {
         return ContextExecutor_Ask.toCell(ContextExecutor_Ask.create(body));
@@ -603,7 +605,7 @@ export class ContextExecutor implements c.Contract {
 
     async sendContextExecutorAsk(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        forwardPayload: c.Cell
+        forwardPayload: c.Cell | null
         done: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

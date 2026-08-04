@@ -7,4 +7,5 @@ enum BurnMintTokenPool_Error {
     UnexpectedBurnBounce = BurnMintTokenPool_FACILITY_ID * 100
     UnexpectedMintBounce
     ContextExecutorUnavailable
+    InvalidContextExecutorReply
 }

@@ -9,4 +9,5 @@ enum LockReleaseLockBoxTokenPool_Error {
     UnexpectedLockboxConfirmationSender
 
     UnexpectedLockBounce
+    InvalidContextExecutorReply
 }

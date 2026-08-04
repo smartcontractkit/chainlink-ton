@@ -47,6 +47,10 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
+        ContextExecutor_Reply<LockReleaseTokenPool_ReleaseContext> => {
+            onContextExecutorReply(mutate st, in.senderAddress, msg);
+            st.store();
+        }
         ContextExecutor_ForwardNotification<LockReleaseTokenPool_ReleaseContext> => {
             onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
@@ -57,14 +61,68 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun deployLockReleaseContextExecutor(executor: AutoDeployAddress): void {
+/// @notice Deploys a new ContextExecutor with an Ask message.
+/// The Ask carries the release context in forwardPayload. The pool awaits the Reply
+/// before sending the operational transfer message, ensuring sequential execution.
+/// @notice Deploys a ContextExecutor with an Ask message (empty forwardPayload).
+/// The context is already embedded in the CE state from init, so forwardPayload is not needed.
+/// @param executor The deterministic CE address to deploy.
+/// @param queryId QueryId for correlation between Ask and Reply.
+fun deployLockReleaseContextExecutor(
+    executor: AutoDeployAddress,
+    queryId: uint64,
+): void {
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
         value: LockReleaseTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
         dest: executor,
-        body: createEmptyCell().beginParse(),
+        body: ContextExecutor_Ask {
+            queryId: queryId,
+            forwardPayload: null,
+            done: false,
+        },
     });
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Validates a ContextExecutor_Reply by recomputing the expected CE address from
+/// the reply fields, then sends the AskToTransfer operational message.
+fun onContextExecutorReply(
+    mutate st: Storage,
+    sender: address,
+    msg: ContextExecutor_Reply<LockReleaseTokenPool_ReleaseContext>,
+) {
+    // Validate CE identity: recompute address from reply fields and compare to sender.
+    val expectedExecutor = ContextExecutor<LockReleaseTokenPool_ReleaseContext>.getAddress(
+        st.contextExecutorCode,
+        msg.id,
+        contract.getAddress(),
+        msg.context,
+        msg.forwardFrom,
+    );
+    assert(sender == expectedExecutor.calculateAddress(), Error.InvalidContextExecutorReply);
+
+    val context = msg.context.load();
+    val operation = context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+    val requestIn = lazy operation.requestMsg.load().request.load();
+    val details = lazy requestIn.transfer.details.load();
+
+    val transfer = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
+        dest: st.poolData.load().jettonClient().walletAddress(),
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: prepared.localAmount,
+            transferRecipient: details.receiver,
+            sendExcessesTo: sender,
+            customPayload: context.toCell(),
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    });
+    transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Handles bounced release messages: refunds rate limit and sends failure reply.
@@ -116,25 +174,9 @@ fun onReleaseOrMintContinue(
         [recipientWallet],
     );
 
-    deployLockReleaseContextExecutor(executor);
-
-    val ownWallet = jettonClient.walletAddress();
-
-    val transfer = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
-        dest: ownWallet,
-        body: AskToTransfer {
-            queryId: msg.queryId,
-            jettonAmount: prepared.localAmount,
-            transferRecipient: details.receiver,
-            sendExcessesTo: executor.calculateAddress(),
-            customPayload: context.toCell(),
-            forwardTonAmount: 0,
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-        },
-    });
-    transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // Deploy CE with Ask — context is already in CE state from init.
+    // The operational message (AskToTransfer) is sent after CE confirms.
+    deployLockReleaseContextExecutor(executor, msg.queryId);
 
     return st;
 }
