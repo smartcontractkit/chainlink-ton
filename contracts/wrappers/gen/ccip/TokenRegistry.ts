@@ -341,7 +341,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAiQABFP8A9KQT9LzyyAsBAPTT+JHyQCDXLCbq6ok8jjRb+JLtRND6SDH6SPpI0gDRbQGRMJEy4sjPk3czdtb6UvpUycjPhQgS+lJxzwtuzMmAQPsA4NcsJpIcPSSOJDH6SPpI1woA7UTQ+kj6SDH6SDHSADHRyPpSE/pS+lLKAMntVOAwhA8BxwDy9A==');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAgAABFP8A9KQT9LzyyAsBAOLT+JHyQCDXLCbq6ok8jjRb+JLtRND6SDH6SPpI0gDRbQGRMJEy4sjPk3czdtb6UvpUycjPhQgS+lJxzwtuzMmAQPsA4NcsJpIcPSSOGzH6SPpI1woA7UTQ+kgwyPpSE/pS+lLKAMntVOAwhA8BxwDy9A==');
 
     static Errors = {
     }

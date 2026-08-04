@@ -11,6 +11,8 @@ import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
 import "../token_registry/types"
+import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -19,6 +21,7 @@ type Router_InMsg =
     | OnRamp_MessageValidated_GetValidatedFeeContext
     | OnRamp_MessageValidationFailed_GetValidatedFeeContext
     | Router_RouteMessage
+    | Router_WithdrawToTokenPool
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
@@ -65,6 +68,20 @@ struct (0xfc69c50b) Router_RouteMessage {
     execId: ReceiveExecutorId;
     receiver: address;
     gasLimit: coins;
+}
+
+struct (0x19f0098f) Router_WithdrawToTokenPool {
+    queryID: uint64;
+    destChainSelector: uint64;
+    withdrawRequest: Cell<Router_WithdrawRequest>;
+}
+
+struct Router_WithdrawRequest {
+    /// Derived by SendExecutor
+    routerWalletAddress: address;
+    amount: coins;
+    tokenPool: address;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -127,9 +144,9 @@ struct (0x4dd6aa82) Router_GetValidatedFee<T> {
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
+    queryID: uint64,
     tokenPool: address,
-    tokenAmount: TokenAmount,
-    destChainSelector: uint64,
+    request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
 }
 

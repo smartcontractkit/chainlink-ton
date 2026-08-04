@@ -15,6 +15,7 @@ type OnRamp_InMessage =
     | FeeQuoter_MessageValidated_ToOnRamp
     | FeeQuoter_MessageValidationFailed_ToOnRamp
     | OnRamp_ExecutorRequestsLockOrBurn
+    | OnRamp_ExecutorRequestsWithdraw
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -52,10 +53,25 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
 }
 
 struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
-    tokenAmount: TokenAmount,
+    queryID: uint64,
+    tokenAmount: Cell<TokenAmount>, // Cell<> otherwise they don't fit
     tokenPool: address,
     destChainSelector: uint64,
     executorID: CCIPSendExecutor_ID,
+    receiver: Cell<CrossChainAddress>, // Cell<> otherwise they don't fit
+    originalSender: address,
+}
+
+// TODO real numbers
+fun OnRamp_ExecutorRequestsLockOrBurn.cost(): int {
+    return ton("1");
+}
+
+struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
+    queryID: uint64,
+    executorID: CCIPSendExecutor_ID,
+    destChainSelector: uint64,
+    withdrawRequest: Cell<Router_WithdrawRequest>,
 }
 
 struct OnRamp_GetValidatedFeeContext {
