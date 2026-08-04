@@ -9,7 +9,7 @@ import "types"
 struct Storage {
     poolData: Cell<TokenPool_Data>;
     // TODO: replace with sharded ContextExecutor per message
-    pendingReleases: map<uint64, Cell<LockReleaseTokenPool_PendingRelease>>;
+    pendingReleases: map<uint64, Cell<LockReleaseTokenPool_PendingRelease>> = [];
 }
 
 fun Storage.load(): Storage {

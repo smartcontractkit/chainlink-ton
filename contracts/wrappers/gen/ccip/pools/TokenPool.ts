@@ -321,18 +321,19 @@ export const CrossChainAddress = {
 export interface TokenPool_DynamicConfig {
     readonly $: 'TokenPool_DynamicConfig'
     router: c.Address
-    rateLimitAdmin: c.Address | null
+    rateLimitAdmin: c.Address | null /* = null */
     feeAdmin: c.Address | null
 }
 
 export const TokenPool_DynamicConfig = {
     create(args: {
         router: c.Address
-        rateLimitAdmin: c.Address | null
+        rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin: c.Address | null
     }): TokenPool_DynamicConfig {
         return {
             $: 'TokenPool_DynamicConfig',
+            rateLimitAdmin: null,
             ...args
         }
     },
@@ -363,15 +364,15 @@ export const TokenPool_DynamicConfig = {
  */
 export interface TokenPool_MirroredPolicy {
     readonly $: 'TokenPool_MirroredPolicy'
-    onRamps: Map<uint64, c.Address>
-    offRamps: Map<uint64, c.Address>
+    onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
+    offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
     cursedSubjects: CursedSubjects
 }
 
 export const TokenPool_MirroredPolicy = {
     create(args: {
-        onRamps: Map<uint64, c.Address>
-        offRamps: Map<uint64, c.Address>
+        onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
+        offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
         cursedSubjects: CursedSubjects
     }): TokenPool_MirroredPolicy {
         return {
@@ -595,7 +596,7 @@ export const TokenPool_ChainUpdate = {
 export interface TokenPool_RemoteChainConfig {
     readonly $: 'TokenPool_RemoteChainConfig'
     remoteTokenAddress: CrossChainAddress
-    remotePools: Map<uint256, CrossChainAddress>
+    remotePools: Map<uint256, CrossChainAddress> /* = [] as map<uint256, Cell<CrossChainAddress>> */
     rateLimiters: TokenPool_RateLimiterPair
     fastFinalityRateLimiters: TokenPool_RateLimiterPair
 }
@@ -603,7 +604,7 @@ export interface TokenPool_RemoteChainConfig {
 export const TokenPool_RemoteChainConfig = {
     create(args: {
         remoteTokenAddress: CrossChainAddress
-        remotePools: Map<uint256, CrossChainAddress>
+        remotePools: Map<uint256, CrossChainAddress> /* = [] as map<uint256, Cell<CrossChainAddress>> */
         rateLimiters: TokenPool_RateLimiterPair
         fastFinalityRateLimiters: TokenPool_RateLimiterPair
     }): TokenPool_RemoteChainConfig {
@@ -1188,7 +1189,7 @@ export interface TokenPool_AdminConfig {
     dynamicConfig: TokenPool_DynamicConfig
     jettonClient: JettonClient
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
-    advancedPoolHooks: c.Address | null
+    advancedPoolHooks: c.Address | null /* = null */
 }
 
 export const TokenPool_AdminConfig = {
@@ -1198,11 +1199,12 @@ export const TokenPool_AdminConfig = {
         dynamicConfig: TokenPool_DynamicConfig
         jettonClient: JettonClient
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
-        advancedPoolHooks: c.Address | null
+        advancedPoolHooks?: c.Address | null /* = null */
     }): TokenPool_AdminConfig {
         return {
             $: 'TokenPool_AdminConfig',
             allowedFinalityConfig: 0n,
+            advancedPoolHooks: null,
             ...args
         }
     },
@@ -1244,8 +1246,8 @@ export interface TokenPool_Data {
     adminConfig: TokenPool_AdminConfig
     mirroredPolicy: TokenPool_MirroredPolicy
     tokenDecimals: uint8
-    remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig>
-    tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig>
+    remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
+    tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
 }
 
 export const TokenPool_Data = {
@@ -1253,8 +1255,8 @@ export const TokenPool_Data = {
         adminConfig: TokenPool_AdminConfig
         mirroredPolicy: TokenPool_MirroredPolicy
         tokenDecimals: uint8
-        remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig>
-        tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig>
+        remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
+        tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
@@ -3342,12 +3344,12 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  */
 export interface CursedSubjects {
     readonly $: 'CursedSubjects'
-    data: Set<uint128>
+    data: Set<uint128> /* = [] as map<uint128, ()> */
 }
 
 export const CursedSubjects = {
     create(args: {
-        data: Set<uint128>
+        data: Set<uint128> /* = [] as map<uint128, ()> */
     }): CursedSubjects {
         return {
             $: 'CursedSubjects',
@@ -3590,16 +3592,17 @@ export const JettonClient = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -3690,8 +3693,8 @@ export class TokenPool implements c.Contract {
         adminConfig: TokenPool_AdminConfig
         mirroredPolicy: TokenPool_MirroredPolicy
         tokenDecimals: uint8
-        remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig>
-        tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig>
+        remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
+        tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,
@@ -3844,6 +3847,14 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }

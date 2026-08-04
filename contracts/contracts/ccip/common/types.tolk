@@ -28,7 +28,9 @@ struct RampMessageHeader { // 512
     nonce: uint64;
 }
 
-const LEAF_DOMAIN_SEPARATOR: slice = "0000000000000000000000000000000000000000000000000000000000000000".hexToSlice();
+const LEAF_DOMAIN_SEPARATOR: bits256 = "0000000000000000000000000000000000000000000000000000000000000000".hexToSlice() as bits256;
+
+type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1;
 
 // nolint:opcode : hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2"))
 struct (0x181dcf10) GenericExtraArgsV2 {

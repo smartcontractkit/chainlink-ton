@@ -2,8 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
-import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
+import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import {
   Ownable2Step,
   CrossChainAddress,
@@ -33,6 +32,7 @@ import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pool
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 describe('BurnMintTokenPool', () => {
   let blockchain: Blockchain
@@ -41,7 +41,7 @@ describe('BurnMintTokenPool', () => {
   let unauthorized: SandboxContract<TreasuryContract>
   let recipient: SandboxContract<TreasuryContract>
 
-  let cctMinter: SandboxContract<CCTJettonMinter>
+  let cctMinter: SandboxContract<cct.JettonMinter>
   let cctMinterRuntime: SandboxContract<JettonMinter>
   let burnMintPool: SandboxContract<BurnMintTokenPool>
   let pool: SandboxContract<TokenPool>
@@ -68,19 +68,19 @@ describe('BurnMintTokenPool', () => {
     unauthorized = await blockchain.treasury('unauthorized')
     recipient = await blockchain.treasury('recipient')
 
-    cctWalletCode = await CCTJettonWalletCode()
-    const cctMinterCode = await CCTJettonMinterCode()
+    cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
+    const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
 
     cctMinter = blockchain.openContract(
-      CCTJettonMinter.createFromConfig(
-        {
+      cct.JettonMinter.fromStorage(
+        cct.MinterStorage.create({
           totalSupply: 0n,
           adminAddress: deployer.address,
           nextAdminAddress: null,
           jettonWalletCode: cctWalletCode,
           metadataUri: 'cct-test',
-        },
-        cctMinterCode,
+        }),
+        { overrideContractCode: cctMinterCode },
       ),
     )
     await cctMinter.sendDeploy(deployer.getSender(), toNano('1'))

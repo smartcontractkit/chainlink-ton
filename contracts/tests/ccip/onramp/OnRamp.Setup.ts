@@ -1,19 +1,17 @@
-import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { randomAddress } from '@ton/test-utils'
+import { ChainSelectors } from '../../utils/Selectors'
 
-type OnRampOverrides = Partial<Omit<or.OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
-  config?: Partial<or.OnRampStorage['config']>
-  executor?: Partial<or.OnRampStorage['executor']>
-  ownable?: Partial<or.OnRampStorage['ownable']>
+type OnRampOverrides = Partial<Omit<or.OnRamp_Storage, '$' | 'config' | 'executor' | 'ownable'>> & {
+  config?: Partial<Omit<or.OnRamp_DynamicConfig, '$'>>
+  executor?: Partial<Omit<or.ExecutorDeployment, '$'>>
+  ownable?: Partial<Omit<or.Ownable2Step, '$'>>
 }
-
-export const CHAINSEL_EVM_TEST = 909606746561742123n
-export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
-export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
 // Deprecated, use deployOnRampContractW instead for more flexibility in tests. Will be removed in a future version.
 // TODO: refactor existing tests to use deployOnRampContractW and remove this function.
@@ -33,46 +31,48 @@ export async function deployOnRampContractW(
     overrides?: OnRampOverrides
   } = {},
 ) {
-  const code = opt.code ?? (await or.OnRamp.code())
-  const defaults: or.OnRampStorage = {
+  const code = opt.code ?? (await contractCode.ccip.local('OnRamp'))
+  const defaults = {
     id: generateRandomContractId(),
-    ownable: {
+    ownable: or.Ownable2Step.create({
       owner: owner.address,
       pendingOwner: null,
-    },
-    chainSelector: CHAINSEL_TON,
-    config: {
+    }),
+    chainSelector: ChainSelectors.testnet.ton,
+    config: or.OnRamp_DynamicConfig.create({
       feeQuoter: randomAddress(),
       feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
       allowlistAdmin: owner.address,
       reserve: toNano('0.05'),
-    },
-    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-    executor: {
+    }),
+    destChainConfigs: new Map(),
+    executor: or.ExecutorDeployment.create({
       deployableCode: beginCell().endCell(),
       executorCode: beginCell().endCell(),
-    },
+    }),
   }
 
-  const config = {
+  const config = or.OnRamp_DynamicConfig.create({
     ...defaults.config,
     ...(opt.overrides?.config ?? {}),
-  }
+  })
 
-  const data: or.OnRampStorage = {
+  const data = or.OnRamp_Storage.create({
     ...defaults,
     ...(opt.overrides ?? {}),
-    ownable: {
+    ownable: or.Ownable2Step.create({
       ...defaults.ownable,
       ...(opt.overrides?.ownable ?? {}),
-    },
+    }),
     config,
-    executor: {
+    executor: or.ExecutorDeployment.create({
       ...defaults.executor,
       ...(opt.overrides?.executor ?? {}),
-    },
-  }
-  const onramp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
+    }),
+  })
+  const onramp = blockchain.openContract(
+    or.OnRamp.fromStorage(data, { overrideContractCode: code }),
+  )
   const deployer = await blockchain.treasury('deployer')
   await onramp.sendDeploy(deployer.getSender(), toNano('0.1'))
   return { onramp, config }

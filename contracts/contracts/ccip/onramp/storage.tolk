@@ -12,7 +12,7 @@ struct OnRamp_Storage {
     // dynamic config
     config: Cell<OnRamp_DynamicConfig>;
 
-    destChainConfigs: map<uint64, OnRamp_DestChainConfig>; // chainSelector -> DestChainConfig
+    destChainConfigs: map<uint64, OnRamp_DestChainConfig> = []; // chainSelector -> DestChainConfig
     //TODO: store the executor code cell inlined when we migrate to Acton
     executor: ExecutorDeployment;
 }

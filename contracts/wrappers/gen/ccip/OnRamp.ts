@@ -67,6 +67,16 @@ function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerialize
 }
 
 
+function storeTolkBitsN(v: c.Slice, nBits: number, b: c.Builder): void {
+    if (v.remainingBits !== nBits) { throw new Error(`expected ${nBits} bits, got ${v.remainingBits}`); }
+    if (v.remainingRefs !== 0) { throw new Error(`expected 0 refs, got ${v.remainingRefs}`); }
+    b.storeSlice(v);
+}
+
+function loadTolkBitsN(s: c.Slice, nBits: number): c.Slice {
+    return new c.Slice(new c.BitReader(s.loadBits(nBits)), []);
+}
+
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
 }
@@ -258,6 +268,8 @@ type uint96 = bigint
 type uint224 = bigint
 type uint256 = bigint
 
+type bits256 = c.Slice
+
 /**
  > struct ContractState {
  >     code: cell
@@ -318,6 +330,27 @@ export const UnsafeBodyNoRef = {
 }
 
 /**
+ > enum Ownable2Step_Error { 3 variants }
+ */
+export type Ownable2Step_Error = bigint
+
+export const Ownable2Step_Error = {
+    OnlyCallableByOwner: 49800n,
+    CannotTransferToSelf: 49801n,
+    MustBeProposedOwner: 49802n,
+
+    fromSlice(s: c.Slice): Ownable2Step_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Ownable2Step_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Ownable2Step_Error): c.Cell {
+        return makeCellFrom<Ownable2Step_Error>(self, Ownable2Step_Error.store);
+    }
+}
+
+/**
  > struct Ownable2Step {
  >     owner: address
  >     pendingOwner: address?
@@ -326,16 +359,17 @@ export const UnsafeBodyNoRef = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -352,6 +386,87 @@ export const Ownable2Step = {
     },
     toCell(self: Ownable2Step): c.Cell {
         return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
+    }
+}
+
+/**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
     }
 }
 
@@ -489,6 +604,25 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  > type RemainingBitsOrRef<T> = T
  */
 export type RemainingBitsOrRef<T> = T
+
+/**
+ > enum Upgradeable_Error { 1 variants }
+ */
+export type Upgradeable_Error = bigint
+
+export const Upgradeable_Error = {
+    VersionMismatch: 19900n,
+
+    fromSlice(s: c.Slice): Upgradeable_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: Upgradeable_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: Upgradeable_Error): c.Cell {
+        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
+    }
+}
 
 /**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
@@ -722,6 +856,39 @@ export const RampMessageHeader = {
 }
 
 /**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
+    }
+}
+
+/**
  > struct (0x181dcf10) GenericExtraArgsV2 {
  >     gasLimit: uint256?
  >     allowOutOfOrderExecution: bool
@@ -937,7 +1104,7 @@ export const CCIPSendExecutor_ID = {
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -948,7 +1115,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
@@ -961,7 +1128,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -979,12 +1146,7 @@ export const Router_CCIPSend = {
             data: s.loadRef(),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -995,19 +1157,7 @@ export const Router_CCIPSend = {
         b.storeRef(self.data);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
@@ -1695,6 +1845,55 @@ export const Metadata = {
 }
 
 /**
+ > struct TVM2AnyRampMessageV1Metadata {
+ >     _header: uint256
+ >     sourceChainSelector: uint64
+ >     destChainSelector: uint64
+ >     onRamp: address
+ > }
+ */
+export interface TVM2AnyRampMessageV1Metadata {
+    readonly $: 'TVM2AnyRampMessageV1Metadata'
+    _header: uint256 /* = 24752961534812799027575933036807667101372243812494585071085162862093895970164 */
+    sourceChainSelector: uint64
+    destChainSelector: uint64
+    onRamp: c.Address
+}
+
+export const TVM2AnyRampMessageV1Metadata = {
+    create(args: {
+        _header?: uint256 /* = 24752961534812799027575933036807667101372243812494585071085162862093895970164 */
+        sourceChainSelector: uint64
+        destChainSelector: uint64
+        onRamp: c.Address
+    }): TVM2AnyRampMessageV1Metadata {
+        return {
+            $: 'TVM2AnyRampMessageV1Metadata',
+            _header: 24752961534812799027575933036807667101372243812494585071085162862093895970164n,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TVM2AnyRampMessageV1Metadata {
+        return {
+            $: 'TVM2AnyRampMessageV1Metadata',
+            _header: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            onRamp: s.loadAddress(),
+        }
+    },
+    store(self: TVM2AnyRampMessageV1Metadata, b: c.Builder): void {
+        b.storeUint(self._header, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeAddress(self.onRamp);
+    },
+    toCell(self: TVM2AnyRampMessageV1Metadata): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessageV1Metadata>(self, TVM2AnyRampMessageV1Metadata.store);
+    }
+}
+
+/**
  > struct TVM2AnyRampMessage {
  >     header: RampMessageHeader
  >     sender: address
@@ -1746,7 +1945,7 @@ export const TVM2AnyRampMessage = {
  > struct TVM2AnyRampMessageBody {
  >     receiver: Cell<CrossChainAddress>
  >     data: cell
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  >     tokenTransfer: Cell<TVM2AnyTokenTransfer>
  >     feeToken: address
  >     feeTokenAmount: coins
@@ -1756,7 +1955,7 @@ export interface TVM2AnyRampMessageBody {
     readonly $: 'TVM2AnyRampMessageBody'
     receiver: CrossChainAddress
     data: c.Cell
-    extraArgs: c.Cell
+    extraArgs: ExtraArgs
     tokenTransfer: TVM2AnyTokenTransfer
     feeToken: c.Address
     feeTokenAmount: coins
@@ -1766,7 +1965,7 @@ export const TVM2AnyRampMessageBody = {
     create(args: {
         receiver: CrossChainAddress
         data: c.Cell
-        extraArgs: c.Cell
+        extraArgs: ExtraArgs
         tokenTransfer: TVM2AnyTokenTransfer
         feeToken: c.Address
         feeTokenAmount: coins
@@ -1781,7 +1980,7 @@ export const TVM2AnyRampMessageBody = {
             $: 'TVM2AnyRampMessageBody',
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             data: s.loadRef(),
-            extraArgs: s.loadRef(),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
             tokenTransfer: loadCellRef<TVM2AnyTokenTransfer>(s, TVM2AnyTokenTransfer.fromSlice),
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
@@ -1790,7 +1989,7 @@ export const TVM2AnyRampMessageBody = {
     store(self: TVM2AnyRampMessageBody, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeRef(self.data);
-        b.storeRef(self.extraArgs);
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
         storeCellRef<TVM2AnyTokenTransfer>(self.tokenTransfer, b, TVM2AnyTokenTransfer.store);
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
@@ -1839,6 +2038,98 @@ export const TVM2AnyTokenTransfer = {
 }
 
 /**
+ > struct TVM2AnyRampMessageIDData {
+ >     _leafDomainSeparator: bits256
+ >     metadataHash: uint256
+ >     metadata: TVM2AnyRampMessageIDHeader
+ >     body: cell
+ > }
+ */
+export interface TVM2AnyRampMessageIDData {
+    readonly $: 'TVM2AnyRampMessageIDData'
+    _leafDomainSeparator: bits256 /* = hex('0000000000000000000000000000000000000000000000000000000000000000') as slice as bits256 */
+    metadataHash: uint256
+    metadata: TVM2AnyRampMessageIDHeader
+    body: c.Cell
+}
+
+export const TVM2AnyRampMessageIDData = {
+    create(args: {
+        _leafDomainSeparator?: bits256 /* = hex('0000000000000000000000000000000000000000000000000000000000000000') as slice as bits256 */
+        metadataHash: uint256
+        metadata: TVM2AnyRampMessageIDHeader
+        body: c.Cell
+    }): TVM2AnyRampMessageIDData {
+        return {
+            $: 'TVM2AnyRampMessageIDData',
+            _leafDomainSeparator: new c.Slice(new c.BitReader(new c.BitString(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0, 256)), []),
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TVM2AnyRampMessageIDData {
+        return {
+            $: 'TVM2AnyRampMessageIDData',
+            _leafDomainSeparator: loadTolkBitsN(s, 256),
+            metadataHash: s.loadUintBig(256),
+            metadata: TVM2AnyRampMessageIDHeader.fromSlice(s),
+            body: s.loadRef(),
+        }
+    },
+    store(self: TVM2AnyRampMessageIDData, b: c.Builder): void {
+        storeTolkBitsN(self._leafDomainSeparator, 256, b);
+        b.storeUint(self.metadataHash, 256);
+        TVM2AnyRampMessageIDHeader.store(self.metadata, b);
+        b.storeRef(self.body);
+    },
+    toCell(self: TVM2AnyRampMessageIDData): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessageIDData>(self, TVM2AnyRampMessageIDData.store);
+    }
+}
+
+/**
+ > struct TVM2AnyRampMessageIDHeader {
+ >     sender: address
+ >     sequenceNumber: uint64
+ >     nonce: uint64
+ > }
+ */
+export interface TVM2AnyRampMessageIDHeader {
+    readonly $: 'TVM2AnyRampMessageIDHeader'
+    sender: c.Address
+    sequenceNumber: uint64
+    nonce: uint64
+}
+
+export const TVM2AnyRampMessageIDHeader = {
+    create(args: {
+        sender: c.Address
+        sequenceNumber: uint64
+        nonce: uint64
+    }): TVM2AnyRampMessageIDHeader {
+        return {
+            $: 'TVM2AnyRampMessageIDHeader',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TVM2AnyRampMessageIDHeader {
+        return {
+            $: 'TVM2AnyRampMessageIDHeader',
+            sender: s.loadAddress(),
+            sequenceNumber: s.loadUintBig(64),
+            nonce: s.loadUintBig(64),
+        }
+    },
+    store(self: TVM2AnyRampMessageIDHeader, b: c.Builder): void {
+        b.storeAddress(self.sender);
+        b.storeUint(self.sequenceNumber, 64);
+        b.storeUint(self.nonce, 64);
+    },
+    toCell(self: TVM2AnyRampMessageIDHeader): c.Cell {
+        return makeCellFrom<TVM2AnyRampMessageIDHeader>(self, TVM2AnyRampMessageIDHeader.store);
+    }
+}
+
+/**
  > struct OnRamp_Storage {
  >     id: uint32
  >     ownable: Ownable2Step
@@ -1854,7 +2145,7 @@ export interface OnRamp_Storage {
     ownable: Ownable2Step
     chainSelector: uint64
     config: OnRamp_DynamicConfig
-    destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+    destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
     executor: ExecutorDeployment
 }
 
@@ -1864,7 +2155,7 @@ export const OnRamp_Storage = {
         ownable: Ownable2Step
         chainSelector: uint64
         config: OnRamp_DynamicConfig
-        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
         executor: ExecutorDeployment
     }): OnRamp_Storage {
         return {
@@ -1897,6 +2188,86 @@ export const OnRamp_Storage = {
 }
 
 /**
+ > enum OnRamp_Error { 6 variants }
+ */
+export type OnRamp_Error = bigint
+
+export const OnRamp_Error = {
+    UnknownDestChainSelector: 13400n,
+    Unauthorized: 13401n,
+    SenderNotAllowed: 13402n,
+    InvalidConfig: 13403n,
+    UnknownToken: 13404n,
+    InsufficientValue: 13405n,
+
+    fromSlice(s: c.Slice): OnRamp_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: OnRamp_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: OnRamp_Error): c.Cell {
+        return makeCellFrom<OnRamp_Error>(self, OnRamp_Error.store);
+    }
+}
+
+/**
+ > type FeeQuoter_MessageValidated_ToOnRamp = FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
+ */
+export type FeeQuoter_MessageValidated_ToOnRamp = FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
+
+export const FeeQuoter_MessageValidated_ToOnRamp = {
+    fromSlice(s: c.Slice): FeeQuoter_MessageValidated_ToOnRamp {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x1fa60374, 'FeeQuoter_MessageValidated');
+            return {
+                $: 'FeeQuoter_MessageValidated',
+                fee: Fee.fromSlice(s),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: OnRamp_GetValidatedFeeContext.fromSlice(s),
+            }
+        })();
+    },
+    store(self: FeeQuoter_MessageValidated_ToOnRamp, b: c.Builder): void {
+        b.storeUint(0x1fa60374, 32);
+        Fee.store(self.fee, b);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        OnRamp_GetValidatedFeeContext.store(self.context, b);
+    },
+    toCell(self: FeeQuoter_MessageValidated_ToOnRamp): c.Cell {
+        return makeCellFrom<FeeQuoter_MessageValidated_ToOnRamp>(self, FeeQuoter_MessageValidated_ToOnRamp.store);
+    }
+}
+
+/**
+ > type FeeQuoter_MessageValidationFailed_ToOnRamp = FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
+ */
+export type FeeQuoter_MessageValidationFailed_ToOnRamp = FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
+
+export const FeeQuoter_MessageValidationFailed_ToOnRamp = {
+    fromSlice(s: c.Slice): FeeQuoter_MessageValidationFailed_ToOnRamp {
+        return (() => {
+            loadAndCheckPrefix32(s, 0xbcf0ab0f, 'FeeQuoter_MessageValidationFailed');
+            return {
+                $: 'FeeQuoter_MessageValidationFailed',
+                error: s.loadUintBig(256),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: OnRamp_GetValidatedFeeContext.fromSlice(s),
+            }
+        })();
+    },
+    store(self: FeeQuoter_MessageValidationFailed_ToOnRamp, b: c.Builder): void {
+        b.storeUint(0xbcf0ab0f, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        OnRamp_GetValidatedFeeContext.store(self.context, b);
+    },
+    toCell(self: FeeQuoter_MessageValidationFailed_ToOnRamp): c.Cell {
+        return makeCellFrom<FeeQuoter_MessageValidationFailed_ToOnRamp>(self, FeeQuoter_MessageValidationFailed_ToOnRamp.store);
+    }
+}
+
+/**
  > struct (0xdcf993c2) OnRamp_Send {
  >     msg: Cell<Router_CCIPSend>
  >     metadata: Metadata
@@ -1907,7 +2278,7 @@ export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: Router_CCIPSend
     metadata: Metadata
-    tokenRegistry: c.Address | null
+    tokenRegistry: c.Address | null /* = null */
 }
 
 export const OnRamp_Send = {
@@ -1916,10 +2287,11 @@ export const OnRamp_Send = {
     create(args: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
+            tokenRegistry: null,
             ...args
         }
     },
@@ -1940,6 +2312,32 @@ export const OnRamp_Send = {
     },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
+    }
+}
+
+/**
+ > type OnRamp_GetValidatedFee_Any = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+ */
+export type OnRamp_GetValidatedFee_Any = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+
+export const OnRamp_GetValidatedFee_Any = {
+    fromSlice(s: c.Slice): OnRamp_GetValidatedFee_Any {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
+            return {
+                $: 'OnRamp_GetValidatedFee',
+                ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: OnRamp_GetValidatedFee_Any, b: c.Builder): void {
+        b.storeUint(0x9c2ccc7e, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: OnRamp_GetValidatedFee_Any): c.Cell {
+        return makeCellFrom<OnRamp_GetValidatedFee_Any>(self, OnRamp_GetValidatedFee_Any.store);
     }
 }
 
@@ -2317,6 +2715,34 @@ export const OnRamp_UpdateAllowlists = {
 }
 
 /**
+ > type OnRamp_MessageValidated_Any = OnRamp_MessageValidated<RemainingBitsAndRefs>
+ */
+export type OnRamp_MessageValidated_Any = OnRamp_MessageValidated<RemainingBitsAndRefs>
+
+export const OnRamp_MessageValidated_Any = {
+    fromSlice(s: c.Slice): OnRamp_MessageValidated_Any {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
+            return {
+                $: 'OnRamp_MessageValidated',
+                fee: s.loadCoins(),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: OnRamp_MessageValidated_Any, b: c.Builder): void {
+        b.storeUint(0x2afb11bd, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: OnRamp_MessageValidated_Any): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidated_Any>(self, OnRamp_MessageValidated_Any.store);
+    }
+}
+
+/**
  > struct (0x2afb11bd) OnRamp_MessageValidated<T> {
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
@@ -2343,6 +2769,34 @@ export const OnRamp_MessageValidated = {
             ...args
         }
     },
+}
+
+/**
+ > type OnRamp_MessageValidationFailed_Any = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+ */
+export type OnRamp_MessageValidationFailed_Any = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+
+export const OnRamp_MessageValidationFailed_Any = {
+    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed_Any {
+        return (() => {
+            loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
+            return {
+                $: 'OnRamp_MessageValidationFailed',
+                error: s.loadUintBig(256),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: OnRamp_MessageValidationFailed_Any, b: c.Builder): void {
+        b.storeUint(0xac1dd12e, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: OnRamp_MessageValidationFailed_Any): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidationFailed_Any>(self, OnRamp_MessageValidationFailed_Any.store);
+    }
 }
 
 /**
@@ -2450,15 +2904,15 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRamp implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
-        'Common_Error.CrossChainAddressOutOfRange': 5,
-        'Error.UnknownDestChainSelector': 13400,
-        'Error.Unauthorized': 13401,
-        'Error.UnknownToken': 13404,
-        'Error.InsufficientValue': 13405,
-        'Utils_Error.InvalidData': 13500,
+        'OnRamp_Error.UnknownDestChainSelector': 13400,
+        'OnRamp_Error.Unauthorized': 13401,
+        'OnRamp_Error.SenderNotAllowed': 13402,
+        'OnRamp_Error.InvalidConfig': 13403,
+        'OnRamp_Error.UnknownToken': 13404,
+        'OnRamp_Error.InsufficientValue': 13405,
         'Upgradeable_Error.VersionMismatch': 19900,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
@@ -2493,7 +2947,7 @@ export class OnRamp implements c.Contract {
         ownable: Ownable2Step
         chainSelector: uint64
         config: OnRamp_DynamicConfig
-        destChainConfigs: Map<uint64, OnRamp_DestChainConfig>
+        destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
         executor: ExecutorDeployment
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -2507,46 +2961,21 @@ export class OnRamp implements c.Contract {
     static createCellOfOnRampSend(body: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }) {
         return OnRamp_Send.toCell(OnRamp_Send.create(body));
     }
 
-    static createCellOfOnRampGetValidatedFeeRemainingBitsAndRefs_(body: {
-        ccipSend: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }) {
-        return makeCellFrom<OnRamp_GetValidatedFee<RemainingBitsAndRefs>>(OnRamp_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-            (v,b) => { b.storeUint(0x9c2ccc7e, 32);
-            storeCellRef<Router_CCIPSend>(v.ccipSend, b, Router_CCIPSend.store);
-            storeTolkRemaining(v.context, b); }
-        );
+    static createCellOfOnRampGetValidatedFeeAny(body: OnRamp_GetValidatedFee_Any) {
+        return OnRamp_GetValidatedFee_Any.toCell(body);
     }
 
-    static createCellOfFeeQuoterMessageValidatedOnRampGetValidatedFeeContext_(body: {
-        fee: Fee
-        msg: Router_CCIPSend
-        context: OnRamp_GetValidatedFeeContext
-    }) {
-        return makeCellFrom<FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidated.create<OnRamp_GetValidatedFeeContext>(body),
-            (v,b) => { b.storeUint(0x1fa60374, 32);
-            Fee.store(v.fee, b);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            OnRamp_GetValidatedFeeContext.store(v.context, b); }
-        );
+    static createCellOfFeeQuoterMessageValidatedToOnRamp(body: FeeQuoter_MessageValidated_ToOnRamp) {
+        return FeeQuoter_MessageValidated_ToOnRamp.toCell(body);
     }
 
-    static createCellOfFeeQuoterMessageValidationFailedOnRampGetValidatedFeeContext_(body: {
-        error: uint256
-        msg: Router_CCIPSend
-        context: OnRamp_GetValidatedFeeContext
-    }) {
-        return makeCellFrom<FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidationFailed.create<OnRamp_GetValidatedFeeContext>(body),
-            (v,b) => { b.storeUint(0xbcf0ab0f, 32);
-            b.storeUint(v.error, 256);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            OnRamp_GetValidatedFeeContext.store(v.context, b); }
-        );
+    static createCellOfFeeQuoterMessageValidationFailedToOnRamp(body: FeeQuoter_MessageValidationFailed_ToOnRamp) {
+        return FeeQuoter_MessageValidationFailed_ToOnRamp.toCell(body);
     }
 
     static createCellOfOnRampExecutorRequestsLockOrBurn(body: {
@@ -2614,6 +3043,19 @@ export class OnRamp implements c.Contract {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2622,10 +3064,18 @@ export class OnRamp implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendOnRampSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2634,51 +3084,26 @@ export class OnRamp implements c.Contract {
         });
     }
 
-    async sendOnRampGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        ccipSend: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }, extraOptions?: ExtraSendOptions) {
+    async sendOnRampGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<OnRamp_GetValidatedFee<RemainingBitsAndRefs>>(OnRamp_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-                (v,b) => { b.storeUint(0x9c2ccc7e, 32);
-                storeCellRef<Router_CCIPSend>(v.ccipSend, b, Router_CCIPSend.store);
-                storeTolkRemaining(v.context, b); }
-            ),
+            body: OnRamp_GetValidatedFee_Any.toCell(body),
             ...extraOptions
         });
     }
 
-    async sendFeeQuoterMessageValidatedOnRampGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        fee: Fee
-        msg: Router_CCIPSend
-        context: OnRamp_GetValidatedFeeContext
-    }, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterMessageValidatedToOnRamp(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidated_ToOnRamp, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidated.create<OnRamp_GetValidatedFeeContext>(body),
-                (v,b) => { b.storeUint(0x1fa60374, 32);
-                Fee.store(v.fee, b);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                OnRamp_GetValidatedFeeContext.store(v.context, b); }
-            ),
+            body: FeeQuoter_MessageValidated_ToOnRamp.toCell(body),
             ...extraOptions
         });
     }
 
-    async sendFeeQuoterMessageValidationFailedOnRampGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        error: uint256
-        msg: Router_CCIPSend
-        context: OnRamp_GetValidatedFeeContext
-    }, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterMessageValidationFailedToOnRamp(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidationFailed_ToOnRamp, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>>(FeeQuoter_MessageValidationFailed.create<OnRamp_GetValidatedFeeContext>(body),
-                (v,b) => { b.storeUint(0xbcf0ab0f, 32);
-                b.storeUint(v.error, 256);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                OnRamp_GetValidatedFeeContext.store(v.context, b); }
-            ),
+            body: FeeQuoter_MessageValidationFailed_ToOnRamp.toCell(body),
             ...extraOptions
         });
     }
@@ -2780,6 +3205,27 @@ export class OnRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }

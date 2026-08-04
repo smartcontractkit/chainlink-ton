@@ -254,12 +254,12 @@ export const TransferNotificationForRecipient = {
  */
 export interface AccessControl_Data {
     readonly $: 'AccessControl_Data'
-    roles: Map<uint256, AccessControl_RoleData>
+    roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
 }
 
 export const AccessControl_Data = {
     create(args: {
-        roles: Map<uint256, AccessControl_RoleData>
+        roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
     }): AccessControl_Data {
         return {
             $: 'AccessControl_Data',
@@ -300,14 +300,14 @@ export interface AccessControl_RoleData {
     readonly $: 'AccessControl_RoleData'
     adminRole: uint256
     membersLen: uint64
-    hasRole: Map<c.Address, boolean>
+    hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
 }
 
 export const AccessControl_RoleData = {
     create(args: {
         adminRole: uint256
         membersLen: uint64
-        hasRole: Map<c.Address, boolean>
+        hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
     }): AccessControl_RoleData {
         return {
             $: 'AccessControl_RoleData',
@@ -853,6 +853,14 @@ export class JettonLockBox implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }

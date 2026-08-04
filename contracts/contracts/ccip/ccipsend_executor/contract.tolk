@@ -26,6 +26,8 @@ contract CCIPSendExecutor {
     storage: CCIPSendExecutor_Data
     storageAtDeployment: CCIPSendExecutor_InitialData
     incomingMessages: CCIPSendExecutor_InMessage
+    // TBD Acton is not detecting InsufficientFunds and FeeQuoterBounce.
+    thrownErrors: CCIPSendExecutor_Error | Utils_Error
 }
 
 fun onInternalMessage(in: InMessage) {

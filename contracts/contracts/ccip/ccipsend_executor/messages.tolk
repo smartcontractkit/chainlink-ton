@@ -6,10 +6,13 @@ import "../pools/lib/token_pool/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
-    | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+    | FeeQuoter_MessageValidated_Any
+    | FeeQuoter_MessageValidationFailed_Any
     | TokenRegistry_ReturnTokenInfo
     | TokenPool_LockOrBurnFinished;
+
+type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
@@ -29,8 +32,8 @@ fun SendExecutor_Costs.Deploy(): int {
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
-    val baseFee =
-        + ton("0.002") // computeFee
+    return
+        ton("0.002") // computeFee
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())

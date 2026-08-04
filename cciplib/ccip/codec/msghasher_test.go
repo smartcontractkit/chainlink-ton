@@ -5,7 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,6 +23,31 @@ import (
 
 	mocks "github.com/smartcontractkit/chainlink-ton/cciplib/mocks/ccipocr3"
 )
+
+// any2TVMMessageIDGoldenPath points at the single source of truth for the expected
+// MessageID of the fixed message used below, shared with the TypeScript and Tolk
+// implementations (see contracts/tests/ccip/offramp/OffRamp.messageID.spec.ts).
+const any2TVMMessageIDGoldenPath = "../../../testdata/golden/any2tvm_message_id.json"
+
+// loadAny2TVMMessageIDGolden reads the golden MessageID that the Go, TypeScript, and Tolk
+// implementations of the Any2TVM message hasher must all agree on.
+func loadAny2TVMMessageIDGolden(t *testing.T) ccipocr3.Bytes32 {
+	data, err := os.ReadFile(any2TVMMessageIDGoldenPath)
+	require.NoError(t, err)
+
+	var golden struct {
+		MessageID string `json:"messageId"`
+	}
+	require.NoError(t, json.Unmarshal(data, &golden))
+
+	decoded, err := hex.DecodeString(strings.TrimPrefix(golden.MessageID, "0x"))
+	require.NoError(t, err)
+
+	require.Len(t, decoded, 32, "golden messageID must be exactly 32 bytes")
+	var messageID ccipocr3.Bytes32
+	copy(messageID[:], decoded)
+	return messageID
+}
 
 // Extract a single message from the executecodec_test.go helper
 func randomTONMessage(t *testing.T, sourceChainSelector uint64) ccipocr3.Message {
@@ -198,7 +226,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 			Header: ccipocr3.RampMessageHeader{
 				MessageID:           messageID,
 				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),
-				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094),
+				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768),
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
 				OnRamp:              evmOnrampBytes,
@@ -286,8 +314,8 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		msg := ccipocr3.Message{
 			Header: ccipocr3.RampMessageHeader{
 				MessageID:           messageID,
-				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),   // CHAINSEL_EVM_TEST_90000001
-				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094), // CHAINSEL_TON
+				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),  // CHAINSEL_EVM_TEST_90000001
+				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768), // CHAINSEL_TON
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
 				OnRamp:              evmOnrampBytes,
@@ -305,17 +333,10 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		hash, err := hasher.Hash(ctx, msg)
 		require.NoError(t, err)
 
-		// Run the TypeScript file to get this value:
-		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "ce60f1962af3c7c7f9d3e434dea13530564dbff46704d628ff4b2206bbc93289"
-		expectedHash, err := hex.DecodeString(expectedHashHex)
-		require.NoError(t, err)
+		golden := loadAny2TVMMessageIDGolden(t)
 
-		var expectedHashArray [32]byte
-		copy(expectedHashArray[:], expectedHash)
-
-		assert.Equal(t, ccipocr3.Bytes32(expectedHashArray), hash,
-			"Go message hasher should produce same hash as TypeScript generateMessageId")
+		assert.Equal(t, golden, hash,
+			"Go message hasher should produce the golden MessageID shared with TypeScript and Tolk")
 	})
 
 	t.Run("matches TypeScript generateMessageId with user friendly address encoding", func(t *testing.T) {
@@ -341,8 +362,8 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		msg := ccipocr3.Message{
 			Header: ccipocr3.RampMessageHeader{
 				MessageID:           messageID,
-				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),   // CHAINSEL_EVM_TEST_90000001
-				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094), // CHAINSEL_TON
+				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),  // CHAINSEL_EVM_TEST_90000001
+				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768), // CHAINSEL_TON
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
 				OnRamp:              evmOnrampBytes,
@@ -360,16 +381,9 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		hash, err := hasher.Hash(ctx, msg)
 		require.NoError(t, err)
 
-		// Run the TypeScript file to get this value:
-		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "ce60f1962af3c7c7f9d3e434dea13530564dbff46704d628ff4b2206bbc93289"
-		expectedHash, err := hex.DecodeString(expectedHashHex)
-		require.NoError(t, err)
+		golden := loadAny2TVMMessageIDGolden(t)
 
-		var expectedHashArray [32]byte
-		copy(expectedHashArray[:], expectedHash)
-
-		assert.Equal(t, ccipocr3.Bytes32(expectedHashArray), hash,
-			"Go message hasher should produce same hash as TypeScript generateMessageId")
+		assert.Equal(t, golden, hash,
+			"Go message hasher should produce the golden MessageID shared with TypeScript and Tolk")
 	})
 }

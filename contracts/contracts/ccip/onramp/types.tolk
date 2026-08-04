@@ -59,6 +59,13 @@ struct Metadata {
     value: coins,
 }
 
+struct TVM2AnyRampMessageV1Metadata {
+    _header: uint256 = "TVM2AnyMessageHashV1".sha256();
+    sourceChainSelector: uint64;
+    destChainSelector: uint64;
+    onRamp: address;
+}
+
 struct TVM2AnyRampMessage {
     header: RampMessageHeader;
     sender: address;
@@ -69,10 +76,7 @@ struct TVM2AnyRampMessage {
 struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
-    extraArgs: cell;
-    // Source token amounts plus the destination token address, grouped into a single
-    // ref to stay within the 4-ref-per-cell limit.
-    //TODO: Maybe it makes sense to keep this struct unchanged and fetch the destTokenAddress from the tokenPool, or add it to the TokenAmount type
+    extraArgs: Cell<ExtraArgs>;
     tokenTransfer: Cell<TVM2AnyTokenTransfer>;
     feeToken: address;
     feeTokenAmount: coins;
@@ -92,16 +96,26 @@ struct TVM2AnyTokenTransfer {
 
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink/blob/d1a9f8be2f222ea30bdf7182aaa6428bfa605cf7/contracts/src/v0.8/ccip/libraries/Internal.sol#L137-L154
-    return beginCell()
-        .storeSlice(LEAF_DOMAIN_SEPARATOR)
-        .storeUint(metadataHash, 256)
-        // header
-        .storeAddress(self.sender)
-        .storeUint(self.header.sequenceNumber, 64)
-        .storeUint(self.header.nonce, 64)
-        // message
-        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, destTokenAddress, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
-        .endCell()
-        .hash()
+    return TVM2AnyRampMessageIDData{
+        metadataHash,
+        metadata: TVM2AnyRampMessageIDHeader {
+            sender: self.sender,
+            sequenceNumber: self.header.sequenceNumber,
+            nonce: self.header.nonce,
+        },
+        body: self.body, // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
+    }.toCell().hash();
 }
 
+struct TVM2AnyRampMessageIDData {
+    _leafDomainSeparator: bits256 = LEAF_DOMAIN_SEPARATOR;
+    metadataHash: uint256;
+    metadata: TVM2AnyRampMessageIDHeader;
+    body: cell;
+}
+
+struct TVM2AnyRampMessageIDHeader {
+    sender: address;
+    sequenceNumber: uint64;
+    nonce: uint64;
+}

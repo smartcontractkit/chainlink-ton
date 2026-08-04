@@ -168,6 +168,26 @@ type uint224 = bigint
 type uint256 = bigint
 
 /**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
+    }
+}
+
+/**
  > type SnakedCell<T> = cell
  */
 export type SnakedCell<T> = T[]
@@ -222,7 +242,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -233,7 +253,7 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
@@ -246,7 +266,7 @@ export const Router_CCIPSend = {
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
@@ -264,12 +284,7 @@ export const Router_CCIPSend = {
             data: s.loadRef(),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -280,19 +295,7 @@ export const Router_CCIPSend = {
         b.storeRef(self.data);
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
@@ -310,7 +313,7 @@ export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: Router_CCIPSend
     metadata: Metadata
-    tokenRegistry: c.Address | null
+    tokenRegistry: c.Address | null /* = null */
 }
 
 export const OnRamp_Send = {
@@ -319,10 +322,11 @@ export const OnRamp_Send = {
     create(args: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry: c.Address | null
+        tokenRegistry?: c.Address | null /* = null */
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
+            tokenRegistry: null,
             ...args
         }
     },
@@ -801,6 +805,39 @@ export const CrossChainAddress = {
     },
     toCell(self: CrossChainAddress): c.Cell {
         return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
     }
 }
 
@@ -1372,6 +1409,62 @@ export const CCIPSendExecutor_Config = {
 }
 
 /**
+ > type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+ */
+export type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+
+export const FeeQuoter_MessageValidated_Any = {
+    fromSlice(s: c.Slice): FeeQuoter_MessageValidated_Any {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x1fa60374, 'FeeQuoter_MessageValidated');
+            return {
+                $: 'FeeQuoter_MessageValidated',
+                fee: Fee.fromSlice(s),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: FeeQuoter_MessageValidated_Any, b: c.Builder): void {
+        b.storeUint(0x1fa60374, 32);
+        Fee.store(self.fee, b);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: FeeQuoter_MessageValidated_Any): c.Cell {
+        return makeCellFrom<FeeQuoter_MessageValidated_Any>(self, FeeQuoter_MessageValidated_Any.store);
+    }
+}
+
+/**
+ > type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+ */
+export type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
+
+export const FeeQuoter_MessageValidationFailed_Any = {
+    fromSlice(s: c.Slice): FeeQuoter_MessageValidationFailed_Any {
+        return (() => {
+            loadAndCheckPrefix32(s, 0xbcf0ab0f, 'FeeQuoter_MessageValidationFailed');
+            return {
+                $: 'FeeQuoter_MessageValidationFailed',
+                error: s.loadUintBig(256),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: FeeQuoter_MessageValidationFailed_Any, b: c.Builder): void {
+        b.storeUint(0xbcf0ab0f, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: FeeQuoter_MessageValidationFailed_Any): c.Cell {
+        return makeCellFrom<FeeQuoter_MessageValidationFailed_Any>(self, FeeQuoter_MessageValidationFailed_Any.store);
+    }
+}
+
+/**
  > struct (0xaf3c62b3) CCIPSendExecutor_Execute {
  >     onrampSend: OnRamp_Send
  >     config: Cell<CCIPSendExecutor_Config>
@@ -1410,6 +1503,30 @@ export const CCIPSendExecutor_Execute = {
     },
     toCell(self: CCIPSendExecutor_Execute): c.Cell {
         return makeCellFrom<CCIPSendExecutor_Execute>(self, CCIPSendExecutor_Execute.store);
+    }
+}
+
+/**
+ > enum CCIPSendExecutor_Error { 6 variants }
+ */
+export type CCIPSendExecutor_Error = bigint
+
+export const CCIPSendExecutor_Error = {
+    StateNotExpected: 17800n,
+    Unauthorized: 17801n,
+    InsufficientFunds: 17802n,
+    InsufficientFee: 17803n,
+    FeeQuoterBounce: 17804n,
+    TokenNotEnabled: 17805n,
+
+    fromSlice(s: c.Slice): CCIPSendExecutor_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: CCIPSendExecutor_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: CCIPSendExecutor_Error): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_Error>(self, CCIPSendExecutor_Error.store);
     }
 }
 
@@ -1490,14 +1607,16 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
-        'Common_Error.CrossChainAddressOutOfRange': 5,
         'Utils_Error.InvalidData': 13500,
+        'Utils_Error.BitmapOutOfBounds': 13501,
         'CCIPSendExecutor_Error.StateNotExpected': 17800,
         'CCIPSendExecutor_Error.Unauthorized': 17801,
+        'CCIPSendExecutor_Error.InsufficientFunds': 17802,
         'CCIPSendExecutor_Error.InsufficientFee': 17803,
+        'CCIPSendExecutor_Error.FeeQuoterBounce': 17804,
         'CCIPSendExecutor_Error.TokenNotEnabled': 17805,
     }
 
@@ -1543,30 +1662,12 @@ export class CCIPSendExecutor implements c.Contract {
         return CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body));
     }
 
-    static createCellOfFeeQuoterMessageValidatedRemainingBitsAndRefs_(body: {
-        fee: Fee
-        msg: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }) {
-        return makeCellFrom<FeeQuoter_MessageValidated<RemainingBitsAndRefs>>(FeeQuoter_MessageValidated.create<RemainingBitsAndRefs>(body),
-            (v,b) => { b.storeUint(0x1fa60374, 32);
-            Fee.store(v.fee, b);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            storeTolkRemaining(v.context, b); }
-        );
+    static createCellOfFeeQuoterMessageValidatedAny(body: FeeQuoter_MessageValidated_Any) {
+        return FeeQuoter_MessageValidated_Any.toCell(body);
     }
 
-    static createCellOfFeeQuoterMessageValidationFailedRemainingBitsAndRefs_(body: {
-        error: uint256
-        msg: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }) {
-        return makeCellFrom<FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>>(FeeQuoter_MessageValidationFailed.create<RemainingBitsAndRefs>(body),
-            (v,b) => { b.storeUint(0xbcf0ab0f, 32);
-            b.storeUint(v.error, 256);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            storeTolkRemaining(v.context, b); }
-        );
+    static createCellOfFeeQuoterMessageValidationFailedAny(body: FeeQuoter_MessageValidationFailed_Any) {
+        return FeeQuoter_MessageValidationFailed_Any.toCell(body);
     }
 
     static createCellOfTokenRegistryReturnTokenInfo(body: {
@@ -1592,6 +1693,14 @@ export class CCIPSendExecutor implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendCCIPSendExecutorExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         onrampSend: OnRamp_Send
         config: CCIPSendExecutor_Config
@@ -1603,36 +1712,18 @@ export class CCIPSendExecutor implements c.Contract {
         });
     }
 
-    async sendFeeQuoterMessageValidatedRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        fee: Fee
-        msg: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterMessageValidatedAny(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidated_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<FeeQuoter_MessageValidated<RemainingBitsAndRefs>>(FeeQuoter_MessageValidated.create<RemainingBitsAndRefs>(body),
-                (v,b) => { b.storeUint(0x1fa60374, 32);
-                Fee.store(v.fee, b);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                storeTolkRemaining(v.context, b); }
-            ),
+            body: FeeQuoter_MessageValidated_Any.toCell(body),
             ...extraOptions
         });
     }
 
-    async sendFeeQuoterMessageValidationFailedRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        error: uint256
-        msg: Router_CCIPSend
-        context: RemainingBitsAndRefs
-    }, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterMessageValidationFailedAny(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_MessageValidationFailed_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>>(FeeQuoter_MessageValidationFailed.create<RemainingBitsAndRefs>(body),
-                (v,b) => { b.storeUint(0xbcf0ab0f, 32);
-                b.storeUint(v.error, 256);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                storeTolkRemaining(v.context, b); }
-            ),
+            body: FeeQuoter_MessageValidationFailed_Any.toCell(body),
             ...extraOptions
         });
     }

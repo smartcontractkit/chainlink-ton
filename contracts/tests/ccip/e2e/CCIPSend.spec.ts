@@ -11,16 +11,13 @@ import {
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import { getValidatedFee } from '../../../src/ccipSend/fee'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as rt from '../../../wrappers/ccip/Router'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-} from '../router/Router.Setup'
+import { setup, contractsCoverageConfig } from '../router/Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -51,21 +48,15 @@ describe('Router', () => {
   it('onramp arbitrary message passing', async () => {
     // Track initial balance to verify fees are handled correctly
     const initialOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
-    const ccipSend: rt.CCIPSend = {
-      queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+    const ccipSend = rt.Router_CCIPSend.create({
+      queryID: 1n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: WRAPPED_NATIVE,
-      extraArgs: rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: 100n,
-          allowOutOfOrderExecution: true,
-        })
-        .asCell(),
-    }
+      extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),
+    })
 
     const offchainFee = await getValidatedFee(blockchain, router.address, ccipSend)
     const onchainFee = await sendGetValidatedFee(
@@ -79,10 +70,7 @@ describe('Router', () => {
     const totalSendValue = offchainFee + toNano('0.5')
     // router.ccipSend
     {
-      const result = await router.sendCcipSend(sender.getSender(), {
-        value: totalSendValue,
-        body: ccipSend,
-      })
+      const result = await router.sendRouterCCIPSend(sender.getSender(), totalSendValue, ccipSend)
       // console.log('MsgTrace: \n', (await dump(result.transactions)).join('\n'))
       // we called the router
       expect(result.transactions).toHaveTransaction({
@@ -156,7 +144,7 @@ describe('Router', () => {
       assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
         message: {
           header: {
-            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           },
           sender: sender.address,
         },
@@ -168,7 +156,7 @@ describe('Router', () => {
         to: router.address,
         deploy: false,
         success: true,
-        op: rt.opcodes.in.messageSent,
+        op: rt.Router_MessageSent.PREFIX,
         body(x) {
           return verifyBodyIsRouterMessageSent(x, {
             validation: (messageSent) => {
@@ -187,11 +175,11 @@ describe('Router', () => {
         to: sender.address,
         deploy: false,
         success: true,
-        op: rt.opcodes.out.ccipSendACK,
+        op: rt.Router_CCIPSendACK.PREFIX,
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {
-              return ccipSendACK.queryID == BigInt(ccipSend.queryID!) && ccipSendACK.messageId != 0n
+              return ccipSendACK.queryID == ccipSend.queryID && ccipSendACK.messageId != 0n
             },
           })
         },

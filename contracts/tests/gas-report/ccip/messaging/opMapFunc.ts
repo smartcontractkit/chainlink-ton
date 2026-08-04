@@ -1,5 +1,5 @@
 import { OpMapFunc } from '@ton/sandbox/dist/utils/printTransactionFees'
-import * as fq from '../../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import * as onRamp from '../../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as sx from '../../../../wrappers/ccip/CCIPSendExecutor'
@@ -11,12 +11,18 @@ import * as mr from '../../../../wrappers/ccip/MerkleRoot'
 
 export function opMapFunc(): OpMapFunc {
   const opcodeMap = new Map<number, string>()
-  Object.entries(fq.opcodes.in).forEach(([name, code]) => {
-    opcodeMap.set(code, `FeeQuoter::In::${name}`)
-  })
-  Object.entries(fq.opcodes.out).forEach(([name, code]) => {
-    opcodeMap.set(code, `FeeQuoter::Out::${name}`)
-  })
+  const feeQuoterOpcodes: Array<[string, number]> = [
+    ['AddPriceUpdater', fq.FeeQuoter_AddPriceUpdater.PREFIX],
+    ['RemovePriceUpdater', fq.FeeQuoter_RemovePriceUpdater.PREFIX],
+    ['UpdatePrices', fq.FeeQuoter_UpdatePrices.PREFIX],
+    ['UpdateFeeTokens', fq.FeeQuoter_UpdateFeeTokens.PREFIX],
+    ['UpdateTokenTransferFeeConfigs', fq.FeeQuoter_UpdateTokenTransferFeeConfigs.PREFIX],
+    ['UpdateDestChainConfigs', fq.FeeQuoter_UpdateDestChainConfigs.PREFIX],
+    ['GetValidatedFee', fq.FeeQuoter_GetValidatedFee.PREFIX],
+    ['MessageValidated', fq.FeeQuoter_MessageValidated.PREFIX],
+    ['MessageValidationFailed', fq.FeeQuoter_MessageValidationFailed.PREFIX],
+  ]
+  feeQuoterOpcodes.forEach(([name, code]) => opcodeMap.set(code, `FeeQuoter::${name}`))
   Object.entries(onRamp.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `OnRamp::In::${name}`)
   })
