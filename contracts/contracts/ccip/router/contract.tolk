@@ -213,7 +213,10 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_TokenRegistrySetTokenInfo => {
             val st = Storage.load();
-            val registryAddress = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().deployableCode, msg.tokenAddress);
+            val registryAddress = TokenRegistry {
+                deployableCode: st.tokenRegistryDeployment.load().deployableCode,
+                tokenAddress: msg.tokenAddress,
+            }.deriveAddress();
             if (msg.isNewEntry) {
                 val deployMsg = createMessage({
                     bounce: false,
@@ -593,7 +596,10 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (!msg.tokenAmounts.empty()) {
         val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
         //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
-        tokenRegistry = TokenRegistry_DeriveAddress(st.tokenRegistryDeployment.load().deployableCode, tokenAmount.token).calculateAddress();
+        tokenRegistry = TokenRegistry {
+            deployableCode: st.tokenRegistryDeployment.load().deployableCode,
+            tokenAddress: tokenAmount.token,
+        }.deriveAddress().calculateAddress();
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
