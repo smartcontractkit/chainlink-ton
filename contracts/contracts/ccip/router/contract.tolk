@@ -305,7 +305,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
 fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val transferRequest = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: withdrawRequest.routerWalletAddress,
         body: AskToTransfer {

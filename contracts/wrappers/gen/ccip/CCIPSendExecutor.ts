@@ -168,6 +168,441 @@ type uint224 = bigint
 type uint256 = bigint
 
 /**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
+    }
+}
+
+/**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
+
+/**
+ > struct (0x2c76b973) RequestWalletAddress {
+ >     queryId: uint64
+ >     ownerAddress: address
+ >     includeOwnerAddress: bool
+ > }
+ */
+export interface RequestWalletAddress {
+    readonly $: 'RequestWalletAddress'
+    queryId: uint64
+    ownerAddress: c.Address
+    includeOwnerAddress: boolean
+}
+
+export const RequestWalletAddress = {
+    PREFIX: 0x2c76b973,
+
+    create(args: {
+        queryId?: uint64
+        ownerAddress: c.Address
+        includeOwnerAddress: boolean
+    }): RequestWalletAddress {
+        return {
+            $: 'RequestWalletAddress',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): RequestWalletAddress {
+        loadAndCheckPrefix32(s, 0x2c76b973, 'RequestWalletAddress');
+        return {
+            $: 'RequestWalletAddress',
+            queryId: s.loadUintBig(64),
+            ownerAddress: s.loadAddress(),
+            includeOwnerAddress: s.loadBoolean(),
+        }
+    },
+    store(self: RequestWalletAddress, b: c.Builder): void {
+        b.storeUint(0x2c76b973, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.ownerAddress);
+        b.storeBit(self.includeOwnerAddress);
+    },
+    toCell(self: RequestWalletAddress): c.Cell {
+        return makeCellFrom<RequestWalletAddress>(self, RequestWalletAddress.store);
+    }
+}
+
+/**
+ > struct (0xd1735400) ResponseWalletAddress {
+ >     queryId: uint64
+ >     jettonWalletAddress: address?
+ >     ownerAddress: Cell<address>?
+ > }
+ */
+export interface ResponseWalletAddress {
+    readonly $: 'ResponseWalletAddress'
+    queryId: uint64
+    jettonWalletAddress: c.Address | null
+    ownerAddress: c.Address | null
+}
+
+export const ResponseWalletAddress = {
+    PREFIX: 0xd1735400,
+
+    create(args: {
+        queryId?: uint64
+        jettonWalletAddress: c.Address | null
+        ownerAddress: c.Address | null
+    }): ResponseWalletAddress {
+        return {
+            $: 'ResponseWalletAddress',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): ResponseWalletAddress {
+        loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
+        return {
+            $: 'ResponseWalletAddress',
+            queryId: s.loadUintBig(64),
+            jettonWalletAddress: s.loadMaybeAddress(),
+            ownerAddress: s.loadBoolean() ? loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ) : null,
+        }
+    },
+    store(self: ResponseWalletAddress, b: c.Builder): void {
+        b.storeUint(0xd1735400, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.jettonWalletAddress);
+        storeTolkNullable<c.Address>(self.ownerAddress, b,
+            (v,b) => { storeCellRef<c.Address>(v, b,
+                (v,b) => b.storeAddress(v)
+            ); }
+        );
+    },
+    toCell(self: ResponseWalletAddress): c.Cell {
+        return makeCellFrom<ResponseWalletAddress>(self, ResponseWalletAddress.store);
+    }
+}
+
+/**
+ > struct (0xfa7da444) TokenPool_LockOrBurn {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_LockOrBurnInV1>
+ >     requestedFinalityConfig: uint32
+ >     tokenArgs: cell?
+ >     replyTo: address?
+ > }
+ */
+export interface TokenPool_LockOrBurn {
+    readonly $: 'TokenPool_LockOrBurn'
+    queryId: uint64
+    request: TokenPool_LockOrBurnInV1
+    requestedFinalityConfig: uint32
+    tokenArgs: c.Cell | null
+    replyTo: c.Address | null
+}
+
+export const TokenPool_LockOrBurn = {
+    PREFIX: 0xfa7da444,
+
+    create(args: {
+        queryId?: uint64
+        request: TokenPool_LockOrBurnInV1
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        replyTo: c.Address | null
+    }): TokenPool_LockOrBurn {
+        return {
+            $: 'TokenPool_LockOrBurn',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurn {
+        loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurn');
+        return {
+            $: 'TokenPool_LockOrBurn',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
+            requestedFinalityConfig: s.loadUintBig(32),
+            tokenArgs: s.loadBoolean() ? s.loadRef() : null,
+            replyTo: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_LockOrBurn, b: c.Builder): void {
+        b.storeUint(0xfa7da444, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        storeTolkNullable<c.Cell>(self.tokenArgs, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeAddress(self.replyTo);
+    },
+    toCell(self: TokenPool_LockOrBurn): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);
+    }
+}
+
+/**
+ > struct TokenPool_LockOrBurnForwardPayload {
+ >     originalSender: address
+ >     requestMsg: Cell<TokenPool_LockOrBurn>
+ >     prepared: Cell<TokenPool_LockOrBurnPrepared>
+ > }
+ */
+export interface TokenPool_LockOrBurnForwardPayload {
+    readonly $: 'TokenPool_LockOrBurnForwardPayload'
+    originalSender: c.Address
+    requestMsg: TokenPool_LockOrBurn
+    prepared: TokenPool_LockOrBurnPrepared
+}
+
+export const TokenPool_LockOrBurnForwardPayload = {
+    create(args: {
+        originalSender: c.Address
+        requestMsg: TokenPool_LockOrBurn
+        prepared: TokenPool_LockOrBurnPrepared
+    }): TokenPool_LockOrBurnForwardPayload {
+        return {
+            $: 'TokenPool_LockOrBurnForwardPayload',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnForwardPayload {
+        return {
+            $: 'TokenPool_LockOrBurnForwardPayload',
+            originalSender: s.loadAddress(),
+            requestMsg: loadCellRef<TokenPool_LockOrBurn>(s, TokenPool_LockOrBurn.fromSlice),
+            prepared: loadCellRef<TokenPool_LockOrBurnPrepared>(s, TokenPool_LockOrBurnPrepared.fromSlice),
+        }
+    },
+    store(self: TokenPool_LockOrBurnForwardPayload, b: c.Builder): void {
+        b.storeAddress(self.originalSender);
+        storeCellRef<TokenPool_LockOrBurn>(self.requestMsg, b, TokenPool_LockOrBurn.store);
+        storeCellRef<TokenPool_LockOrBurnPrepared>(self.prepared, b, TokenPool_LockOrBurnPrepared.store);
+    },
+    toCell(self: TokenPool_LockOrBurnForwardPayload): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnForwardPayload>(self, TokenPool_LockOrBurnForwardPayload.store);
+    }
+}
+
+/**
+ > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
+ >     queryId: uint64
+ >     forwardPayload: TokenPool_LockOrBurnForwardPayload
+ > }
+ */
+export interface TokenPool_LockOrBurnWithdraw {
+    readonly $: 'TokenPool_LockOrBurnWithdraw'
+    queryId: uint64
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const TokenPool_LockOrBurnWithdraw = {
+    PREFIX: 0xe7a35041,
+
+    create(args: {
+        queryId?: uint64
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): TokenPool_LockOrBurnWithdraw {
+        return {
+            $: 'TokenPool_LockOrBurnWithdraw',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
+        loadAndCheckPrefix32(s, 0xe7a35041, 'TokenPool_LockOrBurnWithdraw');
+        return {
+            $: 'TokenPool_LockOrBurnWithdraw',
+            queryId: s.loadUintBig(64),
+            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
+        b.storeUint(0xe7a35041, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
+    },
+    toCell(self: TokenPool_LockOrBurnWithdraw): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnWithdraw>(self, TokenPool_LockOrBurnWithdraw.store);
+    }
+}
+
+/**
+ > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
+ >     queryId: uint64
+ >     out: Cell<TokenPool_LockOrBurnOutV1>
+ >     destTokenAmount: coins
+ > }
+ */
+export interface TokenPool_LockOrBurnFinished {
+    readonly $: 'TokenPool_LockOrBurnFinished'
+    queryId: uint64
+    out: TokenPool_LockOrBurnOutV1
+    destTokenAmount: coins
+}
+
+export const TokenPool_LockOrBurnFinished = {
+    PREFIX: 0xf432a4e3,
+
+    create(args: {
+        queryId?: uint64
+        out: TokenPool_LockOrBurnOutV1
+        destTokenAmount: coins
+    }): TokenPool_LockOrBurnFinished {
+        return {
+            $: 'TokenPool_LockOrBurnFinished',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
+        loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
+        return {
+            $: 'TokenPool_LockOrBurnFinished',
+            queryId: s.loadUintBig(64),
+            out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
+            destTokenAmount: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
+        b.storeUint(0xf432a4e3, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
+        b.storeCoins(self.destTokenAmount);
+    },
+    toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
+    }
+}
+
+/**
+ > struct (0xdd5d5127) TokenRegistry_GetTokenInfo {
+ > }
+ */
+export interface TokenRegistry_GetTokenInfo {
+    readonly $: 'TokenRegistry_GetTokenInfo'
+}
+
+export const TokenRegistry_GetTokenInfo = {
+    PREFIX: 0xdd5d5127,
+
+    create(): TokenRegistry_GetTokenInfo {
+        return {
+            $: 'TokenRegistry_GetTokenInfo',
+        }
+    },
+    fromSlice(s: c.Slice): TokenRegistry_GetTokenInfo {
+        loadAndCheckPrefix32(s, 0xdd5d5127, 'TokenRegistry_GetTokenInfo');
+        return {
+            $: 'TokenRegistry_GetTokenInfo',
+        }
+    },
+    store(self: TokenRegistry_GetTokenInfo, b: c.Builder): void {
+        b.storeUint(0xdd5d5127, 32);
+    },
+    toCell(self: TokenRegistry_GetTokenInfo): c.Cell {
+        return makeCellFrom<TokenRegistry_GetTokenInfo>(self, TokenRegistry_GetTokenInfo.store);
+    }
+}
+
+/**
+ > struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
+ >     minterAddress: address
+ >     tokenPool: address?
+ > }
+ */
+export interface TokenRegistry_ReturnTokenInfo {
+    readonly $: 'TokenRegistry_ReturnTokenInfo'
+    minterAddress: c.Address
+    tokenPool: c.Address | null
+}
+
+export const TokenRegistry_ReturnTokenInfo = {
+    PREFIX: 0xddccddb5,
+
+    create(args: {
+        minterAddress: c.Address
+        tokenPool: c.Address | null
+    }): TokenRegistry_ReturnTokenInfo {
+        return {
+            $: 'TokenRegistry_ReturnTokenInfo',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenRegistry_ReturnTokenInfo {
+        loadAndCheckPrefix32(s, 0xddccddb5, 'TokenRegistry_ReturnTokenInfo');
+        return {
+            $: 'TokenRegistry_ReturnTokenInfo',
+            minterAddress: s.loadAddress(),
+            tokenPool: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenRegistry_ReturnTokenInfo, b: c.Builder): void {
+        b.storeUint(0xddccddb5, 32);
+        b.storeAddress(self.minterAddress);
+        b.storeAddress(self.tokenPool);
+    },
+    toCell(self: TokenRegistry_ReturnTokenInfo): c.Cell {
+        return makeCellFrom<TokenRegistry_ReturnTokenInfo>(self, TokenRegistry_ReturnTokenInfo.store);
+    }
+}
+
+/**
  > struct (0x7496ff56) FeeQuoter_GetValidatedFee<T> {
  >     msg: Cell<Router_CCIPSend>
  >     context: T
@@ -249,6 +684,44 @@ export const FeeQuoter_MessageValidationFailed = {
             ...args
         }
     },
+}
+
+/**
+ > struct Fee {
+ >     feeTokenAmount: coins
+ >     feeValueJuels: uint96
+ > }
+ */
+export interface Fee {
+    readonly $: 'Fee'
+    feeTokenAmount: coins
+    feeValueJuels: uint96
+}
+
+export const Fee = {
+    create(args: {
+        feeTokenAmount: coins
+        feeValueJuels: uint96
+    }): Fee {
+        return {
+            $: 'Fee',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Fee {
+        return {
+            $: 'Fee',
+            feeTokenAmount: s.loadCoins(),
+            feeValueJuels: s.loadUintBig(96),
+        }
+    },
+    store(self: Fee, b: c.Builder): void {
+        b.storeCoins(self.feeTokenAmount);
+        b.storeUint(self.feeValueJuels, 96);
+    },
+    toCell(self: Fee): c.Cell {
+        return makeCellFrom<Fee>(self, Fee.store);
+    }
 }
 
 /**
@@ -519,73 +992,6 @@ export const OnRamp_ExecutorFinishedWithError = {
 }
 
 /**
- > enum Utils_Error { 2 variants }
- */
-export type Utils_Error = bigint
-
-export const Utils_Error = {
-    InvalidData: 13500n,
-    BitmapOutOfBounds: 13501n,
-
-    fromSlice(s: c.Slice): Utils_Error {
-        return s.loadUintBig(14);
-    },
-    store(self: Utils_Error, b: c.Builder): void {
-        b.storeUint(self, 14);
-    },
-    toCell(self: Utils_Error): c.Cell {
-        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
-    }
-}
-
-/**
- > type SnakedCell<T> = cell
- */
-export type SnakedCell<T> = T[]
-
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    if (v.length === 0) {
-        b.storeRef(c.Cell.EMPTY);
-        return;
-    }
-    const cells: c.Builder[] = [];
-    let builder = c.beginCell();
-    for (const value of v) {
-        let itemB = c.beginCell();
-        storeFn_T(value, itemB);
-        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
-            cells.push(builder);
-            builder = c.beginCell();
-        }
-        builder.storeBuilder(itemB);
-    }
-    cells.push(builder);
-    let current = cells[cells.length - 1].endCell();
-    for (let i = cells.length - 2; i >= 0; i--) {
-        cells[i].storeRef(current);
-        current = cells[i].endCell();
-    }
-    b.storeRef(current);
-}
-
-function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
-    let outArr = [] as T[];
-    let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
-            outArr.push(loadFn_T(head));
-        }
-        if (head.remainingRefs > 0) {
-            head = head.loadRef().beginParse();
-        } else {
-            break;
-        }
-    }
-    return outArr;
-}
-
-
-/**
  > struct (0x31768d95) Router_CCIPSend {
  >     queryID: uint64
  >     destChainSelector: uint64
@@ -698,412 +1104,6 @@ export const Router_WithdrawRequest = {
     },
     toCell(self: Router_WithdrawRequest): c.Cell {
         return makeCellFrom<Router_WithdrawRequest>(self, Router_WithdrawRequest.store);
-    }
-}
-
-/**
- > struct Fee {
- >     feeTokenAmount: coins
- >     feeValueJuels: uint96
- > }
- */
-export interface Fee {
-    readonly $: 'Fee'
-    feeTokenAmount: coins
-    feeValueJuels: uint96
-}
-
-export const Fee = {
-    create(args: {
-        feeTokenAmount: coins
-        feeValueJuels: uint96
-    }): Fee {
-        return {
-            $: 'Fee',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Fee {
-        return {
-            $: 'Fee',
-            feeTokenAmount: s.loadCoins(),
-            feeValueJuels: s.loadUintBig(96),
-        }
-    },
-    store(self: Fee, b: c.Builder): void {
-        b.storeCoins(self.feeTokenAmount);
-        b.storeUint(self.feeValueJuels, 96);
-    },
-    toCell(self: Fee): c.Cell {
-        return makeCellFrom<Fee>(self, Fee.store);
-    }
-}
-
-/**
- > struct (0xdd5d5127) TokenRegistry_GetTokenInfo {
- > }
- */
-export interface TokenRegistry_GetTokenInfo {
-    readonly $: 'TokenRegistry_GetTokenInfo'
-}
-
-export const TokenRegistry_GetTokenInfo = {
-    PREFIX: 0xdd5d5127,
-
-    create(): TokenRegistry_GetTokenInfo {
-        return {
-            $: 'TokenRegistry_GetTokenInfo',
-        }
-    },
-    fromSlice(s: c.Slice): TokenRegistry_GetTokenInfo {
-        loadAndCheckPrefix32(s, 0xdd5d5127, 'TokenRegistry_GetTokenInfo');
-        return {
-            $: 'TokenRegistry_GetTokenInfo',
-        }
-    },
-    store(self: TokenRegistry_GetTokenInfo, b: c.Builder): void {
-        b.storeUint(0xdd5d5127, 32);
-    },
-    toCell(self: TokenRegistry_GetTokenInfo): c.Cell {
-        return makeCellFrom<TokenRegistry_GetTokenInfo>(self, TokenRegistry_GetTokenInfo.store);
-    }
-}
-
-/**
- > struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
- >     minterAddress: address
- >     tokenPool: address?
- > }
- */
-export interface TokenRegistry_ReturnTokenInfo {
-    readonly $: 'TokenRegistry_ReturnTokenInfo'
-    minterAddress: c.Address
-    tokenPool: c.Address | null
-}
-
-export const TokenRegistry_ReturnTokenInfo = {
-    PREFIX: 0xddccddb5,
-
-    create(args: {
-        minterAddress: c.Address
-        tokenPool: c.Address | null
-    }): TokenRegistry_ReturnTokenInfo {
-        return {
-            $: 'TokenRegistry_ReturnTokenInfo',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenRegistry_ReturnTokenInfo {
-        loadAndCheckPrefix32(s, 0xddccddb5, 'TokenRegistry_ReturnTokenInfo');
-        return {
-            $: 'TokenRegistry_ReturnTokenInfo',
-            minterAddress: s.loadAddress(),
-            tokenPool: s.loadMaybeAddress(),
-        }
-    },
-    store(self: TokenRegistry_ReturnTokenInfo, b: c.Builder): void {
-        b.storeUint(0xddccddb5, 32);
-        b.storeAddress(self.minterAddress);
-        b.storeAddress(self.tokenPool);
-    },
-    toCell(self: TokenRegistry_ReturnTokenInfo): c.Cell {
-        return makeCellFrom<TokenRegistry_ReturnTokenInfo>(self, TokenRegistry_ReturnTokenInfo.store);
-    }
-}
-
-/**
- > struct (0xfa7da444) TokenPool_LockOrBurn {
- >     queryId: uint64
- >     request: Cell<TokenPool_LockOrBurnInV1>
- >     requestedFinalityConfig: uint32
- >     tokenArgs: cell?
- >     replyTo: address?
- > }
- */
-export interface TokenPool_LockOrBurn {
-    readonly $: 'TokenPool_LockOrBurn'
-    queryId: uint64
-    request: TokenPool_LockOrBurnInV1
-    requestedFinalityConfig: uint32
-    tokenArgs: c.Cell | null
-    replyTo: c.Address | null
-}
-
-export const TokenPool_LockOrBurn = {
-    PREFIX: 0xfa7da444,
-
-    create(args: {
-        queryId?: uint64
-        request: TokenPool_LockOrBurnInV1
-        requestedFinalityConfig: uint32
-        tokenArgs: c.Cell | null
-        replyTo: c.Address | null
-    }): TokenPool_LockOrBurn {
-        return {
-            $: 'TokenPool_LockOrBurn',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurn {
-        loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurn');
-        return {
-            $: 'TokenPool_LockOrBurn',
-            queryId: s.loadUintBig(64),
-            request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
-            requestedFinalityConfig: s.loadUintBig(32),
-            tokenArgs: s.loadBoolean() ? s.loadRef() : null,
-            replyTo: s.loadMaybeAddress(),
-        }
-    },
-    store(self: TokenPool_LockOrBurn, b: c.Builder): void {
-        b.storeUint(0xfa7da444, 32);
-        b.storeUint(self.queryId, 64);
-        storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
-        b.storeUint(self.requestedFinalityConfig, 32);
-        storeTolkNullable<c.Cell>(self.tokenArgs, b,
-            (v,b) => b.storeRef(v)
-        );
-        b.storeAddress(self.replyTo);
-    },
-    toCell(self: TokenPool_LockOrBurn): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);
-    }
-}
-
-/**
- > struct TokenPool_LockOrBurnForwardPayload {
- >     originalSender: address
- >     requestMsg: Cell<TokenPool_LockOrBurn>
- >     prepared: Cell<TokenPool_LockOrBurnPrepared>
- > }
- */
-export interface TokenPool_LockOrBurnForwardPayload {
-    readonly $: 'TokenPool_LockOrBurnForwardPayload'
-    originalSender: c.Address
-    requestMsg: TokenPool_LockOrBurn
-    prepared: TokenPool_LockOrBurnPrepared
-}
-
-export const TokenPool_LockOrBurnForwardPayload = {
-    create(args: {
-        originalSender: c.Address
-        requestMsg: TokenPool_LockOrBurn
-        prepared: TokenPool_LockOrBurnPrepared
-    }): TokenPool_LockOrBurnForwardPayload {
-        return {
-            $: 'TokenPool_LockOrBurnForwardPayload',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurnForwardPayload {
-        return {
-            $: 'TokenPool_LockOrBurnForwardPayload',
-            originalSender: s.loadAddress(),
-            requestMsg: loadCellRef<TokenPool_LockOrBurn>(s, TokenPool_LockOrBurn.fromSlice),
-            prepared: loadCellRef<TokenPool_LockOrBurnPrepared>(s, TokenPool_LockOrBurnPrepared.fromSlice),
-        }
-    },
-    store(self: TokenPool_LockOrBurnForwardPayload, b: c.Builder): void {
-        b.storeAddress(self.originalSender);
-        storeCellRef<TokenPool_LockOrBurn>(self.requestMsg, b, TokenPool_LockOrBurn.store);
-        storeCellRef<TokenPool_LockOrBurnPrepared>(self.prepared, b, TokenPool_LockOrBurnPrepared.store);
-    },
-    toCell(self: TokenPool_LockOrBurnForwardPayload): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurnForwardPayload>(self, TokenPool_LockOrBurnForwardPayload.store);
-    }
-}
-
-/**
- > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
- >     queryId: uint64
- >     forwardPayload: TokenPool_LockOrBurnForwardPayload
- > }
- */
-export interface TokenPool_LockOrBurnWithdraw {
-    readonly $: 'TokenPool_LockOrBurnWithdraw'
-    queryId: uint64
-    forwardPayload: TokenPool_LockOrBurnForwardPayload
-}
-
-export const TokenPool_LockOrBurnWithdraw = {
-    PREFIX: 0xe7a35041,
-
-    create(args: {
-        queryId?: uint64
-        forwardPayload: TokenPool_LockOrBurnForwardPayload
-    }): TokenPool_LockOrBurnWithdraw {
-        return {
-            $: 'TokenPool_LockOrBurnWithdraw',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
-        loadAndCheckPrefix32(s, 0xe7a35041, 'TokenPool_LockOrBurnWithdraw');
-        return {
-            $: 'TokenPool_LockOrBurnWithdraw',
-            queryId: s.loadUintBig(64),
-            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
-        }
-    },
-    store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
-        b.storeUint(0xe7a35041, 32);
-        b.storeUint(self.queryId, 64);
-        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
-    },
-    toCell(self: TokenPool_LockOrBurnWithdraw): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurnWithdraw>(self, TokenPool_LockOrBurnWithdraw.store);
-    }
-}
-
-/**
- > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
- >     queryId: uint64
- >     out: Cell<TokenPool_LockOrBurnOutV1>
- >     destTokenAmount: coins
- > }
- */
-export interface TokenPool_LockOrBurnFinished {
-    readonly $: 'TokenPool_LockOrBurnFinished'
-    queryId: uint64
-    out: TokenPool_LockOrBurnOutV1
-    destTokenAmount: coins
-}
-
-export const TokenPool_LockOrBurnFinished = {
-    PREFIX: 0xf432a4e3,
-
-    create(args: {
-        queryId?: uint64
-        out: TokenPool_LockOrBurnOutV1
-        destTokenAmount: coins
-    }): TokenPool_LockOrBurnFinished {
-        return {
-            $: 'TokenPool_LockOrBurnFinished',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
-        loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
-        return {
-            $: 'TokenPool_LockOrBurnFinished',
-            queryId: s.loadUintBig(64),
-            out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
-            destTokenAmount: s.loadCoins(),
-        }
-    },
-    store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
-        b.storeUint(0xf432a4e3, 32);
-        b.storeUint(self.queryId, 64);
-        storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
-        b.storeCoins(self.destTokenAmount);
-    },
-    toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
-        return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
-    }
-}
-
-/**
- > struct (0x2c76b973) RequestWalletAddress {
- >     queryId: uint64
- >     ownerAddress: address
- >     includeOwnerAddress: bool
- > }
- */
-export interface RequestWalletAddress {
-    readonly $: 'RequestWalletAddress'
-    queryId: uint64
-    ownerAddress: c.Address
-    includeOwnerAddress: boolean
-}
-
-export const RequestWalletAddress = {
-    PREFIX: 0x2c76b973,
-
-    create(args: {
-        queryId?: uint64
-        ownerAddress: c.Address
-        includeOwnerAddress: boolean
-    }): RequestWalletAddress {
-        return {
-            $: 'RequestWalletAddress',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): RequestWalletAddress {
-        loadAndCheckPrefix32(s, 0x2c76b973, 'RequestWalletAddress');
-        return {
-            $: 'RequestWalletAddress',
-            queryId: s.loadUintBig(64),
-            ownerAddress: s.loadAddress(),
-            includeOwnerAddress: s.loadBoolean(),
-        }
-    },
-    store(self: RequestWalletAddress, b: c.Builder): void {
-        b.storeUint(0x2c76b973, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.ownerAddress);
-        b.storeBit(self.includeOwnerAddress);
-    },
-    toCell(self: RequestWalletAddress): c.Cell {
-        return makeCellFrom<RequestWalletAddress>(self, RequestWalletAddress.store);
-    }
-}
-
-/**
- > struct (0xd1735400) ResponseWalletAddress {
- >     queryId: uint64
- >     jettonWalletAddress: address?
- >     ownerAddress: Cell<address>?
- > }
- */
-export interface ResponseWalletAddress {
-    readonly $: 'ResponseWalletAddress'
-    queryId: uint64
-    jettonWalletAddress: c.Address | null
-    ownerAddress: c.Address | null
-}
-
-export const ResponseWalletAddress = {
-    PREFIX: 0xd1735400,
-
-    create(args: {
-        queryId?: uint64
-        jettonWalletAddress: c.Address | null
-        ownerAddress: c.Address | null
-    }): ResponseWalletAddress {
-        return {
-            $: 'ResponseWalletAddress',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): ResponseWalletAddress {
-        loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
-        return {
-            $: 'ResponseWalletAddress',
-            queryId: s.loadUintBig(64),
-            jettonWalletAddress: s.loadMaybeAddress(),
-            ownerAddress: s.loadBoolean() ? loadCellRef<c.Address>(s,
-                (s) => s.loadAddress()
-            ) : null,
-        }
-    },
-    store(self: ResponseWalletAddress, b: c.Builder): void {
-        b.storeUint(0xd1735400, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.jettonWalletAddress);
-        storeTolkNullable<c.Address>(self.ownerAddress, b,
-            (v,b) => { storeCellRef<c.Address>(v, b,
-                (v,b) => b.storeAddress(v)
-            ); }
-        );
-    },
-    toCell(self: ResponseWalletAddress): c.Cell {
-        return makeCellFrom<ResponseWalletAddress>(self, ResponseWalletAddress.store);
     }
 }
 
@@ -1976,44 +1976,6 @@ export const CCIPSendExecutor_Error = {
 }
 
 /**
- > struct Metadata {
- >     sender: address
- >     value: coins
- > }
- */
-export interface Metadata {
-    readonly $: 'Metadata'
-    sender: c.Address
-    value: coins
-}
-
-export const Metadata = {
-    create(args: {
-        sender: c.Address
-        value: coins
-    }): Metadata {
-        return {
-            $: 'Metadata',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Metadata {
-        return {
-            $: 'Metadata',
-            sender: s.loadAddress(),
-            value: s.loadCoins(),
-        }
-    },
-    store(self: Metadata, b: c.Builder): void {
-        b.storeAddress(self.sender);
-        b.storeCoins(self.value);
-    },
-    toCell(self: Metadata): c.Cell {
-        return makeCellFrom<Metadata>(self, Metadata.store);
-    }
-}
-
-/**
  > struct TokenPool_LockOrBurnPrepared {
  >     feeAmount: coins
  >     destTokenAmount: coins
@@ -2222,6 +2184,44 @@ export const TokenPool_LockOrBurnOutV1 = {
     },
     toCell(self: TokenPool_LockOrBurnOutV1): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnOutV1>(self, TokenPool_LockOrBurnOutV1.store);
+    }
+}
+
+/**
+ > struct Metadata {
+ >     sender: address
+ >     value: coins
+ > }
+ */
+export interface Metadata {
+    readonly $: 'Metadata'
+    sender: c.Address
+    value: coins
+}
+
+export const Metadata = {
+    create(args: {
+        sender: c.Address
+        value: coins
+    }): Metadata {
+        return {
+            $: 'Metadata',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Metadata {
+        return {
+            $: 'Metadata',
+            sender: s.loadAddress(),
+            value: s.loadCoins(),
+        }
+    },
+    store(self: Metadata, b: c.Builder): void {
+        b.storeAddress(self.sender);
+        b.storeCoins(self.value);
+    },
+    toCell(self: Metadata): c.Cell {
+        return makeCellFrom<Metadata>(self, Metadata.store);
     }
 }
 

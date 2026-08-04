@@ -46,7 +46,7 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
     fee: Fee,
 }
 
-// TBD Are we sure we want the Token Pool to validate our wallet?
+// TODO Impl wallet address validation through JettonMinter/ stored wallet code
 // TODO By default, the Executor should JettonWallet address validation via async req/resp with the JettonMinter
 // Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
