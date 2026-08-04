@@ -9,6 +9,7 @@ import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } f
 import { JettonMinter, builder as minterBuilder } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet, builder as walletBuilder } from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 const JETTON_DATA_URI = 'wgram.gas'
 
@@ -132,8 +133,8 @@ describe('wGRAM gas calibration', () => {
   let nextQueryId: bigint
 
   beforeAll(async () => {
-    minterCode = await compile('wgram.JettonMinter')
-    walletCode = await compile('wgram.JettonWallet')
+    minterCode = await contractCode.ccip.local('wgram.JettonMinter')
+    walletCode = await contractCode.ccip.local('wgram.JettonWallet')
   })
 
   beforeEach(async () => {

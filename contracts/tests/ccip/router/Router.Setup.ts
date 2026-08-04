@@ -296,7 +296,11 @@ async function deployOnRampInstance(
     }),
   })
 
-  const onRamp = blockchain.openContract(or.OnRamp.fromStorage(data))
+  const onRamp = blockchain.openContract(
+    or.OnRamp.fromStorage(data, {
+      overrideContractCode: await contractCode.ccip.local('OnRamp'),
+    }),
+  )
 
   {
     const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -379,7 +383,11 @@ async function deployOffRampInstance(
     sourceChainConfigs: new Map(),
   })
 
-  const offRamp = blockchain.openContract(of.OffRamp.fromStorage(data))
+  const offRamp = blockchain.openContract(
+    of.OffRamp.fromStorage(data, {
+      overrideContractCode: await contractCode.ccip.local('OffRamp'),
+    }),
+  )
 
   {
     const result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
