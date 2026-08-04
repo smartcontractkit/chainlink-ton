@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 const RateLimiter_FACILITY_NAME = "link.chain.ton.ccip.rateLimiter";
-const RateLimiter_FACILITY_ID = 263;  // (crc32(<facility>) % 640) + 10 // TODO: update with computed val
+const RateLimiter_FACILITY_ID = 163;  // (crc32(<facility>) % 640) + 10
 
 enum RateLimiter_Error {
     BucketOverfilled = RateLimiter_FACILITY_ID * 100

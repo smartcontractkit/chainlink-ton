@@ -688,7 +688,7 @@ func SendCCIPMessage(
 	}
 	l.Infof("Fee to send CCIP request: %s nano TON", fee.String())
 
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
+	value := big.NewInt(0).Add(fee, tlb.MustFromTON("3").Nano() /* To cover for gas */)
 
 	knownAddresses := map[string]debug.TypeAndVersion{
 		routerAddr.String():    {Type: "Router", Version: *semver.MustParse("0.0.0")},

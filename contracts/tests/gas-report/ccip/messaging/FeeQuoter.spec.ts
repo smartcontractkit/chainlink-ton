@@ -141,7 +141,11 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         deployableCode: await contractCode.ccip.local('Deployable'),
       }),
     })
-    onRamp = blockchain.openContract(or.OnRamp.fromStorage(onRampData))
+    onRamp = blockchain.openContract(
+      or.OnRamp.fromStorage(onRampData, {
+        overrideContractCode: await contractCode.ccip.local('OnRamp'),
+      }),
+    )
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Configure Router

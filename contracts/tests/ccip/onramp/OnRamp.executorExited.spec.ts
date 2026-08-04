@@ -7,12 +7,14 @@ import * as coverage from '../../coverage/coverage'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as dep from '../../../wrappers/libraries/Deployable'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - executor exit', () => {
   let blockchain: Blockchain
@@ -84,7 +86,7 @@ describe('OnRamp - executor exit', () => {
       success: true,
     })
 
-    const result = await onramp.sendOnRampSend(mockRouter.getSender(), toNano('1'), {
+    const result = await onramp.sendOnRampSend(mockRouter.getSender(), onrampSendCost, {
       msg: ccipSend,
       metadata: or.Metadata.create({
         sender: senderAddress,
@@ -98,6 +100,13 @@ describe('OnRamp - executor exit', () => {
       to: onramp.address,
       success: true,
       op: or.OnRamp_Send.PREFIX,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      success: true,
+      deploy: true,
+      op: dep.opcodes.in.initializeAndSend,
     })
 
     const deployTX = result.transactions.find(

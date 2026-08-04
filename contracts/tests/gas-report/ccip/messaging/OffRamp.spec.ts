@@ -171,7 +171,11 @@ describe('CCIP OffRamp Gas Estimation', () => {
           deployableCode: await contractCode.ccip.local('Deployable'),
         }),
       })
-      onRamp = blockchain.openContract(or.OnRamp.fromStorage(onRampData))
+      onRamp = blockchain.openContract(
+        or.OnRamp.fromStorage(onRampData, {
+          overrideContractCode: await contractCode.ccip.local('OnRamp'),
+        }),
+      )
       const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,

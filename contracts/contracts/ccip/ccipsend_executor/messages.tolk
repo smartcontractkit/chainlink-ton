@@ -1,14 +1,19 @@
-import "types"
+import "../../lib/jetton/messages"
+
 import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../token_registry/messages"
 import "../pools/lib/token_pool/messages"
+
+import "types"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated_Any
     | FeeQuoter_MessageValidationFailed_Any
     | TokenRegistry_ReturnTokenInfo
+    | ResponseWalletAddress
+    | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished;
 
 type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>

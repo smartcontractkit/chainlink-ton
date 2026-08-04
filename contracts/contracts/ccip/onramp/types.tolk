@@ -56,6 +56,7 @@ struct UpdateAllowlist {
 
 struct Metadata {
     sender: address,
+    /// Value sent by the sender in the Router's entrypoint
     value: coins,
 }
 

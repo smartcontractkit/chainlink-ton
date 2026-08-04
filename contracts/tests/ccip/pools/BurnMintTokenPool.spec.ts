@@ -70,6 +70,7 @@ describe('BurnMintTokenPool', () => {
 
     cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
+    const burnMintPoolCode = await contractCode.ccip.local('ccip.pools.BurnMintTokenPool')
 
     cctMinter = blockchain.openContract(
       cct.JettonMinter.fromStorage(
@@ -87,37 +88,40 @@ describe('BurnMintTokenPool', () => {
     cctMinterRuntime = blockchain.openContract(JettonMinter.createFromAddress(cctMinter.address))
 
     burnMintPool = blockchain.openContract(
-      BurnMintTokenPool.fromStorage({
-        poolData: TokenPool_Data.create({
-          adminConfig: TokenPool_AdminConfig.create({
-            ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-            rmnProxy: deployer.address,
-            dynamicConfig: TokenPool_DynamicConfig.create({
-              router: deployer.address,
-              rateLimitAdmin: null,
-              feeAdmin: null,
+      BurnMintTokenPool.fromStorage(
+        {
+          poolData: TokenPool_Data.create({
+            adminConfig: TokenPool_AdminConfig.create({
+              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
+              dynamicConfig: TokenPool_DynamicConfig.create({
+                router: deployer.address,
+                rateLimitAdmin: null,
+                feeAdmin: null,
+              }),
+              jettonClient: JettonClient.create({
+                masterAddress: cctMinter.address,
+                jettonWalletCode: cctWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
             }),
-            jettonClient: JettonClient.create({
-              masterAddress: cctMinter.address,
-              jettonWalletCode: cctWalletCode,
+            mirroredPolicy: TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
-            allowedFinalityConfig: 0n,
-            advancedPoolHooks: null,
+            tokenDecimals: 9n,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
           }),
-          mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: new Map(),
-            offRamps: new Map(),
-            cursedSubjects: CursedSubjects.create({
-              data: new Set(),
-            }),
-          }),
-          tokenDecimals: 9n,
-          remoteChainConfigs: new Map(),
-          tokenTransferFeeConfigs: new Map(),
-        }),
-        pendingMints: new Map(),
-        pendingBurns: new Map(),
-      }),
+          pendingMints: new Map(),
+          pendingBurns: new Map(),
+        },
+        { overrideContractCode: burnMintPoolCode },
+      ),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
 
@@ -261,7 +265,12 @@ describe('BurnMintTokenPool', () => {
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('BurnMintTokenPool', async () => {
     // Deploy mock hooks
-    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    const hooks = blockchain.openContract(
+      MockAdvancedPoolHooks.fromStorage(
+        { id: 0n },
+        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+      ),
+    )
     await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
 
     // Register hooks on pool

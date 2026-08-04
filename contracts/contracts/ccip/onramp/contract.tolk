@@ -6,6 +6,7 @@ import "../../lib/deployable/types"
 
 import "../common/types";
 
+import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
@@ -74,11 +75,17 @@ fun onInternalMessage(in: InMessage) {
             assert(destChainConfig.router == in.senderAddress, OnRamp_Error.Unauthorized);
             onSend(st, destChainConfig, msg)
         }
-        OnRamp_ExecutorRequestsLockOrBurn => {
         // Sender must be Send Executor
+        OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
             assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
+        }
+        // Sender must be Send Executor
+        OnRamp_ExecutorRequestsWithdraw =>  {
+            var st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
@@ -272,10 +279,11 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 }.toCell(),
             },
             selfMessage: {
-                value: SendExecutor_Costs.Execute(),
+                value: SendExecutor_Costs.Execute() + ton("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
+                        router: destChainConfig.router,
                         feeQuoter: config.feeQuoter,
                     }.toCell(),
                 }.toCell(),
@@ -290,18 +298,45 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+    val tokenAmount = msg.tokenAmount.load();
     val routerLockOrBurn = createMessage({
         bounce: true,
         value: 0,
         dest: destChainConfig.router,
         body: Router_LockOrBurn {
+            queryID: msg.queryID,
             tokenPool: msg.tokenPool,
-            tokenAmount: msg.tokenAmount,
-            destChainSelector: msg.destChainSelector,
+            request: TokenPool_LockOrBurnInV1{
+                transfer: TokenPool_Transfer {
+                    id: 0, // TBD is this the same as queryID?
+                    details: TokenPool_TransferDetails {
+                        receiver: msg.receiver,
+                        remoteChainSelector: msg.destChainSelector,
+                        originalSender: msg.originalSender,
+                        amount: tokenAmount.amount,
+                        localToken: tokenAmount.token,
+                    }.toCell(),
+                },
+            }.toCell(),
             executorAddress: sender,
         }
     });
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+    val routerWithdraw = createMessage({
+        bounce: true,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_WithdrawToTokenPool {
+            queryID: msg.queryID,
+            destChainSelector: msg.destChainSelector,
+            withdrawRequest: msg.withdrawRequest,
+        }
+    });
+    routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
