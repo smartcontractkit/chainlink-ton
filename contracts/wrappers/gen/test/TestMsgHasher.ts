@@ -626,7 +626,7 @@ export const TVM2AnyRampMessage = {
  >     receiver: Cell<CrossChainAddress>
  >     data: cell
  >     extraArgs: Cell<ExtraArgs>
- >     tokenTransfer: Cell<TVM2AnyTokenTransfer>
+ >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address
  >     feeTokenAmount: coins
  > }
@@ -636,7 +636,7 @@ export interface TVM2AnyRampMessageBody {
     receiver: CrossChainAddress
     data: c.Cell
     extraArgs: ExtraArgs
-    tokenTransfer: TVM2AnyTokenTransfer
+    tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address
     feeTokenAmount: coins
 }
@@ -646,7 +646,7 @@ export const TVM2AnyRampMessageBody = {
         receiver: CrossChainAddress
         data: c.Cell
         extraArgs: ExtraArgs
-        tokenTransfer: TVM2AnyTokenTransfer
+        tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address
         feeTokenAmount: coins
     }): TVM2AnyRampMessageBody {
@@ -661,7 +661,7 @@ export const TVM2AnyRampMessageBody = {
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             data: s.loadRef(),
             extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
-            tokenTransfer: loadCellRef<TVM2AnyTokenTransfer>(s, TVM2AnyTokenTransfer.fromSlice),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
         }
@@ -670,50 +670,12 @@ export const TVM2AnyRampMessageBody = {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeRef(self.data);
         storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
-        storeCellRef<TVM2AnyTokenTransfer>(self.tokenTransfer, b, TVM2AnyTokenTransfer.store);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
     },
     toCell(self: TVM2AnyRampMessageBody): c.Cell {
         return makeCellFrom<TVM2AnyRampMessageBody>(self, TVM2AnyRampMessageBody.store);
-    }
-}
-
-/**
- > struct TVM2AnyTokenTransfer {
- >     tokenAmounts: SnakedCell<TokenAmount>
- >     destTokenAddress: Cell<CrossChainAddress>
- > }
- */
-export interface TVM2AnyTokenTransfer {
-    readonly $: 'TVM2AnyTokenTransfer'
-    tokenAmounts: SnakedCell<TokenAmount>
-    destTokenAddress: CrossChainAddress
-}
-
-export const TVM2AnyTokenTransfer = {
-    create(args: {
-        tokenAmounts: SnakedCell<TokenAmount>
-        destTokenAddress: CrossChainAddress
-    }): TVM2AnyTokenTransfer {
-        return {
-            $: 'TVM2AnyTokenTransfer',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TVM2AnyTokenTransfer {
-        return {
-            $: 'TVM2AnyTokenTransfer',
-            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
-            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-        }
-    },
-    store(self: TVM2AnyTokenTransfer, b: c.Builder): void {
-        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
-        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
-    },
-    toCell(self: TVM2AnyTokenTransfer): c.Cell {
-        return makeCellFrom<TVM2AnyTokenTransfer>(self, TVM2AnyTokenTransfer.store);
     }
 }
 

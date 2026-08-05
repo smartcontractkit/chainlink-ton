@@ -78,21 +78,9 @@ struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
     extraArgs: Cell<ExtraArgs>;
-    tokenTransfer: Cell<TVM2AnyTokenTransfer>;
+    tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address;
     feeTokenAmount: coins;
-}
-
-// The token-transfer portion of a ramp message. `tokenAmounts` is the source-chain
-// amount(s) supplied by the sender; `destTokenAddress` is the destination-chain token
-// address returned by the token pool's lockOrBurn (LockOrBurnOutV1.destTokenAddress),
-// which offchain nodes read to build the release/mint on the destination chain.
-// The current flow supports a single token transfer, so there is one destTokenAddress
-// rather than one per tokenAmounts entry; it is empty when the message carries no
-// token transfer.
-struct TVM2AnyTokenTransfer {
-    tokenAmounts: SnakedCell<TokenAmount>;
-    destTokenAddress: Cell<CrossChainAddress>;
 }
 
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {

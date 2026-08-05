@@ -139,23 +139,3 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.Len(t, decoded.Message.TokenAmounts, 3)
 	require.Len(t, decoded.Proofs, 2)
 }
-
-func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
-	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-	require.NoError(t, err)
-
-	receiver, err := (common.CrossChainAddress{4, 5, 6}).ToCell()
-	require.NoError(t, err)
-	tokenAmounts, err := common.SnakedCell[TokenAmount]{{Amount: tlb.MustFromTON("1"), Token: addr}}.ToCell()
-	require.NoError(t, err)
-	destTokenAddress, err := (common.CrossChainAddress{1, 2, 3}).ToCell()
-	require.NoError(t, err)
-	transfer := cell.BeginCell().MustStoreRef(tokenAmounts).MustStoreRef(destTokenAddress).EndCell()
-	body := cell.BeginCell().MustStoreRef(receiver).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreRef(transfer).MustStoreAddr(addr).MustStoreCoins(1).EndCell()
-
-	var decoded TVM2AnyRampMessageBody
-	err = tlb.LoadFromCell(&decoded, body.BeginParse())
-	require.NoError(t, err)
-	require.Len(t, decoded.TokenTransfer.TokenAmounts, 1)
-	require.Equal(t, common.CrossChainAddress{1, 2, 3}, decoded.TokenTransfer.DestTokenAddress)
-}

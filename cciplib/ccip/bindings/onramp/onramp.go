@@ -159,7 +159,6 @@ type ExecutorFinishedSuccessfully struct {
 	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
-	DestTokenAddress common.CrossChainAddress `tlb:"^"`
 }
 
 type ExecutorFinishedWithError struct {

@@ -148,8 +148,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     // If token amounts is empty finalize the message
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
-        // No token transfer, so there is no destination token address to report.
-        self.exitSuccessfully(msg.fee, emptyCrossChainAddress());
+        self.exitSuccessfully(msg.fee);
         return;
      }
 
@@ -279,18 +278,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Forward the destination token address the pool returned so the OnRamp can emit it.
-    val out = TokenPool_LockOrBurnOutV1.fromCell(msg.out);
-    self.exitSuccessfully(self.state.load().fee, out.destTokenAddress);
+    self.exitSuccessfully(self.state.load().fee);
 }
 
-// An empty CrossChainAddress boxed cell (0-byte address), used when a send carries
-// no token transfer.
-fun emptyCrossChainAddress(): Cell<CrossChainAddress> {
-    return beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>;
-}
-
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, destTokenAddress: Cell<CrossChainAddress>) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -309,7 +300,6 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, destTokenAddress: Cell<
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-            destTokenAddress,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);

@@ -13,7 +13,6 @@ import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
-import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - executor exit', () => {
@@ -152,7 +151,6 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
       },
     )
 
@@ -228,7 +226,6 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
       },
     )
 

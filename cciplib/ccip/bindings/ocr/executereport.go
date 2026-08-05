@@ -1,7 +1,6 @@
 package ocr
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -60,76 +59,12 @@ type TVM2AnyRampMessage struct {
 }
 
 type TVM2AnyRampMessageBody struct {
-	Receiver  common.CrossChainAddress `tlb:"^"`
-	Data      common.SnakeBytes        `tlb:"^"`
-	ExtraArgs *cell.Cell               `tlb:"^"`
-	TokenTransfer  TVM2AnyTokenTransfer `tlb:"^"`
-	FeeToken       *address.Address     `tlb:"addr"`
-	FeeTokenAmount *tlb.Coins           `tlb:"."`
-}
-
-// LoadFromCell decodes both the current token-transfer wrapper and the legacy
-// event layout, where tokenAmounts was the fourth body reference directly.
-// The layouts have no version bit; the wrapper is distinguishable because it
-// contains the tokenAmounts and destination-address references.
-// TODO: We might want to remove the backwards compatibility
-func (b *TVM2AnyRampMessageBody) LoadFromCell(s *cell.Slice) error {
-	var err error
-	if err := loadCellRef(s, &b.Receiver); err != nil {
-		return fmt.Errorf("failed to load Receiver: %w", err)
-	}
-	dataCell, err := s.LoadRefCell()
-	if err != nil {
-		return fmt.Errorf("failed to load Data: %w", err)
-	}
-	if err := b.Data.LoadFromCell(dataCell.BeginParse()); err != nil {
-		return fmt.Errorf("failed to decode Data: %w", err)
-	}
-	if b.ExtraArgs, err = s.LoadRefCell(); err != nil {
-		return fmt.Errorf("failed to load ExtraArgs: %w", err)
-	}
-
-	transferCell, err := s.LoadRefCell()
-	if err != nil {
-		return fmt.Errorf("failed to load token transfer: %w", err)
-	}
-	if transferCell.RefsNum() >= 2 {
-		if err := tlb.LoadFromCell(&b.TokenTransfer, transferCell.BeginParse()); err != nil {
-			return fmt.Errorf("failed to load token transfer: %w", err)
-		}
-	} else {
-		// Legacy CCIPMessageSent: the fourth ref is tokenAmounts directly.
-		if err := tlb.LoadFromCell(&b.TokenTransfer.TokenAmounts, transferCell.BeginParse()); err != nil {
-			return fmt.Errorf("failed to load legacy token amounts: %w", err)
-		}
-	}
-
-	if b.FeeToken, err = s.LoadAddr(); err != nil {
-		return fmt.Errorf("failed to load FeeToken: %w", err)
-	}
-	var feeTokenAmount tlb.Coins
-	if err := tlb.LoadFromCell(&feeTokenAmount, s); err != nil {
-		return fmt.Errorf("failed to load FeeTokenAmount: %w", err)
-	}
-	b.FeeTokenAmount = &feeTokenAmount
-	return nil
-}
-
-func loadCellRef(s *cell.Slice, dst *common.CrossChainAddress) error {
-	ref, err := s.LoadRefCell()
-	if err != nil {
-		return err
-	}
-	return dst.LoadFromCell(ref.BeginParse())
-}
-
-// TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer: the source token
-// amount(s) and the destination-chain token address returned by the pool's lockOrBurn.
-// DestTokenAddress is empty when the message carries no token transfer.
-// TODO: Only adding DestTokenAddress is not enough, it should also include extradata like in Solana/EVM
-type TVM2AnyTokenTransfer struct {
-	TokenAmounts     common.SnakedCell[TokenAmount] `tlb:"^"`
-	DestTokenAddress common.CrossChainAddress       `tlb:"^"`
+	Receiver       common.CrossChainAddress       `tlb:"^"`
+	Data           common.SnakeBytes              `tlb:"^"`
+	ExtraArgs      *cell.Cell                     `tlb:"^"`
+	TokenAmounts   common.SnakedCell[TokenAmount] `tlb:"^"`
+	FeeToken       *address.Address               `tlb:"addr"`
+	FeeTokenAmount *tlb.Coins                     `tlb:"."`
 }
 
 // TokenAmount mirrors the contract's common TokenAmount { amount: coins, token: address }.

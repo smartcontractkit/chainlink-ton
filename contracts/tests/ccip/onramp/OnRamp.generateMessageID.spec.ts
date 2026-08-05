@@ -14,7 +14,6 @@ import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 import EVM_ADDRESS from '../../utils/evmAddress'
-import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - generate message id', () => {
@@ -158,7 +157,6 @@ describe('OnRamp - generate message id', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
       },
     )
 
@@ -175,10 +173,7 @@ describe('OnRamp - generate message id', () => {
         receiver: ccipSend.receiver,
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
-        tokenTransfer: on.TVM2AnyTokenTransfer.create({
-          tokenAmounts: ccipSend.tokenAmounts,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
-        }),
+        tokenAmounts: ccipSend.tokenAmounts,
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       }),
@@ -231,8 +226,8 @@ describe('OnRamp - generate message id', () => {
               expect(event.message.body.extraArgs).toEqual(
                 expectedTVM2AnyRampMessage.body.extraArgs,
               )
-              expect(event.message.body.tokenTransfer).toEqual(
-                expectedTVM2AnyRampMessage.body.tokenTransfer,
+              expect(event.message.body.tokenAmounts).toEqual(
+                expectedTVM2AnyRampMessage.body.tokenAmounts,
               )
               expect(event.message.body.feeToken).toEqual(expectedTVM2AnyRampMessage.body.feeToken)
               expect(event.message.body.feeTokenAmount).toBe(

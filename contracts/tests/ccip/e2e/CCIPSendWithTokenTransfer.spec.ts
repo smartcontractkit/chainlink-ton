@@ -433,11 +433,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
         },
         sender: sender.address,
         body: {
-          tokenTransfer: {
-            tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
-            destTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
-          },
-          // The pool's lockOrBurn destTokenAddress reaches the event end to end.
+          tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
         },
       },
     })
