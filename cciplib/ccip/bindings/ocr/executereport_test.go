@@ -150,12 +150,45 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 	require.NoError(t, err)
 	destTokenAddress, err := (common.CrossChainAddress{1, 2, 3}).ToCell()
 	require.NoError(t, err)
-	transfer := cell.BeginCell().MustStoreRef(tokenAmounts).MustStoreRef(destTokenAddress).EndCell()
+	extraData := cell.BeginCell().MustStoreUInt(18, 256).EndCell()
+	destExecData := cell.BeginCell().MustStoreUInt(0xdead, 32).EndCell()
+	transfer := cell.BeginCell().
+		MustStoreAddr(addr).
+		MustStoreBigUInt(big.NewInt(4242), 256).
+		MustStoreRef(tokenAmounts).
+		MustStoreRef(destTokenAddress).
+		MustStoreRef(extraData).
+		MustStoreRef(destExecData).
+		EndCell()
 	body := cell.BeginCell().MustStoreRef(receiver).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreRef(transfer).MustStoreAddr(addr).MustStoreCoins(1).EndCell()
 
 	var decoded TVM2AnyRampMessageBody
 	err = tlb.LoadFromCell(&decoded, body.BeginParse())
 	require.NoError(t, err)
 	require.Len(t, decoded.TokenTransfer.TokenAmounts, 1)
+	require.Equal(t, addr.String(), decoded.TokenTransfer.SourcePoolAddress.String())
+	require.Equal(t, big.NewInt(4242), decoded.TokenTransfer.Amount)
 	require.Equal(t, common.CrossChainAddress{1, 2, 3}, decoded.TokenTransfer.DestTokenAddress)
+	require.Equal(t, extraData, decoded.TokenTransfer.ExtraData)
+	require.Equal(t, destExecData, decoded.TokenTransfer.DestExecData)
+}
+
+// The pre-wrapper CCIPMessageSent layout put tokenAmounts directly in the body's fourth
+// reference. It is distinguishable from the wrapper by reference count.
+func TestTVM2AnyRampMessageBody_LoadsLegacyTokenAmountsLayout(t *testing.T) {
+	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+
+	receiver, err := (common.CrossChainAddress{4, 5, 6}).ToCell()
+	require.NoError(t, err)
+	tokenAmounts, err := common.SnakedCell[TokenAmount]{{Amount: tlb.MustFromTON("1"), Token: addr}}.ToCell()
+	require.NoError(t, err)
+	body := cell.BeginCell().MustStoreRef(receiver).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreRef(tokenAmounts).MustStoreAddr(addr).MustStoreCoins(1).EndCell()
+
+	var decoded TVM2AnyRampMessageBody
+	err = tlb.LoadFromCell(&decoded, body.BeginParse())
+	require.NoError(t, err)
+	require.Len(t, decoded.TokenTransfer.TokenAmounts, 1)
+	require.Empty(t, decoded.TokenTransfer.DestTokenAddress)
+	require.Nil(t, decoded.TokenTransfer.ExtraData)
 }

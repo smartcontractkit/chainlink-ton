@@ -434,10 +434,18 @@ describe('CCIPSend with token transfer (e2e)', () => {
         sender: sender.address,
         body: {
           tokenTransfer: {
+            // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
+            sourcePoolAddress: mockTokenPool.address,
+            // No token transfer fee is configured, so the post-fee amount is the full amount.
+            amount: TOKEN_AMOUNT,
             tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
             destTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
+            // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
+            extraData: beginCell().storeUint(0, 256).endCell(),
+            // Not produced yet: the FeeQuoter does not report a per-token destGasOverhead.
+            destExecData: beginCell().endCell(),
           },
-          // The pool's lockOrBurn destTokenAddress reaches the event end to end.
+          // The pool's lockOrBurn output reaches the event end to end.
         },
       },
     })

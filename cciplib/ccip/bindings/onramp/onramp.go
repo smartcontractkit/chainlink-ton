@@ -159,7 +159,19 @@ type ExecutorFinishedSuccessfully struct {
 	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
-	DestTokenAddress common.CrossChainAddress `tlb:"^"`
+	// Pool-supplied token transfer details the OnRamp folds into the emitted
+	// CCIPMessageSent event. All-zero when the message carries no token transfer.
+	TokenTransfer ExecutorTokenTransfer `tlb:"^"`
+}
+
+// ExecutorTokenTransfer mirrors the contract's OnRamp_ExecutorTokenTransfer: the portion
+// of a token transfer that the CCIPSendExecutor learns from the token pool.
+type ExecutorTokenTransfer struct {
+	SourcePoolAddress *address.Address         `tlb:"addr"`
+	Amount            *big.Int                 `tlb:"## 256"`
+	DestTokenAddress  common.CrossChainAddress `tlb:"^"`
+	ExtraData         *cell.Cell               `tlb:"^"`
+	DestExecData      *cell.Cell               `tlb:"^"`
 }
 
 type ExecutorFinishedWithError struct {

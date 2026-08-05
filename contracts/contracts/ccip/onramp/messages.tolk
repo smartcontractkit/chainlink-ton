@@ -88,10 +88,10 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     fee: Fee
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
-    // Destination token address returned by the token pool's lockOrBurn, forwarded
-    // so the OnRamp can include it in the emitted CCIPMessageSent event. Empty when
-    // the message carries no token transfer.
-    destTokenAddress: Cell<CrossChainAddress>
+    // Pool-supplied token transfer details, forwarded so the OnRamp can include them in
+    // the emitted CCIPMessageSent event. All-zero when the message carries no token
+    // transfer (see emptyExecutorTokenTransfer).
+    tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {

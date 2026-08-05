@@ -10,6 +10,7 @@ import "../token_registry/messages"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../onramp/messages"
+import "../onramp/types"
 import "../router/messages"
 import "../common/types"
 
@@ -148,8 +149,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     // If token amounts is empty finalize the message
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
-        // No token transfer, so there is no destination token address to report.
-        self.exitSuccessfully(msg.fee, emptyCrossChainAddress());
+        // No token transfer, so there are no pool-supplied details to report.
+        self.exitSuccessfully(msg.fee, emptyExecutorTokenTransfer());
         return;
      }
 
@@ -279,18 +280,24 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Forward the destination token address the pool returned so the OnRamp can emit it.
+    // Forward what the pool returned so the OnRamp can emit it. sourcePoolAddress comes
+    // from our own state (the pool we routed the lockOrBurn to) rather than from the
+    // pool's reply, so it stays trusted.
+    val state = self.state.load();
     val out = TokenPool_LockOrBurnOutV1.fromCell(msg.out);
-    self.exitSuccessfully(self.state.load().fee, out.destTokenAddress);
+    val tokenTransfer = OnRamp_ExecutorTokenTransfer {
+        sourcePoolAddress: state.tokenPool,
+        amount: msg.destTokenAmount as uint256,
+        destTokenAddress: out.destTokenAddress,
+        extraData: out.destPoolData,
+        // TODO: populate once the FeeQuoter supports token transfer fees and can report
+        // the per-token destGasOverhead.
+        destExecData: createEmptyCell(),
+    }.toCell();
+    self.exitSuccessfully(state.fee, tokenTransfer);
 }
 
-// An empty CrossChainAddress boxed cell (0-byte address), used when a send carries
-// no token transfer.
-fun emptyCrossChainAddress(): Cell<CrossChainAddress> {
-    return beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>;
-}
-
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, destTokenAddress: Cell<CrossChainAddress>) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -309,7 +316,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, destTokenAddress: Cell<
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-            destTokenAddress,
+            tokenTransfer,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);

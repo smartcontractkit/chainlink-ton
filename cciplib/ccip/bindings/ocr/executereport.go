@@ -60,18 +60,20 @@ type TVM2AnyRampMessage struct {
 }
 
 type TVM2AnyRampMessageBody struct {
-	Receiver  common.CrossChainAddress `tlb:"^"`
-	Data      common.SnakeBytes        `tlb:"^"`
-	ExtraArgs *cell.Cell               `tlb:"^"`
-	TokenTransfer  TVM2AnyTokenTransfer `tlb:"^"`
-	FeeToken       *address.Address     `tlb:"addr"`
-	FeeTokenAmount *tlb.Coins           `tlb:"."`
+	Receiver       common.CrossChainAddress `tlb:"^"`
+	Data           common.SnakeBytes        `tlb:"^"`
+	ExtraArgs      *cell.Cell               `tlb:"^"`
+	TokenTransfer  TVM2AnyTokenTransfer     `tlb:"^"`
+	FeeToken       *address.Address         `tlb:"addr"`
+	FeeTokenAmount *tlb.Coins               `tlb:"."`
 }
 
 // LoadFromCell decodes both the current token-transfer wrapper and the legacy
 // event layout, where tokenAmounts was the fourth body reference directly.
-// The layouts have no version bit; the wrapper is distinguishable because it
-// contains the tokenAmounts and destination-address references.
+// The layouts have no version bit, but they are distinguishable by reference count:
+// the wrapper holds exactly four references (tokenAmounts, destTokenAddress,
+// extraData, destExecData), while a bare tokenAmounts SnakedCell holds at most one
+// (its snake continuation).
 // TODO: We might want to remove the backwards compatibility
 func (b *TVM2AnyRampMessageBody) LoadFromCell(s *cell.Slice) error {
 	var err error
@@ -93,7 +95,7 @@ func (b *TVM2AnyRampMessageBody) LoadFromCell(s *cell.Slice) error {
 	if err != nil {
 		return fmt.Errorf("failed to load token transfer: %w", err)
 	}
-	if transferCell.RefsNum() >= 2 {
+	if transferCell.RefsNum() == tvm2AnyTokenTransferRefs {
 		if err := tlb.LoadFromCell(&b.TokenTransfer, transferCell.BeginParse()); err != nil {
 			return fmt.Errorf("failed to load token transfer: %w", err)
 		}
@@ -123,13 +125,32 @@ func loadCellRef(s *cell.Slice, dst *common.CrossChainAddress) error {
 	return dst.LoadFromCell(ref.BeginParse())
 }
 
-// TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer: the source token
-// amount(s) and the destination-chain token address returned by the pool's lockOrBurn.
-// DestTokenAddress is empty when the message carries no token transfer.
-// TODO: Only adding DestTokenAddress is not enough, it should also include extradata like in Solana/EVM
+// tvm2AnyTokenTransferRefs is the number of cell references a TVM2AnyTokenTransfer
+// holds: TokenAmounts, DestTokenAddress, ExtraData and DestExecData.
+const tvm2AnyTokenTransferRefs = 4
+
+// TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer, the TON counterpart
+// of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. All pool-supplied fields are
+// zero/empty when the message carries no token transfer.
 type TVM2AnyTokenTransfer struct {
-	TokenAmounts     common.SnakedCell[TokenAmount] `tlb:"^"`
-	DestTokenAddress common.CrossChainAddress       `tlb:"^"`
+	// SourcePoolAddress is the TON pool the OnRamp routed the lockOrBurn to. Trusted:
+	// the OnRamp sets it, not the pool.
+	SourcePoolAddress *address.Address `tlb:"addr"`
+	// Amount is the post-fee cross-chain amount reported by the pool. It may differ from
+	// TokenAmounts[0].Amount, which is the pre-fee amount the sender supplied.
+	Amount *big.Int `tlb:"## 256"`
+	// TokenAmounts carries the source-chain amount(s) and the local jetton address.
+	TokenAmounts common.SnakedCell[TokenAmount] `tlb:"^"`
+	// DestTokenAddress is UNTRUSTED: any pool owner can return whatever value they want.
+	DestTokenAddress common.CrossChainAddress `tlb:"^"`
+	// ExtraData is the pool data forwarded to the destination chain
+	// (LockOrBurnOutV1.destPoolData).
+	ExtraData *cell.Cell `tlb:"^"`
+	// DestExecData is the destination-chain execution data (gas for the offRamp's
+	// releaseOrMint on EVM destinations).
+	// TODO: always empty today; the FeeQuoter does not yet produce a per-token
+	// destGasOverhead for token transfers.
+	DestExecData *cell.Cell `tlb:"^"`
 }
 
 // TokenAmount mirrors the contract's common TokenAmount { amount: coins, token: address }.

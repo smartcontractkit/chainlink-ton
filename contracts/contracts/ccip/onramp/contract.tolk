@@ -346,6 +346,7 @@ number and notifies the Router of the successful send.
 fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedSuccessfully) {
     val ccipsend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
+    val executorTokenTransfer = msg.tokenTransfer.load();
 
     // validate user transferred enough value
     // else refund and notify
@@ -372,8 +373,12 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
             tokenTransfer: TVM2AnyTokenTransfer {
+                sourcePoolAddress: executorTokenTransfer.sourcePoolAddress,
+                amount: executorTokenTransfer.amount,
                 tokenAmounts: ccipsend.tokenAmounts,
-                destTokenAddress: msg.destTokenAddress,
+                destTokenAddress: executorTokenTransfer.destTokenAddress,
+                extraData: executorTokenTransfer.extraData,
+                destExecData: executorTokenTransfer.destExecData,
             }.toCell(),
             feeToken: ccipsend.feeToken!, // guaranteed to be non-null by this point
             feeTokenAmount: msg.fee.feeTokenAmount,
