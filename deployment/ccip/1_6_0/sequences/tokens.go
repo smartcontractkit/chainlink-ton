@@ -227,25 +227,6 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to build pre-mint amount: %w", mintErr)
 				}
 
-				// DEBUG: read the recipient's jetton wallet balance BEFORE minting so we can
-				// verify the mint actually credits this exact wallet (expected: 0, since the
-				// minter was just deployed and the wallet does not exist yet).
-				preMintWalletAddr, preAddrErr := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, contract.Address, minter.GetWalletAddress, recipient)
-				if preAddrErr != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to derive jetton wallet address for pre-mint recipient %s: %w", recipient.String(), preAddrErr)
-				}
-				preMintBalance := big.NewInt(0)
-				if bal, balErr := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, preMintWalletAddr, jettonwallet.GetWalletData); balErr == nil {
-					preMintBalance = bal
-				}
-				b.Logger.Infow("[DEBUG] pre-mint: recipient jetton balance BEFORE mint",
-					"recipient", recipient.String(),
-					"jettonWallet", preMintWalletAddr.String(),
-					"minter", contract.Address.String(),
-					"balanceBefore", preMintBalance.String(),
-					"expectedMintAmount", mintBaseUnits.String(),
-				)
-
 				queryID, qErr := ton_tvm.RandomQueryID()
 				if qErr != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query id for pre-mint: %w", qErr)
@@ -292,12 +273,6 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				if balanceErr != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to read jetton balance for pre-mint recipient %s: %w", recipient.String(), balanceErr)
 				}
-				b.Logger.Infow("[DEBUG] pre-mint: recipient jetton balance AFTER mint",
-					"recipient", recipient.String(),
-					"jettonWallet", recipientWalletAddr.String(),
-					"balanceAfter", recipientBalance.String(),
-					"expectedMintAmount", mintBaseUnits.String(),
-				)
 
 				if recipientBalance.Cmp(mintBaseUnits) != 0 {
 					return sequences.OnChainOutput{}, fmt.Errorf("pre-mint balance mismatch for %s: expected %s base units, got %s", recipient.String(), mintBaseUnits.String(), recipientBalance.String())
