@@ -173,7 +173,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
           tp.TokenPool_ChainUpdate.create({
             remoteChainSelector: DestChainSelector,
             remotePoolAddresses: [EVM_ADDRESS],
-            remoteTokenAddress: EVM_ADDRESS,
+            remoteTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
             rateLimitConfigs: tp.TokenPool_RateLimitConfigPair.create({
               outbound: tp.RateLimiter_Config.create({
                 isEnabled: true,

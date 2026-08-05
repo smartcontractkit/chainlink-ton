@@ -45,7 +45,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
 }
 
 fun onInternalMessage(in: InMessage) {
-	var st = Storage.load();
+    var st = Storage.load();
     var pool = loadPool(st);
     val handled = pool.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
     if (handled) {
