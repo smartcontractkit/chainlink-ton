@@ -61,7 +61,7 @@ type ReturnExcessesBack struct {
 type Storage struct {
 	PoolData              tokenpool.Storage `tlb:"^"`
 	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
-	ContextExecutorNextId uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
+	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
 }
 
 // --- Exit Codes ---

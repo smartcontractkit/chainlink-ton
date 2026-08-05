@@ -50,7 +50,7 @@ type Storage struct {
 	PoolData              tokenpool.Storage `tlb:"^"`
 	Lockbox               *address.Address  `tlb:"addr"`  // JettonLockBox address
 	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
-	ContextExecutorNextId uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
+	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
 }
 
 // --- Exit Codes ---
