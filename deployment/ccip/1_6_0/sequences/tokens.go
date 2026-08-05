@@ -13,7 +13,6 @@ import (
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -607,25 +606,31 @@ func (a *TonTokenAdapter) MigrateLockReleasePoolLiquiditySequence() *cldf_ops.Se
 	return nil
 }
 
-// GetOnchainInboundRateLimit reports the on-chain inbound rate limit for a lane.
+// GetOnchainRateLimits reports the on-chain outbound and inbound rate limits for a lane.
 // TON's MockTokenPool does not enforce rate limits yet, so there is never a
-// configured bucket: return a disabled zero-value config. FastFinality is not a
+// configured bucket: return disabled zero-value configs. FastFinality is not a
 // concept on TON, so reject that bucket per the interface contract.
-func (a *TonTokenAdapter) GetOnchainInboundRateLimit(
-	e deployment.Environment,
+func (a *TonTokenAdapter) GetOnchainRateLimits(
+	b cldf_ops.Bundle,
+	chains cldf_chain.BlockChains,
+	ds datastore.DataStore,
 	chainSelector uint64,
 	poolRef datastore.AddressRef,
 	tokenRef datastore.AddressRef,
 	remoteSelector uint64,
 	fastFinality bool,
-) (tokensapi.RateLimiterConfig, error) {
+) (tokensapi.OnchainRateLimits, error) {
 	if fastFinality {
-		return tokensapi.RateLimiterConfig{}, fmt.Errorf("fast finality rate limits are not supported on TON (chain selector %d)", chainSelector)
+		return tokensapi.OnchainRateLimits{}, fmt.Errorf("fast finality rate limits are not supported on TON (chain selector %d)", chainSelector)
 	}
-	return tokensapi.RateLimiterConfig{
+	disabled := tokensapi.RateLimiterConfig{
 		IsEnabled: false,
 		Capacity:  big.NewInt(0),
 		Rate:      big.NewInt(0),
+	}
+	return tokensapi.OnchainRateLimits{
+		Outbound: disabled,
+		Inbound:  disabled,
 	}, nil
 }
 
