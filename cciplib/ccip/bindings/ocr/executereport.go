@@ -72,6 +72,7 @@ type TVM2AnyRampMessageBody struct {
 // event layout, where tokenAmounts was the fourth body reference directly.
 // The layouts have no version bit; the wrapper is distinguishable because it
 // contains the tokenAmounts and destination-address references.
+// TODO: We might want to remove the backwards compatibility
 func (b *TVM2AnyRampMessageBody) LoadFromCell(s *cell.Slice) error {
 	var err error
 	if err := loadCellRef(s, &b.Receiver); err != nil {
@@ -125,6 +126,7 @@ func loadCellRef(s *cell.Slice, dst *common.CrossChainAddress) error {
 // TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer: the source token
 // amount(s) and the destination-chain token address returned by the pool's lockOrBurn.
 // DestTokenAddress is empty when the message carries no token transfer.
+// TODO: Only adding DestTokenAddress is not enough, it should also include extradata like in Solana/EVM
 type TVM2AnyTokenTransfer struct {
 	TokenAmounts     common.SnakedCell[TokenAmount] `tlb:"^"`
 	DestTokenAddress common.CrossChainAddress       `tlb:"^"`
