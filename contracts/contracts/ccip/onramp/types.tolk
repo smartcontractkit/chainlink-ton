@@ -56,6 +56,7 @@ struct UpdateAllowlist {
 
 struct Metadata {
     sender: address,
+    /// Value sent by the sender in the Router's entrypoint
     value: coins,
 }
 
@@ -76,7 +77,7 @@ struct TVM2AnyRampMessage {
 struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
-    extraArgs: cell;
+    extraArgs: Cell<ExtraArgs>;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address;
     feeTokenAmount: coins;

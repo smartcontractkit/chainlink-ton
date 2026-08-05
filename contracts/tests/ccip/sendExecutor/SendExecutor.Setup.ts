@@ -5,8 +5,9 @@ import { generateRandomContractId } from '../../../src/utils'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
+import { deploySendExecutorCost } from '../../../wrappers/ccip/CCIPSendExecutor'
 
 export async function setup(
   blockchain: Blockchain,
@@ -36,16 +37,16 @@ export async function sendDeployOnBlockchain(
   const initialize: dep.Initialize = {
     stateInit: {
       code: await contractCode.ccip.local('CCIPSendExecutor'),
-      data: sx.builder.data.contractInitData
-        .encode({
+      data: sx.CCIPSendExecutor_InitialData.toCell(
+        sx.CCIPSendExecutor_InitialData.create({
           onramp: onRampMock.address,
           id: 0n,
-        })
-        .asCell(),
+        }),
+      ),
     },
   }
   let result = selfMessage
-    ? await deployable.sendInitializeAndSend(deployer.getSender(), toNano('0.5'), {
+    ? await deployable.sendInitializeAndSend(deployer.getSender(), deploySendExecutorCost, {
         ...initialize,
         selfMessage,
       })
@@ -67,7 +68,7 @@ export async function sendDeployOnBlockchain(
     })
   }
   return {
-    sendExecutor: blockchain.openContract(sx.ContractClient.createFromAddress(deployable.address)),
+    sendExecutor: blockchain.openContract(sx.CCIPSendExecutor.fromAddress(deployable.address)),
     result,
   }
 }

@@ -4,12 +4,13 @@ import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
-import "../../lib/deployable/namespace"
 import "../../lib/deployable/types"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../../lib/jetton/jetton_client"
+import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
 import "../onramp/types"
@@ -18,13 +19,16 @@ import "../offramp/types"
 import "../rmn_remote/lib"
 import "../token_registry/storage"
 import "../token_registry/messages"
-import "../test/tokenPool/messages"
+import "../token_registry/types"
+import "../pools/lib/token_pool/messages"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
 import "events"
+import "../pools/lib/token_pool/types"
+import "../common/types"
 
 tolk 1.4.1
 
@@ -37,8 +41,8 @@ contract Router {
     description: "link.chain.ton.ccip.Router"
 
     storage: Storage
-    incomingMessages: Router_InMsg
-    forceAbiExport: (Router_MessageValidationFailed_RemainingBitsAndRefs, Router_MessageValidated_RemainingBitsAndRefs)
+    incomingMessages: Router_InMsg | Ownable2Step_Messages
+    forceAbiExport: (Router_MessageValidationFailed_Any, Router_MessageValidated_Any)
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -90,6 +94,12 @@ fun onInternalMessage(in: InMessage) {
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onRouteMessage(msg, message);
+        }
+        // Sender must be OnRamp
+        Router_WithdrawToTokenPool => {
+            var st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onWithdrawToTokenPool(mutate st, msg);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -165,7 +175,9 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_LockOrBurn => {
             val st = lazy Storage.load();
-            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            val request = lazy msg.request.load();
+            val details = lazy request.transfer.details.load();
+            assertSenderIsOnRamp(st, details.remoteChainSelector, in.senderAddress);
             onLockOrBurn(msg);
         }
         // Sender must be a Jetton Wallet owned by the Router
@@ -201,7 +213,10 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_TokenRegistrySetTokenInfo => {
             val st = Storage.load();
-            val registryAddress = getTokenRegistryDeployAddress(st, msg.tokenAddress);
+            val registryAddress = TokenRegistry {
+                deployableCode: st.tokenRegistryDeployment.load().deployableCode,
+                tokenAddress: msg.tokenAddress,
+            }.deriveAddress();
             if (msg.isNewEntry) {
                 val deployMsg = createMessage({
                     bounce: false,
@@ -290,6 +305,25 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
         body: ccipReceive,
     });
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val transferRequest = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: withdrawRequest.routerWalletAddress,
+        body: AskToTransfer {
+            queryId: msg.queryID,
+            jettonAmount: withdrawRequest.amount,
+            transferRecipient: withdrawRequest.tokenPool,
+            sendExcessesTo: null, // TBD
+            customPayload: null, // TBD
+            forwardTonAmount: ton("0.5"), // TODO
+            forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+        },
+    });
+    transferRequest.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
@@ -562,7 +596,10 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (!msg.tokenAmounts.empty()) {
         val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
         //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
-        tokenRegistry = getTokenRegistryDeployAddress(st, tokenAmount.token).calculateAddress();
+        tokenRegistry = TokenRegistry {
+            deployableCode: st.tokenRegistryDeployment.load().deployableCode,
+            tokenAddress: tokenAmount.token,
+        }.deriveAddress().calculateAddress();
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
@@ -716,9 +753,12 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
         bounce: true,
         value: 0,
         dest: msg.tokenPool,
-        body: MockTokenPool_LockOrBurn {
-            tokenAmount: msg.tokenAmount,
-            notify: msg.executorAddress,
+        body: TokenPool_LockOrBurn {
+            queryId: msg.queryID,
+            request: msg.request,
+            requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
+            tokenArgs: null, // TBD?
+            replyTo: msg.executorAddress,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -738,22 +778,6 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
-}
-
-/*
-Derives the token registry contract address from the token address
-*/
-fun getTokenRegistryDeployAddress(st: Storage, tokenAddress: address): AutoDeployAddress {
-    return {
-        stateInit: {
-            code: st.tokenRegistryDeployment.load().deployableCode,
-            data: NamespacedDeployableData({
-                namespace: DeployableNamespace_TokenRegistry,
-                owner: contract.getAddress(),
-                id: tokenAddress,
-            }),
-        }
-    }
 }
 
 @method_id(1000)

@@ -11,14 +11,21 @@ import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import { ownable2StepSpec } from '../../lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import {
+  FACILITY_NAME,
+  ROUTER_CONTRACT_VERSION,
+  SUPPORTED_PREV_VERSIONS,
+  FACILITY_ID,
+  ERROR_CODE,
+} from '../../../wrappers/ccip/Router'
 import { contractsCoverageConfig, deployRouterContract, setup } from './Router.Setup'
 import { toNano } from '@ton/core'
 
 describe('rt.Router - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: rt.Router.type(),
-    version: rt.Router.version(),
+    type: FACILITY_NAME,
+    version: ROUTER_CONTRACT_VERSION,
     deployContract: deployRouterContract,
   })
 
@@ -33,7 +40,7 @@ describe('rt.Router - TypeAndVersion Tests', () => {
 describe('Router - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => contractCode.ccip.local('Router'),
-    ContractConstructor: rt.Router.createFromAddress,
+    ContractConstructor: rt.Router.fromAddress,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployRouterContract,
   })
@@ -49,16 +56,16 @@ describe('Router - Upgrade Tests', () => {
   class Router extends rt.Router {}
 
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: rt.Router.type(),
-    prevVersionConfigs: Object.entries(rt.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+    contractType: FACILITY_NAME,
+    prevVersionConfigs: Object.entries(SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
       version,
       getCode,
       deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
         deployRouterContract(blockchain, owner, await getCode()),
     })),
-    currentVersion: Router.version(),
-    getCurrentCode: () => Router.code(),
-    CurrentVersionConstructor: Router.createFromAddress,
+    currentVersion: ROUTER_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('Router'),
+    CurrentVersionConstructor: Router.fromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -71,10 +78,10 @@ describe('Router - Upgrade Tests', () => {
 
 describe('Router - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: rt.Router.type(),
-    currentVersion: rt.Router.version(),
-    getCurrentCode: () => rt.Router.code(),
-    CurrentVersionConstructor: rt.Router.createFromAddress,
+    contractType: FACILITY_NAME,
+    currentVersion: ROUTER_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('Router'),
+    CurrentVersionConstructor: rt.Router.fromAddress,
     deployCurrentContract: deployRouterContract,
   })
   currentVersionSpec.run('router')
@@ -106,7 +113,8 @@ describe('Router - Ownable Tests', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp }))
+    const res = await setup(blockchain, { feeQuoter, onRamp })
+    ;({ deployer, sender, router } = res)
   })
 
   it('supports ownable messages', async () => {
@@ -126,7 +134,7 @@ describe('Router - Ownable Tests', () => {
 
   it('supports RMN ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    await ownable2StepSpec(deployer, other, blockchain.openContract(router.RMNOwnable), {
+    await ownable2StepSpec(deployer, other, router, {
       coverage: {
         blockchain,
         conf: [
@@ -141,19 +149,19 @@ describe('Router - Ownable Tests', () => {
 
   it('should match facility name and ID', async () => {
     const facilityIdVal = await router.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(rt.FACILITY_ID))
+    expect(facilityIdVal).toBe(BigInt(FACILITY_ID))
 
     const [typeSlice] = await router.getTypeAndVersion()
-    expect(typeSlice.loadStringTail()).toBe(rt.FACILITY_NAME)
+    expect(typeSlice.loadStringTail()).toBe(FACILITY_NAME)
 
-    expect(rt.FACILITY_ID).toEqual(facilityId(crc32(rt.FACILITY_NAME)))
+    expect(FACILITY_ID).toEqual(facilityId(crc32(FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
     const errorCodeVal = await router.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(rt.ERROR_CODE))
+    expect(errorCodeVal).toBe(BigInt(ERROR_CODE))
 
-    expect(rt.ERROR_CODE).toEqual(errorCode(crc32(rt.FACILITY_NAME)))
+    expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
   })
 
   afterAll(async () => {
@@ -164,27 +172,5 @@ describe('Router - Ownable Tests', () => {
         await contractsCoverageConfig(),
       )
     }
-  })
-})
-
-describe('Router - Opcodes', () => {
-  it('should match in opcodes', () => {
-    expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates'))
-    expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CCIPSend'))
-    expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CCIPReceiveConfirm'))
-    expect(rt.opcodes.in.routeMessage).toBe(crc32('Router_RouteMessage'))
-    expect(rt.opcodes.in.rmnRemoteCurse).toBe(crc32('Router_RMNRemoteCurse'))
-    expect(rt.opcodes.in.rmnRemoteUncurse).toBe(crc32('Router_RMNRemoteUncurse'))
-    expect(rt.opcodes.in.verifyNotCursed).toBe(crc32('Router_RMNRemoteVerifyNotCursed'))
-    expect(rt.opcodes.in.messageSent).toBe(crc32('Router_MessageSent'))
-    expect(rt.opcodes.in.messageRejected).toBe(crc32('Router_MessageRejected'))
-    expect(rt.opcodes.in.getValidatedFee).toBe(crc32('Router_GetValidatedFee'))
-  })
-
-  it('should match out opcodes', () => {
-    expect(rt.opcodes.out.messageValidated).toBe(crc32('Router_MessageValidated'))
-    expect(rt.opcodes.out.messageValidationFailed).toBe(crc32('Router_MessageValidationFailed'))
-    expect(rt.opcodes.out.ccipSendACK).toBe(crc32('Router_CCIPSendACK'))
-    expect(rt.opcodes.out.ccipSendNACK).toBe(crc32('Router_CCIPSendNACK'))
   })
 })

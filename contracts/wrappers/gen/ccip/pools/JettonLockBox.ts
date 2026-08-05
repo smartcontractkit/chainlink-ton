@@ -885,6 +885,14 @@ export class JettonLockBox implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendJettonLockBoxInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         minterAddress: c.Address

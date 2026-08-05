@@ -11,14 +11,17 @@ import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
 import "../token_registry/types"
+import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
 
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
-    | Router_GetValidatedFee_RemainingBitsAndRefs
+    | Router_GetValidatedFee_Any
     | OnRamp_MessageValidated_GetValidatedFeeContext
     | OnRamp_MessageValidationFailed_GetValidatedFeeContext
     | Router_RouteMessage
+    | Router_WithdrawToTokenPool
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
@@ -32,7 +35,7 @@ type Router_InMsg =
     | Router_TokenRegistrySetTokenInfo
     | TransferNotificationForRecipient;
 
-type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
 type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
 type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
 
@@ -44,9 +47,9 @@ type Router_BouncedMessage =
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
     queryId: uint64;
-    onRampUpdates: OnRamps?;
-    offRampAdds: OffRamps?;
-    offRampRemoves: OffRamps?;
+    onRampUpdates: OnRamps? = null;
+    offRampAdds: OffRamps? = null;
+    offRampRemoves: OffRamps? = null;
 }
 
 // Answers with Router_CCIPReceive
@@ -57,8 +60,7 @@ struct (0x31768d95) Router_CCIPSend {
     data: cell;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address?;
-    @abi.clientType(Cell<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>)
-    extraArgs: cell;
+    extraArgs: Cell<ExtraArgs>;
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
@@ -66,6 +68,20 @@ struct (0xfc69c50b) Router_RouteMessage {
     execId: ReceiveExecutorId;
     receiver: address;
     gasLimit: coins;
+}
+
+struct (0x19f0098f) Router_WithdrawToTokenPool {
+    queryID: uint64;
+    destChainSelector: uint64;
+    withdrawRequest: Cell<Router_WithdrawRequest>;
+}
+
+struct Router_WithdrawRequest {
+    /// Derived by SendExecutor
+    routerWalletAddress: address;
+    amount: coins;
+    tokenPool: address;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -128,9 +144,9 @@ struct (0x4dd6aa82) Router_GetValidatedFee<T> {
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
+    queryID: uint64,
     tokenPool: address,
-    tokenAmount: TokenAmount,
-    destChainSelector: uint64,
+    request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
 }
 
@@ -148,7 +164,7 @@ struct Router_GetValidatedFeeContext {
 // --- Outgoing messages ---
 
 /// Alias for ABIgen to generate codec
-type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
+type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
 
 // crc32('Router_MessageValidated')
 struct (0x9e2155ec) Router_MessageValidated<T> {
@@ -158,7 +174,7 @@ struct (0x9e2155ec) Router_MessageValidated<T> {
 }
 
 /// Alias for ABIgen to generate codec
-type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
+type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed<T> {

@@ -17,6 +17,7 @@ import {
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 // Role constants
 const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'))
@@ -103,12 +104,15 @@ describe('JettonLockBox', () => {
     // Create lockbox using fromStorage (handles serialization correctly)
     // walletAddress starts as null — will be set via init message
     lockbox = blockchain.openContract(
-      JettonLockBox.fromStorage({
-        id: 0n,
-        minterAddress: jettonMinter.address,
-        walletAddress: null,
-        rbac: emptyAccessControlData(),
-      }),
+      JettonLockBox.fromStorage(
+        {
+          id: 0n,
+          minterAddress: jettonMinter.address,
+          walletAddress: null,
+          rbac: emptyAccessControlData(),
+        },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+      ),
     )
 
     // Compute the real jetton wallet address for the lockbox
@@ -492,12 +496,15 @@ describe('JettonLockBox', () => {
     it('should reject operations on uninitialized contract', async () => {
       // Deploy a fresh lockbox but DON'T init it
       const freshLockbox = blockchain.openContract(
-        JettonLockBox.fromStorage({
-          minterAddress: jettonMinter.address,
-          walletAddress: null,
-          id: 1n,
-          rbac: emptyAccessControlData(),
-        }),
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 1n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+        ),
       )
 
       // Deploy without sending init message
@@ -526,12 +533,15 @@ describe('JettonLockBox', () => {
 
     it('should use msg.sender as admin when admin is null in init', async () => {
       const autoAdminLockbox = blockchain.openContract(
-        JettonLockBox.fromStorage({
-          minterAddress: jettonMinter.address,
-          walletAddress: null,
-          id: 2n,
-          rbac: emptyAccessControlData(),
-        }),
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 2n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+        ),
       )
 
       const autoAdminWalletAddress = await jettonMinter.getWalletAddress(autoAdminLockbox.address)

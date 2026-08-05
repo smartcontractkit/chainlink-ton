@@ -1336,7 +1336,7 @@ export const CursedSubjects = {
 export interface FeeQuoter_UpdatePrices {
     readonly $: 'FeeQuoter_UpdatePrices'
     updates: PriceUpdates
-    sendExcessesTo: c.Address | null
+    sendExcessesTo: c.Address | null /* = null */
 }
 
 export const FeeQuoter_UpdatePrices = {
@@ -1344,10 +1344,11 @@ export const FeeQuoter_UpdatePrices = {
 
     create(args: {
         updates: PriceUpdates
-        sendExcessesTo: c.Address | null
+        sendExcessesTo?: c.Address | null /* = null */
     }): FeeQuoter_UpdatePrices {
         return {
             $: 'FeeQuoter_UpdatePrices',
+            sendExcessesTo: null,
             ...args
         }
     },
@@ -3784,6 +3785,14 @@ export class OffRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }

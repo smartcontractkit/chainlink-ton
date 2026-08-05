@@ -2,8 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import { CCTJettonMinter } from '../../../wrappers/ccip/CCTJettonMinter'
-import { CCTJettonMinterCode, CCTJettonWalletCode } from '../../../wrappers/ccip/CCTJettonCode'
+import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import {
   Ownable2Step,
   CrossChainAddress,
@@ -39,6 +38,7 @@ import {
 import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 function buildSpoofedExecutorForwardNotification(senderAddress: Address): Cell {
   const forwarded = ContextExecutor_InMessageForward.toCell(
@@ -70,7 +70,7 @@ describe('BurnMintTokenPool', () => {
   let unauthorized: SandboxContract<TreasuryContract>
   let recipient: SandboxContract<TreasuryContract>
 
-  let cctMinter: SandboxContract<CCTJettonMinter>
+  let cctMinter: SandboxContract<cct.JettonMinter>
   let cctMinterRuntime: SandboxContract<JettonMinter>
   let burnMintPool: SandboxContract<BurnMintTokenPool>
   let pool: SandboxContract<TokenPool>
@@ -97,54 +97,60 @@ describe('BurnMintTokenPool', () => {
     unauthorized = await blockchain.treasury('unauthorized')
     recipient = await blockchain.treasury('recipient')
 
-    cctWalletCode = await CCTJettonWalletCode()
-    const cctMinterCode = await CCTJettonMinterCode()
+    cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
+    const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
+    const burnMintPoolCode = await contractCode.ccip.local('ccip.pools.BurnMintTokenPool')
 
     cctMinter = blockchain.openContract(
-      CCTJettonMinter.createFromConfig(
-        {
+      cct.JettonMinter.fromStorage(
+        cct.MinterStorage.create({
           totalSupply: 0n,
           adminAddress: deployer.address,
           nextAdminAddress: null,
           jettonWalletCode: cctWalletCode,
           metadataUri: 'cct-test',
-        },
-        cctMinterCode,
+        }),
+        { overrideContractCode: cctMinterCode },
       ),
     )
     await cctMinter.sendDeploy(deployer.getSender(), toNano('1'))
     cctMinterRuntime = blockchain.openContract(JettonMinter.createFromAddress(cctMinter.address))
 
     burnMintPool = blockchain.openContract(
-      BurnMintTokenPool.fromStorage({
-        poolData: TokenPool_Data.create({
-          adminConfig: TokenPool_AdminConfig.create({
-            ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-            rmnProxy: deployer.address,
-            dynamicConfig: TokenPool_DynamicConfig.create({
-              router: deployer.address,
-              rateLimitAdmin: null,
-              feeAdmin: null,
+      BurnMintTokenPool.fromStorage(
+        {
+          poolData: TokenPool_Data.create({
+            adminConfig: TokenPool_AdminConfig.create({
+              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
+              dynamicConfig: TokenPool_DynamicConfig.create({
+                router: deployer.address,
+                rateLimitAdmin: null,
+                feeAdmin: null,
+              }),
+              jettonClient: JettonClient.create({
+                masterAddress: cctMinter.address,
+                jettonWalletCode: cctWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
             }),
-            jettonClient: JettonClient.create({
-              masterAddress: cctMinter.address,
-              jettonWalletCode: cctWalletCode,
+            mirroredPolicy: TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
-            allowedFinalityConfig: 0n,
-            advancedPoolHooks: null,
+            tokenDecimals: 9n,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
           }),
-          mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: new Map<bigint, Address>(),
-            offRamps: new Map<bigint, Address>(),
-            cursedSubjects: CursedSubjects.create({ data: new Set<bigint>() }),
-          }),
-          tokenDecimals: 9n,
-          remoteChainConfigs: new Map(),
-          tokenTransferFeeConfigs: new Map(),
-        }),
-        contextExecutorCode: ContextExecutor.CodeCell,
-        contextExecutorNextId: 1n,
-      }),
+          contextExecutorCode: ContextExecutor.CodeCell,
+          contextExecutorNextId: 1n,
+        },
+        { overrideContractCode: burnMintPoolCode },
+      ),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
 
@@ -288,7 +294,12 @@ describe('BurnMintTokenPool', () => {
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('BurnMintTokenPool', async () => {
     // Deploy mock hooks
-    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    const hooks = blockchain.openContract(
+      MockAdvancedPoolHooks.fromStorage(
+        { id: 0n },
+        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+      ),
+    )
     await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
 
     // Register hooks on pool

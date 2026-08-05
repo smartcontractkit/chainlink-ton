@@ -44,6 +44,7 @@ import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from '.
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -106,12 +107,15 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     // Deploy JettonLockBox
     jettonLockBox = blockchain.openContract(
-      JettonLockBox.fromStorage({
-        id: 1n,
-        minterAddress: jettonMinter.address,
-        walletAddress: null,
-        rbac: emptyAccessControlData(),
-      }),
+      JettonLockBox.fromStorage(
+        {
+          id: 1n,
+          minterAddress: jettonMinter.address,
+          walletAddress: null,
+          rbac: emptyAccessControlData(),
+        },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+      ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
 
@@ -136,38 +140,45 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     // Deploy LockReleaseLockboxTokenPool (need pool address for role grant below)
     lockReleaseLockboxPool = blockchain.openContract(
-      LockReleaseLockboxTokenPool.fromStorage({
-        poolData: TokenPool_Data.create({
-          adminConfig: TokenPool_AdminConfig.create({
-            ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-            rmnProxy: deployer.address,
-            dynamicConfig: TokenPool_DynamicConfig.create({
-              router: deployer.address,
-              rateLimitAdmin: null,
-              feeAdmin: null,
+      LockReleaseLockboxTokenPool.fromStorage(
+        {
+          poolData: TokenPool_Data.create({
+            adminConfig: TokenPool_AdminConfig.create({
+              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
+              dynamicConfig: TokenPool_DynamicConfig.create({
+                router: deployer.address,
+                rateLimitAdmin: null,
+                feeAdmin: null,
+              }),
+              jettonClient: JettonClient.create({
+                masterAddress: jettonMinter.address,
+                jettonWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
             }),
-            jettonClient: JettonClient.create({
-              masterAddress: jettonMinter.address,
-              jettonWalletCode,
+            mirroredPolicy: TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
-            allowedFinalityConfig: 0n,
-            advancedPoolHooks: null,
+            tokenDecimals: 9n,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
           }),
-          mirroredPolicy: TokenPool_MirroredPolicy.create({
-            onRamps: new Map(),
-            offRamps: new Map(),
-            cursedSubjects: CursedSubjects.create({
-              data: new Set(),
-            }),
-          }),
-          tokenDecimals: 9n,
-          remoteChainConfigs: new Map(),
-          tokenTransferFeeConfigs: new Map(),
-        }),
-        lockbox: jettonLockBox.address,
-        contextExecutorCode: ContextExecutor.CodeCell,
-        contextExecutorNextId: 1n,
-      }),
+          lockbox: jettonLockBox.address,
+          contextExecutorCode: ContextExecutor.CodeCell,
+          contextExecutorNextId: 1n,
+        },
+        {
+          overrideContractCode: await contractCode.ccip.local(
+            'ccip.pools.LockReleaseLockboxTokenPool',
+          ),
+        },
+      ),
     )
     await lockReleaseLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
 
@@ -312,7 +323,14 @@ describe('LockReleaseLockboxTokenPool', () => {
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseLockboxTokenPool', async () => {
     // Deploy mock hooks
-    const hooks = blockchain.openContract(MockAdvancedPoolHooks.fromStorage({ id: 0n }))
+    const hooks = blockchain.openContract(
+      MockAdvancedPoolHooks.fromStorage(
+        { id: 0n },
+        {
+          overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
+        },
+      ),
+    )
     await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
 
     // Register hooks on pool

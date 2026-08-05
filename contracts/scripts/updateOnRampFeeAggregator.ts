@@ -1,7 +1,7 @@
 import { Address, toNano } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
 import { WalletContractV5R1 } from '@ton/ton'
-import { OnRamp } from '../wrappers/ccip/OnRamp'
+import * as or from '../wrappers/gen/ccip/OnRamp'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as readline from 'readline'
@@ -107,7 +107,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
   } else {
     // Use provider's sender (mnemonic-based)
     sender = provider.sender()
-    senderAddress = sender.address
+    senderAddress = sender.address!
 
     if (!senderAddress) {
       throw new Error('Sender address not available')
@@ -121,7 +121,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
   console.log('')
 
   // Open OnRamp contract
-  const onRamp = provider.open(OnRamp.createFromAddress(onRampAddress))
+  const onRamp = provider.open(or.OnRamp.fromAddress(onRampAddress))
 
   // Fetch current dynamic config
   console.log('📖 Fetching current OnRamp configuration...')
@@ -171,20 +171,17 @@ export async function run(provider: NetworkProvider, args: string[]) {
   }
 
   // Create new config with updated feeAggregator
-  const newConfig = {
+  const newConfig = or.OnRamp_DynamicConfig.create({
     feeQuoter: currentConfig.feeQuoter,
     feeAggregator: newFeeAggregatorAddress,
     allowlistAdmin: currentConfig.allowlistAdmin,
     reserve: currentConfig.reserve,
-  }
+  })
 
   console.log('\n📤 Sending update transaction...')
   try {
-    await onRamp.sendSetDynamicConfig(sender, {
-      value: toNano('0.1'),
-      body: {
-        config: newConfig,
-      },
+    await onRamp.sendOnRampSetDynamicConfig(sender, toNano('0.1'), {
+      config: newConfig,
     })
     console.log('   ✅ Transaction sent successfully!')
     console.log('   Note: Wait for the transaction to be confirmed on the blockchain')

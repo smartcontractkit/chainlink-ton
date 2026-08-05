@@ -89,6 +89,11 @@ fun JettonClient.sendExtended(
         .send(sendMode);
 }
 
+/// Cast Cell into ForwardPayloadRemainder by storing as ref
+fun Cell<T>.toForwardPayload(self): ForwardPayloadRemainder {
+    return beginCell().storeMaybeRef(self).toSlice();
+}
+
 // Assert that the sender is the jetton wallet address. Used for validating incoming notifications.
 @inline
 fun JettonClient.isWallet(self, sender: address): bool {

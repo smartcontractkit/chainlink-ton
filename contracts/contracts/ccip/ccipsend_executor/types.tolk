@@ -22,15 +22,18 @@ struct CCIPSendExecutor_Data {
 
 struct CCIPSendExecutor_Addresses {
     onramp: address,
+    router: address,
     feeQuoter: address,
-    tokenRegistry: address?,
+    tokenRegistry: Cell<address>?,
 }
 
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
     | Cell<CCIPSendExecutor_State_TokenRegistryAccess>
-    | Cell<CCIPSendExecutor_State_TokenTransfer>
+    | Cell<CCIPSendExecutor_State_WalletAddressValidation>
+    | Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>
+    | Cell<CCIPSendExecutor_State_TokenPool_Withdraw>
     | Cell<CCIPSendExecutor_State_Finalized>
 
 struct CCIPSendExecutor_State_Initialized {
@@ -47,16 +50,29 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
 // TODO By default, the Executor should JettonWallet address validation via async req/resp with the JettonMinter
 // Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
+    fee: Fee,
+    minterAddress: address,
+    tokenPool: address,
 }
 
-struct CCIPSendExecutor_State_TokenTransfer {
-    tokenPool: address,
+struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
     fee: Fee,
+    minterAddress: address,
+    tokenPool: address,
+    routerWalletAddress: address,
+}
+
+struct CCIPSendExecutor_State_TokenPool_Withdraw {
+    fee: Fee,
+    minterAddress: address,
+    tokenPool: address,
+    routerWalletAddress: address,
 }
 
 struct CCIPSendExecutor_State_Finalized {
 }
 
 struct CCIPSendExecutor_Config {
+    router: address,
     feeQuoter: address,
 }

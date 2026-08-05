@@ -240,6 +240,14 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
     return lisplist;
 }
 
+// Helper to cast T? into Cell<T>?
+fun T?.toOptCell(self): Cell<T>? {
+    if (self == null) {
+        return null;
+    }
+    return self.toCell();
+}
+
 // This type works as a wrapper for RemainingBitsAndRefs that implements
 // automatic serialization/deserialization. It determines whether to store the
 // data directly as bits or as a reference to a cell, depending on available
