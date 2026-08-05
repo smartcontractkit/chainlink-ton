@@ -1,28 +1,20 @@
-import { Cell, toNano, beginCell, Dictionary, StateInit, contractAddress, Address } from '@ton/core'
-import { KeyPair } from '@ton/crypto'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Cell, toNano, beginCell } from '@ton/core'
+import { Blockchain } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
 import {
   generateMockTonAddress,
   bigIntToBuffer,
-  uint8ArrayToBigInt,
   asSnakedCell,
-  generateEd25519KeyPair,
   generateRandomContractId,
-  WRAPPED_NATIVE,
-  generateRandomTonAddress,
 } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { expectSuccessfulTransaction, assertLog, expectFailedTransaction } from '../../Logs'
-import { setupTestFeeQuoter } from '../helpers/SetUp'
 import { ChainSelectors } from '../../utils/Selectors'
-import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
+import generateMessageID from '../../../src/offramp/generateMessageID'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as deployable from '../../../wrappers/libraries/Deployable'
-import * as OCR3Logs from '../../../wrappers/libraries/ocr/Logs'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { facilityId, errorCode } from '../../../wrappers/utils'
 
@@ -32,14 +24,11 @@ import * as tr from '../../../wrappers/examples/Receiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
-import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as ofManual from '../../../wrappers/ccip/OffRamp'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import {
-  deployOffRampContract,
   createSignatures,
-  getMerkleRootID,
   OffRampTestSetup,
   getDefaultMetadataHash,
   buildCursedSubjects,
@@ -48,7 +37,7 @@ import {
 } from './OffRamp.Setup'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
-describe('OffRamp - Unit Tests', () => {
+describe('OffRamp - Commit and Execute', () => {
   let blockchain: Blockchain
   let setup: OffRampTestSetup
 
@@ -2287,328 +2276,6 @@ describe('OffRamp - Unit Tests', () => {
       false,
       of.OffRamp.Errors['Error.InvalidInterval'],
     )
-  })
-
-  it('SetDynamicConfig', async () => {
-    // owner can call SetDynamicConfig
-    const newFeeQuoter = await generateRandomTonAddress()
-    const newPermissionlessExecutionThresholdSeconds = BigInt(7200)
-    const result = await setup.offRamp.sendOffRampSetDynamicConfig(
-      setup.deployer.getSender(),
-      toNano('0.1'),
-      {
-        feeQuoter: newFeeQuoter,
-        permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: setup.deployer.address,
-      to: setup.offRamp.address,
-      success: true,
-    })
-
-    // verify changes
-    const dynamicConfig = await setup.offRamp.getConfig()
-    expect(dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
-    expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
-      newPermissionlessExecutionThresholdSeconds,
-    )
-
-    // non-owner cannot call SetDynamicConfig
-    const other = await blockchain.treasury('other')
-    const result2 = await setup.offRamp.sendOffRampSetDynamicConfig(
-      other.getSender(),
-      toNano('0.1'),
-      {
-        feeQuoter: newFeeQuoter,
-        permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
-      },
-    )
-    expect(result2.transactions).toHaveTransaction({
-      from: other.address,
-      to: setup.offRamp.address,
-      success: false,
-    })
-  })
-
-  it('updateDeployables', async () => {
-    // owner can update deployables
-    const mockMerkleRootCode = beginCell().storeUint(0x12345678, 32).endCell()
-    const mockReceiveExecutorCode = beginCell().storeUint(0x87654321, 32).endCell()
-
-    const result = await setup.offRamp.sendOffRampUpdateDeployables(
-      setup.deployer.getSender(),
-      toNano('0.1'),
-      {
-        receiveExecutorCode: mockReceiveExecutorCode,
-        merkleRootCode: mockMerkleRootCode,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: setup.deployer.address,
-      to: setup.offRamp.address,
-      success: true,
-    })
-
-    // verify changes
-    const deployables = await setup.offRamp.getDeployableHashes()
-
-    expect(deployables.merkleRoot).toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
-
-    expect(deployables.receiveExecutor).toBe(uint8ArrayToBigInt(mockReceiveExecutorCode.hash()))
-
-    expect(deployables.deployer).toBe(uint8ArrayToBigInt(setup.code.deployer.hash()))
-
-    // non-owner cannot update deployables
-    const other = await blockchain.treasury('other')
-    const result2 = await setup.offRamp.sendOffRampUpdateDeployables(
-      other.getSender(),
-      toNano('0.1'),
-      {
-        receiveExecutorCode: mockReceiveExecutorCode,
-        merkleRootCode: mockMerkleRootCode,
-      },
-    )
-    expect(result2.transactions).toHaveTransaction({
-      from: other.address,
-      to: setup.offRamp.address,
-      success: false,
-    })
-  })
-
-  it('getAllSourceChainConfigs', async () => {
-    await setup.setupSourceChainConfig()
-    const result = await setup.offRamp.getAllSourceChainConfigs()
-    const expectedSourceChainConfigs = setup.createDefaultUpdateSourceChainConfigs()
-    // Compare dictionary entries with expected configs
-    expect(result.size).toBe(expectedSourceChainConfigs.length)
-    for (const expected of expectedSourceChainConfigs) {
-      const actual = result.get(expected.sourceChainSelector)
-      expect(actual).toBeDefined()
-      expect(actual!).toEqual(expected.config)
-    }
-  })
-  it('price updates are not sent to feequoter if they are empty', async () => {
-    await setup.setupOCRConfig()
-    const priceUpdates = of.PriceUpdates.create({
-      tokenPriceUpdates: [],
-      gasPriceUpdates: [],
-    })
-    const result = await setup.commitReport([], toNano('0.5'), 0x01, priceUpdates)
-    expect(result.transactions).not.toHaveTransaction({
-      from: setup.offRamp.address,
-      to: setup.feeQuoter.address,
-    })
-
-    //should send update if only one of the updates is non-empty
-    const priceUpdates2 = of.PriceUpdates.create({
-      tokenPriceUpdates: [
-        of.TokenPriceUpdate.create({
-          sourceToken: generateMockTonAddress(),
-          usdPerToken: 12345678n,
-        }),
-      ],
-      gasPriceUpdates: [],
-    })
-
-    const result2 = await setup.commitReport([], toNano('0.5'), 0x02, priceUpdates2)
-    expect(result2.transactions).toHaveTransaction({
-      from: setup.offRamp.address,
-      to: setup.feeQuoter.address,
-    })
-
-    //test with other combination
-    const priceUpdates3 = of.PriceUpdates.create({
-      tokenPriceUpdates: [],
-      gasPriceUpdates: [
-        of.GasPriceUpdate.create({
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          executionGasPrice: 1n,
-          dataAvailabilityGasPrice: 1n,
-        }),
-      ],
-    })
-
-    const result3 = await setup.commitReport([], toNano('0.5'), 0x03, priceUpdates3)
-    expect(result3.transactions).toHaveTransaction({
-      from: setup.offRamp.address,
-      to: setup.feeQuoter.address,
-      success: true,
-    })
-  })
-
-  describe('Bounced Message Handling Tests', () => {
-    it('should handle RouteMessage bounce from router and emit events', async () => {
-      // Create a mock router that will bounce messages
-      const wrongRouterAddress = generateMockTonAddress()
-
-      // Update source chain config to use a non-existent router
-      const configsWithWrongRouter = setup.createDefaultUpdateSourceChainConfigs({
-        router: wrongRouterAddress,
-      })
-
-      await setup.setupOCRConfigs()
-      await setup.offRamp.sendOffRampUpdateSourceChainConfigs(
-        setup.deployer.getSender(),
-        toNano('0.5'),
-        {
-          configs: configsWithWrongRouter,
-        },
-      )
-
-      // Create and commit a message to a valid receiver
-      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
-      const metadataHash = getDefaultMetadataHash(
-        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      )
-      const rootBytes = generateMessageID(message, metadataHash)
-      const root = setup.createMerkleRoot(1n, 1n, rootBytes)
-
-      await setup.commitReport([root])
-
-      // Try to execute - the Router_RouteMessage should bounce
-      const report = setup.createExecuteReport([message])
-      const result = await setup.executeReport(report)
-
-      // The OffRamp should emit ExecutionStateChanged to IN_PROGRESS
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.InProgress,
-        },
-      )
-
-      // Should bounce from the non-existent router
-      expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
-        to: wrongRouterAddress,
-        success: false,
-      })
-
-      // Should emit RouteMessageBounced event
-      assertLog(result.transactions, setup.offRamp.address, CCIPLogs.LogTypes.RouteMessageBounced, {
-        router: wrongRouterAddress,
-        execId: expect.any(BigInt),
-      })
-
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
-      )
-    })
-
-    it('should handle Deployable_Initialize bounce and emit events', async () => {
-      await setup.setupOCRConfigs()
-
-      // Try committing the same root twice. This should normally never happen because the seqNr
-      // would not match, but we can intentionally build a commit report with correct seqNr
-      const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
-      const rootBytes = generateMessageID(
-        message1,
-        getDefaultMetadataHash(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
-      )
-      const root = setup.createMerkleRoot(1n, 1n, rootBytes)
-
-      await setup.commitReport([root])
-
-      const root2 = setup.createMerkleRoot(2n, 2n, rootBytes)
-
-      const result = await setup.commitReport([root2])
-
-      expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
-        success: false,
-        to: setup.merkleRootAddress(root2),
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: setup.merkleRootAddress(root2),
-        success: true,
-        to: setup.offRamp.address,
-      })
-
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.DeployableInitializeBounced,
-        {
-          deployableAddress: setup.merkleRootAddress(root2),
-        },
-      )
-    })
-
-    it('should handle ReceiveExecutor_InitExecute bounce and emit events', async () => {
-      // First, commit report with a valid message
-      const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
-      await setup.setupAndCommitMessage(message1)
-
-      // Update receiveExecutorCode to bad code that will cause InitExecute to bounce
-      const badReceiveExecutorCode = beginCell().storeUint(0x88888888, 32).endCell()
-      await setup.offRamp.sendOffRampUpdateDeployables(setup.deployer.getSender(), toNano('0.1'), {
-        receiveExecutorCode: badReceiveExecutorCode,
-        merkleRootCode: setup.code.merkleRoot,
-      })
-
-      const report = setup.createExecuteReport([message1])
-      // Execute the second message
-      const result = await setup.executeReport(report)
-
-      // Should emit IN_PROGRESS
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.InProgress,
-        },
-      )
-
-      // InitExecute should fail
-      expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
-        success: false,
-      })
-
-      // Should emit ReceiveExecutorInitExecuteBounced
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced,
-        {
-          receiveExecutor: expect.any(Address),
-          root: expect.any(Address),
-          sequenceNumber: 1n,
-        },
-      )
-
-      // Should emit ExecutionStateChanged: FAILURE
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
-      )
-    })
   })
 
   afterAll(async () => {
