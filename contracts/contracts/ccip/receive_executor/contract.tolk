@@ -118,7 +118,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenR
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, rampMsg: Any2TVMRampMessage, tokenPool: address, tokenAmount: Any2TVMTokenTransfer) {
     st.tokenPool = tokenPool.toCell();
     st.state = ReceiveExecutor_MessageState.TokenTransfer;
-    createMessage(
+    val releseOrMint = createMessage(
         {
             bounce: true,
             value: 0, // TBD should we be using tokenAmoun.destGasAmount instead? It's not clear what this field is for in TON, and it was removed in CCIP 2.0
@@ -140,12 +140,13 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, rampMsg: Any2TVMRampMessag
                         }.toCell(),
                     },
                     sourcePoolAddress: tokenAmount.sourcePoolAddress,
-                    sourcePoolData: null, // TBD Any2TVMTokenTransfer doesn't have this.
+                    sourcePoolData: tokenAmount.extraData,
                     offchainTokenData: null, // TBD Any2TVMTokenTransfer doesn't have this.
                 }.toCell(),
             }
         }
-    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    );
+    releseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
