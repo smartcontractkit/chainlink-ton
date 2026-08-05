@@ -15,7 +15,6 @@ import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
-import "../lib/token_pool/events"
 import "../lib/token_pool/errors"
 
 import "messages"
@@ -84,11 +83,12 @@ fun deployBurnMintContextExecutorWithAsk(
         value: BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
         dest: executor,
         body: ContextExecutor_Ask {
-            queryId: queryId,
+            queryId,
             forwardPayload: null,
             done: false,
         },
     });
+    // TODO: need to use SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
@@ -153,21 +153,29 @@ fun sendMintMessage(
     val jettonClient = st.poolData.load().jettonClient();
     val operation = context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
+    val reqestMsg = lazy operation.requestMsg.load();
+    val request = lazy reqestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+
     val mint = createMessage({
         bounce: BounceMode.RichBounce,
         value: BurnMintTokenPool_MINT_VALUE,
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
-            queryId: queryId,
-            mintRecipient: operation.requestMsg.load().request.load().transfer.details.load().receiver,
+            queryId,
+            mintRecipient: details.receiver,
             tonAmount: BurnMintTokenPool_MINT_VALUE,
             internalTransferMsg: InternalTransferStep {
-                queryId: queryId,
+                queryId,
                 jettonAmount: prepared.localAmount,
                 transferInitiator: null,
                 sendExcessesTo: executorAddress,
-                forwardTonAmount: 0,
-                forwardPayload: beginCell().storeBool(true).storeRef(context.toCell()).endCell().beginParse(),
+                forwardTonAmount: 0, // TODO: do we notify the recipient?
+                forwardPayload: beginCell()
+                    .storeBool(true)
+                    .storeRef(context.toCell())
+                    .endCell()
+                    .beginParse(),
             }.toCell(),
         },
     });
@@ -289,29 +297,6 @@ fun onReleaseOrMintContinue(
 fun onReleaseOrMint(st: Storage, _msg: TokenPool_ReleaseOrMint): Storage {
     assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
     return st;
-}
-
-/// @notice Transfers jettons back to the original sender after a failed lock/burn.
-/// @dev Sends AskToTransfer to the jetton wallet with original sender as recipient.
-fun returnLockOrBurnTransfer(sender: address, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    val returnTransfer = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: AskToTransfer {
-            queryId: requestMsg.queryId,
-            jettonAmount: details.amount,
-            transferRecipient: details.originalSender,
-            sendExcessesTo: details.originalSender,
-            customPayload: null,
-            forwardTonAmount: 0,
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-        },
-    });
-    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun onClaimMinterAdmin(

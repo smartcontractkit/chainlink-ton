@@ -100,29 +100,30 @@ fun onContextExecutorReply(
         msg.context,
         msg.forwardFrom,
     );
-    assert(sender == expectedExecutor.calculateAddress(), Error.InvalidContextExecutorReply);
+    val executorAddr = expectedExecutor.calculateAddress();
+    assert(sender == executorAddr, Error.InvalidContextExecutorReply);
 
-    val context = msg.context.load();
-    val operation = context.forwardPayload.load();
+    val context = lazy msg.context.load();
+    val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val requestIn = lazy operation.requestMsg.load().request.load();
     val details = lazy requestIn.transfer.details.load();
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
-        value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
+        value: 0,
         dest: st.poolData.load().jettonClient().walletAddress(),
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: prepared.localAmount,
             transferRecipient: details.receiver,
-            sendExcessesTo: sender,
+            sendExcessesTo: executorAddr, // continuation
             customPayload: context.toCell(),
-            forwardTonAmount: 0,
+            forwardTonAmount: 0, // TODO: do we notify the receiver?
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     });
-    transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @notice Handles bounced release messages: refunds rate limit and sends failure reply.
@@ -218,12 +219,12 @@ fun onContextExecutorForwardNotification(
     );
     assert(sender == expectedExecutor.calculateAddress(), TokenPool_Error.Unauthorized);
 
-    val forwarded = msg.message.load();
-    val returnExcesses = ReturnExcessesBack.fromCell(forwarded.body);
+    val forwarded = lazy msg.message.load();
+    // Check that the forwarded message is expected
+    val _returnExcesses = ReturnExcessesBack.fromCell(forwarded.body);
 
-    val context = msg.context.load();
-    val operation = context.forwardPayload.load();
-    assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
+    val context = lazy msg.context.load();
+    val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);

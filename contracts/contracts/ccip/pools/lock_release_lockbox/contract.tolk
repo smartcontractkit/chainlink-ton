@@ -216,8 +216,8 @@ fun onLockOrBurnTransferContinue(
             transferRecipient: st.lockbox,
             sendExcessesTo: contract.getAddress(),
             customPayload: context.toCell(),
-            forwardTonAmount: 0,
-            forwardPayload: forwardPayload,
+            forwardTonAmount: 0, // TODO: should be calculated as the leftover value after some fixed cost
+            forwardPayload,
         },
     });
     transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);

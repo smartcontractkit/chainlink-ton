@@ -4,7 +4,6 @@ import "../lib/token_pool/messages"
 
 const LockReleaseTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseTokenPool".literalSlice();
 const LockReleaseTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
-const LockReleaseTokenPool_RELEASE_TRANSFER_VALUE = ton("0.05");
 const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
 const LockReleaseTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02");
 

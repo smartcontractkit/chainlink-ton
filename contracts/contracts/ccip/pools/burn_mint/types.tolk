@@ -8,7 +8,6 @@ const BurnMintTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
 const BurnMintTokenPool_BURN_VALUE = ton("0.05");
 const BurnMintTokenPool_MINT_VALUE = ton("0.1");
-const BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02");
 
 /// @notice Context passed to ContextExecutor for burn (lock) operations.
 /// Carries the jetton wallet address and the full forward payload for finalization.
