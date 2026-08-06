@@ -5,6 +5,6 @@ const LockReleaseTokenPool_FACILITY_ID = 263;  // (crc32(<facility>) % 640) + 10
 
 enum Error {
     UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100
-    ContextExecutorUnavailable
-    InvalidContextExecutorReply
+    InvalidOffRampAccountReply
+    InvalidOffRampAccountNotification
 }

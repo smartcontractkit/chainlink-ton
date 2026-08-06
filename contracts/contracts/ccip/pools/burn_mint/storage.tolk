@@ -6,13 +6,15 @@ import "../lib/token_pool/types"
 
 import "types"
 
-/// @notice Pool storage: common pool data + ContextExecutor deployment state.
+/// @notice Pool storage: common pool data + ContextExecutor and OffRampAccount deployment state.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    /// Compiled code cell of the ContextExecutor contract (deployed per-operation).
+    /// Compiled code cell of the ContextExecutor contract (deployed per burn operation).
     contextExecutorCode: cell;
     /// Monotonically increasing ID for deterministic ContextExecutor address derivation.
     contextExecutorNextId: uint64;
+    /// Compiled code cell of the OffRampAccount contract (deployed per mint operation).
+    offRampAccountCode: cell;
 }
 
 @inline
@@ -71,5 +73,6 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
         }.toCell(),
         contextExecutorCode: config.contextExecutorCode,
         contextExecutorNextId: 1,
+        offRampAccountCode: config.offRampAccountCode,
     };
 }

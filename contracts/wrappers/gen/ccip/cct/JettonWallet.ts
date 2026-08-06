@@ -430,44 +430,6 @@ export const InternalTransferStep = {
 }
 
 /**
- > struct (0xd53276db) ReturnExcessesBack {
- >     queryId: uint64
- > }
- */
-export interface ReturnExcessesBack {
-    readonly $: 'ReturnExcessesBack'
-    queryId: uint64
-}
-
-export const ReturnExcessesBack = {
-    PREFIX: 0xd53276db,
-
-    create(args: {
-        queryId?: uint64
-    }): ReturnExcessesBack {
-        return {
-            $: 'ReturnExcessesBack',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): ReturnExcessesBack {
-        loadAndCheckPrefix32(s, 0xd53276db, 'ReturnExcessesBack');
-        return {
-            $: 'ReturnExcessesBack',
-            queryId: s.loadUintBig(64),
-        }
-    },
-    store(self: ReturnExcessesBack, b: c.Builder): void {
-        b.storeUint(0xd53276db, 32);
-        b.storeUint(self.queryId, 64);
-    },
-    toCell(self: ReturnExcessesBack): c.Cell {
-        return makeCellFrom<ReturnExcessesBack>(self, ReturnExcessesBack.store);
-    }
-}
-
-/**
  > struct (0x595f07bc) AskToBurn {
  >     queryId: uint64
  >     jettonAmount: coins
@@ -605,6 +567,49 @@ export const TopUpTons = {
     }
 }
 
+/**
+ > struct (0xd53276db) CCT_ReturnExcessesBack {
+ >     queryId: uint64
+ >     initiator: address
+ > }
+ */
+export interface CCT_ReturnExcessesBack {
+    readonly $: 'CCT_ReturnExcessesBack'
+    queryId: uint64
+    initiator: c.Address
+}
+
+export const CCT_ReturnExcessesBack = {
+    PREFIX: 0xd53276db,
+
+    create(args: {
+        queryId?: uint64
+        initiator: c.Address
+    }): CCT_ReturnExcessesBack {
+        return {
+            $: 'CCT_ReturnExcessesBack',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CCT_ReturnExcessesBack {
+        loadAndCheckPrefix32(s, 0xd53276db, 'CCT_ReturnExcessesBack');
+        return {
+            $: 'CCT_ReturnExcessesBack',
+            queryId: s.loadUintBig(64),
+            initiator: s.loadAddress(),
+        }
+    },
+    store(self: CCT_ReturnExcessesBack, b: c.Builder): void {
+        b.storeUint(0xd53276db, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.initiator);
+    },
+    toCell(self: CCT_ReturnExcessesBack): c.Cell {
+        return makeCellFrom<CCT_ReturnExcessesBack>(self, CCT_ReturnExcessesBack.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class JettonWallet
 //
@@ -644,7 +649,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonWallet implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAr0AART/APSkE/S88sgLAQIBYgIDA8zQ+JGOONMfMdcsILxqKMyW0z8x+gAwjhHXLCPe7L70kvI/4dM/MfoAMOLtRNDWA/oAA6AByM4B+gLOye1U4NcsILxqKMzjAtcsIHxT9SzjAtcsIsr4PeTjAtcsJpuQrGQx3IQP8vAEBQYCASAKCwLK7UTQAdM/+gD6UPpQ+gAG1gP6ACD6SPpIMPiSIccFkTCOJviS+CopyM+EAvpSE/pSyVjIz4TQzMz5FsjPigBAy//PUMcF8uBK4lEnoAPIzlAD+gISzsntVCGTWzRb4w0hbpFb4w4HCAH80z/6APpI+lD0AfoAIPQEAW6RMJHR4iP6RDDy0U34l/iTcPg6I3Jx4wT4OSBugRgJIuMEIW6BHFVYA+MEUCOoJaBzgQOjcPg8oAFw+DagAXD4NqBzgQQJghAJZgGAcPg3oLzysO1E0NYD+gAg+kj6SDD4kiLHBfLgSVM5vvKvCQDw+Jf4OSBugREQWOMEcYEC8nD4OAFw+DaggQ8PcPg2oLzysO1E0NYD+gAg+kj6SDD4kiLHBfLgSQXTP/oA+lAwU1G+8q9RUaEGyM5QBvoCE87J7VTIz5Hvdl96Ess/UAP6AhL6UvpUycjPhYgS+lJxzwtuzMmAUPsAAFLIz5HNi0JyJs8LP1AF+gIT+lQVzsnIz4UIE/pSAfoCcc8LaszJgBH7AABo+CdvEPiXofgvoHOBBAmCEAlmAYBw+De2CXL7AsjPhQgS+lKCENUydtvPC47LP8mBAIL7AACqUTmhBMjOUAT6As7J7VT4KsjPhAIX+lL6UsnIz5BeNRRmGMs/UAb6AhX6VBL6VAH6AhLOycjPiYgBXcjPhNDMzPkWzwv/gQCNzwt0EswSzMzJgFD7AAAjv9gXaiaGmBmP0AfSR9JBh8FUABG8UI9qJoa4WBw=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAssAART/APSkE/S88sgLAQIBYgIDA8zQ+JGOONMfMdcsILxqKMyW0z8x+gAwjhHXLCPe7L70kvI/4dM/MfoAMOLtRNDWA/oAA6AByM4B+gLOye1U4NcsILxqKMzjAtcsIHxT9SzjAtcsIsr4PeTjAtcsJpuQrGQx3IQP8vAEBQYCASAKCwLO7UTQAdM/+gD6UPpQ+gAG1gP6ACD6SPpIMPiSIccFkTCOJviS+CopyM+EAvpSE/pSyVjIz4TQzMz5FsjPigBAy//PUMcF8uBK4lEnoAPIzlAD+gISzsntVCGUECY0W+MNI26SXwTjDgcIAfzTP/oA+kj6UPQB+gAg9AQBbpEwkdHiI/pEMPLRTfiX+JNw+DojcnHjBPg5IG6BGAki4wQhboEcVVgD4wRQI6gloHOBA6Nw+DygAXD4NqABcPg2oHOBBAmCEAlmAYBw+DegvPKw7UTQ1gP6ACD6SPpIMPiSIscF8uBJUzm+8q8JAPD4l/g5IG6BERBY4wRxgQLycPg4AXD4NqCBDw9w+DagvPKw7UTQ1gP6ACD6SPpIMPiSIscF8uBJBdM/+gD6UDBTUb7yr1FRoQbIzlAG+gITzsntVMjPke92X3oSyz9QA/oCEvpS+lTJyM+FiBL6UnHPC27MyYBQ+wAAWsjPkc2LQnImzws/UAX6AlIw+lQWzsnIz4UIUkD6UlAG+gJxzwtqFczJgBH7AAB4+CdvEPiXofgvoHOBBAmCEAlmAYBw+De2CXL7AiBuswLjBMjPhQgT+lKCENUydtvPC47LP/pSyYEAgvsAAKpROaEEyM5QBPoCzsntVPgqyM+EAhf6UvpSycjPkF41FGYYyz9QBvoCFfpUEvpUAfoCEs7JyM+JiAFdyM+E0MzM+RbPC/+BAI3PC3QSzBLMzMmAUPsAACO/2BdqJoaYGY/QB9JH0kGHwVQAEbxQj2omhrhYHA==');
 
     static Errors = {
         'ERROR_BALANCE_ERROR': 47,

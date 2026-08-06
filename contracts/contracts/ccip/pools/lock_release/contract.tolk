@@ -9,8 +9,8 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
 import "../../common/types"
-import "../../executors/context_executor/messages"
-import "../../executors/context_executor/types"
+import "../../accounts/off_ramp_account/messages"
+import "../../accounts/off_ramp_account/types"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -47,12 +47,12 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
-        ContextExecutor_Reply<LockReleaseTokenPool_ReleaseContext> => {
-            onContextExecutorReply(mutate st, in.senderAddress, msg);
+        OffRampAccount_Reply => {
+            onOffRampAccountReply(mutate st, in.senderAddress, msg);
             st.store();
         }
-        ContextExecutor_ForwardNotification<LockReleaseTokenPool_ReleaseContext> => {
-            onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
+        OffRampAccount_ForwardNotification => {
+            onOffRampAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
         }
         else => {
@@ -61,53 +61,67 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// @notice Deploys a new ContextExecutor with an Ask message.
-/// The Ask carries the release context in forwardPayload. The pool awaits the Reply
-/// before sending the operational transfer message, ensuring sequential execution.
-/// @notice Deploys a ContextExecutor with an Ask message (empty forwardPayload).
-/// The context is already embedded in the CE state from init, so forwardPayload is not needed.
-/// @param executor The deterministic CE address to deploy.
-/// @param queryId QueryId for correlation between Ask and Reply.
-fun deployLockReleaseContextExecutor(
-    executor: AutoDeployAddress,
+/// @notice Deploys OffRampAccount for release operations.
+/// OAA owner = recipient (can withdraw jettons), notificationTarget = pool.
+/// allowedJettonWallet = OAA's own jetton wallet (notifications come from here).
+fun deployOffRampAccountWithRelease(
+    st: Storage,
+    recipient: address,
     queryId: uint64,
-): void {
+    context: LockReleaseTokenPool_ReleaseContext,
+) {
+    val jettonClient = st.poolData.load().jettonClient();
+    val oaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        recipient,
+        contract.getAddress(),
+    );
+
+    // OAA's own jetton wallet — notifications come from here when forwardTonAmount > 0.
+    val oaaWallet = calcAddressOfJettonWallet(
+        oaa.calculateAddress(),
+        jettonClient.masterAddress,
+        jettonClient.jettonWalletCode,
+    );
+
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
-        value: LockReleaseTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
-        dest: executor,
-        body: ContextExecutor_Ask {
-            queryId: queryId,
-            forwardPayload: null,
-            done: false,
+        value: LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
+        dest: oaa,
+        body: OffRampAccount_Init {
+            queryId,
+            allowedJettonWallet: oaaWallet,
+            forwardPayload: context.toCell(),
         },
     });
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-/// @notice Validates a ContextExecutor_Reply by recomputing the expected CE address from
-/// the reply fields, then sends the AskToTransfer operational message.
-fun onContextExecutorReply(
+/// @notice Handles OffRampAccount_Reply after OAA deployment for release.
+/// Extracts context from Reply forwardPayload, then sends AskToTransfer to the pool's jetton wallet.
+/// Context is embedded in forwardPayload so it flows through: wallet → OAA → pool.
+fun onOffRampAccountReply(
     mutate st: Storage,
     sender: address,
-    msg: ContextExecutor_Reply<LockReleaseTokenPool_ReleaseContext>,
+    msg: OffRampAccount_Reply,
 ) {
-    // Validate CE identity: recompute address from reply fields and compare to sender.
-    val expectedExecutor = ContextExecutor<LockReleaseTokenPool_ReleaseContext>.getAddress(
-        st.contextExecutorCode,
-        msg.id,
-        contract.getAddress(),
-        msg.context,
-        msg.forwardFrom,
-    );
-    val executorAddr = expectedExecutor.calculateAddress();
-    assert(sender == executorAddr, Error.InvalidContextExecutorReply);
-
-    val context = lazy msg.context.load();
-    val operation = lazy context.forwardPayload.load();
+    // Extract release context from Reply forwardPayload.
+    assert(msg.forwardPayload != null, Error.InvalidOffRampAccountReply);
+    val contextCell = msg.forwardPayload!;
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val requestIn = lazy operation.requestMsg.load().request.load();
     val details = lazy requestIn.transfer.details.load();
+
+    // Validate sender: derive expected OAA address and verify.
+    val jettonClient = st.poolData.load().jettonClient();
+    val expectedOaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        details.receiver,
+        contract.getAddress(),
+    );
+    assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountReply);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -116,11 +130,14 @@ fun onContextExecutorReply(
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: prepared.localAmount,
-            transferRecipient: details.receiver,
-            sendExcessesTo: executorAddr, // continuation
-            customPayload: context.toCell(),
-            forwardTonAmount: 0, // TODO: do we notify the receiver?
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+            transferRecipient: sender,
+            sendExcessesTo: contract.getAddress(), // pool keeps any excesses
+            customPayload: null,
+            forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardPayload: beginCell()
+                .storeMaybeRef(contextCell)
+                .endCell()
+                .beginParse(),
         },
     });
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -147,7 +164,6 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    val jettonClient = st.poolData.load().jettonClient();
 
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
@@ -157,33 +173,20 @@ fun onReleaseOrMintContinue(
         prepared: prepared.toCell(),
     };
 
-    val recipientWallet = calcAddressOfJettonWallet(
-        details.receiver,
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
-    );
-
     val context = LockReleaseTokenPool_ReleaseContext {
         forwardPayload: forwardPayload.toCell(),
     };
-    val contextExecutorId = st.takeContextExecutorNextId();
-    val executor = ContextExecutor<LockReleaseTokenPool_ReleaseContext>.getAddress(
-        st.contextExecutorCode,
-        contextExecutorId,
-        contract.getAddress(),
-        context.toCell(),
-        [recipientWallet],
+
+    // Deploy OffRampAccount with context embedded.
+    // OAA owner = recipient (can withdraw released jettons).
+    // OAA notificationTarget = this pool (receives completion notification).
+    deployOffRampAccountWithRelease(
+        st,
+        details.receiver,
+        msg.queryId,
+        context,
     );
 
-    // Deploy CE with Ask — context is already in CE state from init.
-    // The operational message (AskToTransfer) is sent after CE confirms.
-    deployLockReleaseContextExecutor(executor, msg.queryId);
-
-    return st;
-}
-
-fun onReleaseOrMint(st: Storage, _msg: TokenPool_ReleaseOrMint): Storage {
-    assert(st.canTakeContextExecutorNextId()) throw Error.ContextExecutorUnavailable;
     return st;
 }
 
@@ -203,31 +206,56 @@ fun onReleaseTransferBounced(
     pool.sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
 }
 
-/// @notice Handles ForwardNotification from ContextExecutor after release completion.
-/// Verifies executor identity, then emits event and sends ReleaseOrMintFinished reply.
-fun onContextExecutorForwardNotification(
+/// @notice Handles ForwardNotification from OffRampAccount after release completion.
+/// The forwarded message body contains TransferNotificationForRecipient with the release context
+/// embedded in its forwardPayload. Validates OAA sender, extracts context, finalizes.
+fun onOffRampAccountForwardNotification(
     mutate st: Storage,
     sender: address,
-    msg: ContextExecutor_ForwardNotification<LockReleaseTokenPool_ReleaseContext>,
+    msg: OffRampAccount_ForwardNotification,
 ) {
-    val expectedExecutor = ContextExecutor<LockReleaseTokenPool_ReleaseContext>.getAddress(
-        st.contextExecutorCode,
-        msg.id,
+    val forwarded = msg.message.load();
+
+    // Parse the forwarded body as TransferNotificationForRecipient.
+    val jettonMsg = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
+
+    // Extract context from the jetton notification's forwardPayload.
+    val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
+    assert(contextCell != null, Error.InvalidOffRampAccountNotification);
+
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = context.forwardPayload.load();
+
+    // Validate sender: derive expected OAA address and verify.
+    val mintRecipient = getReleaseRecipientFromContext(contextCell);
+    val jettonClient = st.poolData.load().jettonClient();
+    val expectedOaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        mintRecipient,
         contract.getAddress(),
-        msg.context,
-        msg.forwardFrom,
     );
-    assert(sender == expectedExecutor.calculateAddress(), TokenPool_Error.Unauthorized);
+    assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountNotification);
 
-    val forwarded = lazy msg.message.load();
-    // Check that the forwarded message is expected
-    val _returnExcesses = ReturnExcessesBack.fromCell(forwarded.body);
+    // Verify transferInitiator is the pool's jetton wallet (auth the transfer source).
+    assert(jettonMsg.transferInitiator != null, Error.InvalidOffRampAccountNotification);
+    assert(jettonMsg.transferInitiator! == jettonClient.walletAddress(), Error.InvalidOffRampAccountNotification);
 
-    val context = lazy msg.context.load();
-    val operation = lazy context.forwardPayload.load();
+    // Verify queryId matches the original request.
+    assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);
+    st.poolData = pool.data.toCell();
+}
+
+/// @notice Extracts the recipient address from a release context cell.
+fun getReleaseRecipientFromContext(contextCell: cell): address {
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = context.forwardPayload.load();
+    val requestMsg = lazy operation.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    return details.receiver;
 }
 
 fun loadPool(st: Storage): TokenPool<Storage> {
@@ -243,7 +271,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             preflightCheck: null,
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue: null,
-            onReleaseOrMint,
+            onReleaseOrMint: null,
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,

@@ -3,6 +3,8 @@ import "../../lib/jetton/errors"
 import "../../lib/jetton/jetton-utils"
 import "../../lib/jetton/storage"
 import "../../lib/jetton/messages"
+
+import "messages"
 import "fees-management"
 
 contract JettonMinter {
@@ -61,8 +63,9 @@ fun onInternalMessage(in: InMessage) {
                 bounce: BounceMode.NoBounce,
                 dest: msg.sendExcessesTo,
                 value: 0,
-                body: ReturnExcessesBack {
-                    queryId: msg.queryId
+                body: CCT_ReturnExcessesBack {
+                    queryId: msg.queryId,
+                    initiator: msg.burnInitiator,
                 }
             });
             excessesMsg.send(SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

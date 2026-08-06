@@ -1,6 +1,7 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -161,8 +162,7 @@ describe('LockReleaseTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          contextExecutorCode: ContextExecutor.CodeCell,
-          contextExecutorNextId: 1n,
+          offRampAccountCode: OffRampAccount.CodeCell,
         },
         { overrideContractCode: await contractCode.ccip.local('ccip.pools.LockReleaseTokenPool') },
       ),

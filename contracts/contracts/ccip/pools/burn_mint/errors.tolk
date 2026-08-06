@@ -8,4 +8,6 @@ enum BurnMintTokenPool_Error {
     UnexpectedMintBounce
     ContextExecutorUnavailable
     InvalidContextExecutorReply
+    InvalidOffRampAccountReply
+    InvalidOffRampAccountNotification
 }

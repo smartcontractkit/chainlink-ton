@@ -197,8 +197,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
         .endCell();
 
     val fwdPayload = beginCell()
-        .storeBool(true)  // flag: bounce data present
-        .storeRef(bounceDataCell)  // goes to refs, not inline bits
+        .storeMaybeRef(bounceDataCell)
         .endCell()
         .beginParse();
 

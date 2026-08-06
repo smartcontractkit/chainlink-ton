@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: BUSL-1.1
+
+const OffRampAccount_CONTRACT_NAME = "link.chain.ton.ccip.OffRampAccount".literalSlice();
+const OffRampAccount_CONTRACT_VERSION = "0.1.0".literalSlice();
+
+/// @notice Minimal deployment + activation value for the OffRampAccount.
+const OffRampAccount_DEPLOY_VALUE = ton("0.1");
+
+/// @notice Value attached to ForwardNotification messages sent to the pool.
+/// The pool needs this to cover its finalization processing fee.
+const OffRampAccount_FORWARD_VALUE = ton("0.05");
+
+/// @notice Runtime data stored by each OffRampAccount instance.
+/// A dumb forwarder: receives jetton notifications, forwards them to the pool with full message metadata.
+/// Owner = recipient (can withdraw jettons). NotificationTarget = pool.
+/// Only forwards messages from the allowed jetton wallet (safety filter, like CE's forwardFrom).
+/// @dev allowedJettonWallet is set on init (not part of address derivation).
+struct OffRampAccount_Data {
+    /// Recipient who can withdraw jettons from this account.
+    owner: address;
+    /// Pool contract that receives forwarded notifications.
+    notificationTarget: address;
+    /// Only messages from this jetton wallet are forwarded (prevents spam from other jettons).
+    /// Set on init — OAA address is derived from (code, owner, notificationTarget) only.
+    allowedJettonWallet: address?;
+}
+
+/// @notice Error codes for OffRampAccount.
+enum OffRampAccount_Error {
+    /// Thrown when a non-owner attempts to call owner-only functions.
+    OnlyOwner = 0x1003,
+}
+
+/// @notice Computes the deterministic address of an OffRampAccount given its config.
+/// @dev allowedJettonWallet is NOT part of address derivation — it's set on init.
+fun calcAddressOfOffRampAccount(
+    code: cell,
+    owner: address,
+    notificationTarget: address,
+): AutoDeployAddress {
+    return AutoDeployAddress {
+        stateInit: ContractState {
+            code,
+            data: OffRampAccount_Data {
+                owner,
+                notificationTarget,
+                allowedJettonWallet: null,
+            }.toCell(),
+        },
+    };
+}

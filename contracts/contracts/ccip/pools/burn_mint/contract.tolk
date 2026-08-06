@@ -8,9 +8,12 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
+import "../../cct/messages"
 import "../../common/types"
 import "../../executors/context_executor/messages"
 import "../../executors/context_executor/types"
+import "../../accounts/off_ramp_account/messages"
+import "../../accounts/off_ramp_account/types"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -34,6 +37,7 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
+    
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -59,6 +63,14 @@ fun onInternalMessage(in: InMessage) {
         }
         ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext> => {
             onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
+            st.store();
+        }
+        OffRampAccount_Reply => {
+            onOffRampAccountReply(mutate st, in.senderAddress, msg);
+            st.store();
+        }
+        OffRampAccount_ForwardNotification => {
+            onOffRampAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
         }
         else => {
@@ -94,6 +106,7 @@ fun deployBurnMintContextExecutorWithAsk(
 
 /// @notice Validates a ContextExecutor_Reply by recomputing the expected CE address from
 /// the reply fields, then dispatches the operational message based on the context type.
+/// @dev After CE Reply, we send the burn message. CE forwards the ReturnExcessesBack to finalize.
 fun onContextExecutorReply(
     mutate st: Storage,
     sender: address,
@@ -110,14 +123,7 @@ fun onContextExecutorReply(
     assert(sender == expectedExecutor.calculateAddress(), BurnMintTokenPool_Error.InvalidContextExecutorReply);
 
     val context = msg.context.load();
-    match (context) {
-        BurnMintTokenPool_BurnContext => {
-            sendBurnMessage(st, sender, msg.queryId, context);
-        }
-        BurnMintTokenPool_MintContext => {
-            sendMintMessage(st, sender, msg.queryId, context);
-        }
-    }
+    sendBurnMessage(st, sender, msg.queryId, context);
 }
 
 /// @notice Sends the AskToBurn operational message after CE deployment is confirmed.
@@ -141,45 +147,6 @@ fun sendBurnMessage(
         },
     });
     burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
-}
-
-/// @notice Sends the MintNewJettons operational message after CE deployment is confirmed.
-fun sendMintMessage(
-    st: Storage,
-    executorAddress: address,
-    queryId: uint64,
-    context: BurnMintTokenPool_MintContext,
-) {
-    val jettonClient = st.poolData.load().jettonClient();
-    val operation = context.forwardPayload.load();
-    val prepared = lazy operation.prepared.load();
-    val reqestMsg = lazy operation.requestMsg.load();
-    val request = lazy reqestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-
-    val mint = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_MINT_VALUE,
-        dest: jettonClient.masterAddress,
-        body: MintNewJettons {
-            queryId,
-            mintRecipient: details.receiver,
-            tonAmount: BurnMintTokenPool_MINT_VALUE,
-            internalTransferMsg: InternalTransferStep {
-                queryId,
-                jettonAmount: prepared.localAmount,
-                transferInitiator: null,
-                sendExcessesTo: executorAddress,
-                forwardTonAmount: 0, // TODO: do we notify the recipient?
-                forwardPayload: beginCell()
-                    .storeBool(true)
-                    .storeRef(context.toCell())
-                    .endCell()
-                    .beginParse(),
-            }.toCell(),
-        },
-    });
-    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Handles bounced burn/mint messages: refunds rate limit and sends failure reply.
@@ -217,8 +184,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-/// @notice Token pool used for burn and mint tokens. This uses a burn and mint mechanism.
-/// @dev One token per BurnMintTokenPool. In this variant the pool contract owns the Jetton wallet and the Jetton minter admin role.
+/// @notice Handles TransferNotificationForRecipient on the burn path.
+/// Validates pool ownership, checks rate limit, then deploys CE for burn continuation.
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
@@ -257,7 +224,6 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    val jettonClient = st.poolData.load().jettonClient();
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
@@ -266,36 +232,20 @@ fun onReleaseOrMintContinue(
         prepared: prepared.toCell(),
     };
 
-    val recipientWallet = calcAddressOfJettonWallet(
-        details.receiver,
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
-    );
-
     val context = BurnMintTokenPool_MintContext {
         forwardPayload: forwardPayload.toCell(),
     };
-    val contextExecutorId = st.takeContextExecutorNextId();
-    val executor = ContextExecutor<BurnMintTokenPool_MintContext>.getAddress(
-        st.contextExecutorCode,
-        contextExecutorId,
-        contract.getAddress(),
-        context.toCell(),
-        [recipientWallet],
-    );
-
-    // Deploy CE with Ask — context is already in CE state from init.
-    // Reply triggers the operational message (no race condition).
-    deployBurnMintContextExecutorWithAsk(
-        executor,
+ 
+    // Deploy OffRampAccount with context embedded.
+    // OAA owner = recipient (can withdraw minted jettons).
+    // OAA notificationTarget = this pool (receives completion notification).
+    deployOffRampAccountWithMint(
+        st,
+        details.receiver,
         msg.queryId,
+        context,
     );
 
-    return st;
-}
-
-fun onReleaseOrMint(st: Storage, _msg: TokenPool_ReleaseOrMint): Storage {
-    assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
     return st;
 }
 
@@ -315,10 +265,9 @@ fun onClaimMinterAdmin(
     claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Handles ForwardNotification from ContextExecutor after burn or mint completion.
-/// Verifies executor identity, then finalizes the operation based on context type.
-/// @dev For burn context: calls onLockOrBurnTransferFinalize.
-/// For mint context: emits event and sends ReleaseOrMintFinished reply.
+/// @notice Handles ForwardNotification from ContextExecutor after burn completion.
+/// Verifies executor identity, then checks CCT_ReturnExcessesBack.initiator matches the burn wallet.
+/// @dev Burn-only path. Mint uses OffRampAccount now.
 fun onContextExecutorForwardNotification(
     mutate st: Storage,
     sender: address,
@@ -334,28 +283,158 @@ fun onContextExecutorForwardNotification(
     assert(sender == expectedExecutor.calculateAddress(), TokenPool_Error.Unauthorized);
 
     val forwarded = msg.message.load();
-    val returnExcesses = ReturnExcessesBack.fromCell(forwarded.body);
+    val cctReturnExcesses = CCT_ReturnExcessesBack.fromCell(forwarded.body);
+
+    // Verify the initiator (who triggered the excess return) is this pool.
+    // The CCT JettonMinter sets burnInitiator to the wallet owner address, which is
+    // the pool itself (pool's jetton wallet sends BurnNotificationForMinter with
+    // burnInitiator: storage.ownerAddress == pool address).
+    assert(cctReturnExcesses.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
 
     val context = msg.context.load();
-    match (context) {
-        BurnMintTokenPool_BurnContext => {
-            val operation = context.forwardPayload.load();
-            assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
+    val operation = context.forwardPayload.load();
+    assert(cctReturnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
-            var pool = loadPool(st);
-            pool.onLockOrBurnTransferFinalize(operation);
-            st.poolData = pool.data.toCell();
+    var pool = loadPool(st);
+    pool.onLockOrBurnTransferFinalize(operation);
+    st.poolData = pool.data.toCell();
+}
 
-            return;
-        }
-        BurnMintTokenPool_MintContext => {
-            val operation = context.forwardPayload.load();
-            assert(returnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
+/// @notice Deploys OffRampAccount for mint operations.
+/// OAA owner = recipient (withdraws minted jettons), notificationTarget = pool.
+/// allowedJettonWallet = OAA's own jetton wallet (notifications come from here).
+fun deployOffRampAccountWithMint(
+    st: Storage,
+    recipient: address,
+    queryId: uint64,
+    context: BurnMintTokenPool_MintContext,
+) {
+    val jettonClient = st.poolData.load().jettonClient();
+    val oaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        recipient,
+        contract.getAddress(),
+    );
 
-            var pool = loadPool(st);
-            pool.sendReleaseOrMintFinished(operation);
-        }
-    }
+    // OAA's own jetton wallet — this is where minted tokens arrive.
+    val oaaWallet = calcAddressOfJettonWallet(
+        oaa.calculateAddress(),
+        jettonClient.masterAddress,
+        jettonClient.jettonWalletCode,
+    );
+
+    val deploy = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: BurnMintTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
+        dest: oaa,
+        body: OffRampAccount_Init {
+            queryId,
+            allowedJettonWallet: oaaWallet,
+            forwardPayload: context.toCell(),
+        },
+    });
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Handles OffRampAccount_Reply after OAA deployment for mint.
+/// Extracts context from Reply forwardPayload, then sends MintNewJettons to the OAA's jetton wallet.
+fun onOffRampAccountReply(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_Reply,
+) {
+    // Extract mint context from Reply forwardPayload.
+    assert(msg.forwardPayload != null, BurnMintTokenPool_Error.InvalidOffRampAccountReply);
+    val contextCell = msg.forwardPayload!;
+    val context = BurnMintTokenPool_MintContext.fromCell(contextCell);
+    val operation = context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+
+    // Validate sender: derive expected OAA address from the mint recipient and verify.
+    val mintRecipient = getMintRecipientFromContext(contextCell);
+    val jettonClient = st.poolData.load().jettonClient();
+    val expectedOaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        mintRecipient,
+        contract.getAddress(),
+    );
+    assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
+
+    // OAA is confirmed deployed. Send MintNewJettons to the jetton minter.
+    // The minter calculates the wallet address from the recipient internally.
+    // mintRecipient = OAA address (owner), not the OAA's jetton wallet.
+    val mint = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: BurnMintTokenPool_MINT_VALUE,
+        dest: jettonClient.masterAddress,
+        body: MintNewJettons {
+            queryId: msg.queryId,
+            mintRecipient: sender, // OAA address — minter derives wallet from this
+            tonAmount: BurnMintTokenPool_MINT_VALUE,
+            internalTransferMsg: InternalTransferStep {
+                queryId: msg.queryId,
+                jettonAmount: prepared.localAmount,
+                transferInitiator: null,
+                sendExcessesTo: contract.getAddress(), // pool keeps any excesses
+                forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
+                forwardPayload: beginCell()
+                    .storeMaybeRef(contextCell)
+                    .endCell()
+                    .beginParse(),
+            }.toCell(),
+        },
+    });
+    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Extracts the recipient address from a mint context cell.
+fun getMintRecipientFromContext(contextCell: cell): address {
+    val context = BurnMintTokenPool_MintContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
+    val requestMsg = lazy operation.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    return details.receiver;
+}
+
+/// @notice Handles OffRampAccount_ForwardNotification after mint completion.
+/// The forwarded message body contains the original jetton TransferNotificationForRecipient
+/// with the mint context embedded in its forwardPayload.
+fun onOffRampAccountForwardNotification(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_ForwardNotification,
+) {
+    val forwarded = msg.message.load();
+
+    // Parse the forwarded body as TransferNotificationForRecipient.
+    val jettonMsg = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
+
+    // Extract context from the jetton notification's forwardPayload.
+    val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
+    assert(contextCell != null, BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
+
+    val context = lazy BurnMintTokenPool_MintContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
+
+    // Validate sender: derive expected OAA address from the mint recipient and verify.
+    val mintRecipient = getMintRecipientFromContext(contextCell);
+    val expectedOaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        mintRecipient,
+        contract.getAddress(),
+    );
+    assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
+
+    // For mint path, transferInitiator is null (minter is the authority — no source wallet auth needed).
+    // The OAA sender validation above is sufficient for mint completion.
+
+    // Verify queryId matches the original request.
+    assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
+
+    var pool = loadPool(st);
+    pool.sendReleaseOrMintFinished(operation);
+    st.poolData = pool.data.toCell();
 }
 
 fun loadPool(st: Storage): TokenPool<Storage> {
@@ -371,7 +450,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             preflightCheck: null,
             onLockOrBurnTransfer: null,
             onLockOrBurnTransferContinue,
-            onReleaseOrMint,
+            onReleaseOrMint: null,
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,

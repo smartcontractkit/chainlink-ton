@@ -4,10 +4,10 @@ const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.LockRelea
 const LockReleaseLockboxTokenPool_FACILITY_ID = 487;  // (crc32(<facility>) % 640) + 10
 
 enum LockReleaseLockBoxTokenPool_Error {
-    ContextExecutorUnavailable = LockReleaseLockboxTokenPool_FACILITY_ID * 100
-    LockboxNotConfigured
+    LockboxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100
     UnexpectedLockboxConfirmationSender
 
     UnexpectedLockBounce
-    InvalidContextExecutorReply
+    InvalidOffRampAccountReply
+    InvalidOffRampAccountNotification
 }

@@ -45,6 +45,7 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount';
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -170,8 +171,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: jettonLockBox.address,
-          contextExecutorCode: ContextExecutor.CodeCell,
-          contextExecutorNextId: 1n,
+          offRampAccountCode: OffRampAccount.CodeCell,
         },
         {
           overrideContractCode: await contractCode.ccip.local(

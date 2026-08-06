@@ -1330,6 +1330,8 @@ fun TokenPool<T>.onReleaseOrMint(
 ): void {
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
+
+        return;
     }
 
     // Validate and call postflightCheck with full message.
@@ -1350,6 +1352,7 @@ fun TokenPool<T>.onReleaseOrMintContinue(
 ): void {
     if (self.hooks != null && self.hooks.onReleaseOrMintContinue != null) {
         self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msg, prepared);
+
         return;
     }
 
