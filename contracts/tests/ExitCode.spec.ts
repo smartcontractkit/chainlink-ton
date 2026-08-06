@@ -57,7 +57,7 @@ describe('Exit Codes', () => {
       facilityId: offr.FACILITY_ID,
       facilityName: offr.FACILITY_NAME,
       errorCode: offr.ERROR_CODE,
-      error0: offrGen.OffRamp.Errors['Error.MessageNotFromOwnedContract'],
+      error0: offrGen.OffRamp.Errors['OffRamp_Error.MessageNotFromOwnedContract'],
     },
     {
       facilityId: onr.FACILITY_ID,
@@ -69,7 +69,8 @@ describe('Exit Codes', () => {
       facilityId: rx.FACILITY_ID,
       facilityName: rx.FACILITY_NAME,
       errorCode: rx.ERROR_CODE,
-      error0: rxGen.ReceiveExecutor.Errors['Error.UpdatingStateOfNonExecutedMessage'],
+      error0:
+        rxGen.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
     },
     {
       facilityId: rt.FACILITY_ID,
