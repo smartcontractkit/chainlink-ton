@@ -18,6 +18,7 @@ contract ReceiveExecutor {
 
     storage: ReceiveExecutor_Storage
     incomingMessages: ReceiveExecutor_InMessage
+    thrownErrors: ReceiveExecutor_Error | Utils_Error
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -26,21 +27,21 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_InitExecute => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
             onInitExecute(mutate st, msg);
             st.store();
         }
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_Confirm => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
             onCCIPReceiveConfirm(mutate st, msg);
             st.store();
         }
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_Bounced => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
             onCCIPReceiveBounced(mutate st, msg);
             st.store();
         }
@@ -74,11 +75,11 @@ fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract
 fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_Confirm) {
-    assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
+    assert(st.state == ReceiveExecutor_MessageState.Execute, ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 
-    assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
+    assert (msg.receiver == ccipMessage.receiver, ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.Success;
 
@@ -97,11 +98,11 @@ fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 }
 
 fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_Bounced){
-    assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
+    assert(st.state == ReceiveExecutor_MessageState.Execute, ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 
-    assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
+    assert (msg.receiver == ccipMessage.receiver, ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.ExecuteFailed;
 

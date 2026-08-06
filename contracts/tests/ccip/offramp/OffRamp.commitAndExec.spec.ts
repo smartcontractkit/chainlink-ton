@@ -89,7 +89,7 @@ describe('OffRamp - Commit and Execute', () => {
         result,
         setup.deployer.address,
         setup.offRamp.address,
-        of.OffRamp.Errors['Error.SignatureVerificationRequiredInCommitPlugin'],
+        of.OffRamp.Errors['OffRamp_Error.SignatureVerificationRequiredInCommitPlugin'],
       )
     })
 
@@ -107,7 +107,7 @@ describe('OffRamp - Commit and Execute', () => {
         result,
         setup.deployer.address,
         setup.offRamp.address,
-        of.OffRamp.Errors['Error.SignatureVerificationNotAllowedInExecutionPlugin'],
+        of.OffRamp.Errors['OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin'],
       )
     })
 
@@ -234,7 +234,7 @@ describe('OffRamp - Commit and Execute', () => {
       result,
       setup.transmitters[0].address,
       setup.offRamp.address,
-      of.OffRamp.Errors['Error.EmptyCommitReport'],
+      of.OffRamp.Errors['OffRamp_Error.EmptyCommitReport'],
     )
   })
 
@@ -274,7 +274,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.SubjectCursed'],
+      of.OffRamp.Errors['OffRamp_Error.SubjectCursed'],
     )
 
     // Uncurse source chain
@@ -333,7 +333,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.SubjectCursed'],
+      of.OffRamp.Errors['OffRamp_Error.SubjectCursed'],
     )
 
     // Uncurse all lanes
@@ -383,7 +383,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.OnRampAddressMismatch'],
+      of.OffRamp.Errors['OffRamp_Error.OnRampAddressMismatch'],
     )
   })
 
@@ -399,7 +399,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.MerkleRootCannotBeZero'],
+      of.OffRamp.Errors['OffRamp_Error.MerkleRootCannotBeZero'],
     )
   })
 
@@ -442,7 +442,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.BatchingNotSupported'],
+      of.OffRamp.Errors['OffRamp_Error.BatchingNotSupported'],
     )
   })
 
@@ -487,7 +487,7 @@ describe('OffRamp - Commit and Execute', () => {
       result,
       setup.transmitters[0].address,
       setup.offRamp.address,
-      of.OffRamp.Errors['Error.SourceChainNotEnabled'],
+      of.OffRamp.Errors['OffRamp_Error.SourceChainNotEnabled'],
     )
   })
 
@@ -510,7 +510,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.TooManyMessagesInReport'],
+      of.OffRamp.Errors['OffRamp_Error.TooManyMessagesInReport'],
     )
 
     // Commit with exactly 64 messages should succeed
@@ -761,7 +761,7 @@ describe('OffRamp - Commit and Execute', () => {
     const report = setup.createExecuteReport([])
     await setup.executeReportExpectingFailure(
       report,
-      of.OffRamp.Errors['Error.EmptyExecutionReport'],
+      of.OffRamp.Errors['OffRamp_Error.EmptyExecutionReport'],
     )
   })
 
@@ -773,7 +773,7 @@ describe('OffRamp - Commit and Execute', () => {
     const report = setup.createExecuteReport([wrongDestMessage])
     await setup.executeReportExpectingFailure(
       report,
-      of.OffRamp.Errors['Error.InvalidMessageDestChainSelector'],
+      of.OffRamp.Errors['OffRamp_Error.InvalidMessageDestChainSelector'],
     )
   })
 
@@ -788,7 +788,7 @@ describe('OffRamp - Commit and Execute', () => {
     ) // Different from message
     await setup.executeReportExpectingFailure(
       report,
-      of.OffRamp.Errors['Error.SourceChainSelectorMismatch'],
+      of.OffRamp.Errors['OffRamp_Error.SourceChainSelectorMismatch'],
     )
   })
 
@@ -810,7 +810,7 @@ describe('OffRamp - Commit and Execute', () => {
     const report = setup.createExecuteReport([message])
     await setup.executeReportExpectingFailure(
       report,
-      of.OffRamp.Errors['Error.SourceChainNotEnabled'],
+      of.OffRamp.Errors['OffRamp_Error.SourceChainNotEnabled'],
     )
   })
 
@@ -843,7 +843,10 @@ describe('OffRamp - Commit and Execute', () => {
     })
 
     const report = setup.createExecuteReport([message])
-    await setup.executeReportExpectingFailure(report, of.OffRamp.Errors['Error.SubjectCursed'])
+    await setup.executeReportExpectingFailure(
+      report,
+      of.OffRamp.Errors['OffRamp_Error.SubjectCursed'],
+    )
 
     // Uncurse source chain
     result = await setup.offRamp.sendOffRampUpdateCursedSubjects(
@@ -889,7 +892,10 @@ describe('OffRamp - Commit and Execute', () => {
     })
 
     const report = setup.createExecuteReport([message])
-    await setup.executeReportExpectingFailure(report, of.OffRamp.Errors['Error.SubjectCursed'])
+    await setup.executeReportExpectingFailure(
+      report,
+      of.OffRamp.Errors['OffRamp_Error.SubjectCursed'],
+    )
 
     // Uncurse source chain
     result = await setup.offRamp.sendOffRampUpdateCursedSubjects(
@@ -915,7 +921,7 @@ describe('OffRamp - Commit and Execute', () => {
     const report = setup.createExecuteReport([message], unknownChainSelector)
     await setup.executeReportExpectingFailure(
       report,
-      of.OffRamp.Errors['Error.SourceChainNotEnabled'],
+      of.OffRamp.Errors['OffRamp_Error.SourceChainNotEnabled'],
     )
   })
 
@@ -1007,7 +1013,7 @@ describe('OffRamp - Commit and Execute', () => {
       from: setup.deployer.address,
       to: setup.offRamp.address,
       success: false,
-      exitCode: of.OffRamp.Errors['Error.MessageNotFromOwnedContract'],
+      exitCode: of.OffRamp.Errors['OffRamp_Error.MessageNotFromOwnedContract'],
     })
   })
 
@@ -2251,7 +2257,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x02,
       undefined,
       false,
-      of.OffRamp.Errors['Error.InvalidInterval'],
+      of.OffRamp.Errors['OffRamp_Error.InvalidInterval'],
     )
   })
 
@@ -2274,7 +2280,7 @@ describe('OffRamp - Commit and Execute', () => {
       0x01,
       undefined,
       false,
-      of.OffRamp.Errors['Error.InvalidInterval'],
+      of.OffRamp.Errors['OffRamp_Error.InvalidInterval'],
     )
   })
 
