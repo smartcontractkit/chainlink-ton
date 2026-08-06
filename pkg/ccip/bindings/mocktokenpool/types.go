@@ -5,23 +5,20 @@
 package mocktokenpool
 
 import (
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
-// Storage is the MockTokenPool contract storage. It holds the remote (destination)
-// token address most recently configured via ApplyChainUpdates, which the mock
-// returns as destTokenAddress on lockOrBurn.
+// Storage is the MockTokenPool contract storage: a single ref cell wrapping the
+// productive TokenPool_Data layout, exactly like the real TokenPool implementations
+// (BurnMintTokenPool, LockReleaseTokenPool, ...) do via `poolData: Cell<TokenPool_Data>`.
 //
-// Corresponds to MockTokenPool_Storage in the Tolk contract.
+// Corresponds to Storage in contracts/contracts/ccip/test/tokenPool/contract.tolk.
 type Storage struct {
-	DestTokenAddress *tlbe.Cell[common.CrossChainAddress] `tlb:"^"`
+	PoolData tokenpool.Storage `tlb:"^"`
 }
 
 // ApplyChainUpdates is the message the deployment adapter sends to configure the
-// remote token address on the mock. The mock deliberately handles the real
+// remote chain configs on the mock. The mock deliberately handles the real
 // TokenPool_ApplyChainUpdates message (opcode 0x56f73d37) so the adapter builds and
 // sends it exactly as it will for the productive TokenPool; hence this is a type
 // alias rather than a bespoke mock message.
