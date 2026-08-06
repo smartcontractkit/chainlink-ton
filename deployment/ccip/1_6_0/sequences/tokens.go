@@ -531,23 +531,17 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send TokenRegistrySetTokenInfo to router at %s: %w", routerAddr.String(), err)
 			}
 
-			// Configure the pool's remote-chain token addresses. This mirrors the
-			// productive TokenPool path: we build the exact TokenPool_ApplyChainUpdates
-			// message the real pool consumes and send it to the pool. The MockTokenPool
-			// only reads the remote token address from it, but the message on the wire is
-			// identical to what the real pool will receive.
+			// Configure the pool's remote-chain token addresses. 
 			if err := applyRemoteChainUpdates(b, dp, poolAddr, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure remote chains on token pool at %s: %w", poolAddr.String(), err)
 			}
 
 			// Register the Router as the pool's trusted onRamp for every remote chain
 			// being wired up. Router_LockOrBurn (router/contract.tolk onLockOrBurn)
-			// forwards TokenPool_LockOrBurn on the Router's own behalf -- the pool never
-			// sees the OnRamp's address as sender, only the Router's. offRamp is left
-			// unset since ReleaseOrMint isn't wired up on the inbound (OffRamp) path yet.
+			// forwards TokenPool_LockOrBurn on the Router's own behalf
+			// offRamp is left unset since ReleaseOrMint isn't wired up on the inbound (OffRamp) path yet.
 			// Without this, TokenPool.ensureOutboundAccess (entrypoint.tolk) rejects
-			// LockOrBurn with TokenPool_Error.Unauthorized, since the pool's
-			// mirroredPolicy.onRamps map is otherwise never populated.
+			// LockOrBurn with TokenPool_Error.Unauthorized
 			if err := applyRampAccessUpdates(b, dp, poolAddr, routerAddr, nil, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure ramp access on token pool at %s: %w", poolAddr.String(), err)
 			}
@@ -592,7 +586,7 @@ func applyRemoteChainUpdates(
 			RemotePoolAddresses: remotePools,
 			RemoteTokenAddress:  remoteTokenCell,
 			// The mock ignores rate limiters; a disabled pair keeps the message
-			// wire-compatible with the productive TokenPool.
+			// compatible with the productive TokenPool.
 			RateLimitConfigs: disabledRateLimitConfigPair(),
 		})
 	}
