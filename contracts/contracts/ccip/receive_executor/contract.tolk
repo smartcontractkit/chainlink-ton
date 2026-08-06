@@ -62,6 +62,7 @@ fun onInternalMessage(in: InMessage) {
         TokenPool_ReleaseOrMintFailure => {
             var st = ReceiveExecutor_Storage.load();
             assert(st.tokenPool != null && in.senderAddress == st.tokenPool.load(), ReceiveExecutor_Error.Unauthorized);
+            onReleaseOrMintFailure(mutate st, msg);
             st.store();
         }
         // Sender must be the owner (OffRamp)
@@ -79,15 +80,32 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) {
-    if (st.tokenAdminRegistry != null) {
-        // st.shouldOverrideGas = msg.gasOverride; // TODO
-        val ccipSend = lazy st.message.load();
-        // TODO data and token transfer not suported
-        assert (ccipSend.data.beginParse().isEmpty()) throw ReceiveExecutor_Error.PTTNotSupported;
-        
-        return queryTokenAdminRegistry(mutate st, st.tokenAdminRegistry!.load());
+    match (st.state) {
+        ReceiveExecutor_MessageState.Untouched => {
+            if (st.tokenAdminRegistry != null) { // This message has a token transfer
+                // st.shouldOverrideGas = msg.gasOverride; // TODO
+                val ccipSend = lazy st.message.load();
+                // TODO data and token transfer not suported
+                assert (ccipSend.data.beginParse().isEmpty()) throw ReceiveExecutor_Error.PTTNotSupported;
+                
+                return queryTokenAdminRegistry(mutate st, st.tokenAdminRegistry!.load());
+            }
+            execute(mutate st, msg.gasOverride);
+        }
+        ReceiveExecutor_MessageState.ExecuteFailed => execute(mutate st, msg.gasOverride),
+        ReceiveExecutor_MessageState.TokenTransferFailed => {
+            val rampMsg = lazy st.message.load();
+            assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
+            val token = rampMsg.tokenAmounts.getTokenTransfer(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
+            // TODO put conditional data such as tokenPool address in st.state
+            val tokenPool = st.tokenPool!.load();
+            releaseOrMint(mutate st, rampMsg, tokenPool, token);
+        }
+        ReceiveExecutor_MessageState.TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
+        ReceiveExecutor_MessageState.TokenTransfer => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
+        ReceiveExecutor_MessageState.Execute => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
+        ReceiveExecutor_MessageState.Success =>  throw ReceiveExecutor_Error.MessageAlreadyExecuted,
     }
-    execute(mutate st, msg.gasOverride);
 }
 
 fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, tokenAdminRegistry: address) {
@@ -112,11 +130,11 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenR
     // if (msg.tokenPool == null) {
     //     throw ReceiveExecutor_Error.TokenNotEnabled; // TODO check what error is thrown in EVM
     // }
+    st.tokenPool = msg.tokenPool!.toCell();
     releaseOrMint(mutate st, rampMsg, msg.tokenPool!, token);
 }
 
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, rampMsg: Any2TVMRampMessage, tokenPool: address, tokenAmount: Any2TVMTokenTransfer) {
-    st.tokenPool = tokenPool.toCell();
     st.state = ReceiveExecutor_MessageState.TokenTransfer;
     val releseOrMint = createMessage(
         {
@@ -185,8 +203,10 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     assert (msg.receiver == ccipMessage.receiver, ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.ExecuteFailed;
+    endExecutionWithFailure(mutate st, ccipMessage.header);
+}
 
-    val messageHeader = ccipMessage.header;
+fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader) {
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,
@@ -226,6 +246,15 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
+// TBD do we want to forward the TokenPool_ReleaseOrMintFailure.errorCode ?
+fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, _msg: TokenPool_ReleaseOrMintFailure) {
+    assert(st.state == ReceiveExecutor_MessageState.TokenTransfer, ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
+
+    st.state = ReceiveExecutor_MessageState.TokenTransferFailed;
+    val ccipMessage = lazy st.message.load();
+    endExecutionWithFailure(mutate st, ccipMessage.header);
 }
 
 get fun typeAndVersion(): (slice, slice) {

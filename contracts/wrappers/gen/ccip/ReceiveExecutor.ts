@@ -541,19 +541,21 @@ export const ReceiveExecutor_MessageState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 8 variants }
+ > enum ReceiveExecutor_Error { 10 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
 export const ReceiveExecutor_Error = {
     UpdatingStateOfNonExecutedMessage: 37600n,
-    NotificationFromInvalidReceiver: 37601n,
-    Unauthorized: 37602n,
-    UnsupportedNumberOfTokens: 37603n,
-    NoTokenAmountsInMessage: 37604n,
-    TokenAdminRegistryUnexpectedResponse: 37605n,
-    TokenPoolUnexpectedResponse: 37606n,
-    PTTNotSupported: 37607n,
+    ExecutionAlreadyInProgress: 37601n,
+    MessageAlreadyExecuted: 37602n,
+    NotificationFromInvalidReceiver: 37603n,
+    Unauthorized: 37604n,
+    UnsupportedNumberOfTokens: 37605n,
+    NoTokenAmountsInMessage: 37606n,
+    TokenAdminRegistryUnexpectedResponse: 37607n,
+    TokenPoolUnexpectedResponse: 37608n,
+    PTTNotSupported: 37609n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -1284,19 +1286,21 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECGAEABOMAART/APSkE/S88sgLAQIBYgIDAgLOBAUCAUgUFQIBIAYHALVFuCAJLmJMACNVAE8vQl0NP/0z/TP9M/0z/UMddM0McAjjF2yM+RZ5WFwhbL/xTLPxLLP8s/yz8lzwu/UmD6UsnIz4WIUpD6UnHPC27MyYMG+wAD4IIAkufy8IA/U+JHyQCDXLCMmaX6Ujl8x7UTQ+kjU+kjTv9MCIcIG8kXTP/QE9ATRggCS4viSKccF8vQI0wABkvoAkm0B4vpI0z/TP9cL/xC8EKsQmhCJEHgQZxBW8AEHyPpSFswU+lISy7/LAss/9AD0AMntVODXLCAHLuy84wKJ1yeAICQoAzRfBDQhbo4tMyXQ1DHXTIIAkucB0McA8vQg0PpI0XHIz4WIEvpSghDdXVEnzwuOyYBA+wAD4TL4I3PIz4WIUpD6UoIQWM/LAs8LjijPFCbPC78lbpQ1BM+Bls+DUAX6AuLJgED7AAKAB/jHtRND6SNT6SNO/0wIhwgbyRdM/9AT0BNGCAJLi+JIpxwXy9Aj6SDCCAJLgJMADNVAE8vQl0NP/0z/TP9M/0z/6SDAIggCS4QnHBRjy9MjPkWeVhcIUy/8Syz/LP8s/E8s/I88Lv1JA+lLJyM+FiFJw+lJxzwtuzMmDBvsABcgLAAjdzN21BP7jAtcsJwdEF6yOXTHtRND6SNT6SNO/0wIhwgbyRdM/9AT0BNGCAJLiIW6zm/iSItD6SNHHBcMAkXDi8vQI0z/XTBCJEHgQZxBWEEUQNBAj8AIHyPpSFswU+lISy7/LAss/9AD0AMntVODXLCd4ZZt04wLXLCAu9w3c4wIwhA8BDA0ODwAs+lIUzBL6Usu/z4dAEss/9AD0AMntVAL+Me1E0PpI1PpI07/TAiHCBvJF0z/0BPQEMdGCAJLiIW6z8vQg0PpI0YIAkuL4kljHBfL0B/pIMfpQMIIAkuUjwAE0UAPy9CTQ0/8x0z/TPzHTPzHTPzHU1DH6SPoAMfQFggCS5CFus/L00CDHALOWggCS4/Lw4SDXSwGRMOMO1BARAJBb7UTQ+kjU+kjTv9MCIcIG8kXTP/QE9ATRggCS4iFus5v4kiLQ+kjRxwXDAJFw4vL0B8j6UhbMFPpSEsu/ywLLP/QA9ADJ7VQB/jHtRND6SNT6SNO/0wIhwgbyRdM/9AT0BNGCAJLi+JIpxwXy9Aj6SNcLByDCAjHyRYIAkuAEwAMU8vQl0NP/0z/TP9M/0z/6SDAIggCS4QnHBRjy9MjPkF369A4Uy/8Syz/LP8s/E8s/I88Lv1JA+lLJyM+FiFJw+lJxzwtuzMkTAAjHAPL0ABaBNLwBwAHy9NdM0AH8+kjTHzHU0//HAJaCAJLj8vDhKMj6UskFyPpSF8s/FcwVy/8U+lLJbXDIy/8SzBTMEvQAEvQAyciLx96vB2AAAAAAAAAACM8WJc8LvxT6Us+QAAAAAhPMycjPhYhScPpScc8LbszJgED7AAXI+lIUzBL6Usu/z4VAEss/EvQAEgAK9ADJ7VQAOIBA+wAFyPpSFMwS+lLLv8+GQBLLP/QA9ADJ7VQCASAWFwALuGhYEBeIAF+2K/GhG2NLc1lzG0MLS3Fzo3txcxsbS4FykysbK0uzKivDKxuro3uUEWpiXG5cYRAAG7XFEEASXBQEEIH3flCQ');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
         'Utils_Error.BitmapOutOfBounds': 13501,
         'ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage': 37600,
-        'ReceiveExecutor_Error.NotificationFromInvalidReceiver': 37601,
-        'ReceiveExecutor_Error.Unauthorized': 37602,
-        'ReceiveExecutor_Error.UnsupportedNumberOfTokens': 37603,
-        'ReceiveExecutor_Error.NoTokenAmountsInMessage': 37604,
-        'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37605,
-        'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37606,
-        'ReceiveExecutor_Error.PTTNotSupported': 37607,
+        'ReceiveExecutor_Error.ExecutionAlreadyInProgress': 37601,
+        'ReceiveExecutor_Error.MessageAlreadyExecuted': 37602,
+        'ReceiveExecutor_Error.NotificationFromInvalidReceiver': 37603,
+        'ReceiveExecutor_Error.Unauthorized': 37604,
+        'ReceiveExecutor_Error.UnsupportedNumberOfTokens': 37605,
+        'ReceiveExecutor_Error.NoTokenAmountsInMessage': 37606,
+        'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37607,
+        'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37608,
+        'ReceiveExecutor_Error.PTTNotSupported': 37609,
     }
 
     readonly address: c.Address
