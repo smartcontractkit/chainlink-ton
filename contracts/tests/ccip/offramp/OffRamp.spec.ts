@@ -17,7 +17,10 @@ import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployOffRampContract } from './OffRamp.Setup'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import * as ofManual from '../../../wrappers/ccip/OffRamp'
 import { generateMockTonAddress } from '../../../src/utils'
+import { errorCode, facilityId } from '../../../wrappers/utils'
+import { crc32 } from 'zlib'
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -113,6 +116,44 @@ describe('OffRamp - Ownable Tests', () => {
           },
         ],
       },
+    })
+  })
+
+  describe('OffRamp - Commit and Execute', () => {
+    let blockchain: Blockchain
+    let offRamp: SandboxContract<of.OffRamp>
+
+    beforeAll(async () => {
+      blockchain = await Blockchain.create()
+      if (process.env['COVERAGE'] === 'true') {
+        blockchain.enableCoverage()
+        blockchain.verbosity.print = false
+        blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+      }
+      blockchain.now = 10000
+      offRamp = await deployOffRampContract(
+        blockchain,
+        await blockchain.treasury('deployer'),
+        await contractCode.ccip.local('OffRamp'),
+      )
+    })
+
+    it('OffRamp should match facility name and ID', async () => {
+      const facilityIdVal = await offRamp.getFacilityId()
+      expect(facilityIdVal).toBe(BigInt(ofManual.FACILITY_ID))
+
+      const [typeSlice] = await offRamp.getTypeAndVersion()
+      const typeStr = typeSlice.loadStringTail()
+      expect(typeStr).toBe(ofManual.FACILITY_NAME)
+
+      expect(ofManual.FACILITY_ID).toEqual(facilityId(crc32(ofManual.FACILITY_NAME)))
+    })
+
+    it('OffRamp should match error code', async () => {
+      const errorCodeVal = await offRamp.getErrorCode(0n)
+      expect(errorCodeVal).toBe(BigInt(ofManual.ERROR_CODE))
+
+      expect(ofManual.ERROR_CODE).toEqual(errorCode(crc32(ofManual.FACILITY_NAME)))
     })
   })
 })
