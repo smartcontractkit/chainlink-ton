@@ -191,7 +191,7 @@ describe('ReceiveExecutor', () => {
         result,
         nonOwner.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.Unauthorized'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
       )
     })
 
@@ -232,7 +232,7 @@ describe('ReceiveExecutor', () => {
         result,
         nonOwner.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.Unauthorized'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
       )
     })
 
@@ -248,7 +248,7 @@ describe('ReceiveExecutor', () => {
         result,
         deployer.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.UpdatingStateOfNonExecutedMessage'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
       )
     })
 
@@ -266,7 +266,7 @@ describe('ReceiveExecutor', () => {
         result,
         deployer.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.NotificationFromInvalidReceiver'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
       )
     })
 
@@ -309,7 +309,7 @@ describe('ReceiveExecutor', () => {
         result,
         nonOwner.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.Unauthorized'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
       )
     })
 
@@ -326,7 +326,7 @@ describe('ReceiveExecutor', () => {
         result,
         deployer.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.UpdatingStateOfNonExecutedMessage'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
       )
     })
 
@@ -345,7 +345,7 @@ describe('ReceiveExecutor', () => {
         result,
         deployer.address,
         receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['Error.NotificationFromInvalidReceiver'],
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
       )
     })
 

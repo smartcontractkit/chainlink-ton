@@ -514,6 +514,27 @@ export const ReceiveExecutor_MessageState = {
 }
 
 /**
+ > enum ReceiveExecutor_Error { 3 variants }
+ */
+export type ReceiveExecutor_Error = bigint
+
+export const ReceiveExecutor_Error = {
+    UpdatingStateOfNonExecutedMessage: 37600n,
+    NotificationFromInvalidReceiver: 37601n,
+    Unauthorized: 37602n,
+
+    fromSlice(s: c.Slice): ReceiveExecutor_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: ReceiveExecutor_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: ReceiveExecutor_Error): c.Cell {
+        return makeCellFrom<ReceiveExecutor_Error>(self, ReceiveExecutor_Error.store);
+    }
+}
+
+/**
  > struct (0x58cfcb02) OffRamp_DispatchValidated {
  >     message: Cell<Any2TVMRampMessage>
  >     execId: uint192
@@ -653,6 +674,26 @@ export const OffRamp_NotifyFailure = {
     },
     toCell(self: OffRamp_NotifyFailure): c.Cell {
         return makeCellFrom<OffRamp_NotifyFailure>(self, OffRamp_NotifyFailure.store);
+    }
+}
+
+/**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
     }
 }
 
@@ -815,9 +856,11 @@ export class ReceiveExecutor implements c.Contract {
     static CodeCell = c.Cell.fromBase64('te6ccgECDgEAAi8AART/APSkE/S88sgLAQIBYgIDAvjQ+JHyQCDXLCMmaX6Ujmkx7UTQ+kjU+kjTv9MBMdM/MdGCAJLi+JIlxwXy9ATTAAGT+gAwkjBt4vgjyM+FiFJQ+lKCEFjPywLPC44kzxQmzwu/Im6UbBLPgZXPg1j6AuLJgED7AAPI+lISzPpSEsu/z4WAyz/J7VTgidcnBAUCAUgKCwAIAOXdlwIm4wLXLCAu9w3c4wIwhA8BxwDy9AYHAf4x7UTQ+kjU+kjTv9MB0z/RggCS4viSJ8cF8vQG+kgwggCS4ALAARLy9CPQ0//TP9M/0z/TP9Qx1DH6SPoAMfQEMdEGggCS4QfHBRby9MjPkWeVhcIUy/8Syz/LP8s/yz8hzwu/UiD6UsnIz4WIUlD6UnHPC27MyYMG+wADyPpSCAH+Me1E0PpI1PpI07/TAdM/0YIAkuL4kifHBfL0BvpI1wsHIMICMfJFggCS4ALAARLy9CPQ0//TP9M/0z/TP9Qx1DH6SPoAMfQEMdEGggCS4QfHBRby9MjPkF369A4Uy/8Syz/LP8s/yz8hzwu/UiD6UsnIz4WIUlD6UnHPC27MyQkAHBLM+lLLv8+HgMs/ye1UACyAQPsAA8j6UhLM+lLLv8+GgMs/ye1UAgEgDA0AC7hoWBAXiABftivxoRtjS3NZcxtDC0txc6N7cXMbG0uBcpMrGytLsyorwysbq6N7lBFqYlxsXGUQABu1xRBAElwUBBCB935QkA==');
 
     static Errors = {
-        'Error.UpdatingStateOfNonExecutedMessage': 37600,
-        'Error.NotificationFromInvalidReceiver': 37601,
-        'Error.Unauthorized': 37602,
+        'Utils_Error.InvalidData': 13500,
+        'Utils_Error.BitmapOutOfBounds': 13501,
+        'ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage': 37600,
+        'ReceiveExecutor_Error.NotificationFromInvalidReceiver': 37601,
+        'ReceiveExecutor_Error.Unauthorized': 37602,
     }
 
     readonly address: c.Address
