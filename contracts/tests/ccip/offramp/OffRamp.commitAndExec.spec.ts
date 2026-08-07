@@ -27,19 +27,12 @@ import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import * as ofManual from '../../../wrappers/ccip/OffRamp'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
-import {
-  createSignatures,
-  OffRampTestSetup,
-  getDefaultMetadataHash,
-  buildCursedSubjects,
-  EVM_ONRAMP_ADDRESS_TEST,
-  generateMerkleRootBytes,
-} from './OffRamp.Setup'
+import * as s from './OffRamp.Setup'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Commit and Execute', () => {
   let blockchain: Blockchain
-  let setup: OffRampTestSetup
+  let setup: s.OffRampTestSetup
 
   // Helper functions for configuration and data creation
   //
@@ -55,7 +48,7 @@ describe('OffRamp - Commit and Execute', () => {
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
     blockchain.now = 10000
-    setup = await OffRampTestSetup.Init(blockchain)
+    setup = await s.OffRampTestSetup.Init(blockchain)
   })
 
   beforeEach(async () => {
@@ -212,7 +205,7 @@ describe('OffRamp - Commit and Execute', () => {
       padding: 0n,
       sequenceBytes: 0x01,
     }
-    const signatures = createSignatures(
+    const signatures = s.createSignatures(
       [setup.signers[0], setup.signers[1]],
       ocr.hashReport(of.CommitReport.toCell(report), reportContext),
     )
@@ -240,7 +233,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test commit fails when source chain is cursed', async () => {
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -254,7 +247,7 @@ describe('OffRamp - Commit and Execute', () => {
       setup.deployer.getSender(),
       toNano('0.5'),
       {
-        cursedSubjects: buildCursedSubjects(
+        cursedSubjects: s.buildCursedSubjects(
           new Set([ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001]),
         ),
       },
@@ -299,7 +292,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test commit fails when global cursed', async () => {
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -358,7 +351,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test commit fails with onRamp address mismatch', async () => {
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -405,7 +398,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test commit with one merkle root for one empty message', async () => {
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -426,7 +419,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test commit report fails if more than one merkle root', async () => {
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -448,7 +441,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test commit report fails if source chain is not enabled', async () => {
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -465,7 +458,7 @@ describe('OffRamp - Commit and Execute', () => {
       padding: 0n,
       sequenceBytes: 0x01,
     }
-    const signatures = createSignatures(
+    const signatures = s.createSignatures(
       [setup.signers[0], setup.signers[1]],
       ocr.hashReport(of.CommitReport.toCell(report), reportContext),
     )
@@ -496,7 +489,7 @@ describe('OffRamp - Commit and Execute', () => {
     await setup.setupSourceChainConfig()
 
     const message = setup.createTestMessage(1n, 1n)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -522,7 +515,7 @@ describe('OffRamp - Commit and Execute', () => {
     const message1 = setup.createTestMessage(1n, 1n)
     const message2 = setup.createTestMessage(2n, 2n)
 
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const root1Bytes = generateMessageID(message1, metadataHash)
@@ -613,7 +606,7 @@ describe('OffRamp - Commit and Execute', () => {
     const message = setup.createTestMessage(2n, 2n, setup.receiver.address)
     const differentMessage = setup.createTestMessage(1n, 1n, setup.receiver.address)
 
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const differentRootBytes = generateMessageID(differentMessage, metadataHash)
@@ -677,7 +670,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test execute fails when same message is sent twice', async () => {
     const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -797,7 +790,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // Setup and commit with enabled chain
     await setup.setupOCRConfigs()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -819,7 +812,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // Setup and commit with enabled chain
     await setup.setupOCRConfigs()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -831,7 +824,7 @@ describe('OffRamp - Commit and Execute', () => {
       setup.deployer.getSender(),
       toNano('0.5'),
       {
-        cursedSubjects: buildCursedSubjects(
+        cursedSubjects: s.buildCursedSubjects(
           new Set([ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001]),
         ),
       },
@@ -868,7 +861,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // Setup and commit with enabled chain
     await setup.setupOCRConfigs()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -990,7 +983,7 @@ describe('OffRamp - Commit and Execute', () => {
 
   it('Test cannot call dispatch directly', async () => {
     const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -1054,7 +1047,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // Create a merkle root
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -1138,7 +1131,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // But commit with same merkle root should succeed (just price update ignored)
     const message = setup.createTestMessage()
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -1156,7 +1149,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // First commit with minSeqNr=1, maxSeqNr=5
     const message1 = setup.createTestMessage(1n, 1n)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const root1Bytes = generateMessageID(message1, metadataHash)
@@ -1183,7 +1176,7 @@ describe('OffRamp - Commit and Execute', () => {
     )
     expect(config2.minSeqNr).toBe(11n)
     // onRamp is a Slice (CrossChainAddress) - the raw bytes without length prefix
-    expect(config2.onRamp.toString()).toBe(EVM_ONRAMP_ADDRESS_TEST.toString())
+    expect(config2.onRamp.toString()).toBe(s.EVM_ONRAMP_ADDRESS_TEST.toString())
   })
 
   it('Test commit with large sequence number gap', async () => {
@@ -1192,7 +1185,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // Commit with a large gap: minSeqNr=1, maxSeqNr=100
     const message = setup.createTestMessage(1n, 1n)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
@@ -1376,10 +1369,10 @@ describe('OffRamp - Commit and Execute', () => {
   it('Test commit two messages in a single root', async () => {
     const message1 = setup.createTestMessage(1n, 1n)
     const message2 = setup.createTestMessage(2n, 2n)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
-    const rootBytes = generateMerkleRootBytes([message1, message2], metadataHash)
+    const rootBytes = s.generateMerkleRootBytes([message1, message2], metadataHash)
     const root = setup.createMerkleRoot(1n, 2n, rootBytes)
 
     await setup.setupOCRConfig()
@@ -1690,7 +1683,7 @@ describe('OffRamp - Commit and Execute', () => {
   it('Test commit two messages in one root and execute first message with proof', async () => {
     const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
     const message2 = setup.createTestMessage(2n, 2n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -1754,7 +1747,7 @@ describe('OffRamp - Commit and Execute', () => {
   it('Test commit two messages in one root and execute second message with proof', async () => {
     const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
     const message2 = setup.createTestMessage(2n, 2n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -1818,7 +1811,7 @@ describe('OffRamp - Commit and Execute', () => {
   it('Test commit two messages in one root and execute both messages sequentially', async () => {
     const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
     const message2 = setup.createTestMessage(2n, 2n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -1930,7 +1923,7 @@ describe('OffRamp - Commit and Execute', () => {
   it('Test execute with wrong proof fails', async () => {
     const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
     const message2 = setup.createTestMessage(2n, 2n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -2008,7 +2001,7 @@ describe('OffRamp - Commit and Execute', () => {
     const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
     const message2 = setup.createTestMessage(2n, 2n, setup.receiver.address)
     const message3 = setup.createTestMessage(3n, 3n, setup.receiver.address)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -2080,7 +2073,7 @@ describe('OffRamp - Commit and Execute', () => {
       setup.createTestMessage(5n, 5n, setup.receiver.address),
     ]
 
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -2157,7 +2150,7 @@ describe('OffRamp - Commit and Execute', () => {
       setup.createTestMessage(5n, 5n, setup.receiver.address),
     ]
 
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
 
@@ -2232,7 +2225,7 @@ describe('OffRamp - Commit and Execute', () => {
 
     // First commit to establish minSeqNr
     const message1 = setup.createTestMessage(1n, 1n)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const root1Bytes = generateMessageID(message1, metadataHash)
@@ -2266,7 +2259,7 @@ describe('OffRamp - Commit and Execute', () => {
     await setup.setupSourceChainConfig()
 
     const message = setup.createTestMessage(1n, 1n)
-    const metadataHash = getDefaultMetadataHash(
+    const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
     const rootBytes = generateMessageID(message, metadataHash)
