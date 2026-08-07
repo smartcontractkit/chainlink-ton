@@ -7,8 +7,7 @@ import "types"
 import "messages"
 import "storage"
 
-
-/// @notice Per-recipient account deployed by CCIP token pools.
+/// Per-recipient account deployed by CCIP token pools.
 /// Receives jetton mint/withdraw notifications from the jetton wallet and forwards them to the pool
 /// so the pool can finalize the cross-chain release or mint operation.
 /// The account owner (recipient) can withdraw jettons at any time.
@@ -25,7 +24,7 @@ contract OffRampAccount {
         | OffRampAccount_OutMessage
 }
 
-/// @notice Dispatches incoming messages: Init from pool, Withdraw from owner, jetton notifications forwarded, everything else bounces.
+/// Dispatches incoming messages: Init from pool, Withdraw from owner, jetton notifications forwarded, everything else bounces.
 fun onInternalMessage(in: InMessage) {
     var data = OffRampAccount_Data.load();
     val msg = lazy OffRampAccount_InMessage.fromSlice(in.body);
@@ -67,7 +66,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// @notice Called by the pool to activate the account and set the allowed jetton wallet.
+/// Called by the pool to activate the account and set the allowed jetton wallet.
 /// @dev Only the pool (notificationTarget) can call this.
 fun onInit(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAccount_Init) {
     assert(sender == data.notificationTarget, OffRampAccount_Error.OnlyPool);
@@ -87,7 +86,7 @@ fun onInit(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAccoun
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Allows the owner (recipient) to withdraw jettons from this account's wallet.
+/// Allows the owner (recipient) to withdraw jettons from this account's wallet.
 /// @dev Sends the jetton transfer directly to the wallet — on-chain message, no gas refund on failure.
 fun onWithdraw(data: OffRampAccount_Data, sender: address, msg: OffRampAccount_Withdraw) {
     assert(sender == data.owner, OffRampAccount_Error.OnlyOwner);

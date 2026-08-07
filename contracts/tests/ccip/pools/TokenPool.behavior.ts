@@ -14,6 +14,7 @@ import {
   TokenPool_LockOrBurnTransfer,
   TokenPool_RampUpdate,
   TokenPool_RateLimitConfigPair,
+  TokenPool_RateLimitConfigArgs,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
@@ -163,6 +164,66 @@ export function runTokenPoolBehaviorTests(
     it('starts with chain not cursed', async () => {
       const ctx = await setup()
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
+    })
+
+    it('rejects releaseOrMint once the inbound rate limit is exhausted', async () => {
+      const ctx = await setup()
+
+      // Tighten the inbound bucket to a non-refilling capacity of 1 so we can
+      // deterministically hit the ceiling on the second release (EVM parity: TokenRateLimitReached).
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 930n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 1n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 1n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      // First release consumes the single inbound token and admits.
+      const first = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 931n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
+      expect(first.transactions).toHaveTransaction({
+        from: ctx.offRamp.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      // Second release of the same amount must be rejected (bucket has no refill, rate=0).
+      const second = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 932n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
+      expect(second.transactions).toHaveTransaction({
+        from: ctx.offRamp.address,
+        to: ctx.pool.address,
+        success: false,
+      })
     })
 
     it('returns null ramps for unknown chain', async () => {

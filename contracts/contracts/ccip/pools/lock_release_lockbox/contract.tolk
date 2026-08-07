@@ -14,7 +14,6 @@ import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
-import "../lib/token_pool/events"
 import "../lib/token_pool/errors"
 
 import "messages"
@@ -43,6 +42,7 @@ fun onInternalMessage(in: InMessage): void {
         st = pool.context != null ? pool.context! : st;
         st.poolData = pool.data.toCell();
         st.store();
+
         return;
     }
 
@@ -73,7 +73,7 @@ fun onInternalMessage(in: InMessage): void {
     }
 }
 
-/// @notice Deploys OffRampAccount for release operations.
+/// Deploys OffRampAccount for release operations.
 /// OAA owner = recipient (can withdraw jettons), notificationTarget = pool.
 /// allowedJettonWallet = OAA's own jetton wallet (notifications come from here).
 fun deployOffRampAccountWithRelease(
@@ -111,7 +111,7 @@ fun deployOffRampAccountWithRelease(
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-/// @notice Handles OffRampAccount_Reply after OAA deployment for release.
+/// Handles OffRampAccount_Reply after OAA deployment for release.
 /// Extracts context from Reply forwardPayload, then sends JettonLockBox_Withdraw to the lockbox.
 /// The lockbox withdraws to the OAA's jetton wallet, which forwards the notification via OAA to pool.
 fun onOffRampAccountReply(
@@ -167,7 +167,7 @@ fun onOffRampAccountReply(
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
+/// Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
@@ -336,7 +336,7 @@ fun onWithdrawFailed(
     }
 }
 
-/// @notice Handles ForwardNotification from OffRampAccount after release (withdraw) completion.
+/// Handles ForwardNotification from OffRampAccount after release (withdraw) completion.
 /// The forwarded message body contains TransferNotificationForRecipient.
 /// Validates OAA sender, checks transferInitiator = lockbox's jetton wallet, then finalizes.
 fun onOffRampAccountForwardNotification(
@@ -369,15 +369,12 @@ fun onOffRampAccountForwardNotification(
     assert(jettonMsg.transferInitiator != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
     assert(jettonMsg.transferInitiator! == st.lockbox, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
-    // Verify queryId matches the original request.
-    assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
-
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);
     st.poolData = pool.data.toCell();
 }
 
-/// @notice Extracts the recipient address from a release context cell.
+/// Extracts the recipient address from a release context cell.
 fun getReleaseRecipientFromContext(contextCell: cell): address {
     val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = context.forwardPayload.load();
@@ -387,7 +384,7 @@ fun getReleaseRecipientFromContext(contextCell: cell): address {
     return details.receiver;
 }
 
-/// @notice Returns jettons to the original sender after a failed lock (deposit) operation.
+/// Returns jettons to the original sender after a failed lock (deposit) operation.
 /// @dev Sends AskToTransfer to the pool's jetton wallet with original sender as recipient.
 fun returnLockOrBurnTransfer(st: Storage, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
     val requestMsg = lazy forwardPayload.requestMsg.load();

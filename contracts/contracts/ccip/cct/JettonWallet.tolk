@@ -18,11 +18,11 @@ contract JettonWallet {
 
 type AllowedMessageToWallet =
     | AskToTransfer
-    | AskToBurn
+    | CCT_AskToBurn
     | InternalTransferStep
     | TopUpTons
 
-type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
+type BounceOpToHandle = InternalTransferStep | CCT_BurnNotificationForMinter
 
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
@@ -30,7 +30,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy BounceOpToHandle.fromSlice(in.bouncedBody);
     val restoreAmount = match (msg) {
         InternalTransferStep => msg.jettonAmount,       // safe to fetch jettonAmount, because
-        BurnNotificationForMinter => msg.jettonAmount,  // it's in the beginning of a message
+        CCT_BurnNotificationForMinter => msg.jettonAmount,  // it's in the beginning of a message
     };
 
     var storage = lazy WalletStorage.load();
@@ -109,7 +109,7 @@ fun onInternalMessage(in: InMessage) {
             deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
-        AskToBurn => {
+        CCT_AskToBurn => {
             checkAmountIsEnoughToBurn(in.valueCoins);
 
             var storage = lazy WalletStorage.load();
@@ -122,11 +122,12 @@ fun onInternalMessage(in: InMessage) {
                 bounce: BounceMode.Only256BitsOfBody,
                 dest: storage.minterAddress,
                 value: 0,
-                body: BurnNotificationForMinter {
+                body: CCT_BurnNotificationForMinter {
                     queryId: msg.queryId,
                     jettonAmount: msg.jettonAmount,
                     burnInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,
+                    forwardPayload: msg.forwardPayload,
                 }
             });
             notifyMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);

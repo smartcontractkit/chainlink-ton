@@ -23,18 +23,6 @@ import { contractCode } from '../../../wrappers/codeLoader'
 const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'))
 const DEFAULT_ADMIN_ROLE = 0n
 
-// Error codes (from generated binding)
-// Must match contracts/ccip/pools/lockbox/types.tolk JettonLockBox_Error
-// (facility id 624 → base 62400) and the AccessControl facility (474 → 47400).
-const ErrorCodes = {
-  TokenAmountCannotBeZero: 62400,
-  RecipientCannotBeZeroAddress: 62401,
-  UnsupportedToken: 62402,
-  ContractAlreadyInitialized: 62403,
-  ContractNotInitialized: 62404,
-  UnauthorizedAccount: 47400,
-}
-
 // Create an empty AccessControl_Data (no roles initialized yet)
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -357,7 +345,7 @@ describe('JettonLockBox', () => {
         from: unauthorized.address,
         to: lockbox.address,
         success: false,
-        exitCode: ErrorCodes.UnauthorizedAccount,
+        exitCode: JettonLockBox.Errors['AccessControl_Error.UnauthorizedAccount'],
       })
     })
 
@@ -431,7 +419,7 @@ describe('JettonLockBox', () => {
         from: operator.address,
         to: lockbox.address,
         success: false,
-        exitCode: ErrorCodes.TokenAmountCannotBeZero,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.TokenAmountCannotBeZero'],
       })
     })
 
@@ -485,7 +473,7 @@ describe('JettonLockBox', () => {
         from: deployer.address,
         to: lockbox.address,
         success: false,
-        exitCode: ErrorCodes.ContractAlreadyInitialized,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.ContractAlreadyInitialized'],
       })
 
       // Verify storage unchanged (wallet still points to original)
@@ -527,7 +515,7 @@ describe('JettonLockBox', () => {
       expect(result.transactions).toHaveTransaction({
         to: freshLockbox.address,
         success: false,
-        exitCode: ErrorCodes.ContractNotInitialized,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.ContractNotInitialized'],
       })
     })
 

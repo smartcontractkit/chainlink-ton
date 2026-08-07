@@ -6,31 +6,11 @@ import "../lib/token_pool/types"
 
 import "types"
 
-/// @notice Pool storage: common pool data + ContextExecutor and OffRampAccount deployment state.
+/// @notice Pool storage: common pool data + OffRampAccount deployment state.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    /// Compiled code cell of the ContextExecutor contract (deployed per burn operation).
-    contextExecutorCode: cell;
-    /// Monotonically increasing ID for deterministic ContextExecutor address derivation.
-    contextExecutorNextId: uint64;
     /// Compiled code cell of the OffRampAccount contract (deployed per mint operation).
     offRampAccountCode: cell;
-}
-
-@inline
-/// @notice Returns true if the next ContextExecutor ID has not reached max uint64.
-fun Storage.canTakeContextExecutorNextId(self): bool {
-    return self.contextExecutorNextId != 18446744073709551615;
-}
-
-@inline
-/// @notice Atomically takes and increments the next ContextExecutor ID.
-/// @dev Throws if the ID counter has reached its maximum value.
-fun Storage.takeContextExecutorNextId(mutate self): uint64 {
-    val id = self.contextExecutorNextId;
-    assert(id != 18446744073709551615) throw 0xFFFF;
-    self.contextExecutorNextId = id + 1;
-    return id;
 }
 
 fun Storage.load(): Storage {
@@ -71,8 +51,6 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        contextExecutorCode: config.contextExecutorCode,
-        contextExecutorNextId: 1,
         offRampAccountCode: config.offRampAccountCode,
     };
 }

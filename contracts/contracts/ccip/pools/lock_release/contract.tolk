@@ -244,9 +244,6 @@ fun onOffRampAccountForwardNotification(
     assert(jettonMsg.transferInitiator != null, Error.InvalidOffRampAccountNotification);
     assert(jettonMsg.transferInitiator! == contract.getAddress(), Error.InvalidOffRampAccountNotification);
 
-    // Verify queryId matches the original request.
-    assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
-
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);
     st.poolData = pool.data.toCell();

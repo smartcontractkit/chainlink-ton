@@ -3,10 +3,10 @@
 const OffRampAccount_CONTRACT_NAME = "link.chain.ton.ccip.OffRampAccount".literalSlice();
 const OffRampAccount_CONTRACT_VERSION = "0.1.0".literalSlice();
 
-/// @notice Minimal deployment + activation value for the OffRampAccount.
+/// Minimal deployment + activation value for the OffRampAccount.
 const OffRampAccount_DEPLOY_VALUE = ton("0.1");
 
-/// @notice Runtime data stored by each OffRampAccount instance.
+/// Runtime data stored by each OffRampAccount instance.
 /// A dumb forwarder: receives jetton notifications, forwards them to the pool with full message metadata.
 /// Owner = recipient (can withdraw jettons). NotificationTarget = pool.
 /// Only forwards messages from the allowed jetton wallet (safety filter, like CE's forwardFrom).
@@ -21,7 +21,7 @@ struct OffRampAccount_Data {
     allowedJettonWallet: address?;
 }
 
-/// @notice Error codes for OffRampAccount.
+/// Error codes for OffRampAccount.
 enum OffRampAccount_Error {
     /// Thrown when the pool tries to init but sender is not the notification target.
     OnlyPool = 0x1001,
@@ -29,7 +29,7 @@ enum OffRampAccount_Error {
     OnlyOwner = 0x1003,
 }
 
-/// @notice Computes the deterministic address of an OffRampAccount given its config.
+/// Computes the deterministic address of an OffRampAccount given its config.
 /// @dev allowedJettonWallet is NOT part of address derivation — it's set on init.
 fun calcAddressOfOffRampAccount(
     code: cell,

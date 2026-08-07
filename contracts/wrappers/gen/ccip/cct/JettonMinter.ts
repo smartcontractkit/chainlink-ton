@@ -413,59 +413,6 @@ export const InternalTransferStep = {
 }
 
 /**
- > struct (0x7bdd97de) BurnNotificationForMinter {
- >     queryId: uint64
- >     jettonAmount: coins
- >     burnInitiator: address
- >     sendExcessesTo: address?
- > }
- */
-export interface BurnNotificationForMinter {
-    readonly $: 'BurnNotificationForMinter'
-    queryId: uint64
-    jettonAmount: coins
-    burnInitiator: c.Address
-    sendExcessesTo: c.Address | null
-}
-
-export const BurnNotificationForMinter = {
-    PREFIX: 0x7bdd97de,
-
-    create(args: {
-        queryId?: uint64
-        jettonAmount: coins
-        burnInitiator: c.Address
-        sendExcessesTo: c.Address | null
-    }): BurnNotificationForMinter {
-        return {
-            $: 'BurnNotificationForMinter',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): BurnNotificationForMinter {
-        loadAndCheckPrefix32(s, 0x7bdd97de, 'BurnNotificationForMinter');
-        return {
-            $: 'BurnNotificationForMinter',
-            queryId: s.loadUintBig(64),
-            jettonAmount: s.loadCoins(),
-            burnInitiator: s.loadAddress(),
-            sendExcessesTo: s.loadMaybeAddress(),
-        }
-    },
-    store(self: BurnNotificationForMinter, b: c.Builder): void {
-        b.storeUint(0x7bdd97de, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeCoins(self.jettonAmount);
-        b.storeAddress(self.burnInitiator);
-        b.storeAddress(self.sendExcessesTo);
-    },
-    toCell(self: BurnNotificationForMinter): c.Cell {
-        return makeCellFrom<BurnNotificationForMinter>(self, BurnNotificationForMinter.store);
-    }
-}
-
-/**
  > struct (0x2c76b973) RequestWalletAddress {
  >     queryId: uint64
  >     ownerAddress: address
@@ -861,15 +808,78 @@ export const TopUpTons = {
 }
 
 /**
+ > struct (0x7bdd97de) CCT_BurnNotificationForMinter {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     burnInitiator: address
+ >     sendExcessesTo: address?
+ >     forwardPayload: cell?
+ > }
+ */
+export interface CCT_BurnNotificationForMinter {
+    readonly $: 'CCT_BurnNotificationForMinter'
+    queryId: uint64
+    jettonAmount: coins
+    burnInitiator: c.Address
+    sendExcessesTo: c.Address | null
+    forwardPayload: c.Cell | null /* = null */
+}
+
+export const CCT_BurnNotificationForMinter = {
+    PREFIX: 0x7bdd97de,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        burnInitiator: c.Address
+        sendExcessesTo: c.Address | null
+        forwardPayload?: c.Cell | null /* = null */
+    }): CCT_BurnNotificationForMinter {
+        return {
+            $: 'CCT_BurnNotificationForMinter',
+            forwardPayload: null,
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CCT_BurnNotificationForMinter {
+        loadAndCheckPrefix32(s, 0x7bdd97de, 'CCT_BurnNotificationForMinter');
+        return {
+            $: 'CCT_BurnNotificationForMinter',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            burnInitiator: s.loadAddress(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: CCT_BurnNotificationForMinter, b: c.Builder): void {
+        b.storeUint(0x7bdd97de, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.burnInitiator);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: CCT_BurnNotificationForMinter): c.Cell {
+        return makeCellFrom<CCT_BurnNotificationForMinter>(self, CCT_BurnNotificationForMinter.store);
+    }
+}
+
+/**
  > struct (0xd53276db) CCT_ReturnExcessesBack {
  >     queryId: uint64
  >     initiator: address
+ >     forwardPayload: cell?
  > }
  */
 export interface CCT_ReturnExcessesBack {
     readonly $: 'CCT_ReturnExcessesBack'
     queryId: uint64
     initiator: c.Address
+    forwardPayload: c.Cell | null /* = null */
 }
 
 export const CCT_ReturnExcessesBack = {
@@ -878,9 +888,11 @@ export const CCT_ReturnExcessesBack = {
     create(args: {
         queryId?: uint64
         initiator: c.Address
+        forwardPayload?: c.Cell | null /* = null */
     }): CCT_ReturnExcessesBack {
         return {
             $: 'CCT_ReturnExcessesBack',
+            forwardPayload: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -891,12 +903,16 @@ export const CCT_ReturnExcessesBack = {
             $: 'CCT_ReturnExcessesBack',
             queryId: s.loadUintBig(64),
             initiator: s.loadAddress(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: CCT_ReturnExcessesBack, b: c.Builder): void {
         b.storeUint(0xd53276db, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.initiator);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: CCT_ReturnExcessesBack): c.Cell {
         return makeCellFrom<CCT_ReturnExcessesBack>(self, CCT_ReturnExcessesBack.store);
@@ -942,7 +958,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonMinter implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEQEAA60AART/APSkE/S88sgLAQIBYgIDBPbQ+JGOI9MfMe1E0AHXLCC8aijM8r/TPzH6ADAB+gACocgB+gLOye1U4NcsI97svvTjAtcsIWO1y5zjAtcsIAAAAKzjAtcsIygPmqSOJu1E0PoA+lD6UDH4kiLHBfLgSQPTPzH6SDDIUAP6AvpU+lTOye1U4NcsJ9xHCMwEBQYHAgEgDA0AxO1E0AHTP/oA+kj6UDAE+gAg10z4kvgoJcjPhAL6UvpSyVjIz4TQzMz5FsjPigBAy//PUMcF8uBKA6HIAfoCEs7J7VQibpJfA+DIz4UIE/pSghDVMnbbzwuOyz/6UsmAQvsAALrTP/pI1woAlSDI+lLJkW3ibSL6RDCRMo4mMO1E0NdM+CjIz4QCFPpSE/pSyVjIz4TQzMz5FsjPigBAy//PUAHi+JLIz4UI+lKCENFzVADPC44Tyz/6VPQAyYBQ+wAB/O1E0PoAIPpQ10z4kljHBfLgSQPTPzH6SPoA10wi+kQw8tFNINDXLCC8aijM8uBI0z8x+gD6UDH6UDH6APQEAW6RMJHR4viTcPg6IXJx4wT4OSBugRgJIuMEIW6BHFVYA+MEUCOoE6BzgQOjcPg8oAJw+DYSoAFw+Dagc4EECQgD/o4jMO1E0PoA+lAx+lD4kiLHBfLgSW3IUAT6AhL6VBL6VM7J7VTg1ywjoY+RDI4jMO1E0PoA+lD6UDH4kljHBfLgSW1tyFAE+gL6VBL6VM7J7VTg1ywmXDFIFOMC1ywhKEazVI4Y7UTQ+gAx+lAw+JLHBfLgSdTXTAHtVPsE4IkJCgsApIIQCWYBgHD4N6AjufKwFaDIAfoCE87J7VSCCJiWgHD7AvgoyM+EAhL6UvpSycjPiYgBUxTIz4TQzMz5Fs8L/1j6AoEAjc8LcBPMEszMyYAR+wAAVO1E0PoA+lD6UNdM+JIjxwXy4EkE0z8xyM7JyFAE+gIS+lT6VBLMzMntVAAI03IVjAAQ1ycx3IQP8vAAHb2a32omh9ABj9KBj9KBhAICcQ4PAE2tvPaiaGumfBRkZ8IBCf0pCX0pZIDkZ8JoZmZ8i2RnxQAgZf/nqEAB768W9qJoNoD9AH0oamumQXg4cuvbUU2cl8KDt/CuUXkCnithGcOUYnGeT0btj3QT5mRnwgEJZmSgCsGD+gvBeHdAfpePAaQHEUEbGst3Opa92T+oO7XKhDUBPIxLOskfRGRnwgFmZIFBg/oLv+RnwgEJegBkqAGCQBAAAjk=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEQEAA7EAART/APSkE/S88sgLAQIBYgIDBPbQ+JGOI9MfMe1E0AHXLCC8aijM8r/TPzH6ADAB+gACocgB+gLOye1U4NcsI97svvTjAtcsIWO1y5zjAtcsIAAAAKzjAtcsIygPmqSOJu1E0PoA+lD6UDH4kiLHBfLgSQPTPzH6SDDIUAP6AvpU+lTOye1U4NcsJ9xHCMwEBQYHAgEgDA0AzO1E0AHTP/oA+kj6UPQFBfoAINdM+JL4KCbIz4QC+lL6UslYyM+E0MzM+RbIz4oAQMv/z1DHBfLgSgShyAH6AhPOye1UIW6SXwTgyM+FCBL6UoIQ1TJ2288LjhLLP/pS9ADJgEL7AAC60z/6SNcKAJUgyPpSyZFt4m0i+kQwkTKOJjDtRNDXTPgoyM+EAhT6UhP6UslYyM+E0MzM+RbIz4oAQMv/z1AB4viSyM+FCPpSghDRc1QAzwuOE8s/+lT0AMmAUPsAAfztRND6ACD6UNdM+JJYxwXy4EkD0z8x+kj6ANdMIvpEMPLRTSDQ1ywgvGoozPLgSNM/MfoA+lAx+lAx+gD0BAFukTCR0eL4k3D4OiFyceME+DkgboEYCSLjBCFugRxVWAPjBFAjqBOgc4EDo3D4PKACcPg2EqABcPg2oHOBBAkIA/6OIzDtRND6APpQMfpQ+JIixwXy4EltyFAE+gIS+lQS+lTOye1U4NcsI6GPkQyOIzDtRND6APpQ+lAx+JJYxwXy4EltbchQBPoC+lQS+lTOye1U4NcsJlwxSBTjAtcsIShGs1SOGO1E0PoAMfpQMPiSxwXy4EnU10wB7VT7BOCJCQoLAKSCEAlmAYBw+DegI7nysBWgyAH6AhPOye1UggiYloBw+wL4KMjPhAIS+lL6UsnIz4mIAVMUyM+E0MzM+RbPC/9Y+gKBAI3PC3ATzBLMzMmAEfsAAFTtRND6APpQ+lDXTPiSI8cF8uBJBNM/McjOychQBPoCEvpU+lQSzMzJ7VQACNNyFYwAENcnMdyED/LwAB29mt9qJofQAY/SgY/SgYQCAnEODwBNrbz2omhrpnwUZGfCAQn9KQl9KWSA5GfCaGZmfItkZ8UAIGX/56hAAe+vFvaiaDaA/QB9KGprpkF4OHLr21FNnJfCg7fwrlF5Ap4rYRnDlGJxnk9G7Y90E+ZkZ8IBCWZkoArBg/oLwXh3QH6XjwGkBxFBGxrLdzqWvdk/qDu1yoQ1ATyMSzrJH0RkZ8IBZmSBQYP6C7/kZ8IBCXoAZKgBgkAQAAI5');
 
     static Errors = {
         'ERROR_NOT_ENOUGH_GAS': 48,
@@ -988,13 +1004,14 @@ export class JettonMinter implements c.Contract {
         return MintNewJettons.toCell(MintNewJettons.create(body));
     }
 
-    static createCellOfBurnNotificationForMinter(body: {
+    static createCellOfCCTBurnNotificationForMinter(body: {
         queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
+        forwardPayload?: c.Cell | null /* = null */
     }) {
-        return BurnNotificationForMinter.toCell(BurnNotificationForMinter.create(body));
+        return CCT_BurnNotificationForMinter.toCell(CCT_BurnNotificationForMinter.create(body));
     }
 
     static createCellOfRequestWalletAddress(body: {
@@ -1073,15 +1090,16 @@ export class JettonMinter implements c.Contract {
         });
     }
 
-    async sendBurnNotificationForMinter(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCCTBurnNotificationForMinter(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
+        forwardPayload?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: BurnNotificationForMinter.toCell(BurnNotificationForMinter.create(body)),
+            body: CCT_BurnNotificationForMinter.toCell(CCT_BurnNotificationForMinter.create(body)),
             ...extraOptions
         });
     }

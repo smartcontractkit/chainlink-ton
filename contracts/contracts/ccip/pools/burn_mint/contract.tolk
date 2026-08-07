@@ -10,8 +10,6 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../cct/messages"
 import "../../common/types"
-import "../../executors/context_executor/messages"
-import "../../executors/context_executor/types"
 import "../../accounts/off_ramp_account/messages"
 import "../../accounts/off_ramp_account/types"
 import "../../rmn_remote/lib"
@@ -57,12 +55,8 @@ fun onInternalMessage(in: InMessage) {
             onClaimMinterAdmin(mutate st, in.senderAddress, msg.queryId);
             st.store();
         }
-        ContextExecutor_Reply<BurnMintTokenPool_ContextExecutorContext> => {
-            onContextExecutorReply(mutate st, in.senderAddress, msg);
-            st.store();
-        }
-        ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext> => {
-            onContextExecutorForwardNotification(mutate st, in.senderAddress, msg);
+        CCT_ReturnExcessesBack => {
+            onCCTReturnExcessesBack(mutate st, in.senderAddress, msg);
             st.store();
         }
         OffRampAccount_Reply => {
@@ -79,57 +73,13 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// @notice Deploys a new ContextExecutor at the given AutoDeployAddress with an Ask message.
-/// @notice Deploys a ContextExecutor with an Ask message (empty forwardPayload).
-/// The context is already embedded in the CE state from init, so forwardPayload is not needed.
-/// The pool awaits the Reply before sending the operational message, ensuring sequential
-/// execution (no race condition).
-/// @param executor The deterministic CE address to deploy.
-/// @param queryId QueryId for correlation between Ask and Reply.
-fun deployBurnMintContextExecutorWithAsk(
-    executor: AutoDeployAddress,
-    queryId: uint64,
-): void {
-    val deploy = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: BurnMintTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE,
-        dest: executor,
-        body: ContextExecutor_Ask {
-            queryId,
-            forwardPayload: null,
-            done: false,
-        },
-    });
-    // TODO: need to use SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
-}
-
-/// @notice Validates a ContextExecutor_Reply by recomputing the expected CE address from
-/// the reply fields, then dispatches the operational message based on the context type.
-/// @dev After CE Reply, we send the burn message. CE forwards the ReturnExcessesBack to finalize.
-fun onContextExecutorReply(
-    mutate st: Storage,
-    sender: address,
-    msg: ContextExecutor_Reply<BurnMintTokenPool_ContextExecutorContext>,
-) {
-    // Validate CE identity: recompute address from reply fields and compare to sender.
-    val expectedExecutor = ContextExecutor<BurnMintTokenPool_ContextExecutorContext>.getAddress(
-        st.contextExecutorCode,
-        msg.id,
-        contract.getAddress(),
-        msg.context,
-        msg.forwardFrom,
-    );
-    assert(sender == expectedExecutor.calculateAddress(), BurnMintTokenPool_Error.InvalidContextExecutorReply);
-
-    val context = msg.context.load();
-    sendBurnMessage(st, sender, msg.queryId, context);
-}
-
-/// @notice Sends the AskToBurn operational message after CE deployment is confirmed.
+/// @notice Sends the CCT `AskToBurn` operational message to the pool's own jetton wallet
+/// to burn the locked tokens. The burn continuation context is attached as `forwardPayload`,
+/// which the CCT wallet relays via the minter back to the pool on `CCT_ReturnExcessesBack`.
+/// `sendExcessesTo` points back to this pool so the minter routes the completion (and excess)
+/// here directly — no ContextExecutor hop required.
 fun sendBurnMessage(
-    _st: Storage,
-    executorAddress: address,
+    st: Storage,
     queryId: uint64,
     context: BurnMintTokenPool_BurnContext,
 ) {
@@ -139,11 +89,12 @@ fun sendBurnMessage(
         bounce: BounceMode.RichBounce,
         value: BurnMintTokenPool_BURN_VALUE,
         dest: context.wallet,
-        body: AskToBurn {
+        body: CCT_AskToBurn {
             queryId: queryId,
             jettonAmount: prepared.destTokenAmount,
-            sendExcessesTo: executorAddress,
+            sendExcessesTo: contract.getAddress(),
             customPayload: context.toCell(),
+            forwardPayload: context.toCell(),
         },
     });
     burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -155,7 +106,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
-        AskToBurn => {
+        CCT_AskToBurn => {
             assert(msg.customPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
             val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.customPayload!);
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
@@ -185,33 +136,21 @@ fun onBouncedMessage(in: InMessageBounced) {
 }
 
 /// @notice Handles TransferNotificationForRecipient on the burn path.
-/// Validates pool ownership, checks rate limit, then deploys CE for burn continuation.
+/// The pool's own jetton wallet has already credited custody; burn directly via CCT
+/// `AskToBurn` carrying the continuation context, then finalize on `CCT_ReturnExcessesBack`.
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    assert(st.canTakeContextExecutorNextId()) throw BurnMintTokenPool_Error.ContextExecutorUnavailable;
-
     val requestMsg = lazy fwdPayload.requestMsg.load();
-    val jettonClient = st.poolData.load().jettonClient();
     val context = BurnMintTokenPool_BurnContext {
         wallet: sender,
         forwardPayload: fwdPayload.toCell(),
     };
-    val contextExecutorId = st.takeContextExecutorNextId();
-    val executor = ContextExecutor<BurnMintTokenPool_BurnContext>.getAddress(
-        st.contextExecutorCode,
-        contextExecutorId,
-        contract.getAddress(),
-        context.toCell(),
-        [jettonClient.masterAddress],
-    );
 
-    // Deploy CE with Ask — context is already in CE state from init.
-    // Reply triggers the operational message (no race condition).
-    deployBurnMintContextExecutorWithAsk(executor, requestMsg.queryId);
+    sendBurnMessage(st, requestMsg.queryId, context);
 
     return st;
 }
@@ -265,35 +204,30 @@ fun onClaimMinterAdmin(
     claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Handles ForwardNotification from ContextExecutor after burn completion.
-/// Verifies executor identity, then checks CCT_ReturnExcessesBack.initiator matches the burn wallet.
-/// @dev Burn-only path. Mint uses OffRampAccount now.
-fun onContextExecutorForwardNotification(
+/// @notice Handles `CCT_ReturnExcessesBack` sent by the CCT JettonMinter on the burn path.
+/// The minter relays the burn continuation context (the `BurnMintTokenPool_BurnContext`
+/// embedded by this pool in `CCT_AskToBurn.forwardPayload`) back to this pool, which then
+/// finalizes the lock/burn. Context-less excess signals (e.g. from the mint/transfer paths)
+/// are ignored. Mint still finalizes via OffRampAccount.
+fun onCCTReturnExcessesBack(
     mutate st: Storage,
     sender: address,
-    msg: ContextExecutor_ForwardNotification<BurnMintTokenPool_ContextExecutorContext>,
+    msg: CCT_ReturnExcessesBack,
 ) {
-    val expectedExecutor = ContextExecutor<BurnMintTokenPool_ContextExecutorContext>.getAddress(
-        st.contextExecutorCode,
-        msg.id,
-        contract.getAddress(),
-        msg.context,
-        msg.forwardFrom,
-    );
-    assert(sender == expectedExecutor.calculateAddress(), TokenPool_Error.Unauthorized);
+    // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
+    if (msg.forwardPayload == null) {
+        return;
+    }
 
-    val forwarded = msg.message.load();
-    val cctReturnExcesses = CCT_ReturnExcessesBack.fromCell(forwarded.body);
+    // The only source that carries a burn continuation is the CCT JettonMinter for this token.
+    assert(sender == st.poolData.load().jettonClient().masterAddress, TokenPool_Error.Unauthorized);
+    // The minter sets `initiator` to the burnInitiator, which is the pool's own wallet owner (pool).
+    assert(msg.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
 
-    // Verify the initiator (who triggered the excess return) is this pool.
-    // The CCT JettonMinter sets burnInitiator to the wallet owner address, which is
-    // the pool itself (pool's jetton wallet sends BurnNotificationForMinter with
-    // burnInitiator: storage.ownerAddress == pool address).
-    assert(cctReturnExcesses.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
-
-    val context = msg.context.load();
+    val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
     val operation = context.forwardPayload.load();
-    assert(cctReturnExcesses.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
+    // TODO: is this check necessary?
+    assert(context.wallet == st.poolData.load().jettonClient().walletAddress(), BurnMintTokenPool_Error.UnexpectedBurnBounce);
 
     var pool = loadPool(st);
     pool.onLockOrBurnTransferFinalize(operation);

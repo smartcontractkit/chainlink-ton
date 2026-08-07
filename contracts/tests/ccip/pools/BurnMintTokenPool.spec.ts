@@ -30,38 +30,23 @@ import {
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
-import {
-  ContextExecutor,
-  ContextExecutor_ForwardNotification,
-  ContextExecutor_InMessageForward,
-} from '../../../wrappers/gen/ccip/ContextExecutor'
+import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
 
-function buildSpoofedExecutorForwardNotification(senderAddress: Address): Cell {
-  const forwarded = ContextExecutor_InMessageForward.toCell(
-    ContextExecutor_InMessageForward.create({
-      senderAddress,
-      valueCoins: 0n,
-      valueExtra: new Map(),
-      originalForwardFee: 0n,
-      createdLt: 0n,
-      createdAt: 0n,
-      body: Cell.EMPTY,
+// Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
+// from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
+function buildForgedCCTReturnExcessesBack(poolAddress: Address): Cell {
+  return CCT_ReturnExcessesBack.toCell(
+    CCT_ReturnExcessesBack.create({
+      queryId: 999n,
+      initiator: poolAddress,
+      forwardPayload: beginCell().storeUint(0xba302a47, 32).endCell(),
     }),
   )
-
-  return beginCell()
-    .storeUint(ContextExecutor_ForwardNotification.PREFIX, 32)
-    .storeUint(999n, 64)
-    .storeRef(Cell.EMPTY)
-    .storeUint(0, 8)
-    .storeMaybeRef(null)
-    .storeRef(forwarded)
-    .endCell()
 }
 
 describe('BurnMintTokenPool', () => {
@@ -147,8 +132,6 @@ describe('BurnMintTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          contextExecutorCode: ContextExecutor.CodeCell,
-          contextExecutorNextId: 1n,
           offRampAccountCode: OffRampAccount.CodeCell,
         },
         { overrideContractCode: burnMintPoolCode },
@@ -611,7 +594,8 @@ describe('BurnMintTokenPool', () => {
     )
 
     // Jetton wallet sends TransferNotificationForRecipient to the pool.
-    // Pool deploys a context executor, asks its own wallet to burn, then finalizes on executor forward notification.
+    // Pool sends CCT_AskToBurn (with continuation context) to its own wallet; the CCT wallet
+    // relays it via the minter back to the pool on CCT_ReturnExcessesBack, which finalizes.
     const result2 = await deployerWallet.sendTransfer(deployer.getSender(), {
       value: toNano('0.5'),
       message: {
@@ -742,14 +726,16 @@ describe('BurnMintTokenPool', () => {
     expect(releaseResponses.length).toBe(0)
   })
 
-  it('rejects forged executor forward notifications', async () => {
+  it('rejects forged CCT burn completions from an untrusted sender', async () => {
     const forged = await unauthorized.send({
       to: burnMintPool.address,
       value: toNano('0.1'),
       bounce: false,
-      body: buildSpoofedExecutorForwardNotification(unauthorized.address),
+      body: buildForgedCCTReturnExcessesBack(burnMintPool.address),
     })
 
+    // A forged CCT_ReturnExcessesBack carrying a burn continuation must be rejected:
+    // the sender is not the CCT JettonMinter, so the pool must not finalize the burn.
     expect(forged.transactions).toHaveTransaction({
       from: unauthorized.address,
       to: burnMintPool.address,

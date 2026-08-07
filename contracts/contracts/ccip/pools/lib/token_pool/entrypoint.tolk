@@ -1099,6 +1099,12 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
 
     try {
+        // TODO: auth - we accept a deposit from (1) the Router, or (2) a known Deployable namespace
+        // with Router as owner (a known deployable addr key, per-user deposit account), where 
+        // multiple namespaces can represent different types of OnRampAccount contracts.
+        // The TP just needs to know (1) the Deployable code (stable), (2) the Router address (stable),
+        // and (3) a set of namespaces (account types) it trusts.
+
         val forwardPayload = loadForwardPayloadAsSlice(msg.forwardPayload);
         val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(forwardPayload!);
 

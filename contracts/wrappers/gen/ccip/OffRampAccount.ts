@@ -610,9 +610,10 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OffRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAaAAART/APSkE/S88sgLAQIBYgIDAvTQ+JHyQO1E0PpI+kj6UNEj1ywnjRWeJI48MTMC0z/6SPQF+JKBEANRFscF8vTIz4UIUlD6UoIQ0uP0pc8LjhPLPxL0AMmAQPsAAcj6UhL6UvpUye1U4NcsJx+lLbTjAjAyIW6zl/iSWMcFwwCSMXDi4wIwhA8BxwDy9AQFAgEgBgcAxjQD0z8x+kjXLCB8U/Us8r/TP/oA+kj6UPQE+gD4koEQA1EbxwXy9MjPkD4p+pYXyz9QBfoCE/pS+lT0AAH6As7JyM+FiBL6Us+EEHP6AnHPC2XMyYBQ+wAByPpS+lL6VMntVAB++JL4l/iY+JNw+Dr4lPiVB8jOyQXI+lJQBPoCEvQAAfoCyz8Tyx8SzMnIz4UIEvpSghCnuMnQzwuOzMmAQPsAAgFICAkCAccKCwBdtivxoRNjS3NZcxtDC0txc6N7cXMbG0uBcnszMpMLa4ILGxt7q3OkEWpgXGJcYRAAHbZIvaiaH0kGP0kGP0oGEAAXrtD2omh9JBj9JBhAABGvRPaiaH0kGEA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAZcAART/APSkE/S88sgLAQIBYgIDAvTQ+JHyQO1E0PpI+kj6UNEj1ywnjRWeJI48MTMC0z/6SPQF+JKBEAFRFscF8vTIz4UIUlD6UoIQ0uP0pc8LjhPLPxL0AMmAQPsAAcj6UhL6UvpUye1U4NcsJx+lLbTjAjAyIW6zl/iSWMcFwwCSMXDi4wIwhA8BxwDy9AQFAgEgBgcAtDRbAdM/MfpI1ywgfFP1LPK/0z/6APpI+lD0BPoA+JKBEAMKxwUZ8vTIz5A+KfqWFss/UAT6AhL6UvpU9AAB+gISzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AAB++JL4l/iY+JNw+Dr4lPiVB8jOyQXI+lJQBPoCEvQAAfoCyz8Tyx8SzMnIz4UIEvpSghCnuMnQzwuOzMmAQPsAAgFICAkCAccKCwBdtivxoRNjS3NZcxtDC0txc6N7cXMbG0uBcnszMpMLa4ILGxt7q3OkEWpgXGJcYRAAHbZIvaiaH0kGP0kGP0oGEAAXrtD2omh9JBj9JBhAABGvRPaiaH0kGEA=');
 
     static Errors = {
+        'OffRampAccount_Error.OnlyPool': 4097,
         'OffRampAccount_Error.OnlyOwner': 4099,
     }
 
