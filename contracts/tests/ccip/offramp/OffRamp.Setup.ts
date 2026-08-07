@@ -1,5 +1,5 @@
 import { Cell, Address, Dictionary, toNano, beginCell, StateInit, contractAddress } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, internal } from '@ton/sandbox'
 import { KeyPair } from '@ton/crypto'
 
 import {
@@ -26,6 +26,10 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as tr from '../../../wrappers/examples/Receiver'
+import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
+import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
@@ -616,6 +620,346 @@ export class OffRampTestSetup {
 
     const workchain = 0
     return contractAddress(workchain, init)
+  }
+}
+
+export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
+  public tokenPool: SandboxContract<mtp.MockTokenPool> = null as any
+
+  constructor(
+    public readonly blockchain: Blockchain,
+    public readonly deployer: SandboxContract<TreasuryContract>,
+    public readonly code: {
+      merkleRoot: Cell
+      offRamp: Cell
+      router: Cell
+      feeQuoter: Cell
+      receiveExecutor: Cell
+      tokenRegistry: Cell
+      deployer: Cell
+      tokenPool: Cell
+    },
+    public readonly transmitters: SandboxContract<TreasuryContract>[],
+    public readonly signers: KeyPair[],
+    public readonly feeQuoter: SandboxContract<fq.FeeQuoter>,
+  ) {
+    super(blockchain, deployer, code, transmitters, signers, feeQuoter)
+  }
+
+  static async Init(blockchain: Blockchain): Promise<OffRampWithTokenPoolTestSetup> {
+    const deployer = await blockchain.treasury('deployer')
+    return new OffRampWithTokenPoolTestSetup(
+      blockchain,
+      deployer,
+      {
+        deployer: await contractCode.ccip.local('Deployable'),
+        merkleRoot: await contractCode.ccip.local('MerkleRoot'),
+        offRamp: await contractCode.ccip.local('OffRamp'),
+        router: await contractCode.ccip.local('Router'),
+        feeQuoter: await contractCode.ccip.local('FeeQuoter'),
+        receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
+        tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
+        tokenPool: await contractCode.ccip.local('ccip.test.mockTokenPool'),
+      },
+      await Promise.all([
+        blockchain.treasury('transmitter1'),
+        blockchain.treasury('transmitter2'),
+        blockchain.treasury('transmitter3'),
+        blockchain.treasury('transmitter4'),
+      ]),
+      await Promise.all([
+        generateEd25519KeyPair(),
+        generateEd25519KeyPair(),
+        generateEd25519KeyPair(),
+        generateEd25519KeyPair(),
+      ]),
+      await setupTestFeeQuoter(deployer, blockchain),
+    )
+  }
+
+  /**
+   * Derives the ReceiveExecutor contract address for a given message, matching
+   * the OffRamp's `getOwnedReceiveExecutorContractId` + `getReceiverExecutorDeployAddress`.
+   */
+  receiveExecutorAddress(message: of.Any2TVMRampMessage, metadataHash: bigint): Address {
+    const messageId = generateMessageID(message, metadataHash)
+    const messageIdSlice = beginCell().storeUint(messageId, 256).asSlice()
+    const execId = beginCell()
+      .storeUint(message.header.sourceChainSelector, 64)
+      .storeUint(messageIdSlice.loadUintBig(192 - 64), 192 - 64)
+      .endCell()
+      .beginParse()
+      .loadUintBig(192)
+
+    const data = deployable.builder.data.contractData
+      .encode({
+        owner: this.offRamp.address,
+        id: deployable.builder.data.namespaced.encode({
+          namespace: NameSpace.CCIPNamespace.ReceiveExecutor,
+          id: beginCell().storeUint(execId, 192),
+        }),
+      })
+      .endCell()
+
+    const init: StateInit = {
+      code: this.code.deployer,
+      data,
+    }
+
+    return contractAddress(0, init)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Token transfer helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Derives the TokenRegistry contract address for a given token, matching the
+   * OffRamp's `getTokenAdminRegistry` derivation (Deployable namespace 3).
+   */
+  tokenRegistryAddress(token: Address): Address {
+    const data = deployable.builder.data.contractData
+      .encode({
+        owner: this.offRamp.address,
+        id: deployable.builder.data.namespaced.encode({
+          namespace: NameSpace.CCIPNamespace.TokenRegistry,
+          id: beginCell().storeAddress(token),
+        }),
+      })
+      .endCell()
+
+    const init: StateInit = {
+      code: this.code.deployer,
+      data,
+    }
+
+    return contractAddress(0, init)
+  }
+
+  /**
+   * Deploys a TokenRegistry contract at the OffRamp-derived address and sets
+   * the token info (tokenPool + minter + enabled). Returns the registry.
+   */
+  async setupTokenRegistry(
+    token: Address,
+    tokenPool: Address,
+    minterAddress: Address = token,
+    enabled = true,
+  ): Promise<SandboxContract<trg.TokenRegistry>> {
+    const registryAddress = this.tokenRegistryAddress(token)
+    const registry = this.blockchain.openContract(trg.TokenRegistry.fromAddress(registryAddress))
+
+    // Deploy the registry at the derived address via the Deployable pattern.
+    const data = deployable.builder.data.contractData
+      .encode({
+        owner: this.offRamp.address,
+        id: deployable.builder.data.namespaced.encode({
+          namespace: NameSpace.CCIPNamespace.TokenRegistry,
+          id: beginCell().storeAddress(token),
+        }),
+      })
+      .endCell()
+
+    const deployResult = await this.blockchain.sendMessage(
+      internal({
+        from: this.offRamp.address,
+        to: registryAddress,
+        value: toNano('0.05'),
+        bounce: false,
+        stateInit: {
+          code: this.code.deployer,
+          data,
+        },
+        body: deployable.builder.messages.in.initialize
+          .encode({
+            stateInit: {
+              code: this.code.tokenRegistry,
+              data: trg.TokenRegistry_Storage.toCell(
+                trg.TokenRegistry_Storage.create({
+                  tokenAddress: token,
+                  tokenInfo: trg.TokenRegistry_TokenInfo.create({
+                    tokenPool,
+                    minterAddress,
+                    enabled,
+                  }),
+                }),
+              ),
+            },
+          })
+          .asCell(),
+      }),
+    )
+
+    expect(deployResult.transactions).toHaveTransaction({
+      from: this.offRamp.address,
+      to: registryAddress,
+      deploy: true,
+      success: true,
+    })
+
+    return registry
+  }
+
+  /**
+   * Deploys a TokenPool configured for the given token and remote chain.
+   * The pool is registered as the offRamp for the remote chain so that
+   * ReleaseOrMint from the OffRamp is authorized.
+   */
+  async setupTokenPool(
+    token: Address,
+    remoteChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    opts: {
+      jettonWalletCode?: Cell
+      tokenDecimals?: bigint
+      rateLimitCapacity?: bigint
+    } = {},
+  ) {
+    const jettonWalletCode = opts.jettonWalletCode ?? Cell.EMPTY
+    const tokenDecimals = opts.tokenDecimals ?? 9n
+    const rateLimitCapacity = opts.rateLimitCapacity ?? toNano('1000')
+
+    const tokenPool = this.blockchain.openContract(
+      mtp.MockTokenPool.fromStorage(
+        {
+          poolData: tp.TokenPool_Data.create({
+            adminConfig: tp.TokenPool_AdminConfig.create({
+              ownable: tp.Ownable2Step.create({
+                owner: this.deployer.address,
+                pendingOwner: null,
+              }),
+              rmnProxy: this.deployer.address,
+              dynamicConfig: tp.TokenPool_DynamicConfig.create({
+                router: this.router.address,
+                rateLimitAdmin: this.deployer.address,
+                feeAdmin: this.deployer.address,
+              }),
+              jettonClient: tp.JettonClient.create({
+                masterAddress: token,
+                jettonWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
+            }),
+            mirroredPolicy: tp.TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: tp.CursedSubjects.create({
+                data: new Set(),
+              }),
+            }),
+            tokenDecimals,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
+          }),
+        },
+        { overrideContractCode: this.code.tokenPool },
+      ),
+    )
+
+    const deploymentResult = await tokenPool.sendDeploy(this.deployer.getSender(), toNano('0.05'))
+    expect(deploymentResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: tokenPool.address,
+      success: true,
+      deploy: true,
+    })
+
+    // Register the remote chain config.
+    const sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
+    const destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
+
+    const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(
+      this.deployer.getSender(),
+      toNano('0.05'),
+      {
+        remoteChainSelectorsToRemove: [],
+        chainsToAdd: [
+          tp.TokenPool_ChainUpdate.create({
+            remoteChainSelector,
+            remotePoolAddresses: [sourcePoolAddress],
+            remoteTokenAddress: destTokenAddress,
+            rateLimitConfigs: tp.TokenPool_RateLimitConfigPair.create({
+              outbound: tp.RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: rateLimitCapacity,
+                rate: rateLimitCapacity,
+              }),
+              inbound: tp.RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: rateLimitCapacity,
+                rate: rateLimitCapacity,
+              }),
+            }),
+          }),
+        ],
+      },
+    )
+
+    expect(chainUpdateResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: tokenPool.address,
+      success: true,
+    })
+
+    // Register the OffRamp as the authorized inbound caller (offRamp) for the chain.
+    const rampAccessResult = await tokenPool.sendTokenPoolUpdateRampAccess(
+      this.deployer.getSender(),
+      toNano('0.05'),
+      {
+        updates: [
+          tp.TokenPool_RampUpdate.create({
+            remoteChainSelector,
+            onRamp: null,
+            offRamp: this.offRamp.address,
+          }),
+        ],
+      },
+    )
+
+    expect(rampAccessResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: tokenPool.address,
+      success: true,
+    })
+
+    this.tokenPool = tokenPool
+  }
+
+  /**
+   * Creates a test message with a single token transfer.
+   */
+  createTestMessageWithToken(
+    token: Address,
+    amount: bigint,
+    opts: {
+      sequenceNumber?: bigint
+      messageId?: bigint
+      receiverAddress?: Address
+      data?: Cell
+      sourcePoolAddress?: of.CrossChainAddress
+      extraData?: Cell
+      destGasAmount?: bigint
+    } = {},
+  ): of.Any2TVMRampMessage {
+    const message = this.createTestMessage(
+      opts.sequenceNumber ?? 1n,
+      opts.messageId ?? 1n,
+      opts.receiverAddress ?? this.receiver.address,
+      opts.data ?? Cell.EMPTY,
+    )
+
+    message.tokenAmounts = [
+      of.Any2TVMTokenTransfer.create({
+        sourcePoolAddress:
+          opts.sourcePoolAddress ?? CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool')),
+        token,
+        destGasAmount: opts.destGasAmount ?? 0n,
+        extraData: opts.extraData ?? Cell.EMPTY,
+        amount,
+      }),
+    ]
+
+    return message
   }
 }
 
