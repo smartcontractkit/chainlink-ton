@@ -450,6 +450,12 @@ describe('OffRamp - Commit and OCR3 validations', () => {
     })
 
     const result = await setup.commitReport([root], toNano('0.5'), 0x01, priceUpdates)
+
+    expect(result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.feeQuoter.address,
+      success: true,
+    })
   })
 
   it('should succeed with two messages in a single root', async () => {
@@ -640,7 +646,7 @@ describe('OffRamp - Commit and OCR3 validations', () => {
     await setup.setupOCRConfig()
     await setup.setupSourceChainConfig()
 
-    // Commit with a large gap: minSeqNr=1, maxSeqNr=100
+    // Commit with a large gap: minSeqNr=1, maxSeqNr=10
     const message = setup.createTestMessage(1n, 1n)
     const metadataHash = s.getDefaultMetadataHash(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -651,7 +657,7 @@ describe('OffRamp - Commit and OCR3 validations', () => {
     const value = toNano('1')
     await setup.commitReport([root], value)
 
-    // minSeqNr should jump to 101 // TODO inconsistant
+    // minSeqNr should jump to 11
     const config = await setup.offRamp.getSourceChainConfig(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
