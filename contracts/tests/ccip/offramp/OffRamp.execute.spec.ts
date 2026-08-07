@@ -624,33 +624,25 @@ describe('OffRamp - Execute', () => {
     })
 
     describe('should succeed and OffRamp', () => {
-      // TODO we don't care about receive behaviour in these tests
       it('should emit ExecutionStateChanged: Failure when receiver rejects message from wrong offRamp', async () => {
         // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
         let code = await contractCode.ccip.local('ccip.test.receiver')
-        const wrongRouterAddress = generateMockTonAddress() // Use a different address
-        const badReceiver = blockchain.openContract(
-          tr.Receiver.createFromConfig(
-            {
-              id: generateRandomContractId(),
-              ownable: { owner: setup.deployer.address, pendingOwner: null },
-              authorizedCaller: wrongRouterAddress,
-              behavior: tr.ReceiverBehavior.Accept,
-            },
-            code,
-          ),
-        )
-        const result = await badReceiver.sendDeploy(setup.deployer.getSender(), toNano('0.05'))
 
+        const result = await setup.receiver.sendUpdateBehavior(
+          setup.deployer.getSender(),
+          toNano('0.1'),
+          {
+            behavior: tr.ReceiverBehavior.RejectAll,
+          },
+        )
         expect(result.transactions).toHaveTransaction({
           from: setup.deployer.address,
-          to: badReceiver.address,
-          deploy: true,
+          to: setup.receiver.address,
           success: true,
         })
 
         // Send message to the bad receiver
-        const message = setup.createTestMessage(1n, 1n, badReceiver.address)
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
         await setup.setupAndCommitMessage(message)
         const report = setup.createExecuteReport([message])
         const executeResult = await setup.executeReport(report)
@@ -665,7 +657,7 @@ describe('OffRamp - Execute', () => {
         // Message should bounce from the bad receiver (wrong offRamp check fails)
         expect(executeResult.transactions).toHaveTransaction({
           from: setup.router.address,
-          to: badReceiver.address,
+          to: setup.receiver.address,
           success: false,
         })
 
