@@ -12,7 +12,6 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
-import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import * as tr from '../../../wrappers/gen/ccip/TokenRegistry'
 import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
@@ -24,6 +23,7 @@ import { setup } from '../router/Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 // Destination-chain token address the mock pool returns from lockOrBurn. In production this
 // is configured on the pool via TokenPool_ApplyChainUpdates; the mock keeps it in storage.
@@ -173,7 +173,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
           tp.TokenPool_ChainUpdate.create({
             remoteChainSelector: DestChainSelector,
             remotePoolAddresses: [EVM_ADDRESS],
-            remoteTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
+            remoteTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
             rateLimitConfigs: tp.TokenPool_RateLimitConfigPair.create({
               outbound: tp.RateLimiter_Config.create({
                 isEnabled: true,
