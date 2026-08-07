@@ -15,7 +15,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.34.0
 	github.com/smartcontractkit/chain-selectors v1.0.100
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260706103253-30ab530178da
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260707150956-619b7a982bd0
 	github.com/smartcontractkit/chainlink-deployments-framework v0.105.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.16.1
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260710204427-f53ee44a1088

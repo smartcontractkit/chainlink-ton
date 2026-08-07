@@ -23,6 +23,14 @@ import { setup } from '../router/Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+
+// Destination-chain token address the mock pool returns from lockOrBurn. In production this
+// is configured on the pool via TokenPool_ApplyChainUpdates; the mock keeps it in storage.
+const DEST_TOKEN_ADDRESS = Buffer.from(
+  '000000000000000000000000abababababababababababababababababababab',
+  'hex',
+)
 
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
@@ -32,10 +40,9 @@ const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 const TOKEN_AMOUNT = toNano('5')
 
 // Native TON attached to the transfer notification, used to pay fees + execution costs.
-const FORWARD_TON_AMOUNT = toNano('3')
+const FORWARD_TON_AMOUNT = toNano('10')
 
 const DestChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-
 describe('CCIPSend with token transfer (e2e)', () => {
   let blockchain: Blockchain
 
@@ -166,7 +173,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
           tp.TokenPool_ChainUpdate.create({
             remoteChainSelector: DestChainSelector,
             remotePoolAddresses: [EVM_ADDRESS],
-            remoteTokenAddress: EVM_ADDRESS,
+            remoteTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
             rateLimitConfigs: tp.TokenPool_RateLimitConfigPair.create({
               outbound: tp.RateLimiter_Config.create({
                 isEnabled: true,

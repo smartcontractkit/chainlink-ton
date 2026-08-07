@@ -4,6 +4,8 @@ import "../../lib/utils"
 import "../../lib/jetton/messages"
 
 import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
+
 import "../token_registry/messages"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
@@ -126,14 +128,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self) 
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: FeeQuoter_Costs.GetValidatedFee(),
+        value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee<slice> {
             msg: onrampSend.msg,
             context: createEmptySlice(),
         }
     });
-    getValidatedFeeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {

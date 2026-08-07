@@ -214,7 +214,7 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       sender.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend,
         config: sx.CCIPSendExecutor_Config.create({
@@ -237,7 +237,7 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       deployer.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend,
         config: sx.CCIPSendExecutor_Config.create({
@@ -260,7 +260,7 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       sender.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend: { ...onrampSend, tokenRegistry: null },
         config: sx.CCIPSendExecutor_Config.create({
@@ -283,7 +283,7 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       deployer.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend: { ...onrampSend, tokenRegistry: null },
         config: sx.CCIPSendExecutor_Config.create({
