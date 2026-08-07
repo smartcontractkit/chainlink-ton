@@ -136,16 +136,6 @@ export class OffRampTestSetup {
     public readonly feeQuoter: SandboxContract<fq.FeeQuoter>,
   ) {
     this.signersPublicKeys = this.signers.map((signer) => uint8ArrayToBigInt(signer.publicKey))
-
-    // Populate the emulator library code
-    // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
-    const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-
-    _libs.set(BigInt(`0x${code.merkleRoot.hash().toString('hex')}`), code.merkleRoot)
-    _libs.set(BigInt(`0x${code.receiveExecutor.hash().toString('hex')}`), code.receiveExecutor)
-
-    const libs = beginCell().storeDictDirect(_libs).endCell()
-    blockchain.libs = libs
   }
 
   static async Init(blockchain: Blockchain): Promise<OffRampTestSetup> {
@@ -181,35 +171,14 @@ export class OffRampTestSetup {
   async SetupContracts() {
     // setup offramp
     {
-      // Use a library reference
-      let merkleRootLibPrep = beginCell()
-        .storeUint(2, 8)
-        .storeBuffer(this.code.merkleRoot.hash())
-        .endCell()
-      let merkleRootCode = new Cell({
-        exotic: true,
-        bits: merkleRootLibPrep.bits,
-        refs: merkleRootLibPrep.refs,
-      })
-
-      let receiveExecutorLibPrep = beginCell()
-        .storeUint(2, 8)
-        .storeBuffer(this.code.receiveExecutor.hash())
-        .endCell()
-      let receiveExecutorCode = new Cell({
-        exotic: true,
-        bits: receiveExecutorLibPrep.bits,
-        refs: receiveExecutorLibPrep.refs,
-      })
-
       this.offRamp = await deployOffRampContract(
         this.blockchain,
         this.deployer,
         this.code.offRamp,
         {
           deployerCode: this.code.deployer,
-          merkleRootCode: merkleRootCode,
-          receiveExecutorCode: receiveExecutorCode,
+          merkleRootCode: this.code.merkleRoot,
+          receiveExecutorCode: this.code.receiveExecutor,
           feeQuoter: this.feeQuoter.address,
         },
       )
