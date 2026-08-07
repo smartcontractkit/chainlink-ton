@@ -23,7 +23,9 @@ struct OffRampAccount_Data {
 
 /// @notice Error codes for OffRampAccount.
 enum OffRampAccount_Error {
-    /// Thrown when a non-owner attempts to call owner-only functions.
+    /// Thrown when the pool tries to init but sender is not the notification target.
+    OnlyPool = 0x1001,
+    /// Thrown when a non-owner attempts to withdraw jettons.
     OnlyOwner = 0x1003,
 }
 

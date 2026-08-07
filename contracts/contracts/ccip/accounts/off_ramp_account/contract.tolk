@@ -7,6 +7,12 @@ import "types"
 import "messages"
 import "storage"
 
+
+/// @notice Per-recipient account deployed by CCIP token pools.
+/// Receives jetton mint/withdraw notifications from the jetton wallet and forwards them to the pool
+/// so the pool can finalize the cross-chain release or mint operation.
+/// The account owner (recipient) can withdraw jettons at any time.
+/// @dev Only messages from the allowed jetton wallet are forwarded — all other unrecognized messages bounce.
 contract OffRampAccount {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
@@ -19,8 +25,7 @@ contract OffRampAccount {
         | OffRampAccount_OutMessage
 }
 
-/// @notice Handles all incoming messages.
-/// Init deploys the account. Jetton notifications are forwarded to the pool.
+/// @notice Dispatches incoming messages: Init from pool, Withdraw from owner, jetton notifications forwarded, everything else bounces.
 fun onInternalMessage(in: InMessage) {
     var data = OffRampAccount_Data.load();
     val msg = lazy OffRampAccount_InMessage.fromSlice(in.body);
@@ -31,12 +36,10 @@ fun onInternalMessage(in: InMessage) {
             data.store();
         }
         OffRampAccount_Withdraw => {
-            onWithdraw(mutate data, in.senderAddress, msg);
-            data.store();
+            onWithdraw(data, in.senderAddress, msg);
         }
         else => {
-            // Only forward messages from the allowed jetton wallet.
-            // This is the safety filter (like CE's forwardFrom) — prevents spam from random jettons.
+            // Forward known jetton messages from the allowed wallet; bounce everything else.
             if (data.allowedJettonWallet != null && in.senderAddress == data.allowedJettonWallet!) {
                 val notification = createMessage({
                     bounce: BounceMode.NoBounce,
@@ -64,9 +67,10 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// @notice Handles initialization: stores config and sends Reply to notificationTarget (pool).
+/// @notice Called by the pool to activate the account and set the allowed jetton wallet.
+/// @dev Only the pool (notificationTarget) can call this.
 fun onInit(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAccount_Init) {
-    assert(sender == data.notificationTarget, OffRampAccount_Error.OnlyOwner);
+    assert(sender == data.notificationTarget, OffRampAccount_Error.OnlyPool);
 
     data.allowedJettonWallet = msg.allowedJettonWallet;
 
@@ -84,7 +88,8 @@ fun onInit(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAccoun
 }
 
 /// @notice Allows the owner (recipient) to withdraw jettons from this account's wallet.
-fun onWithdraw(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAccount_Withdraw) {
+/// @dev Sends the jetton transfer directly to the wallet — on-chain message, no gas refund on failure.
+fun onWithdraw(data: OffRampAccount_Data, sender: address, msg: OffRampAccount_Withdraw) {
     assert(sender == data.owner, OffRampAccount_Error.OnlyOwner);
 
     val transfer = createMessage({
