@@ -1482,21 +1482,25 @@ fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
 }
 
 fun TokenPool<T>.ensureOutboundAccess(self, sender: address, remoteChainSelector: uint64) {
-    val onRamp = self.getOnRamp(remoteChainSelector);
-    assert(onRamp != null, TokenPool_Error.Unauthorized);
-    assert(onRamp! == sender, TokenPool_Error.Unauthorized);
     if (self.hooks != null && self.hooks.ensureOutboundAccess != null) {
         self.hooks.ensureOutboundAccess(self.context, sender, remoteChainSelector);
+
+        return;
     }
+
+    val onRamp = self.getOnRamp(remoteChainSelector);
+    assert(onRamp != null && onRamp! == sender, TokenPool_Error.Unauthorized);
 }
 
 fun TokenPool<T>.ensureInboundAccess(self, sender: address, remoteChainSelector: uint64) {
-    val offRamp = self.getOffRamp(remoteChainSelector);
-    assert(offRamp != null, TokenPool_Error.Unauthorized);
-    assert(offRamp! == sender, TokenPool_Error.Unauthorized);
     if (self.hooks != null && self.hooks.ensureInboundAccess != null) {
         self.hooks.ensureInboundAccess(self.context, sender, remoteChainSelector);
+
+        return;
     }
+
+    val offRamp = self.getOffRamp(remoteChainSelector);
+    assert(offRamp != null && offRamp! == sender, TokenPool_Error.Unauthorized);
 }
 
 fun TokenPool<T>.preflightCheck(
@@ -1740,17 +1744,13 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.outbound.load();
-        bucket.consume(amount, self.data.token());
-        rateLimiters.outbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
+        self.consumeOutboundRateLimit(remoteChainSelector, amount);
     } else {
         fastBucket.consume(amount, self.data.token());
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.data.remoteChainConfigs.set(remoteChainSelector, config);
     }
-    self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityOutboundRateLimitConsumed {
         remoteChainSelector,
@@ -1769,17 +1769,13 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.inbound.load();
-        bucket.consume(amount, self.data.token());
-        rateLimiters.inbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
+        self.consumeInboundRateLimit(remoteChainSelector, amount);
     } else {
         fastBucket.consume(amount, self.data.token());
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.data.remoteChainConfigs.set(remoteChainSelector, config);
     }
-    self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityInboundRateLimitConsumed {
         remoteChainSelector,
