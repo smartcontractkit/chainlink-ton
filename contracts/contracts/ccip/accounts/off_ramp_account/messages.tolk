@@ -4,7 +4,7 @@ import "../../../lib/jetton/messages"
 
 /// Sent by the pool to activate a deployed OffRampAccount (sets allowed jetton wallet).
 /// @dev Sent as an on-chain message to the OffRampAccount address during deployment.
-struct (0xf1a2b3c4) OffRampAccount_Init {
+struct (0x552706d7) OffRampAccount_Init {
     /// Correlation ID echoed in the OffRampAccount_Reply.
     queryId: uint64;
     /// Only messages from this wallet are forwarded to the pool.
@@ -15,14 +15,14 @@ struct (0xf1a2b3c4) OffRampAccount_Init {
 
 /// Sent by the pool after successful initialization, confirming the account is ready.
 /// The pool identifies which OffRampAccount replied from `in.senderAddress`.
-struct (0xd2e3f4a5) OffRampAccount_Reply {
+struct (0xb2e46750) OffRampAccount_Reply {
     queryId: uint64;
     forwardPayload: cell?;
 }
 
 /// Forwarded notification sent to the pool when a jetton message arrives.
 /// Carries the full original in-message metadata so the pool can verify everything.
-struct (0xa7b8c9d0) OffRampAccount_ForwardNotification {
+struct (0xdb3b18bf) OffRampAccount_ForwardNotification {
     // Forwarded in-message
     message: Cell<OffRampAccount_InMessageForward>;
 }
@@ -41,7 +41,7 @@ struct OffRampAccount_InMessageForward {
 }
 
 /// Sent by the owner to transfer jettons from this account's wallet to an external recipient.
-struct (0xe3f4a5b6) OffRampAccount_Withdraw {
+struct (0xb8f621d2) OffRampAccount_Withdraw {
     queryId: uint64;
     /// Jetton wallet address to send the AskToTransfer to.
     walletAddress: address;

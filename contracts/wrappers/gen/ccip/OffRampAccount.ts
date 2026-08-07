@@ -242,7 +242,7 @@ export const OffRampAccount_Data = {
 }
 
 /**
- > struct (0xf1a2b3c4) OffRampAccount_Init {
+ > struct (0x552706d7) OffRampAccount_Init {
  >     queryId: uint64
  >     allowedJettonWallet: address
  >     forwardPayload: cell?
@@ -256,7 +256,7 @@ export interface OffRampAccount_Init {
 }
 
 export const OffRampAccount_Init = {
-    PREFIX: 0xf1a2b3c4,
+    PREFIX: 0x552706d7,
 
     create(args: {
         queryId?: uint64
@@ -270,7 +270,7 @@ export const OffRampAccount_Init = {
         }
     },
     fromSlice(s: c.Slice): OffRampAccount_Init {
-        loadAndCheckPrefix32(s, 0xf1a2b3c4, 'OffRampAccount_Init');
+        loadAndCheckPrefix32(s, 0x552706d7, 'OffRampAccount_Init');
         return {
             $: 'OffRampAccount_Init',
             queryId: s.loadUintBig(64),
@@ -279,7 +279,7 @@ export const OffRampAccount_Init = {
         }
     },
     store(self: OffRampAccount_Init, b: c.Builder): void {
-        b.storeUint(0xf1a2b3c4, 32);
+        b.storeUint(0x552706d7, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.allowedJettonWallet);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
@@ -292,7 +292,7 @@ export const OffRampAccount_Init = {
 }
 
 /**
- > struct (0xd2e3f4a5) OffRampAccount_Reply {
+ > struct (0xb2e46750) OffRampAccount_Reply {
  >     queryId: uint64
  >     forwardPayload: cell?
  > }
@@ -304,7 +304,7 @@ export interface OffRampAccount_Reply {
 }
 
 export const OffRampAccount_Reply = {
-    PREFIX: 0xd2e3f4a5,
+    PREFIX: 0xb2e46750,
 
     create(args: {
         queryId?: uint64
@@ -317,7 +317,7 @@ export const OffRampAccount_Reply = {
         }
     },
     fromSlice(s: c.Slice): OffRampAccount_Reply {
-        loadAndCheckPrefix32(s, 0xd2e3f4a5, 'OffRampAccount_Reply');
+        loadAndCheckPrefix32(s, 0xb2e46750, 'OffRampAccount_Reply');
         return {
             $: 'OffRampAccount_Reply',
             queryId: s.loadUintBig(64),
@@ -325,7 +325,7 @@ export const OffRampAccount_Reply = {
         }
     },
     store(self: OffRampAccount_Reply, b: c.Builder): void {
-        b.storeUint(0xd2e3f4a5, 32);
+        b.storeUint(0xb2e46750, 32);
         b.storeUint(self.queryId, 64);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
@@ -337,7 +337,7 @@ export const OffRampAccount_Reply = {
 }
 
 /**
- > struct (0xa7b8c9d0) OffRampAccount_ForwardNotification {
+ > struct (0xdb3b18bf) OffRampAccount_ForwardNotification {
  >     message: Cell<OffRampAccount_InMessageForward>
  > }
  */
@@ -347,7 +347,7 @@ export interface OffRampAccount_ForwardNotification {
 }
 
 export const OffRampAccount_ForwardNotification = {
-    PREFIX: 0xa7b8c9d0,
+    PREFIX: 0xdb3b18bf,
 
     create(args: {
         message: OffRampAccount_InMessageForward
@@ -358,14 +358,14 @@ export const OffRampAccount_ForwardNotification = {
         }
     },
     fromSlice(s: c.Slice): OffRampAccount_ForwardNotification {
-        loadAndCheckPrefix32(s, 0xa7b8c9d0, 'OffRampAccount_ForwardNotification');
+        loadAndCheckPrefix32(s, 0xdb3b18bf, 'OffRampAccount_ForwardNotification');
         return {
             $: 'OffRampAccount_ForwardNotification',
             message: loadCellRef<OffRampAccount_InMessageForward>(s, OffRampAccount_InMessageForward.fromSlice),
         }
     },
     store(self: OffRampAccount_ForwardNotification, b: c.Builder): void {
-        b.storeUint(0xa7b8c9d0, 32);
+        b.storeUint(0xdb3b18bf, 32);
         storeCellRef<OffRampAccount_InMessageForward>(self.message, b, OffRampAccount_InMessageForward.store);
     },
     toCell(self: OffRampAccount_ForwardNotification): c.Cell {
@@ -437,7 +437,7 @@ export const OffRampAccount_InMessageForward = {
 }
 
 /**
- > struct (0xe3f4a5b6) OffRampAccount_Withdraw {
+ > struct (0xb8f621d2) OffRampAccount_Withdraw {
  >     queryId: uint64
  >     walletAddress: address
  >     ask: AskToTransfer
@@ -451,7 +451,7 @@ export interface OffRampAccount_Withdraw {
 }
 
 export const OffRampAccount_Withdraw = {
-    PREFIX: 0xe3f4a5b6,
+    PREFIX: 0xb8f621d2,
 
     create(args: {
         queryId?: uint64
@@ -465,7 +465,7 @@ export const OffRampAccount_Withdraw = {
         }
     },
     fromSlice(s: c.Slice): OffRampAccount_Withdraw {
-        loadAndCheckPrefix32(s, 0xe3f4a5b6, 'OffRampAccount_Withdraw');
+        loadAndCheckPrefix32(s, 0xb8f621d2, 'OffRampAccount_Withdraw');
         return {
             $: 'OffRampAccount_Withdraw',
             queryId: s.loadUintBig(64),
@@ -474,7 +474,7 @@ export const OffRampAccount_Withdraw = {
         }
     },
     store(self: OffRampAccount_Withdraw, b: c.Builder): void {
-        b.storeUint(0xe3f4a5b6, 32);
+        b.storeUint(0xb8f621d2, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.walletAddress);
         AskToTransfer.store(self.ask, b);
@@ -610,7 +610,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OffRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAZcAART/APSkE/S88sgLAQIBYgIDAvTQ+JHyQO1E0PpI+kj6UNEj1ywnjRWeJI48MTMC0z/6SPQF+JKBEAFRFscF8vTIz4UIUlD6UoIQ0uP0pc8LjhPLPxL0AMmAQPsAAcj6UhL6UvpUye1U4NcsJx+lLbTjAjAyIW6zl/iSWMcFwwCSMXDi4wIwhA8BxwDy9AQFAgEgBgcAtDRbAdM/MfpI1ywgfFP1LPK/0z/6APpI+lD0BPoA+JKBEAMKxwUZ8vTIz5A+KfqWFss/UAT6AhL6UvpU9AAB+gISzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AAB++JL4l/iY+JNw+Dr4lPiVB8jOyQXI+lJQBPoCEvQAAfoCyz8Tyx8SzMnIz4UIEvpSghCnuMnQzwuOzMmAQPsAAgFICAkCAccKCwBdtivxoRNjS3NZcxtDC0txc6N7cXMbG0uBcnszMpMLa4ILGxt7q3OkEWpgXGJcYRAAHbZIvaiaH0kGP0kGP0oGEAAXrtD2omh9JBj9JBhAABGvRPaiaH0kGEA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAZcAART/APSkE/S88sgLAQIBYgIDAvTQ+JHyQO1E0PpI+kj6UNEj1ywiqTg2vI48MTMC0z/6SPQF+JKBEAFRFscF8vTIz4UIUlD6UoIQsuRnUM8LjhPLPxL0AMmAQPsAAcj6UhL6UvpUye1U4NcsJcexDpTjAjAyIW6zl/iSWMcFwwCSMXDi4wIwhA8BxwDy9AQFAgEgBgcAtDRbAdM/MfpI1ywgfFP1LPK/0z/6APpI+lD0BPoA+JKBEAMKxwUZ8vTIz5A+KfqWFss/UAT6AhL6UvpU9AAB+gISzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AAB++JL4l/iY+JNw+Dr4lPiVB8jOyQXI+lJQBPoCEvQAAfoCyz8Tyx8SzMnIz4UIEvpSghDbOxi/zwuOzMmAQPsAAgFICAkCAccKCwBdtivxoRNjS3NZcxtDC0txc6N7cXMbG0uBcnszMpMLa4ILGxt7q3OkEWpgXGJcYRAAHbZIvaiaH0kGP0kGP0oGEAAXrtD2omh9JBj9JBhAABGvRPaiaH0kGEA=');
 
     static Errors = {
         'OffRampAccount_Error.OnlyPool': 4097,
