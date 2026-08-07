@@ -149,6 +149,14 @@ class StackReader {
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
     }
+
+    readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return null;
+        }
+        return readFn_T(this);
+    }
 }
 
 // ————————————————————————————————————————————
@@ -187,93 +195,6 @@ export const ExtraCurrenciesMap = {
     },
     toCell(self: ExtraCurrenciesMap): c.Cell {
         return makeCellFrom<ExtraCurrenciesMap>(self, ExtraCurrenciesMap.store);
-    }
-}
-
-/**
- > type ForwardPayloadRemainder = RemainingBitsAndRefs
- */
-export type ForwardPayloadRemainder = RemainingBitsAndRefs
-
-export const ForwardPayloadRemainder = {
-    fromSlice(s: c.Slice): ForwardPayloadRemainder {
-        return loadTolkRemaining(s);
-    },
-    store(self: ForwardPayloadRemainder, b: c.Builder): void {
-        storeTolkRemaining(self, b);
-    },
-    toCell(self: ForwardPayloadRemainder): c.Cell {
-        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
-    }
-}
-
-/**
- > struct (0x0f8a7ea5) AskToTransfer {
- >     queryId: uint64
- >     jettonAmount: coins
- >     transferRecipient: address
- >     sendExcessesTo: address?
- >     customPayload: cell?
- >     forwardTonAmount: coins
- >     forwardPayload: ForwardPayloadRemainder
- > }
- */
-export interface AskToTransfer {
-    readonly $: 'AskToTransfer'
-    queryId: uint64
-    jettonAmount: coins
-    transferRecipient: c.Address
-    sendExcessesTo: c.Address | null
-    customPayload: c.Cell | null
-    forwardTonAmount: coins
-    forwardPayload: ForwardPayloadRemainder
-}
-
-export const AskToTransfer = {
-    PREFIX: 0x0f8a7ea5,
-
-    create(args: {
-        queryId?: uint64
-        jettonAmount: coins
-        transferRecipient: c.Address
-        sendExcessesTo: c.Address | null
-        customPayload: c.Cell | null
-        forwardTonAmount: coins
-        forwardPayload: ForwardPayloadRemainder
-    }): AskToTransfer {
-        return {
-            $: 'AskToTransfer',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): AskToTransfer {
-        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
-        return {
-            $: 'AskToTransfer',
-            queryId: s.loadUintBig(64),
-            jettonAmount: s.loadCoins(),
-            transferRecipient: s.loadAddress(),
-            sendExcessesTo: s.loadMaybeAddress(),
-            customPayload: s.loadBoolean() ? s.loadRef() : null,
-            forwardTonAmount: s.loadCoins(),
-            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
-        }
-    },
-    store(self: AskToTransfer, b: c.Builder): void {
-        b.storeUint(0x0f8a7ea5, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeCoins(self.jettonAmount);
-        b.storeAddress(self.transferRecipient);
-        b.storeAddress(self.sendExcessesTo);
-        storeTolkNullable<c.Cell>(self.customPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-        b.storeCoins(self.forwardTonAmount);
-        ForwardPayloadRemainder.store(self.forwardPayload, b);
-    },
-    toCell(self: AskToTransfer): c.Cell {
-        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
     }
 }
 
@@ -519,16 +440,14 @@ export const OffRampAccount_InMessageForward = {
  > struct (0xe3f4a5b6) OffRampAccount_Withdraw {
  >     queryId: uint64
  >     walletAddress: address
- >     recipient: address
- >     amount: coins
+ >     ask: AskToTransfer
  > }
  */
 export interface OffRampAccount_Withdraw {
     readonly $: 'OffRampAccount_Withdraw'
     queryId: uint64
     walletAddress: c.Address
-    recipient: c.Address
-    amount: coins
+    ask: AskToTransfer
 }
 
 export const OffRampAccount_Withdraw = {
@@ -537,8 +456,7 @@ export const OffRampAccount_Withdraw = {
     create(args: {
         queryId?: uint64
         walletAddress: c.Address
-        recipient: c.Address
-        amount: coins
+        ask: AskToTransfer
     }): OffRampAccount_Withdraw {
         return {
             $: 'OffRampAccount_Withdraw',
@@ -552,19 +470,104 @@ export const OffRampAccount_Withdraw = {
             $: 'OffRampAccount_Withdraw',
             queryId: s.loadUintBig(64),
             walletAddress: s.loadAddress(),
-            recipient: s.loadAddress(),
-            amount: s.loadCoins(),
+            ask: AskToTransfer.fromSlice(s),
         }
     },
     store(self: OffRampAccount_Withdraw, b: c.Builder): void {
         b.storeUint(0xe3f4a5b6, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.walletAddress);
-        b.storeAddress(self.recipient);
-        b.storeCoins(self.amount);
+        AskToTransfer.store(self.ask, b);
     },
     toCell(self: OffRampAccount_Withdraw): c.Cell {
         return makeCellFrom<OffRampAccount_Withdraw>(self, OffRampAccount_Withdraw.store);
+    }
+}
+
+/**
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
+ */
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
+
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
+    },
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
+    },
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
+    }
+}
+
+/**
+ > struct (0x0f8a7ea5) AskToTransfer {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferRecipient: address
+ >     sendExcessesTo: address?
+ >     customPayload: cell?
+ >     forwardTonAmount: coins
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface AskToTransfer {
+    readonly $: 'AskToTransfer'
+    queryId: uint64
+    jettonAmount: coins
+    transferRecipient: c.Address
+    sendExcessesTo: c.Address | null
+    customPayload: c.Cell | null
+    forwardTonAmount: coins
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const AskToTransfer = {
+    PREFIX: 0x0f8a7ea5,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferRecipient: c.Address
+        sendExcessesTo: c.Address | null
+        customPayload: c.Cell | null
+        forwardTonAmount: coins
+        forwardPayload: ForwardPayloadRemainder
+    }): AskToTransfer {
+        return {
+            $: 'AskToTransfer',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AskToTransfer {
+        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
+        return {
+            $: 'AskToTransfer',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferRecipient: s.loadAddress(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            customPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardTonAmount: s.loadCoins(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: AskToTransfer, b: c.Builder): void {
+        b.storeUint(0x0f8a7ea5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferRecipient);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.customPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.forwardTonAmount);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: AskToTransfer): c.Cell {
+        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
     }
 }
 
@@ -607,7 +610,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OffRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECCgEAAYYAART/APSkE/S88sgLAQIBYgIDAvTQ+JHyQO1E0PpI+kj6UNEj1ywnjRWeJI48MTMC0z/6SPQF+JKBEANRFscF8vTIz4UIUlD6UoIQ0uP0pc8LjhPLPxL0AMmAQPsAAcj6UhL6UvpUye1U4NcsJx+lLbTjAjAyIW6zl/iSWMcFwwCSMXDi4wIwhA8BxwDy9AQFAgEgBgcAvjQD0z/6SPpI+gAw+JKBEANRF8cF8vSCEAX14QBtbYsEyM+QPin6lhjLP1AE+gIU+lIT+lT0AM+EIBPOycjPhYgS+lJY+gLPgXP6AnHPC2XMyXH7AAHI+lL6UvpUye1UAH74kviX+Jj4k3D4OviU+JUHyM7JBcj6UlAE+gIS9AAB+gLLPxPLHxLMycjPhQgS+lKCEKe4ydDPC47MyYBA+wAAXbyK/GhE2NLc1lzG0MLS3Fzo3txcxsbS4FyezMykwtrggsbG3urc6QRamBcYlxhEAgHHCAkAF67Q9qJofSQY/SQYQAARr0T2omh9JBhA');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDAEAAaAAART/APSkE/S88sgLAQIBYgIDAvTQ+JHyQO1E0PpI+kj6UNEj1ywnjRWeJI48MTMC0z/6SPQF+JKBEANRFscF8vTIz4UIUlD6UoIQ0uP0pc8LjhPLPxL0AMmAQPsAAcj6UhL6UvpUye1U4NcsJx+lLbTjAjAyIW6zl/iSWMcFwwCSMXDi4wIwhA8BxwDy9AQFAgEgBgcAxjQD0z8x+kjXLCB8U/Us8r/TP/oA+kj6UPQE+gD4koEQA1EbxwXy9MjPkD4p+pYXyz9QBfoCE/pS+lT0AAH6As7JyM+FiBL6Us+EEHP6AnHPC2XMyYBQ+wAByPpS+lL6VMntVAB++JL4l/iY+JNw+Dr4lPiVB8jOyQXI+lJQBPoCEvQAAfoCyz8Tyx8SzMnIz4UIEvpSghCnuMnQzwuOzMmAQPsAAgFICAkCAccKCwBdtivxoRNjS3NZcxtDC0txc6N7cXMbG0uBcnszMpMLa4ILGxt7q3OkEWpgXGJcYRAAHbZIvaiaH0kGP0kGP0oGEAAXrtD2omh9JBj9JBhAABGvRPaiaH0kGEA=');
 
     static Errors = {
         'OffRampAccount_Error.OnlyOwner': 4099,
@@ -649,8 +652,7 @@ export class OffRampAccount implements c.Contract {
     static createCellOfOffRampAccountWithdraw(body: {
         queryId?: uint64
         walletAddress: c.Address
-        recipient: c.Address
-        amount: coins
+        ask: AskToTransfer
     }) {
         return OffRampAccount_Withdraw.toCell(OffRampAccount_Withdraw.create(body));
     }
@@ -686,8 +688,7 @@ export class OffRampAccount implements c.Contract {
     async sendOffRampAccountWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         walletAddress: c.Address
-        recipient: c.Address
-        amount: coins
+        ask: AskToTransfer
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -715,5 +716,12 @@ export class OffRampAccount implements c.Contract {
     async getNotificationTarget(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getNotificationTarget', []));
         return r.readSlice().loadAddress();
+    }
+
+    async getAllowedJettonWallet(provider: ContractProvider): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getAllowedJettonWallet', []));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 }

@@ -56,10 +56,6 @@ fun onInternalMessage(in: InMessage): void {
             onWithdrawFailed(mutate st, in.senderAddress, msg);
             st.store();
         }
-        ReturnExcessesBack => {
-            onReturnExcessesBack(st, in.senderAddress, msg);
-            st.store();
-        }
         OffRampAccount_Reply => {
             onOffRampAccountReply(mutate st, in.senderAddress, msg);
             st.store();
@@ -67,6 +63,9 @@ fun onInternalMessage(in: InMessage): void {
         OffRampAccount_ForwardNotification => {
             onOffRampAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
+        }
+        ReturnExcessesBack => {
+            // Excess TON from jetton transfer — just keep the coins.
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
@@ -337,14 +336,6 @@ fun onWithdrawFailed(
     }
 }
 
-fun onReturnExcessesBack(
-    _st: Storage,
-    _sender: address,
-    _msg: ReturnExcessesBack,
-) {
-    // Lock-transfer excesses are unrelated to completion. Release completion goes through OAA.
-}
-
 /// @notice Handles ForwardNotification from OffRampAccount after release (withdraw) completion.
 /// The forwarded message body contains TransferNotificationForRecipient.
 /// Validates OAA sender, checks transferInitiator = lockbox's jetton wallet, then finalizes.
@@ -374,14 +365,8 @@ fun onOffRampAccountForwardNotification(
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
-    // Verify transferInitiator is the lockbox's jetton wallet (auth the transfer source).
-    // val jettonClient = st.poolData.load().jettonClient();
+    // Verify transferInitiator is the lockbox's addr (auth the transfer source).
     assert(jettonMsg.transferInitiator != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-    // val lockboxWallet = calcAddressOfJettonWallet(
-    //     st.lockbox,
-    //     jettonClient.masterAddress,
-    //     jettonClient.jettonWalletCode,
-    // );
     assert(jettonMsg.transferInitiator! == st.lockbox, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
     // Verify queryId matches the original request.

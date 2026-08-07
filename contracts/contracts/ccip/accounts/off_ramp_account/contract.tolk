@@ -3,7 +3,6 @@ tolk 1.4.1
 
 import "@stdlib/gas-payments"
 
-import "../../../lib/jetton/messages"
 import "types"
 import "messages"
 import "storage"
@@ -23,17 +22,17 @@ contract OffRampAccount {
 /// @notice Handles all incoming messages.
 /// Init deploys the account. Jetton notifications are forwarded to the pool.
 fun onInternalMessage(in: InMessage) {
-    var data = OffRampAccount_Data.fromContractData();
+    var data = OffRampAccount_Data.load();
     val msg = lazy OffRampAccount_InMessage.fromSlice(in.body);
 
     match (msg) {
         OffRampAccount_Init => {
             onInit(mutate data, in.senderAddress, msg);
-            data.storeAsContractData();
+            data.store();
         }
         OffRampAccount_Withdraw => {
             onWithdraw(mutate data, in.senderAddress, msg);
-            data.storeAsContractData();
+            data.store();
         }
         else => {
             // Only forward messages from the allowed jetton wallet.
@@ -89,20 +88,12 @@ fun onWithdraw(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAc
     assert(sender == data.owner, OffRampAccount_Error.OnlyOwner);
 
     val transfer = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: ton("0.1"),
+        bounce: BounceMode.RichBounce, // TODO: notify sender (data.owner) that transfer failed
+        value: 0,
         dest: msg.walletAddress,
-        body: AskToTransfer {
-            queryId: msg.queryId,
-            jettonAmount: msg.amount,
-            transferRecipient: msg.recipient,
-            sendExcessesTo: null,
-            customPayload: null,
-            forwardTonAmount: 0,
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-        },
+        body: msg.ask,
     });
-    transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun typeAndVersion(): (slice, slice) {
@@ -110,11 +101,16 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun getOwner(): address {
-    val data = lazy OffRampAccount_Data.fromContractData();
+    val data = lazy OffRampAccount_Data.load();
     return data.owner;
 }
 
 get fun getNotificationTarget(): address {
-    val data = lazy OffRampAccount_Data.fromContractData();
+    val data = lazy OffRampAccount_Data.load();
     return data.notificationTarget;
+}
+
+get fun getAllowedJettonWallet(): address? {
+    val data = lazy OffRampAccount_Data.load();
+    return data.allowedJettonWallet;
 }

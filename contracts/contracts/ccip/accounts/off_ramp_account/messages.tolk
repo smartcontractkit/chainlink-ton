@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
-import "types"
 
 /// @notice Initializes a new OffRampAccount instance.
 /// @param owner The recipient who can withdraw jettons from this account.
@@ -50,8 +49,7 @@ struct OffRampAccount_InMessageForward {
 struct (0xe3f4a5b6) OffRampAccount_Withdraw {
     queryId: uint64;
     walletAddress: address;
-    recipient: address;
-    amount: coins;
+    ask: AskToTransfer;
 }
 
 /// Union of all incoming messages - accepts jetton notifications and owner commands.

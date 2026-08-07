@@ -45,7 +45,10 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { OffRampAccount, OffRampAccount_ForwardNotification } from '../../../wrappers/gen/ccip/OffRampAccount';
+import {
+  OffRampAccount,
+  OffRampAccount_ForwardNotification,
+} from '../../../wrappers/gen/ccip/OffRampAccount'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {

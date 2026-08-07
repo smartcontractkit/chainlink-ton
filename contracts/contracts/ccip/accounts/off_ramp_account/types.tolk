@@ -6,10 +6,6 @@ const OffRampAccount_CONTRACT_VERSION = "0.1.0".literalSlice();
 /// @notice Minimal deployment + activation value for the OffRampAccount.
 const OffRampAccount_DEPLOY_VALUE = ton("0.1");
 
-/// @notice Value attached to ForwardNotification messages sent to the pool.
-/// The pool needs this to cover its finalization processing fee.
-const OffRampAccount_FORWARD_VALUE = ton("0.05");
-
 /// @notice Runtime data stored by each OffRampAccount instance.
 /// A dumb forwarder: receives jetton notifications, forwards them to the pool with full message metadata.
 /// Owner = recipient (can withdraw jettons). NotificationTarget = pool.

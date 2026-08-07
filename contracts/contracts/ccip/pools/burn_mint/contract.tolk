@@ -409,6 +409,7 @@ fun onOffRampAccountForwardNotification(
 
     // Parse the forwarded body as TransferNotificationForRecipient.
     val jettonMsg = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
+    assert(jettonMsg.transferInitiator == null, BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
 
     // Extract context from the jetton notification's forwardPayload.
     val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
@@ -428,9 +429,6 @@ fun onOffRampAccountForwardNotification(
 
     // For mint path, transferInitiator is null (minter is the authority — no source wallet auth needed).
     // The OAA sender validation above is sufficient for mint completion.
-
-    // Verify queryId matches the original request.
-    assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
 
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);
