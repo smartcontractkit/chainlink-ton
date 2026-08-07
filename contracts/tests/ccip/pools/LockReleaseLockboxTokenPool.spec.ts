@@ -45,7 +45,7 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount';
+import { OffRampAccount, OffRampAccount_ForwardNotification } from '../../../wrappers/gen/ccip/OffRampAccount';
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -750,11 +750,11 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: true,
       })
 
-      // ReturnExcessesBack is routed through the context executor before the
+      // ReturnExcessesBack is routed through the OAA before the
       // pool finalizes the release and clears the direct failure context.
       expect(result.transactions).toHaveTransaction({
         to: lockReleaseLockboxPool.address,
-        op: ContextExecutor_ForwardNotification.PREFIX,
+        op: OffRampAccount_ForwardNotification.PREFIX,
         success: true,
       })
     })

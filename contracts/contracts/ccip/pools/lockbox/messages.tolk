@@ -18,6 +18,8 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
 struct JettonLockBox_WithdrawExtra {
     sendExcessesTo: address?;
     failureContext: cell?;
+    forwardTonAmount: coins;
+    forwardPayload: cell?;
 }
 
 /// Withdraws tokens to a specific recipient.

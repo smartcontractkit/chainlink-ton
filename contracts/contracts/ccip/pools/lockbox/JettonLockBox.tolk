@@ -11,7 +11,6 @@ import "../../../lib/utils"
 import "types"
 import "messages"
 
-
 contract JettonLockBox {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
@@ -184,22 +183,6 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
     // Validate recipient is not zero address.
     assert(msg.recipientWallet != createAddressNone(), JettonLockBox_Error.RecipientCannotBeZeroAddress);
 
-    // Store withdraw initiator in forwardPayload (cell ref) for error reporting on bounce.
-    // forwardPayload is of type RemainingBitsAndRefs (slice), which takes remaining inline bits
-    // AND refs. We put the bounce data in a cell ref so only ~1 bit goes inline:
-    // - inline: 1-bit flag (has_bounce_data)
-    // - ref:    cell with marker + queryId + sender address (~355 bits)
-    val bounceDataCell = beginCell()
-        .storeUint(0x17c24007, 32) // JettonLockBox_WithdrawRequest marker
-        .storeUint(msg.queryId, 64)
-        .storeAddress(sender)
-        .storeMaybeRef(msg.extra != null ? msg.extra!.load().failureContext : null)
-        .endCell();
-
-    val fwdPayload = beginCell()
-        .storeMaybeRef(bounceDataCell)
-        .endCell()
-        .beginParse();
 
     // Validate wallet is initialized.
     assert(st.walletAddress != null, JettonLockBox_Error.UnsupportedToken);
@@ -211,6 +194,14 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
             : contract.getAddress()
         : contract.getAddress();
 
+    // Get forwardTonAmount from extra (defaults to 0 for backward compatibility).
+    val forwardTonAmount = msg.extra != null ? msg.extra!.load().forwardTonAmount : 0 as coins;
+
+    // Use forwardPayload from extra if provided (e.g., pool release context).
+    val forwardPayload = msg.extra != null && msg.extra!.load().forwardPayload != null
+        ? msg.extra!.load().forwardPayload
+        : null;
+
     // Send AskToTransfer to our jetton wallet (rich bounce on failure).
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -221,9 +212,14 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
             jettonAmount: msg.amount,
             transferRecipient: msg.recipientWallet,
             sendExcessesTo: sendExcessesToAddr,
-            customPayload: null,
-            forwardTonAmount: 0,
-            forwardPayload: fwdPayload,
+            customPayload: beginCell()
+                .storeAddress(sender) // failure context
+                .endCell(),
+            forwardTonAmount: forwardTonAmount,
+            forwardPayload: beginCell()
+                .storeMaybeRef(forwardPayload)
+                .endCell()
+                .beginParse(),
         },
     });
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -241,18 +237,9 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     match (msg) {
         AskToTransfer => {
-            // Extract withdraw initiator from forwardPayload cell ref.
-            // The forwardPayload slice has: 1-bit flag + optional ref with bounce data.
-            var fwdPayload = msg.forwardPayload;
-            val hasBounceData = fwdPayload.loadUint(1) > 0;
-            if (!hasBounceData) {
-                return; // No initiator to notify
-            }
-            var bounceData = fwdPayload.loadRef().beginParse();
-            val marker = bounceData.loadUint(32);
-            val queryId = bounceData.loadUint(64);
-            val withdrawInitiator = bounceData.loadAddress();
-            val failureContext = bounceData.loadMaybeRef();
+            // We always set the customPayload to the withdraw initiator address
+            val withdrawInitiator = msg.customPayload!.beginParse().loadAddress();
+            val contextCell = loadForwardPayloadAsCell(msg.forwardPayload);
 
             // Send error message to withdraw initiator
             val errorMsg = createMessage({
@@ -260,11 +247,12 @@ fun onBouncedMessage(in: InMessageBounced) {
                 value: 0,
                 dest: withdrawInitiator,
                 body: JettonLockBox_WithdrawFailed {
-                    queryId: queryId,
+                    queryId: msg.queryId,
                     token: st.minterAddress,
+                    // TODO: should we put the whole AskToTransfer here
                     amount: msg.jettonAmount,
                     recipientWallet: msg.transferRecipient,
-                    context: failureContext,
+                    context: contextCell,
                 },
             });
             errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

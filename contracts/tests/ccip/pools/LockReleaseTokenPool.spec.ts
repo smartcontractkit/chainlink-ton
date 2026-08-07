@@ -635,7 +635,14 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    expect(await recipientWallet.getJettonBalance()).toEqual(toNano('2'))
+    // Tokens land in OAA's jetton wallet (not recipient's personal wallet)
+    const oaa = OffRampAccount.fromStorage({
+      owner: recipient.address,
+      notificationTarget: lockReleasePool.address,
+      allowedJettonWallet: null,
+    })
+    const oaaWallet = await userWallet(oaa.address)
+    expect(await oaaWallet.getJettonBalance()).toEqual(toNano('2'))
     expect(await poolWallet.getJettonBalance()).toEqual(toNano('3'))
 
     expect(result.transactions).toHaveTransaction({
@@ -653,7 +660,13 @@ describe('LockReleaseTokenPool', () => {
 
   it('releases tokens with null replyTo without emitting a response message', async () => {
     const poolWallet = await userWallet(lockReleasePool.address)
-    const recipientWallet = await userWallet(recipient.address)
+    // OAA wallet for checking balance (not recipient's personal wallet)
+    const oaa = OffRampAccount.fromStorage({
+      owner: recipient.address,
+      notificationTarget: lockReleasePool.address,
+      allowedJettonWallet: null,
+    })
+    const oaaWallet = await userWallet(oaa.address)
 
     await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
@@ -693,7 +706,7 @@ describe('LockReleaseTokenPool', () => {
       },
     )
 
-    expect(await recipientWallet.getJettonBalance()).toEqual(toNano('1'))
+    expect(await oaaWallet.getJettonBalance()).toEqual(toNano('1'))
     expect(await poolWallet.getJettonBalance()).toEqual(toNano('3'))
 
     const releaseResponses = result.transactions.filter((tx: any) => {

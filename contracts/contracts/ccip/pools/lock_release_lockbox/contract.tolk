@@ -90,7 +90,9 @@ fun deployOffRampAccountWithRelease(
         contract.getAddress(),
     );
 
-    // OAA's own jetton wallet — this is where the lockbox withdraws to.
+    // OAA's own CCT jetton wallet — the destination wallet that sends TransferNotification.
+    // When lockbox sends AskToTransfer with transferRecipient=OAA, the CCT wallet
+    // computes OAA's wallet as destination, then THAT wallet sends TransferNotification to OAA.
     val oaaWallet = calcAddressOfJettonWallet(
         oaa.calculateAddress(),
         jettonClient.masterAddress,
@@ -138,6 +140,15 @@ fun onOffRampAccountReply(
     // Compute OAA's jetton wallet address (where lockbox should withdraw to).
     val jettonClient = st.poolData.load().jettonClient();
 
+    // Build extra with sendExcessesTo so ReturnExcessesBack routes to pool.
+    // Also pass release context as forwardPayload so it survives the lockbox → jetton wallet hop.
+    val withdrawExtra = JettonLockBox_WithdrawExtra {
+        sendExcessesTo: contract.getAddress(),
+        failureContext: null,
+        forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
+        forwardPayload: contextCell,
+    };
+
     // Send JettonLockBox_Withdraw to the lockbox.
     // The lockbox sends AskToTransfer from its jetton wallet to OAA's jetton wallet.
     // OAA's wallet sends TransferNotification to OAA, which forwards to pool.
@@ -151,7 +162,7 @@ fun onOffRampAccountReply(
             remoteChainSelector: details.remoteChainSelector,
             amount: prepared.localAmount,
             recipientWallet: sender, // OA address
-            extra: null,
+            extra: withdrawExtra.toCell(),
         },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -364,14 +375,14 @@ fun onOffRampAccountForwardNotification(
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
     // Verify transferInitiator is the lockbox's jetton wallet (auth the transfer source).
-    val jettonClient = st.poolData.load().jettonClient();
+    // val jettonClient = st.poolData.load().jettonClient();
     assert(jettonMsg.transferInitiator != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-    val lockboxWallet = calcAddressOfJettonWallet(
-        st.lockbox,
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
-    );
-    assert(jettonMsg.transferInitiator! == lockboxWallet, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
+    // val lockboxWallet = calcAddressOfJettonWallet(
+    //     st.lockbox,
+    //     jettonClient.masterAddress,
+    //     jettonClient.jettonWalletCode,
+    // );
+    assert(jettonMsg.transferInitiator! == st.lockbox, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
     // Verify queryId matches the original request.
     assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;

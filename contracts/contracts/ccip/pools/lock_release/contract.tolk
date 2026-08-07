@@ -55,6 +55,9 @@ fun onInternalMessage(in: InMessage) {
             onOffRampAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
         }
+        ReturnExcessesBack => {
+            // Excess TON from jetton transfer — just keep the coins.
+        }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
@@ -196,9 +199,10 @@ fun onReleaseTransferBounced(
     msg: AskToTransfer,
 ) {
     assert(st.poolData.load().jettonClient().isWallet(sender)) throw Error.UnexpectedReleaseBounce;
-    assert(msg.customPayload != null) throw Error.UnexpectedReleaseBounce;
+    val contextCell = loadForwardPayloadAsCell(msg.forwardPayload);
+    assert(contextCell != null) throw Error.UnexpectedReleaseBounce;
 
-    val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(msg.customPayload!);
+    val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell!);
     val operation = context.forwardPayload.load();
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -236,9 +240,9 @@ fun onOffRampAccountForwardNotification(
     );
     assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountNotification);
 
-    // Verify transferInitiator is the pool's jetton wallet (auth the transfer source).
+    // Verify transferInitiator is the pool (auth the transfer source).
     assert(jettonMsg.transferInitiator != null, Error.InvalidOffRampAccountNotification);
-    assert(jettonMsg.transferInitiator! == jettonClient.walletAddress(), Error.InvalidOffRampAccountNotification);
+    assert(jettonMsg.transferInitiator! == contract.getAddress(), Error.InvalidOffRampAccountNotification);
 
     // Verify queryId matches the original request.
     assert(jettonMsg.queryId == operation.requestMsg.load().queryId) throw 0xFFFF;
