@@ -373,12 +373,11 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse rate limit admin address %q: %w", input.RateLimitAdmin, err)
 			}
-			
 
 			feeAdmin, err := parseMaybeAddr(input.FeeAggregator)
-		        if err != nil {
+			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee aggregator address: %w", err)
-		        }
+			}
 			rawFinality := input.AllowedFinalityConfig.Raw()
 			allowedFinality := binary.BigEndian.Uint32(rawFinality[:])
 
@@ -487,9 +486,9 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse registry (router) address %q: %w", input.RegistryAddress, err)
 				}
 			} else {
-				stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, err)
+				stateCCIP, loadErr := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
+				if loadErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, loadErr)
 				}
 				r := stateCCIP.Router
 				routerAddr = &r
@@ -523,7 +522,7 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send TokenRegistrySetTokenInfo to router at %s: %w", routerAddr.String(), err)
 			}
 
-			// Configure the pool's remote-chain token addresses. 
+			// Configure the pool's remote-chain token addresses.
 			if err := applyRemoteChainUpdates(b, dp, poolAddr, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure remote chains on token pool at %s: %w", poolAddr.String(), err)
 			}
@@ -752,7 +751,8 @@ func buildOffchainJettonContent(symbol string) *cell.Cell {
 func parseMaybeAddr(addr string) (*address.Address, error) {
 	var out *address.Address
 	if addr != "" {
-		out, err := address.ParseAddr(addr)
+		var err error
+		out, err = address.ParseAddr(addr)
 		if err != nil {
 			return out, fmt.Errorf("failed to parse address %q: %w", addr, err)
 		}
