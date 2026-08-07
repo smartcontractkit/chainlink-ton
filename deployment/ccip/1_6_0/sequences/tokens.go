@@ -32,7 +32,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/mocktokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
@@ -370,22 +369,16 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				routerAddr = *parsedRouter
 			}
 
-			var rateLimitAdmin *address.Address
-			if input.RateLimitAdmin != "" {
-				rateLimitAdmin, err = address.ParseAddr(input.RateLimitAdmin)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse rate limit admin address %q: %w", input.RateLimitAdmin, err)
-				}
+			rateLimitAdmin, err := parseMaybeAddr(input.RateLimitAdmin)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse rate limit admin address %q: %w", input.RateLimitAdmin, err)
 			}
+			
 
-			var feeAdmin *address.Address
-			if input.FeeAggregator != "" {
-				feeAdmin, err = address.ParseAddr(input.FeeAggregator)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee aggregator address %q: %w", input.FeeAggregator, err)
-				}
-			}
-
+			feeAdmin, err := parseMaybeAddr(input.FeeAggregator)
+		        if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee aggregator address: %w", err)
+		        }
 			rawFinality := input.AllowedFinalityConfig.Raw()
 			allowedFinality := binary.BigEndian.Uint32(rawFinality[:])
 
@@ -429,7 +422,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				dp,
 				input.ChainSelector,
 				compiled,
-				mocktokenpool.Storage{PoolData: poolData},
+				poolData,
 				nil,
 				defaultJettonDeployCoin,
 			)
@@ -487,11 +480,6 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse token pool address %q: %w", poolAddrStr, err)
 			}
 
-			stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, err)
-			}
-
 			var routerAddr *address.Address
 			if input.RegistryAddress != "" {
 				routerAddr, err = address.ParseAddr(input.RegistryAddress)
@@ -499,6 +487,10 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse registry (router) address %q: %w", input.RegistryAddress, err)
 				}
 			} else {
+				stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, err)
+				}
 				r := stateCCIP.Router
 				routerAddr = &r
 			}
@@ -754,4 +746,16 @@ func buildOffchainJettonContent(symbol string) *cell.Cell {
 		}
 	}
 	return b.EndCell()
+}
+
+// Parses the address, if the string is empty returns a non initialized address
+func parseMaybeAddr(addr string) (*address.Address, error) {
+	var out *address.Address
+	if addr != "" {
+		out, err := address.ParseAddr(addr)
+		if err != nil {
+			return out, fmt.Errorf("failed to parse address %q: %w", addr, err)
+		}
+	}
+	return out, nil
 }
