@@ -1,16 +1,14 @@
-import { Cell, Address, Dictionary, toNano, beginCell, StateInit, contractAddress } from '@ton/core'
+import { Cell, Address, toNano, beginCell, StateInit, contractAddress } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { KeyPair } from '@ton/crypto'
 
 import {
   generateMockTonAddress,
-  bigIntToBuffer,
   uint8ArrayToBigInt,
   asSnakedCell,
   generateEd25519KeyPair,
   generateRandomContractId,
   WRAPPED_NATIVE,
-  generateRandomTonAddress,
 } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 
@@ -21,15 +19,19 @@ import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.sp
 import { ChainSelectors } from '../../utils/Selectors'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
 
-import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as tr from '../../../wrappers/examples/Receiver'
+import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
+import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as jtw from '../../../wrappers/gen/ccip/cct/JettonWallet'
+
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
-import * as ofManual from '../../../wrappers/ccip/OffRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
@@ -104,7 +106,10 @@ export function getDefaultMetadataHash(sourceChainSelector: bigint): bigint {
   return getMetadataHash(sourceChainSelector, ChainSelectors.testnet.ton, EVM_ONRAMP_ADDRESS_TEST)
 }
 
-export const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
+export const EVM_SENDER_ADDRESS_TEST = beginCell()
+  .storeBuffer(Buffer.from('1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a', 'hex'), 20)
+  .asSlice()
+
 export const EVM_ONRAMP_ADDRESS_TEST = beginCell()
   .storeBuffer(Buffer.from('111111c891c5d4e6ad68064ae45d43146d4f9f3a', 'hex'), 20)
   .asSlice()
@@ -114,6 +119,8 @@ export class OffRampTestSetup {
 
   // Constants and configuration
   configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
+  public readonly SOURCE_CHAIN_SELECTOR: bigint =
+    ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
   public offRamp: SandboxContract<of.OffRamp> = null as any
   public router: SandboxContract<rt.Router> = null as any
@@ -129,7 +136,7 @@ export class OffRampTestSetup {
       feeQuoter: Cell
       receiveExecutor: Cell
       tokenRegistry: Cell
-      deployer: Cell
+      deployable: Cell
     },
     public readonly transmitters: SandboxContract<TreasuryContract>[],
     public readonly signers: KeyPair[],
@@ -144,7 +151,7 @@ export class OffRampTestSetup {
       blockchain,
       deployer,
       {
-        deployer: await contractCode.ccip.local('Deployable'),
+        deployable: await contractCode.ccip.local('Deployable'),
         merkleRoot: await contractCode.ccip.local('MerkleRoot'),
         offRamp: await contractCode.ccip.local('OffRamp'),
         router: await contractCode.ccip.local('Router'),
@@ -176,7 +183,7 @@ export class OffRampTestSetup {
         this.deployer,
         this.code.offRamp,
         {
-          deployerCode: this.code.deployer,
+          deployerCode: this.code.deployable,
           merkleRootCode: this.code.merkleRoot,
           receiveExecutorCode: this.code.receiveExecutor,
           feeQuoter: this.feeQuoter.address,
@@ -211,7 +218,7 @@ export class OffRampTestSetup {
           forwardUpdates: new Set(),
         }),
         tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-          deployableCode: this.code.deployer,
+          deployableCode: this.code.deployable,
           tokenRegistryCode: this.code.tokenRegistry,
         }),
       })
@@ -236,7 +243,7 @@ export class OffRampTestSetup {
         {
           queryId: 0n,
           offRampAdds: rt.OffRamps.create({
-            sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
+            sourceChainSelectors: [this.SOURCE_CHAIN_SELECTOR],
             offRamp: this.offRamp.address,
           }),
         },
@@ -294,7 +301,7 @@ export class OffRampTestSetup {
   ): of.SourceChainConfigUpdate[] {
     return [
       of.SourceChainConfigUpdate.create({
-        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        sourceChainSelector: this.SOURCE_CHAIN_SELECTOR,
         config: of.SourceChainConfig.create({
           router: this.router.address,
           isEnabled: true,
@@ -318,6 +325,7 @@ export class OffRampTestSetup {
     ]
   }
 
+  // TODO should recieve opts
   createTestMessage(
     sequenceNumber = 1n,
     messageId = 1n,
@@ -326,7 +334,7 @@ export class OffRampTestSetup {
   ): of.Any2TVMRampMessage {
     const header = of.RampMessageHeader.create({
       messageId,
-      sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      sourceChainSelector: this.SOURCE_CHAIN_SELECTOR,
       destChainSelector: ChainSelectors.testnet.ton,
       sequenceNumber,
       nonce: 0n,
@@ -334,7 +342,7 @@ export class OffRampTestSetup {
 
     return of.Any2TVMRampMessage.create({
       header,
-      sender: beginCell().storeBuffer(bigIntToBuffer(EVM_SENDER_ADDRESS_TEST)).asSlice(),
+      sender: EVM_SENDER_ADDRESS_TEST,
       data: data,
       receiver: receiverAddress,
       gasLimit: toNano('0.03'), // 200_000_000 nanotons
@@ -344,7 +352,7 @@ export class OffRampTestSetup {
 
   createMerkleRoot(minSeqNr: bigint, maxSeqNr: bigint, merkleRootBytes: bigint): of.MerkleRoot {
     return of.MerkleRoot.create({
-      sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      sourceChainSelector: this.SOURCE_CHAIN_SELECTOR,
       onRampAddress: EVM_ONRAMP_ADDRESS_TEST,
       minSeqNr,
       maxSeqNr,
@@ -476,10 +484,9 @@ export class OffRampTestSetup {
     return result
   }
 
-  //TODO: When we test for token transfers this will take more parameters
   createExecuteReport(
     messages: of.Any2TVMRampMessage[],
-    sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    sourceChainSelector = this.SOURCE_CHAIN_SELECTOR,
   ): of.ExecutionReport {
     return of.ExecutionReport.create({
       sourceChainSelector,
@@ -555,9 +562,7 @@ export class OffRampTestSetup {
   }
 
   async setupAndCommitMessage(message: of.Any2TVMRampMessage) {
-    const metadataHash = getDefaultMetadataHash(
-      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    )
+    const metadataHash = getDefaultMetadataHash(this.SOURCE_CHAIN_SELECTOR)
     const rootBytes = generateMessageID(message, metadataHash)
     const root = this.createMerkleRoot(1n, 1n, rootBytes)
 
@@ -579,12 +584,403 @@ export class OffRampTestSetup {
       .endCell()
 
     const init: StateInit = {
-      code: this.code.deployer,
+      code: this.code.deployable,
       data,
     }
 
     const workchain = 0
     return contractAddress(workchain, init)
+  }
+}
+
+export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
+  public readonly DEFAULT_TOKEN_AMOUNT: bigint = toNano('5')
+
+  public readonly token: Address = generateMockTonAddress()
+  public tokenPool: SandboxContract<mtp.MockTokenPool> = null as any
+  public tokenRegistry: SandboxContract<trg.TokenRegistry> = null as any
+  // Register the remote chain config.
+  public readonly sourcePoolAddress: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(
+    Buffer.from('source-pool'),
+  )
+  public readonly destTokenAddress: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(
+    Buffer.from('dest-token'),
+  )
+
+  constructor(
+    public readonly blockchain: Blockchain,
+    public readonly deployer: SandboxContract<TreasuryContract>,
+    public readonly code: {
+      merkleRoot: Cell
+      offRamp: Cell
+      router: Cell
+      feeQuoter: Cell
+      receiveExecutor: Cell
+      tokenRegistry: Cell
+      deployable: Cell
+      tokenPool: Cell
+      jettonMinter: Cell
+      jettonWallet: Cell
+    },
+    public readonly transmitters: SandboxContract<TreasuryContract>[],
+    public readonly signers: KeyPair[],
+    public readonly feeQuoter: SandboxContract<fq.FeeQuoter>,
+  ) {
+    super(blockchain, deployer, code, transmitters, signers, feeQuoter)
+  }
+
+  static async Init(blockchain: Blockchain): Promise<OffRampWithTokenPoolTestSetup> {
+    return new OffRampWithTokenPoolTestSetup(
+      blockchain,
+      await blockchain.treasury('deployer'),
+      {
+        deployable: await contractCode.ccip.local('Deployable'),
+        merkleRoot: await contractCode.ccip.local('MerkleRoot'),
+        offRamp: await contractCode.ccip.local('OffRamp'),
+        router: await contractCode.ccip.local('Router'),
+        feeQuoter: await contractCode.ccip.local('FeeQuoter'),
+        receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
+        tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
+        tokenPool: await contractCode.ccip.local('ccip.test.mockTokenPool'),
+        jettonMinter: await contractCode.ccip.local('ccip.cct.JettonMinter'),
+        jettonWallet: await contractCode.ccip.local('ccip.cct.JettonWallet'),
+      },
+      await Promise.all([
+        blockchain.treasury('transmitter1'),
+        blockchain.treasury('transmitter2'),
+        blockchain.treasury('transmitter3'),
+        blockchain.treasury('transmitter4'),
+      ]),
+      await Promise.all([
+        generateEd25519KeyPair(),
+        generateEd25519KeyPair(),
+        generateEd25519KeyPair(),
+        generateEd25519KeyPair(),
+      ]),
+      await setupTestFeeQuoter(await blockchain.treasury('deployer'), blockchain),
+    )
+  }
+
+  async SetupContracts() {
+    await super.SetupContracts()
+    this.tokenPool = await this.setupTokenPool()
+    this.tokenRegistry = await this.setupTokenRegistry(this.token, this.tokenPool.address)
+  }
+
+  /**
+   * Derives the ReceiveExecutor contract address for a given message, matching
+   * the OffRamp's `getOwnedReceiveExecutorContractId` + `getReceiverExecutorDeployAddress`.
+   */
+  receiveExecutorAddress(message: of.Any2TVMRampMessage, metadataHash?: bigint): Address {
+    const messageId = generateMessageID(message, metadataHash ?? this.getDefaultMetadataHash())
+    const messageIdSlice = beginCell().storeUint(messageId, 256).asSlice()
+    const execId = beginCell()
+      .storeUint(message.header.sourceChainSelector, 64)
+      .storeUint(messageIdSlice.loadUintBig(192 - 64), 192 - 64)
+      .endCell()
+      .beginParse()
+      .loadUintBig(192)
+
+    const data = deployable.builder.data.contractData
+      .encode({
+        owner: this.offRamp.address,
+        id: deployable.builder.data.namespaced.encode({
+          namespace: NameSpace.CCIPNamespace.ReceiveExecutor,
+          id: beginCell().storeUint(execId, 192),
+        }),
+      })
+      .endCell()
+
+    const init: StateInit = {
+      code: this.code.deployable,
+      data,
+    }
+
+    return contractAddress(0, init)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Token transfer helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Derives the TokenRegistry contract address for a given token, matching the
+   * OffRamp's `getTokenAdminRegistry` derivation (Deployable namespace 3).
+   */
+  tokenRegistryAddress(token?: Address): Address {
+    if (!token) {
+      return this.tokenRegistry.address
+    }
+    return NameSpace.deriveAddress(
+      this.offRamp.address,
+      NameSpace.CCIPNamespace.TokenRegistry,
+      beginCell().storeAddress(token),
+      this.code.deployable,
+    )
+  }
+
+  /**
+   * Deploys a TokenRegistry contract at the OffRamp-derived address and sets
+   * the token info (tokenPool + minter + enabled). Returns the registry.
+   */
+  async setupTokenRegistry(
+    token: Address,
+    tokenPool: Address,
+    enabled = true,
+  ): Promise<SandboxContract<trg.TokenRegistry>> {
+    const registry = await deployable.Deploy(
+      this.blockchain,
+      this.deployer.getSender(),
+      toNano('1'),
+      NameSpace.CCIPNamespace.TokenRegistry,
+      {
+        owner: this.router.address,
+        id: beginCell().storeAddress(token),
+      },
+      trg.TokenRegistry,
+      {
+        tokenAddress: token,
+        tokenInfo: trg.TokenRegistry_TokenInfo.create({
+          tokenPool,
+          minterAddress: token,
+          enabled,
+        }),
+      },
+      trg.TokenRegistry_Storage,
+      await contractCode.ccip.local('TokenRegistry'),
+    )
+
+    return registry
+  }
+
+  /**
+   * Deploys a TokenPool configured for the given token and remote chain.
+   * The pool is registered as the offRamp for the remote chain so that
+   * ReleaseOrMint from the OffRamp is authorized.
+   */
+  async setupTokenPool(
+    opts: {
+      token?: Address
+      remoteChainSelector?: bigint
+      jettonWalletCode?: Cell
+      tokenDecimals?: bigint
+      rateLimitCapacity?: bigint
+    } = {},
+  ): Promise<SandboxContract<mtp.MockTokenPool>> {
+    const token = opts.token ?? this.token
+    const remoteChainSelector = opts.remoteChainSelector ?? this.SOURCE_CHAIN_SELECTOR
+    const jettonWalletCode = opts.jettonWalletCode ?? this.code.jettonWallet
+    const tokenDecimals = opts.tokenDecimals ?? 9n
+    const rateLimitCapacity = opts.rateLimitCapacity ?? toNano('1000')
+
+    const tokenPool = this.blockchain.openContract(
+      mtp.MockTokenPool.fromStorage(
+        {
+          poolData: tp.TokenPool_Data.create({
+            adminConfig: tp.TokenPool_AdminConfig.create({
+              ownable: tp.Ownable2Step.create({
+                owner: this.deployer.address,
+              }),
+              rmnProxy: this.deployer.address,
+              dynamicConfig: tp.TokenPool_DynamicConfig.create({
+                router: this.router.address,
+                rateLimitAdmin: this.deployer.address,
+                feeAdmin: this.deployer.address,
+              }),
+              jettonClient: tp.JettonClient.create({
+                masterAddress: token,
+                jettonWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+            }),
+            mirroredPolicy: tp.TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: tp.CursedSubjects.create({
+                data: new Set(),
+              }),
+            }),
+            tokenDecimals,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
+          }),
+        },
+        { overrideContractCode: this.code.tokenPool },
+      ),
+    )
+
+    const deploymentResult = await tokenPool.sendDeploy(this.deployer.getSender(), toNano('0.05'))
+    expect(deploymentResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: tokenPool.address,
+      success: true,
+      deploy: true,
+    })
+
+    const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(
+      this.deployer.getSender(),
+      toNano('0.05'),
+      {
+        remoteChainSelectorsToRemove: [],
+        chainsToAdd: [
+          tp.TokenPool_ChainUpdate.create({
+            remoteChainSelector,
+            remotePoolAddresses: [this.sourcePoolAddress],
+            remoteTokenAddress: this.destTokenAddress,
+            rateLimitConfigs: tp.TokenPool_RateLimitConfigPair.create({
+              outbound: tp.RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: rateLimitCapacity,
+                rate: rateLimitCapacity,
+              }),
+              inbound: tp.RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: rateLimitCapacity,
+                rate: rateLimitCapacity,
+              }),
+            }),
+          }),
+        ],
+      },
+    )
+
+    expect(chainUpdateResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: tokenPool.address,
+      success: true,
+    })
+
+    // Register the OffRamp as the authorized inbound caller (offRamp) for the chain.
+    const rampAccessResult = await tokenPool.sendTokenPoolUpdateRampAccess(
+      this.deployer.getSender(),
+      toNano('0.05'),
+      {
+        updates: [
+          tp.TokenPool_RampUpdate.create({
+            remoteChainSelector,
+            onRamp: null,
+            offRamp: this.offRamp.address,
+          }),
+        ],
+      },
+    )
+
+    expect(rampAccessResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: tokenPool.address,
+      success: true,
+    })
+
+    return tokenPool
+  }
+
+  /**
+   * Creates a test message with a single token transfer.
+   */
+  createTestMessageWithToken(
+    opts: {
+      token?: Address
+      amount?: bigint
+      sequenceNumber?: bigint
+      messageId?: bigint
+      receiverAddress?: Address
+      data?: Cell
+      sourcePoolAddress?: of.CrossChainAddress
+      extraData?: Cell
+      destGasAmount?: bigint
+    } = {},
+  ): of.Any2TVMRampMessage {
+    const message = this.createTestMessage(
+      opts.sequenceNumber ?? 1n,
+      opts.messageId ?? 1n,
+      opts.receiverAddress ?? this.receiver.address,
+      opts.data ?? Cell.EMPTY,
+    )
+
+    message.tokenAmounts = [
+      of.Any2TVMTokenTransfer.create({
+        sourcePoolAddress:
+          opts.sourcePoolAddress ?? CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool')),
+        token: opts.token ?? this.token,
+        destGasAmount: opts.destGasAmount ?? 0n,
+        extraData: opts.extraData ?? null,
+        amount: opts.amount ?? this.DEFAULT_TOKEN_AMOUNT,
+      }),
+    ]
+
+    return message
+  }
+
+  /**
+   * Gets the balance of the given token for the given address
+   */
+  async getTokenBalance(opt: { address?: Address; token?: Address } = {}): Promise<bigint> {
+    const wallet = this.blockchain.openContract(
+      jtw.JettonWallet.fromStorage({
+        status: 0n,
+        jettonBalance: 0n,
+        ownerAddress: opt.address ?? this.receiver.address,
+        minterAddress: opt.token ?? this.token,
+      }),
+    )
+    const data = await wallet.getWalletData()
+    return data.jettonBalance
+  }
+
+  async disableToken(): Promise<void> {
+    const result = await this.tokenRegistry.sendTokenRegistrySetTokenInfo(
+      this.blockchain.sender(this.router.address),
+      toNano('0.1'),
+      {
+        info: trg.TokenRegistry_TokenInfo.create({
+          tokenPool: this.tokenPool.address,
+          minterAddress: this.token,
+          enabled: false, // disabled
+        }),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.router.address,
+      to: this.tokenRegistry.address,
+      success: true,
+    })
+  }
+
+  getDefaultMetadataHash(sourceChainSelector?: bigint): bigint {
+    return getDefaultMetadataHash(sourceChainSelector ?? this.SOURCE_CHAIN_SELECTOR)
+  }
+
+  async updateRateLimit(capacity: bigint, rate: bigint) {
+    const result = await this.tokenPool.sendTokenPoolSetRateLimitConfig(
+      this.deployer.getSender(),
+      toNano('0.05'),
+      {
+        updates: [
+          tp.TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: this.SOURCE_CHAIN_SELECTOR,
+            fastFinality: false,
+            outboundRateLimiterConfig: tp.RateLimiter_Config.create({
+              // note we don't need this to be enabled
+              isEnabled: false,
+              capacity: 0n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: tp.RateLimiter_Config.create({
+              isEnabled: true,
+              capacity,
+              rate,
+            }),
+          }),
+        ],
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: this.tokenPool.address,
+      success: true,
+    })
   }
 }
 

@@ -11,5 +11,6 @@ enum ReceiveExecutor_Error {
     NoTokenAmountsInMessage
     TokenAdminRegistryUnexpectedResponse
     TokenPoolUnexpectedResponse
+    TokenNotEnabledInTokenRegistry
     PTTNotSupported
 }

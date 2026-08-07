@@ -79,19 +79,22 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+fun executeOrTransfer(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) {
+     if (st.tokenAdminRegistry != null) { // This message has a token transfer
+        // st.shouldOverrideGas = msg.gasOverride; // TODO
+        val ccipSend = lazy st.message.load();
+        // TODO data and token transfer not suported
+        assert (ccipSend.data.beginParse().isEmpty()) throw ReceiveExecutor_Error.PTTNotSupported;
+        
+        return queryTokenAdminRegistry(mutate st, st.tokenAdminRegistry!.load());
+    }
+    execute(mutate st, msg.gasOverride);
+}
+
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) {
     match (st.state) {
-        ReceiveExecutor_MessageState.Untouched => {
-            if (st.tokenAdminRegistry != null) { // This message has a token transfer
-                // st.shouldOverrideGas = msg.gasOverride; // TODO
-                val ccipSend = lazy st.message.load();
-                // TODO data and token transfer not suported
-                assert (ccipSend.data.beginParse().isEmpty()) throw ReceiveExecutor_Error.PTTNotSupported;
-                
-                return queryTokenAdminRegistry(mutate st, st.tokenAdminRegistry!.load());
-            }
-            execute(mutate st, msg.gasOverride);
-        }
+        ReceiveExecutor_MessageState.Untouched => executeOrTransfer(mutate st, msg),
+        ReceiveExecutor_MessageState.TokenAdminRegistryQueryFailed => executeOrTransfer(mutate st, msg),
         ReceiveExecutor_MessageState.ExecuteFailed => execute(mutate st, msg.gasOverride),
         ReceiveExecutor_MessageState.TokenTransferFailed => {
             val rampMsg = lazy st.message.load();
@@ -126,10 +129,10 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenR
     val rampMsg = lazy st.message.load();
     assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
     val token = rampMsg.tokenAmounts.getTokenTransfer(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
-    // TODO
-    // if (msg.tokenPool == null) {
-    //     throw ReceiveExecutor_Error.TokenNotEnabled; // TODO check what error is thrown in EVM
-    // }
+    if (msg.tokenPool == null) {
+        st.state = ReceiveExecutor_MessageState.TokenAdminRegistryQueryFailed;
+        return endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
+    }
     st.tokenPool = msg.tokenPool!.toCell();
     releaseOrMint(mutate st, rampMsg, msg.tokenPool!, token);
 }
@@ -203,10 +206,11 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     assert (msg.receiver == ccipMessage.receiver, ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.ExecuteFailed;
-    endExecutionWithFailure(mutate st, ccipMessage.header);
+    endExecutionWithFailure(mutate st, ccipMessage.header, );
 }
 
-fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader) {
+fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
+    // TODO send error reason
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,

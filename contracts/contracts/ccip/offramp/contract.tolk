@@ -184,16 +184,20 @@ fun onBouncedMessage(in: InMessageBounced) {
 // happen; if InitExecute bounced, it's probably a misconfiguration in the
 // ReceiveExecutor code. Marks the execution state as failed and emits events.
 fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, senderAddress: address) {
-    markStateOnRoot(
-        msg.root,
-        msg.sequenceNumber,
-        ExecutionState.Failure
-    );
     emit(RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED, OffRamp_ReceiveExecutorInitExecuteBounced{
         receiveExecutor: senderAddress,
         root: msg.root,
         sequenceNumber: msg.sequenceNumber,
     });
+    messageExecutionFailed(msg);
+}
+
+fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute) {
+    markStateOnRoot(
+        msg.root,
+        msg.sequenceNumber,
+        ExecutionState.Failure
+    );
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: msg.sourceChainSelector,
         sequenceNumber: msg.sequenceNumber,
@@ -826,7 +830,22 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
-    val tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts);
+    val initExecuteMsg = ReceiveExecutor_InitExecute {
+        gasOverride: msg.gasOverride,
+        root: sender,
+        sequenceNumber: message.header.sequenceNumber,
+        sourceChainSelector: message.header.sourceChainSelector,
+        messageId: message.header.messageId,
+    };
+
+    var tokenAdminRegistry: Cell<address>?;
+
+    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
+    try {
+        tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
+    } catch {
+        return messageExecutionFailed(initExecuteMsg);
+    }
 
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
@@ -856,23 +875,20 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         bounce: BounceMode.RichBounce,
         value: ReceiveExecutor_Costs.initExec(),
         dest: executorAddress,
-        body: ReceiveExecutor_InitExecute {
-            gasOverride: msg.gasOverride,
-            root: sender,
-            sequenceNumber: message.header.sequenceNumber,
-            sourceChainSelector: message.header.sourceChainSelector,
-            messageId: message.header.messageId,
-        }
+        body: initExecuteMsg
     });
     initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?): Cell<address>? {
+fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, soureChainSelector: uint64): Cell<address>? {
     if (tokenAmounts == null) {
         return null;
     }
     val tokenTransfer = tokenAmounts.getTokenTransfer(OffRamp_Error.UnsupportedNumberOfTokens);
-    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token).calculateAddress();
+    
+    // TODO probably the tokenRegistryMaster
+    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(soureChainSelector).router;
+    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
     return registryAddress.toCell();
 }
 

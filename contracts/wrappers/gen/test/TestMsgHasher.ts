@@ -525,7 +525,7 @@ export const Any2TVMRampMessage = {
  >     sourcePoolAddress: Cell<CrossChainAddress>
  >     token: address
  >     destGasAmount: uint32
- >     extraData: cell
+ >     extraData: cell?
  >     amount: uint256
  > }
  */
@@ -534,7 +534,7 @@ export interface Any2TVMTokenTransfer {
     sourcePoolAddress: CrossChainAddress
     token: c.Address
     destGasAmount: uint32
-    extraData: c.Cell
+    extraData: c.Cell | null
     amount: uint256
 }
 
@@ -543,7 +543,7 @@ export const Any2TVMTokenTransfer = {
         sourcePoolAddress: CrossChainAddress
         token: c.Address
         destGasAmount: uint32
-        extraData: c.Cell
+        extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
         return {
@@ -557,7 +557,7 @@ export const Any2TVMTokenTransfer = {
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             token: s.loadAddress(),
             destGasAmount: s.loadUintBig(32),
-            extraData: s.loadRef(),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
     },
@@ -565,7 +565,9 @@ export const Any2TVMTokenTransfer = {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
         b.storeAddress(self.token);
         b.storeUint(self.destGasAmount, 32);
-        b.storeRef(self.extraData);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
         b.storeUint(self.amount, 256);
     },
     toCell(self: Any2TVMTokenTransfer): c.Cell {

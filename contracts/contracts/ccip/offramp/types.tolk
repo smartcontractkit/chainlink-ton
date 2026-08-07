@@ -123,7 +123,7 @@ struct Any2TVMTokenTransfer {
     token: address;
     destGasAmount: uint32; // TBD: This field was removed in CCIP 2.0 and it's purpose/utility in TON is unclear.
     // Data from the source pool to be passed to the destination pool.
-    extraData: cell;
+    extraData: cell?;
     // amount of transfered tokens in source chain decimals
     amount: uint256;
 }
