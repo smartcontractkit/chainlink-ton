@@ -719,6 +719,13 @@ fun TokenPool<T>.onPostflightCheckFailed(
         self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
     }
 
+    notifyReleaseOrMintFailure(requestMsg, TokenPool_Error.UnsupportedOperation);
+}
+
+fun notifyReleaseOrMintFailure(
+    requestMsg: TokenPool_ReleaseOrMint,
+    errorCode: uint16,
+): void {
     // Send failure response back to the executor (replyTo).
     if (requestMsg.replyTo != null) {
         val failure = createMessage({
@@ -727,7 +734,7 @@ fun TokenPool<T>.onPostflightCheckFailed(
             dest: requestMsg.replyTo!,
             body: TokenPool_ReleaseOrMintFailure {
                 queryId: requestMsg.queryId,
-                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
+                errorCode,
             },
         });
         failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -1152,18 +1159,26 @@ fun TokenPool<T>.onReleaseOrMint(
     sender: address,
     msg: TokenPool_ReleaseOrMint,
 ): void {
-    if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
-        self.context = self.hooks.onReleaseOrMint(self.context!, msg);
+    // This is not enough because the hook can throw because of the sender not being the offramp, for example. 
+    // TODO: we would need to split the validation into two categories:
+    // 1. Verifying the message is legitimate (sender is the offramp, etc.)
+    // 2. Verifying the message is valid (token is supported, chain is supported, etc.)
+    try {
+        if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
+            self.context = self.hooks.onReleaseOrMint(self.context!, msg);
+        }
+
+        // Validate and call postflightCheck with full message.
+        val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
+
+        if (wait) {
+            return; // Async hook was triggered; will resume via onPostflightCheckFinished/Failed.
+        }
+
+        self.onReleaseOrMintContinue(sender, msg, prepared);
+    } catch {
+        notifyReleaseOrMintFailure(msg, TokenPool_Error.UnsupportedOperation);
     }
-
-    // Validate and call postflightCheck with full message.
-    val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
-
-    if (wait) {
-        return; // Async hook was triggered; will resume via onPostflightCheckFinished/Failed.
-    }
-
-    self.onReleaseOrMintContinue(sender, msg, prepared);
 }
 
 fun TokenPool<T>.onReleaseOrMintContinue(

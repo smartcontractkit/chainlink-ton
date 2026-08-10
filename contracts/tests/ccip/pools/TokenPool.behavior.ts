@@ -22,6 +22,7 @@ import {
   RateLimiter_Config,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
+  TokenPool_ReleaseOrMintFailure,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
@@ -142,9 +143,8 @@ export function runTokenPoolBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: false,
+        from: ctx.pool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
 
@@ -268,7 +268,7 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(false)
     })
 
-    it('reverts releaseOrMint after configured chain is removed', async () => {
+    it('rejects releaseOrMint after configured chain is removed', async () => {
       const ctx = await setup()
       await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 906n,
@@ -288,9 +288,8 @@ export function runTokenPoolBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: false,
+        from: ctx.pool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
 
@@ -365,9 +364,8 @@ export function runTokenPoolBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: false,
+        from: ctx.pool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
 
@@ -390,9 +388,8 @@ export function runTokenPoolBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: false,
+        from: ctx.pool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
 
@@ -422,9 +419,8 @@ export function runTokenPoolBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: false,
+        from: ctx.pool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
 
@@ -469,9 +465,8 @@ export function runTokenPoolBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: false,
+        from: ctx.pool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
 

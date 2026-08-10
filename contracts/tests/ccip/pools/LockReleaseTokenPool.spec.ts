@@ -13,6 +13,7 @@ import {
   TokenPool_DynamicConfig,
   TokenPool_MirroredPolicy,
   TokenPool_ReleaseOrMintFinished,
+  TokenPool_ReleaseOrMintFailure,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMintInV1,
@@ -370,9 +371,8 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
-      to: lockReleasePool.address,
-      success: false,
+      from: lockReleasePool.address,
+      op: TokenPool_ReleaseOrMintFailure.PREFIX,
     })
     expect(await lockReleasePool.getHasPendingRelease(46n)).toBe(false)
   })
@@ -578,9 +578,8 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
-      to: lockReleasePool.address,
-      success: false,
+      from: lockReleasePool.address,
+      op: TokenPool_ReleaseOrMintFailure.PREFIX,
     })
   })
 })

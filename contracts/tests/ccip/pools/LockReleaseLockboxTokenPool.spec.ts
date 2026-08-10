@@ -29,6 +29,7 @@ import {
 import {
   JettonClient,
   LockReleaseLockboxTokenPool,
+  TokenPool_ReleaseOrMintFailure,
 } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import {
   JettonLockBox,
@@ -647,9 +648,8 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
-        to: lockReleaseLockboxPool.address,
-        success: false,
+        from: lockReleaseLockboxPool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
       expect(await lockReleaseLockboxPool.getHasPendingRelease(201n)).toBe(false)
     })
@@ -982,9 +982,8 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       // The release request should fail or bounce
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
-        to: lockReleaseLockboxPool.address,
-        success: false,
+        from: lockReleaseLockboxPool.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
 
       // No pending release should exist (either rejected upfront or cleaned up)
