@@ -850,7 +850,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
-    val initExecuteMsg = ReceiveExecutor_InitExecute {
+    var initExecuteMsg = ReceiveExecutor_InitExecute {
         gasOverride: msg.gasOverride,
         root: sender,
         sequenceNumber: message.header.sequenceNumber,
@@ -858,11 +858,10 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         messageId: message.header.messageId,
     };
 
-    var tokenAdminRegistry: Cell<address>?;
-
     // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
     try {
-        tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
+        val tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
+        initExecuteMsg.tokenAdminRegistry = tokenAdminRegistry;
     } catch {
         return messageExecutionFailed(initExecuteMsg);
     }
@@ -882,7 +881,6 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                         message: message.toCell(),
                         root: sender,
                         execId,
-                        tokenAdminRegistry,
                     }.toCell(),
                 }
             },

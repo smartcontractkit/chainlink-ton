@@ -248,6 +248,13 @@ fun T?.toOptCell(self): Cell<T>? {
     return self.toCell();
 }
 
+fun Cell<T>?.loadOpt(self): T? {
+    if (self == null) {
+        return null;
+    }
+    return self.load();
+}
+
 // This type works as a wrapper for RemainingBitsAndRefs that implements
 // automatic serialization/deserialization. It determines whether to store the
 // data directly as bits or as a reference to a cell, depending on available
