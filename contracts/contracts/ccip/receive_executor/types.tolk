@@ -26,7 +26,7 @@ type ReceiveExecutor_TokenTransferState_Pending =
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed;
 
 fun ReceiveExecutor_TokenTransferState?.asPending(self, tokenAdminRegistry: address): ReceiveExecutor_TokenTransferState_Pending? {
-    if (self == null) {
+    if (self == null) { // If the state is null, we initialize it to the Untouched state with the provided tokenAdminRegistry
         return ReceiveExecutor_TokenTransferState_Untouched { tokenAdminRegistry };
     }
     return match (self) {
