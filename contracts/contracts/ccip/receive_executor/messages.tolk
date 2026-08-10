@@ -20,6 +20,7 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     sequenceNumber: uint64;
     sourceChainSelector: uint64;
     messageId: uint256;
+    tokenAdminRegistry: Cell<address>? = null;
 }
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.

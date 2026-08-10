@@ -7,10 +7,11 @@ struct ReceiveExecutor_Storage {
     message: Cell<Any2TVMRampMessage>;
     root: address;
     execId: uint192;
-    state: ReceiveExecutor_MessageState = ReceiveExecutor_MessageState.Untouched;
+    state: ReceiveExecutor_State = ReceiveExecutor_State {
+        tokenTransfer: null,
+        messageExecution: ReceiveExecutor_MessageExecutionState.Untouched,
+    };
     lastExecutionTimestamp: uint64 = 0;
-    tokenAdminRegistry: Cell<address>? = null;
-    tokenPool: Cell<address>? = null; // TODO move this to state attribute
 }
 
 fun ReceiveExecutor_Storage.load(): ReceiveExecutor_Storage {
