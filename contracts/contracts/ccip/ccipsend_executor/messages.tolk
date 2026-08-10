@@ -43,7 +43,7 @@ fun SendExecutor_Costs.Execute(): int {
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
         //TODO: estimate correct gas needed here
-        + ton("0.2"); // overhead for token transfers,     return baseFee;
+        + ton("0.2"); // overhead for token transfers
 }
 
 @inline

@@ -111,13 +111,13 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 
 	tokenAmounts := make(common.SnakedCell[router.TokenAmount], 0, len(components.TokenAmounts))
 	for _, ta := range components.TokenAmounts {
-		tokenAddr, err := address.ParseAddr(ta.Token)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse token address %q: %w", ta.Token, err)
+		tokenAddr, parseErr := address.ParseAddr(ta.Token)
+		if parseErr != nil {
+			return nil, fmt.Errorf("failed to parse token address %q: %w", ta.Token, parseErr)
 		}
-		amount, err := tlb.FromNano(ta.Amount, 9)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert token amount %q to coins: %w", ta.Amount, err)
+		amount, parseErr := tlb.FromNano(ta.Amount, 9)
+		if parseErr != nil {
+			return nil, fmt.Errorf("failed to convert token amount %q to coins: %w", ta.Amount, parseErr)
 		}
 		tokenAmounts = append(tokenAmounts, router.TokenAmount{
 			Amount: amount,

@@ -340,6 +340,25 @@ export const UnsafeBodyNoRef = {
 }
 
 /**
+ > enum Upgradeable_Error { 1 variants }
+ */
+export type Upgradeable_Error = bigint
+
+export const Upgradeable_Error = {
+    VersionMismatch: 19900n,
+
+    fromSlice(s: c.Slice): Upgradeable_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: Upgradeable_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: Upgradeable_Error): c.Cell {
+        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
+    }
+}
+
+/**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
  >     queryId: uint64
  >     code: cell
@@ -454,6 +473,27 @@ export const Deployable_Initialize = {
     },
     toCell(self: Deployable_Initialize): c.Cell {
         return makeCellFrom<Deployable_Initialize>(self, Deployable_Initialize.store);
+    }
+}
+
+/**
+ > enum Ownable2Step_Error { 3 variants }
+ */
+export type Ownable2Step_Error = bigint
+
+export const Ownable2Step_Error = {
+    OnlyCallableByOwner: 49800n,
+    CannotTransferToSelf: 49801n,
+    MustBeProposedOwner: 49802n,
+
+    fromSlice(s: c.Slice): Ownable2Step_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Ownable2Step_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Ownable2Step_Error): c.Cell {
+        return makeCellFrom<Ownable2Step_Error>(self, Ownable2Step_Error.store);
     }
 }
 
@@ -661,6 +701,27 @@ export const Ownable2Step_OwnershipTransferred = {
 }
 
 /**
+ > enum Withdrawable_Error { 3 variants }
+ */
+export type Withdrawable_Error = bigint
+
+export const Withdrawable_Error = {
+    InsufficientBalance: 57100n,
+    HitReserve: 57101n,
+    InvalidRequest: 57102n,
+
+    fromSlice(s: c.Slice): Withdrawable_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Withdrawable_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Withdrawable_Error): c.Cell {
+        return makeCellFrom<Withdrawable_Error>(self, Withdrawable_Error.store);
+    }
+}
+
+/**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
  >     queryId: uint64
  >     destination: address
@@ -717,6 +778,29 @@ export const Withdrawable_Withdraw = {
     },
     toCell(self: Withdrawable_Withdraw): c.Cell {
         return makeCellFrom<Withdrawable_Withdraw>(self, Withdrawable_Withdraw.store);
+    }
+}
+
+/**
+ > enum MerkleMultiProof_Error { 5 variants }
+ */
+export type MerkleMultiProof_Error = bigint
+
+export const MerkleMultiProof_Error = {
+    InvalidProofLeavesCannotBeEmpty: 12000n,
+    InvalidProofLeavesTooLarge: 12001n,
+    InvalidProofProofsTooLarge: 12002n,
+    InvalidProofTotalHashesExceededMax: 12003n,
+    InvalidProofDataSizeMismatch: 12004n,
+
+    fromSlice(s: c.Slice): MerkleMultiProof_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: MerkleMultiProof_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: MerkleMultiProof_Error): c.Cell {
+        return makeCellFrom<MerkleMultiProof_Error>(self, MerkleMultiProof_Error.store);
     }
 }
 
@@ -1110,6 +1194,26 @@ export const ReportContext = {
     },
     toCell(self: ReportContext): c.Cell {
         return makeCellFrom<ReportContext>(self, ReportContext.store);
+    }
+}
+
+/**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
     }
 }
 
@@ -2332,6 +2436,42 @@ export const OffRamp_UpdateDeployables = {
 }
 
 /**
+ > enum OffRamp_Error { 18 variants }
+ */
+export type OffRamp_Error = bigint
+
+export const OffRamp_Error = {
+    MessageNotFromOwnedContract: 22100n,
+    SourceChainNotEnabled: 22101n,
+    EmptyExecutionReport: 22102n,
+    InvalidMessageDestChainSelector: 22103n,
+    SourceChainSelectorMismatch: 22104n,
+    InvalidOnRampUpdate: 22105n,
+    InsufficientFee: 22106n,
+    SubjectCursed: 22107n,
+    Unauthorized: 22108n,
+    ZeroAddressNotAllowed: 22109n,
+    TooManyMessagesInReport: 22110n,
+    SignatureVerificationRequiredInCommitPlugin: 22111n,
+    SignatureVerificationNotAllowedInExecutionPlugin: 22112n,
+    InvalidInterval: 22113n,
+    BatchingNotSupported: 22114n,
+    OnRampAddressMismatch: 22115n,
+    EmptyCommitReport: 22116n,
+    MerkleRootCannotBeZero: 22117n,
+
+    fromSlice(s: c.Slice): OffRamp_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: OffRamp_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: OffRamp_Error): c.Cell {
+        return makeCellFrom<OffRamp_Error>(self, OffRamp_Error.store);
+    }
+}
+
+/**
  > struct ExecutionReport {
  >     sourceChainSelector: uint64
  >     messages: cell
@@ -3384,6 +3524,40 @@ export const OffRamp_RouteMessageBounced = {
 }
 
 /**
+ > enum MultiOCR3Base_Error { 16 variants }
+ */
+export type MultiOCR3Base_Error = bigint
+
+export const MultiOCR3Base_Error = {
+    BigFMustBePositive: 54500n,
+    StaticConfigCannotBeChanged: 54501n,
+    TooManySigners: 54502n,
+    BigFTooHigh: 54503n,
+    TooManyTransmitters: 54504n,
+    NoTransmitters: 54505n,
+    RepeatedSigners: 54506n,
+    RepeatedTransmitters: 54507n,
+    ConfigDigestMismatch: 54508n,
+    UnauthorizedTransmitter: 54509n,
+    WrongNumberOfSignatures: 54510n,
+    UnauthorizedSigner: 54511n,
+    NonUniqueSignatures: 54512n,
+    InvalidSignature: 54513n,
+    NonExistentOcrPluginType: 54514n,
+    NoSigners: 54515n,
+
+    fromSlice(s: c.Slice): MultiOCR3Base_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: MultiOCR3Base_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: MultiOCR3Base_Error): c.Cell {
+        return makeCellFrom<MultiOCR3Base_Error>(self, MultiOCR3Base_Error.store);
+    }
+}
+
+/**
  > struct PriceUpdates {
  >     tokenPriceUpdates: SnakedCell<TokenPriceUpdate>
  >     gasPriceUpdates: SnakedCell<GasPriceUpdate>
@@ -3544,7 +3718,6 @@ export class OffRamp implements c.Contract {
     static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
-        'Common_Error.CrossChainAddressOutOfRange': 5,
         'MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty': 12000,
         'MerkleMultiProof_Error.InvalidProofLeavesTooLarge': 12001,
         'MerkleMultiProof_Error.InvalidProofProofsTooLarge': 12002,
@@ -3553,23 +3726,24 @@ export class OffRamp implements c.Contract {
         'Utils_Error.InvalidData': 13500,
         'Utils_Error.BitmapOutOfBounds': 13501,
         'Upgradeable_Error.VersionMismatch': 19900,
-        'Error.MessageNotFromOwnedContract': 22100,
-        'Error.SourceChainNotEnabled': 22101,
-        'Error.EmptyExecutionReport': 22102,
-        'Error.InvalidMessageDestChainSelector': 22103,
-        'Error.SourceChainSelectorMismatch': 22104,
-        'Error.InvalidOnRampUpdate': 22105,
-        'Error.InsufficientFee': 22106,
-        'Error.SubjectCursed': 22107,
-        'Error.Unauthorized': 22108,
-        'Error.TooManyMessagesInReport': 22110,
-        'Error.SignatureVerificationRequiredInCommitPlugin': 22111,
-        'Error.SignatureVerificationNotAllowedInExecutionPlugin': 22112,
-        'Error.InvalidInterval': 22113,
-        'Error.BatchingNotSupported': 22114,
-        'Error.OnRampAddressMismatch': 22115,
-        'Error.EmptyCommitReport': 22116,
-        'Error.MerkleRootCannotBeZero': 22117,
+        'OffRamp_Error.MessageNotFromOwnedContract': 22100,
+        'OffRamp_Error.SourceChainNotEnabled': 22101,
+        'OffRamp_Error.EmptyExecutionReport': 22102,
+        'OffRamp_Error.InvalidMessageDestChainSelector': 22103,
+        'OffRamp_Error.SourceChainSelectorMismatch': 22104,
+        'OffRamp_Error.InvalidOnRampUpdate': 22105,
+        'OffRamp_Error.InsufficientFee': 22106,
+        'OffRamp_Error.SubjectCursed': 22107,
+        'OffRamp_Error.Unauthorized': 22108,
+        'OffRamp_Error.ZeroAddressNotAllowed': 22109,
+        'OffRamp_Error.TooManyMessagesInReport': 22110,
+        'OffRamp_Error.SignatureVerificationRequiredInCommitPlugin': 22111,
+        'OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin': 22112,
+        'OffRamp_Error.InvalidInterval': 22113,
+        'OffRamp_Error.BatchingNotSupported': 22114,
+        'OffRamp_Error.OnRampAddressMismatch': 22115,
+        'OffRamp_Error.EmptyCommitReport': 22116,
+        'OffRamp_Error.MerkleRootCannotBeZero': 22117,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,

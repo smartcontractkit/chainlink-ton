@@ -277,9 +277,6 @@ export const testLogCCIPMessageSent = (
     const msg = on.CCIPMessageSent.fromSlice(actual.beginParse())
     const sender = msg.message.sender
 
-    // fromSlice already fully decodes tokenTransfer recursively, so no manual
-    // unpacking is needed here.
-
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)
     const { sender: _, ...messageWithoutSender } = msg.message
     const { sender: __, ...matchWithoutSender } = expected.message || {}
