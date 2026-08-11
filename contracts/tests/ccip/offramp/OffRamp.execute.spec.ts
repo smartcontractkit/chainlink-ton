@@ -1847,6 +1847,245 @@ describe('OffRamp - Execute', () => {
       // TODO after we connect to a real token pool
       // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
     })
+
+    it('executes a PTT (token transfer + data) end to end', async () => {
+      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const message = setup.createTestMessageWithToken({ data })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // 1. OffRamp -> ReceiveExecutor (deploy + InitExecute)
+      const executorAddress = setup.receiveExecutorAddress(message)
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+
+      // 2. ReceiveExecutor -> TokenRegistry (GetTokenInfo) and back
+      const registryAddress = setup.tokenRegistryAddress()
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: registryAddress,
+        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: registryAddress,
+        to: executorAddress,
+        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        success: true,
+      })
+
+      // 3. ReceiveExecutor -> OffRamp (ReleaseOrMint) -> TokenPool
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+
+      // 4. TokenPool -> ReceiveExecutor (ReleaseOrMintFinished)
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        to: executorAddress,
+        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        success: true,
+      })
+
+      // 5. Since there is data, the message is executed: ReceiveExecutor ->
+      //    OffRamp (DispatchValidated) -> Router -> Receiver
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      // 6. Receiver confirms back -> OffRamp (NotifySuccess) -> MerkleRoot
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifySuccess.PREFIX,
+        success: true,
+      })
+
+      // 7. ExecutionStateChanged: InProgress -> Success
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.InProgress,
+        },
+      )
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      // TODO after we connect to a real token pool
+      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    it('fails a PTT when the token is not enabled in the TokenRegistry', async () => {
+      await setup.disableToken()
+
+      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const message = setup.createTestMessageWithToken({ data })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // The registry returns tokenPool = null, so the ReceiveExecutor should
+      // fail (bounce) and the message should end in FAILURE state.
+      const executorAddress = setup.receiveExecutorAddress(message)
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        success: true,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+      })
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails a PTT when the token pool rejects the releaseOrMint (rate limit)', async () => {
+      // Rate limit capacity is 0, so the releaseOrMint will be rejected.
+      await setup.updateRateLimit(0n, 0n)
+
+      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const message = setup.createTestMessageWithToken({ data })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // The token pool should reject the releaseOrMint (rate limit exceeded).
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.receiveExecutorAddress(message),
+        op: of.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
+        success: true,
+      })
+
+      // The ReceiveExecutor should notify failure and the message ends in FAILURE.
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('manual execute retries a PTT after a token pool failure', async () => {
+      // initial rate limit of 0 so the first releaseOrMint fails
+      await setup.updateRateLimit(0n, 0n)
+
+      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const message = setup.createTestMessageWithToken({ data })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // First execution fails due to rate limit.
+      const firstResult = await setup.executeReport(report)
+      expect(firstResult.transactions).toHaveTransaction({
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+      })
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // Increase the rate limit so the retry succeeds.
+      await setup.updateRateLimit(
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+      )
+
+      // Manual execute should retry the releaseOrMint, then execute the message
+      // (since there is data) and deliver it to the receiver.
+      const manualResult = await setup.manualExecuteReport(report, undefined, true)
+      expect(manualResult.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        success: true,
+      })
+      expect(manualResult.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+      assertLog(
+        manualResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      // TODO after we connect to a real token pool
+      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
   })
 
   afterAll(async () => {
