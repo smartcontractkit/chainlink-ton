@@ -78,7 +78,7 @@ fun onInternalMessage(in:InMessage) {
             onReleaseOrMint(in.senderAddress, msg)
         }
         // Permissionless
-        OffRamp_ManuallyExecute => {
+        OffRamp_ManuallyExecute_V2 => {
             onManuallyExecute(msg, in.valueCoins)
         }
         // Sender must be owner
@@ -432,15 +432,13 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
 
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
-    var gasLimit: coins = message.gasLimit;
-    if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
-        gasLimit = msg.gasOverride;
-    }
+    val gasLimit = GasOverride.getEffectiveGasLimit(msg.receiverExecutionGasLimit, message.gasLimit);
     if (gasLimit < MIN_GASLIMIT) {
         return blockMsg(st, msg.execId, message.receiver);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
+        // TODO TTGasOverride
         value: gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
@@ -667,9 +665,9 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 //     participant OffRamp
 //     participant MerkleRoot
 
-//     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
+//     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute_V2
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
+fun onManuallyExecute(msg: OffRamp_ManuallyExecute_V2, value: coins) {
     onExecuteSingleReport(msg.report, msg.gasOverride, value);
 }
 
@@ -707,7 +705,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: coins) {
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -719,11 +717,10 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    if(gasOverride != null && (gasOverride >= message.gasLimit)) {
-        assert(value >= (OffRamp_Costs.execute() + gasOverride), OffRamp_Error.InsufficientFee);
-    } else {
-        assert(value >= (OffRamp_Costs.execute() + message.gasLimit), OffRamp_Error.InsufficientFee);
-    }
+    val effectiveGasLimit = gasOverride.getEffectiveGasLimit(message.gasLimit);
+    // TODO TTGasOverride
+    // val effectiveTokenTransferGasLimit = ...
+    assert(value >= (OffRamp_Costs.execute() + effectiveGasLimit), OffRamp_Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);

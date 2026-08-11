@@ -527,15 +527,23 @@ export class OffRampTestSetup {
 
   async manualExecuteReport(
     report: of.ExecutionReport,
-    gasOverride: bigint | undefined = undefined,
+    gasOverride:
+      | {
+          receiverExecutionGasLimit?: bigint
+          // TODO TTGasOverride?: tokenGasOverrides: array<coins>;
+        }
+      | undefined = undefined,
     expectSuccess = true,
   ) {
-    const result = await this.offRamp.sendOffRampManuallyExecute(
+    const result = await this.offRamp.sendOffRampManuallyExecuteV2(
       this.transmitters[0].getSender(),
       toNano('0.5'),
       {
         report,
-        gasOverride: gasOverride ?? 0n,
+        gasOverride: of.GasOverride.create({
+          receiverExecutionGasLimit: 0n,
+          ...gasOverride,
+        }),
       },
     )
 

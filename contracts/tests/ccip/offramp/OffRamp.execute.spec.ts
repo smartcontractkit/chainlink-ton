@@ -709,7 +709,7 @@ describe('OffRamp - Execute', () => {
         {
           message,
           execId: execId,
-          gasOverride: null,
+          receiverExecutionGasLimit: null,
         },
       )
 
@@ -848,13 +848,13 @@ describe('OffRamp - Execute', () => {
       })
 
       //try manual exec
-      const gasOverride = toNano('0.05')
+      const gasOverride = { receiverExecutionGasLimit: toNano('0.05') }
       const result4 = await setup.manualExecuteReport(report, gasOverride, true)
 
       expect(result4.transactions).toHaveTransaction({
         from: setup.router.address,
         to: setup.receiver.address,
-        value: gasOverride,
+        value: gasOverride.receiverExecutionGasLimit,
         success: true,
       })
 
@@ -947,7 +947,7 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      const gasOverride = message.gasLimit - 100n
+      const gasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
 
       const result4 = await setup.manualExecuteReport(report, gasOverride, true)
 

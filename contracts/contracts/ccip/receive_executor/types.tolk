@@ -1,3 +1,5 @@
+import "../offramp/types"
+
 // SPDX-License-Identifier: BUSL-1.1
 
 const ReceiveExecutor_FACILITY_NAME = "link.chain.ton.ccip.ReceiveExecutor";
@@ -8,6 +10,8 @@ const ReceiveExecutor_FACILITY_ID = ReceiveExecutor_FACILITY_NAME.crc32() % 640 
 struct ReceiveExecutor_State {
     tokenTransfer: Cell<ReceiveExecutor_TokenTransferInfo>?
     messageExecution: ReceiveExecutor_MessageExecutionState
+    // gasOverride from latest execute call.
+    gasOverride: GasOverride?
 }
 
 struct ReceiveExecutor_TokenTransferInfo {

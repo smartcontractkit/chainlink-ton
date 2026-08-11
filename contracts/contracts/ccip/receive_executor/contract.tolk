@@ -96,6 +96,7 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) { 
+    st.state.gasOverride = msg.gasOverride;
     if (msg.tokenAdminRegistry != null) { // Message has token transfer
         {
             // st.shouldOverrideGas = msg.gasOverride; // TODO
@@ -121,9 +122,9 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
         }
     }
     match (st.state.messageExecution) {
-        ReceiveExecutor_MessageExecutionState.Untouched => execute(mutate st, msg.gasOverride),
+        ReceiveExecutor_MessageExecutionState.Untouched => execute(mutate st),
         ReceiveExecutor_MessageExecutionState.Execute => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
-        ReceiveExecutor_MessageExecutionState.ExecuteFailed => execute(mutate st, msg.gasOverride),
+        ReceiveExecutor_MessageExecutionState.ExecuteFailed => execute(mutate st),
         ReceiveExecutor_MessageExecutionState.Success =>  throw ReceiveExecutor_Error.MessageAlreadyExecuted,
     }
 }
@@ -188,9 +189,13 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
     releseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
+fun execute(mutate st: ReceiveExecutor_Storage) {
     st.lastExecutionTimestamp = blockchain.now();
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
+    var receiverExecutionGasLimit: coins? = null;
+    if (st.state.gasOverride != null) {
+        receiverExecutionGasLimit = st.state.gasOverride.receiverExecutionGasLimit;
+    }
     createMessage(
         {
             bounce: true,
@@ -199,7 +204,7 @@ fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
             body: OffRamp_DispatchValidated {
                 message: st.message,
                 execId: st.execId,
-                gasOverride,
+                receiverExecutionGasLimit,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
