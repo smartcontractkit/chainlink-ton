@@ -98,12 +98,6 @@ fun onInternalMessage(in: InMessage) {
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) { 
     st.state.gasOverride = msg.gasOverride;
     if (msg.tokenAdminRegistry != null) { // Message has token transfer
-        {
-            // st.shouldOverrideGas = msg.gasOverride; // TODO
-            val ccipSend = lazy st.message.load();
-            // TODO data and token transfer not supported
-            assert (ccipSend.data.beginParse().isEmpty()) throw ReceiveExecutor_Error.PTTNotSupported;
-        }
         var ttInfo = st.state.tokenTransfer.loadOpt();
         ttInfo = ttInfo.init(msg.tokenAdminRegistry.load());
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
@@ -250,9 +244,7 @@ fun onReleaseOrMintFinished(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
     if (ccipMessage.data.beginParse().isEmpty()) {
         return endExecutionSuccessfully(mutate st, ccipMessage.header);
     }
-    // UNREACHABLE: onInitExecute should have thrown an error if there was any data in the message, so we should never get here.
-    throw ReceiveExecutor_Error.PTTNotSupported;
-    // TODO: PTT should execute after transfer
+    execute(mutate st)
 }
 
 fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader) {

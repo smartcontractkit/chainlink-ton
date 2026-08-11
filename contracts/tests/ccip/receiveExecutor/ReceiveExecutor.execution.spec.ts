@@ -361,7 +361,7 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     // TODO remove when PTT is supported
-    it('should reject InitExecute when message has both data and a token transfer', async () => {
+    it.skip('should reject InitExecute when message has both data and a token transfer', async () => {
       const receiveExecutorWithDataAndToken = await setupTestReceiveExecutor(
         blockchain,
         deployer,
