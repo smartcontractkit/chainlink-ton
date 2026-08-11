@@ -1753,11 +1753,7 @@ describe('OffRamp - Execute', () => {
       )
     })
 
-    // TODO these failure paths require a fix in TokenPool flow
-    // Instead of reverting, the TokenPool should send a failure message back
-    // to the ReceiveExecutor, which should then notify failure to the OffRamp.
-
-    it.skip('fails when the token pool rejects the releaseOrMint (rate limit)', async () => {
+    it('fails when the token pool rejects the releaseOrMint (rate limit)', async () => {
       // Rate limit capacity is 0, so the releaseOrMint will be rejected.
       await setup.updateRateLimit(0n, 0n)
 
@@ -1769,8 +1765,15 @@ describe('OffRamp - Execute', () => {
 
       // The token pool should reject the releaseOrMint (rate limit exceeded).
       expect(result.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMintFailure.PREFIX,
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.receiveExecutorAddress(message),
+        op: of.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
         success: true,
       })
 
@@ -1788,7 +1791,7 @@ describe('OffRamp - Execute', () => {
       )
     })
 
-    it.skip('manual execute retries releaseOrMint after a token pool failure', async () => {
+    it('manual execute retries releaseOrMint after a token pool failure', async () => {
       // initial rate limit of 0 so the first releaseOrMint fails
       await setup.updateRateLimit(0n, 0n)
 
@@ -1800,8 +1803,9 @@ describe('OffRamp - Execute', () => {
       // First execution fails due to rate limit.
       const firstResult = await setup.executeReport(report)
       expect(firstResult.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMintFailure.PREFIX,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
       })
       assertLog(
         firstResult.transactions,

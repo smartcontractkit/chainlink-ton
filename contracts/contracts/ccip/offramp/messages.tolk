@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "types"
-import "../../lib/ocr/types.tolk"
-import "../../lib/ocr/multi_ocr3_base.tolk"
-import "../../lib/utils"
-import "../../lib/funding/withdrawable"
-import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
-import "../common/types.tolk"
-import "../rmn_remote/lib"
-import "../merkle_root/messages"
-import "../receive_executor/messages"
+import "../../lib/funding/withdrawable"
+import "../../lib/ocr/multi_ocr3_base"
+import "../../lib/ocr/types"
+import "../../lib/utils"
+import "../../lib/versioning/upgradeable"
+
+import "../common/types"
 import "../fee_quoter/messages"
-import "../router/messages"
+import "../merkle_root/messages"
+import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../receive_executor/messages"
+import "../rmn_remote/lib"
+import "../router/messages"
+
+import "types"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -36,6 +39,7 @@ type OffRamp_InMessage =
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
+    | TokenPool_ReleaseOrMint
     | Router_RouteMessage;
 
 struct (0x9d431905) OffRamp_Commit {

@@ -66,6 +66,13 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the owner (OffRamp)
+        ReleaseOrMint_ReleaseOrMintBounced => {
+            var st = ReceiveExecutor_Storage.load();
+            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
+            onReleaseOrMintBounced(mutate st, msg);
+            st.store();
+        }
+        // Sender must be the owner (OffRamp)
         ReceiveExecutor_Bounced => {
             var st = ReceiveExecutor_Storage.load();
             assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
@@ -254,6 +261,15 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
 
 // TBD do we want to forward the TokenPool_ReleaseOrMintFailure.errorCode ?
 fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, _msg: TokenPool_ReleaseOrMintFailure) {
+    assert(st.state == ReceiveExecutor_MessageState.TokenTransfer, ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
+
+    st.state = ReceiveExecutor_MessageState.TokenTransferFailed;
+    val ccipMessage = lazy st.message.load();
+    endExecutionWithFailure(mutate st, ccipMessage.header);
+}
+
+// TBD do we want to forward the ReleaseOrMint_ReleaseOrMintBounced.exitCode ?
+fun onReleaseOrMintBounced(mutate st: ReceiveExecutor_Storage, _msg: ReleaseOrMint_ReleaseOrMintBounced) {
     assert(st.state == ReceiveExecutor_MessageState.TokenTransfer, ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
 
     st.state = ReceiveExecutor_MessageState.TokenTransferFailed;

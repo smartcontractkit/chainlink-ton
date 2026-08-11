@@ -176,7 +176,10 @@ fun onBouncedMessage(in: InMessageBounced) {
         },
         Router_RouteMessage => {
             onBouncedRouterRouteMessage(originalMessage, in.senderAddress)
-        }
+        },
+        TokenPool_ReleaseOrMint => {
+            onBouncedTokenPoolReleaseOrMint(originalMessage, rich.exitCode)
+        },
     }
 }
 
@@ -231,6 +234,23 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
         messageId: message.header.messageId,
         state: ExecutionState.Failure
     });
+}
+
+// Handles bounced TokenPool_ReleaseOrMint messages.
+// This can be the result of the rate limit being exceeded or the pool being misconfigured.
+// Sends a OffRamp_ReleaseOrMintBounced message to the ReceiveExecutor to mark the execution as failed.
+fun onBouncedTokenPoolReleaseOrMint(msg: TokenPool_ReleaseOrMint, exitCode: int32) {
+    // Send ReceiveBounced to initiate the failure notification trace 
+    val receiveBounced = createMessage({
+        bounce: false,
+        value: 0,
+        dest: msg.replyTo!,
+        body: ReleaseOrMint_ReleaseOrMintBounced {
+            queryId: msg.queryId,
+            exitCode,
+        }
+    });
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
@@ -298,7 +318,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
         bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
-        body: ReceiveExecutor_Bounced{
+        body: ReceiveExecutor_Bounced{ 
             receiver: msg.receiver,
             reason: ReceiveExecutor_BouncedReason.BouncedFromReceiver,
         }
