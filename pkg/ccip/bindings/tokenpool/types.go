@@ -32,9 +32,10 @@ const (
 
 // DynamicConfig holds the router and admin addresses for the pool.
 type DynamicConfig struct {
-	Router         *address.Address `tlb:"addr"`
-	RateLimitAdmin *address.Address `tlb:"addr"`
-	FeeAdmin       *address.Address `tlb:"addr"`
+	Router                   *address.Address         `tlb:"addr"`
+	RateLimitAdmin           *address.Address         `tlb:"addr"`
+	FeeAdmin                 *address.Address         `tlb:"addr"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, bool] `tlb:"."`
 }
 
 // MirroredPolicy holds on/off ramp addresses and cursed subjects.
@@ -215,6 +216,7 @@ type AdminConfig struct {
 	DynamicConfig         DynamicConfig        `tlb:"^"`
 	AllowedFinalityConfig uint32               `tlb:"## 32"`
 	AdvancedPoolHooks     *address.Address     `tlb:"addr"`
+	DeployableCode        *cell.Cell           `tlb:"maybe ^"`
 }
 
 // Storage represents the TokenPool contract storage.
@@ -274,6 +276,20 @@ type SetAdvancedPoolHooks struct {
 	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
+}
+
+// SetDeployableCode sets the Compiled Deployable code used to derive source-chain deposit accounts.
+type SetDeployableCode struct {
+	_              tlb.Magic  `tlb:"#6c2a91e4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64     `tlb:"## 64"`
+	DeployableCode *cell.Cell `tlb:"maybe ^"`
+}
+
+// SetAllowedDepositNamespaces sets the Deployables namespaces the pool accepts as deposit sources.
+type SetAllowedDepositNamespaces struct {
+	_                        tlb.Magic                `tlb:"#1f8e33c2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                  uint64                   `tlb:"## 64"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, bool] `tlb:"."`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
@@ -479,6 +495,19 @@ type AdvancedPoolHooksSet struct {
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
 
+// DeployableCodeSet confirms the deployable code was set.
+type DeployableCodeSet struct {
+	_              tlb.Magic  `tlb:"#09d4a7b1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64     `tlb:"## 64"`
+	DeployableCode *cell.Cell `tlb:"maybe ^"`
+}
+
+// AllowedDepositNamespacesSet confirms the allowed deposit namespaces were set.
+type AllowedDepositNamespacesSet struct {
+	_       tlb.Magic `tlb:"#7a53c9f4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+}
+
 // --- Events ---
 
 // LockedOrBurnedDetails holds details of a locked/burned event.
@@ -606,6 +635,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetDynamicConfig{},
 	SetAllowedFinalityConfig{},
 	SetAdvancedPoolHooks{},
+	SetDeployableCode{},
+	SetAllowedDepositNamespaces{},
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
 	UpdateRampAccess{},
@@ -631,6 +662,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	RMNProxySet{},
 	CursedSubjectsSet{},
 	AdvancedPoolHooksSet{},
+	DeployableCodeSet{},
+	AllowedDepositNamespacesSet{},
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
 	PreflightCheck{},
 	PostflightCheck{},

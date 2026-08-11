@@ -71,6 +71,11 @@ fun onInternalMessage(in: InMessage) {
 fun onInit(mutate data: OffRampAccount_Data, sender: address, msg: OffRampAccount_Init) {
     assert(sender == data.notificationTarget, OffRampAccount_Error.OnlyPool);
 
+    // TODO: reenable this
+    // // We reserve some GRAM coins on the balance for rent
+    // val reserveMode = RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
+    // reserveToncoinsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
+
     data.allowedJettonWallet = msg.allowedJettonWallet;
 
     // Send Reply to the pool so it knows the account is ready.

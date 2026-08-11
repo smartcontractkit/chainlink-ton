@@ -154,6 +154,7 @@ describe('LockReleaseLockboxTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
+                allowedDepositNamespaces: new Map(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: jettonMinter.address,

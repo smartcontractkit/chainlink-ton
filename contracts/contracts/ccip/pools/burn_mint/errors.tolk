@@ -8,4 +8,5 @@ enum BurnMintTokenPool_Error {
     UnexpectedMintBounce
     InvalidOffRampAccountReply
     InvalidOffRampAccountNotification
+    OffRampAccountDeployFailed
 }

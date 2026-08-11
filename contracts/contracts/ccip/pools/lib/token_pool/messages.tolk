@@ -41,6 +41,32 @@ struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
     advancedPoolHooks: address?;
 }
 
+/// Sets the compiled Deployable code used to derive source-chain deposit accounts.
+/// @dev Owner-only (admin config). See `TokenPool_AdminConfig.deployableCode`.
+struct (0x6c2a91e4) TokenPool_SetDeployableCode {
+    queryId: uint64;
+    deployableCode: cell?;
+}
+
+/// Replied on `TokenPool_SetDeployableCode` to confirm tx and return excess to sender.
+struct (0x09d4a7b1) TokenPool_DeployableCodeSet {
+    queryId: uint64;
+    deployableCode: cell?;
+}
+
+/// Sets the Deployables namespaces whose deposit-account contracts the pool will accept.
+/// @dev Owner-only (dynamic config). Each entry must be a namespace for which
+///      `TokenPool_AdminConfig.deployableCode` is registered. Replaces any previous set.
+struct (0x1f8e33c2) TokenPool_SetAllowedDepositNamespaces {
+    queryId: uint64;
+    allowedDepositNamespaces: map<uint32, bool>;
+}
+
+/// Replied on `TokenPool_SetAllowedDepositNamespaces` to confirm tx and return excess to sender.
+struct (0x7a53c9f4) TokenPool_AllowedDepositNamespacesSet {
+    queryId: uint64;
+}
+
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
     queryId: uint64;
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>;
@@ -162,6 +188,8 @@ type TokenPool_InMessage =
     | TokenPool_SetDynamicConfig
     | TokenPool_SetAllowedFinalityConfig
     | TokenPool_SetAdvancedPoolHooks
+    | TokenPool_SetDeployableCode
+    | TokenPool_SetAllowedDepositNamespaces
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
@@ -271,6 +299,8 @@ type TokenPool_OutMessage =
     | TokenPool_RemotePoolRemovedNotification
     | TokenPool_FinalityConfigSet
     | TokenPool_DynamicConfigSet
+    | TokenPool_DeployableCodeSet
+    | TokenPool_AllowedDepositNamespacesSet
     | TokenPool_RateLimitConfiguredNotification
     | TokenPool_CursedSubjectsSet
     | TokenPool_AdvancedPoolHooksSet

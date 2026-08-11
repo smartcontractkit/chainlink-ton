@@ -21,4 +21,6 @@ struct LockReleaseTokenPool_InitConfig {
     tokenDecimals: uint8;
     router: address;
     rmnProxy: address;
+    /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
+    deployableCode: cell? = null;
 }

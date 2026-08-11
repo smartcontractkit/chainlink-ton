@@ -99,8 +99,8 @@ fun deployOffRampAccountWithRelease(
     );
 
     val deploy = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: LockReleaseLockboxTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
+        bounce: BounceMode.RichBounce,
+        value: 0,
         dest: oaa,
         body: OffRampAccount_Init {
             queryId,
@@ -108,7 +108,7 @@ fun deployOffRampAccountWithRelease(
             forwardPayload: context.toCell(),
         },
     });
-    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Handles OffRampAccount_Reply after OAA deployment for release.
@@ -176,7 +176,31 @@ fun onBouncedMessage(in: InMessageBounced) {
             onLockTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
+        // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
+        // reply with a failure so the sender can retry instead of the release silently stalling.
+        OffRampAccount_Init => {
+            var st = Storage.load();
+            onOffRampAccountInitBounced(mutate st, in.senderAddress, msg);
+            st.store();
+        }
     }
+}
+
+/// @notice Handles a bounced `OffRampAccount_Init`: refunds the inbound rate limit and sends a
+/// release failure reply. The init carries the release context in `forwardPayload`.
+fun onOffRampAccountInitBounced(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_Init,
+) {
+    assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
+    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
+    val operation = context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16);
 }
 
 /* === Lock (deposit) flow === */

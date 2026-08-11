@@ -7,7 +7,6 @@ const BurnMintTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
 const BurnMintTokenPool_BURN_VALUE = ton("0.05");
 const BurnMintTokenPool_MINT_VALUE = ton("0.1");
-const BurnMintTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE = ton("0.1");
 
 /// Context carried by the CCT burn path (burn only). Stores the pool's own jetton
 /// wallet address (the burn source) and the full forward payload for finalization.
@@ -32,4 +31,6 @@ struct BurnMintTokenPool_InitConfig {
     tokenDecimals: uint8;
     router: address;
     rmnProxy: address;
+    /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
+    deployableCode: cell? = null;
 }

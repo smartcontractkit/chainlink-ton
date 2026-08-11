@@ -7,4 +7,5 @@ enum Error {
     UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100
     InvalidOffRampAccountReply
     InvalidOffRampAccountNotification
+    OffRampAccountDeployFailed
 }

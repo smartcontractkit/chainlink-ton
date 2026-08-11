@@ -143,6 +143,7 @@ describe('LockReleaseTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
+                allowedDepositNamespaces: new Map(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: jettonMinter.address,
@@ -533,8 +534,25 @@ describe('LockReleaseTokenPool', () => {
   })
 
   it('locks tokens through a jetton transfer notification and credits the pool wallet', async () => {
-    const onRampWallet = await userWallet(jettonSender.address)
+    // The deposit is initiated by the Router (deployer), not a bare JettonSender, so that
+    // `msg.transferInitiator == router` and the pool's strict deposit auth accepts custody.
+    const routerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(lockReleasePool.address)
+
+    // Mint jettons to the router (deployer) so its wallet can fund the deposit.
+    await jettonMinter.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      message: {
+        queryId: 0n,
+        destination: deployer.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('10'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: 0n,
+      },
+    })
+
     const lockOrBurn = TokenPool_LockOrBurn.create({
       queryId: 11n,
       request: TokenPool_LockOrBurnInV1.create({
@@ -566,21 +584,22 @@ describe('LockReleaseTokenPool', () => {
       }),
     })
 
-    const result = await jettonSender.sendJettonsExtended(deployer.getSender(), {
+    const result = await routerWallet.sendTransfer(deployer.getSender(), {
       value: toNano('2'),
       message: {
-        queryId: 11n,
-        amount: toNano('3'),
+        queryId: 11,
+        jettonAmount: toNano('3'),
         destination: lockReleasePool.address,
+        responseDestination: deployer.address,
         customPayload: beginCell().storeBit(1).endCell(),
-        forwardTonAmount: toNano('0.2'),
+        forwardTonAmount: toNano('0.5'),
         forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
       },
     })
 
     expect(result.transactions).toHaveTransaction({
-      from: jettonSender.address,
-      to: onRampWallet.address,
+      from: poolWallet.address,
+      to: lockReleasePool.address,
       success: true,
     })
 

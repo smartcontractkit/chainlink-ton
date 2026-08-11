@@ -3,8 +3,8 @@
 const OffRampAccount_CONTRACT_NAME = "link.chain.ton.ccip.OffRampAccount".literalSlice();
 const OffRampAccount_CONTRACT_VERSION = "0.1.0".literalSlice();
 
-/// Minimal deployment + activation value for the OffRampAccount.
-const OffRampAccount_DEPLOY_VALUE = ton("0.1");
+/// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
+const MIN_GRAM_TO_RESERVE: int = ton("0.05");
 
 /// Runtime data stored by each OffRampAccount instance.
 /// A dumb forwarder: receives jetton notifications, forwards them to the pool with full message metadata.

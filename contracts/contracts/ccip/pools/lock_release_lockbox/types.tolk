@@ -7,9 +7,6 @@ import "../../accounts/off_ramp_account/types"
 
 const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool".literalSlice();
 const LockReleaseLockboxTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
-
-const LockReleaseLockboxTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE = ton("0.1");
-
 /// @notice Context passed for lock (deposit) operations.
 /// Carries the full forward payload for post-lock finalization.
 struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
@@ -30,4 +27,6 @@ struct LockReleaseLockboxTokenPool_InitConfig {
     router: address;
     rmnProxy: address;
     lockbox: address;
+    /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
+    deployableCode: cell? = null;
 }

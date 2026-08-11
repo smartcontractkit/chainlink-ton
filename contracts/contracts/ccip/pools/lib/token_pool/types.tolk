@@ -23,6 +23,14 @@ struct TokenPool_DynamicConfig {
     router: address;
     rateLimitAdmin: address? = null;
     feeAdmin: address?; // TODO this is not being used?
+    /// Allowed Deployables namespaces for source-chain deposit accounts. When a
+    /// `TransferNotificationForRecipient` is not authorised directly by the Router's own jetton
+    /// wallet, the pool authenticates it as coming from a Deployables-derived per-user account
+    /// (e.g. an OnRampAccount) whose namespace is present here.
+    /// @dev This field is part of dynamic config so it can be updated without redeploying the
+    ///      pool. Only namespaces whose deployable code is registered (see `TokenPool_AdminConfig`)
+    ///      are meaningful.
+    allowedDepositNamespaces: map<uint32, bool> = [];
 }
 
 struct TokenPool_MirroredPolicy {

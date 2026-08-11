@@ -42,6 +42,7 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
+                deployableCode: config.deployableCode,
             }.toCell(),
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),

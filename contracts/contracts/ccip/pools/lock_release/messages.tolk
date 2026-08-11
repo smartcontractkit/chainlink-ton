@@ -11,4 +11,5 @@ type LockReleaseTokenPool_OutMessage =
     | AskToTransfer;
 
 type LockReleaseTokenPool_BouncedMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | OffRampAccount_Init;

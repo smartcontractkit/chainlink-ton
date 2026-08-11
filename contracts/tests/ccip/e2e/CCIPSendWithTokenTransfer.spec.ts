@@ -126,6 +126,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 router: router.address,
                 rateLimitAdmin: deployer.address,
                 feeAdmin: deployer.address,
+                allowedDepositNamespaces: new Map(),
               }),
               jettonClient: tp.JettonClient.create({
                 masterAddress: minter.address,

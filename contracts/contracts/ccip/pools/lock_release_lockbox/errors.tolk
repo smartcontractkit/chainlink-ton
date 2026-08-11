@@ -10,4 +10,5 @@ enum LockReleaseLockBoxTokenPool_Error {
     UnexpectedLockBounce
     InvalidOffRampAccountReply
     InvalidOffRampAccountNotification
+    OffRampAccountDeployFailed
 }

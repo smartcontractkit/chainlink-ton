@@ -132,7 +132,30 @@ fun onBouncedMessage(in: InMessageBounced) {
             pool.sendReleaseOrMintFailure(operation, BurnMintTokenPool_Error.UnexpectedMintBounce as uint16);
             st.store();
         }
+        // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
+        // reply with a failure so the sender can retry instead of the mint silently stalling.
+        OffRampAccount_Init => {
+            onOffRampAccountInitBounced(mutate st, in.senderAddress, msg);
+            st.store();
+        }
     }
+}
+
+/// @notice Handles a bounced `OffRampAccount_Init`: refunds the inbound rate limit and sends a
+/// mint failure reply. The init carries the mint context in `forwardPayload`.
+fun onOffRampAccountInitBounced(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_Init,
+) {
+    assert(msg.forwardPayload != null, BurnMintTokenPool_Error.OffRampAccountDeployFailed);
+    val context = BurnMintTokenPool_MintContext.fromCell(msg.forwardPayload!);
+    val operation = context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, BurnMintTokenPool_Error.OffRampAccountDeployFailed as uint16);
 }
 
 /// @notice Handles TransferNotificationForRecipient on the burn path.
@@ -219,17 +242,17 @@ fun onCCTReturnExcessesBack(
         return;
     }
 
+    var pool: TokenPool<Storage> = loadPool(st);
     // The only source that carries a burn continuation is the CCT JettonMinter for this token.
-    assert(sender == st.poolData.load().jettonClient().masterAddress, TokenPool_Error.Unauthorized);
+    assert(sender == pool.data.jettonClient().masterAddress, TokenPool_Error.Unauthorized);
     // The minter sets `initiator` to the burnInitiator, which is the pool's own wallet owner (pool).
     assert(msg.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
 
     val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
     val operation = context.forwardPayload.load();
     // TODO: is this check necessary?
-    assert(context.wallet == st.poolData.load().jettonClient().walletAddress(), BurnMintTokenPool_Error.UnexpectedBurnBounce);
+    assert(context.wallet == pool.data.jettonClient().walletAddress(), BurnMintTokenPool_Error.UnexpectedBurnBounce);
 
-    var pool = loadPool(st);
     pool.onLockOrBurnTransferFinalize(operation);
     st.poolData = pool.data.toCell();
 }
@@ -258,8 +281,8 @@ fun deployOffRampAccountWithMint(
     );
 
     val deploy = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: BurnMintTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
+        bounce: BounceMode.RichBounce,
+        value: 0,
         dest: oaa,
         body: OffRampAccount_Init {
             queryId,
@@ -267,7 +290,7 @@ fun deployOffRampAccountWithMint(
             forwardPayload: context.toCell(),
         },
     });
-    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @notice Handles OffRampAccount_Reply after OAA deployment for mint.

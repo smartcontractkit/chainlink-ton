@@ -2,7 +2,6 @@
 import "../../../lib/jetton/messages"
 import "../../cct/messages"
 import "../../accounts/off_ramp_account/messages"
-import "types"
 
 struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;
@@ -21,4 +20,5 @@ type BurnMintTokenPool_OutMessage =
 
 type BurnMintTokenPool_BouncedMessage =
     | CCT_AskToBurn
-    | MintNewJettons;
+    | MintNewJettons
+    | OffRampAccount_Init;

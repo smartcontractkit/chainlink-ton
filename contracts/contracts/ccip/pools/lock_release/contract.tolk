@@ -156,7 +156,30 @@ fun onBouncedMessage(in: InMessageBounced) {
             onReleaseTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
+        // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
+        // reply with a failure so the sender can retry instead of the release silently stalling.
+        OffRampAccount_Init => {
+            onOffRampAccountInitBounced(mutate st, in.senderAddress, msg);
+            st.store();
+        }
     }
+}
+
+/// @notice Handles a bounced `OffRampAccount_Init`: refunds the inbound rate limit and sends a
+/// release failure reply. The init carries the release context in `forwardPayload`.
+fun onOffRampAccountInitBounced(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_Init,
+) {
+    assert(msg.forwardPayload != null, Error.UnexpectedReleaseBounce);
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
+    val operation = context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, Error.OffRampAccountDeployFailed as uint16);
 }
 
 fun onReleaseOrMintContinue(
