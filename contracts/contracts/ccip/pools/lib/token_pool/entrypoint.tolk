@@ -799,7 +799,7 @@ fun TokenPool<T>.sendLockOrBurnFailure(
                 errorCode,
             },
         });
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 
@@ -837,7 +837,7 @@ fun TokenPool<T>.sendReleaseOrMintFinished(
                 out: prepared.out.toCell(),
             },
         });
-        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        notify.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 
@@ -863,7 +863,7 @@ fun TokenPool<T>.sendReleaseOrMintFailure(
                 errorCode,
             },
         });
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
 }
 

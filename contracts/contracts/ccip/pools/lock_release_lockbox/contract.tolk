@@ -123,7 +123,7 @@ fun onOffRampAccountReply(
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
     val contextCell = msg.forwardPayload!;
     val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val requestIn = lazy operation.requestMsg.load().request.load();
     val details = lazy requestIn.transfer.details.load();
@@ -195,7 +195,7 @@ fun onOffRampAccountInitBounced(
 ) {
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
     val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -291,7 +291,7 @@ fun onLockTransferBounced(
     assert(st.poolData.load().jettonClient().isWallet(sender)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     assert(msg.customPayload != null) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload!);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.returnTransferLocked(operation);
@@ -382,8 +382,8 @@ fun onOffRampAccountForwardNotification(
     val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
     assert(contextCell != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
-    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
 
     // Validate sender: derive expected OAA address and verify.
     val releaseRecipient = getReleaseRecipientFromContext(contextCell);
@@ -406,7 +406,7 @@ fun onOffRampAccountForwardNotification(
 /// Extracts the recipient address from a release context cell.
 fun getReleaseRecipientFromContext(contextCell: cell): address {
     val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     val requestMsg = lazy operation.requestMsg.load();
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();

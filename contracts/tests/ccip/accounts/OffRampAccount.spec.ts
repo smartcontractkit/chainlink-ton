@@ -22,7 +22,11 @@ describe('OffRampAccount', () => {
   const owner = () => recipient.address
   const notificationTarget = () => pool.address
 
-  const init = async (via: SandboxContract<TreasuryContract>, queryId = 1n, forwardPayload: Cell | null = null) => {
+  const init = async (
+    via: SandboxContract<TreasuryContract>,
+    queryId = 1n,
+    forwardPayload: Cell | null = null,
+  ) => {
     return account.sendOffRampAccountInit(via.getSender(), toNano('0.5'), {
       queryId,
       allowedJettonWallet: allowedWallet.address,
@@ -83,7 +87,11 @@ describe('OffRampAccount', () => {
 
   it('initializes only when the sender is the notification target (pool) and replies', async () => {
     const res = await init(pool)
-    expect(res.transactions).toHaveTransaction({ from: pool.address, to: account.address, success: true })
+    expect(res.transactions).toHaveTransaction({
+      from: pool.address,
+      to: account.address,
+      success: true,
+    })
 
     // allowedJettonWallet is now set.
     expect((await account.getAllowedJettonWallet())?.equals(allowedWallet.address)).toBe(true)
@@ -179,11 +187,15 @@ describe('OffRampAccount', () => {
     const walletAddress = attacker.address // a stand-in wallet address for the AskToTransfer target
 
     // Owner can withdraw.
-    const ownerRes = await account.sendOffRampAccountWithdraw(recipient.getSender(), toNano('0.5'), {
-      queryId: 5n,
-      walletAddress,
-      ask: buildAskToTransfer(toNano('4'), to),
-    })
+    const ownerRes = await account.sendOffRampAccountWithdraw(
+      recipient.getSender(),
+      toNano('0.5'),
+      {
+        queryId: 5n,
+        walletAddress,
+        ask: buildAskToTransfer(toNano('4'), to),
+      },
+    )
     expect(ownerRes.transactions).toHaveTransaction({
       from: account.address,
       to: walletAddress,

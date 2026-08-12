@@ -83,7 +83,7 @@ fun sendBurnMessage(
     queryId: uint64,
     context: BurnMintTokenPool_BurnContext,
 ) {
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val burnMsg = createMessage({
         bounce: BounceMode.RichBounce,
@@ -111,12 +111,12 @@ fun onBouncedMessage(in: InMessageBounced) {
             val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.customPayload!);
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
 
-            val operation = context.forwardPayload.load();
+            val operation = lazy context.forwardPayload.load();
             // The burn never happened, so custody is still in the pool's own wallet. Return the
             // jettons to the original sender (best-effort) so they aren't permanently locked here,
             // then refund the rate limit and notify the requester of the failure.
             var pool = loadPool(st);
-            pool.returnTransferLocked(st, operation);
+            pool.returnTransferLocked(operation);
             pool.refundLockOrBurnRateLimit(operation);
             st.poolData = pool.data.toCell();
             pool.sendLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16);
@@ -129,7 +129,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             assert(contextCell != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
             val context = lazy BurnMintTokenPool_MintContext.fromCell(contextCell!);
 
-            val operation = context.forwardPayload.load();
+            val operation = lazy context.forwardPayload.load();
             var pool = loadPool(st);
             pool.refundReleaseOrMintRateLimit(operation);
             st.poolData = pool.data.toCell();
@@ -154,7 +154,7 @@ fun onOffRampAccountInitBounced(
 ) {
     assert(msg.forwardPayload != null, BurnMintTokenPool_Error.OffRampAccountDeployFailed);
     val context = BurnMintTokenPool_MintContext.fromCell(msg.forwardPayload!);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -253,7 +253,7 @@ fun onCCTReturnExcessesBack(
     assert(msg.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
 
     val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     // TODO: is this check necessary?
     assert(context.wallet == pool.data.jettonClient().walletAddress(), BurnMintTokenPool_Error.UnexpectedBurnBounce);
 
@@ -308,7 +308,7 @@ fun onOffRampAccountReply(
     assert(msg.forwardPayload != null, BurnMintTokenPool_Error.InvalidOffRampAccountReply);
     val contextCell = msg.forwardPayload!;
     val context = BurnMintTokenPool_MintContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
 
     // Validate sender: derive expected OAA address from the mint recipient and verify.

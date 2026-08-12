@@ -112,7 +112,7 @@ fun onOffRampAccountReply(
     assert(msg.forwardPayload != null, Error.InvalidOffRampAccountReply);
     val contextCell = msg.forwardPayload!;
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val requestIn = lazy operation.requestMsg.load().request.load();
     val details = lazy requestIn.transfer.details.load();
@@ -174,7 +174,7 @@ fun onOffRampAccountInitBounced(
 ) {
     assert(msg.forwardPayload != null, Error.UnexpectedReleaseBounce);
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -226,7 +226,7 @@ fun onReleaseTransferBounced(
     assert(contextCell != null) throw Error.UnexpectedReleaseBounce;
 
     val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell!);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -251,8 +251,8 @@ fun onOffRampAccountForwardNotification(
     val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
     assert(contextCell != null, Error.InvalidOffRampAccountNotification);
 
-    val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
 
     // Validate sender: derive expected OAA address and verify.
     val mintRecipient = getReleaseRecipientFromContext(contextCell);
@@ -276,7 +276,7 @@ fun onOffRampAccountForwardNotification(
 /// @notice Extracts the recipient address from a release context cell.
 fun getReleaseRecipientFromContext(contextCell: cell): address {
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = context.forwardPayload.load();
+    val operation = lazy context.forwardPayload.load();
     val requestMsg = lazy operation.requestMsg.load();
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();

@@ -6,10 +6,7 @@ import {
   AskToTransfer,
   ForwardPayloadRemainder,
 } from '../../../wrappers/gen/ccip/OnRampAccount'
-import {
-  JettonMinter,
-  JettonWallet,
-} from '../../../wrappers/examples/jetton'
+import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import { JettonClient } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 
@@ -40,7 +37,9 @@ describe('OnRampAccount', () => {
 
   // Open the jetton wallet owned by the given address.
   const walletOf = async (address: Address) =>
-    blockchain.openContract(JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)))
+    blockchain.openContract(
+      JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
+    )
 
   // Mint tokens to a user's own wallet so they can send them.
   const mintTo = async (address: Address, amount: bigint) => {
@@ -143,7 +142,11 @@ describe('OnRampAccount', () => {
 
   it('initializes only when sender is owner or beneficiary and derives its wallet', async () => {
     const res = await initAccount(user)
-    expect(res.transactions).toHaveTransaction({ from: user.address, to: account.address, success: true })
+    expect(res.transactions).toHaveTransaction({
+      from: user.address,
+      to: account.address,
+      success: true,
+    })
 
     const expected = await jettonMinter.getWalletAddress(account.address)
     expect((await account.getJettonWallet())?.equals(expected)).toBe(true)
@@ -195,12 +198,16 @@ describe('OnRampAccount', () => {
 
     // Notify with a transferInitiator that is NOT the account's own wallet. The account only
     // accepts notifications arriving from its own wallet (`onDepositNotification` re-checks).
-    const res = await account.sendTransferNotificationForRecipient(user.getSender(), toNano('0.5'), {
-      queryId: 5n,
-      jettonAmount: toNano('1'),
-      transferInitiator: user.address,
-      forwardPayload: beginCell().storeRef(ccipSendCell()).endCell().beginParse(),
-    })
+    const res = await account.sendTransferNotificationForRecipient(
+      user.getSender(),
+      toNano('0.5'),
+      {
+        queryId: 5n,
+        jettonAmount: toNano('1'),
+        transferInitiator: user.address,
+        forwardPayload: beginCell().storeRef(ccipSendCell()).endCell().beginParse(),
+      },
+    )
     expect(res.transactions).toHaveTransaction({ to: account.address, success: false })
   })
 
