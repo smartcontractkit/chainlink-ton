@@ -713,10 +713,24 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    val effectiveGasLimit = gasOverride.getEffectiveGasLimit(message.gasLimit);
-    // TODO TTGasOverride
-    // val effectiveTokenTransferGasLimit = ...
-    assert(value >= (OffRamp_Costs.execute() + effectiveGasLimit), OffRamp_Error.InsufficientFee);
+    // totalGas accounts for the gas used to execute the message and the gas used to transfer tokens (if any)
+    var totalGas = gasOverride.getEffectiveGasLimit(message.gasLimit);
+    if (message.tokenAmounts != null) {
+        try {
+            totalGas += gasOverride.getEffectiveTotalDestGasAmount(message.tokenAmounts);
+        } catch {
+            // If message.tokenAmounts.length != 1 or gasOverride.tokenGasOverrides is not null and doesn't match the
+            // length of message.tokenAmounts, `gasOverride.getEffectiveTotalDestGasAmount` will throw an error.
+            // This is because:
+            // 1. we don't support multiple token transfers in a single message
+            // 2. if gasOverride.tokenGasOverrides is not null, it must match the length of message.tokenAmounts
+            // In both cases, we want the message to be marked as failed, instead of throwing here.
+            // Both points are checked in `onExecuteValidated`
+            // - Point (1) when calling `getTokenAdminRegistry`
+            // - Point (2) when calling `GasOverride?.validateTokenGasOverrides`
+        }
+    }
+    assert(value >= (OffRamp_Costs.execute() + totalGas /* TBD + ReleaseOrMint.cost()? */), OffRamp_Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);
@@ -859,6 +873,13 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         return messageExecutionFailed(initExecuteMsg);
     }
 
+    // Validate that if a gasOverride is provided, it must match the number of tokens in the message.
+    try {
+        msg.gasOverride.validateTokenGasOverrides(initExecuteMsg.tokenAdminRegistry != null)
+    } catch {
+        return messageExecutionFailed(initExecuteMsg);
+    }
+
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
@@ -895,7 +916,7 @@ fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTran
     if (tokenAmounts == null) {
         return null;
     }
-    val tokenTransfer = tokenAmounts.getTokenTransfer(OffRamp_Error.UnsupportedNumberOfTokens);
+    val tokenTransfer = tokenAmounts.unwrapSingle(OffRamp_Error.UnsupportedNumberOfTokens);
     
     // TODO probably the tokenRegistryMaster
     val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(soureChainSelector).router;

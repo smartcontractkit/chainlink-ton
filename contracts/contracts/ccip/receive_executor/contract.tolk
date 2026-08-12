@@ -105,10 +105,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => {
-                    val rampMsg = lazy st.message.load();
-                    assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
-                    val token = rampMsg.tokenAmounts.getTokenTransfer(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
-                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool, rampMsg,token);
+                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool);
                 }
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
@@ -138,24 +135,30 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
 }
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
-    val rampMsg = lazy st.message.load();
-    assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
-    val token = rampMsg.tokenAmounts.getTokenTransfer(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
     if (msg.tokenPool == null) {
+        val rampMsg = lazy st.message.load();
         ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
         st.state.tokenTransfer = ttInfo.toCell();
         return endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
     }
-    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, rampMsg, token!);
+    releaseOrMint(mutate st, ttInfo, msg.tokenPool!);
 }
 
-fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, rampMsg: Any2TVMRampMessage, tokenAmount: Any2TVMTokenTransfer) {
+fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint { tokenPool };
     st.state.tokenTransfer = ttInfo.toCell();
-    val releseOrMint = createMessage(
+    val rampMsg = lazy st.message.load();
+    assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
+    val tokenTransfer = rampMsg.tokenAmounts.unwrapSingle(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
+    var effectiveDestGasAmount = tokenTransfer.destGasAmount;
+    if (st.state.gasOverride != null && st.state.gasOverride.tokenGasOverrides != null) {
+        // SAFETY: The OffRamp validates that the length of tokenGasOverrides is be the same as the number of token transfers in the message, so unwrapping the single value is safe and will not throw.
+        effectiveDestGasAmount = max(st.state.gasOverride.tokenGasOverrides.unwrapSingle(ReceiveExecutor_Error.ManualExecutionGasAmountCountMismatch), effectiveDestGasAmount);
+    }
+    val releaseOrMint = createMessage(
         {
             bounce: true,
-            value: 0, // TBD should we be using tokenAmoun.destGasAmount instead? It's not clear what this field is for in TON, and it was removed in CCIP 2.0
+            value: effectiveDestGasAmount,
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
                 queryId: 0,
@@ -169,27 +172,23 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
                             receiver: rampMsg.receiver,
                             remoteChainSelector: rampMsg.header.sourceChainSelector,
                             originalSender: rampMsg.sender,
-                            amount: tokenAmount.amount,
-                            localToken: tokenAmount.token,
+                            amount: tokenTransfer.amount,
+                            localToken: tokenTransfer.token,
                         }.toCell(),
                     },
-                    sourcePoolAddress: tokenAmount.sourcePoolAddress,
-                    sourcePoolData: tokenAmount.extraData,
+                    sourcePoolAddress: tokenTransfer.sourcePoolAddress,
+                    sourcePoolData: tokenTransfer.extraData,
                     offchainTokenData: null, // TBD Any2TVMTokenTransfer doesn't have this.
                 }.toCell(),
             }
         }
     );
-    releseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    releaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun execute(mutate st: ReceiveExecutor_Storage) {
     st.lastExecutionTimestamp = blockchain.now();
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
-    // var receiverExecutionGasLimit: coins? = null;
-    // if (st.state.gasOverride != null) {
-    //     receiverExecutionGasLimit = st.state.gasOverride.receiverExecutionGasLimit;
-    // }
 
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit

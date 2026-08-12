@@ -12,4 +12,5 @@ enum ReceiveExecutor_Error {
     TokenAdminRegistryUnexpectedResponse
     TokenPoolUnexpectedResponse
     TokenNotEnabledInTokenRegistry
+    ManualExecutionGasAmountCountMismatch
 }

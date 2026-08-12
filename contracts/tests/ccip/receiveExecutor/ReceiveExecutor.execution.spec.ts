@@ -126,7 +126,10 @@ describe('ReceiveExecutor - Execution', () => {
       {
         ...defaultInitExecute,
         root: deployer.address,
-        gasOverride: of.GasOverride.create({ receiverExecutionGasLimit: toNano('0.01') }),
+        gasOverride: of.GasOverride.create({
+          receiverExecutionGasLimit: toNano('0.01'),
+          tokenGasOverrides: [],
+        }),
       },
     )
     expect(result.transactions).toHaveTransaction({

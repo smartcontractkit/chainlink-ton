@@ -2,6 +2,7 @@
 import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
+import "errors"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
 const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
@@ -17,7 +18,7 @@ struct ExecutionReport {
 
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;
-    // TODO TTGasOverride: tokenGasOverrides: array<coins>?;
+    tokenGasOverrides: SnakedCell<coins>? = null
 }
 
 // getEffectiveGasLimit returns the total gas amount to use for message execution
@@ -40,7 +41,37 @@ fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
     return gasLimit;
 }
 
+// getEffectiveTotalDestGasAmount returns the total gas amount to use for token transfers
+//
+// @note: We currently only support a single token transfer, but the interface is set up to possibly support multiple in the future.
+//
+// If the gasOverride is null, it returns the sum of destGasAmount from all token transfers in the message.
+// If the gasOverride is not null, it returns the sum of max(destGasAmount, tokenGasOverride) for each
+// token transfer in the message.
+fun GasOverride?.getEffectiveTotalDestGasAmount(self, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>): coins {
+    val tokenTransfer = tokenAmounts.unwrapSingle(OffRamp_Error.UnsupportedNumberOfTokens); // assert that there is only one token transfer
+    if (self == null || self.tokenGasOverrides == null) {
+        return tokenTransfer.destGasAmount;
+    }
+    val tokenGasOverride = self.tokenGasOverrides.unwrapSingle(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+    return max(tokenTransfer.destGasAmount, tokenGasOverride);
+}
 
+// Validate that if a gasOverride is provided, it must match the number of tokens in the message.
+// The logic is simplified since we only support a single token transfer in a message.
+fun GasOverride?.validateTokenGasOverrides(self, hasTokenTransfer: bool) {
+    if (self == null || self.tokenGasOverrides == null) {
+        return;
+    }
+    var it = self.tokenGasOverrides.iter();
+    if (!hasTokenTransfer) {
+        assert (it.empty()) throw OffRamp_Error.ManualExecutionGasAmountCountMismatch;
+        return;
+    }
+    assert (!it.empty()) throw OffRamp_Error.ManualExecutionGasAmountCountMismatch;
+    it.next();
+    assert (it.empty()) throw OffRamp_Error.ManualExecutionGasAmountCountMismatch;
+}
 
 // Matches the EVM struct
 struct CommitReport {
@@ -93,8 +124,8 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
-// Helper to extract the single token transfer from the message, and assert that there is only one token transfer
-fun SnakedCell<Any2TVMTokenTransfer>.getTokenTransfer(self, error: int): Any2TVMTokenTransfer {
+// Helper to extract the single item from a SnakedCell, and assert that there is only one
+fun SnakedCell<T>.unwrapSingle(self, error: int): T {
     var it = self.iter();
     assert (!it.empty(), error);
     val token = it.next();
@@ -148,7 +179,7 @@ struct MerkleRoot {
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
     token: address;
-    destGasAmount: uint32; // TBD: This field was removed in CCIP 2.0 and it's purpose/utility in TON is unclear.
+    destGasAmount: coins;
     // Data from the source pool to be passed to the destination pool.
     extraData: cell?;
     // amount of transfered tokens in source chain decimals

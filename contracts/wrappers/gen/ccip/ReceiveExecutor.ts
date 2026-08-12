@@ -156,20 +156,24 @@ type uint256 = bigint
 /**
  > struct GasOverride {
  >     receiverExecutionGasLimit: coins?
+ >     tokenGasOverrides: SnakedCell<coins>?
  > }
  */
 export interface GasOverride {
     readonly $: 'GasOverride'
     receiverExecutionGasLimit: coins | null /* = null */
+    tokenGasOverrides: SnakedCell<coins> | null /* = null */
 }
 
 export const GasOverride = {
     create(args: {
         receiverExecutionGasLimit?: coins | null /* = null */
+        tokenGasOverrides?: SnakedCell<coins> | null /* = null */
     }): GasOverride {
         return {
             $: 'GasOverride',
             receiverExecutionGasLimit: null,
+            tokenGasOverrides: null,
             ...args
         }
     },
@@ -177,12 +181,14 @@ export const GasOverride = {
         return {
             $: 'GasOverride',
             receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
+            tokenGasOverrides: s.loadBoolean() ? loadSnakedCellOf(s, (s) => s.loadCoins()) : null,
         }
     },
     store(self: GasOverride, b: c.Builder): void {
         storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
             (v,b) => b.storeCoins(v)
         );
+        storeTolkNullable<SnakedCell<coins>>(self.tokenGasOverrides, b, (v,b) => storeSnakedCellOf(v, b, (v, b) => b.storeCoins(v)));
     },
     toCell(self: GasOverride): c.Cell {
         return makeCellFrom<GasOverride>(self, GasOverride.store);
@@ -251,7 +257,7 @@ export const Any2TVMRampMessage = {
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
  >     token: address
- >     destGasAmount: uint32
+ >     destGasAmount: coins
  >     extraData: cell?
  >     amount: uint256
  > }
@@ -260,7 +266,7 @@ export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
     sourcePoolAddress: CrossChainAddress
     token: c.Address
-    destGasAmount: uint32
+    destGasAmount: coins
     extraData: c.Cell | null
     amount: uint256
 }
@@ -269,7 +275,7 @@ export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
         token: c.Address
-        destGasAmount: uint32
+        destGasAmount: coins
         extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
@@ -283,7 +289,7 @@ export const Any2TVMTokenTransfer = {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             token: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
+            destGasAmount: s.loadCoins(),
             extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
@@ -291,7 +297,7 @@ export const Any2TVMTokenTransfer = {
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
         b.storeAddress(self.token);
-        b.storeUint(self.destGasAmount, 32);
+        b.storeCoins(self.destGasAmount);
         storeTolkNullable<c.Cell>(self.extraData, b,
             (v,b) => b.storeRef(v)
         );
@@ -923,7 +929,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 10 variants }
+ > enum ReceiveExecutor_Error { 11 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -938,6 +944,7 @@ export const ReceiveExecutor_Error = {
     TokenAdminRegistryUnexpectedResponse: 37607n,
     TokenPoolUnexpectedResponse: 37608n,
     TokenNotEnabledInTokenRegistry: 37609n,
+    ManualExecutionGasAmountCountMismatch: 37610n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -1666,7 +1673,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECKwEACWUAART/APSkE/S88sgLAQIBYgIDAgLNBAUCAUgnKAIBIAYHAgEgICECASAICQIBIBobBE8+JHyQCDXLCMmaX6U4wLXLCAHLuy84wLXLCbuZu2s4wLXLCcHRBesgCgsMDQAxAHDAJUhbrPDAJFw4pRcvsMAkXDikTDgMYAP8Me1E0PpI1PpI07/0BNMB0wABndMAAZL6AJJtAeKBAIiTbQFw4gHTP9GCAJLk+JIqxwXy9AnTAAGd0wABkvoAkm0B4oEAiJNtAXDiAfpI0z/TP9P/9AUQ7xDeEM0QvBCrEJoQiRB48AMIyPpSF8wV+lITy7/0AMsBAuMPyz/JFBUWAfwx7UTQ+kjU+kjTv/QE0wHTAAGd0wABkvoAkm0B4oEAiJNtAXDiAdM/0YIAkuT4kirHBfL0ggCS4CTAATVQBPL0CPpIMCbQ0//TP9M/0z/TP/pIMAaCAJLjB8cFFvL0yM+RZ5WFwhTL/xLLP8s/yz/LPyTPC79SUPpSycjPhYgOAvwx7UTQ+kjU+kjTv/QE0wHTAAGd0wABkvoAkm0B4oEAiJNtAXDiAdM/0STwBoIAkucBwwCXgQCJIrrDAJFw4vL0ggCS5PiSJMcF8vQM+kj6UDAQzRC8EKsQmhCJEHgQZxBWVSAEBfAECMj6UhfMFfpSE8u/9ADLAQKTMM+B4w0UDwQ24wLXLCd4ZZt04wLXLCA5MubU4wLXLCAu9w3cEBESEwB4UoD6UnHPC27MyYMG+wAGyPpSFcwT+lLLv/QAz4eAA44QAs+DIW6TMc+Blc+DAfoC4pQxAc+B4ss/ye1UAArLP8ntVAP8Me1E0PpI1PpI07/0BNMB0wABndMAAZL6AJJtAeKBAIiTbQFw4gHTP9Ek8AaCAJLoAcMAl4EAiiK6wwCRcOLy9IIAkuT4kiPHBfL0DNM/10wQzRC8EKsQmhCJEHgQZxBWEEUQNBAj8AUIyPpSF8wV+lITy7/0AMsBAuMPyz/JFBUWAfxb7UTQ+kjU+kjTv/QE0wHTAAGd0wABkvoAkm0B4oEAiJNtAXDiAdM/0STwBoIAkug5wwCYgQCKIboxwwCSMHDiF/L0ggCS5PiSJ8cF8vTI+lLPhsAV+lLJJ9DT/9M/0z/TP9cLP8jPkF369A4Vy/8Tyz/LP8s/yz8mzwu/UnAXAfxb7UTQ+kjU+kjTv/QE0wHTAAGd0wABkvoAkm0B4oEAiJNtAXDiAdM/0YIAkuT4kirHBfL0JPAGggCS6DnDAJiBAIohujHDAJIwcOIX8vTI+lLPhsAV+lLJJ9DT/9M/0z/TP9cLP8jPkF369A4Vy/8Tyz/LP8s/yz8mzwu/UnAXARTjAjCEDwHHAPL0GAAgAc+DIW6TMc+Blc+DAfoC4gAGMM+BAATtVACG+lLJyM+FiFKg+lJxzwtuzMmAQPsACMj6UhfMFfpSE8u/FfQAywECjhABz4MhbpMxz4GVz4MB+gLikzDPgeLLP8ntVAH+Me1E0PpI1PpI07/0BNMB0wABndMAAZL6AJJtAeKBAIiTbQFw4gHTP9GCAJLk+JIqxwXy9IIAkuAkwAE1UATy9Aj6SNcLByDCAjHyRSbQ0//TP9M/0z/TP/pIMAaCAJLjB8cFFvL0yM+QXfr0DhTL/xLLP8s/yz/LPyTPC79SUBkAhvpSycjPhYhSgPpScc8LbszJgED7AAbI+lIVzBP6Usu/9ADPhoADjhACz4MhbpMxz4GVz4MB+gLilDEBz4Hiyz/J7VQAFQBkTDgbDFtgQCBgApc7aLt+zhfBDQibpJsIeMOIo41MvgjcSfQgwjXIfpIMfoAMFRkQPAByM+FiFKg+lKCEFjPywLPC44pzxQnzwu/AfoCyYBA+wDjDVUggHB0B3CXwBgbQ+kjREDRBMBbwAoEAjCG6jtU3gQCBJ7qOHzA1JMj6Us+FQMnIz4WIFvpSghDdXVEnzwuOyYBA+wCOqIEAjSe6jh8wNSTI+lLPhUDJyM+FiBb6UoIQ3V1RJ88LjsmAQPsA4w7iEtsx4V8EHgCsIsABloIAkuHy8OAiwAKOEBAnXwfAA5aCAJLi8vDg8gXhMvgjcSfQgwjXIfpIMfoAMFRkQPAByM+FiFKg+lKCEFjPywLPC44pzxQnzwu/AfoCyYBA+wAB/oEAiye6jhcQaV8JgQCJMrqWggCS4fLw4IIAkuHy8OE2KNDT/zHTP9M/MdM/MdM/MdTUMfpI+gAx9AWCAJLmIW6z8vTQIMcAs5aCAJLl8vDhINdLAZEwm4E0vAHAAfL010zQ4tT6SNMfMfQE0//HAJaCAJLl8vDhLAjI+lLPhkAfAK4Y+lLJBMj6UhbLPxTMFcv/EvpSyW1wyMv/EswUzBL0ABL0AMnIi8ferwdgAAAAAAAAAAjPFijPC78X+lLPkAAAAAIWzMnIz4WIUqD6UnHPC27MyYBA+wACASAiIwC5QgbpUwbW1tcODQ+kjXLAiAlG2BAIyOPtcsCYCUbYEAgY4y1ywKgJRtgQCJjibXLAuAlG2BAI2OGtcsDICV+kiBAIqd1ywNgJLyP+H6SIEAi+IS4uLi4gLRAYEAjoAvcWzI2KNDT/9M/0z/TP9M/1NQx+kj6ADH0BYIAkuYhbrPy9NAgxwCzloIAkuXy8OEg10sBkTCbgTS8AcAB8vTXTNDi1PpI0x8x9ATT/8cAloIAkuXy8OFWEG7jAjY2NjcsCMj6Us+GQBj6UskHyPpSFcs/FMwTy//6UsltgJCUB9RfBDQ0Asj6Us+EQMkm0NP/0z/TP9M/0z/UMddM0McAjjNzyM+RZ5WFwhbL/xTLPxLLP8s/yz8mzwu/UnD6UsnIz4WIUqD6UnHPC27MyYMG+wBQMwTgXwUz+CNxJ9CDCNch+kgx+gAwVGNQ8AHIz4WIUqD6UoIQWM/LAoCYAdl8GOgTI+lLPhcDJyM+QXfr0DhTL/xLLP8s/Ess/Fss/Js8Lv1Jw+lLJyM+FiFKg+lJxzwtuzMmAQPsAAIBwyMv/EswTzPQA9ADJyIvH3q8HYAAAAAAAAAAIzxYozwu/F/pSz5AAAAACFszJyM+FiFKg+lJxzwtuzMmAQPsAACjPC44pzxQnzwu/AfoCyYBA+wBQMwIBICkqAAu4aFgQF4gAX7Yr8aEbY0tzWXMbQwtLcXOje3FzGxtLgXKTKxsrS7MqK8MrG6uje5QRamJcblxhEAAbtcUQQBJcFAQQgfd+UJA=');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -1681,6 +1688,7 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37607,
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37608,
         'ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry': 37609,
+        'ReceiveExecutor_Error.ManualExecutionGasAmountCountMismatch': 37610,
     }
 
     readonly address: c.Address

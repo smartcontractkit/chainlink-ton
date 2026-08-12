@@ -35,6 +35,7 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
+import { EXECUTE_COST } from '../../../wrappers/ccip/OffRamp'
 
 export async function deployOffRampContract(
   blockchain: Blockchain,
@@ -532,19 +533,28 @@ export class OffRampTestSetup {
     gasOverride:
       | {
           receiverExecutionGasLimit?: bigint
-          // TODO TTGasOverride?: tokenGasOverrides: array<coins>;
+          tokenGasOverrides?: bigint[]
         }
       | undefined = undefined,
     expectSuccess = true,
   ) {
+    const msg = of.Any2TVMRampMessage.fromSlice(report.messages.asSlice())
+    const gasOverride_ = of.GasOverride.create({ ...gasOverride })
+    let totalGas = max(msg.gasLimit, gasOverride_?.receiverExecutionGasLimit ?? 0n)
+    if (msg.tokenAmounts != null) {
+      totalGas += msg.tokenAmounts
+        .map((ta: of.Any2TVMTokenTransfer) => ta.destGasAmount)
+        .map((destGas: bigint, i) =>
+          max(destGas, gasOverride_.tokenGasOverrides ? gasOverride_.tokenGasOverrides[i] : 0n),
+        )
+        .reduce((a: bigint, b: bigint) => a + b, 0n)
+    }
     const result = await this.offRamp.sendOffRampManuallyExecute(
       this.transmitters[0].getSender(),
-      toNano('0.5'),
+      totalGas + EXECUTE_COST,
       {
         report,
-        gasOverride: of.GasOverride.create({
-          ...gasOverride,
-        }),
+        gasOverride: gasOverride_,
       },
     )
 
@@ -1009,4 +1019,8 @@ export function generateMerkleRootBytes(
 // Helper to build CursedSubjects from an array of subject IDs
 export function buildCursedSubjects(subjects: Set<bigint>): of.CursedSubjects {
   return of.CursedSubjects.create({ data: subjects })
+}
+
+function max(a: bigint, b: bigint): bigint {
+  return a > b ? a : b
 }
