@@ -709,7 +709,7 @@ describe('OffRamp - Execute', () => {
         {
           message,
           execId: execId,
-          receiverExecutionGasLimit: null,
+          effectiveGasLimit: setup.DEFAULT_GAS_LIMIT,
         },
       )
 

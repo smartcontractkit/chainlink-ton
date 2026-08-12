@@ -20,8 +20,12 @@ struct GasOverride {
     // TODO TTGasOverride: tokenGasOverrides: array<coins>?;
 }
 
-// getEffectiveGasLimit returns the gas limit to use for the receiver execution
-// If the gasOverride is null, it returns the gasLimit passed in.
+// getEffectiveGasLimit returns the total gas amount to use for message execution
+//
+// If the gasOverride is not null and its receiverExecutionGasLimit is not null
+// and greater than the gasLimit from the message, it returns its
+// receiverExecutionGasLimit.
+// Otherwise, it returns gasLimit from the message, passed as an argument.
 fun getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit: coins): coins {
     if (receiverExecutionGasLimit != null && receiverExecutionGasLimit >= gasLimit) {
         gasLimit = receiverExecutionGasLimit;

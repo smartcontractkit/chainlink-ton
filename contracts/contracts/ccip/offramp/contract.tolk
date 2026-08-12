@@ -430,16 +430,12 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
-    // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
-    // Otherwise, keep original limit
-    val gasLimit = getEffectiveGasLimit(msg.receiverExecutionGasLimit, message.gasLimit);
-    if (gasLimit < MIN_GASLIMIT) {
+    if (msg.effectiveGasLimit < MIN_GASLIMIT) {
         return blockMsg(st, msg.execId, message.receiver);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
-        // TODO TTGasOverride
-        value: gasLimit + Router_Costs.routeMessage(),
+        value: msg.effectiveGasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -451,7 +447,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
-            gasLimit,
+            gasLimit: msg.effectiveGasLimit,
         }
     });
 

@@ -186,10 +186,15 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
 fun execute(mutate st: ReceiveExecutor_Storage) {
     st.lastExecutionTimestamp = blockchain.now();
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
-    var receiverExecutionGasLimit: coins? = null;
-    if (st.state.gasOverride != null) {
-        receiverExecutionGasLimit = st.state.gasOverride.receiverExecutionGasLimit;
-    }
+    // var receiverExecutionGasLimit: coins? = null;
+    // if (st.state.gasOverride != null) {
+    //     receiverExecutionGasLimit = st.state.gasOverride.receiverExecutionGasLimit;
+    // }
+
+    // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
+    // Otherwise, keep original limit
+    val msg = lazy st.message.load();
+    val effectiveGasLimit = st.state.gasOverride.getEffectiveGasLimit(msg.gasLimit);
     createMessage(
         {
             bounce: true,
@@ -198,7 +203,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
             body: OffRamp_DispatchValidated {
                 message: st.message,
                 execId: st.execId,
-                receiverExecutionGasLimit,
+                effectiveGasLimit,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

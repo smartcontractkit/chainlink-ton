@@ -126,6 +126,8 @@ export class OffRampTestSetup {
   public router: SandboxContract<rt.Router> = null as any
   public receiver: SandboxContract<tr.Receiver> = null as any
 
+  public readonly DEFAULT_GAS_LIMIT = toNano('0.03')
+
   constructor(
     public readonly blockchain: Blockchain,
     public readonly deployer: SandboxContract<TreasuryContract>,
@@ -345,7 +347,7 @@ export class OffRampTestSetup {
       sender: EVM_SENDER_ADDRESS_TEST,
       data: data,
       receiver: receiverAddress,
-      gasLimit: toNano('0.03'), // 200_000_000 nanotons
+      gasLimit: this.DEFAULT_GAS_LIMIT,
       tokenAmounts: null,
     })
   }

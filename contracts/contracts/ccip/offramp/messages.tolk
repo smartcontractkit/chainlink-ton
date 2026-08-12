@@ -84,7 +84,8 @@ struct SourceChainConfigUpdate {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
-    receiverExecutionGasLimit: coins?;
+    // Gas limit to use for the message execution
+    effectiveGasLimit: coins;
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
