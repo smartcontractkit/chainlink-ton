@@ -88,7 +88,7 @@ fun deployOffRampAccountWithRelease(
     );
 
     val deploy = createMessage({
-        bounce: BounceMode.NoBounce,
+        bounce: BounceMode.RichBounce,
         value: LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
         dest: oaa,
         body: OffRampAccount_Init {
@@ -227,6 +227,7 @@ fun onReleaseTransferBounced(
 
     val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell!);
     val operation = context.forwardPayload.load();
+
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
     st.poolData = pool.data.toCell();

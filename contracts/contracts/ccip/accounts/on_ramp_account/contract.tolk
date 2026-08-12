@@ -124,10 +124,9 @@ fun onDepositNotification(mutate data: OnRampAccount_Data, sender: address, msg:
         return;
     }
 
-    // Forward to the beneficiary (Router), re-wrapping the CCIPSend as a ref so the Router
-    // can load it via forwardPayload.loadRef() on its own wallet's notification.
-    // NOTE: `transferRecipient` is the wallet *owner* address (the Router); the wallet derives the
-    // destination wallet via calcDeployedJettonWallet(transferRecipient, ...).
+    // TODO: check that the CCIPSend payload can be parsed
+
+    // Forward to the beneficiary (CCIP Router)
     val forward = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,

@@ -112,7 +112,11 @@ fun onBouncedMessage(in: InMessageBounced) {
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
 
             val operation = context.forwardPayload.load();
+            // The burn never happened, so custody is still in the pool's own wallet. Return the
+            // jettons to the original sender (best-effort) so they aren't permanently locked here,
+            // then refund the rate limit and notify the requester of the failure.
             var pool = loadPool(st);
+            pool.returnTransferLocked(st, operation);
             pool.refundLockOrBurnRateLimit(operation);
             st.poolData = pool.data.toCell();
             pool.sendLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16);

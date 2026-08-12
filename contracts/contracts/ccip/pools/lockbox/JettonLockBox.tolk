@@ -8,6 +8,8 @@ import "../../../lib/jetton/messages"
 import "../../../lib/access/access_control"
 import "../../../lib/utils"
 
+import "../lib/token_pool/entrypoint"
+
 import "types"
 import "messages"
 
@@ -127,8 +129,11 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
 
 /// Handles jetton transfer notifications — treats them as deposits.
 /// Only accepts notifications from the lockbox's own jetton wallet with an authorized transfer initiator.
-/// TODO: fixme
-/// @dev Silently drops the notification if no forward payload is present (tokens stay in the lockbox).
+/// 
+/// @dev If the forward payload is missing, the deposit cannot be identified: no `JettonLockBox_Deposited`
+///      will be issued (so the pool would never finalize and its rate limit stays consumed) and the tokens
+///      would otherwise be permanently parked in this lockbox. Return them best-effort to the transfer
+///      initiator instead of silently dropping them.
 fun onDepositWithTransferNotification(mutate st: Storage, sender: address, msg: TransferNotificationForRecipient) {
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
 
@@ -136,37 +141,46 @@ fun onDepositWithTransferNotification(mutate st: Storage, sender: address, msg: 
     // @bug transferInitiator is nullable — mint operations have null initiator, causing a crash here.
     assert(msg.transferInitiator != null, JettonLockBox_Error.ContractNotInitialized);
 
-    val rbac = hookTrait__AccessControl(st);
-    rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!);
-
     assert(msg.jettonAmount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
     assert(st.walletAddress != null && sender == st.walletAddress!, JettonLockBox_Error.UnsupportedToken);
 
     // TODO: check message value is enough to cover full flow, or error
+    // If the forward payload is missing OR malformed, no pool can be notified and no
+    // `JettonLockBox_Deposited` will ever be issued — the jettons would be permanently parked here.
+    // Return custody to the token sender (best-effort) instead of silently dropping them (D1).
     val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
     if (fwdps == null) {
-        // TODO: do we return funds (best effort) or error?
+        TokenPool<void>.returnTransfer(sender, msg);
+        // TODO: should we notify deposit failed?
         return;
     }
-    val fwdp = JettonLockBox_Deposit.fromSlice(fwdps!);
 
     // TODO: assert fwdp and msg fields match (token, amount)
-    emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, fwdp);
+    try {
+        val rbac = hookTrait__AccessControl(st);
+        rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!);
 
-    // Reply to the pool so it knows the deposit is confirmed.
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: msg.transferInitiator!,
-        body: JettonLockBox_Deposited {
-            queryId: fwdp.queryId,
-            token: fwdp.token,
-            remoteChainSelector: fwdp.remoteChainSelector,
-            amount: fwdp.amount,
-            context: fwdp.context,
-        },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        val fwdp = JettonLockBox_Deposit.fromSlice(fwdps!);
+        emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, fwdp);
+
+        // Reply to the pool so it knows the deposit is confirmed.
+        val reply = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: msg.transferInitiator!,
+            body: JettonLockBox_Deposited {
+                queryId: fwdp.queryId,
+                token: fwdp.token,
+                remoteChainSelector: fwdp.remoteChainSelector,
+                amount: fwdp.amount,
+                context: fwdp.context,
+            },
+        });
+        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    } catch (errorCode) {
+        TokenPool<void>.returnTransfer(sender, msg);
+        // TODO: should we notify deposit failed?
+    }
 }
 
 /// Sends jettons from the lockbox to a recipient wallet.
@@ -227,7 +241,11 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
 fun onBouncedMessage(in: InMessageBounced) {
     val st = lazy Storage.load();
 
-    val msg = lazy JettonLockBox_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    // `onWithdraw` sends `AskToTransfer` with `BounceMode.RichBounce`, so the bounced body is a
+    // `RichBounceBody` envelope (`0xFFFFFFFE`…), NOT the raw body. Parse the envelope and extract
+    // the original `AskToTransfer` from it.
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy JettonLockBox_BouncedMessage.fromCell(rich.originalBody);
 
     match (msg) {
         AskToTransfer => {
@@ -262,6 +280,11 @@ fun hookTrait__AccessControl(st: Storage): AccessControl<null?> {
 
 // --- Getters ---
 
+/// Returns the contract type and version.
+get fun typeAndVersion(): (slice, slice) {
+    return (JettonLockBox_FACILITY_NAME.literalSlice(), JettonLockBox_CONTRACT_VERSION.literalSlice());
+}
+
 /// Returns the jetton minter address (token) held by this lockbox.
 get fun token(): address {
     val st = lazy Storage.load();
@@ -272,11 +295,6 @@ get fun token(): address {
 get fun wallet(): address? {
     val st = lazy Storage.load();
     return st.walletAddress;
-}
-
-/// Returns the contract type and version.
-get fun typeAndVersion(): (slice, slice) {
-    return (JettonLockBox_FACILITY_NAME.literalSlice(), JettonLockBox_CONTRACT_VERSION.literalSlice());
 }
 
 /// Returns whether the lockbox supports the given token.

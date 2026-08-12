@@ -1191,7 +1191,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     } catch {
         // A malformed payload has no reliable reply target, but custody can
         // still be returned to a valid pool wallet.
-        self.bestEffortReturnTransfer(sender, msg);
+        TokenPool<T>.returnTransfer(sender, msg);
     }
 }
 
@@ -1348,15 +1348,36 @@ fun TokenPool<T>.failLockOrBurnTransfer(
     errorCode: uint16,
     msgValue: coins,
 ): void {
-    self.bestEffortReturnTransfer(sender, msg);
+    TokenPool<T>.returnTransfer(sender, msg);
     self.notifyLockOrBurnFailure(msgValue, forwardPayload, errorCode);
 }
 
-fun TokenPool<T>.bestEffortReturnTransfer(self, sender: address, msg: TransferNotificationForRecipient): void {
-    // Keep the helper safe if a future caller uses it directly. The outer
-    // entrypoint performs the same assertion before any recoverable catch.
-    assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
+/// Returns jettons to the original sender after a failed lock (deposit) operation.
+/// @dev Sends AskToTransfer to the pool's jetton wallet with original sender as recipient.
+fun TokenPool<T>.returnTransferLocked(self, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
 
+    val returnTransfer = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: TokenPool_RETURN_TRANSFER_VALUE,
+        dest: self.data.jettonClient().walletAddress(),
+        body: AskToTransfer {
+            queryId: requestMsg.queryId,
+            jettonAmount: details.amount,
+            transferRecipient: details.originalSender,
+            sendExcessesTo: details.originalSender,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    });
+    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
+}
+
+fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRecipient): void {
+    // Only valid for a real inbound transfer (initiator + wallet set, amount > 0).
     if (msg.transferInitiator == null) {
         return; // nothing to do, no one to return to
     }
@@ -1365,7 +1386,7 @@ fun TokenPool<T>.bestEffortReturnTransfer(self, sender: address, msg: TransferNo
     val returnTransfer = createMessage({
         bounce: BounceMode.NoBounce,
         value: TokenPool_RETURN_TRANSFER_VALUE,
-        dest: sender, // the wallet we own which sent us the notification
+        dest: sender, // wallet address which sent us the transfer notification (our wallet)
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,

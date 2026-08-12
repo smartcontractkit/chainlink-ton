@@ -292,8 +292,13 @@ fun onLockTransferBounced(
     assert(msg.customPayload != null) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload!);
     val operation = context.forwardPayload.load();
-    returnLockOrBurnTransfer(st, operation);
+
     var pool = loadPool(st);
+    pool.returnTransferLocked(operation);
+    // The outbound rate limit was consumed at admission. Since the lock/deposit failed and
+    // custody is being returned, release the consumed capacity mirroring burn_mint semantics.
+    pool.refundLockOrBurnRateLimit(operation);
+    st.poolData = pool.data.toCell();
     pool.sendLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as uint16);
 }
 
@@ -318,7 +323,7 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockboxNotConfigured);
+    assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
@@ -351,12 +356,12 @@ fun onWithdrawFailed(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     // JettonLockBox_WithdrawFailed may or may not carry context depending on when it failed.
-    // If context is present, use it to send failure. Otherwise, this is a stale message.
+    // If context is present, use it to send a failure reply to the original requester.
     if (msg.context != null) {
         val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.context!);
         assert(msg.queryId == context.forwardPayload.load().requestMsg.load().queryId) throw 0xFFFF;
         var pool = loadPool(st);
-        pool.sendReleaseOrMintFailure(context.forwardPayload.load(), TokenPool_Error.UnsupportedOperation as uint16);
+        pool.sendReleaseOrMintFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16);
     }
 }
 
@@ -406,29 +411,6 @@ fun getReleaseRecipientFromContext(contextCell: cell): address {
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
     return details.receiver;
-}
-
-/// Returns jettons to the original sender after a failed lock (deposit) operation.
-/// @dev Sends AskToTransfer to the pool's jetton wallet with original sender as recipient.
-fun returnLockOrBurnTransfer(st: Storage, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    val returnTransfer = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: st.poolData.load().jettonClient().walletAddress(),
-        body: AskToTransfer {
-            queryId: requestMsg.queryId,
-            jettonAmount: details.amount,
-            transferRecipient: details.originalSender,
-            sendExcessesTo: details.originalSender,
-            customPayload: null,
-            forwardTonAmount: 0,
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-        },
-    });
-    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /* === Pool loader === */

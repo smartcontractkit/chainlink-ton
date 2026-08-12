@@ -4,11 +4,13 @@ const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.LockRelea
 const LockReleaseLockboxTokenPool_FACILITY_ID = 487;  // (crc32(<facility>) % 640) + 10
 
 enum LockReleaseLockBoxTokenPool_Error {
-    LockboxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100
+    LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100
     UnexpectedLockboxConfirmationSender
 
     UnexpectedLockBounce
     InvalidOffRampAccountReply
     InvalidOffRampAccountNotification
     OffRampAccountDeployFailed
+    // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
+    LockBoxWithdrawFailed
 }
