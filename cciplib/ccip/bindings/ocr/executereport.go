@@ -134,7 +134,9 @@ const tvm2AnyTokenTransferRefs = 4
 // zero/empty when the message carries no token transfer.
 type TVM2AnyTokenTransfer struct {
 	// SourcePoolAddress is the TON pool the OnRamp routed the lockOrBurn to. Trusted:
-	// the OnRamp sets it, not the pool.
+	// the OnRamp sets it, not the pool. The contract field is an optional address, so
+	// this is addr_none when the message carries no token transfer; callers must treat
+	// nil and address.IsAddrNone() alike.
 	SourcePoolAddress *address.Address `tlb:"addr"`
 	// Amount is the post-fee cross-chain amount reported by the pool. It may differ from
 	// TokenAmounts[0].Amount, which is the pre-fee amount the sender supplied.

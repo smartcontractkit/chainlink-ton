@@ -290,9 +290,11 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdra
         amount: msg.destTokenAmount as uint256,
         destTokenAddress: out.destTokenAddress,
         extraData: out.destPoolData,
-        // TODO: populate once the FeeQuoter supports token transfer fees and can report
-        // the per-token destGasOverhead.
-        destExecData: createEmptyCell(),
+        // TODO: source this from FeeQuoter_TokenTransferFeeConfig.destGasOverhead once the
+        // FeeQuoter fee path accepts token transfers. It cannot be left empty in the
+        // meantime: the offchain nodes fail to hash a message whose token transfer carries
+        // no destExecData, which stalls the lane.
+        destExecData: encodeDestExecData(DEFAULT_TOKEN_DEST_GAS_OVERHEAD),
     }.toCell();
     self.exitSuccessfully(state.fee, tokenTransfer);
 }

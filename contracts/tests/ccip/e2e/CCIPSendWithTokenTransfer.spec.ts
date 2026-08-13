@@ -33,12 +33,6 @@ const DEST_TOKEN_ADDRESS = Buffer.from(
   'hex',
 )
 
-// Destination-chain token address the mock pool returns from lockOrBurn. In production this
-// is configured on the pool via TokenPool_ApplyChainUpdates; the mock keeps it in storage.
-const DEST_TOKEN_ADDRESS = Buffer.from(
-  '000000000000000000000000abababababababababababababababababababab',
-  'hex',
-)
 
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
@@ -447,11 +441,12 @@ describe('CCIPSend with token transfer (e2e)', () => {
             // No token transfer fee is configured, so the post-fee amount is the full amount.
             amount: TOKEN_AMOUNT,
             tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
-            destTokenAddress: cca.codec.encode(DEST_TOKEN_ADDRESS).endCell().beginParse(),
+            destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
             // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
             extraData: beginCell().storeUint(0, 256).endCell(),
-            // Not produced yet: the FeeQuoter does not report a per-token destGasOverhead.
-            destExecData: beginCell().endCell(),
+            // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
+            // Still a constant: the FeeQuoter does not report a per-token value yet.
+            destExecData: beginCell().storeUint(90000, 32).endCell(),
           },
           // The pool's lockOrBurn output reaches the event end to end.
         },

@@ -72,7 +72,6 @@ describe('SendExecutor - Unit tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
-    blockchain.verbosity.debugLogs = true
 
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()

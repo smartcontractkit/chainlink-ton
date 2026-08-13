@@ -51,6 +51,8 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 
 	switch contractName {
 	case consts.ContractNameOnRamp:
+		a.lggr.Infow("Binding OnRamp contract events", "event", consts.EventNameCCIPMessageSent)
+		a.lggr.Infow("CCIPMessageSent type layout: %+v", onramp.CCIPMessageSent{})
 		eventNames = []string{
 			consts.EventNameCCIPMessageSent,
 		}
@@ -109,9 +111,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 	}
 
 	// The current TON flow supports a single token transfer, so the single
-	// Body.TokenTransfer applies to every source tokenAmounts entry. Its Amount is the
-	// post-fee amount the pool reported; the per-entry ta.Amount is the pre-fee amount
-	// the sender supplied, which is what the other chain families report here.
+	// Body.TokenTransfer applies to every source tokenAmounts entry.
 	transfer := tonEvent.Message.Body.TokenTransfer
 	sourcePoolAddress, err := sourcePoolAddressBytes(transfer.SourcePoolAddress)
 	if err != nil {
@@ -123,11 +123,23 @@ func (a *TONAccessor) convertCCIPMessageSent(
 
 	var tokenAmounts []ccipocr3.RampTokenAmount
 	for _, ta := range transfer.TokenAmounts {
+		// The cross-chain amount is the post-fee amount the pool reported
+		// (LockOrBurnFinished.destTokenAmount), matching what the other chain families put
+		// here. The per-entry ta.Amount is the pre-fee amount the sender supplied, so
+		// releasing/minting it on the destination would hand out more than the source pool
+		// locked or burned.
+		//
+		// Legacy CCIPMessageSent events carried no separate post-fee amount, so ta.Amount is
+		// the only one available there.
+		amount := transfer.Amount
+		if amount == nil {
+			amount = ta.Amount.Nano()
+		}
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 			SourcePoolAddress: sourcePoolAddress,
 			DestTokenAddress:  destTokenAddress,
 			ExtraData:         extraData,
-			Amount:            ccipocr3.NewBigInt(ta.Amount.Nano()),
+			Amount:            ccipocr3.NewBigInt(amount),
 			DestExecData:      destExecData,
 		})
 	}

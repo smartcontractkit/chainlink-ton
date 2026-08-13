@@ -681,7 +681,7 @@ export const TVM2AnyRampMessageBody = {
 
 /**
  > struct TVM2AnyTokenTransfer {
- >     sourcePoolAddress: address
+ >     sourcePoolAddress: address?
  >     amount: uint256
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     destTokenAddress: Cell<CrossChainAddress>
@@ -691,7 +691,7 @@ export const TVM2AnyRampMessageBody = {
  */
 export interface TVM2AnyTokenTransfer {
     readonly $: 'TVM2AnyTokenTransfer'
-    sourcePoolAddress: c.Address
+    sourcePoolAddress: c.Address | null
     amount: uint256
     tokenAmounts: SnakedCell<TokenAmount>
     destTokenAddress: CrossChainAddress
@@ -701,7 +701,7 @@ export interface TVM2AnyTokenTransfer {
 
 export const TVM2AnyTokenTransfer = {
     create(args: {
-        sourcePoolAddress: c.Address
+        sourcePoolAddress: c.Address | null
         amount: uint256
         tokenAmounts: SnakedCell<TokenAmount>
         destTokenAddress: CrossChainAddress
@@ -716,7 +716,7 @@ export const TVM2AnyTokenTransfer = {
     fromSlice(s: c.Slice): TVM2AnyTokenTransfer {
         return {
             $: 'TVM2AnyTokenTransfer',
-            sourcePoolAddress: s.loadAddress(),
+            sourcePoolAddress: s.loadMaybeAddress(),
             amount: s.loadUintBig(256),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),

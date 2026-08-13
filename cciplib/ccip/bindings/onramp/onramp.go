@@ -160,13 +160,16 @@ type ExecutorFinishedSuccessfully struct {
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
 	// Pool-supplied token transfer details the OnRamp folds into the emitted
-	// CCIPMessageSent event. All-zero when the message carries no token transfer.
+	// CCIPMessageSent event. Zeroed, with an addr_none SourcePoolAddress, when the
+	// message carries no token transfer.
 	TokenTransfer ExecutorTokenTransfer `tlb:"^"`
 }
 
 // ExecutorTokenTransfer mirrors the contract's OnRamp_ExecutorTokenTransfer: the portion
 // of a token transfer that the CCIPSendExecutor learns from the token pool.
 type ExecutorTokenTransfer struct {
+	// SourcePoolAddress is an optional address on the contract side: addr_none when the
+	// message carries no token transfer.
 	SourcePoolAddress *address.Address         `tlb:"addr"`
 	Amount            *big.Int                 `tlb:"## 256"`
 	DestTokenAddress  common.CrossChainAddress `tlb:"^"`

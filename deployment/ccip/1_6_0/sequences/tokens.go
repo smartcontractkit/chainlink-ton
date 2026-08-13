@@ -416,12 +416,16 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenTransferFeeConfigs: nil,
 			}
 
+			// MockTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
+			// has to go behind a ref; passing it bare makes every storage read underflow.
+			storage := tokenpool.MockStorage{PoolData: poolData}
+
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
 				dp,
 				input.ChainSelector,
 				compiled,
-				poolData,
+				storage,
 				nil,
 				defaultJettonDeployCoin,
 			)

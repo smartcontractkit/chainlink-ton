@@ -94,7 +94,8 @@ struct TVM2AnyRampMessageBody {
 struct TVM2AnyTokenTransfer {
     // The source pool address on TON. This value is trusted: the OnRamp sets it from the
     // pool it actually routed the lockOrBurn to, so the destination pool can rely on it.
-    sourcePoolAddress: address;
+    // Null when the message carries no token transfer (serialized as addr_none).
+    sourcePoolAddress: address?;
     // Cross-chain token amount, always a u256 to match the other chain families. This is
     // the post-fee amount the pool reported (LockOrBurnFinished.destTokenAmount), which
     // may differ from tokenAmounts[0].amount (the pre-fee amount the sender supplied).
@@ -111,18 +112,37 @@ struct TVM2AnyTokenTransfer {
     extraData: cell;
     // Destination chain data used to execute the token transfer on the destination chain.
     // For an EVM destination it is the gas available for the releaseOrMint and transfer
-    // calls made by the offRamp.
-    // TODO: always empty today. The FeeQuoter holds the per-token destGasOverhead in
-    // TokenTransferFeeConfig, but its fee path still rejects token transfers outright, so
-    // nothing produces this value yet. Populate it once the FeeQuoter supports them.
+    // calls made by the offRamp. Encoded as a bare 32-bit big-endian integer; see
+    // encodeDestExecData.
+    //
+    // Must be non-empty whenever tokenAmounts is non-empty: the offchain nodes decode this
+    // field to build the destination-chain token transfer, and an empty value makes message
+    // hashing fail, which drops the merkle root and stalls the lane.
     destExecData: cell;
+}
+
+// The per-token gas the destination offRamp budgets for a single releaseOrMint and the
+// following transfer. Mirrors CCIP's default on the other chain families
+// (FeeQuoter.DEFAULT_TOKEN_DEST_GAS_OVERHEAD on EVM).
+//
+// TODO: replace with the per-token FeeQuoter_TokenTransferFeeConfig.destGasOverhead. The
+// FeeQuoter already holds that value, but its fee path still rejects token transfers
+// outright, so nothing can produce it yet; until then every token transfer reports this
+// constant.
+const DEFAULT_TOKEN_DEST_GAS_OVERHEAD: uint32 = 90000;
+
+// Packs a destination-chain gas amount into the layout the offchain codec expects for
+// destExecData: a bare 32-bit big-endian integer, with no length prefix or tag.
+fun encodeDestExecData(destGasAmount: uint32): cell {
+    return beginCell().storeUint(destGasAmount, 32).endCell();
 }
 
 // The pool-supplied portion of a token transfer, forwarded from the CCIPSendExecutor to
 // the OnRamp. Kept in its own cell because these fields plus the executor's own do not
 // fit in a single cell alongside the ramp message.
 struct OnRamp_ExecutorTokenTransfer {
-    sourcePoolAddress: address;
+    // Null when the message carries no token transfer (serialized as addr_none).
+    sourcePoolAddress: address?;
     amount: uint256;
     destTokenAddress: Cell<CrossChainAddress>;
     extraData: cell;
@@ -132,7 +152,7 @@ struct OnRamp_ExecutorTokenTransfer {
 // A token transfer with every field zeroed, used when a send carries no token transfer.
 fun emptyExecutorTokenTransfer(): Cell<OnRamp_ExecutorTokenTransfer> {
     return OnRamp_ExecutorTokenTransfer {
-        sourcePoolAddress: createAddressNone() as address,
+        sourcePoolAddress: null,
         amount: 0,
         // An empty CrossChainAddress is a 0-byte length prefix.
         destTokenAddress: beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>,
