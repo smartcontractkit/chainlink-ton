@@ -97,7 +97,7 @@ describe('OffRamp - Dynamic Config', () => {
 
     expect(deployables.receiveExecutor).toBe(uint8ArrayToBigInt(mockReceiveExecutorCode.hash()))
 
-    expect(deployables.deployer).toBe(uint8ArrayToBigInt(setup.code.deployer.hash()))
+    expect(deployables.deployer).toBe(uint8ArrayToBigInt(setup.code.deployable.hash()))
 
     // non-owner cannot update deployables
     const other = await blockchain.treasury('other')
