@@ -190,6 +190,7 @@ func (a *TonDeployAdapter) GrantAdminRoleToTimelock() *cldfops.Sequence[ccipddep
 
 				// Direct send (Plan=false). SendMessagesRaw performs a balance pre-check and
 				// waits for the full transaction trace, failing if the grant reverts (non-zero exit code).
+				//nolint:govet // allow shadowing
 				if _, err := cldfops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
