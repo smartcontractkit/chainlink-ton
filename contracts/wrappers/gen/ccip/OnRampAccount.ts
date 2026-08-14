@@ -347,7 +347,7 @@ export const DepositAccount_Data = {
 }
 
 /**
- > struct (0x552706d7) DepositAccount_Init {
+ > struct (0x6890a205) DepositAccount_Init {
  >     queryId: uint64
  >     forwardPayload: cell?
  > }
@@ -359,7 +359,7 @@ export interface DepositAccount_Init {
 }
 
 export const DepositAccount_Init = {
-    PREFIX: 0x552706d7,
+    PREFIX: 0x6890a205,
 
     create(args: {
         queryId?: uint64
@@ -372,7 +372,7 @@ export const DepositAccount_Init = {
         }
     },
     fromSlice(s: c.Slice): DepositAccount_Init {
-        loadAndCheckPrefix32(s, 0x552706d7, 'DepositAccount_Init');
+        loadAndCheckPrefix32(s, 0x6890a205, 'DepositAccount_Init');
         return {
             $: 'DepositAccount_Init',
             queryId: s.loadUintBig(64),
@@ -380,7 +380,7 @@ export const DepositAccount_Init = {
         }
     },
     store(self: DepositAccount_Init, b: c.Builder): void {
-        b.storeUint(0x552706d7, 32);
+        b.storeUint(0x6890a205, 32);
         b.storeUint(self.queryId, 64);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
@@ -392,7 +392,7 @@ export const DepositAccount_Init = {
 }
 
 /**
- > struct (0xb2e46750) DepositAccount_Reply {
+ > struct (0xda04630c) DepositAccount_Reply {
  >     queryId: uint64
  >     forwardPayload: cell?
  > }
@@ -404,7 +404,7 @@ export interface DepositAccount_Reply {
 }
 
 export const DepositAccount_Reply = {
-    PREFIX: 0xb2e46750,
+    PREFIX: 0xda04630c,
 
     create(args: {
         queryId?: uint64
@@ -417,7 +417,7 @@ export const DepositAccount_Reply = {
         }
     },
     fromSlice(s: c.Slice): DepositAccount_Reply {
-        loadAndCheckPrefix32(s, 0xb2e46750, 'DepositAccount_Reply');
+        loadAndCheckPrefix32(s, 0xda04630c, 'DepositAccount_Reply');
         return {
             $: 'DepositAccount_Reply',
             queryId: s.loadUintBig(64),
@@ -425,7 +425,7 @@ export const DepositAccount_Reply = {
         }
     },
     store(self: DepositAccount_Reply, b: c.Builder): void {
-        b.storeUint(0xb2e46750, 32);
+        b.storeUint(0xda04630c, 32);
         b.storeUint(self.queryId, 64);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
@@ -437,7 +437,7 @@ export const DepositAccount_Reply = {
 }
 
 /**
- > struct (0xdb3b18bf) DepositAccount_ForwardNotification {
+ > struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
  >     message: Cell<DepositAccount_InMessageForward>
  > }
  */
@@ -447,7 +447,7 @@ export interface DepositAccount_ForwardNotification {
 }
 
 export const DepositAccount_ForwardNotification = {
-    PREFIX: 0xdb3b18bf,
+    PREFIX: 0xb4fe5c0c,
 
     create(args: {
         message: DepositAccount_InMessageForward
@@ -458,14 +458,14 @@ export const DepositAccount_ForwardNotification = {
         }
     },
     fromSlice(s: c.Slice): DepositAccount_ForwardNotification {
-        loadAndCheckPrefix32(s, 0xdb3b18bf, 'DepositAccount_ForwardNotification');
+        loadAndCheckPrefix32(s, 0xb4fe5c0c, 'DepositAccount_ForwardNotification');
         return {
             $: 'DepositAccount_ForwardNotification',
             message: loadCellRef<DepositAccount_InMessageForward>(s, DepositAccount_InMessageForward.fromSlice),
         }
     },
     store(self: DepositAccount_ForwardNotification, b: c.Builder): void {
-        b.storeUint(0xdb3b18bf, 32);
+        b.storeUint(0xb4fe5c0c, 32);
         storeCellRef<DepositAccount_InMessageForward>(self.message, b, DepositAccount_InMessageForward.store);
     },
     toCell(self: DepositAccount_ForwardNotification): c.Cell {
@@ -537,7 +537,7 @@ export const DepositAccount_InMessageForward = {
 }
 
 /**
- > struct (0xb8f621d2) DepositAccount_Withdraw {
+ > struct (0x1936d112) DepositAccount_Withdraw {
  >     queryId: uint64
  >     walletAddress: address
  >     ask: Cell<AskToTransfer>
@@ -551,7 +551,7 @@ export interface DepositAccount_Withdraw {
 }
 
 export const DepositAccount_Withdraw = {
-    PREFIX: 0xb8f621d2,
+    PREFIX: 0x1936d112,
 
     create(args: {
         queryId?: uint64
@@ -565,7 +565,7 @@ export const DepositAccount_Withdraw = {
         }
     },
     fromSlice(s: c.Slice): DepositAccount_Withdraw {
-        loadAndCheckPrefix32(s, 0xb8f621d2, 'DepositAccount_Withdraw');
+        loadAndCheckPrefix32(s, 0x1936d112, 'DepositAccount_Withdraw');
         return {
             $: 'DepositAccount_Withdraw',
             queryId: s.loadUintBig(64),
@@ -574,7 +574,7 @@ export const DepositAccount_Withdraw = {
         }
     },
     store(self: DepositAccount_Withdraw, b: c.Builder): void {
-        b.storeUint(0xb8f621d2, 32);
+        b.storeUint(0x1936d112, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.walletAddress);
         storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
@@ -585,7 +585,7 @@ export const DepositAccount_Withdraw = {
 }
 
 /**
- > struct (0x7a42d91e) DepositAccount_WithdrawFailed {
+ > struct (0xa51b6cba) DepositAccount_WithdrawFailed {
  >     queryId: uint64
  >     walletAddress: address
  >     ask: Cell<AskToTransfer>
@@ -599,7 +599,7 @@ export interface DepositAccount_WithdrawFailed {
 }
 
 export const DepositAccount_WithdrawFailed = {
-    PREFIX: 0x7a42d91e,
+    PREFIX: 0xa51b6cba,
 
     create(args: {
         queryId?: uint64
@@ -613,7 +613,7 @@ export const DepositAccount_WithdrawFailed = {
         }
     },
     fromSlice(s: c.Slice): DepositAccount_WithdrawFailed {
-        loadAndCheckPrefix32(s, 0x7a42d91e, 'DepositAccount_WithdrawFailed');
+        loadAndCheckPrefix32(s, 0xa51b6cba, 'DepositAccount_WithdrawFailed');
         return {
             $: 'DepositAccount_WithdrawFailed',
             queryId: s.loadUintBig(64),
@@ -622,7 +622,7 @@ export const DepositAccount_WithdrawFailed = {
         }
     },
     store(self: DepositAccount_WithdrawFailed, b: c.Builder): void {
-        b.storeUint(0x7a42d91e, 32);
+        b.storeUint(0xa51b6cba, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.walletAddress);
         storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
@@ -633,7 +633,7 @@ export const DepositAccount_WithdrawFailed = {
 }
 
 /**
- > struct (0x3f51a724) DepositAccount_ForwardFailed {
+ > struct (0x67dd47d3) DepositAccount_ForwardFailed {
  >     bouncedFrom: address
  >     bouncedBody: cell
  > }
@@ -645,7 +645,7 @@ export interface DepositAccount_ForwardFailed {
 }
 
 export const DepositAccount_ForwardFailed = {
-    PREFIX: 0x3f51a724,
+    PREFIX: 0x67dd47d3,
 
     create(args: {
         bouncedFrom: c.Address
@@ -657,7 +657,7 @@ export const DepositAccount_ForwardFailed = {
         }
     },
     fromSlice(s: c.Slice): DepositAccount_ForwardFailed {
-        loadAndCheckPrefix32(s, 0x3f51a724, 'DepositAccount_ForwardFailed');
+        loadAndCheckPrefix32(s, 0x67dd47d3, 'DepositAccount_ForwardFailed');
         return {
             $: 'DepositAccount_ForwardFailed',
             bouncedFrom: s.loadAddress(),
@@ -665,7 +665,7 @@ export const DepositAccount_ForwardFailed = {
         }
     },
     store(self: DepositAccount_ForwardFailed, b: c.Builder): void {
-        b.storeUint(0x3f51a724, 32);
+        b.storeUint(0x67dd47d3, 32);
         b.storeAddress(self.bouncedFrom);
         b.storeRef(self.bouncedBody);
     },
@@ -713,7 +713,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAA5wAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHAgEgCwwB70+JGOOO1E0PpI+kj0BNFtbW2S8AIAbXCBAIT4kipRmlRBqRBYBlAzB0QUDvAHmwHI+lL6UvQAye1U4F8D4O1E0PpI+kj0BNFtbW2S8AIAbXCBAIT4kviX+JL4l/iY+JMn+Dr4lPiVVhLIzskREhETERIRERESERGAgCASAJCgBKERAREREQChEQChCaEIkQePADbHEDyPpSEvpS9ADJ7VTchA/y8ACZDpfCAHQ1ywjmxaE5PK/0z8x+gAx+lAx9AQhbpsxIMcAkjBt4MjOyZHR4iBuklt/4NDIzsnIz4WIEvpSz4QQc/oCcc8LZczJgED7AH+AA8Ttou37OCbXLCKpODa8mGyB0z/0BfAEjl7XLCXHsQ6UjjUwOFYRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRBwYFBEMTARERAfAGlMcA2zHhMH/bMeFsgdM/+kjXTC1RTVFNUU1RTVFNUU1RTVFNUU1ENPAF4n+ACASANDgIBIA8QAHMI8MAlShus8MAkXDimVR8uixVIyzacOCBH0BTPccF8vTIz4UIE/pSghCy5GdQzwuOyz/0AMmAQPsAgANUNTU1NsMAlSNus8MAkXDilFUC2oDgNTZbNCOBH0EDgQEL9ApvoTES8vQg0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIEfQiFus5UExwXDAJMxM3DiE/L0yM+FiPpSz4QQc/oCcc8LZczJgFD7AIACVDg5OTkDwwCVJG6zwwCRcOKXRXZQMwTaseA0Nzc4BMj6UlAE+gIU9AAB+gISyz/LHxLMycjPhQgS+lKCENs7GL/PC47MyYBA+wB/gAZkNDU1AdcsJ/////Tyv9dMINDXLCB8U/Us4wIwMgPDAJUibrPDAJFw4pNY2mCOHDQ1W8jPhQgS+lKCED9RpyTPC44S+lLMyYBA+wDif4BEAymwh0z/6APpI+lD0BPoACcMAlSZus8MAkXDilhB4VRXawI5ANjg4ODjIz5A+KfqWIc8LP1AI+gIW+lJSQPpUE/QAUAT6AhPOycjPhQgS+lKCEHpC2R7PC44Tyz/6UszJgED7AOJ/AFu8ivxoQtjS3NZcxtDC0txc6N7cXMbG0uBcntykwtrggsbG3urc6QRamBcYlxhEAgFIFBUAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAA4MAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHAgEgCwwB90+JGOOO1E0PpI+kj0BNFtbW2S8AIAbXCBAIT4kipRmlRBqRBYBlAzB0QUDvAHmwHI+lL6UvQAye1U4F8D4O1E0PpI+kj0BNFtbW2S8AIAbXCBAIT4kviX+JL4l/iY+JMn+Dr4lPiVVhLIzskQrxCuEK0QrBCrVhNVYPADgIAgEgCQoAMGxxA8j6UhL6UvQAye1UkTDghA8BxwDy9ACZDpfCAHQ1ywjmxaE5PK/0z8x+gAx+lAx9AQhbpsxIMcAkjBt4MjOyZHR4iBuklt/4NDIzsnIz4WIEvpSz4QQc/oCcc8LZczJgED7AH+AA0Ttou37OAbXLCNEhRAsmGxx0z/0BfAEjk7XLCDJtoiUjiUwN1YQB1YQB1YQB1YQB1YQB1YQB1YQB1YQB1YQB1YQUHfwBtsx4Wxx0z/6SNdMLVFNUU1RTVFNUU1RTVFNUU1RTUQ08AXif4AIBIA0OAgEgDxAAcwjwwCVKG6zwwCRcOKZVHy6LFUjLNpw4IEfQFM9xwXy9MjPhQgT+lKCENoEYwzPC47LP/QAyYBA+wCAA1Q1NTU2wwCVI26zwwCRcOKUVQLagOA1Nls0I4EfQQOBAQv0Cm+hMRLy9CDQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwgR9CIW6zlQTHBcMAkzEzcOIT8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAJUODk5OQPDAJUkbrPDAJFw4pdFdlAzBNqx4DQ3NzgEyPpSUAT6AhT0AAH6AhLLP8sfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+ABmQ0NTUB1ywn////9PK/10wg0NcsIHxT9SzjAjAyA8MAlSJus8MAkXDik1jaYI4cNDVbyM+FCBL6UoIQZ91H088LjhL6UszJgED7AOJ/gEQDKbCHTP/oA+kj6UPQE+gAJwwCVJm6zwwCRcOKWEHhVFdrAjkA2ODg4OMjPkD4p+pYhzws/UAj6Ahb6UlJA+lQT9ABQBPoCE87JyM+FCBL6UoIQpRtsus8LjhPLP/pSzMmAQPsA4n8AW7yK/GhC2NLc1lzG0MLS3Fzo3txcxsbS4Fye3KTC2uCCxsbe6tzpBFqYFxiXGEQCAUgUFQARtdE9qJofSQYQABe0A32omh9JBj9JBhA=');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 8000,

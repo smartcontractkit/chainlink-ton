@@ -7,7 +7,7 @@ import "../../../lib/jetton/messages"
 ///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
 ///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
 ///      so one account per user serves any number of jettons.
-struct (0x552706d7) DepositAccount_Init {
+struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
     /// Optional context forwarded back in the DepositAccount_Reply.
@@ -15,14 +15,14 @@ struct (0x552706d7) DepositAccount_Init {
 }
 
 /// Reply message on successful initialization
-struct (0xb2e46750) DepositAccount_Reply {
+struct (0xda04630c) DepositAccount_Reply {
     queryId: uint64;
     forwardPayload: cell?;
 }
 
 /// Forwarded notification sent to the proxy on messages from specific jetton wallet.
 /// @dev Carries the full original in-message metadata so the proxy (e.g, TP, Router, etc.) can verify everything.
-struct (0xdb3b18bf) DepositAccount_ForwardNotification {
+struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
     // Forwarded in-message
     message: Cell<DepositAccount_InMessageForward>;
 }
@@ -44,7 +44,7 @@ struct DepositAccount_InMessageForward {
 /// @dev `ask.sendExcessesTo` MUST equal the requester (the beneficiary sending this message): it is
 ///      validated by the default `onWithdraw` handler and is what a bounced withdraw is correlated
 ///      back to, so the requester can be notified on the failure path.
-struct (0xb8f621d2) DepositAccount_Withdraw {
+struct (0x1936d112) DepositAccount_Withdraw {
     queryId: uint64;
     /// Jetton wallet address to send the AskToTransfer to.
     walletAddress: address;
@@ -56,7 +56,7 @@ struct (0xb8f621d2) DepositAccount_Withdraw {
 /// Notification sent to the withdraw requester (the beneficiary that sent the `DepositAccount_Withdraw`,
 /// identified by the bounced `AskToTransfer`'s `sendExcessesTo`) when the transfer bounced and the
 /// funds could not be transferred out.
-struct (0x7a42d91e) DepositAccount_WithdrawFailed {
+struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
     /// Jetton wallet the failed AskToTransfer was sent to.
     walletAddress: address;
@@ -67,7 +67,7 @@ struct (0x7a42d91e) DepositAccount_WithdrawFailed {
 /// Notification sent to the account's `proxy` when a message this account forwarded (e.g. a
 /// `Router_CCIPSend` to the Router) bounced back because the destination rejected it. The proxy can
 /// react, e.g. by letting the user withdraw the held deposit.
-struct (0x3f51a724) DepositAccount_ForwardFailed {
+struct (0x67dd47d3) DepositAccount_ForwardFailed {
     /// The contract that bounced the forwarded message (e.g. the Router).
     bouncedFrom: address;
     /// The bounced message body (the original forwarded body) for the proxy to inspect.

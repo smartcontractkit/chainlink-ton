@@ -43,13 +43,13 @@ struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
 
 /// Sets the compiled Deployable code used to derive source-chain deposit accounts.
 /// @dev Owner-only (admin config). See `TokenPool_AdminConfig.deployableCode`.
-struct (0x6c2a91e4) TokenPool_SetDeployableCode {
+struct (0x3868e309) TokenPool_SetDeployableCode {
     queryId: uint64;
     deployableCode: cell?;
 }
 
 /// Replied on `TokenPool_SetDeployableCode` to confirm tx and return excess to sender.
-struct (0x09d4a7b1) TokenPool_DeployableCodeSet {
+struct (0x89d602e5) TokenPool_DeployableCodeSet {
     queryId: uint64;
     deployableCode: cell?;
 }
@@ -57,13 +57,13 @@ struct (0x09d4a7b1) TokenPool_DeployableCodeSet {
 /// Sets the Deployables namespaces whose deposit-account contracts the pool will accept.
 /// @dev Owner-only (dynamic config). Each entry must be a namespace for which
 ///      `TokenPool_AdminConfig.deployableCode` is registered. Replaces any previous set.
-struct (0x1f8e33c2) TokenPool_SetAllowedDepositNamespaces {
+struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
     queryId: uint64;
     allowedDepositNamespaces: map<uint32, bool>;
 }
 
 /// Replied on `TokenPool_SetAllowedDepositNamespaces` to confirm tx and return excess to sender.
-struct (0x7a53c9f4) TokenPool_AllowedDepositNamespacesSet {
+struct (0xc1ffe3a6) TokenPool_AllowedDepositNamespacesSet {
     queryId: uint64;
 }
 
