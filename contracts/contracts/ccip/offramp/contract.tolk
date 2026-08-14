@@ -678,10 +678,10 @@ fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
 //     Wallet  ->> OffRamp:    OffRamp_Execute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
-    onExecuteSingleReport(msg.report, null, value);
-
     var st = Storage.load();
 
+    // emit must be scheduled before onExecuteSingleReport, which sends a message to the MerkleRoot and uses reserve the balance stays constant
+    // if onExecuteSingleReport throws, the event will not be emitted
     st.ocr3Base.load().transmit(
         sender,
         OCR_PLUGIN_TYPE_EXECUTE,
@@ -689,6 +689,8 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
         msg.report.toCell(),
         createEmptyCell(),
     );
+
+    onExecuteSingleReport(msg.report, null, value);
 }
 
 // Executes a single cross-chain execution report. Verifies source chain
@@ -745,6 +747,9 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
+    // emit slowly drains the balance
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
         bounce: true,
@@ -757,8 +762,8 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             gasOverride,
         },
     });
-    // TODO test if this doesn't drain balance
-    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the emits
+    executeMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /*
@@ -882,8 +887,6 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         return messageExecutionFailed(initExecuteMsg);
     }
 
-    // TODO: check if this is the desired behaviour
-    // reserveToncoinsOnBalance(outgingValue, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
 
     // Initiate the execution in the ReceiveExecutor
