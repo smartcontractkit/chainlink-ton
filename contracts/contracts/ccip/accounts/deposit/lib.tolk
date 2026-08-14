@@ -50,14 +50,15 @@ struct DepositAccount_Hooks<T> {
     /// @param 1 wallet   The jetton wallet the failed AskToTransfer was sent to.
     /// @param 2 ask      The bounced AskToTransfer (amount + recipient + requester for reconciliation).
     onWithdrawBounced: ((DepositAccount_Context<T>, address, AskToTransfer) -> void)?;
-    /// Called for a message from the account's allowed jetton wallet that is not a recognized
-    /// DepositAccount message — i.e. the Jetton transfer notification whose body/forward payload
-    /// a specialized account acts on. When null, the default behaviour forwards the message to the
-    /// account's `proxy`.
+    /// Called for a message that is not a recognized DepositAccount message — i.e. the Jetton
+    /// transfer notification whose body/forward payload a specialized account acts on. When null,
+    /// the default behaviour forwards the message to the account's `proxy`. Returns `true` when the
+    /// hook accepted the message, `false` when it left it unhandled (in which case the caller falls
+    /// back to bouncing non-empty unrecognized bodies).
     ///
     /// @param 0 context  The account's working context (`T`, read-only).
     /// @param 1 message  The forwarded in-message envelope (sender, attached value, raw body).
-    onForwardNotification: ((DepositAccount_Context<T>, DepositAccount_InMessageForward) -> void)?;
+    onForwardNotification: ((DepositAccount_Context<T>, DepositAccount_InMessageForward) -> bool)?;
     /// Called when a message this account forwarded bounced back (e.g. a `Router_CCIPSend` that
     /// the Router rejected with `InsufficientFee`). When null, the default behaviour notifies the
     /// account's `proxy` with `DepositAccount_ForwardFailed` so the proxy can react (e.g. let the
@@ -124,24 +125,19 @@ fun DepositAccount<T>.onInternalMessage(
             self.onWithdraw(msgSender, msg);
         }
         else => {
-            // Handle messages from the allowed jetton wallet via the hook; bounce everything else.
-            // The allowed wallet lives on the persistent data, independent of `T`.
-            if (self.data.allowedJettonWallet != null && msgSender == self.data.allowedJettonWallet!) {
-                self.onForwardNotification(forwarded);
-                return true;
-            }
-
-            return msgBody.isEmpty();
+            // Any message that is not a recognized DepositAccount message is handed to the
+            // forward-notification path (which returns whether it accepted the message).
+            return self.onForwardNotification(forwarded);
         }
     }
 
     return true; // default
 }
 
-/// Configures the account: sets the allowed jetton wallet and replies to the initiator.
+/// Configures the account and replies to the initiator.
 /// @dev Wires the `onInit` hook when one is set; otherwise runs the default init — only the owner
-///      or the proxy may initialize (a pool initializes its off-ramp accounts; the Router / proxy
-///      initializes on-ramp accounts).
+///      may initialize the account. The party that deploys the account is expected to be its owner
+///      (e.g. the pool for off-ramp accounts, the Router for on-ramp accounts).
 fun DepositAccount<T>.onInit(
     mutate self,
     sender: address,
@@ -152,11 +148,7 @@ fun DepositAccount<T>.onInit(
         return;
     }
 
-    var data = self.data;
-    assert(sender == data.owner || sender == data.proxy, DepositAccount_Error.OnlyOwnerOrProxy);
-
-    data.allowedJettonWallet = msg.allowedJettonWallet;
-    self.data = data;
+    assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
 
     // Send Reply to the initiator so it knows the account is ready.
     val reply = createMessage({
@@ -190,7 +182,7 @@ fun DepositAccount<T>.onWithdraw(
 
     // The AskToTransfer must carry the requester as `sendExcessesTo` so a bounce can be correlated
     // back to the sender and notified on the failure path.
-    assert(ask.sendExcessesTo != null && ask.sendExcessesTo! == sender, DepositAccount_Error.WithdrawExcessToRequester);
+    assert(ask.sendExcessesTo != null && ask.sendExcessesTo! == sender, DepositAccount_Error.OnlySendExcessesToSender);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -201,17 +193,17 @@ fun DepositAccount<T>.onWithdraw(
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-/// Handles a message from the account's allowed jetton wallet that is not a recognized
-/// DepositAccount message. Wires the `onForwardNotification` hook when one is set; otherwise
-/// forwards the message to the account's `proxy`, carrying the full in-message envelope so the
-/// proxy (TP, Router) can verify everything.
+/// Handles a message that is not a recognized DepositAccount message. Returns `true` if the message
+/// was accepted and consumed, `false` if the message was left unhandled. Wires the
+/// `onForwardNotification` hook when one is set — the hook's return value is what the caller sees;
+/// otherwise the default forwards the message to the account's `proxy`, carrying the full in-message
+/// envelope so the proxy (TP, Router) can verify everything, and always returns `true`.
 fun DepositAccount<T>.onForwardNotification(
     self,
     forwarded: DepositAccount_InMessageForward,
-) {
+): bool {
     if (self.hooks != null && self.hooks.onForwardNotification != null) {
-        self.hooks.onForwardNotification(self.context(), forwarded);
-        return;
+        return self.hooks.onForwardNotification(self.context(), forwarded);
     }
 
     val notification = createMessage({
@@ -223,6 +215,7 @@ fun DepositAccount<T>.onForwardNotification(
         },
     });
     notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    return true;
 }
 
 /// Handles a bounced outgoing message. Returns `true` if the bounce was recognized and consumed.

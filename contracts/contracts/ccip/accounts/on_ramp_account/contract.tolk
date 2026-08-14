@@ -76,9 +76,8 @@ fun onInternalMessage(in: InMessage) {
     );
     account.store();
 
-    // Unhandled (non-empty unrecognized) messages bounce to the sender.
     if (!handled) {
-        throw 0xFFFF;
+        assert(in.body.isEmpty()) throw 0xFFFF;
     }
 }
 
@@ -95,20 +94,25 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 /// On-ramp `onForwardNotification` hook: parses the `Router_CCIPSend` from a deposit notification's
 /// forward payload and sends it to the Router (`proxy`). The deposited jettons stay in this
-/// account's wallet for a later beneficiary withdrawal.
+/// account's wallet for a later beneficiary withdrawal. Returns `true` when the message was
+/// accepted (a valid jetton transfer notification, including a deposit-only one), `false` when the
+/// body is not a recognized jetton notification — the caller then bounces non-empty unrecognized
+/// bodies.
 ///
-/// @dev The dispatch guarantees this is only reached for messages whose sender is the account's
-///      `allowedJettonWallet` (its own jetton wallet), so the notification is authentic. `context`
-///      is the account's own data (allows reading `proxy`). The Router owns CCIPSend fee validation
+/// @dev The account is token-agnostic: it forwards any inbound non-control message here, and the
+///      token-handling layer verifies the original message's sender via `forwarded.senderAddress`
+///      before a withdraw. `context` is the account's own data (allows reading `proxy`). The Router
+///      owns CCIPSend fee validation
 ///      (`Router_Costs.CCIPSend`), so we forward the message as-is with `RichBounce`: if the Router
 ///      rejects it (e.g. insufficient fee), the bounce is surfaced to the proxy via the default
 ///      `onForwardBounced` handler.
 fun onForwardNotification(
     context: DepositAccount_Context<void>,
     forwarded: DepositAccount_InMessageForward,
-): void {
+): bool {
     val data: DepositAccount_Data = context.data;
 
+    // TODO: try to decode, return false
     // The envelope carries the original Jetton transfer notification body.
     val notification = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
 
@@ -117,7 +121,7 @@ fun onForwardNotification(
     if (ccipSendCell == null) {
         // Deposit-only: no CCIPSend to forward. Jettons stay in this account's wallet (held)
         // for a later beneficiary withdrawal (owner or Router).
-        return;
+        return true;
     }
 
     // Send the boxed Router_CCIPSend to the Router (proxy) as a message on its own. We do NOT touch
@@ -130,6 +134,7 @@ fun onForwardNotification(
         body: ccipSendCell!.beginParse(),
     });
     send.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    return true;
 }
 
 get fun typeAndVersion(): (slice, slice) {
@@ -144,15 +149,4 @@ get fun getOwner(): address {
 get fun getProxy(): address {
     val data = lazy DepositAccount_Data.load();
     return data.proxy;
-}
-
-get fun getAllowedJettonWallet(): address? {
-    val data = lazy DepositAccount_Data.load();
-    return data.allowedJettonWallet;
-}
-
-/// Returns the map of addresses that are allowed to withdraw jettons from this account's wallet.
-get fun getBeneficiaries(): map<address, bool> {
-    val data = lazy DepositAccount_Data.load();
-    return data.beneficiaries;
 }

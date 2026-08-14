@@ -24,11 +24,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
 
   const owner = () => user.address
   const proxy = () => router.address
-  const beneficiaries = () =>
-    new Map<Address, boolean>([
-      [user.address, true],
-      [router.address, true],
-    ])
+  const beneficiaries = () => new Set<Address>([user.address, router.address])
 
   // A canonical CCIPSend-shaped boxed message (op 0x31768d95 = Router_CCIPSend) carried in a deposit.
   const ccipSendCell = () =>
@@ -107,19 +103,14 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
         owner: owner(),
         proxy: proxy(),
         beneficiaries: beneficiaries(),
-        allowedJettonWallet: null,
       }),
     )
     await account.sendDeploy(deployer.getSender(), toNano('1'))
   })
 
-  // The account's own jetton wallet is the single source of authentic deposit notifications.
-  const accountWallet = async () => jettonMinter.getWalletAddress(account.address)
-
   const initAccount = async (via: SandboxContract<TreasuryContract>, queryId = 1n) => {
     return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
       queryId,
-      allowedJettonWallet: await accountWallet(),
       forwardPayload: null,
     })
   }
@@ -138,10 +129,9 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   it('deploys with owner and proxy (Router) and is not yet initialized', async () => {
     expect((await account.getOwner()).equals(owner())).toBe(true)
     expect((await account.getProxy()).equals(proxy())).toBe(true)
-    expect(await account.getAllowedJettonWallet()).toBeNull()
   })
 
-  it('initializes only from owner or proxy and authenticates the account wallet', async () => {
+  it('initializes only from owner', async () => {
     const res = await initAccount(user)
     expect(res.transactions).toHaveTransaction({
       from: user.address,
@@ -149,11 +139,12 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
       success: true,
     })
 
-    const expected = await accountWallet()
-    expect((await account.getAllowedJettonWallet())?.equals(expected)).toBe(true)
+    // The proxy (Router) is no longer allowed to init — only the owner may.
+    const badProxy = await initAccount(router, 2n)
+    expect(badProxy.transactions).toHaveTransaction({ to: account.address, success: false })
 
     // Attacker can't init.
-    const bad = await initAccount(attacker, 2n)
+    const bad = await initAccount(attacker, 3n)
     expect(bad.transactions).toHaveTransaction({ to: account.address, success: false })
   })
 
@@ -188,10 +179,11 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     expect(await acctWallet.getJettonBalance()).toEqual(toNano('5'))
   })
 
-  it('bounces a deposit notification from a non-account wallet', async () => {
+  it('accepts a deposit notification with a CCIPSend from any wallet (token-agnostic)', async () => {
     await initAccount(user)
 
-    // Notify from a wallet that is NOT the account's own wallet (not the allowedJettonWallet).
+    // The account does not gate on a trusted wallet: a notification carrying a CCIPSend is
+    // forwarded to the Router regardless of sender (wallet/sender auth lives at the token handler).
     const res = await user.send({
       to: account.address,
       value: toNano('0.5'),
@@ -204,7 +196,13 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
         .storeMaybeRef(ccipSendCell())
         .endCell(),
     })
-    expect(res.transactions).toHaveTransaction({ to: account.address, success: false })
+    // The CCIPSend (op 0x31768d95) is relayed to the Router.
+    expect(res.transactions).toHaveTransaction({
+      from: account.address,
+      to: router.address,
+      success: true,
+      op: 0x31768d95,
+    })
   })
 
   it('lets the owner and Router (both beneficiaries) withdraw, and rejects everyone else', async () => {

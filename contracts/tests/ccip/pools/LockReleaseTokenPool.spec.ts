@@ -656,10 +656,9 @@ describe('LockReleaseTokenPool', () => {
 
     // Tokens land in the account's jetton wallet (not recipient's personal wallet)
     const oaa = DepositAccount.fromStorage({
-      owner: recipient.address,
+      owner: lockReleasePool.address, // pool deploys+inits the account
       proxy: lockReleasePool.address,
-      beneficiaries: new Map([[recipient.address, true]]),
-      allowedJettonWallet: null,
+      beneficiaries: new Set([recipient.address]),
     })
     const oaaWallet = await userWallet(oaa.address)
     expect(await oaaWallet.getJettonBalance()).toEqual(toNano('2'))
@@ -682,10 +681,9 @@ describe('LockReleaseTokenPool', () => {
     const poolWallet = await userWallet(lockReleasePool.address)
     // Account wallet for checking balance (not recipient's personal wallet)
     const oaa = DepositAccount.fromStorage({
-      owner: recipient.address,
+      owner: lockReleasePool.address, // pool deploys+inits the account
       proxy: lockReleasePool.address,
-      beneficiaries: new Map([[recipient.address, true]]),
-      allowedJettonWallet: null,
+      beneficiaries: new Set([recipient.address]),
     })
     const oaaWallet = await userWallet(oaa.address)
 

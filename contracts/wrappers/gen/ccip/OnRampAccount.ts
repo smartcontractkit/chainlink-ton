@@ -64,6 +64,23 @@ function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerialize
 }
 
 
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
+
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
 }
@@ -148,22 +165,6 @@ class StackReader {
 
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
-    }
-
-    readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
-        if (this.tuple[0].type === 'null') {
-            this.tuple.shift();
-            return null;
-        }
-        return readFn_T(this);
-    }
-
-    readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
-        if (this.tuple[0].type === 'null') {
-            this.tuple.shift();
-            return c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
-        }
-        return c.Dictionary.loadDirect<K, V>(keySerializer, valueSerializer, this.readCell());
     }
 }
 
@@ -297,24 +298,21 @@ export const AskToTransfer = {
  > struct DepositAccount_Data {
  >     owner: address
  >     proxy: address
- >     beneficiaries: map<address, bool>
- >     allowedJettonWallet: address?
+ >     beneficiaries: map<address, ()>
  > }
  */
 export interface DepositAccount_Data {
     readonly $: 'DepositAccount_Data'
     owner: c.Address
     proxy: c.Address
-    beneficiaries: Map<c.Address, boolean>
-    allowedJettonWallet: c.Address | null
+    beneficiaries: Set<c.Address>
 }
 
 export const DepositAccount_Data = {
     create(args: {
         owner: c.Address
         proxy: c.Address
-        beneficiaries: Map<c.Address, boolean>
-        allowedJettonWallet: c.Address | null
+        beneficiaries: Set<c.Address>
     }): DepositAccount_Data {
         return {
             $: 'DepositAccount_Data',
@@ -326,15 +324,22 @@ export const DepositAccount_Data = {
             $: 'DepositAccount_Data',
             owner: s.loadAddress(),
             proxy: s.loadAddress(),
-            beneficiaries: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
-            allowedJettonWallet: s.loadMaybeAddress(),
+            beneficiaries: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: DepositAccount_Data, b: c.Builder): void {
         b.storeAddress(self.owner);
         b.storeAddress(self.proxy);
-        b.storeDict<c.Address, boolean>(mapToDict(self.beneficiaries, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
-        b.storeAddress(self.allowedJettonWallet);
+        b.storeDict<c.Address, []>(setToDict(self.beneficiaries, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
     },
     toCell(self: DepositAccount_Data): c.Cell {
         return makeCellFrom<DepositAccount_Data>(self, DepositAccount_Data.store);
@@ -344,14 +349,12 @@ export const DepositAccount_Data = {
 /**
  > struct (0x552706d7) DepositAccount_Init {
  >     queryId: uint64
- >     allowedJettonWallet: address
  >     forwardPayload: cell?
  > }
  */
 export interface DepositAccount_Init {
     readonly $: 'DepositAccount_Init'
     queryId: uint64
-    allowedJettonWallet: c.Address
     forwardPayload: c.Cell | null
 }
 
@@ -360,7 +363,6 @@ export const DepositAccount_Init = {
 
     create(args: {
         queryId?: uint64
-        allowedJettonWallet: c.Address
         forwardPayload: c.Cell | null
     }): DepositAccount_Init {
         return {
@@ -374,14 +376,12 @@ export const DepositAccount_Init = {
         return {
             $: 'DepositAccount_Init',
             queryId: s.loadUintBig(64),
-            allowedJettonWallet: s.loadAddress(),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: DepositAccount_Init, b: c.Builder): void {
         b.storeUint(0x552706d7, 32);
         b.storeUint(self.queryId, 64);
-        b.storeAddress(self.allowedJettonWallet);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
@@ -713,12 +713,12 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECGwEABAMAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASATFAIBIAYHAgEgDA0B9U+JGOP+1E0PpI+kj0BPpQ0W1tbZLwAgBtcIEAhPiSK1GbUZtRkgkQaEcVQBMREBYU8AedAsj6UvpS9AD6VMntVOBfBODtRND6SPpI9AT6UNFtbW2S8AIAbXCBAIT4kviX+JL4l/iY+JMn+Dr4lPiVVhPIzskRExEUEROAgCASAJCgBmERIRExESEREREhERERAREREQChEQChCaEIkQePADbHEEyPpSE/pS9AD6VMntVNyED/LwAJUO18JAdDXLCObFoTk8r/TPzH6ADH6UDH0BCFumzEgxwCSMG3gyM7JkdHiIG6RW+DQyM7JyM+FiBL6Us+EEHP6AnHPC2XMyYBA+wCABNztou37OCbXLCKpODa8mmyB0z/6SPQF8ATjDn+ALAOjXLCXHsQ6UjkgwVhBus5cIVhDHBcMAkjhw4o4sNVYRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRBwYFBEEz8AZ/2zHgEFdfB8cA2zHhbIHTP/pI10wuUU5RTlFOUU5RTlFOUU5RTlFOUU5BRAPwBQIBIA4PAgEgEBEAjQkwwCVKW6zwwCRcOKaVH7cU+1VNC7akOA7gR9AUz7HBZF/llM9xwXDAOLy9MjPhQgT+lKCELLkZ1DPC47LPxn0AMmAQPsAgANcNTU1NsMAlSNus8MAkXDilFUC2pDgNTVbNDQigR9BA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCBH0IhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAAlw4OTk5A8MAlSRus8MAkXDil0V2UDME2sDgNDc3NzgDyPpSUAf6AhP0AFj6AhTLPxPLHxLMycjPhQgS+lKCENs7GL/PC47MyYBA+wCABmQ0NTUB1ywn////9PK/10wg0NcsIHxT9SzjAjAyA8MAlSJus8MAkXDik1jacI4cUFdfBcjPhQgS+lKCED9RpyTPC476UszJgED7AOJ/gEgDObCHTP/oA+kj6UPQE+gAJwwCVJm6zwwCRcOKWEHhVFdrQjkI2ODg4ODjIz5A+KfqWKM8LP1AH+gIV+lJSMPpUEvQAUAT6AhPOycjPhQgT+lKCEHpC2R7PC44Tyz8S+lLMyYBA+wDifwIBIBUWAgFIGRoCASAXGAAbudCO1E0PpIMfpIMfQFgAW7Yr8aELY0tzWXMbQwtLcXOje3FzGxtLgXJ7cpMLa4ILGxt7q3OkEWpgXGJcYRAAIbZIvaiaH0kGP0kGPoA/SgYQABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAA5wAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHAgEgCwwB70+JGOOO1E0PpI+kj0BNFtbW2S8AIAbXCBAIT4kipRmlRBqRBYBlAzB0QUDvAHmwHI+lL6UvQAye1U4F8D4O1E0PpI+kj0BNFtbW2S8AIAbXCBAIT4kviX+JL4l/iY+JMn+Dr4lPiVVhLIzskREhETERIRERESERGAgCASAJCgBKERAREREQChEQChCaEIkQePADbHEDyPpSEvpS9ADJ7VTchA/y8ACZDpfCAHQ1ywjmxaE5PK/0z8x+gAx+lAx9AQhbpsxIMcAkjBt4MjOyZHR4iBuklt/4NDIzsnIz4WIEvpSz4QQc/oCcc8LZczJgED7AH+AA8Ttou37OCbXLCKpODa8mGyB0z/0BfAEjl7XLCXHsQ6UjjUwOFYRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRB1YRBwYFBEMTARERAfAGlMcA2zHhMH/bMeFsgdM/+kjXTC1RTVFNUU1RTVFNUU1RTVFNUU1ENPAF4n+ACASANDgIBIA8QAHMI8MAlShus8MAkXDimVR8uixVIyzacOCBH0BTPccF8vTIz4UIE/pSghCy5GdQzwuOyz/0AMmAQPsAgANUNTU1NsMAlSNus8MAkXDilFUC2oDgNTZbNCOBH0EDgQEL9ApvoTES8vQg0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIEfQiFus5UExwXDAJMxM3DiE/L0yM+FiPpSz4QQc/oCcc8LZczJgFD7AIACVDg5OTkDwwCVJG6zwwCRcOKXRXZQMwTaseA0Nzc4BMj6UlAE+gIU9AAB+gISyz/LHxLMycjPhQgS+lKCENs7GL/PC47MyYBA+wB/gAZkNDU1AdcsJ/////Tyv9dMINDXLCB8U/Us4wIwMgPDAJUibrPDAJFw4pNY2mCOHDQ1W8jPhQgS+lKCED9RpyTPC44S+lLMyYBA+wDif4BEAymwh0z/6APpI+lD0BPoACcMAlSZus8MAkXDilhB4VRXawI5ANjg4ODjIz5A+KfqWIc8LP1AI+gIW+lJSQPpUE/QAUAT6AhPOycjPhQgS+lKCEHpC2R7PC44Tyz/6UszJgED7AOJ/AFu8ivxoQtjS3NZcxtDC0txc6N7cXMbG0uBcntykwtrggsbG3urc6QRamBcYlxhEAgFIFBUAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
 
     static Errors = {
-        'DepositAccount_Error.OnlyOwnerOrProxy': 8000,
+        'DepositAccount_Error.OnlyOwner': 8000,
         'DepositAccount_Error.OnlyBeneficiary': 8001,
-        'DepositAccount_Error.WithdrawExcessToRequester': 8002,
+        'DepositAccount_Error.OnlySendExcessesToSender': 8002,
     }
 
     readonly address: c.Address
@@ -736,8 +736,7 @@ export class OnRampAccount implements c.Contract {
     static fromStorage(emptyStorage: {
         owner: c.Address
         proxy: c.Address
-        beneficiaries: Map<c.Address, boolean>
-        allowedJettonWallet: c.Address | null
+        beneficiaries: Set<c.Address>
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? OnRampAccount.CodeCell,
@@ -749,7 +748,6 @@ export class OnRampAccount implements c.Contract {
 
     static createCellOfDepositAccountInit(body: {
         queryId?: uint64
-        allowedJettonWallet: c.Address
         forwardPayload: c.Cell | null
     }) {
         return DepositAccount_Init.toCell(DepositAccount_Init.create(body));
@@ -781,7 +779,6 @@ export class OnRampAccount implements c.Contract {
 
     async sendDepositAccountInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        allowedJettonWallet: c.Address
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -822,17 +819,5 @@ export class OnRampAccount implements c.Contract {
     async getProxy(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getProxy', []));
         return r.readSlice().loadAddress();
-    }
-
-    async getAllowedJettonWallet(provider: ContractProvider): Promise<c.Address | null> {
-        const r = StackReader.fromGetMethod(1, await provider.get('getAllowedJettonWallet', []));
-        return r.readNullable<c.Address>(
-            (r) => r.readSlice().loadAddress()
-        );
-    }
-
-    async getBeneficiaries(provider: ContractProvider): Promise<Map<c.Address, boolean>> {
-        const r = StackReader.fromGetMethod(1, await provider.get('getBeneficiaries', []));
-        return dictToMap(r.readDictionary<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()));
     }
 }

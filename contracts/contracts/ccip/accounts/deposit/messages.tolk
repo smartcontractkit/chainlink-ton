@@ -2,12 +2,14 @@
 
 import "../../../lib/jetton/messages"
 
-/// Initialization message sent by the owner to activate the account and set the allowed jetton wallet.
+/// Initialization message sent by the owner to activate the account.
+/// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
+///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
+///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
+///      so one account per user serves any number of jettons.
 struct (0x552706d7) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
-    /// Only messages from this wallet are forwarded to the pool.
-    allowedJettonWallet: address;
     /// Optional context forwarded back in the DepositAccount_Reply.
     forwardPayload: cell?;
 }

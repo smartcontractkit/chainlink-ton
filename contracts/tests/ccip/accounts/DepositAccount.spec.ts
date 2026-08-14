@@ -15,13 +15,13 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   let proxy: SandboxContract<TreasuryContract> // e.g. pool (or Router)
   let recipient: SandboxContract<TreasuryContract> // owner
   let attacker: SandboxContract<TreasuryContract>
-  let allowedWallet: SandboxContract<TreasuryContract>
+  let notifier: SandboxContract<TreasuryContract> // any jetton wallet (token-agnostic account)
 
   let account: SandboxContract<DepositAccount>
 
   const owner = () => recipient.address
   const proxyAddr = () => proxy.address
-  const beneficiaries = () => new Map<Address, boolean>([[recipient.address, true]])
+  const beneficiaries = () => new Set<Address>([recipient.address])
 
   const init = async (
     via: SandboxContract<TreasuryContract>,
@@ -30,7 +30,6 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   ) => {
     return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
       queryId,
-      allowedJettonWallet: allowedWallet.address,
       forwardPayload,
     })
   }
@@ -61,24 +60,22 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     proxy = await blockchain.treasury('proxy')
     recipient = await blockchain.treasury('recipient')
     attacker = await blockchain.treasury('attacker')
-    allowedWallet = await blockchain.treasury('allowedWallet')
+    notifier = await blockchain.treasury('notifier')
 
-    // A freshly-derived, uninitialized DepositAccount (allowedJettonWallet is null until init).
+    // A freshly-derived, uninitialized, token-agnostic DepositAccount.
     account = blockchain.openContract(
       DepositAccount.fromStorage({
         owner: owner(),
         proxy: proxyAddr(),
         beneficiaries: beneficiaries(),
-        allowedJettonWallet: null,
       }),
     )
     await account.sendDeploy(recipient.getSender(), toNano('1'))
   })
 
-  it('deploys with owner, proxy and unset allowed wallet', async () => {
+  it('deploys with owner and proxy (no wallet gate — token-agnostic)', async () => {
     expect((await account.getOwner()).equals(owner())).toBe(true)
     expect((await account.getProxy()).equals(proxyAddr())).toBe(true)
-    expect(await account.getAllowedJettonWallet()).toBeNull()
   })
 
   it('reports type and version', async () => {
@@ -87,33 +84,24 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     expect(version.loadStringTail()).toBe('0.1.0')
   })
 
-  it('initializes only from owner or proxy and replies', async () => {
-    const res = await init(proxy)
+  it('initializes only from owner and replies', async () => {
+    const res = await init(recipient)
     expect(res.transactions).toHaveTransaction({
-      from: proxy.address,
-      to: account.address,
-      success: true,
-    })
-
-    // allowedJettonWallet is now set.
-    expect((await account.getAllowedJettonWallet())?.equals(allowedWallet.address)).toBe(true)
-
-    // Owner can also init.
-    const pre = await account.getAllowedJettonWallet()
-    const resOwner = await init(recipient)
-    expect(resOwner.transactions).toHaveTransaction({
       from: recipient.address,
       to: account.address,
       success: true,
     })
-    expect(pre).not.toBeNull()
 
-    // The account sent DepositAccount_Reply back to the proxy, echoing `forwardPayload`.
+    // The proxy (non-owner) can no longer init — only the owner may.
+    const badProxy = await init(proxy)
+    expect(badProxy.transactions).toHaveTransaction({ to: account.address, success: false })
+
+    // The account sent DepositAccount_Reply back to the owner, echoing `forwardPayload`.
     const forwardPayload = beginCell().storeUint(0xed696f9b, 32).endCell()
-    const res2 = await init(proxy, 7n, forwardPayload)
+    const res2 = await init(recipient, 7n, forwardPayload)
     expect(res2.transactions).toHaveTransaction({
       from: account.address,
-      to: proxy.address,
+      to: recipient.address,
       success: true,
       op: DepositAccount_Reply.PREFIX,
       body(body) {
@@ -124,20 +112,17 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
   })
 
-  it('rejects init from a non-owner/non-proxy sender', async () => {
+  it('rejects init from a non-owner sender', async () => {
     const bad = await init(attacker)
     expect(bad.transactions).toHaveTransaction({ to: account.address, success: false })
-
-    // allowedJettonWallet stays unset.
-    expect(await account.getAllowedJettonWallet()).toBeNull()
   })
 
-  it('forwards a jetton notification from the allowed wallet to the proxy', async () => {
-    await init(proxy)
+  it('forwards a jetton notification from any wallet to the proxy', async () => {
+    await init(recipient)
 
-    // The allowed wallet sends a Jetton notification to the account.
+    // Any wallet (token-agnostic account) sends a Jetton notification to the account.
     const notificationBody = buildNotificationBody(3n, toNano('2'), proxy.address)
-    const res = await allowedWallet.send({
+    const res = await notifier.send({
       to: account.address,
       value: toNano('0.2'),
       bounce: false,
@@ -145,8 +130,8 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
 
     // The account forwards a DepositAccount_ForwardNotification to the proxy,
-    // carrying the original message metadata + body.
-    const expectedSender = allowedWallet.address
+    // carrying the original message metadata + body (including the original senderAddress).
+    const expectedSender = notifier.address
     expect(res.transactions).toHaveTransaction({
       from: account.address,
       to: proxy.address,
@@ -163,34 +148,46 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
   })
 
-  it('bounces a jetton notification from a non-allowed wallet', async () => {
-    await init(proxy)
+  it('forwards a jetton notification even from a non-account wallet sender (auth lives in the pool)', async () => {
+    await init(recipient)
 
-    // A random old wallet (not the allowed one) sends to the account — must bounce.
+    // The account does not gate on a trusted wallet: any sender is forwarded, and the pool (proxy)
+    // is responsible for verifying `senderAddress` against the expected wallet before finalizing.
+    const notificationBody = buildNotificationBody(3n, toNano('2'), proxy.address)
     const res = await attacker.send({
       to: account.address,
       value: toNano('0.2'),
       bounce: false,
-      body: buildNotificationBody(3n, toNano('2'), proxy.address),
+      body: notificationBody,
     })
-    expect(res.transactions).toHaveTransaction({ to: account.address, success: false })
+    expect(res.transactions).toHaveTransaction({
+      from: account.address,
+      to: proxy.address,
+      success: true,
+      op: DepositAccount_ForwardNotification.PREFIX,
+    })
   })
 
-  it('bounces unrecognized messages', async () => {
-    await init(proxy)
+  it('forwards unrecognized messages (no bounce at the account)', async () => {
+    await init(recipient)
 
-    // An unknown opcode with a non-empty body must bounce.
+    // Unknown opcodes are forwarded verbatim to the proxy; the account does not bounce them.
     const res = await attacker.send({
       to: account.address,
       value: toNano('0.2'),
       bounce: false,
       body: beginCell().storeUint(0xdeadbeef, 32).endCell(),
     })
-    expect(res.transactions).toHaveTransaction({ to: account.address, success: false })
+    expect(res.transactions).toHaveTransaction({
+      from: account.address,
+      to: proxy.address,
+      success: true,
+      op: DepositAccount_ForwardNotification.PREFIX,
+    })
   })
 
   it('lets a beneficiary withdraw by forwarding AskToTransfer, and rejects everyone else', async () => {
-    await init(proxy)
+    await init(recipient)
     const to = recipient.address
     const walletAddress = attacker.address // a stand-in wallet address for the AskToTransfer target
 

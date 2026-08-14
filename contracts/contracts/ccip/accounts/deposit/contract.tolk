@@ -46,9 +46,8 @@ fun onInternalMessage(in: InMessage) {
     );
     account.store();
 
-    // Unhandled (non-empty unrecognized) messages bounce to the sender.
     if (!handled) {
-        throw 0xFFFF;
+        assert(in.body.isEmpty()) throw 0xFFFF;
     }
 }
 
@@ -76,13 +75,8 @@ get fun getProxy(): address {
     return data.proxy;
 }
 
-get fun getAllowedJettonWallet(): address? {
-    val data = lazy DepositAccount_Data.load();
-    return data.allowedJettonWallet;
-}
-
-/// Returns the map of addresses that are allowed to withdraw jettons from this account's wallet.
-get fun getBeneficiaries(): map<address, bool> {
+/// Returns the set of addresses that are allowed to withdraw jettons from this account's wallet.
+get fun getBeneficiaries(): map<address, ()> {
     val data = lazy DepositAccount_Data.load();
     return data.beneficiaries;
 }

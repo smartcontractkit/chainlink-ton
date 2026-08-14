@@ -262,29 +262,21 @@ fun onCCTReturnExcessesBack(
 }
 
 /// @notice Deploys a DepositAccount (off-ramp role) for mint operations.
-/// owner = recipient (withdraws minted jettons), proxy = pool.
-/// allowedJettonWallet = account's own jetton wallet (notifications come from here).
+/// owner = pool (deploys and inits the account), proxy = pool, beneficiary = recipient
+/// (withdraws minted jettons).
 fun deployOffRampAccountWithMint(
     st: Storage,
     recipient: address,
     queryId: uint64,
     context: BurnMintTokenPool_MintContext,
 ) {
-    val jettonClient = st.poolData.load().jettonClient();
-    var beneficiaries: map<address, bool> = [];
-    beneficiaries.set(recipient, true);
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(recipient, ());
     val oaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        recipient,
-        contract.getAddress(),
+        contract.getAddress(), // owner = pool (inits the account)
+        contract.getAddress(), // proxy = pool
         beneficiaries,
-    );
-
-    // Account's own jetton wallet — this is where minted tokens arrive.
-    val oaaWallet = calcAddressOfJettonWallet(
-        oaa.calculateAddress(),
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
     );
 
     val deploy = createMessage({
@@ -293,7 +285,6 @@ fun deployOffRampAccountWithMint(
         dest: oaa,
         body: DepositAccount_Init {
             queryId,
-            allowedJettonWallet: oaaWallet,
             forwardPayload: context.toCell(),
         },
     });
@@ -317,12 +308,12 @@ fun onDepositAccountReply(
     // Validate sender: derive expected account address from the mint recipient and verify.
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
-    var beneficiaries: map<address, bool> = [];
-    beneficiaries.set(mintRecipient, true);
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        mintRecipient,
-        contract.getAddress(),
+        contract.getAddress(), // owner = pool
+        contract.getAddress(), // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
@@ -385,20 +376,30 @@ fun onDepositAccountForwardNotification(
     val context = lazy BurnMintTokenPool_MintContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
 
-    // Validate sender: derive expected account address from the mint recipient and verify.
+    // Validate sender: the forwarded notification must come from the account and its original
+    // jetton wallet (the account's own derived wallet for this pool's token).
     val mintRecipient = getMintRecipientFromContext(contextCell);
-    var beneficiaries: map<address, bool> = [];
-    beneficiaries.set(mintRecipient, true);
+    val jettonClient = st.poolData.load().jettonClient();
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        mintRecipient,
-        contract.getAddress(),
+        contract.getAddress(), // owner = pool
+        contract.getAddress(), // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
 
+    // The original message's sender must be the account's own jetton wallet for this token, proving
+    // a genuine mint deposited into the account (not a spoofed arbitrary sender).
+    val expectedWallet = calcAddressOfJettonWallet(
+        expectedOaa.calculateAddress(),
+        jettonClient.masterAddress,
+        jettonClient.jettonWalletCode,
+    );
+    assert(forwarded.senderAddress == expectedWallet, BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
+
     // For mint path, transferInitiator is null (minter is the authority — no source wallet auth needed).
-    // The account sender validation above is sufficient for mint completion.
 
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);
