@@ -638,56 +638,82 @@ export const ReceiveExecutor_TokenTransferInfo = {
 }
 
 /**
- > type ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Untouched | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed | ReceiveExecutor_TokenTransferState_ReleaseOrMint | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed | TokenTransferSuccess
+ > type ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Success | ReceiveExecutor_TokenTransferState_Untouched | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed | ReceiveExecutor_TokenTransferState_ReleaseOrMint | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
  */
 export type ReceiveExecutor_TokenTransferState =
+    | ReceiveExecutor_TokenTransferState_Success
     | ReceiveExecutor_TokenTransferState_Untouched
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed
     | ReceiveExecutor_TokenTransferState_ReleaseOrMint
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
-    | TokenTransferSuccess
 
 export const ReceiveExecutor_TokenTransferState = {
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState {
-        return lookupPrefixAndEat(s, 0b000, 3) ? ReceiveExecutor_TokenTransferState_Untouched.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b001, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b010, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b011, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMint.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b100, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b101, 3) ? TokenTransferSuccess.fromSlice(s) :
+        return lookupPrefixAndEat(s, 0b000, 3) ? ReceiveExecutor_TokenTransferState_Success.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b001, 3) ? ReceiveExecutor_TokenTransferState_Untouched.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b010, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b011, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b100, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMint.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b101, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.fromSlice(s) :
             throwNonePrefixMatch('ReceiveExecutor_TokenTransferState');
     },
     store(self: ReceiveExecutor_TokenTransferState, b: c.Builder): void {
         switch (self.$) {
-            case 'ReceiveExecutor_TokenTransferState_Untouched':
+            case 'ReceiveExecutor_TokenTransferState_Success':
                 b.storeUint(0b000, 3);
+                ReceiveExecutor_TokenTransferState_Success.store(self, b);
+                break;
+            case 'ReceiveExecutor_TokenTransferState_Untouched':
+                b.storeUint(0b001, 3);
                 ReceiveExecutor_TokenTransferState_Untouched.store(self, b);
                 break;
             case 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery':
-                b.storeUint(0b001, 3);
+                b.storeUint(0b010, 3);
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery.store(self, b);
                 break;
             case 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed':
-                b.storeUint(0b010, 3);
+                b.storeUint(0b011, 3);
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.store(self, b);
                 break;
             case 'ReceiveExecutor_TokenTransferState_ReleaseOrMint':
-                b.storeUint(0b011, 3);
+                b.storeUint(0b100, 3);
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint.store(self, b);
                 break;
             case 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed':
-                b.storeUint(0b100, 3);
-                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.store(self, b);
-                break;
-            case 'TokenTransferSuccess':
                 b.storeUint(0b101, 3);
-                TokenTransferSuccess.store(self, b);
+                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.store(self, b);
                 break;
         }
     },
     toCell(self: ReceiveExecutor_TokenTransferState): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState>(self, ReceiveExecutor_TokenTransferState.store);
+    }
+}
+
+/**
+ > struct ReceiveExecutor_TokenTransferState_Success {
+ > }
+ */
+export interface ReceiveExecutor_TokenTransferState_Success {
+    readonly $: 'ReceiveExecutor_TokenTransferState_Success'
+}
+
+export const ReceiveExecutor_TokenTransferState_Success = {
+    create(): ReceiveExecutor_TokenTransferState_Success {
+        return {
+            $: 'ReceiveExecutor_TokenTransferState_Success',
+        }
+    },
+    fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_Success {
+        return {
+            $: 'ReceiveExecutor_TokenTransferState_Success',
+        }
+    },
+    store(self: ReceiveExecutor_TokenTransferState_Success, b: c.Builder): void {
+    },
+    toCell(self: ReceiveExecutor_TokenTransferState_Success): c.Cell {
+        return makeCellFrom<ReceiveExecutor_TokenTransferState_Success>(self, ReceiveExecutor_TokenTransferState_Success.store);
     }
 }
 
@@ -832,32 +858,6 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed = {
     },
     toCell(self: ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed>(self, ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.store);
-    }
-}
-
-/**
- > struct TokenTransferSuccess {
- > }
- */
-export interface TokenTransferSuccess {
-    readonly $: 'TokenTransferSuccess'
-}
-
-export const TokenTransferSuccess = {
-    create(): TokenTransferSuccess {
-        return {
-            $: 'TokenTransferSuccess',
-        }
-    },
-    fromSlice(s: c.Slice): TokenTransferSuccess {
-        return {
-            $: 'TokenTransferSuccess',
-        }
-    },
-    store(self: TokenTransferSuccess, b: c.Builder): void {
-    },
-    toCell(self: TokenTransferSuccess): c.Cell {
-        return makeCellFrom<TokenTransferSuccess>(self, TokenTransferSuccess.store);
     }
 }
 
@@ -1630,7 +1630,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
