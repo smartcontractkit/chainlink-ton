@@ -1,5 +1,6 @@
 import { Cell, toNano, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
+import { findTransaction } from '@ton/test-utils'
 
 import { generateMockTonAddress, asSnakedCell } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
@@ -7,6 +8,7 @@ import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHel
 import { assertLog } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID from '../../../src/offramp/generateMessageID'
+import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -23,7 +25,7 @@ import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
 import { OffRampWithTokenPoolTestSetup } from './OffRamp.Setup'
-import { MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
+import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Execute', () => {
@@ -720,6 +722,69 @@ describe('OffRamp - Execute', () => {
         success: false,
         exitCode: of.OffRamp.Errors['OffRamp_Error.MessageNotFromOwnedContract'],
       })
+    })
+
+    it('should preserve OffRamp balance through onExecuteSingleReport and onExecuteValidated', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      const { root } = await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      const body = of.OffRamp.createCellOfOffRampExecute({
+        reportContext: of.ReportContext.create({
+          configDigest: setup.configDigest,
+          sequenceBytes: 0x02n,
+        }),
+        report,
+      })
+
+      const txs = await sendMessageAsync(blockchain, setup.transmitters[0].address, {
+        to: setup.offRamp.address,
+        value: EXECUTE_COST + message.gasLimit,
+        body,
+      })
+
+      const { transactions, accountSnapshots } = await captureAccountChanges(blockchain, txs, [
+        setup.offRamp.address,
+      ])
+
+      // Sanity: happy path executed end-to-end.
+      expect(transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      // Handler 1: onExecuteSingleReport — triggered by OffRamp_Execute from the transmitter.
+      const executeTX = findTransaction(transactions, {
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        success: true,
+        op: of.OffRamp_Execute.PREFIX,
+      })
+      if (!executeTX) throw new Error('OffRamp_Execute transaction not found')
+      const executeSnap = accountSnapshots.get(executeTX.lt)
+      if (!executeSnap) throw new Error('OffRamp snapshot missing for OffRamp_Execute tx')
+
+      expect(executeSnap.before.balance).toBeGreaterThan(0n)
+      // CARRY_ALL_REMAINING_MESSAGE_VALUE keeps the OffRamp's reserve.
+      expect(executeSnap.before.balance).toEqual(executeSnap.after.balance)
+
+      // Handler 2: onExecuteValidated — triggered by MerkleRoot forwarding OffRamp_ExecuteValidated.
+      const merkleRootAddress = setup.merkleRootAddress(root)
+      const validatedTX = findTransaction(transactions, {
+        from: merkleRootAddress,
+        to: setup.offRamp.address,
+        success: true,
+        op: of.OffRamp_ExecuteValidated.PREFIX,
+      })
+      if (!validatedTX) throw new Error('OffRamp_ExecuteValidated transaction not found')
+      const validatedSnap = accountSnapshots.get(validatedTX.lt)
+      if (!validatedSnap)
+        throw new Error('OffRamp snapshot missing for OffRamp_ExecuteValidated tx')
+
+      expect(validatedSnap.before.balance).toBeGreaterThan(0n)
+      // reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE) + CARRY_ALL_BALANCE keeps the OffRamp's original balance intact.
+      expect(validatedSnap.before.balance).toEqual(validatedSnap.after.balance)
     })
   })
 
