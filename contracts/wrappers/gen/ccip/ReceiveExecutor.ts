@@ -299,7 +299,7 @@ export interface ReceiveExecutor_Storage {
     message: Any2TVMRampMessage
     root: c.Address
     execId: uint192
-    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferState>?, 0 as ReceiveExecutor_MessageExecutionState } */
+    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState } */
     lastExecutionTimestamp: uint64 /* = 0 */
 }
 
@@ -309,7 +309,7 @@ export const ReceiveExecutor_Storage = {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferState>?, 0 as ReceiveExecutor_MessageExecutionState } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }): ReceiveExecutor_Storage {
         return {
@@ -560,19 +560,19 @@ export const ReceiveExecutor_BouncedReason = {
 
 /**
  > struct ReceiveExecutor_State {
- >     tokenTransfer: Cell<ReceiveExecutor_TokenTransferState>?
+ >     tokenTransfer: Cell<ReceiveExecutor_TokenTransferInfo>?
  >     messageExecution: ReceiveExecutor_MessageExecutionState
  > }
  */
 export interface ReceiveExecutor_State {
     readonly $: 'ReceiveExecutor_State'
-    tokenTransfer: ReceiveExecutor_TokenTransferState | null
+    tokenTransfer: ReceiveExecutor_TokenTransferInfo | null
     messageExecution: ReceiveExecutor_MessageExecutionState
 }
 
 export const ReceiveExecutor_State = {
     create(args: {
-        tokenTransfer: ReceiveExecutor_TokenTransferState | null
+        tokenTransfer: ReceiveExecutor_TokenTransferInfo | null
         messageExecution: ReceiveExecutor_MessageExecutionState
     }): ReceiveExecutor_State {
         return {
@@ -583,18 +583,57 @@ export const ReceiveExecutor_State = {
     fromSlice(s: c.Slice): ReceiveExecutor_State {
         return {
             $: 'ReceiveExecutor_State',
-            tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransferState>(s, ReceiveExecutor_TokenTransferState.fromSlice) : null,
+            tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransferInfo>(s, ReceiveExecutor_TokenTransferInfo.fromSlice) : null,
             messageExecution: ReceiveExecutor_MessageExecutionState.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_State, b: c.Builder): void {
-        storeTolkNullable<ReceiveExecutor_TokenTransferState>(self.tokenTransfer, b,
-            (v,b) => storeCellRef<ReceiveExecutor_TokenTransferState>(v, b, ReceiveExecutor_TokenTransferState.store)
+        storeTolkNullable<ReceiveExecutor_TokenTransferInfo>(self.tokenTransfer, b,
+            (v,b) => storeCellRef<ReceiveExecutor_TokenTransferInfo>(v, b, ReceiveExecutor_TokenTransferInfo.store)
         );
         ReceiveExecutor_MessageExecutionState.store(self.messageExecution, b);
     },
     toCell(self: ReceiveExecutor_State): c.Cell {
         return makeCellFrom<ReceiveExecutor_State>(self, ReceiveExecutor_State.store);
+    }
+}
+
+/**
+ > struct ReceiveExecutor_TokenTransferInfo {
+ >     tokenAdminRegistry: address
+ >     state: ReceiveExecutor_TokenTransferState
+ > }
+ */
+export interface ReceiveExecutor_TokenTransferInfo {
+    readonly $: 'ReceiveExecutor_TokenTransferInfo'
+    tokenAdminRegistry: c.Address
+    state: ReceiveExecutor_TokenTransferState /* = ReceiveExecutor_TokenTransferState_Untouched {  } */
+}
+
+export const ReceiveExecutor_TokenTransferInfo = {
+    create(args: {
+        tokenAdminRegistry: c.Address
+        state?: ReceiveExecutor_TokenTransferState /* = ReceiveExecutor_TokenTransferState_Untouched {  } */
+    }): ReceiveExecutor_TokenTransferInfo {
+        return {
+            $: 'ReceiveExecutor_TokenTransferInfo',
+            state: { $: 'ReceiveExecutor_TokenTransferState_Untouched',  },
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferInfo {
+        return {
+            $: 'ReceiveExecutor_TokenTransferInfo',
+            tokenAdminRegistry: s.loadAddress(),
+            state: ReceiveExecutor_TokenTransferState.fromSlice(s),
+        }
+    },
+    store(self: ReceiveExecutor_TokenTransferInfo, b: c.Builder): void {
+        b.storeAddress(self.tokenAdminRegistry);
+        ReceiveExecutor_TokenTransferState.store(self.state, b);
+    },
+    toCell(self: ReceiveExecutor_TokenTransferInfo): c.Cell {
+        return makeCellFrom<ReceiveExecutor_TokenTransferInfo>(self, ReceiveExecutor_TokenTransferInfo.store);
     }
 }
 
@@ -654,31 +693,24 @@ export const ReceiveExecutor_TokenTransferState = {
 
 /**
  > struct ReceiveExecutor_TokenTransferState_Untouched {
- >     tokenAdminRegistry: address
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_Untouched {
     readonly $: 'ReceiveExecutor_TokenTransferState_Untouched'
-    tokenAdminRegistry: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_Untouched = {
-    create(args: {
-        tokenAdminRegistry: c.Address
-    }): ReceiveExecutor_TokenTransferState_Untouched {
+    create(): ReceiveExecutor_TokenTransferState_Untouched {
         return {
             $: 'ReceiveExecutor_TokenTransferState_Untouched',
-            ...args
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_Untouched {
         return {
             $: 'ReceiveExecutor_TokenTransferState_Untouched',
-            tokenAdminRegistry: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_Untouched, b: c.Builder): void {
-        b.storeAddress(self.tokenAdminRegistry);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_Untouched): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_Untouched>(self, ReceiveExecutor_TokenTransferState_Untouched.store);
@@ -687,31 +719,24 @@ export const ReceiveExecutor_TokenTransferState_Untouched = {
 
 /**
  > struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {
- >     tokenAdminRegistry: address
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {
     readonly $: 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery'
-    tokenAdminRegistry: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery = {
-    create(args: {
-        tokenAdminRegistry: c.Address
-    }): ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {
+    create(): ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {
         return {
             $: 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery',
-            ...args
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {
         return {
             $: 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery',
-            tokenAdminRegistry: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery, b: c.Builder): void {
-        b.storeAddress(self.tokenAdminRegistry);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery>(self, ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery.store);
@@ -720,31 +745,24 @@ export const ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery = {
 
 /**
  > struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {
- >     tokenAdminRegistry: address
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {
     readonly $: 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed'
-    tokenAdminRegistry: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed = {
-    create(args: {
-        tokenAdminRegistry: c.Address
-    }): ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {
+    create(): ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {
         return {
             $: 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed',
-            ...args
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {
         return {
             $: 'ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed',
-            tokenAdminRegistry: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed, b: c.Builder): void {
-        b.storeAddress(self.tokenAdminRegistry);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed>(self, ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.store);
@@ -753,19 +771,16 @@ export const ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed = 
 
 /**
  > struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
- >     tokenAdminRegistry: address
  >     tokenPool: address
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     readonly $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint'
-    tokenAdminRegistry: c.Address
     tokenPool: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
     create(args: {
-        tokenAdminRegistry: c.Address
         tokenPool: c.Address
     }): ReceiveExecutor_TokenTransferState_ReleaseOrMint {
         return {
@@ -776,12 +791,10 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_ReleaseOrMint {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint',
-            tokenAdminRegistry: s.loadAddress(),
             tokenPool: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_ReleaseOrMint, b: c.Builder): void {
-        b.storeAddress(self.tokenAdminRegistry);
         b.storeAddress(self.tokenPool);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_ReleaseOrMint): c.Cell {
@@ -791,19 +804,16 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
 
 /**
  > struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
- >     tokenAdminRegistry: address
  >     tokenPool: address
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     readonly $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed'
-    tokenAdminRegistry: c.Address
     tokenPool: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed = {
     create(args: {
-        tokenAdminRegistry: c.Address
         tokenPool: c.Address
     }): ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
         return {
@@ -814,12 +824,10 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed = {
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed',
-            tokenAdminRegistry: s.loadAddress(),
             tokenPool: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed, b: c.Builder): void {
-        b.storeAddress(self.tokenAdminRegistry);
         b.storeAddress(self.tokenPool);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed): c.Cell {
@@ -1622,7 +1630,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -1668,7 +1676,7 @@ export class ReceiveExecutor implements c.Contract {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferState>?, 0 as ReceiveExecutor_MessageExecutionState } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
