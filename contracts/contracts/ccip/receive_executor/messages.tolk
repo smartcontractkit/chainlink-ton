@@ -7,12 +7,12 @@ import "../pools/lib/token_pool/messages"
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
-    | ReceiveExecutor_Bounced
     | TokenRegistry_ReturnTokenInfo
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
-    | ReleaseOrMint_ReleaseOrMintBounced
-    | ReceiveExecutor_Confirm
+    | ReleaseOrMint_ReleaseOrMintFailed
+    | ReceiveExecutor_CCIPReceiveFailed
+    | ReceiveExecutor_CCIPReceiveConfirm
     ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
@@ -25,21 +25,31 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
 }
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
-struct (0x07265cda) ReleaseOrMint_ReleaseOrMintBounced {
-    queryId: uint64;
-    exitCode: int32;
+struct (0x5845e468) ReleaseOrMint_ReleaseOrMintFailed {
+    queryID: uint64;
+    reason: ReleaseOrMint_ReleaseOrMintFailedReason;
 }
 
-struct (0x00e5dd97) ReceiveExecutor_Confirm {
+type ReleaseOrMint_ReleaseOrMintFailedReason =
+    | ReleaseOrMintBounced
+    | NotEnoughDestGasAmountForTokenTransfer;
+
+struct (0xb70c2a9a) ReleaseOrMintBounced {
+    exitCode: int32
+}
+
+struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
+
+struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
     receiver: address
 }
 
-struct (0x05dee1bb) ReceiveExecutor_Bounced {
+struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
     receiver: address
-    reason: ReceiveExecutor_BouncedReason;
+    reason: ReceiveExecutor_FailedReason;
 }
 
-enum ReceiveExecutor_BouncedReason: uint8 {
+enum ReceiveExecutor_FailedReason: uint8 {
     NotEnoughGas = 0,
     BouncedFromReceiver,
     BouncedFromRouter,

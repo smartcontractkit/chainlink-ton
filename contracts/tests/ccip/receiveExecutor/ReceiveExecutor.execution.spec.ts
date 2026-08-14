@@ -11,6 +11,7 @@ import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { createTestMessageWithToken, setupTestReceiveExecutor } from './ReceiveExecutor.Setup'
+import { OFFRAMP_RELEASE_OR_MINT_COST } from '../../../wrappers/ccip/OffRamp'
 
 describe('ReceiveExecutor - Execution', () => {
   // Here we can test backwards compatibility with new message format by running the same tests with different versions of the code
@@ -167,7 +168,7 @@ describe('ReceiveExecutor - Execution', () => {
 
   it('should handle Confirm and send NotifySuccess to owner', async () => {
     await transitionToExecuteState()
-    const result = await receiveExecutor.sendReceiveExecutorConfirm(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
       deployer.getSender(),
       toNano('0.05'),
       {
@@ -178,7 +179,7 @@ describe('ReceiveExecutor - Execution', () => {
       from: deployer.address,
       to: receiveExecutor.address,
       success: true,
-      op: rx.ReceiveExecutor_Confirm.PREFIX,
+      op: rx.ReceiveExecutor_CCIPReceiveConfirm.PREFIX,
     })
     expect(result.transactions).toHaveTransaction({
       from: receiveExecutor.address,
@@ -189,7 +190,7 @@ describe('ReceiveExecutor - Execution', () => {
   })
 
   it('should reject Confirm from non-owner', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorConfirm(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
       nonOwner.getSender(),
       toNano('0.05'),
       {
@@ -205,7 +206,7 @@ describe('ReceiveExecutor - Execution', () => {
   })
 
   it('should reject Confirm when state is not Execute', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorConfirm(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
       deployer.getSender(),
       toNano('0.05'),
       {
@@ -223,7 +224,7 @@ describe('ReceiveExecutor - Execution', () => {
   it('should reject Confirm with wrong receiver', async () => {
     await transitionToExecuteState()
     const wrongReceiver = await generateRandomTonAddress()
-    const result = await receiveExecutor.sendReceiveExecutorConfirm(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
       deployer.getSender(),
       toNano('0.05'),
       {
@@ -242,19 +243,19 @@ describe('ReceiveExecutor - Execution', () => {
 
   it('should handle Bounced and send NotifyFailure to owner', async () => {
     await transitionToExecuteState()
-    const result = await receiveExecutor.sendReceiveExecutorBounced(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
       deployer.getSender(),
       toNano('0.05'),
       {
         receiver: deployer.address,
-        reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
+        reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
       },
     )
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiveExecutor.address,
       success: true,
-      op: rx.ReceiveExecutor_Bounced.PREFIX,
+      op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
     })
     expect(result.transactions).toHaveTransaction({
       from: receiveExecutor.address,
@@ -265,12 +266,12 @@ describe('ReceiveExecutor - Execution', () => {
   })
 
   it('should reject Bounced from non-owner', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorBounced(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
       nonOwner.getSender(),
       toNano('0.05'),
       {
         receiver: deployer.address,
-        reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
+        reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
       },
     )
     expectFailedTransaction(
@@ -282,12 +283,12 @@ describe('ReceiveExecutor - Execution', () => {
   })
 
   it('should reject Bounced when state is not Execute', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorBounced(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
       deployer.getSender(),
       toNano('0.05'),
       {
         receiver: deployer.address,
-        reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
+        reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
       },
     )
     expectFailedTransaction(
@@ -301,12 +302,12 @@ describe('ReceiveExecutor - Execution', () => {
   it('should reject Bounced with wrong receiver', async () => {
     await transitionToExecuteState()
     const wrongReceiver = await generateRandomTonAddress()
-    const result = await receiveExecutor.sendReceiveExecutorBounced(
+    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
       deployer.getSender(),
       toNano('0.05'),
       {
         receiver: wrongReceiver,
-        reason: rx.ReceiveExecutor_BouncedReason.BouncedFromReceiver,
+        reason: rx.ReceiveExecutor_FailedReason.BouncedFromReceiver,
       },
     )
     expectFailedTransaction(
@@ -548,18 +549,18 @@ describe('ReceiveExecutor - Execution', () => {
     it('should send NotifyFailure when ReleaseOrMintBounced', async () => {
       await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
       await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
-      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintBounced(
+      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintFailed(
         deployer.getSender(),
         toNano('0.05'),
         {
-          exitCode: 1n,
+          reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
         },
       )
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: receiveExecutorWithToken.address,
         success: true,
-        op: rx.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
+        op: rx.ReleaseOrMint_ReleaseOrMintFailed.PREFIX,
       })
       expect(result.transactions).toHaveTransaction({
         from: receiveExecutorWithToken.address,
@@ -572,11 +573,11 @@ describe('ReceiveExecutor - Execution', () => {
     it('should reject ReleaseOrMintBounced from non-owner', async () => {
       await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
       await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
-      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintBounced(
+      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintFailed(
         nonOwner.getSender(),
         toNano('0.05'),
         {
-          exitCode: 1n,
+          reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
         },
       )
       expectFailedTransaction(
@@ -588,11 +589,11 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     it('should reject ReleaseOrMintBounced when state is not ReleaseOrMint', async () => {
-      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintBounced(
+      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintFailed(
         deployer.getSender(),
         toNano('0.05'),
         {
-          exitCode: 1n,
+          reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
         },
       )
       expectFailedTransaction(
@@ -650,6 +651,106 @@ describe('ReceiveExecutor - Execution', () => {
         op: of.OffRamp_ReleaseOrMint.PREFIX,
       })
     })
+
+    // --- gasOverride with token transfers ---
+
+    it('should use tokenGasOverride for releaseOrMint when greater than destGasAmount', async () => {
+      // Deploy a ReceiveExecutor with a token transfer that has a low destGasAmount.
+      const receiveExecutorLowGas = await setupTestReceiveExecutor(
+        blockchain,
+        deployer,
+        receiveExecutorCode,
+        createTestMessageWithToken({ receiver: deployer.address, destGasAmount: toNano('0.001') }),
+      )
+
+      // InitExecute with a gasOverride that has a higher tokenGasOverride.
+      const tokenGasOverride = toNano('0.01')
+      await receiveExecutorLowGas.sendReceiveExecutorInitExecute(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+          tokenAdminRegistry: tokenAdminRegistry.address,
+          gasOverride: of.GasOverride.create({
+            receiverExecutionGasLimit: toNano('0.01'),
+            tokenGasOverrides: [tokenGasOverride],
+          }),
+        },
+      )
+
+      // TokenAdminRegistry returns a token pool -> ReleaseOrMint.
+      const result = await receiveExecutorLowGas.sendTokenRegistryReturnTokenInfo(
+        tokenAdminRegistry.getSender(),
+        toNano('0.05'),
+        {
+          minterAddress: deployer.address,
+          tokenPool: tokenPool.address,
+        },
+      )
+      // The ReleaseOrMint message should be sent successfully.
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutorLowGas.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_ReleaseOrMint.PREFIX,
+        value: tokenGasOverride + OFFRAMP_RELEASE_OR_MINT_COST, // The value sent should be more than tokenGasOverride.
+        body(x) {
+          if (x == undefined) throw new Error('ReleaseOrMint body is undefined')
+          const msg = of.OffRamp_ReleaseOrMint.fromSlice(x.beginParse())
+          expect(msg.destGasAmount).toEqual(tokenGasOverride) // The destGasAmount should be the tokenGasOverride.
+          return true
+        },
+      })
+    })
+
+    it('should use destGasAmount for releaseOrMint when tokenGasOverride is lower', async () => {
+      const destGasAmount = toNano('0.01')
+      const receiveExecutorHighGas = await setupTestReceiveExecutor(
+        blockchain,
+        deployer,
+        receiveExecutorCode,
+        createTestMessageWithToken({ receiver: deployer.address, destGasAmount }),
+      )
+
+      // InitExecute with a gasOverride that has a lower tokenGasOverride.
+      await receiveExecutorHighGas.sendReceiveExecutorInitExecute(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+          tokenAdminRegistry: tokenAdminRegistry.address,
+          gasOverride: of.GasOverride.create({
+            receiverExecutionGasLimit: toNano('0.01'),
+            tokenGasOverrides: [toNano('0.001')],
+          }),
+        },
+      )
+
+      const result = await receiveExecutorHighGas.sendTokenRegistryReturnTokenInfo(
+        tokenAdminRegistry.getSender(),
+        toNano('0.05'),
+        {
+          minterAddress: deployer.address,
+          tokenPool: tokenPool.address,
+        },
+      )
+      // The ReleaseOrMint message should be sent successfully.
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutorHighGas.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_ReleaseOrMint.PREFIX,
+        value: destGasAmount + OFFRAMP_RELEASE_OR_MINT_COST, // The value sent should be more than destGasAmount.
+        body(x) {
+          if (x == undefined) throw new Error('ReleaseOrMint body is undefined')
+          const msg = of.OffRamp_ReleaseOrMint.fromSlice(x.beginParse())
+          expect(msg.destGasAmount).toEqual(destGasAmount) // The destGasAmount should be the destGasAmount.
+          return true
+        },
+      })
+    })
   })
 
   describe('ReceiveExecutor - PTT', () => {
@@ -701,7 +802,7 @@ describe('ReceiveExecutor - Execution', () => {
 
     it('should send NotifySuccess on Confirm after PTT execution', async () => {
       await transitionToPttExecute()
-      const result = await receiveExecutorPtt.sendReceiveExecutorConfirm(
+      const result = await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveConfirm(
         deployer.getSender(),
         toNano('0.05'),
         {
@@ -718,12 +819,12 @@ describe('ReceiveExecutor - Execution', () => {
 
     it('should send NotifyFailure on Bounced after PTT execution', async () => {
       await transitionToPttExecute()
-      const result = await receiveExecutorPtt.sendReceiveExecutorBounced(
+      const result = await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveFailed(
         deployer.getSender(),
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
+          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -737,10 +838,14 @@ describe('ReceiveExecutor - Execution', () => {
     it('should retry the message execution when retrying from ExecuteFailed', async () => {
       // Execute the message, then bounce it to set ExecuteFailed.
       await transitionToPttExecute()
-      await receiveExecutorPtt.sendReceiveExecutorBounced(deployer.getSender(), toNano('0.05'), {
-        receiver: deployer.address,
-        reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
-      })
+      await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveFailed(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+        },
+      )
 
       // Retry InitExecute: token transfer is already done (TokenTransferSuccess),
       // so it should re-execute the message (DispatchValidated).

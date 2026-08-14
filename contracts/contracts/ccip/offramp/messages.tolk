@@ -130,8 +130,13 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
     queryId: uint64
     execId: ReceiveExecutorId
     tokenPool: address
+    destGasAmount: coins
     requestedFinalityConfig: uint32
     request: Cell<TokenPool_ReleaseOrMintInV1>
+}
+
+fun OffRamp_ReleaseOrMint.cost(): coins {
+    return ton("0.02"); // TODO
 }
 
 struct OffRamp_Costs{}

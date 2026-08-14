@@ -35,7 +35,7 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
-import { EXECUTE_COST } from '../../../wrappers/ccip/OffRamp'
+import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 
 export async function deployOffRampContract(
   blockchain: Blockchain,
@@ -509,9 +509,16 @@ export class OffRampTestSetup {
 
   // Helper to test execute report flow
   async executeReport(report: of.ExecutionReport, sequenceBytes = 0x02, expectSuccess = true) {
+    let totalGas = EXECUTE_COST
+    try {
+      const msg = of.Any2TVMRampMessage.fromSlice(report.messages.asSlice())
+      totalGas += msg.gasLimit
+    } catch {
+      // Probably an empty report
+    }
     const result = await this.offRamp.sendOffRampExecute(
       this.transmitters[0].getSender(),
-      toNano('0.2'),
+      totalGas,
       {
         reportContext: of.ReportContext.create({
           configDigest: this.configDigest,
@@ -921,7 +928,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         sourcePoolAddress:
           opts.sourcePoolAddress ?? CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool')),
         token: opts.token ?? this.token,
-        destGasAmount: opts.destGasAmount ?? 0n,
+        destGasAmount: opts.destGasAmount ?? MIN_TT_GASLIMIT,
         extraData: opts.extraData ?? null,
         amount: opts.amount ?? this.DEFAULT_TOKEN_AMOUNT,
       }),

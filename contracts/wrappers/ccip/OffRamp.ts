@@ -14,3 +14,5 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export const EXECUTE_COST = toNano('0.5') // TODO
+export const MIN_TT_GASLIMIT = toNano('0.025')
+export const OFFRAMP_RELEASE_OR_MINT_COST = toNano('0.02') // TODO

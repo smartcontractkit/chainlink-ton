@@ -59,18 +59,11 @@ fun GasOverride?.getEffectiveTotalDestGasAmount(self, tokenAmounts: SnakedCell<A
 
 // Validate that if a gasOverride is provided, it must match the number of tokens in the message.
 // The logic is simplified since we only support a single token transfer in a message.
-fun GasOverride?.validateTokenGasOverrides(self, hasTokenTransfer: bool) {
-    if (self == null || self.tokenGasOverrides == null) {
-        return;
+fun GasOverride?.validateTokenGasOverrides(self, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>) {
+    tokenAmounts.unwrapSingle(OffRamp_Error.UnsupportedNumberOfTokens);
+    if (self != null && self.tokenGasOverrides != null) {
+        self.tokenGasOverrides.unwrapSingle(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
     }
-    var it = self.tokenGasOverrides.iter();
-    if (!hasTokenTransfer) {
-        assert (it.empty()) throw OffRamp_Error.ManualExecutionGasAmountCountMismatch;
-        return;
-    }
-    assert (!it.empty()) throw OffRamp_Error.ManualExecutionGasAmountCountMismatch;
-    it.next();
-    assert (it.empty()) throw OffRamp_Error.ManualExecutionGasAmountCountMismatch;
 }
 
 // Matches the EVM struct

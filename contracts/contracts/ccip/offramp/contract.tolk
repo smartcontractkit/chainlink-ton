@@ -45,7 +45,10 @@ contract OffRamp {
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = ton("5");
+
+// TBD: These two fields should be configurable
 const MIN_GASLIMIT = ton("0.025");
+const MIN_TT_GASLIMIT = ton("0.025"); 
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -75,7 +78,7 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_ReleaseOrMint => {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            onReleaseOrMint(in.senderAddress, msg)
+            onReleaseOrMint(st, in.senderAddress, msg)
         }
         // Permissionless
         OffRamp_ManuallyExecute => {
@@ -240,41 +243,21 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
 // This can be the result of the rate limit being exceeded or the pool being misconfigured.
 // Sends a OffRamp_ReleaseOrMintBounced message to the ReceiveExecutor to mark the execution as failed.
 fun onBouncedTokenPoolReleaseOrMint(msg: TokenPool_ReleaseOrMint, exitCode: int32) {
-    // Send ReceiveBounced to initiate the failure notification trace 
-    val receiveBounced = createMessage({
-        bounce: false,
-        value: 0,
-        dest: msg.replyTo!,
-        body: ReleaseOrMint_ReleaseOrMintBounced {
-            queryId: msg.queryId,
-            exitCode,
-        }
-    });
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    mintOrReleaseFailed(msg.replyTo!, msg.queryId, ReleaseOrMintBounced { exitCode });
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
 // RouteMessage bounced, it probably means the Router is misconfigured. Emits
 // an event and sends a ReceiveBounced message to initiate the failure trace.
 fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address) {
-    val st = Storage.load();
-
+    val st = lazy Storage.load();
     emit(ROUTE_MESSAGE_BOUNCED_TOPIC, OffRamp_RouteMessageBounced{
         router: senderAddress,
         execId: msg.execId,
     });
 
     // Send ReceiveBounced to initiate the failure notification trace 
-    val receiveBounced = createMessage({
-        bounce: false,
-        value: 0,
-        dest: getReceiverExecutorDeployAddress(st, msg.execId),
-        body: ReceiveExecutor_Bounced{
-            receiver: msg.receiver,
-            reason: ReceiveExecutor_BouncedReason.BouncedFromRouter,
-        }
-    });
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
 }
 
 // Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -298,7 +281,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 // Handles OffRamp_CCIPReceiveBounced messages from the Router, originating
 // from the CCIP receiver. The OffRamp notifies the ReceiveExecutor to update
-// the execution state via ReceiveExecutor_Bounced. Only the Router is
+// the execution state via ReceiveExecutor_CCIPReceiveFailed. Only the Router is
 // authorized to call this function.
 //
 // sequenceDiagram
@@ -309,7 +292,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 //     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
-//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
@@ -318,9 +301,9 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
         bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
-        body: ReceiveExecutor_Bounced{ 
+        body: ReceiveExecutor_CCIPReceiveFailed{ 
             receiver: msg.receiver,
-            reason: ReceiveExecutor_BouncedReason.BouncedFromReceiver,
+            reason: ReceiveExecutor_FailedReason.BouncedFromReceiver,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -370,7 +353,7 @@ fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
 //     participant OffRamp
 //     participant ReceiveExecutor
 //
-//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     // propagate state change to root
@@ -404,7 +387,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
         bounce: true,
         value: 0,
         dest:  getReceiverExecutorDeployAddress(st, msg.execId),
-        body: ReceiveExecutor_Confirm {
+        body: ReceiveExecutor_CCIPReceiveConfirm {
             receiver: msg.receiver,
         },
     });
@@ -431,7 +414,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
     if (msg.effectiveGasLimit < MIN_GASLIMIT) {
-        return blockMsg(st, msg.execId, message.receiver);
+        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
@@ -454,20 +437,38 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-fun blockMsg(st: Storage, execId: uint192, receiver: address) {
+fun ccipReceiveFailed(receiveExecutor: address, receiver: address, reason: ReceiveExecutor_FailedReason) {
     val receiveBounced = createMessage({
         bounce: false,
         value: 0,
-        dest: getReceiverExecutorDeployAddress(st, execId),
-        body: ReceiveExecutor_Bounced{
+        dest: receiveExecutor,
+        body: ReceiveExecutor_CCIPReceiveFailed{
             receiver,
-            reason: ReceiveExecutor_BouncedReason.NotEnoughGas,
+            reason,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onReleaseOrMint(sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
+// Send ReceiveBounced to initiate the failure notification trace
+fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
+    val receiveBounced = createMessage({
+        bounce: false,
+        value: 0,
+        dest: receiveExecutor,
+        body: ReleaseOrMint_ReleaseOrMintFailed {
+            queryID,
+            reason,
+        }
+    });
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
+    if (msg.destGasAmount < MIN_TT_GASLIMIT) {
+        return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
+    }
+
     val releaseOrMintMsg = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -874,10 +875,12 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     // Validate that if a gasOverride is provided, it must match the number of tokens in the message.
-    try {
-        msg.gasOverride.validateTokenGasOverrides(initExecuteMsg.tokenAdminRegistry != null)
-    } catch {
-        return messageExecutionFailed(initExecuteMsg);
+    if (message.tokenAmounts != null) {
+        try {
+            msg.gasOverride.validateTokenGasOverrides(message.tokenAmounts)
+        } catch {
+            return messageExecutionFailed(initExecuteMsg);
+        }
     }
 
     // Check if this is the first time the exec flow is running given that in that case we need to
@@ -902,10 +905,13 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
+    // TODO: This should be calculated based on the actual gas used by the ReceiveExecutor.
+    val totalGas = ton("0.1");
+
     // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
         bounce: BounceMode.RichBounce,
-        value: ReceiveExecutor_Costs.initExec(),
+        value: ReceiveExecutor_Costs.initExec() + totalGas,
         dest: executorAddress,
         body: initExecuteMsg
     });
