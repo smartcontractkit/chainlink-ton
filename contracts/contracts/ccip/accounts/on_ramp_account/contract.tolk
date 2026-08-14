@@ -47,7 +47,6 @@ fun loadOnRampAccount(data: DepositAccount_Data): DepositAccount<void> {
         onWithdraw: null,
         onForwardNotification,
         onWithdrawBounced: null,
-        onForwardBounced: null,
     };
 
     return DepositAccount<void> { data, extra: null, hooks };
@@ -102,10 +101,9 @@ fun onBouncedMessage(in: InMessageBounced) {
 /// @dev The account is token-agnostic: it forwards any inbound non-control message here, and the
 ///      token-handling layer verifies the original message's sender via `forwarded.senderAddress`
 ///      before a withdraw. `context` is the account's own data (allows reading `proxy`). The Router
-///      owns CCIPSend fee validation
-///      (`Router_Costs.CCIPSend`), so we forward the message as-is with `RichBounce`: if the Router
-///      rejects it (e.g. insufficient fee), the bounce is surfaced to the proxy via the default
-///      `onForwardBounced` handler.
+///      owns CCIPSend fee validation (`Router_Costs.CCIPSend`), so we forward the message as-is
+///      with `NoBounce`: a Router rejection simply drops the CCIPSend and the deposited jettons stay
+///      held by the account for a later beneficiary withdrawal.
 fun onForwardNotification(
     context: DepositAccount_Context<void>,
     forwarded: DepositAccount_InMessageForward,
@@ -125,10 +123,11 @@ fun onForwardNotification(
     }
 
     // Send the boxed Router_CCIPSend to the Router (proxy) as a message on its own. We do NOT touch
-    // the jettons — they remain held by the account for a later withdraw. RichBounce lets a Router
-    // rejection bounce back here, which the default `onForwardBounced` surfaces to the proxy.
+    // the jettons — they remain held by the account for a later withdraw. NoBounce: if the Router
+    // rejects it, the CCIPSend is simply dropped and the jettons stay held for withdrawal (no bounce
+    // needs to be handled here).
     val send = createMessage({
-        bounce: BounceMode.RichBounce,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: data.proxy,
         body: ccipSendCell!.beginParse(),

@@ -59,15 +59,6 @@ struct DepositAccount_Hooks<T> {
     /// @param 0 context  The account's working context (`T`, read-only).
     /// @param 1 message  The forwarded in-message envelope (sender, attached value, raw body).
     onForwardNotification: ((DepositAccount_Context<T>, DepositAccount_InMessageForward) -> bool)?;
-    /// Called when a message this account forwarded bounced back (e.g. a `Router_CCIPSend` that
-    /// the Router rejected with `InsufficientFee`). When null, the default behaviour notifies the
-    /// account's `proxy` with `DepositAccount_ForwardFailed` so the proxy can react (e.g. let the
-    /// user withdraw the held deposit).
-    ///
-    /// @param 0 context    The account's working context (`T`, read-only).
-    /// @param 1 bouncedFrom The contract that bounced the forwarded message.
-    /// @param 2 bouncedBody The bounced message body (the original forwarded body).
-    onForwardBounced: ((DepositAccount_Context<T>, address, cell) -> void)?;
 }
 
 @inline
@@ -218,13 +209,14 @@ fun DepositAccount<T>.onForwardNotification(
     return true;
 }
 
-/// Handles a bounced outgoing message. Returns `true` if the bounce was recognized and consumed.
+/// Handles a bounced outgoing message. Returns `true` if the bounce was recognized and consumed,
+/// `false` otherwise — specialized accounts may handle additional bounce types themselves.
 ///
-/// The withdraw path sends an `AskToTransfer` to the account's jetton wallet with `RichBounce`, so
-/// a failed transfer bounces back here. When the bounced body is that `AskToTransfer`, the transfer
-/// could not be executed (e.g. the wallet ran out of funds or the recipient rejected it); the jettons
-/// remain credited to the account. The `onWithdrawBounced` hook is wired if set, otherwise the owner
-/// is notified via `DepositAccount_WithdrawFailed` so the failure is surfaced for reconciliation.
+/// The default only recognizes the withdraw path's bounced `AskToTransfer` (sent to the account's
+/// jetton wallet with `RichBounce`): the transfer could not be executed (e.g. the wallet ran out of
+/// funds or the recipient rejected it) and the jettons remain credited to the account. The
+/// `onWithdrawBounced` hook is wired if set, otherwise the requester is notified via
+/// `DepositAccount_WithdrawFailed` so the failure is surfaced for reconciliation.
 ///
 /// @param bouncedSender Address that sent the bounce (the account's jetton wallet for a withdraw).
 /// @param bouncedBody   The bounced message body (`RichBounceBody` envelope).
@@ -247,36 +239,10 @@ fun DepositAccount<T>.onBouncedMessage(
             return true;
         }
         else => {
-            // Any other bounced message (e.g. a forwarded `Router_CCIPSend`) is surfaced to the
-            // proxy so it can react. Returns true so the bounce is considered consumed.
-            if (self.hooks != null && self.hooks.onForwardBounced != null) {
-                self.hooks.onForwardBounced(self.context(), bouncedSender, rich.originalBody);
-            } else {
-                self.onForwardBounced(bouncedSender, rich.originalBody);
-            }
-            return true;
+            // Not handled by the default — leave it for a specialized account.
+            return false;
         }
     }
-}
-
-/// Default handler for a bounced forwarded message: notifies the account's `proxy` (the destination
-/// of the forward) so it can react — e.g. a `Router_CCIPSend` the Router rejected lets the user
-/// withdraw the held deposit.
-fun DepositAccount<T>.onForwardBounced(
-    self,
-    bouncedFrom: address,
-    bouncedBody: cell,
-) {
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: self.data.proxy,
-        body: DepositAccount_ForwardFailed {
-            bouncedFrom,
-            bouncedBody,
-        },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Default handler for a bounced withdraw `AskToTransfer`: notifies the requester (the beneficiary

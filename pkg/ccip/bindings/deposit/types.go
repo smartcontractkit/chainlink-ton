@@ -76,14 +76,6 @@ type WithdrawFailed struct {
 	Ask           *cell.Cell       `tlb:"^"` // Cell<AskToTransfer>
 }
 
-// ForwardFailed notifies the proxy when a forwarded message bounced back.
-// Opcode: 0x67dd47d3
-type ForwardFailed struct {
-	_           tlb.Magic        `tlb:"#67dd47d3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	BouncedFrom *address.Address `tlb:"addr"`
-	BouncedBody *cell.Cell       `tlb:"^"`
-}
-
 // AskToTransfer is the standard jetton transfer request used to withdraw jettons. Reused from
 // the jetton wallet binding (opcode 0x0f8a7ea5) to avoid duplicating the type.
 type AskToTransfer = wallet.AskToTransfer
@@ -94,5 +86,4 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Reply{},
 	ForwardNotification{},
 	WithdrawFailed{},
-	ForwardFailed{},
 }).MustWithStorageType(Data{})

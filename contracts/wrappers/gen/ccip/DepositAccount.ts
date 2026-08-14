@@ -554,48 +554,6 @@ export const DepositAccount_WithdrawFailed = {
 }
 
 /**
- > struct (0x67dd47d3) DepositAccount_ForwardFailed {
- >     bouncedFrom: address
- >     bouncedBody: cell
- > }
- */
-export interface DepositAccount_ForwardFailed {
-    readonly $: 'DepositAccount_ForwardFailed'
-    bouncedFrom: c.Address
-    bouncedBody: c.Cell
-}
-
-export const DepositAccount_ForwardFailed = {
-    PREFIX: 0x67dd47d3,
-
-    create(args: {
-        bouncedFrom: c.Address
-        bouncedBody: c.Cell
-    }): DepositAccount_ForwardFailed {
-        return {
-            $: 'DepositAccount_ForwardFailed',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): DepositAccount_ForwardFailed {
-        loadAndCheckPrefix32(s, 0x67dd47d3, 'DepositAccount_ForwardFailed');
-        return {
-            $: 'DepositAccount_ForwardFailed',
-            bouncedFrom: s.loadAddress(),
-            bouncedBody: s.loadRef(),
-        }
-    },
-    store(self: DepositAccount_ForwardFailed, b: c.Builder): void {
-        b.storeUint(0x67dd47d3, 32);
-        b.storeAddress(self.bouncedFrom);
-        b.storeRef(self.bouncedBody);
-    },
-    toCell(self: DepositAccount_ForwardFailed): c.Cell {
-        return makeCellFrom<DepositAccount_ForwardFailed>(self, DepositAccount_ForwardFailed.store);
-    }
-}
-
-/**
  > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
 export type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -721,7 +679,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAA0kAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAQEQIBIAYHAgFIDQ4CASAICQIBIAsMAfc+JGOM3BtbW1tbSXtRND6SPpI9ATR+JIjUZNRkwkQjRB8RlQQPUze8AWayPpS+lL0AMntVOBfA+BwbW1tbW0l7UTQ+kj6SPQE0fiS+Jf4kviX+Jj4kyn4OviU+JVWEsjOyQsREgsKEREKCREQCRC/EK4QnRC8EKsQmlYTgCgDRO2i7fs4BtcsI0SFECyYbHHTP/QF8AKOTtcsIMm2iJSOJTA3VhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhBQd/AE2zHhbHHTP/pI10wtUU1RTVFNUU1RTVFNUU1RTVFNRDTwA+J/gADhVYPABbHEDyPpSEvpS9ADJ7VSRMOCEDwHHAPL0AHMI8MAlShus8MAkXDimVR8uixVIyzacOCBH0BTPccF8vTIz4UIE/pSghDaBGMMzwuOyz/0AMmAQPsAgANUNTU1NsMAlSNus8MAkXDilFUC2oDgNTZbNCOBH0EDgQEL9ApvoTES8vQg0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIEfQiFus5UExwXDAJMxM3DiE/L0yM+FiPpSz4QQc/oCcc8LZczJgFD7AIACVDg5OTkDwwCVJG6zwwCRcOKXRXZQMwTaseA0Nzc4BMj6UlAE+gIU9AAB+gISyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAZkNDU1AdcsJ/////Tyv9dMINDXLCB8U/Us4wIwMgPDAJUibrPDAJFw4pNY2mCOHDQ1W8jPhQgS+lKCEGfdR9PPC44S+lLMyYBA+wDif4A8Aymwh0z/6APpI+lD0BPoACcMAlSZus8MAkXDilhB4VRXawI5ANjg4ODjIz5A+KfqWIc8LP1AI+gIW+lJSQPpUE/QAUAT6AhPOycjPhQgS+lKCEKUbbLrPC44Tyz/6UszJgED7AOJ/AgEgEhMCAUgUFQBduRX40ImxpbmsuY2hhaW4udG9uLmNjaXAuRGVwb3NpdEFjY291bnSCLUwLjEuMIgAG7nQjtRND6SDH6SDH0BYABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAAwMAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAQEQIBIAYHAgFIDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKAMM7aLt+zgG1ywjRIUQLJhscdM/9AXwAo5H1ywgybaIlI4gMDcvUX9Rf1F/UX9Rf1F/UX9RfwcQVhBFEDRBMPAE2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQAcwjwwCVJ26zwwCRcOKZVHupK1UjK9pw4IEfQFM8xwXy9MjPhQgT+lKCENoEYwzPC47LP/QAyYBA+wCAA1Q1NTYBwwCVI26zwwCRcOKUBAPagOBsMzQ0IoEfQQOBAQv0Cm+hMRLy9CLQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwgR9CIW6zlQPHBcMAkzEycOIS8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAJMOTk5BMMAlSRus8MAkXDilkdlVQPaseA0Nzc4Bcj6UlAE+gIU9ABQBfoCFMs/yx8SzMnIz4UIEvpSghC0/lwMzwuOzMmAQPsAf4AH3DM0NNcsJ/////Tyv9dM0NcsIHxT9SyOY9M/+gD6SPpQ9AT6AAnDAJUmbrPDAJFw4pYQeFUV2sCOQDY4ODg4yM+QPin6liHPCz9QCPoCFvpSUkD6VBP0AFAE+gITzsnIz4UIEvpSghClG2y6zwuOE8s/+lLMyYBA+wDif4A8ACOBfCHACASASEwIBSBQVAF25FfjQibGluay5jaGFpbi50b24uY2NpcC5EZXBvc2l0QWNjb3VudIItTAuMS4wiAAbudCO1E0PpIMfpIMfQFgAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 8000,

@@ -64,16 +64,6 @@ struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     ask: Cell<AskToTransfer>;
 }
 
-/// Notification sent to the account's `proxy` when a message this account forwarded (e.g. a
-/// `Router_CCIPSend` to the Router) bounced back because the destination rejected it. The proxy can
-/// react, e.g. by letting the user withdraw the held deposit.
-struct (0x67dd47d3) DepositAccount_ForwardFailed {
-    /// The contract that bounced the forwarded message (e.g. the Router).
-    bouncedFrom: address;
-    /// The bounced message body (the original forwarded body) for the proxy to inspect.
-    bouncedBody: cell;
-}
-
 /// The subset of outgoing messages that can bounce back into this account, used to match bounced
 /// bodies in `onBouncedMessage`. A bounced `AskToTransfer` (from withdraw) is the recoverable case.
 type DepositAccount_BouncedMessage =
@@ -89,5 +79,4 @@ type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
     | DepositAccount_Reply
     | DepositAccount_WithdrawFailed
-    | DepositAccount_ForwardFailed
     | AskToTransfer;
