@@ -35,7 +35,7 @@ fun onInternalMessage(in: InMessage) {
         ReceiveExecutor_InitExecute => {
             var st = ReceiveExecutor_Storage.load();
             assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
-            onInitExecute(mutate st, msg);
+            onInitExecute(mutate st, msg, in.valueCoins);
             st.store();
         }
         // Sender must be the owner (OffRamp)
@@ -101,11 +101,32 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) { 
-    st.state.gasOverride = msg.gasOverride;
-    if (msg.tokenAdminRegistry != null) { // Message has token transfer
+// onInitExecute is called by the OffRamp to initiate the execution of a message in the ReceiveExecutor.
+//
+// @param value: The value sent with the message, which should be enough to cover the gas costs for the execution and any token transfers.
+fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute, value: coins) {
+    val message = lazy st.message.load();
+    
+    st.state.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
+    if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec()) {
+        return endExecutionWithFailure(mutate st, message.header, 0);
+    }
+
+    if (msg.tokenTransfers != null) { // Message has token transfer
+        if (msg.tokenTransfers.size() != 1) {
+            return endExecutionWithFailure(mutate st, message.header, ReceiveExecutor_Error.UnsupportedNumberOfTokens);
+        }
+        val tokenTransfer = msg.tokenTransfers.first();
         var ttInfo = st.state.tokenTransfer.loadOpt();
-        ttInfo = ttInfo.init(msg.tokenAdminRegistry.load());
+        val (destGasLimit, err) = msg.gasOverride.getEffectiveDestGasAmount(tokenTransfer.transfer);
+        if (err != null) {
+            return endExecutionWithFailure(mutate st, message.header, err);
+        }
+        if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + destGasLimit + ReceiveExecutor_Costs.tokenTransfer()) {
+            return endExecutionWithFailure(mutate st, message.header, 0);
+        }
+        ttInfo = ttInfo.init(tokenTransfer.tokenAdminRegistry, destGasLimit);
+
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
             return match (ttInfo.state) {
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
@@ -155,21 +176,16 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
     st.state.tokenTransfer = ttInfo.toCell();
     val rampMsg = lazy st.message.load();
     assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
-    val tokenTransfer = rampMsg.tokenAmounts.unwrapSingle(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
-    var effectiveDestGasAmount = tokenTransfer.destGasAmount;
-    if (st.state.gasOverride != null && st.state.gasOverride.tokenGasOverrides != null) {
-        // SAFETY: The OffRamp validates that the length of tokenGasOverrides is be the same as the number of token transfers in the message, so unwrapping the single value is safe and will not throw.
-        effectiveDestGasAmount = max(st.state.gasOverride.tokenGasOverrides.unwrapSingle(ReceiveExecutor_Error.ManualExecutionGasAmountCountMismatch), effectiveDestGasAmount);
-    }
+    val tokenTransfer = rampMsg.tokenAmounts.asSingle().unwrap(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
     val releaseOrMint = createMessage(
         {
             bounce: true,
-            value: effectiveDestGasAmount + OffRamp_ReleaseOrMint.cost(),
+            value: ttInfo.effectiveDestGasLimit + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
                 queryId: 0,
                 execId: st.execId,
-                destGasAmount: effectiveDestGasAmount,
+                destGasAmount: ttInfo.effectiveDestGasLimit,
                 tokenPool,
                 requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
                 request: TokenPool_ReleaseOrMintInV1 {
@@ -196,11 +212,6 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
 fun execute(mutate st: ReceiveExecutor_Storage) {
     st.lastExecutionTimestamp = blockchain.now();
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
-
-    // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
-    // Otherwise, keep original limit
-    val msg = lazy st.message.load();
-    val effectiveGasLimit = st.state.gasOverride.getEffectiveGasLimit(msg.gasLimit);
     createMessage(
         {
             bounce: true,
@@ -209,7 +220,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
             body: OffRamp_DispatchValidated {
                 message: st.message,
                 execId: st.execId,
-                effectiveGasLimit,
+                effectiveGasLimit: st.state.effectiveGasLimit,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -233,6 +244,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     endExecutionWithFailure(mutate st, ccipMessage.header);
 }
 
+// TODO add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
     // TODO send error reason
     val notifyFailure = createMessage({

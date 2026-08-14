@@ -21,6 +21,4 @@ enum OffRamp_Error {
     EmptyCommitReport
     MerkleRootCannotBeZero
     UnsupportedNumberOfTokens
-    // TBD: these two errors are never thrown, but are catched to block execution of messages with invalid gas overrides. Maybe they don't belong to this enum
-    ManualExecutionGasAmountCountMismatch
 }

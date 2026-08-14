@@ -21,51 +21,6 @@ struct GasOverride {
     tokenGasOverrides: SnakedCell<coins>? = null
 }
 
-// getEffectiveGasLimit returns the total gas amount to use for message execution
-//
-// If the gasOverride is not null and its receiverExecutionGasLimit is not null
-// and greater than the gasLimit from the message, it returns its
-// receiverExecutionGasLimit.
-// Otherwise, it returns gasLimit from the message, passed as an argument.
-fun getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit: coins): coins {
-    if (receiverExecutionGasLimit != null && receiverExecutionGasLimit >= gasLimit) {
-        gasLimit = receiverExecutionGasLimit;
-    }
-    return gasLimit;
-}
-
-fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
-    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
-        return self.receiverExecutionGasLimit;
-    }
-    return gasLimit;
-}
-
-// getEffectiveTotalDestGasAmount returns the total gas amount to use for token transfers
-//
-// @note: We currently only support a single token transfer, but the interface is set up to possibly support multiple in the future.
-//
-// If the gasOverride is null, it returns the sum of destGasAmount from all token transfers in the message.
-// If the gasOverride is not null, it returns the sum of max(destGasAmount, tokenGasOverride) for each
-// token transfer in the message.
-fun GasOverride?.getEffectiveTotalDestGasAmount(self, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>): coins {
-    val tokenTransfer = tokenAmounts.unwrapSingle(OffRamp_Error.UnsupportedNumberOfTokens); // assert that there is only one token transfer
-    if (self == null || self.tokenGasOverrides == null) {
-        return tokenTransfer.destGasAmount;
-    }
-    val tokenGasOverride = self.tokenGasOverrides.unwrapSingle(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
-    return max(tokenTransfer.destGasAmount, tokenGasOverride);
-}
-
-// Validate that if a gasOverride is provided, it must match the number of tokens in the message.
-// The logic is simplified since we only support a single token transfer in a message.
-fun GasOverride?.validateTokenGasOverrides(self, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>) {
-    tokenAmounts.unwrapSingle(OffRamp_Error.UnsupportedNumberOfTokens);
-    if (self != null && self.tokenGasOverrides != null) {
-        self.tokenGasOverrides.unwrapSingle(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
-    }
-}
-
 // Matches the EVM struct
 struct CommitReport {
     priceUpdates: Cell<PriceUpdates>? = null; // Price updates for the fee_quoter
@@ -118,12 +73,23 @@ struct Any2TVMRampMessage {
 }
 
 // Helper to extract the single item from a SnakedCell, and assert that there is only one
-fun SnakedCell<T>.unwrapSingle(self, error: int): T {
+fun SnakedCell<T>.asSingle(self): T? {
     var it = self.iter();
-    assert (!it.empty(), error);
+    if (it.empty()) {
+        return null;
+    }
     val token = it.next();
-    assert (it.empty(), error);
+    if (!it.empty()) {
+        return null;
+    }
     return token
+}
+
+fun T?.unwrap(self, error: int): T {
+    if (self == null) {
+        throw error;
+    }
+    return self;
 }
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {

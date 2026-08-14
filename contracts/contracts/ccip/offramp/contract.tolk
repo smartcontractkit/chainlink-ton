@@ -703,6 +703,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins) {
+    assert(value >= (OffRamp_Costs.execute() + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT /* TBD + ReleaseOrMint.cost()? */), OffRamp_Error.InsufficientFee);
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -713,25 +714,6 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
-
-    // totalGas accounts for the gas used to execute the message and the gas used to transfer tokens (if any)
-    var totalGas = gasOverride.getEffectiveGasLimit(message.gasLimit);
-    if (message.tokenAmounts != null) {
-        try {
-            totalGas += gasOverride.getEffectiveTotalDestGasAmount(message.tokenAmounts);
-        } catch {
-            // If message.tokenAmounts.length != 1 or gasOverride.tokenGasOverrides is not null and doesn't match the
-            // length of message.tokenAmounts, `gasOverride.getEffectiveTotalDestGasAmount` will throw an error.
-            // This is because:
-            // 1. we don't support multiple token transfers in a single message
-            // 2. if gasOverride.tokenGasOverrides is not null, it must match the length of message.tokenAmounts
-            // In both cases, we want the message to be marked as failed, instead of throwing here.
-            // Both points are checked in `onExecuteValidated`
-            // - Point (1) when calling `getTokenAdminRegistry`
-            // - Point (2) when calling `GasOverride?.validateTokenGasOverrides`
-        }
-    }
-    assert(value >= (OffRamp_Costs.execute() + totalGas /* TBD + ReleaseOrMint.cost()? */), OffRamp_Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);
@@ -766,7 +748,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
         bounce: true,
-        value: MerkleRoot_Costs.validate(),
+        value: 0,
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
             message: report.messages as Cell<Any2TVMRampMessage>,
@@ -775,7 +757,8 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             gasOverride,
         },
     });
-    executeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // TODO test if this doesn't drain balance
+    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
@@ -858,34 +841,13 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
-    var initExecuteMsg = ReceiveExecutor_InitExecute {
-        gasOverride: msg.gasOverride,
-        root: sender,
-        sequenceNumber: message.header.sequenceNumber,
-        sourceChainSelector: message.header.sourceChainSelector,
-        messageId: message.header.messageId,
-    };
-
-    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
-    try {
-        val tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
-        initExecuteMsg.tokenAdminRegistry = tokenAdminRegistry;
-    } catch {
-        return messageExecutionFailed(initExecuteMsg);
-    }
-
-    // Validate that if a gasOverride is provided, it must match the number of tokens in the message.
-    if (message.tokenAmounts != null) {
-        try {
-            msg.gasOverride.validateTokenGasOverrides(message.tokenAmounts)
-        } catch {
-            return messageExecutionFailed(initExecuteMsg);
-        }
-    }
+    var outgingValue = 0;
 
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
+        outgingValue += AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT;
+
         val deployMsg = createMessage({
             bounce: BounceMode.RichBounce,
             value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,
@@ -905,29 +867,51 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
-    // TODO: This should be calculated based on the actual gas used by the ReceiveExecutor.
-    val totalGas = ton("0.1");
+    var initExecuteMsg = ReceiveExecutor_InitExecute {
+        gasOverride: msg.gasOverride,
+        root: sender,
+        sequenceNumber: message.header.sequenceNumber,
+        sourceChainSelector: message.header.sourceChainSelector,
+        messageId: message.header.messageId,
+    };
+
+    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
+    try {
+        initExecuteMsg.tokenTransfers = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
+    } catch {
+        return messageExecutionFailed(initExecuteMsg);
+    }
+
+    // TODO: check if this is the desired behaviour
+    // reserveToncoinsOnBalance(outgingValue, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
 
     // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
         bounce: BounceMode.RichBounce,
-        value: ReceiveExecutor_Costs.initExec() + totalGas,
+        value: 0,
         dest: executorAddress,
         body: initExecuteMsg
     });
-    initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the deployment (AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT)
+    initExecMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, soureChainSelector: uint64): Cell<address>? {
+fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64): array<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
         return null;
     }
-    val tokenTransfer = tokenAmounts.unwrapSingle(OffRamp_Error.UnsupportedNumberOfTokens);
+    val tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     
     // TODO probably the tokenRegistryMaster
-    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(soureChainSelector).router;
+    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
     val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
-    return registryAddress.toCell();
+    return [
+        ReceiveExecutor_TokenTransfer {
+            tokenAdminRegistry: registryAddress,
+            transfer: tokenTransfer,
+        }
+    ];
 }
 
 /*
