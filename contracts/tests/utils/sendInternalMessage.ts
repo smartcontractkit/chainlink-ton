@@ -72,15 +72,10 @@ export async function captureAccountChanges(
   // Map<tx.lt, TransactionSnapshot>
   let accountSnapshots: Map<bigint, TransactionSnapshot> = new Map()
 
-  while (true) {
-    const before: Map<string, AccountSnapshot> = new Map(
-      await Promise.all(accounts.map(recordSnapshots)),
-    )
-
-    const result = await txs.next()
-    if (result.done) break
-
-    const tx = result.value
+  let lastSnapshot: Map<string, AccountSnapshot> = new Map(
+    await Promise.all(accounts.map(recordSnapshots)),
+  )
+  for await (const tx of txs) {
     transactions.push(tx)
 
     const dest = tx.inMessage?.info.dest
@@ -89,13 +84,15 @@ export async function captureAccountChanges(
       continue
     }
 
-    const beforeSnap = before.get(key(dest))
+    const beforeSnap = lastSnapshot.get(key(dest))
     if (!beforeSnap) continue
+
+    lastSnapshot = new Map(await Promise.all(accounts.map(recordSnapshots)))
 
     accountSnapshots.set(tx.lt, {
       account: dest,
       before: beforeSnap,
-      after: await snapshot(dest),
+      after: lastSnapshot.get(key(dest))!,
     })
   }
 
