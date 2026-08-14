@@ -104,8 +104,6 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
 
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
 
-    // TODO: reserve balance and send remaining instead? Otherwise, the balace results at 0
-
     val executeValidated = createMessage({
         bounce: true,
         value: 0,
