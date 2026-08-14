@@ -35,7 +35,7 @@ import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from '.
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
+import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
 
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
 // from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
@@ -133,7 +133,7 @@ describe('BurnMintTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          offRampAccountCode: OffRampAccount.CodeCell,
+          offRampAccountCode: DepositAccount.CodeCell,
         },
         { overrideContractCode: burnMintPoolCode },
       ),

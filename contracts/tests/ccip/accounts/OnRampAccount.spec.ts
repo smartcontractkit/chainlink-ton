@@ -5,12 +5,12 @@ import {
   OnRampAccount,
   AskToTransfer,
   ForwardPayloadRemainder,
+  DepositAccount_WithdrawFailed,
 } from '../../../wrappers/gen/ccip/OnRampAccount'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
-import { JettonClient } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 
-describe('OnRampAccount', () => {
+describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let user: SandboxContract<TreasuryContract>
@@ -23,17 +23,16 @@ describe('OnRampAccount', () => {
   let account: SandboxContract<OnRampAccount>
 
   const owner = () => user.address
-  const beneficiary = () => router.address
+  const proxy = () => router.address
+  const beneficiaries = () =>
+    new Map<Address, boolean>([
+      [user.address, true],
+      [router.address, true],
+    ])
 
-  // A canonical CCIPSend-shaped forward payload carried on a deposit (op 0x31768d95 = Router_CCIPSend).
+  // A canonical CCIPSend-shaped boxed message (op 0x31768d95 = Router_CCIPSend) carried in a deposit.
   const ccipSendCell = () =>
     beginCell().storeUint(0x31768d95, 32).storeUint(1234n, 64).storeBit(1).endCell()
-
-  const acctWallet = async () => {
-    const addr = await account.getJettonWallet()
-    if (!addr) throw new Error('account not initialized')
-    return blockchain.openContract(JettonWallet.createFromAddress(addr))
-  }
 
   // Open the jetton wallet owned by the given address.
   const walletOf = async (address: Address) =>
@@ -57,8 +56,8 @@ describe('OnRampAccount', () => {
     })
   }
 
-  // Deposit `amount` jettons from `from` to the account. With `forwardPayload` set, the
-  // deposit carries a CCIPSend; without it, it is a plain deposit-only transfer.
+  // Deposit `amount` jettons from `from` to the account. With `forwardPayload` set, the deposit
+  // carries a CCIPSend which the account forwards to the Router (proxy).
   const depositToAccount = async (
     from: SandboxContract<TreasuryContract>,
     amount: bigint,
@@ -106,41 +105,43 @@ describe('OnRampAccount', () => {
     account = blockchain.openContract(
       OnRampAccount.fromStorage({
         owner: owner(),
-        beneficiary: beneficiary(),
-        jettonClient: null,
+        proxy: proxy(),
+        beneficiaries: beneficiaries(),
+        allowedJettonWallet: null,
       }),
     )
     await account.sendDeploy(deployer.getSender(), toNano('1'))
   })
 
+  // The account's own jetton wallet is the single source of authentic deposit notifications.
+  const accountWallet = async () => jettonMinter.getWalletAddress(account.address)
+
   const initAccount = async (via: SandboxContract<TreasuryContract>, queryId = 1n) => {
-    return account.sendOnRampAccountInit(via.getSender(), toNano('0.5'), {
+    return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
       queryId,
-      jettonClient: JettonClient.create({
-        masterAddress: jettonMinter.address,
-        jettonWalletCode,
-      }),
+      allowedJettonWallet: await accountWallet(),
+      forwardPayload: null,
     })
   }
 
-  const buildAskToTransfer = (amount: bigint, recipient: Address) =>
+  const buildAskToTransfer = (amount: bigint, recipient: Address, requester: Address) =>
     AskToTransfer.create({
       queryId: 10n,
       jettonAmount: amount,
       transferRecipient: recipient,
-      sendExcessesTo: null,
+      sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
       forwardPayload: ForwardPayloadRemainder.fromSlice(beginCell().endCell().beginParse()),
     })
 
-  it('deploys with owner and beneficiary and is not yet initialized', async () => {
+  it('deploys with owner and proxy (Router) and is not yet initialized', async () => {
     expect((await account.getOwner()).equals(owner())).toBe(true)
-    expect((await account.getBeneficiary()).equals(beneficiary())).toBe(true)
-    expect(await account.getJettonWallet()).toBeNull()
+    expect((await account.getProxy()).equals(proxy())).toBe(true)
+    expect(await account.getAllowedJettonWallet()).toBeNull()
   })
 
-  it('initializes only when sender is owner or beneficiary and derives its wallet', async () => {
+  it('initializes only from owner or proxy and authenticates the account wallet', async () => {
     const res = await initAccount(user)
     expect(res.transactions).toHaveTransaction({
       from: user.address,
@@ -148,105 +149,150 @@ describe('OnRampAccount', () => {
       success: true,
     })
 
-    const expected = await jettonMinter.getWalletAddress(account.address)
-    expect((await account.getJettonWallet())?.equals(expected)).toBe(true)
+    const expected = await accountWallet()
+    expect((await account.getAllowedJettonWallet())?.equals(expected)).toBe(true)
 
     // Attacker can't init.
-    const bad = await account.sendOnRampAccountInit(attacker.getSender(), toNano('0.5'), {
-      queryId: 2n,
-      jettonClient: JettonClient.create({ masterAddress: jettonMinter.address, jettonWalletCode }),
-    })
+    const bad = await initAccount(attacker, 2n)
     expect(bad.transactions).toHaveTransaction({ to: account.address, success: false })
   })
 
   it('holds deposit-only jettons in its wallet when no forward payload is attached', async () => {
     await initAccount(user)
-    const wallet = await acctWallet()
+    const acctWallet = await walletOf(account.address)
     await mintTo(user.address, toNano('5'))
 
-    // Plain transfer into the account (no forward payload): custody lands in the wallet.
+    // Plain transfer into the account (no forward payload): custody lands in the account wallet.
     const deposit = await depositToAccount(user, toNano('5'))
-    expect(deposit.transactions).toHaveTransaction({ to: wallet.address, success: true })
-    expect(await wallet.getJettonBalance()).toEqual(toNano('5'))
+    expect(deposit.transactions).toHaveTransaction({ to: acctWallet.address, success: true })
+    expect(await acctWallet.getJettonBalance()).toEqual(toNano('5'))
   })
 
-  it('forwards jettons and the CCIPSend to the beneficiary when a forward payload is present', async () => {
+  it('forwards the CCIPSend message to the Router (proxy) without moving jettons', async () => {
     await initAccount(user)
-    const wallet = await acctWallet()
-    const routerWallet = await jettonMinter.getWalletAddress(beneficiary())
+    const acctWallet = await walletOf(account.address)
     await mintTo(user.address, toNano('5'))
 
     // Transfer carrying a CCIPSend in its forward payload.
     const deposit = await depositToAccount(user, toNano('5'), ccipSendCell())
 
-    // The account forwards an AskToTransfer (op 0x0f8a7ea5) towards its own wallet,
-    // carrying the CCIPSend forward payload to the beneficiary.
+    // The account sends the boxed CCIPSend (op 0x31768d95) directly to the Router.
     expect(deposit.transactions).toHaveTransaction({
       from: account.address,
-      to: wallet.address,
-      op: AskToTransfer.PREFIX,
+      to: router.address,
+      success: true,
+      op: 0x31768d95,
     })
-    // The wallet relays the transfer to the beneficiary's wallet.
-    expect(deposit.transactions).toHaveTransaction({
-      from: wallet.address,
-      to: routerWallet,
-    })
+
+    // Jettons are NOT forwarded — they stay in the account's wallet.
+    expect(await acctWallet.getJettonBalance()).toEqual(toNano('5'))
   })
 
-  it('rejects deposit notifications from a non-account wallet', async () => {
+  it('bounces a deposit notification from a non-account wallet', async () => {
     await initAccount(user)
 
-    // Notify with a transferInitiator that is NOT the account's own wallet. The account only
-    // accepts notifications arriving from its own wallet (`onDepositNotification` re-checks).
-    const res = await account.sendTransferNotificationForRecipient(
-      user.getSender(),
-      toNano('0.5'),
-      {
-        queryId: 5n,
-        jettonAmount: toNano('1'),
-        transferInitiator: user.address,
-        forwardPayload: beginCell().storeRef(ccipSendCell()).endCell().beginParse(),
-      },
-    )
+    // Notify from a wallet that is NOT the account's own wallet (not the allowedJettonWallet).
+    const res = await user.send({
+      to: account.address,
+      value: toNano('0.5'),
+      bounce: false,
+      body: beginCell()
+        .storeUint(0x7362d09c, 32) // TransferNotificationForRecipient
+        .storeUint(5n, 64)
+        .storeCoins(toNano('1'))
+        .storeAddress(user.address)
+        .storeMaybeRef(ccipSendCell())
+        .endCell(),
+    })
     expect(res.transactions).toHaveTransaction({ to: account.address, success: false })
   })
 
-  it('lets the owner and beneficiary withdraw, and rejects everyone else', async () => {
+  it('lets the owner and Router (both beneficiaries) withdraw, and rejects everyone else', async () => {
     await initAccount(user)
-    const wallet = await acctWallet()
-    await mintTo(account.address, toNano('5'))
+    const acctWallet = await walletOf(account.address)
+    await mintTo(acctWallet.address, toNano('5'))
     const to = router.address
 
-    // Owner can withdraw (routes AskToTransfer to its own wallet).
-    const ownerRes = await account.sendOnRampAccountWithdraw(user.getSender(), toNano('0.5'), {
+    // Owner (user) can withdraw.
+    const ownerRes = await account.sendDepositAccountWithdraw(user.getSender(), toNano('0.5'), {
       queryId: 6n,
-      walletAddress: wallet.address,
-      ask: buildAskToTransfer(toNano('5'), to),
+      walletAddress: acctWallet.address,
+      ask: buildAskToTransfer(toNano('5'), to, user.address),
     })
     expect(ownerRes.transactions).toHaveTransaction({
       from: account.address,
-      to: wallet.address,
+      to: acctWallet.address,
       op: AskToTransfer.PREFIX,
     })
 
-    // Beneficiary can withdraw.
-    const benRes = await account.sendOnRampAccountWithdraw(router.getSender(), toNano('0.5'), {
+    // Router (proxy / beneficiary) can withdraw.
+    const benRes = await account.sendDepositAccountWithdraw(router.getSender(), toNano('0.5'), {
       queryId: 7n,
-      walletAddress: wallet.address,
-      ask: buildAskToTransfer(toNano('5'), to),
+      walletAddress: acctWallet.address,
+      ask: buildAskToTransfer(toNano('5'), to, router.address),
     })
     expect(benRes.transactions).toHaveTransaction({
       from: account.address,
-      to: wallet.address,
+      to: acctWallet.address,
       op: AskToTransfer.PREFIX,
     })
 
-    // Attacker cannot.
-    const atkRes = await account.sendOnRampAccountWithdraw(attacker.getSender(), toNano('0.5'), {
+    // Attacker (non-beneficiary) cannot.
+    const atkRes = await account.sendDepositAccountWithdraw(attacker.getSender(), toNano('0.5'), {
       queryId: 8n,
-      walletAddress: wallet.address,
-      ask: buildAskToTransfer(toNano('5'), to),
+      walletAddress: acctWallet.address,
+      ask: buildAskToTransfer(toNano('5'), to, attacker.address),
     })
     expect(atkRes.transactions).toHaveTransaction({ to: account.address, success: false })
+
+    // A beneficiary must set `ask.sendExcessesTo` to themselves; otherwise the withdraw is rejected.
+    const badBen = await account.sendDepositAccountWithdraw(user.getSender(), toNano('0.5'), {
+      queryId: 9n,
+      walletAddress: acctWallet.address,
+      ask: buildAskToTransfer(toNano('1'), to, router.address), // sendExcessesTo != requester
+    })
+    expect(badBen.transactions).toHaveTransaction({ to: account.address, success: false })
+  })
+
+  it('notifies the requester (sendExcessesTo) when a withdraw AskToTransfer bounces', async () => {
+    await initAccount(user)
+    const acctWallet = await walletOf(account.address)
+    await mintTo(acctWallet.address, toNano('1'))
+    const to = user.address // recipient
+
+    // Request a transfer of MORE than the wallet holds — the real jetton wallet will bounce the
+    // AskToTransfer back, which the account surfaces to the requester (sendExcessesTo) and NOT to
+    // the owner (unless the requester is the owner).
+    const res = await account.sendDepositAccountWithdraw(router.getSender(), toNano('0.5'), {
+      queryId: 88n,
+      walletAddress: acctWallet.address,
+      ask: buildAskToTransfer(toNano('100'), to, router.address),
+    })
+
+    // The AskToTransfer reached the account's wallet and bounced back (insufficient balance).
+    expect(res.transactions).toHaveTransaction({
+      from: account.address,
+      to: acctWallet.address,
+      op: AskToTransfer.PREFIX,
+    })
+    expect(res.transactions).toHaveTransaction({
+      to: account.address,
+      inMessageBounced: true,
+      success: true,
+    })
+
+    // The failure notification goes to the requester (router, the sendExcessesTo), NOT to the owner
+    // (user). The notification's queryId is the bounced AskToTransfer's (buildAskToTransfer => 10n).
+    expect(res.transactions).toHaveTransaction({
+      from: account.address,
+      to: router.address,
+      success: true,
+      op: DepositAccount_WithdrawFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        const wf = DepositAccount_WithdrawFailed.fromSlice(body.beginParse())
+        return wf.queryId === 10n && wf.ask.sendExcessesTo?.equals(router.address) === true
+      },
+    })
   })
 })

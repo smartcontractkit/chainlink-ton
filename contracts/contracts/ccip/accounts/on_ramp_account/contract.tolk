@@ -5,158 +5,131 @@ import "@stdlib/gas-payments"
 
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
-import "../../../lib/jetton/jetton-utils"
-import "../../common/types"
-
+import "../deposit/types"
+import "../deposit/messages"
+import "../deposit/storage"
+import "../deposit/lib"
 import "types"
-import "messages"
-import "storage"
 
-/// Per-user deposit account deployed for CCIP source-chain token sends.
+/// Source-chain CCIP deposit account, derived from the generic `DepositAccount` component.
 ///
-/// A user sends jettons to this account together with (optionally) a
-/// `Router_CCIPSend` message embedded in the jetton transfer's forward payload.
-/// This account then:
-///   - forwards deposited jettons + the `Router_CCIPSend` to the Router (beneficiary)
-///     so the send can proceed, or
-///   - simply keeps the jettons (deposit-only) for a later, asynchronous send, or
-///     an owner withdrawal.
+/// A user (owner) deposits jettons into this account's own jetton wallet, optionally carrying a
+/// `Router_CCIPSend` in the jetton transfer's forward payload. Unlike the default DepositAccount
+/// (which forwards the whole notification to its `proxy`), this account wires an `onForwardNotification`
+/// hook: it validates that the notification carries enough gas, extracts the CCIPSend from the
+/// forward payload, and sends it as a message directly to the Router (`proxy`). The jettons
+/// themselves are **held** by the account (not transferred) and may later be withdrawn by a
+/// beneficiary (the user or the Router).
 ///
-/// Owners and the Router (beneficiary) can withdraw jettons at any time. This mirrors
-/// the reactive model of `OffRampAccount`: rather than the router pushing tokens out on
-/// its own, the Router issues an `OnRampAccount_Withdraw` and this account delegates to
-/// its own jetton wallet via `AskToTransfer`.
-///
-/// The account is authenticated by derivation: its deterministic address comes from
-/// `(code, owner, beneficiary)`, which lets a token pool verify a deposit source purely
-/// by recomputing this address + the account's jetton wallet (see Deployables auth).
+/// Auth follows the DepositAccount model: `owner` (user) is a beneficiary; the Router is both the
+/// `proxy` (receives the CCIPSend) and a beneficiary (can withdraw the deposited tokens into a
+/// token pool to complete the cross-chain send).
 contract OnRampAccount {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
     description: "link.chain.ton.ccip.OnRampAccount"
 
-    storage: OnRampAccount_Data
+    storage: DepositAccount_Data
     incomingMessages:
-        | OnRampAccount_InMessage
+        | DepositAccount_InMessage
     outgoingMessages:
-        | OnRampAccount_OutMessage
+        | DepositAccount_OutMessage
 }
 
-/// Dispatches incoming messages: Init from a known party, Withdraw from owner/beneficiary,
-/// and deposit notifications from this account's own jetton wallet. Everything else bounces.
-fun onInternalMessage(in: InMessage) {
-    var data = OnRampAccount_Data.load();
-    val msg = lazy OnRampAccount_InMessage.fromSlice(in.body);
+/// Builds an `OnRampAccount` `DepositAccount<T>` instance with the on-ramp hooks wired, so the same
+/// dispatch can be reused from both `onInternalMessage` and `onBouncedMessage`. `context` is the
+/// account's own data (`DepositAccount_Data`), so hooks can read the config (e.g. `proxy`) without
+/// a separate parameter.
+@inline
+fun loadOnRampAccount(data: DepositAccount_Data): DepositAccount<void> {
+    val hooks = DepositAccount_Hooks<void> {
+        onInit: null,
+        onWithdraw: null,
+        onForwardNotification,
+        onWithdrawBounced: null,
+        onForwardBounced: null,
+    };
 
-    match (msg) {
-        OnRampAccount_Init => {
-            onInit(mutate data, in.senderAddress, msg);
-            data.store();
-        }
-        OnRampAccount_Withdraw => {
-            onWithdraw(data, in.senderAddress, msg);
-        }
-        // Deposit notifications always arrive from this account's own jetton wallet.
-        // They may carry a Router_CCIPSend that we forward to the beneficiary.
-        TransferNotificationForRecipient => {
-            onDepositNotification(mutate data, in.senderAddress, msg);
-            data.store();
-        }
-        else => {
-            assert (in.body.isEmpty()) throw 0xFFFF;
-        }
+    return DepositAccount<void> { data, extra: null, hooks };
+}
+
+/// Dispatches incoming messages with the on-ramp-specific hooks: a deposit notification from the
+/// account's own jetton wallet triggers the `onForwardNotification` hook (validates gas, extracts
+/// and forwards a CCIPSend to the Router) instead of the default "forward full notification"
+/// behaviour.
+fun onInternalMessage(in: InMessage) {
+    val data = DepositAccount_Data.load();
+    var account = loadOnRampAccount(data);
+    val handled = account.onInternalMessage(
+        in.senderAddress,
+        in.valueCoins,
+        in.body,
+        DepositAccount_InMessageForward {
+            senderAddress: in.senderAddress,
+            valueCoins: in.valueCoins,
+            valueExtra: in.valueExtra,
+            originalForwardFee: in.originalForwardFee,
+            createdLt: in.createdLt,
+            createdAt: in.createdAt,
+            body: in.body.toCell(),
+        },
+    );
+    account.store();
+
+    // Unhandled (non-empty unrecognized) messages bounce to the sender.
+    if (!handled) {
+        throw 0xFFFF;
     }
 }
 
-/// Configures the account with its jetton identity.
-/// @dev Computes this account's own jetton wallet from the provided JettonClient. The
-///      sender must be the owner or the beneficiary (Router) of the account.
-/// @dev Note: account addresses are deterministic from (code, owner, beneficiary). Because
-///      the jetton identity is part of data but NOT of address derivation, this contract
-///      must be initialized exactly once and its `jettonClient` must match the token the
-///      account was created for.
-fun onInit(mutate data: OnRampAccount_Data, sender: address, msg: OnRampAccount_Init) {
-    assert(sender == data.owner || sender == data.beneficiary, OnRampAccount_Error.OnlyOwnerOrBeneficiary);
-    assert(data.jettonClient == null, OnRampAccount_Error.AlreadyInit);
-
-    data.jettonClient = msg.jettonClient.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: OnRampAccount_InitAck {
-            queryId: msg.queryId,
-            jettonWallet: getJettonWalletOf(data),
-        },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+/// Handles bounced outgoing messages (e.g. a withdrawn `AskToTransfer`); surfaces the failure to
+/// the owner via the default withdraw-bounced handler.
+fun onBouncedMessage(in: InMessageBounced) {
+    val data = DepositAccount_Data.load();
+    var account = loadOnRampAccount(data);
+    val handled = account.onBouncedMessage(in.senderAddress, in.bouncedBody);
+    if (handled) {
+        account.store();
+    }
 }
 
-/// Allows `owner` or `beneficiary` (Router) to transfer jettons out of this account's wallet.
-/// @dev Sends `AskToTransfer` to the wallet directly. The Router uses this to move deposited
-///      funds into a token pool to complete a CCIP send.
-fun onWithdraw(data: OnRampAccount_Data, sender: address, msg: OnRampAccount_Withdraw) {
-    assert(sender == data.owner || sender == data.beneficiary, OnRampAccount_Error.OnlyOwnerOrBeneficiary);
+/// On-ramp `onForwardNotification` hook: parses the `Router_CCIPSend` from a deposit notification's
+/// forward payload and sends it to the Router (`proxy`). The deposited jettons stay in this
+/// account's wallet for a later beneficiary withdrawal.
+///
+/// @dev The dispatch guarantees this is only reached for messages whose sender is the account's
+///      `allowedJettonWallet` (its own jetton wallet), so the notification is authentic. `context`
+///      is the account's own data (allows reading `proxy`). The Router owns CCIPSend fee validation
+///      (`Router_Costs.CCIPSend`), so we forward the message as-is with `RichBounce`: if the Router
+///      rejects it (e.g. insufficient fee), the bounce is surfaced to the proxy via the default
+///      `onForwardBounced` handler.
+fun onForwardNotification(
+    context: DepositAccount_Context<void>,
+    forwarded: DepositAccount_InMessageForward,
+): void {
+    val data: DepositAccount_Data = context.data;
 
-    val transfer = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: 0,
-        dest: msg.walletAddress,
-        body: msg.ask,
-    });
-    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
+    // The envelope carries the original Jetton transfer notification body.
+    val notification = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
 
-/// Handles a deposit notification from this account's jetton wallet.
-/// @dev If the inbound transfer carried a `Router_CCIPSend` in its forward payload, forwards
-///      the jettons + CCIPSend to the Router (beneficiary); otherwise the account simply holds
-///      the jettons (default deposit) for later withdrawal or an async send.
-/// @dev The Router recognizes a CCIPSend only when it arrives on the Router's own wallet via a
-///      TransferNotificationForRecipient whose forwardPayload embeds the CCIPSend as a ref.
-fun onDepositNotification(mutate data: OnRampAccount_Data, sender: address, msg: TransferNotificationForRecipient) {
-    assert(getJettonWalletOf(data) == sender, OnRampAccount_Error.OnlyOwnWallet);
-
-    val ccipSendCell = loadForwardPayloadAsCell(msg.forwardPayload);
+    // Extract the canonical forward payload (a ref or an inline slice).
+    val ccipSendCell = loadForwardPayloadAsCell(notification.forwardPayload);
     if (ccipSendCell == null) {
-        // Deposit-only: no CCIPSend to forward. Jettons stay under this account's custody,
-        // and the owner can issue a CCIPSend later or withdraw at any time.
+        // Deposit-only: no CCIPSend to forward. Jettons stay in this account's wallet (held)
+        // for a later beneficiary withdrawal (owner or Router).
         return;
     }
 
-    // TODO: check that the CCIPSend payload can be parsed
-
-    // Forward to the beneficiary (CCIP Router)
-    val forward = createMessage({
+    // Send the boxed Router_CCIPSend to the Router (proxy) as a message on its own. We do NOT touch
+    // the jettons — they remain held by the account for a later withdraw. RichBounce lets a Router
+    // rejection bounce back here, which the default `onForwardBounced` surfaces to the proxy.
+    val send = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: getJettonWalletOf(data),
-        body: AskToTransfer {
-            queryId: msg.queryId,
-            jettonAmount: msg.jettonAmount,
-            transferRecipient: data.beneficiary,
-            sendExcessesTo: contract.getAddress(),
-            customPayload: null,
-            forwardTonAmount: ton("0.01"),
-            forwardPayload: beginCell()
-                .storeMaybeRef(ccipSendCell!)
-                .endCell()
-                .beginParse(),
-        },
+        dest: data.proxy,
+        body: ccipSendCell!.beginParse(),
     });
-    forward.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
-
-/// Derives this account's own jetton wallet address from its jetton identity.
-@inline
-fun getJettonWalletOf(data: OnRampAccount_Data): address {
-    assert(data.jettonClient != null, OnRampAccount_Error.NotInitialized);
-    val jc = data.jettonClient!.load();
-    return calcAddressOfJettonWallet(
-        contract.getAddress(),
-        jc.masterAddress,
-        jc.jettonWalletCode,
-    );
+    send.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun typeAndVersion(): (slice, slice) {
@@ -164,18 +137,22 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun getOwner(): address {
-    val data = lazy OnRampAccount_Data.load();
+    val data = lazy DepositAccount_Data.load();
     return data.owner;
 }
 
-get fun getBeneficiary(): address {
-    val data = lazy OnRampAccount_Data.load();
-    return data.beneficiary;
+get fun getProxy(): address {
+    val data = lazy DepositAccount_Data.load();
+    return data.proxy;
 }
 
-get fun getJettonWallet(): address? {
-    val data = lazy OnRampAccount_Data.load();
-    return data.jettonClient == null
-        ? null
-        : getJettonWalletOf(data);
+get fun getAllowedJettonWallet(): address? {
+    val data = lazy DepositAccount_Data.load();
+    return data.allowedJettonWallet;
+}
+
+/// Returns the map of addresses that are allowed to withdraw jettons from this account's wallet.
+get fun getBeneficiaries(): map<address, bool> {
+    val data = lazy DepositAccount_Data.load();
+    return data.beneficiaries;
 }

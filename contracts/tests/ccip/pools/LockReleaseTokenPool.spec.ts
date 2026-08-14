@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
-import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
+import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -163,7 +163,7 @@ describe('LockReleaseTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          offRampAccountCode: OffRampAccount.CodeCell,
+          offRampAccountCode: DepositAccount.CodeCell,
         },
         { overrideContractCode: await contractCode.ccip.local('ccip.pools.LockReleaseTokenPool') },
       ),
@@ -654,10 +654,11 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    // Tokens land in OAA's jetton wallet (not recipient's personal wallet)
-    const oaa = OffRampAccount.fromStorage({
+    // Tokens land in the account's jetton wallet (not recipient's personal wallet)
+    const oaa = DepositAccount.fromStorage({
       owner: recipient.address,
-      notificationTarget: lockReleasePool.address,
+      proxy: lockReleasePool.address,
+      beneficiaries: new Map([[recipient.address, true]]),
       allowedJettonWallet: null,
     })
     const oaaWallet = await userWallet(oaa.address)
@@ -679,10 +680,11 @@ describe('LockReleaseTokenPool', () => {
 
   it('releases tokens with null replyTo without emitting a response message', async () => {
     const poolWallet = await userWallet(lockReleasePool.address)
-    // OAA wallet for checking balance (not recipient's personal wallet)
-    const oaa = OffRampAccount.fromStorage({
+    // Account wallet for checking balance (not recipient's personal wallet)
+    const oaa = DepositAccount.fromStorage({
       owner: recipient.address,
-      notificationTarget: lockReleasePool.address,
+      proxy: lockReleasePool.address,
+      beneficiaries: new Map([[recipient.address, true]]),
       allowedJettonWallet: null,
     })
     const oaaWallet = await userWallet(oaa.address)
