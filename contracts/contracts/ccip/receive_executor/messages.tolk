@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
+import "../token_registry/messages"
+import "../pools/lib/token_pool/messages"
+
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
     | ReceiveExecutor_Bounced
-    | ReceiveExecutor_Confirm;
+    | TokenRegistry_ReturnTokenInfo
+    | TokenPool_ReleaseOrMintFinished
+    | TokenPool_ReleaseOrMintFailure
+    | ReleaseOrMint_ReleaseOrMintBounced
+    | ReceiveExecutor_Confirm
+    ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     gasOverride: coins? = null;
@@ -12,6 +20,13 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     sequenceNumber: uint64;
     sourceChainSelector: uint64;
     messageId: uint256;
+    tokenAdminRegistry: Cell<address>? = null;
+}
+
+// Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
+struct (0x07265cda) ReleaseOrMint_ReleaseOrMintBounced {
+    queryId: uint64;
+    exitCode: int32;
 }
 
 struct (0x00e5dd97) ReceiveExecutor_Confirm {

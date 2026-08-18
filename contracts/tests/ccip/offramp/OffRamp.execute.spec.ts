@@ -1,7 +1,7 @@
 import { Cell, toNano, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 
-import { generateMockTonAddress, asSnakedCell, generateRandomContractId } from '../../../src/utils'
+import { generateMockTonAddress, asSnakedCell } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog } from '../../Logs'
@@ -15,11 +15,14 @@ import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as tr from '../../../wrappers/examples/Receiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
+import { OffRampWithTokenPoolTestSetup } from './OffRamp.Setup'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Execute', () => {
@@ -1549,6 +1552,300 @@ describe('OffRamp - Execute', () => {
           },
         )
       }
+    })
+  })
+
+  describe('Token transfer execution', () => {
+    let setup: OffRampWithTokenPoolTestSetup
+
+    beforeAll(async () => {
+      setup = await s.OffRampWithTokenPoolTestSetup.Init(blockchain)
+    })
+
+    beforeEach(async () => {
+      await setup.SetupContracts()
+    }, 60000) // setup can take a while, since we deploy contracts
+
+    it('executes a token transfer end to end', async () => {
+      const message = setup.createTestMessageWithToken()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // 1. OffRamp -> ReceiveExecutor (deploy + InitExecute)
+      const executorAddress = setup.receiveExecutorAddress(message)
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+
+      // 2. ReceiveExecutor -> TokenRegistry (GetTokenInfo) and back
+      const registryAddress = setup.tokenRegistryAddress()
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: registryAddress,
+        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: registryAddress,
+        to: executorAddress,
+        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        success: true,
+      })
+
+      // 3. ReceiveExecutor -> OffRamp (ReleaseOrMint) -> TokenPool
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+
+      // 4. TokenPool -> ReceiveExecutor (ReleaseOrMintFinished)
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        to: executorAddress,
+        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        success: true,
+      })
+
+      // 5. ReceiveExecutor -> OffRamp (NotifySuccess) -> MerkleRoot (MarkState)
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifySuccess.PREFIX,
+        success: true,
+      })
+
+      // 6. ExecutionStateChanged: InProgress -> Success
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.InProgress,
+        },
+      )
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      // TODO after we connect to a real token pool
+      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    it('executes a token transfer to a non-contract receiver', async () => {
+      const stranger = generateMockTonAddress()
+      const message = setup.createTestMessageWithToken()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // Token transfer should still complete and notify success.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      // TODO after we connect to a real token pool
+      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    // TODO extraData with different decimals and some out of range and invalid data
+
+    it('fails when the token is not enabled in the TokenRegistry', async () => {
+      await setup.disableToken()
+
+      const message = setup.createTestMessageWithToken()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // The registry returns tokenPool = null, so the ReceiveExecutor should
+      // fail (bounce) and the message should end in FAILURE state.
+      const executorAddress = setup.receiveExecutorAddress(message)
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        success: true,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+      })
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails when the message has more than one token transfer', async () => {
+      const message = setup.createTestMessageWithToken()
+      // Add a second token transfer.
+      message.tokenAmounts!.push(
+        of.Any2TVMTokenTransfer.create({
+          sourcePoolAddress: beginCell().storeBuffer(Buffer.from('source-pool-2')).asSlice(),
+          token: generateMockTonAddress(),
+          destGasAmount: 0n,
+          extraData: Cell.EMPTY,
+          amount: setup.DEFAULT_TOKEN_AMOUNT,
+        }),
+      )
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // The OffRamp should reject the message with UnsupportedNumberOfTokens
+      // when deriving the token admin registry.
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails when the token pool rejects the releaseOrMint (rate limit)', async () => {
+      // Rate limit capacity is 0, so the releaseOrMint will be rejected.
+      await setup.updateRateLimit(0n, 0n)
+
+      const message = setup.createTestMessageWithToken()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // The token pool should reject the releaseOrMint (rate limit exceeded).
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.receiveExecutorAddress(message),
+        op: of.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
+        success: true,
+      })
+
+      // The ReceiveExecutor should notify failure and the message ends in FAILURE.
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('manual execute retries releaseOrMint after a token pool failure', async () => {
+      // initial rate limit of 0 so the first releaseOrMint fails
+      await setup.updateRateLimit(0n, 0n)
+
+      const message = setup.createTestMessageWithToken()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // First execution fails due to rate limit.
+      const firstResult = await setup.executeReport(report)
+      expect(firstResult.transactions).toHaveTransaction({
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+      })
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // Increase the rate limit so the retry succeeds.
+      await setup.updateRateLimit(
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+      )
+
+      // Manual execute should retry the releaseOrMint and succeed.
+      const manualResult = await setup.manualExecuteReport(report, undefined, true)
+      expect(manualResult.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        success: true,
+      })
+      assertLog(
+        manualResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      // TODO after we connect to a real token pool
+      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
     })
   })
 

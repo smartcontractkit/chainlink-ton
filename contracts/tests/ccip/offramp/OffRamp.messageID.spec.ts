@@ -55,9 +55,7 @@ describe('OffRamp - Message ID', () => {
 
     const message = of.Any2TVMRampMessage.create({
       header: rampMessageHeader,
-      sender: beginCell()
-        .storeBuffer(Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)))
-        .asSlice(),
+      sender: EVM_SENDER_ADDRESS_TEST,
       data: Cell.EMPTY,
       receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
       gasLimit: 100000000n,

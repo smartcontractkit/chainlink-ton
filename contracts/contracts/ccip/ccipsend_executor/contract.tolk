@@ -47,13 +47,13 @@ fun onInternalMessage(in: InMessage) {
         }
 
         // Sender must be the Fee Quoter
-        FeeQuoter_MessageValidated<RemainingBitsAndRefs> => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+        FeeQuoter_MessageValidated_Any => {
+            var this: CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidated(msg);
         }
         // Sender must be the Fee Quoter
-        FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> => {
+        FeeQuoter_MessageValidationFailed_Any => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidationFailed(msg);

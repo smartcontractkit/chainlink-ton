@@ -9,15 +9,17 @@ import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils"
 import "../../lib/receiver/types"
+import "../pools/lib/token_pool/messages"
 
 import "../common/types.tolk"
-import "../rmn_remote/lib"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
+import "../rmn_remote/lib"
 import "../router/messages"
+import "../token_registry/types"
 
 import "messages"
 import "errors"
@@ -30,7 +32,7 @@ tolk 1.4.1
 
 contract OffRamp {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.3"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.OffRamp"
 
     storage: Storage
@@ -41,7 +43,7 @@ contract OffRamp {
 }
 
 
-const CONTRACT_VERSION = "1.6.3".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
 
@@ -68,6 +70,12 @@ fun onInternalMessage(in:InMessage) {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onDispatchValidated(st, msg)
+        }
+        // Sender must be ReceiveExecutor
+        OffRamp_ReleaseOrMint => {
+            val st = lazy Storage.load();
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            onReleaseOrMint(in.senderAddress, msg)
         }
         // Permissionless
         OffRamp_ManuallyExecute => {
@@ -168,7 +176,10 @@ fun onBouncedMessage(in: InMessageBounced) {
         },
         Router_RouteMessage => {
             onBouncedRouterRouteMessage(originalMessage, in.senderAddress)
-        }
+        },
+        TokenPool_ReleaseOrMint => {
+            onBouncedTokenPoolReleaseOrMint(originalMessage, rich.exitCode)
+        },
     }
 }
 
@@ -176,16 +187,20 @@ fun onBouncedMessage(in: InMessageBounced) {
 // happen; if InitExecute bounced, it's probably a misconfiguration in the
 // ReceiveExecutor code. Marks the execution state as failed and emits events.
 fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, senderAddress: address) {
-    markStateOnRoot(
-        msg.root,
-        msg.sequenceNumber,
-        ExecutionState.Failure
-    );
     emit(RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED, OffRamp_ReceiveExecutorInitExecuteBounced{
         receiveExecutor: senderAddress,
         root: msg.root,
         sequenceNumber: msg.sequenceNumber,
     });
+    messageExecutionFailed(msg);
+}
+
+fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute) {
+    markStateOnRoot(
+        msg.root,
+        msg.sequenceNumber,
+        ExecutionState.Failure
+    );
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: msg.sourceChainSelector,
         sequenceNumber: msg.sequenceNumber,
@@ -219,6 +234,23 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
         messageId: message.header.messageId,
         state: ExecutionState.Failure
     });
+}
+
+// Handles bounced TokenPool_ReleaseOrMint messages.
+// This can be the result of the rate limit being exceeded or the pool being misconfigured.
+// Sends a OffRamp_ReleaseOrMintBounced message to the ReceiveExecutor to mark the execution as failed.
+fun onBouncedTokenPoolReleaseOrMint(msg: TokenPool_ReleaseOrMint, exitCode: int32) {
+    // Send ReceiveBounced to initiate the failure notification trace 
+    val receiveBounced = createMessage({
+        bounce: false,
+        value: 0,
+        dest: msg.replyTo!,
+        body: ReleaseOrMint_ReleaseOrMintBounced {
+            queryId: msg.queryId,
+            exitCode,
+        }
+    });
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
@@ -286,7 +318,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
         bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
-        body: ReceiveExecutor_Bounced{
+        body: ReceiveExecutor_Bounced{ 
             receiver: msg.receiver,
             reason: ReceiveExecutor_BouncedReason.BouncedFromReceiver,
         }
@@ -439,6 +471,21 @@ fun blockMsg(st: Storage, execId: uint192, receiver: address) {
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onReleaseOrMint(sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
+    val releaseOrMintMsg = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: msg.tokenPool,
+        body: TokenPool_ReleaseOrMint {
+            queryId: msg.queryId,
+            request: msg.request,
+            requestedFinalityConfig: msg.requestedFinalityConfig,
+            replyTo: sendExecutor,
+        }
+    });
+    releaseOrMintMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
@@ -803,6 +850,22 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
+    var initExecuteMsg = ReceiveExecutor_InitExecute {
+        gasOverride: msg.gasOverride,
+        root: sender,
+        sequenceNumber: message.header.sequenceNumber,
+        sourceChainSelector: message.header.sourceChainSelector,
+        messageId: message.header.messageId,
+    };
+
+    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
+    try {
+        val tokenAdminRegistry = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
+        initExecuteMsg.tokenAdminRegistry = tokenAdminRegistry;
+    } catch {
+        return messageExecutionFailed(initExecuteMsg);
+    }
+
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
@@ -830,15 +893,21 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         bounce: BounceMode.RichBounce,
         value: ReceiveExecutor_Costs.initExec(),
         dest: executorAddress,
-        body: ReceiveExecutor_InitExecute {
-            gasOverride: msg.gasOverride,
-            root: sender,
-            sequenceNumber: message.header.sequenceNumber,
-            sourceChainSelector: message.header.sourceChainSelector,
-            messageId: message.header.messageId,
-        }
+        body: initExecuteMsg
     });
     initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, soureChainSelector: uint64): Cell<address>? {
+    if (tokenAmounts == null) {
+        return null;
+    }
+    val tokenTransfer = tokenAmounts.getTokenTransfer(OffRamp_Error.UnsupportedNumberOfTokens);
+    
+    // TODO probably the tokenRegistryMaster
+    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(soureChainSelector).router;
+    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
+    return registryAddress.toCell();
 }
 
 /*
