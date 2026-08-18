@@ -161,12 +161,12 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}
 
 	// Extract messageID from event
-	ccipEvent, ok := event.(onramp.CCIPMessageSentV2)
+	messageIDBytes, ok := event.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("unexpected event type: %T", event)
+		return nil, fmt.Errorf("expected []byte messageID, got %T", event)
 	}
 
-	messageID := hex.EncodeToString(ccipEvent.Message.Header.MessageID)
+	messageID := hex.EncodeToString(messageIDBytes)
 	lggr.Infow("CCIP message sent from TON", "seqNum", seqNum, "messageID", messageID)
 
 	return &lib.SendResult{
