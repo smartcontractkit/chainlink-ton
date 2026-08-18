@@ -110,9 +110,6 @@ func (a *TONAccessor) convertCCIPMessageSentV1(
 ) (*ccipocr3.SendRequestedEvent, error) {
 	body := tonEvent.Message.Body
 
-	// Legacy CCIPMessageSent events carried no pool-supplied token-transfer metadata
-	// (source pool address, post-fee amount, dest token address, ...) - only the
-	// source-chain amount the sender supplied.
 	var tokenAmounts []ccipocr3.RampTokenAmount
 	for _, ta := range body.TokenAmounts {
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
@@ -128,9 +125,7 @@ func (a *TONAccessor) convertCCIPMessageSentV1(
 }
 
 // convertCCIPMessageSentV2 converts a TON-specific CCIPMessageSent event (with the
-// token-transfer wrapper) to a generic ccipocr3.SendRequestedEvent. This function is
-// idempotent and performs a one-to-one mapping of event fields from the TON format to the
-// standard CCIP format.
+// token-transfer wrapper) to a generic ccipocr3.SendRequestedEvent.
 func (a *TONAccessor) convertCCIPMessageSentV2(
 	tonEvent *onramp.CCIPMessageSentV2,
 ) (*ccipocr3.SendRequestedEvent, error) {
@@ -150,9 +145,7 @@ func (a *TONAccessor) convertCCIPMessageSentV2(
 	var tokenAmounts []ccipocr3.RampTokenAmount
 	for range transfer.TokenAmounts {
 		// The cross-chain amount is the post-fee amount the pool reported
-		// (LockOrBurnFinished.destTokenAmount), matching what the other chain families put
-		// here - unlike the per-entry ta.Amount (the pre-fee amount the sender supplied),
-		// which would hand out more than the source pool locked or burned if released/minted.
+		// (LockOrBurnFinished.destTokenAmount)
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 			SourcePoolAddress: sourcePoolAddress,
 			DestTokenAddress:  destTokenAddress,
