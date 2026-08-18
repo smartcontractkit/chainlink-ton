@@ -140,7 +140,7 @@ describe('Router', () => {
       })
 
       // assert CCIPMessageSent
-      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSentV2, {
         message: {
           header: {
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,

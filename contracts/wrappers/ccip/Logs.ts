@@ -2,7 +2,7 @@ import { crc32 } from 'zlib'
 import * as of from '../gen/ccip/OffRamp'
 
 export const LogTypes = {
-  CCIPMessageSent: 'CCIPMessageSent',
+  CCIPMessageSentV2: 'CCIPMessageSentV2',
   CommitReportAccepted: 'CommitReportAccepted',
   ExecutionStateChanged: 'ExecutionStateChanged',
   SourceChainSelectorAdded: 'SourceChainSelectorAdded',
@@ -27,7 +27,7 @@ export const LogTypes = {
 export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
 
 export const LOG_TOPIC: Record<CombinedLogType, number> = {
-  CCIPMessageSent: crc32('CCIPMessageSent'),
+  CCIPMessageSentV2: crc32('CCIPMessageSentV2'),
   CommitReportAccepted: crc32('CommitReportAccepted'),
   ExecutionStateChanged: crc32('ExecutionStateChanged'),
   SourceChainSelectorAdded: crc32('SourceChainSelectorAdded'),

@@ -1,7 +1,6 @@
 package ocr
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -68,66 +67,26 @@ type TVM2AnyRampMessageBody struct {
 	FeeTokenAmount *tlb.Coins               `tlb:"."`
 }
 
-// LoadFromCell decodes both the current token-transfer wrapper and the legacy
-// event layout, where tokenAmounts was the fourth body reference directly.
-// The layouts have no version bit, but they are distinguishable by reference count:
-// the wrapper holds exactly four references (tokenAmounts, destTokenAddress,
-// extraData, destExecData), while a bare tokenAmounts SnakedCell holds at most one
-// (its snake continuation).
-// TODO: We might want to remove the backwards compatibility
-func (b *TVM2AnyRampMessageBody) LoadFromCell(s *cell.Slice) error {
-	var err error
-	if err := loadCellRef(s, &b.Receiver); err != nil {
-		return fmt.Errorf("failed to load Receiver: %w", err)
-	}
-	dataCell, err := s.LoadRefCell()
-	if err != nil {
-		return fmt.Errorf("failed to load Data: %w", err)
-	}
-	if err := b.Data.LoadFromCell(dataCell.BeginParse()); err != nil {
-		return fmt.Errorf("failed to decode Data: %w", err)
-	}
-	if b.ExtraArgs, err = s.LoadRefCell(); err != nil {
-		return fmt.Errorf("failed to load ExtraArgs: %w", err)
-	}
-
-	transferCell, err := s.LoadRefCell()
-	if err != nil {
-		return fmt.Errorf("failed to load token transfer: %w", err)
-	}
-	if transferCell.RefsNum() == tvm2AnyTokenTransferRefs {
-		if err := tlb.LoadFromCell(&b.TokenTransfer, transferCell.BeginParse()); err != nil {
-			return fmt.Errorf("failed to load token transfer: %w", err)
-		}
-	} else {
-		// Legacy CCIPMessageSent: the fourth ref is tokenAmounts directly.
-		if err := tlb.LoadFromCell(&b.TokenTransfer.TokenAmounts, transferCell.BeginParse()); err != nil {
-			return fmt.Errorf("failed to load legacy token amounts: %w", err)
-		}
-	}
-
-	if b.FeeToken, err = s.LoadAddr(); err != nil {
-		return fmt.Errorf("failed to load FeeToken: %w", err)
-	}
-	var feeTokenAmount tlb.Coins
-	if err := tlb.LoadFromCell(&feeTokenAmount, s); err != nil {
-		return fmt.Errorf("failed to load FeeTokenAmount: %w", err)
-	}
-	b.FeeTokenAmount = &feeTokenAmount
-	return nil
+// TVM2AnyRampMessageV1 is the legacy (pre token-transfer-wrapper) shape of the OnRamp's
+// CCIPMessageSent event message, kept only to decode already-emitted historical logs.
+type TVM2AnyRampMessageV1 struct {
+	Header        RampMessageHeader        `tlb:"."`
+	Sender        *address.Address         `tlb:"addr"`
+	Body          TVM2AnyRampMessageBodyV1 `tlb:"^"`
+	FeeValueJuels *big.Int                 `tlb:"## 96"`
 }
 
-func loadCellRef(s *cell.Slice, dst *common.CrossChainAddress) error {
-	ref, err := s.LoadRefCell()
-	if err != nil {
-		return err
-	}
-	return dst.LoadFromCell(ref.BeginParse())
+// TVM2AnyRampMessageBodyV1 is the legacy CCIPMessageSent body: the fourth body reference
+// is tokenAmounts directly, with no sourcePoolAddress/post-fee-amount/destTokenAddress/
+// extraData/destExecData wrapper.
+type TVM2AnyRampMessageBodyV1 struct {
+	Receiver       common.CrossChainAddress       `tlb:"^"`
+	Data           common.SnakeBytes              `tlb:"^"`
+	ExtraArgs      *cell.Cell                     `tlb:"^"`
+	TokenAmounts   common.SnakedCell[TokenAmount] `tlb:"^"`
+	FeeToken       *address.Address               `tlb:"addr"`
+	FeeTokenAmount *tlb.Coins                     `tlb:"."`
 }
-
-// tvm2AnyTokenTransferRefs is the number of cell references a TVM2AnyTokenTransfer
-// holds: TokenAmounts, DestTokenAddress, ExtraData and DestExecData.
-const tvm2AnyTokenTransferRefs = 4
 
 // TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer, the TON counterpart
 // of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. All pool-supplied fields are

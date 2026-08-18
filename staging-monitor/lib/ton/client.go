@@ -161,7 +161,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}
 
 	// Extract messageID from event
-	ccipEvent, ok := event.(onramp.CCIPMessageSent)
+	ccipEvent, ok := event.(onramp.CCIPMessageSentV2)
 	if !ok {
 		return nil, fmt.Errorf("unexpected event type: %T", event)
 	}

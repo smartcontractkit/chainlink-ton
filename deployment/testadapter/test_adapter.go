@@ -208,9 +208,9 @@ func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, 
 	if err != nil {
 		return 0, "", err
 	}
-	event, ok := eAny.(onramp.CCIPMessageSent)
+	event, ok := eAny.(onramp.CCIPMessageSentV2)
 	if !ok {
-		return 0, "", errors.New("expected onramp.CCIPMessageSent")
+		return 0, "", errors.New("expected onramp.CCIPMessageSentV2")
 	}
 	messageID := hex.EncodeToString(event.Message.Header.MessageID)
 	return seq, messageID, nil
@@ -769,7 +769,7 @@ func getValidatedFee(ctx context.Context, clientConn ton.APIClientWrapped, feeQu
 
 // sendCellAndAwaitCCIPMessageSent sends bodyCell with the given value to dstAddr, waits for the
 // transaction trace to complete, and flattens the resulting message tree looking for the
-// onramp.CCIPMessageSent event emitted once the request reaches the OnRamp.
+// onramp.CCIPMessageSentV2 event emitted once the request reaches the OnRamp.
 func sendCellAndAwaitCCIPMessageSent(
 	ctx context.Context,
 	chain cldf_ton.Chain,
@@ -851,9 +851,9 @@ func sendCellAndAwaitCCIPMessageSent(
 	return event.Message.Header.SequenceNumber, event, nil
 }
 
-func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSent, error) {
+func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSentV2, error) {
 	if msg == nil {
-		return onramp.CCIPMessageSent{}, errors.New("received message is nil")
+		return onramp.CCIPMessageSentV2{}, errors.New("received message is nil")
 	}
 
 	// Collect all messages to process in a queue
@@ -905,14 +905,14 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 	}
 
 	if commitMessage == nil || len(commitMessage.OutgoingExternalMessages) == 0 {
-		return onramp.CCIPMessageSent{}, errors.New("no received messages were processed")
+		return onramp.CCIPMessageSentV2{}, errors.New("no received messages were processed")
 	}
 
-	var event onramp.CCIPMessageSent
+	var event onramp.CCIPMessageSentV2
 	err := tlb.LoadFromCell(&event, commitMessage.OutgoingExternalMessages[0].Body.BeginParse())
 	if err != nil {
 		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
-		return onramp.CCIPMessageSent{}, err
+		return onramp.CCIPMessageSentV2{}, err
 	}
 
 	return event, nil

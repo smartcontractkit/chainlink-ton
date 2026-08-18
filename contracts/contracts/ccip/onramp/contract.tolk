@@ -396,7 +396,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
 
     rampMessage.header.messageId = rampMessage.generateMessageId(metadataHash);
     
-    emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
+    emit(CCIP_MESSAGE_SENT_V2_TOPIC, CCIPMessageSentV2 { message: rampMessage });
 
     val confirmation = createMessage({
         bounce: false,

@@ -106,7 +106,7 @@ func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
 	require.NoError(t, err, "failed to parse BOC from hex")
 
 	skipMagic := true // logpoller skips the opcode
-	var messageSent onramp.CCIPMessageSent
+	var messageSent onramp.CCIPMessageSentV1
 	err = tlb.LoadFromCell(&messageSent, messageSentCell.BeginParse(), skipMagic)
 	require.NoError(t, err, "failed to decode CCIPMessageSent from BOC")
 
@@ -131,7 +131,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
 				bocCell, err := cell.FromBOC(bocBytes)
 				require.NoError(t, err)
 
-				var messageSent onramp.CCIPMessageSent
+				var messageSent onramp.CCIPMessageSentV1
 				err = tlb.LoadFromCell(&messageSent, bocCell.BeginParse(), true)
 				require.NoError(t, err)
 

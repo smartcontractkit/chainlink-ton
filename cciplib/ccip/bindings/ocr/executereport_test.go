@@ -173,9 +173,10 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 	require.Equal(t, destExecData, decoded.TokenTransfer.DestExecData)
 }
 
-// The pre-wrapper CCIPMessageSent layout put tokenAmounts directly in the body's fourth
-// reference. It is distinguishable from the wrapper by reference count.
-func TestTVM2AnyRampMessageBody_LoadsLegacyTokenAmountsLayout(t *testing.T) {
+// The legacy (pre-wrapper) CCIPMessageSent layout, kept only to decode already-emitted
+// historical logs (see CCIPMessageSentV1), put tokenAmounts directly in the body's fourth
+// reference, with no sourcePoolAddress/post-fee-amount/destTokenAddress/destExecData.
+func TestTVM2AnyRampMessageBodyV1_LoadsTokenAmountsLayout(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
@@ -185,10 +186,9 @@ func TestTVM2AnyRampMessageBody_LoadsLegacyTokenAmountsLayout(t *testing.T) {
 	require.NoError(t, err)
 	body := cell.BeginCell().MustStoreRef(receiver).MustStoreRef(tvm.EmptyCell).MustStoreRef(tvm.EmptyCell).MustStoreRef(tokenAmounts).MustStoreAddr(addr).MustStoreCoins(1).EndCell()
 
-	var decoded TVM2AnyRampMessageBody
+	var decoded TVM2AnyRampMessageBodyV1
 	err = tlb.LoadFromCell(&decoded, body.BeginParse())
 	require.NoError(t, err)
-	require.Len(t, decoded.TokenTransfer.TokenAmounts, 1)
-	require.Empty(t, decoded.TokenTransfer.DestTokenAddress)
-	require.Nil(t, decoded.TokenTransfer.ExtraData)
+	require.Len(t, decoded.TokenAmounts, 1)
+	require.Equal(t, addr.String(), decoded.TokenAmounts[0].Token.String())
 }

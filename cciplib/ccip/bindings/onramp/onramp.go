@@ -29,7 +29,8 @@ const (
 
 // Topics
 const (
-	TopicCCIPMessageSent        = 0xA45D293C // CRC32("CCIPMessageSent")
+	TopicCCIPMessageSentV1      = 0xA45D293C // CRC32("CCIPMessageSent") - legacy layout, no tokenTransfer wrapper
+	TopicCCIPMessageSentV2      = 0x54AEFC63 // CRC32("CCIPMessageSentV2") - current layout, with tokenTransfer wrapper
 	TopicDestChainSelectorAdded = 0xD3D104FF // CRC32("DestChainSelectorAdded")
 	TopicDestChainConfigUpdated = 0x3AA25CF1 // CRC32("DestChainConfigUpdated")
 	TopicConfigSet              = 0x1E32222C // CRC32("ConfigSet")
@@ -43,8 +44,16 @@ const (
 	destChainSelectorsGetter = "destChainSelectors"
 )
 
-// CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
-type CCIPMessageSent struct {
+// CCIPMessageSentV1 is the legacy body shape: body's 4th cell ref is tokenAmounts
+// directly, with no sourcePoolAddress/post-fee-amount/destTokenAddress/destExecData.
+// Kept only to decode already-emitted historical logs; no current contract path emits it.
+type CCIPMessageSentV1 struct {
+	Message ocr.TVM2AnyRampMessageV1 `tlb:"."`
+}
+
+// CCIPMessageSentV2 uses TVM2AnyRampMessage but with event-specific header (no onramp
+// address). Carries the token-transfer wrapper body.
+type CCIPMessageSentV2 struct {
 	Message ocr.TVM2AnyRampMessage `tlb:"."`
 }
 

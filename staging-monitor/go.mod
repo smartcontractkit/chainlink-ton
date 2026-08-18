@@ -4,6 +4,8 @@ go 1.26.2
 
 replace github.com/smartcontractkit/chainlink-ton => ../
 
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
+
 replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 
 require (

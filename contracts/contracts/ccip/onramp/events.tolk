@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
 
-const CCIP_MESSAGE_SENT_TOPIC: int = "CCIPMessageSent".crc32(); 
+const CCIP_MESSAGE_SENT_V2_TOPIC: int = "CCIPMessageSentV2".crc32();
 
-struct CCIPMessageSent {
+struct CCIPMessageSentV2 {
     message: TVM2AnyRampMessage;
 }
 

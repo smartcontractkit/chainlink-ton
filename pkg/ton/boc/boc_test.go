@@ -324,7 +324,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 				bocCell, err := cell.FromBOC(bocBytes)
 				require.NoError(t, err)
 
-				var msgEvent onramp.CCIPMessageSent
+				var msgEvent onramp.CCIPMessageSentV1
 				err = tlb.LoadFromCell(&msgEvent, bocCell.BeginParse(), true)
 				require.NoError(t, err)
 

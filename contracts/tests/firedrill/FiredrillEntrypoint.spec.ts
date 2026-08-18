@@ -334,7 +334,7 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
       success: false,
     })
     // Verify CCIPMessageSent events for each sequence number
-    assertLog(sendResult.transactions, onramp.address, LogTypes.CCIPMessageSent, {
+    assertLog(sendResult.transactions, onramp.address, LogTypes.CCIPMessageSentV2, {
       message: {
         sender: entrypoint.address,
         header: {
@@ -342,7 +342,7 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
         },
       },
     })
-    assertLog(sendResult.transactions, onramp.address, LogTypes.CCIPMessageSent, {
+    assertLog(sendResult.transactions, onramp.address, LogTypes.CCIPMessageSentV2, {
       message: {
         sender: entrypoint.address,
         header: {
@@ -350,7 +350,7 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
         },
       },
     })
-    assertLog(sendResult.transactions, onramp.address, LogTypes.CCIPMessageSent, {
+    assertLog(sendResult.transactions, onramp.address, LogTypes.CCIPMessageSentV2, {
       message: {
         sender: entrypoint.address,
         header: {
