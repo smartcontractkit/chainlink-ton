@@ -287,7 +287,9 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, err
 	}
 
-	msgs := append(msgsV1, msgsV2...)
+	msgs := make([]ccipocr3.Message, 0, len(msgsV1)+len(msgsV2))
+	msgs = append(msgs, msgsV1...)
+	msgs = append(msgs, msgsV2...)
 	sort.Slice(msgs, func(i, j int) bool { return msgs[i].Header.SequenceNumber < msgs[j].Header.SequenceNumber })
 
 	msgsWithoutDataField := make([]ccipocr3.Message, len(msgs))

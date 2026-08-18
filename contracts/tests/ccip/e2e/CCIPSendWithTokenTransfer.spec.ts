@@ -33,7 +33,6 @@ const DEST_TOKEN_ADDRESS = Buffer.from(
   'hex',
 )
 
-
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
 // Amount of wGRAM the user transfers (also the CCIP tokenAmount). Deliberately different from
