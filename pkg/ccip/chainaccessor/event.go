@@ -110,7 +110,7 @@ func (a *TONAccessor) convertCCIPMessageSentV1(
 ) (*ccipocr3.SendRequestedEvent, error) {
 	body := tonEvent.Message.Body
 
-	var tokenAmounts []ccipocr3.RampTokenAmount
+	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(body.TokenAmounts))
 	for _, ta := range body.TokenAmounts {
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 			Amount: ccipocr3.NewBigInt(ta.Amount.Nano()),
