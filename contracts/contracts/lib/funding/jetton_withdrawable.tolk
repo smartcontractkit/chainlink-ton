@@ -55,7 +55,7 @@ struct JettonWithdrawable_WithdrawFeeTransfer {
 /// Requests withdrawal of accrued fee jettons.
 /// The caller (a contract holding Jetton wallets) builds the exact transfers to relay.
 /// Each carries its own `AskToTransfer` (including its recipient) plus the source wallet.
-struct (0x0E0718C3) JettonWithdrawable_Withdraw {
+struct (0x0d00995c) JettonWithdrawable_Withdraw {
     queryId: uint64;
     /// Concrete wallet + transfer pairs to relay.
     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>;

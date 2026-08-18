@@ -2028,8 +2028,7 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
 }
 
 /// Consumes fast finality outbound rate limiting capacity in this pool.
-/// @dev If fast finality rate limiter is not enabled for the chain, it will fallback to the default
-/// rate limiter.
+/// @dev If FF rate limiter is not enabled for the chain, it will fallback to the default rate limiter.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
 fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
@@ -2168,12 +2167,9 @@ fun TokenPool<T>._setRemotePool(
 /// @dev Only callable by the owner or the configured fee admin (mirrors EVM `CallerIsNotOwnerOrFeeAdmin`),
 ///      enforced here before invoking the shared `JettonWithdrawable` handler (which is deliberately
 ///      auth-agnostic and expects the caller to gate access).
-/// @dev The pool's accrued-fee ledger bounds the total withdrawn (fees settle into `accruedFees` on
-///      successful lock/burn), preventing a caller from over-draining the commingled pool wallet.
-/// @param msg The withdrawal request: concrete wallet + `AskToTransfer` pairs.
+/// @param msg The withdrawal request: concrete wallet + value + `AskToTransfer` set.
 /// Default fee-withdrawal entry point (dispatched from `onInternalMessage` for `JettonWithdrawable_Withdraw`).
-/// Consults the `onWithdrawFeeTokens` hook when one is wired (pools with an accrued-fee ledger, e.g.
-/// lock/release, bound the withdrawal and do their own accounting); otherwise relays the caller's
+/// Consults the `onWithdrawFeeTokens` hook when one is wired otherwise relays the caller's
 /// requested transfers with no ledger bound (cap = sum of the requested amounts, so every
 /// per-transfer ask passes — the trust boundary is `onlyOwnerOrFeeAdmin`).
 fun TokenPool<T>.onWithdrawFeeTokensDispatch(
@@ -2187,8 +2183,8 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
         return;
     }
 
-    // No cap by default, can be specialized by the hook (e.g. pools with an accrued-fee ledger, e.g. lock/release, bound the withdrawal).
-    // `INT_MAX` (2^256 - 1) — defined additively in `math.tolk` to avoid 257-bit signed overflow.
+    // No cap by default, can be specialized by the hook (e.g. pools with an accrued-fee ledger,
+    // e.g. lock/release (no lockbox), bound the withdrawal).
     val maxAmount = INT_MAX as coins;
     self.withdrawFeeTokens(sender, msgValue, msg, maxAmount);
 }
@@ -2197,12 +2193,12 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
 /// @dev The caller (owner or fee admin) gates access here, since the shared handler is auth-agnostic.
 ///      The withdrawal is restricted to exactly one transfer against the pool's own jetton wallet, so
 ///      a caller cannot inject asks for arbitrary other-token wallets.
-/// @param sender  The caller; must be the owner or fee admin.
+/// @param sender The caller; must be the owner or fee admin.
 /// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
-///              the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
-/// @param msg     The withdrawal request (wallet + transfer pairs).
+///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
+/// @param msg The withdrawal request (wallet + transfer pairs).
 /// @param maxAmount The upper bound enforced per transfer. Pools with an accrued-fee ledger pass
-///              their ledger (e.g. lock/release); others pass the sum of the requested amounts.
+///     their ledger (e.g. lock/release); others pass the sum of the requested amounts.
 fun TokenPool<T>.withdrawFeeTokens(
     mutate self,
     sender: address,
@@ -2230,8 +2226,7 @@ fun TokenPool<T>.withdrawFeeTokens(
     );
 }
 
-/// Whether the caller is the owner or the fee admin (mirrors EVM `_onlyOwnerOrFeeAdmin` gating
-/// `withdrawFeeTokens`).
+/// Whether the caller is the owner or the fee admin
 fun TokenPool<T>.onlyOwnerOrFeeAdmin(self, sender: address): bool {
     val adminConfig = self.data.adminConfig.load();
     val dynamicConfig = adminConfig.dynamicConfig.load();

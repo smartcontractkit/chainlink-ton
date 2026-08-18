@@ -3951,7 +3951,7 @@ export const JettonWithdrawable_WithdrawFeeTransfer = {
 }
 
 /**
- > struct (0x0e0718c3) JettonWithdrawable_Withdraw {
+ > struct (0x0d00995c) JettonWithdrawable_Withdraw {
  >     queryId: uint64
  >     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
  > }
@@ -3963,7 +3963,7 @@ export interface JettonWithdrawable_Withdraw {
 }
 
 export const JettonWithdrawable_Withdraw = {
-    PREFIX: 0x0e0718c3,
+    PREFIX: 0x0d00995c,
 
     create(args: {
         queryId?: uint64
@@ -3976,7 +3976,7 @@ export const JettonWithdrawable_Withdraw = {
         }
     },
     fromSlice(s: c.Slice): JettonWithdrawable_Withdraw {
-        loadAndCheckPrefix32(s, 0x0e0718c3, 'JettonWithdrawable_Withdraw');
+        loadAndCheckPrefix32(s, 0x0d00995c, 'JettonWithdrawable_Withdraw');
         return {
             $: 'JettonWithdrawable_Withdraw',
             queryId: s.loadUintBig(64),
@@ -3984,7 +3984,7 @@ export const JettonWithdrawable_Withdraw = {
         }
     },
     store(self: JettonWithdrawable_Withdraw, b: c.Builder): void {
-        b.storeUint(0x0e0718c3, 32);
+        b.storeUint(0x0d00995c, 32);
         b.storeUint(self.queryId, 64);
         storeArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(self.transfers, b, JettonWithdrawable_WithdrawFeeTransfer.store);
     },
