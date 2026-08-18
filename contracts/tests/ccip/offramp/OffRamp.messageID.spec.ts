@@ -7,7 +7,7 @@ import { bigIntToUint8Array } from '../../../src/utils'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
-import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.commitAndExec.spec'
+import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.Setup'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 
 // Single source of truth for the expected MessageID of the fixed message below, shared
@@ -55,9 +55,7 @@ describe('OffRamp - Message ID', () => {
 
     const message = of.Any2TVMRampMessage.create({
       header: rampMessageHeader,
-      sender: beginCell()
-        .storeBuffer(Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)))
-        .asSlice(),
+      sender: EVM_SENDER_ADDRESS_TEST,
       data: Cell.EMPTY,
       receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
       gasLimit: 100000000n,

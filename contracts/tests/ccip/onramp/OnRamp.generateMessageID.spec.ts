@@ -14,6 +14,7 @@ import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 import EVM_ADDRESS from '../../utils/evmAddress'
+import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -100,7 +101,7 @@ describe('OnRamp - generate message id', () => {
       success: true,
     })
 
-    const result = await onramp.sendOnRampSend(mockRouter.getSender(), toNano('1'), {
+    const result = await onramp.sendOnRampSend(mockRouter.getSender(), onrampSendCost, {
       msg: ccipSend,
       metadata: or.Metadata.create({
         sender: senderAddress,

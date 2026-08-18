@@ -66,6 +66,15 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
+// Helper to extract the single token transfer from the message, and assert that there is only one token transfer
+fun SnakedCell<Any2TVMTokenTransfer>.getTokenTransfer(self, error: int): Any2TVMTokenTransfer {
+    var it = self.iter();
+    assert (!it.empty(), error);
+    val token = it.next();
+    assert (it.empty(), error);
+    return token
+}
+
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
     return Any2TVMRampMessageIDData{
@@ -111,9 +120,11 @@ struct MerkleRoot {
 
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
-    destPoolAddress: address;
-    destGasAmount: uint32;
-    extraData: cell;
+    token: address;
+    destGasAmount: uint32; // TBD: This field was removed in CCIP 2.0 and it's purpose/utility in TON is unclear.
+    // Data from the source pool to be passed to the destination pool.
+    extraData: cell?;
+    // amount of transfered tokens in source chain decimals
     amount: uint256;
 }
 
