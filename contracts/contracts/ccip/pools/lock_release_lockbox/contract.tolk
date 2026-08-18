@@ -7,6 +7,7 @@ import "../../../lib/utils"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
+import "../../../lib/funding/jetton_withdrawable"
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
@@ -82,12 +83,14 @@ fun deployOffRampAccountWithRelease(
     queryId: uint64,
     context: LockReleaseLockboxTokenPool_ReleaseContext,
 ) {
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(recipient, ());
+
     val oaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool (inits the account)
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool (inits the account)
+        poolAddr, // proxy = pool
         beneficiaries,
     );
 
@@ -122,12 +125,13 @@ fun onDepositAccountReply(
 
     // Validate sender: derive expected account address and verify. Owner = proxy = pool,
     // beneficiary = the final recipient.
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(details.receiver, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
@@ -138,7 +142,7 @@ fun onDepositAccountReply(
     // Build extra with sendExcessesTo so ReturnExcessesBack routes to pool.
     // Also pass release context as forwardPayload so it survives the lockbox → jetton wallet hop.
     val withdrawExtra = JettonLockBox_WithdrawExtra {
-        sendExcessesTo: contract.getAddress(),
+        sendExcessesTo: poolAddr,
         failureContext: null,
         forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
         forwardPayload: contextCell,
@@ -169,6 +173,16 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         AskToTransfer => {
             var st = Storage.load();
+            // Distinguish a fee-withdrawal `AskToTransfer` (tagged with a `WithdrawContext`) from a
+            // lock `AskToTransfer` (tagged with a `LockContext`).
+            val data = st.poolData.load();
+            if (JettonWithdrawable.onWithdrawBounced(data.jettonClient().walletAddress(), msg)) {
+                assert(data.jettonClient().isWallet(in.senderAddress)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
+                st.store();
+
+                return;
+            }
+
             onLockTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
@@ -335,12 +349,7 @@ fun onReleaseOrMintContinue(
 
     // Deploy OffRampAccount with context embedded.
     // OAA owner = recipient (can withdraw released jettons).
-    deployOffRampAccountWithRelease(
-        st,
-        details.receiver,
-        msg.queryId,
-        context,
-    );
+    deployOffRampAccountWithRelease(st, details.receiver, msg.queryId, context);
 
     return st;
 }
@@ -385,12 +394,13 @@ fun onDepositAccountForwardNotification(
     // jetton wallet (the account's own derived CCT wallet for this pool's token).
     val releaseRecipient = getReleaseRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(releaseRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
@@ -442,6 +452,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
+            onWithdrawFeeTokens: null,
         },
     };
 }

@@ -30,6 +30,11 @@ import {
   TokenPool_LockOrBurnTransfer,
   TokenPool_Transfer,
   TokenPool_ReleaseOrMintTransfer,
+  TokenPool_TokenTransferFeeConfig,
+  TokenPool_TokenTransferFeeConfigArgs,
+  AskToTransfer,
+  JettonWithdrawable_Withdraw,
+  JettonWithdrawable_WithdrawFeeTransfer,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import {
   JettonClient,
@@ -42,7 +47,9 @@ import {
 } from '../../../wrappers/gen/ccip/ContextExecutor'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
 
@@ -164,6 +171,7 @@ describe('LockReleaseTokenPool', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           offRampAccountCode: DepositAccount.CodeCell,
+          accruedFees: 0n,
         },
         { overrideContractCode: await contractCode.ccip.local('ccip.pools.LockReleaseTokenPool') },
       ),
@@ -328,6 +336,243 @@ describe('LockReleaseTokenPool', () => {
       localToken: jettonMinter.address,
       hooks,
     }
+  })
+
+  // WithdrawFeeTokens behavior tests (fee accrual + withdrawal)
+  runTokenPoolWithdrawFeeTokensBehaviorTests('LockReleaseTokenPool', async () => {
+    const feeAdmin = await blockchain.treasury('feeAdmin')
+    const unauthorized = await blockchain.treasury('unauthorized')
+    const feeBps = 100n // 1% transfer fee
+    const poolWallet = await userWallet(lockReleasePool.address)
+
+    // Enable a 1% transfer fee for the lane so locks accrue fees into the pool wallet.
+    await lockReleasePool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 3n,
+        updates: [
+          TokenPool_TokenTransferFeeConfigArgs.create({
+            destChainSelector: remoteChainSelector,
+            tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+              destGasOverhead: 1n,
+              destBytesOverhead: 0n,
+              finalityFeeUSDCents: 0n,
+              fastFinalityFeeUSDCents: 0n,
+              finalityTransferFeeBps: feeBps,
+              fastFinalityTransferFeeBps: feeBps,
+              isEnabled: true,
+            }),
+          }),
+        ],
+        disableChainSelectors: [],
+      },
+    )
+
+    // Performs a successful fee-accruing lock of `amount` jettons.
+    const doLock = async (amount: bigint, queryId: bigint) => {
+      const routerWallet = await userWallet(deployer.address)
+
+      await jettonMinter.sendMint(deployer.getSender(), {
+        value: toNano('1'),
+        message: {
+          queryId: 0n,
+          destination: deployer.address,
+          tonAmount: toNano('0.05'),
+          jettonAmount: toNano('50'),
+          from: deployer.address,
+          responseDestination: deployer.address,
+          forwardTonAmount: 0n,
+        },
+      })
+
+      const feeAmount = (amount * feeBps) / 10000n
+      const lockOrBurn = TokenPool_LockOrBurn.create({
+        queryId,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount,
+              localToken: jettonMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+
+      const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg: lockOrBurn,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount,
+          destTokenAmount: amount - feeAmount,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+
+      await routerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: lockReleasePool.address,
+          responseDestination: deployer.address,
+          customPayload: beginCell().storeBit(1).endCell(),
+          forwardTonAmount: toNano('0.5'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+        },
+      })
+
+      return { feeAmount }
+    }
+
+    return {
+      pool,
+      deployer,
+      recipient,
+      unauthorized,
+      feeAdmin,
+      getWithdrawableFees: () => lockReleasePool.getAccruedFees(),
+      poolWallet,
+      userWallet,
+      feeBps,
+      doLock,
+    }
+  })
+
+  // The lock/release pool bounds withdrawals by its `accruedFees` ledger: an overdraw request
+  // must revert (this guard is deliberate for a commingled wallet, unlike burn/mint & lockbox
+  // which relay on the unbounded base path — see the shared withdraw behavior above).
+  describe('withdrawFeeTokens overdraw guard', () => {
+    it('reverts when the requested total exceeds the accrued-fee ledger', async () => {
+      const feeBps = 100n // 1% transfer fee
+      const poolWallet = await userWallet(lockReleasePool.address)
+
+      // Enable a 1% transfer fee so a lock accrues a real fee into the ledger.
+      await lockReleasePool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+        deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 3n,
+          updates: [
+            TokenPool_TokenTransferFeeConfigArgs.create({
+              destChainSelector: remoteChainSelector,
+              tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+                destGasOverhead: 1n,
+                destBytesOverhead: 0n,
+                finalityFeeUSDCents: 0n,
+                fastFinalityFeeUSDCents: 0n,
+                finalityTransferFeeBps: feeBps,
+                fastFinalityTransferFeeBps: feeBps,
+                isEnabled: true,
+              }),
+            }),
+          ],
+          disableChainSelectors: [],
+        },
+      )
+
+      // Perform one fee-accruing lock so the ledger has a positive, bounded balance.
+      const routerWallet = await userWallet(deployer.address)
+      const amount = toNano('10')
+      const feeAmount = (amount * feeBps) / 10000n
+      await jettonMinter.sendMint(deployer.getSender(), {
+        value: toNano('1'),
+        message: {
+          queryId: 0n,
+          destination: deployer.address,
+          tonAmount: toNano('0.05'),
+          jettonAmount: toNano('50'),
+          from: deployer.address,
+          responseDestination: deployer.address,
+          forwardTonAmount: 0n,
+        },
+      })
+      const lockOrBurn = TokenPool_LockOrBurn.create({
+        queryId: 104n,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 104n,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount,
+              localToken: jettonMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+      const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg: lockOrBurn,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount,
+          destTokenAmount: amount - feeAmount,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      await routerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 104,
+          jettonAmount: amount,
+          destination: lockReleasePool.address,
+          responseDestination: deployer.address,
+          customPayload: beginCell().storeBit(1).endCell(),
+          forwardTonAmount: toNano('0.5'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+        },
+      })
+      const accrued = await lockReleasePool.getAccruedFees()
+      expect(accrued).toBe(feeAmount)
+
+      // Request more than settled fees.
+      const result = await pool.sendJettonWithdrawableWithdraw(
+        deployer.getSender(),
+        toNano('0.5'),
+        {
+          queryId: 203n,
+          transfers: [
+            JettonWithdrawable_WithdrawFeeTransfer.create({
+              wallet: poolWallet.address,
+              // Enough to cover the relayed value + the pool reserve (0.2 + 0.1 <= 0.5 value sent).
+              value: toNano('0.2'),
+              msg: AskToTransfer.create({
+                queryId: 203n,
+                jettonAmount: accrued + 1n,
+                transferRecipient: recipient.address,
+                sendExcessesTo: pool.address,
+                customPayload: null,
+                forwardTonAmount: 0n,
+                forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+              }),
+            }),
+          ],
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: pool.address,
+        success: false,
+      })
+    })
   })
 
   describe('lockOrBurn transfer input validation', () => {

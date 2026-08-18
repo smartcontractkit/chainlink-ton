@@ -19,6 +19,7 @@ type BurnMintTokenPool_OutMessage =
     | CCT_AskToBurn;
 
 type BurnMintTokenPool_BouncedMessage =
+    | AskToTransfer
     | CCT_AskToBurn
     | MintNewJettons
     | DepositAccount_Init;

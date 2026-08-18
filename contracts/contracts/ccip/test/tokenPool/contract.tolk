@@ -16,7 +16,6 @@ struct Storage {
 	poolData: Cell<TokenPool_Data>
 }
 
-
 fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
@@ -42,6 +41,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue: null,
+            onWithdrawFeeTokens: null,
         },
     };
 }

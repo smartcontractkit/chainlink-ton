@@ -8,6 +8,7 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
+import "../../../lib/funding/jetton_withdrawable"
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
@@ -73,12 +74,13 @@ fun deployOffRampAccountWithRelease(
     queryId: uint64,
     context: LockReleaseTokenPool_ReleaseContext,
 ) {
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(recipient, ());
     val oaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool (inits the account)
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool (inits the account)
+        poolAddr, // proxy = pool
         beneficiaries,
     );
 
@@ -113,26 +115,27 @@ fun onDepositAccountReply(
 
     // Validate sender: derive expected account address and verify. Owner = proxy = pool,
     // beneficiary = the final recipient.
-    val jettonClient = st.poolData.load().jettonClient();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(details.receiver, ());
+    val poolAddr = contract.getAddress();
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountReply);
 
+    val jettonClient = st.poolData.load().jettonClient();
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: st.poolData.load().jettonClient().walletAddress(),
+        dest: jettonClient.walletAddress(),
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: prepared.localAmount,
             transferRecipient: sender,
-            sendExcessesTo: contract.getAddress(), // pool keeps any excesses
+            sendExcessesTo: poolAddr, // pool keeps any excesses
             customPayload: null,
             forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
             forwardPayload: beginCell()
@@ -151,6 +154,12 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy LockReleaseTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
+            // A bounced fee-withdrawal ask (tagged with a WithdrawContext) re-credits the accrued-fee
+            // ledger: the jettons returned and remain withdrawable. Otherwise it's a release ask.
+            if (onFeeWithdrawAskBounced(mutate st, in.senderAddress, msg)) {
+                st.store();
+                return;
+            }
             onReleaseTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
@@ -161,6 +170,29 @@ fun onBouncedMessage(in: InMessageBounced) {
             st.store();
         }
     }
+}
+
+/// Handles a bounced fee-withdrawal `AskToTransfer`: validates it came from our own token wallet,
+/// re-credits `accruedFees` by the returned amount, and notifies the withdrawal initiator. Returns
+/// `true` if the ask was a recognized fee withdrawal (handled here), `false` otherwise (release ask).
+fun onFeeWithdrawAskBounced(
+    mutate st: Storage,
+    sender: address,
+    ask: AskToTransfer,
+): bool {
+    val data = st.poolData.load();
+    // Notify the withdrawal initiator of the failure (default handler sends WithdrawFailed).
+    if (!JettonWithdrawable.onWithdrawBounced(data.jettonClient().walletAddress(), ask)) {
+        return false; // not a fee-withdrawal ask, let the caller handle it
+    }
+
+    // The bounce must come from our own jetton wallet (the fee jettons were there).
+    assert(data.jettonClient().isWallet(sender)) throw Error.UnexpectedReleaseBounce;
+
+    // Jettons returned to the wallet; restore the fee ledger so they can be withdrawn again.
+    st.accruedFees += ask.jettonAmount;
+
+    return true;
 }
 
 /// @notice Handles a bounced `DepositAccount_Init`: refunds the inbound rate limit and sends a
@@ -204,12 +236,7 @@ fun onReleaseOrMintContinue(
     // Deploy DepositAccount (off-ramp role) with context embedded.
     // owner = recipient (can withdraw released jettons).
     // proxy = this pool (receives completion notification).
-    deployOffRampAccountWithRelease(
-        st,
-        details.receiver,
-        msg.queryId,
-        context,
-    );
+    deployOffRampAccountWithRelease(st, details.receiver, msg.queryId, context);
 
     return st;
 }
@@ -306,13 +333,58 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateLockOrBurn: null,
             preflightCheck: null,
             onLockOrBurnTransfer: null,
-            onLockOrBurnTransferContinue: null,
+            onLockOrBurnTransferContinue,
             onReleaseOrMint: null,
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
+            onWithdrawFeeTokens,
         },
     };
+}
+
+/// Lock continuation for lock/release: settles the accrued fee on confirmed lock success, then
+/// finalizes through the base path (a hook-free pool so the base `onLockOrBurnTransferContinue`
+/// -> `onLockOrBurnTransferFinalize` runs: emits `LockedOrBurned` and replies).
+fun onLockOrBurnTransferContinue(
+    st: Storage,
+    _sender: address,
+    _msg: TransferNotificationForRecipient,
+    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+): Storage {
+    // Accrue the fee only once custody has confirmed (lock success). Failure/bounce paths never
+    // reach here, so the ledger only counts actually-completed locks.
+    val prepared = lazy fwdPayload.prepared.load();
+    var s = st;
+    s.accruedFees += prepared.feeAmount;
+
+    // Finalize through the base path (emit `LockedOrBurned` + reply)
+    var pool = loadPool(s);
+    pool.onLockOrBurnTransferFinalize(fwdPayload);
+    s.poolData = pool.data.toCell();
+    return s;
+}
+
+/// Bounded fee-withdrawal handler for lock/release: caps each transfer by the accrued-fee ledger
+/// and decrements it on withdrawal (re-credited on bounce, see `onBouncedMessage`).
+fun onWithdrawFeeTokens(
+    ctx: Storage?,
+    sender: address,
+    msgValue: coins,
+    msg: JettonWithdrawable_Withdraw,
+): Storage? {
+    assert(ctx != null, TokenPool_Error.UnsupportedOperation);
+    var st = ctx!;
+
+    // `withdrawFeeTokens` bounds the ledger via `maxAmount` (each transfer's jetton amount <= accrued
+    // fees; exactly one transfer is enforced there) and returns the total jettons actually withdrawn.
+    var pool = loadPool(st);
+    val withdrawn: coins = pool.withdrawFeeTokens(sender, msgValue, msg, st.accruedFees);
+    st.poolData = pool.data.toCell();
+
+    // Fees have physically left the wallet; reduce the ledger so it truly reflects what remains.
+    st.accruedFees -= withdrawn;
+    return st;
 }
 
 get fun typeAndVersion(): (slice, slice) {
@@ -445,4 +517,9 @@ get fun getFeeAmount(
 ): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
+}
+
+/// Returns the accrued fee balance that `withdrawFeeTokens` may currently move.
+get fun getAccruedFees(): coins {
+    return Storage.load().accruedFees;
 }

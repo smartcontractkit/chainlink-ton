@@ -27,11 +27,18 @@ import {
   TokenPool_DynamicConfig,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
+  TokenPool_TokenTransferFeeConfig,
+  TokenPool_TokenTransferFeeConfigArgs,
+  AskToTransfer,
+  JettonWithdrawable_Withdraw,
+  JettonWithdrawable_WithdrawFeeTransfer,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMinter'
-import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -320,6 +327,112 @@ describe('BurnMintTokenPool', () => {
       sourcePoolAddress,
       localToken: cctMinter.address,
       hooks,
+    }
+  })
+
+  // WithdrawFeeTokens behavior tests (fee accrual + withdrawal). burn/mint burns only the
+  // post-fee amount, leaving the fee jettons behind in the pool's own wallet, so the fee balance
+  // is the withdrawable amount (no accrued-fee ledger => unbounded base path).
+  runTokenPoolWithdrawFeeTokensBehaviorTests('BurnMintTokenPool', async () => {
+    const feeAdmin = await blockchain.treasury('feeAdmin')
+    const feeBps = 100n // 1% transfer fee
+    const poolWallet = await userWallet(burnMintPool.address)
+
+    // Enable a 1% transfer fee for the lane so locks accrue fees into the pool wallet.
+    await burnMintPool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 3n,
+        updates: [
+          TokenPool_TokenTransferFeeConfigArgs.create({
+            destChainSelector: remoteChainSelector,
+            tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+              destGasOverhead: 1n,
+              destBytesOverhead: 0n,
+              finalityFeeUSDCents: 0n,
+              fastFinalityFeeUSDCents: 0n,
+              finalityTransferFeeBps: feeBps,
+              fastFinalityTransferFeeBps: feeBps,
+              isEnabled: true,
+            }),
+          }),
+        ],
+        disableChainSelectors: [],
+      },
+    )
+
+    // Performs a successful fee-accruing lock of `amount` jettons. The pool burns only the
+    // post-fee amount, leaving `feeAmount` in the pool's own wallet.
+    const doLock = async (amount: bigint, queryId: bigint) => {
+      const onRampWallet = await userWallet(deployer.address)
+      const feeAmount = (amount * feeBps) / 10000n
+      const lockOrBurn = TokenPool_LockOrBurn.create({
+        queryId,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount,
+              localToken: cctMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+      const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg: lockOrBurn,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount,
+          destTokenAmount: amount - feeAmount,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      await onRampWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.5'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+        },
+      })
+      return { feeAmount }
+    }
+
+    // The pool's own jetton wallet is only deployed once it first receives jettons, so tolerate
+    // it not being active yet (returns 0 pre-first-lock).
+    const getWithdrawableFees = async (): Promise<bigint> => {
+      try {
+        return await poolWallet.getJettonBalance()
+      } catch {
+        return 0n
+      }
+    }
+
+    return {
+      pool,
+      deployer,
+      recipient,
+      unauthorized,
+      feeAdmin,
+      getWithdrawableFees,
+      poolWallet,
+      userWallet,
+      feeBps,
+      doLock,
     }
   })
 

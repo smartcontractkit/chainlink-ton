@@ -8,10 +8,11 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
-import "../../cct/messages"
+import "../../../lib/funding/jetton_withdrawable"
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
+import "../../cct/messages"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -35,7 +36,6 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
-    
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -76,8 +76,6 @@ fun onInternalMessage(in: InMessage) {
 /// @notice Sends the CCT `AskToBurn` operational message to the pool's own jetton wallet
 /// to burn the locked tokens. The burn continuation context is attached as `forwardPayload`,
 /// which the CCT wallet relays via the minter back to the pool on `CCT_ReturnExcessesBack`.
-/// `sendExcessesTo` points back to this pool so the minter routes the completion (and excess)
-/// here directly — no ContextExecutor hop required.
 fun sendBurnMessage(
     st: Storage,
     queryId: uint64,
@@ -106,6 +104,14 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
+        // burn/mint relays an `AskToTransfer` only for fee withdrawals (burns via `CCT_AskToBurn`,
+        // mints via `MintNewJettons`), so any bounced ask here is a failed fee withdrawal.
+        AskToTransfer => {
+            val data = st.poolData.load();
+            assert(in.senderAddress == data.jettonClient().walletAddress()) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            JettonWithdrawable.onWithdrawBounced(data.jettonClient().walletAddress(), msg);
+            st.store();
+        }
         CCT_AskToBurn => {
             assert(msg.customPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
             val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.customPayload!);
@@ -270,12 +276,13 @@ fun deployOffRampAccountWithMint(
     queryId: uint64,
     context: BurnMintTokenPool_MintContext,
 ) {
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(recipient, ());
     val oaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool (inits the account)
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool (inits the account)
+        poolAddr, // proxy = pool
         beneficiaries,
     );
 
@@ -308,12 +315,13 @@ fun onDepositAccountReply(
     // Validate sender: derive expected account address from the mint recipient and verify.
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
@@ -333,7 +341,7 @@ fun onDepositAccountReply(
                 queryId: msg.queryId,
                 jettonAmount: prepared.localAmount,
                 transferInitiator: null,
-                sendExcessesTo: contract.getAddress(), // pool keeps any excesses
+                sendExcessesTo: poolAddr, // pool keeps any excesses
                 forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
                 forwardPayload: beginCell()
                     .storeMaybeRef(contextCell)
@@ -380,12 +388,13 @@ fun onDepositAccountForwardNotification(
     // jetton wallet (the account's own derived wallet for this pool's token).
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
@@ -423,6 +432,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
+            onWithdrawFeeTokens: null,
         },
     };
 }

@@ -131,6 +131,9 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     context: T
 }
 
+// TODO: generalized — this was added before TON token support and only supports withdrawing native TON.
+// Migrate to the shared `JettonWithdrawable_WithdrawFeeTokens` (lib/funding/jetton_withdrawable.tolk)
+// so the OnRamp can also withdraw accrued fee jettons, like the TokenPool does.
 struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
     feeTokens: SnakedCell<address>;
 }
