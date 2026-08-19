@@ -20,45 +20,46 @@ func TestTokenAmounts(t *testing.T) {
 	require.NoError(t, err)
 
 	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	destGasAmount := tlb.MustFromTON("1000")
 	tokenAmountsCell, err := tlb.ToCell(common.SnakeRef[Any2TVMTokenTransfer]{
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		}, {
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
@@ -75,26 +76,27 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 	dummyCell, err := common.NewDummyCell()
 	require.NoError(t, err)
+	destGasAmount := tlb.MustFromTON("1000")
 	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 	tokenAmountsSlice := []Any2TVMTokenTransfer{
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(20),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(30),
 		},
