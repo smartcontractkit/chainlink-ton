@@ -21,6 +21,10 @@ struct MockAdvancedPoolHooks_Data {
     id: uint8;
 }
 
+fun MockAdvancedPoolHooks_Data.load(): MockAdvancedPoolHooks_Data {
+    return MockAdvancedPoolHooks_Data.fromCell(contract.getData());
+}
+
 type MockAdvancedPoolHooks_InMessage =
   | TokenPool_PreflightCheck
   | TokenPool_PostflightCheck
@@ -46,16 +50,38 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// Echoes an empty CCV set (signaling "use lane defaults") back to the pool, preserving the
+/// Replies to a pool `TokenPool_GetCCVs` with a `TokenPool_QueryCCVsReply`, preserving the
 /// context in `replyPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
+/// The CCV set is driven by the mock's storage `id`:
+///   - `id == 0` (default): empty CCV set, signaling "use lane defaults".
+///   - `id != 0` and `id != 255`: returns a single hard-coded CCV (the pool itself) so a
+///     NON-empty set flows through the pool → hooks → pool → requester round-trip and is
+///     observable in replies.
+///   - `id == 255`: bounces (throws), finalizing the query with `TokenPool_GetCCVsFailed` on
+///     the pool side via its `onBouncedMessage` handler. Used to test hook-bounce finalization.
+const MOCK_HOOKS_BOUNCE_ID = 255;
+
 fun replyGetCCVs(msg: TokenPool_GetCCVs) {
+    val data = MockAdvancedPoolHooks_Data.load();
+    if (data.id == MOCK_HOOKS_BOUNCE_ID) {
+        throw 0xFFFF; // bounce the pool's forwarded GetCCVs
+    }
+
+    var requiredCCVs = createEmptyCell() as SnakedCell<address>;
+    if (data.id != 0) {
+        // A single CCV (the pool that queried us) — meaningful enough for a mock and lets tests
+        // assert that the non-empty set is echoed back through the pool unchanged.
+        val ccv: address = msg.replyTo;
+        requiredCCVs = beginCell().storeAddress(ccv).endCell() as SnakedCell<address>;
+    }
+
     val reply = createMessage({
         bounce: false,
         value: 0,
         dest: msg.replyTo,
         body: TokenPool_QueryCCVsReply {
             queryId: msg.queryId,
-            requiredCCVs: beginCell().endCell() as SnakedCell<address>,
+            requiredCCVs: requiredCCVs,
             replyPayload: msg.forwardPayload,
         },
     });

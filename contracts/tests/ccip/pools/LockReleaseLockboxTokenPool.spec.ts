@@ -565,6 +565,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       offRamp,
       unauthorized: recipient,
       recipient,
+      blockchain,
       remoteChainSelector,
       onRampAddress: deployer.address,
       destTokenAddress,

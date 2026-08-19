@@ -1278,7 +1278,7 @@ fun TokenPool<T>.onGetCCVs(
     }
 
     // No hooks -> empty CCV set (callers fall back to lane defaults).
-    self.sendCCVsReply(sender, msg.queryId, beginCell().endCell() as SnakedCell<address>, context);
+    self.sendCCVsReply(sender, msg.queryId, createEmptyCell() as SnakedCell<address>, context);
 }
 
 /// Handles an on-chain `TokenPool_GetCCVsAndFees` query: validates, computes the fee params and
