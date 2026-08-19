@@ -432,7 +432,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
 
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
-    val gasLimit = GasOverride.getEffectiveGasLimit(msg.receiverExecutionGasLimit, message.gasLimit);
+    val gasLimit = getEffectiveGasLimit(msg.receiverExecutionGasLimit, message.gasLimit);
     if (gasLimit < MIN_GASLIMIT) {
         return blockMsg(st, msg.execId, message.receiver);
     }

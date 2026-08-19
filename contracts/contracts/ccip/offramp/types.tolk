@@ -16,13 +16,13 @@ struct ExecutionReport {
 }
 
 struct GasOverride {
-    receiverExecutionGasLimit: coins;
-    // TODO TTGasOverride: tokenGasOverrides: array<coins>;
+    receiverExecutionGasLimit: coins? = null;
+    // TODO TTGasOverride: tokenGasOverrides: array<coins>?;
 }
 
 // getEffectiveGasLimit returns the gas limit to use for the receiver execution
 // If the gasOverride is null, it returns the gasLimit passed in.
-fun GasOverride.getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit: coins): coins {
+fun getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit: coins): coins {
     if (receiverExecutionGasLimit != null && receiverExecutionGasLimit >= gasLimit) {
         gasLimit = receiverExecutionGasLimit;
     }
@@ -30,7 +30,7 @@ fun GasOverride.getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit
 }
 
 fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
-    if (self != null && self.receiverExecutionGasLimit >= gasLimit) {
+    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
         return self.receiverExecutionGasLimit;
     }
     return gasLimit;

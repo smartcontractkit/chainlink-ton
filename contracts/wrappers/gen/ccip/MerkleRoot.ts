@@ -250,31 +250,34 @@ export const OffRamp_ExecuteValidated = {
 
 /**
  > struct GasOverride {
- >     receiverExecutionGasLimit: coins
+ >     receiverExecutionGasLimit: coins?
  > }
  */
 export interface GasOverride {
     readonly $: 'GasOverride'
-    receiverExecutionGasLimit: coins
+    receiverExecutionGasLimit: coins | null /* = null */
 }
 
 export const GasOverride = {
     create(args: {
-        receiverExecutionGasLimit: coins
+        receiverExecutionGasLimit?: coins | null /* = null */
     }): GasOverride {
         return {
             $: 'GasOverride',
+            receiverExecutionGasLimit: null,
             ...args
         }
     },
     fromSlice(s: c.Slice): GasOverride {
         return {
             $: 'GasOverride',
-            receiverExecutionGasLimit: s.loadCoins(),
+            receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
         }
     },
     store(self: GasOverride, b: c.Builder): void {
-        b.storeCoins(self.receiverExecutionGasLimit);
+        storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
+            (v,b) => b.storeCoins(v)
+        );
     },
     toCell(self: GasOverride): c.Cell {
         return makeCellFrom<GasOverride>(self, GasOverride.store);
@@ -700,7 +703,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAm4AART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwD/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABk/oAMJIwbeID0CDT/zHTPzHTPzHXCz+BSK1TGL6VUxe7wwCRcOLy9FMHoYFIrSHBQPL0cyGqAKwnsAGqAK2BSKshwAORf5UhwADDAOLy9CVus+MPgUitUxgGBwgB/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1wsHIMID8kWBSK1TJb6VUyS7wwCRcOLy9FMUoYFIrSHBQPL0cyGqAKwksAGqAK2BSKwBwwLy9IFIrCHAApF/lSHAA8MA4vL0gUitUyW+lVMku8MAkXDi8vRRFKGBSK0JACz4IyqhUAW8gUiqAZF/lSTAA8MA4vL0AA40gUioJPLyANy+lVMXu8MAkXDi8vQnoYFIrSHBQPL0cyGqAKyzFrAFqgCuFbEEyM7JyM+THPVqKswpzwv/y/8ibpRsEs+Blc+DWPoC4ssHycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAokAART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwC/DHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABntMAAZP6ADCSMG3igQCHkzBtcOIE0CDT/zHTPzHTPzHXCz+BSK1TGb6VUxi7wwCRcOLy9FMIoYFIrSHBQPL0cyGqAKwosAGqAK2BSKshwAOVIcAAwwDjDQYHAf4x7UTQ0//6SNM/0z/TP9N/1wsPgUip+JInxwXy9AfTP9cLByDCA/JFgUitUyW+lVMku8MAkXDi8vRTFKGBSK0hwUDy9HMhqgCsJLABqgCtgUisAcMC8vSBSKwhwAKRf5UhwAPDAOLy9IFIrVMlvpVTJLvDAJFw4vL0URShgUitCQACfwH+8vQmwwCOFvgjK6FQBryBSKoBkX+VJcADwwDi8vSXNYFIqCXy8uKBSK1TGb6VUxi7wwCRcOLy9CihgUitIcFA8vRzIaoArLMXsAaqAK4WsQXIzsnIz5Mc9WoqzCrPC/8Sy/8DjhECz4MibpRsEs+Blc+DWPoC4pQwAc+B4ssHyQgATsjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
 
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
