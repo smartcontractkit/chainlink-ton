@@ -997,6 +997,106 @@ describe('OffRamp - Execute', () => {
         },
       )
     })
+
+    it('should ignore gasOverride when 0', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.receiver.sendUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.ReceiverBehavior.RejectAll,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.deployer.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      const result2 = await setup.executeReport(report)
+      expect(result2.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: false,
+      })
+
+      assertLog(
+        result2.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      const result3 = await setup.receiver.sendUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.ReceiverBehavior.Accept,
+        },
+      )
+      expect(result3.transactions).toHaveTransaction({
+        from: setup.deployer.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      const gasOverride = { receiverExecutionGasLimit: 0n }
+
+      const result4 = await setup.manualExecuteReport(report, gasOverride, true)
+
+      expect(result4.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        value: message.gasLimit,
+        success: true,
+      })
+
+      assertLog(
+        result4.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.InProgress,
+        },
+      )
+
+      assertLog(
+        result4.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      assertLog(
+        result4.transactions,
+        setup.receiver.address,
+        CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+        {
+          message: of.Any2TVMMessage.create({
+            messageId: message.header.messageId,
+            sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            sender: message.sender,
+            data: message.data,
+            tokenAmounts: null,
+          }),
+        },
+      )
+    })
   })
 
   describe('Commit multiple messages in one root and execute with proof', () => {

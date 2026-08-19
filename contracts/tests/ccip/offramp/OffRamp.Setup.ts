@@ -541,7 +541,6 @@ export class OffRampTestSetup {
       {
         report,
         gasOverride: of.GasOverride.create({
-          receiverExecutionGasLimit: 0n,
           ...gasOverride,
         }),
       },
