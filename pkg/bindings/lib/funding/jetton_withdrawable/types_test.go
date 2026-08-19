@@ -17,15 +17,15 @@ func newTestAddress(seed byte) *address.Address {
 	return address.NewAddress(0, 0, data)
 }
 
-func newTestTransfer(queryID uint64, amount uint64) WithdrawFeeTransfer {
+func newTestTransfer(queryID byte, amount uint64) WithdrawFeeTransfer {
 	return WithdrawFeeTransfer{
-		Wallet: newTestAddress(byte(queryID)),
+		Wallet: newTestAddress(queryID),
 		Value:  tlb.FromNanoTONU(50_000_000),
 		Msg: wallet.AskToTransfer{
-			QueryID:           queryID,
+			QueryID:           uint64(queryID),
 			JettonAmount:      tlb.FromNanoTONU(amount),
-			TransferRecipient: newTestAddress(byte(queryID) + 1),
-			SendExcessesTo:    newTestAddress(byte(queryID) + 2),
+			TransferRecipient: newTestAddress(queryID + 1),
+			SendExcessesTo:    newTestAddress(queryID + 2),
 			ForwardTonAmount:  tlb.FromNanoTONU(10_000_000),
 			ForwardPayload:    nil,
 		},
@@ -75,7 +75,7 @@ func TestWithdraw_EmptyTransfers(t *testing.T) {
 	var decoded Withdraw
 	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
 	require.Equal(t, uint64(9), decoded.QueryID)
-	require.Len(t, decoded.Transfers, 0)
+	require.Empty(t, decoded.Transfers)
 }
 
 func TestWithdrawContext_EncodingAndDecoding(t *testing.T) {

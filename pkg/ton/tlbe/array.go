@@ -1,6 +1,7 @@
 package tlbe
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -69,7 +70,7 @@ func (a Array[T]) ToCell() (*cell.Cell, error) {
 // TS `loadArrayOf`, which rejects a mismatch).
 func (a *Array[T]) LoadFromCell(loader *cell.Slice) error {
 	if a == nil {
-		return fmt.Errorf("invalid nil Array receiver")
+		return errors.New("invalid nil Array receiver")
 	}
 
 	length, err := loader.LoadUInt(8)
@@ -102,7 +103,7 @@ func (a *Array[T]) LoadFromCell(loader *cell.Slice) error {
 		head = next
 	}
 
-	if int(length) != len(*a) {
+	if length != uint64(len(*a)) {
 		return fmt.Errorf("mismatch tolk array binary data: expected %d elements, got %d", length, len(*a))
 	}
 	return nil

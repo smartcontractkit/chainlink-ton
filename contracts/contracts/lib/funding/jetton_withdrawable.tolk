@@ -11,16 +11,11 @@ const JettonWithdrawable_ERROR_CODE = JettonWithdrawable_FACILITY_ID * 100;
 
 const TOPIC_FEE_TOKEN_WITHDRAWN = "FeeTokenWithdrawn".crc32();
 
-/// The pool's own gas/storage reserve that the inbound withdrawal value must exceed on top of the
-/// sum of the relayed transfer values. Each transfer carries its own `value` (used to pay the
-/// wallet's compute + forwarding, with fees deducted via `SEND_MODE_REGULAR`), so this only
-/// guarantees the caller funds the pool's own costs rather than drawing on pool custody.
+// Pool's own gas/storage reserve the inbound value must exceed on top of the summed transfer
+// values. Each transfer's `value` pays the wallet's compute + forwarding (SEND_MODE_REGULAR), so
+// this guarantees the caller funds the pool's own costs instead of drawing on pool custody.
 const JettonWithdrawable_MIN_RESERVE = ton("0.1");
 
-/// Mirrors EVM `FeeTokenHandler.WithdrawFeeTokens`: transfers accrued fee jetton balances to
-/// the provided recipient. Unlike EVM there is no synchronous `balanceOf(pool)` and the pool's
-/// Jetton wallet can hold user liquidity too (`lock/release`), so the caller supplies the exact
-/// transfers to relay and caps them with `maxAmount` (e.g. an accrued-fee ledger).
 struct JettonWithdrawable {}
 
 enum JettonWithdrawable_Error {
@@ -36,51 +31,44 @@ enum JettonWithdrawable_Error {
     InvalidWithdrawWallet;
 }
 
-/// One concrete fee-withdrawal step: which wallet to relay an `AskToTransfer` to.
-/// The wallet is explicit because, unlike a single pool token, the caller may hold fees across
-/// multiple tokens/wallets and the destination wallet must be carried on the message (there is
-/// no generic `balanceOf` synchronous read on TON to derive it).
+/// One concrete fee-withdrawal step: a destination wallet and the `AskToTransfer` to relay to it.
+/// The wallet is explicit and expected to be derived by the caller (e.g. a pool).
 struct JettonWithdrawable_WithdrawFeeTransfer {
-    /// The Jetton wallet that owns the accrued fee jettons and that the `AskToTransfer` is sent to.
+    /// The Jetton wallet owning the fees that the `AskToTransfer` is sent to.
     wallet: address;
-    /// The TON value forwarded with the relayed `AskToTransfer`, paying the wallet's compute +
-    /// forward (fees are deducted from it via `SEND_MODE_REGULAR`). Carried on the input so the
-    /// caller decides how much to allocate per transfer; pooled, `msgValue` must cover the sum of
-    /// these values plus `JettonWithdrawable_MIN_RESERVE`.
+    /// TON value forwarded with the relay, paying the wallet's compute + forward fees (deducted via
+    /// `SEND_MODE_REGULAR`). Caller allocates per transfer; pooled, `msgValue` must cover the sum + reserve.
     value: coins;
-    /// The concrete transfer to relay. `transferRecipient` is where the jettons end up.
+    /// The transfer to relay. `transferRecipient` is where the jettons end up.
     msg: AskToTransfer;
 }
 
-/// Requests withdrawal of accrued fee jettons.
-/// The caller (a contract holding Jetton wallets) builds the exact transfers to relay.
-/// Each carries its own `AskToTransfer` (including its recipient) plus the source wallet.
+/// Requests withdrawal of accrued fee jettons. The caller (a contract holding Jetton wallets)
+/// builds the exact `wallet` + `AskToTransfer` pairs to relay.
 struct (0x0d00995c) JettonWithdrawable_Withdraw {
     queryId: uint64;
-    /// Concrete wallet + transfer pairs to relay.
     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>;
 }
 
 /// Relayed to the recipient of a fee withdrawal for observability.
-/// @dev References the source Jetton wallet, not a token master, matching TON's
-///      minter/wallet architecture (a wallet uniquely identifies owner + token).
+/// @dev References the source Jetton wallet (not a token master), matching TON's minter/wallet
+///      architecture: a wallet uniquely identifies owner + token.
 struct JettonWithdrawable_FeeTokenWithdrawn {
     wallet: address;
     amount: coins;
 }
 
-/// Opcode embedded in the fee-withdrawal `WithdrawContext` so a bounced `AskToTransfer` can be
-/// recognized as a fee withdrawal (vs. any other `AskToTransfer` a pool sends, e.g. release asks
-/// which keep `customPayload` empty).
+/// Opcode embedding in the `WithdrawContext` tags a bounced `AskToTransfer` as a fee withdrawal,
+/// distinguishing it from other asks a pool sends (e.g. release asks keep `customPayload` empty).
 const JettonWithdrawable_WITHDRAW_OPCODE = "JettonWithdrawableWithdraw".crc32();
 
-/// Correlated with each relayed fee-withdrawal `AskToTransfer` so a bounce knows (1) that this is
-/// a fee withdrawal and (2) who requested it (to report the failure to).
+/// Correlated with each relayed fee-withdrawal `AskToTransfer` so a bounce knows (1) this is a fee
+/// withdrawal and (2) who initiated it, to report the failure to.
 /// @dev Stored in `AskToTransfer.customPayload` (which we require to be empty), mirroring the
-///      `customPayload`-as-bounce-marker pattern already used by burn/mint and the JettonLockBox.
+///      `customPayload`-as-bounce-marker pattern used by burn/mint and the JettonLockBox.
 struct JettonWithdrawable_WithdrawContext {
     opcode: uint32;
-    /// The `sender` that initiated the withdrawal, so a bounce can be reported back to it.
+    /// The `sender` that initiated the withdrawal; a bounce is reported back to it.
     withdrawInitiator: address;
 }
 
@@ -91,8 +79,8 @@ struct JettonWithdrawable_WithdrawFailed {
     ask: AskToTransfer;
 }
 
-/// Parses the fee-withdrawal context out of a (possibly bounced) `AskToTransfer`.
-/// Returns `null` when the ask is not a fee-withdrawal (no `customPayload` or a non-matching opcode).
+/// Decodes the fee-withdrawal context from a (possibly bounced) `AskToTransfer`, or `null` if the
+/// ask isn't a fee withdrawal (no `customPayload` or a non-matching opcode).
 @inline
 fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawable_WithdrawContext? {
     if (ask.customPayload == null) {
@@ -112,21 +100,18 @@ fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawa
 }
 
 /// Withdraws accrued fee jettons by relaying the provided transfers to the given wallets.
-/// @dev The caller is expected to enforce its own access control (e.g. owner/fee-admin) *before*
-///      invoking this handler; the handler only enforces the per-transfer allowlist, limit and
-///      value-coverage invariants. Mirrors EVM `FeeTokenHandler._withdrawFeeTokens` minus its
-///      caller gating.
-/// @param msgValue The TON value carried by the inbound withdrawal message. Must cover the sum of
-///        all relayed transfer values plus `JettonWithdrawable_MIN_RESERVE`.
+/// @dev The caller enforces its own access control (owner/fee-admin) *before* invoking this;
+///      the handler only enforces the per-transfer allowlist, limit, and value-coverage invariants.
+/// @param msgValue Inbound TON value; must cover the sum of relayed transfer values plus
+///        `JettonWithdrawable_MIN_RESERVE`.
 /// @param sender The caller; retained for attribution/observability.
 /// @param msg The withdrawal request (wallet + transfer pairs, each with its own `value`).
-/// @param maxAmount The upper bound per transfer; clients use their accrued-fee ledger
-///        (or MAX for full-balance sweeps).
+/// @param maxAmount Upper bound per transfer; clients use their accrued-fee ledger (or MAX for
+///        full-balance sweeps).
 /// @param allowedRecipients Optional permit list of withdrawal destinations. When set, every
-///        `AskToTransfer` in `msg.transfers` must have its `transferRecipient` in this list, so
-///        funds can only ever be swept to allowlisted fee aggregators. When `null`, any recipient
-///        is allowed except the zero/none address (which would burn the jettons).
-/// @return totalWithdrawn The total jetton amount relayed
+///        `transferRecipient` must be in this list, so funds can only be swept to allowlisted fee
+///        aggregators. When `null`, any recipient is allowed except zero/none (which would burn).
+/// @return totalWithdrawn Total jetton amount relayed
 fun JettonWithdrawable.onWithdraw(
     msgValue: coins,
     sender: address,
@@ -134,13 +119,10 @@ fun JettonWithdrawable.onWithdraw(
     maxAmount: coins,
     allowedRecipients: array<address>?,
 ): coins {
-    // Single pass: enforce the value-coverage guard and fulfil each relay. `totalValue` is the
-    // running sum of relayed TON values; the inbound `msgValue` must cover it + the pool reserve.
-    // Since the total only grows and TON reverts the whole tx on a throw, once `totalValue` +
-    // reserve exceeds `msgValue` it is guaranteed insufficient, so we reject before any send.
+    // A running sum of relayed TON values + reserve must stay under `msgValue`
     var totalValue: coins = 0;
     var totalWithdrawn: coins = 0;
-    var iter = ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer>.new(msg.transfers);
+    var iter: ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer> = ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer>.new(msg.transfers);
     while (!iter.empty()) {
         val transfer = iter.next();
         val ask = transfer.msg;
@@ -153,16 +135,14 @@ fun JettonWithdrawable.onWithdraw(
         if (ask.transferRecipient == createAddressNone()) {
             throw JettonWithdrawable_Error.ZeroAddressNotAllowed;
         }
-        // When an allowlist is configured, every transfer must land on one of its recipients.
+        // With an allowlist configured, every transfer must land on one of its recipients.
         if (allowedRecipients != null
             && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients!)) {
             throw JettonWithdrawable_Error.UnallowedRecipient;
         }
         // The caller guarantees each amount is within its permitted limit (e.g. accrued fees).
         assert(ask.jettonAmount <= maxAmount, JettonWithdrawable_Error.MaxAmountExceeded);
-        // The fee-withdraw ask must not carry a `customPayload`: we own that slot to tag the
-        // withdrawal context (opcode + initiator) so a bounce can be correlated back to this fee
-        // withdrawal and the requesting party can be notified of the failure.
+        // We own `customPayload` to tag the withdrawal context (opcode + initiator), input must be empty.
         assert(ask.customPayload == null, JettonWithdrawable_Error.UnallowedRecipient);
 
         val taggedAsk = AskToTransfer {
@@ -178,9 +158,8 @@ fun JettonWithdrawable.onWithdraw(
             forwardPayload: ask.forwardPayload,
         };
 
-        // Relay the transfer to the wallet holding the fee jettons with the caller's value, paying
-        // forwarding fees out of it (SEND_MODE_REGULAR). Rich bounce so the full original
-        // AskToTransfer (with the withdrawal context) comes back to us on failure.
+        // Relay the transfer with the caller's value, paying forwarding fees out of it
+        // (SEND_MODE_REGULAR). Rich bounce returns the full original ask (with the context) on failure.
         val relay = createMessage({
             bounce: BounceMode.RichBounce,
             value: transfer.value,
@@ -211,14 +190,13 @@ fun JettonWithdrawable.isAllowedRecipient(recipient: address, allowed: array<add
 }
 
 /// Default handler for a bounced fee-withdrawal `AskToTransfer`: decodes the `WithdrawContext`
-/// (which tags the ask and carries the initiator) and notifies the initiator of the failure. The
-/// caller (a pool's `onBouncedMessage`) validates authorization first (e.g. that the bounce came
-/// from the pool's own jetton wallet) and may layer pool-specific accounting (e.g. re-credit
-/// `accruedFees`) on top.
+/// (tagging the ask and carrying the initiator) and notifies the initiator of the failure. The
+/// caller (a pool's `onBouncedMessage`) validates authorization first (e.g. the bounce came from
+/// the pool's own jetton wallet) and may layer pool-specific accounting (e.g. re-credit `accruedFees`).
 ///
 /// @param wallet The jetton wallet the failed `AskToTransfer` was relayed to.
-/// @param ask    The bounced `AskToTransfer` (still tagged with the `WithdrawContext`).
-/// @dev Returns silently when the ask is not a recognized fee withdrawal, so the caller can treat
+/// @param ask    The bounced `AskToTransfer`, still tagged with the `WithdrawContext`.
+/// @dev Returns silently when the ask isn't a recognized fee withdrawal, so the caller can treat
 ///      it as an unrelated `AskToTransfer` bounce.
 fun JettonWithdrawable.onWithdrawBounced(
     wallet: address,
