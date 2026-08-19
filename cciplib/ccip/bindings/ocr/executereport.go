@@ -45,7 +45,7 @@ type RampMessageHeader struct {
 type Any2TVMTokenTransfer struct {
 	SourcePoolAddress common.CrossChainAddress `tlb:"^"`
 	DestPoolAddress   *address.Address         `tlb:"addr"`
-	DestGasAmount     uint32                   `tlb:"## 32"`
+	DestGasAmount     *tlb.Coins               `tlb:"."`
 	ExtraData         *cell.Cell               `tlb:"^"`
 	Amount            *big.Int                 `tlb:"## 256"`
 }

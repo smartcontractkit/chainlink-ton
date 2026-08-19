@@ -1776,7 +1776,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 11 variants }
+ > enum ReceiveExecutor_Error { 10 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -1791,7 +1791,6 @@ export const ReceiveExecutor_Error = {
     TokenAdminRegistryUnexpectedResponse: 37607n,
     TokenPoolUnexpectedResponse: 37608n,
     TokenNotEnabledInTokenRegistry: 37609n,
-    ManualExecutionGasAmountCountMismatch: 37610n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -1858,7 +1857,6 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37607,
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37608,
         'ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry': 37609,
-        'ReceiveExecutor_Error.ManualExecutionGasAmountCountMismatch': 37610,
     }
 
     readonly address: c.Address
