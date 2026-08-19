@@ -10,7 +10,11 @@ import * as coverage from '../../coverage/coverage'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { createTestMessageWithToken, setupTestReceiveExecutor } from './ReceiveExecutor.Setup'
+import {
+  createTestMessage,
+  createTestMessageWithToken,
+  setupTestReceiveExecutor,
+} from './ReceiveExecutor.Setup'
 import { OFFRAMP_RELEASE_OR_MINT_COST } from '../../../wrappers/ccip/OffRamp'
 
 describe('ReceiveExecutor - Execution', () => {
@@ -19,7 +23,12 @@ describe('ReceiveExecutor - Execution', () => {
   let deployer: SandboxContract<TreasuryContract>
   let nonOwner: SandboxContract<TreasuryContract>
   let receiveExecutorCode: Cell
-  let receiveExecutor: SandboxContract<rx.ReceiveExecutor>
+  let defaultInitExecute: {
+    sequenceNumber: bigint
+    sourceChainSelector: bigint
+    messageId: bigint
+    effectiveGasLimit: bigint
+  }
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -34,251 +43,278 @@ describe('ReceiveExecutor - Execution', () => {
     receiveExecutorCode = await contractCode.ccip.local('ReceiveExecutor')
   })
 
-  beforeEach(async () => {
-    receiveExecutor = await setupTestReceiveExecutor(blockchain, deployer, receiveExecutorCode)
-  })
+  describe('ReceiveExecutor - Arbitrary Messaging', () => {
+    let receiveExecutor: SandboxContract<rx.ReceiveExecutor>
+    let arbMessage: of.Any2TVMRampMessage
 
-  const defaultInitExecute = {
-    sequenceNumber: 0n,
-    sourceChainSelector: 0n,
-    messageId: 0n,
-  }
+    beforeEach(async () => {
+      arbMessage = createTestMessage({ receiver: deployer.address })
+      receiveExecutor = await setupTestReceiveExecutor(
+        blockchain,
+        deployer,
+        receiveExecutorCode,
+        arbMessage,
+      )
 
-  async function transitionToExecuteState() {
-    const result = await receiveExecutor.sendReceiveExecutorInitExecute(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        ...defaultInitExecute,
-        root: deployer.address,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiveExecutor.address,
-      success: true,
-      op: rx.ReceiveExecutor_InitExecute.PREFIX,
+      defaultInitExecute = {
+        sequenceNumber: arbMessage.header.sequenceNumber,
+        sourceChainSelector: arbMessage.header.sourceChainSelector,
+        messageId: arbMessage.header.messageId,
+        effectiveGasLimit: arbMessage.gasLimit,
+      }
     })
-    return result
-  }
 
-  // --- InitExecute Tests ---
+    async function transitionToExecuteState() {
+      const result = await receiveExecutor.sendReceiveExecutorInitExecute(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        success: true,
+        op: rx.ReceiveExecutor_InitExecute.PREFIX,
+      })
+      return result
+    }
 
-  it('should execute InitExecute and send DispatchValidated to owner', async () => {
-    const result = await transitionToExecuteState()
-    expect(result.transactions).toHaveTransaction({
-      from: receiveExecutor.address,
-      to: deployer.address,
-      success: true,
-      op: of.OffRamp_DispatchValidated.PREFIX,
+    // --- InitExecute Tests ---
+
+    it('should execute InitExecute and send DispatchValidated to owner', async () => {
+      const result = await transitionToExecuteState()
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
     })
-  })
 
-  it('should execute InitExecute with gasOverride', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorInitExecute(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        ...defaultInitExecute,
-        root: deployer.address,
-        gasOverride: of.GasOverride.create({
-          receiverExecutionGasLimit: toNano('0.01'),
-          tokenGasOverrides: [],
-        }),
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiveExecutor.address,
-      success: true,
-      op: rx.ReceiveExecutor_InitExecute.PREFIX,
+    it('should execute InitExecute with effectiveGasLimit', async () => {
+      const result = await receiveExecutor.sendReceiveExecutorInitExecute(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+          effectiveGasLimit: toNano('0.01'),
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        success: true,
+        op: rx.ReceiveExecutor_InitExecute.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
     })
-    expect(result.transactions).toHaveTransaction({
-      from: receiveExecutor.address,
-      to: deployer.address,
-      success: true,
-      op: of.OffRamp_DispatchValidated.PREFIX,
+
+    it('should reject InitExecute from non-owner', async () => {
+      const result = await receiveExecutor.sendReceiveExecutorInitExecute(
+        nonOwner.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        nonOwner.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+      )
     })
-  })
 
-  it('should reject InitExecute from non-owner', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorInitExecute(
-      nonOwner.getSender(),
-      toNano('0.05'),
-      {
-        ...defaultInitExecute,
-        root: deployer.address,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      nonOwner.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-    )
-  })
+    // --- Confirm Tests ---
 
-  // --- Confirm Tests ---
-
-  it('should handle Confirm and send NotifySuccess to owner', async () => {
-    await transitionToExecuteState()
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        receiver: deployer.address,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiveExecutor.address,
-      success: true,
-      op: rx.ReceiveExecutor_CCIPReceiveConfirm.PREFIX,
+    it('should handle Confirm and send NotifySuccess to owner', async () => {
+      await transitionToExecuteState()
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        success: true,
+        op: rx.ReceiveExecutor_CCIPReceiveConfirm.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        success: true,
+        op: crc32('OffRamp_NotifySuccess'),
+      })
     })
-    expect(result.transactions).toHaveTransaction({
-      from: receiveExecutor.address,
-      to: deployer.address,
-      success: true,
-      op: crc32('OffRamp_NotifySuccess'),
+
+    it('should reject Confirm from non-owner', async () => {
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
+        nonOwner.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        nonOwner.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+      )
     })
-  })
 
-  it('should reject Confirm from non-owner', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
-      nonOwner.getSender(),
-      toNano('0.05'),
-      {
-        receiver: deployer.address,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      nonOwner.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-    )
-  })
-
-  it('should reject Confirm when state is not Execute', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        receiver: deployer.address,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
-    )
-  })
-
-  it('should reject Confirm with wrong receiver', async () => {
-    await transitionToExecuteState()
-    const wrongReceiver = await generateRandomTonAddress()
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        receiver: wrongReceiver,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
-    )
-  })
-
-  // --- Bounced Tests ---
-
-  it('should handle Bounced and send NotifyFailure to owner', async () => {
-    await transitionToExecuteState()
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        receiver: deployer.address,
-        reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiveExecutor.address,
-      success: true,
-      op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
+    it('should reject Confirm when state is not Execute', async () => {
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
+      )
     })
-    expect(result.transactions).toHaveTransaction({
-      from: receiveExecutor.address,
-      to: deployer.address,
-      success: true,
-      op: of.OffRamp_NotifyFailure.PREFIX,
+
+    it('should reject Confirm with wrong receiver', async () => {
+      await transitionToExecuteState()
+      const wrongReceiver = await generateRandomTonAddress()
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveConfirm(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: wrongReceiver,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
+      )
     })
-  })
 
-  it('should reject Bounced from non-owner', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
-      nonOwner.getSender(),
-      toNano('0.05'),
-      {
-        receiver: deployer.address,
-        reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      nonOwner.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-    )
-  })
+    // --- Bounced Tests ---
 
-  it('should reject Bounced when state is not Execute', async () => {
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        receiver: deployer.address,
-        reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
-    )
-  })
+    it('should handle Bounced and send NotifyFailure to owner', async () => {
+      await transitionToExecuteState()
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        success: true,
+        op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+      })
+    })
 
-  it('should reject Bounced with wrong receiver', async () => {
-    await transitionToExecuteState()
-    const wrongReceiver = await generateRandomTonAddress()
-    const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        receiver: wrongReceiver,
-        reason: rx.ReceiveExecutor_FailedReason.BouncedFromReceiver,
-      },
-    )
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      receiveExecutor.address,
-      rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
-    )
+    it('should reject Bounced from non-owner', async () => {
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+        nonOwner.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        nonOwner.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+      )
+    })
+
+    it('should reject Bounced when state is not Execute', async () => {
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
+      )
+    })
+
+    it('should reject Bounced with wrong receiver', async () => {
+      await transitionToExecuteState()
+      const wrongReceiver = await generateRandomTonAddress()
+      const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: wrongReceiver,
+          reason: rx.ReceiveExecutor_FailedReason.BouncedFromReceiver,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
+      )
+    })
   })
 
   // --- Token Transfer Tests ---
 
   describe('ReceiveExecutor - Token Transfers', () => {
+    let receiveExecutor: SandboxContract<rx.ReceiveExecutor>
     let tokenAdminRegistry: SandboxContract<TreasuryContract>
     let tokenPool: SandboxContract<TreasuryContract>
 
     let messageWithTT: of.Any2TVMRampMessage
+
+    beforeEach(async () => {
+      messageWithTT = createTestMessageWithToken({ receiver: deployer.address })
+      receiveExecutor = await setupTestReceiveExecutor(
+        blockchain,
+        deployer,
+        receiveExecutorCode,
+        messageWithTT,
+      )
+
+      defaultInitExecute = {
+        sequenceNumber: messageWithTT.header.sequenceNumber,
+        sourceChainSelector: messageWithTT.header.sourceChainSelector,
+        messageId: messageWithTT.header.messageId,
+        effectiveGasLimit: messageWithTT.gasLimit,
+      }
+    })
 
     /** InitExecute -> queries the TokenAdminRegistry. */
     async function initExecuteQueriesRegistry(executor: SandboxContract<rx.ReceiveExecutor>) {
@@ -288,12 +324,10 @@ describe('ReceiveExecutor - Execution', () => {
         {
           ...defaultInitExecute,
           root: deployer.address,
-          tokenTransfers: [
-            rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: messageWithTT.tokenAmounts![0],
-            }),
-          ],
+          tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+            tokenAdminRegistry: tokenAdminRegistry.address,
+            transfer: messageWithTT.tokenAmounts![0],
+          }),
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -352,12 +386,10 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfers: [
-              rx.ReceiveExecutor_TokenTransfer.create({
-                tokenAdminRegistry: tokenAdminRegistry.address,
-                transfer: messageWithTT.tokenAmounts![0],
-              }),
-            ],
+            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+              tokenAdminRegistry: tokenAdminRegistry.address,
+              transfer: messageWithTT.tokenAmounts![0],
+            }),
           },
         )
         expectFailedTransaction(
@@ -649,12 +681,10 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfers: [
-              rx.ReceiveExecutor_TokenTransfer.create({
-                tokenAdminRegistry: tokenAdminRegistry.address,
-                transfer: messageWithTT.tokenAmounts![0],
-              }),
-            ],
+            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+              tokenAdminRegistry: tokenAdminRegistry.address,
+              transfer: messageWithTT.tokenAmounts![0],
+            }),
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -688,16 +718,11 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfers: [
-              rx.ReceiveExecutor_TokenTransfer.create({
-                tokenAdminRegistry: tokenAdminRegistry.address,
-                transfer: messageWithTT.tokenAmounts![0],
-              }),
-            ],
-            gasOverride: of.GasOverride.create({
-              receiverExecutionGasLimit: toNano('0.01'),
-              tokenGasOverrides: [tokenGasOverride],
+            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+              tokenAdminRegistry: tokenAdminRegistry.address,
+              transfer: { ...messageWithTT.tokenAmounts![0], destGasAmount: tokenGasOverride },
             }),
+            effectiveGasLimit: toNano('0.01'),
           },
         )
 
@@ -743,16 +768,11 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfers: [
-              rx.ReceiveExecutor_TokenTransfer.create({
-                tokenAdminRegistry: tokenAdminRegistry.address,
-                transfer: messageWithTT.tokenAmounts![0],
-              }),
-            ],
-            gasOverride: of.GasOverride.create({
-              receiverExecutionGasLimit: toNano('0.01'),
-              tokenGasOverrides: [destGasAmount - toNano('0.001')],
+            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+              tokenAdminRegistry: tokenAdminRegistry.address,
+              transfer: messageWithTT.tokenAmounts![0],
             }),
+            effectiveGasLimit: destGasAmount - toNano('0.001'),
           },
         )
 
@@ -799,6 +819,13 @@ describe('ReceiveExecutor - Execution', () => {
           receiveExecutorCode,
           messageWithTT,
         )
+
+        defaultInitExecute = {
+          sequenceNumber: messageWithTT.header.sequenceNumber,
+          sourceChainSelector: messageWithTT.header.sourceChainSelector,
+          messageId: messageWithTT.header.messageId,
+          effectiveGasLimit: messageWithTT.gasLimit,
+        }
       })
 
       // A PTT message carries both a token transfer and data, so after the token
@@ -884,12 +911,10 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfers: [
-              rx.ReceiveExecutor_TokenTransfer.create({
-                tokenAdminRegistry: tokenAdminRegistry.address,
-                transfer: messageWithTT.tokenAmounts![0],
-              }),
-            ],
+            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+              tokenAdminRegistry: tokenAdminRegistry.address,
+              transfer: messageWithTT.tokenAmounts![0],
+            }),
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -956,12 +981,10 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfers: [
-              rx.ReceiveExecutor_TokenTransfer.create({
-                tokenAdminRegistry: tokenAdminRegistry.address,
-                transfer: messageWithTT.tokenAmounts![0],
-              }),
-            ],
+            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
+              tokenAdminRegistry: tokenAdminRegistry.address,
+              transfer: messageWithTT.tokenAmounts![0],
+            }),
           },
         )
         expect(retryResult.transactions).toHaveTransaction({
