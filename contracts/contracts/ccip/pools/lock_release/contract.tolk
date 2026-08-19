@@ -169,6 +169,13 @@ fun onBouncedMessage(in: InMessageBounced) {
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
+        // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
+        TokenPool_GetCCVs => {
+            var pool = loadPool(st);
+            pool.onGetCCVsBounced(msg);
+            st.poolData = pool.data.toCell();
+            st.store();
+        }
     }
 }
 
@@ -517,6 +524,26 @@ get fun getFeeAmount(
 ): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
+}
+
+/// Returns the amount that would be passed to the CCV hooks for a `getCCVs` query,
+/// given a transfer direction. Mirrors EVM's `getRequiredCCVs` amount logic: outbound is the
+/// post-fee source-denominated amount; inbound is the source amount converted to local decimals
+/// (via `sourcePoolData` in `extraData`).
+/// @param remoteChainSelector The remote lane.
+/// @param sourceDenominatedAmount The source-denominated amount.
+/// @param requestedFinalityConfig Requested finality encoding.
+/// @param direction `TokenPool_MessageDirection` (0 outbound, 1 inbound).
+/// @param extraData Direction-specific payload (tokenArgs outbound, sourcePoolData inbound).
+get fun getCCVAmount(
+    remoteChainSelector: uint64,
+    sourceDenominatedAmount: coins,
+    requestedFinalityConfig: uint32,
+    direction: uint8,
+    extraData: cell?,
+): coins {
+    val pool = loadPool(Storage.load());
+    return pool.getCCVAmount(remoteChainSelector, sourceDenominatedAmount, requestedFinalityConfig, direction, extraData);
 }
 
 /// Returns the accrued fee balance that `withdrawFeeTokens` may currently move.

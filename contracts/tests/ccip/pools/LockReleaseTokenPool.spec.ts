@@ -50,6 +50,7 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
 
@@ -448,6 +449,26 @@ describe('LockReleaseTokenPool', () => {
       doLock,
     }
   })
+
+  // CCV & fees behavior (TON-TP: getCCVs / getCCVsAndFees parity with EVM IPoolV2).
+  // Enables a 1% fee config so the getCCVsAndFees post-fee math is exercised.
+  runTokenPoolCcvFeesBehaviorTests(
+    'LockReleaseTokenPool',
+    async () => ({
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      blockchain,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+    }),
+    { withFeeConfig: true },
+  )
 
   // The lock/release pool bounds withdrawals by its `accruedFees` ledger: an overdraw request
   // must revert (this guard is deliberate for a commingled wallet, unlike burn/mint & lockbox

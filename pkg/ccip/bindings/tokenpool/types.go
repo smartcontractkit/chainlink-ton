@@ -128,14 +128,16 @@ type RateLimitConfigArgs struct {
 }
 
 // TokenTransferFeeConfig holds the fee configuration for token transfers.
+// Note: the USDC-cents fee fields are `tlb.Coins` (varuint16 in the Tolk message body),
+// NOT *big.Int / ## 256.
 type TokenTransferFeeConfig struct {
-	DestGasOverhead            uint32   `tlb:"## 32"`
-	DestBytesOverhead          uint32   `tlb:"## 32"`
-	FinalityFeeUSDCents        *big.Int `tlb:"."`
-	FastFinalityFeeUSDCents    *big.Int `tlb:"."`
-	FinalityTransferFeeBps     uint16   `tlb:"## 16"`
-	FastFinalityTransferFeeBps uint16   `tlb:"## 16"`
-	IsEnabled                  bool     `tlb:"bool"`
+	DestGasOverhead            uint32    `tlb:"## 32"`
+	DestBytesOverhead          uint32    `tlb:"## 32"`
+	FinalityFeeUSDCents        tlb.Coins `tlb:"."`
+	FastFinalityFeeUSDCents    tlb.Coins `tlb:"."`
+	FinalityTransferFeeBps     uint16    `tlb:"## 16"`
+	FastFinalityTransferFeeBps uint16    `tlb:"## 16"`
+	IsEnabled                  bool      `tlb:"bool"`
 }
 
 // TokenTransferFeeConfigArgs holds arguments for setting token transfer fee configs.
@@ -416,6 +418,107 @@ type PostflightCheck struct {
 	ReplyPayload            *cell.Cell        `tlb:"maybe ^"`
 }
 
+// GetCCVs queries the pool for the required CCVs for a transfer (no fees). The pool replies
+// with `CCVs`. This same message is also used for the pool→hooks hop (`ReplyTo` = pool,
+// `ForwardPayload` carries the pool's context) in both the `GetCCVs` and `GetCCVsAndFees`
+// flows, so the hooks only ever handle this one message.
+// `ForwardPayload` is per-request caller context echoed back in the reply (and `GetCCVsFailed`).
+//
+// On-chain: struct (0xc5476d2b) TokenPool_GetCCVs
+type GetCCVs struct {
+	_                       tlb.Magic        `tlb:"#c5476d2b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64           `tlb:"## 64"`
+	LocalToken              *address.Address `tlb:"addr"`
+	RemoteChainSelector     uint64           `tlb:"## 64"`
+	Amount                  tlb.Coins        `tlb:"."`
+	RequestedFinalityConfig uint32           `tlb:"## 32"`
+	Direction               uint8            `tlb:"## 8"` // TokenPool_MessageDirection (0 outbound, 1 inbound)
+	ExtraData               *cell.Cell       `tlb:"maybe ^"`
+	ReplyTo                 *address.Address `tlb:"addr"` // hooks reply destination on the pool→hooks hop
+	ForwardPayload          *cell.Cell       `tlb:"maybe ^"`
+}
+
+// GetCCVsAndFees queries the pool for the required CCVs AND applicable fee parameters for a
+// transfer. TON-native, asynchronous replacement for EVM `getRequiredCCVs` + `getFee`. Same
+// query inputs as `GetCCVs`; the pool additionally computes the fees and replies with
+// `CCVsAndFees`.
+//
+// On-chain: struct (0xd22944d5) TokenPool_GetCCVsAndFees
+type GetCCVsAndFees struct {
+	_                       tlb.Magic        `tlb:"#d22944d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64           `tlb:"## 64"`
+	LocalToken              *address.Address `tlb:"addr"`
+	RemoteChainSelector     uint64           `tlb:"## 64"`
+	Amount                  tlb.Coins        `tlb:"."`
+	RequestedFinalityConfig uint32           `tlb:"## 32"`
+	Direction               uint8            `tlb:"## 8"`
+	ExtraData               *cell.Cell       `tlb:"maybe ^"`
+	ForwardPayload          *cell.Cell       `tlb:"maybe ^"`
+}
+
+// FeeContext is the pool-computed fee parameters returned by a `GetCCVsAndFees` request.
+// `FeesProvided=false` means the fields are meaningless and callers must fall back to FeeQuoter
+// defaults (mirrors EVM `getFee` isEnabled=false).
+type FeeContext struct {
+	FeeConfig     TokenTransferFeeConfig `tlb:"."`
+	AmountPostFee tlb.Coins              `tlb:"."`
+	FeesProvided  bool                   `tlb:"bool"`
+}
+
+// GetCCVsContext is echoed by the pool through the hooks hop and back, so it can reassemble the
+// final reply on the callback. `Fees` is set only for the `GetCCVsAndFees` flow and selects the
+// reply variant (`CCVs` vs `CCVsAndFees`).
+type GetCCVsContext struct {
+	ReplyTo        *address.Address `tlb:"addr"` // original requester
+	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
+	Fees           *cell.Cell       `tlb:"maybe ^"` // Cell<FeeContext>; null for CCVs-only
+}
+
+// CCVs is the reply to a `GetCCVs` request, carrying only the required CCVs.
+// `FwdPayload` echoes the caller's per-request context.
+//
+// On-chain: struct (0x6c70b2dd) TokenPool_CCVs
+type CCVs struct {
+	_            tlb.Magic                             `tlb:"#6c70b2dd" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID      uint64                                `tlb:"## 64"`
+	RequiredCCVs common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	FwdPayload   *cell.Cell                            `tlb:"maybe ^"`
+}
+
+// CCVsAndFees is the reply to a `GetCCVsAndFees` request, carrying the required CCVs plus the
+// pool-computed fee params. `FwdPayload` echoes the caller's context.
+//
+// On-chain: struct (0x158dd7d5) TokenPool_CCVsAndFees
+type CCVsAndFees struct {
+	_            tlb.Magic                             `tlb:"#158dd7d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID      uint64                                `tlb:"## 64"`
+	RequiredCCVs common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Fees         *cell.Cell                            `tlb:"^"` // Cell<FeeContext>
+	FwdPayload   *cell.Cell                            `tlb:"maybe ^"`
+}
+
+// GetCCVsFailed finalizes a `GetCCVs`/`GetCCVsAndFees` that could not complete (e.g. the hooks
+// contract bounced), echoing the caller's context so it can resume/abort.
+//
+// On-chain: struct (0x0449d467) TokenPool_GetCCVsFailed
+type GetCCVsFailed struct {
+	_          tlb.Magic  `tlb:"#0449d467" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID    uint64     `tlb:"## 64"`
+	ErrorCode  uint16     `tlb:"## 16"`
+	FwdPayload *cell.Cell `tlb:"maybe ^"`
+}
+
+// QueryCCVsReply replies to a pool-forwarded `GetCCVs` with the required CCV set. An empty
+// `RequiredCCVs` list signals "use the lane defaults".
+//
+// On-chain: struct (0x30612b17) TokenPool_QueryCCVsReply
+type QueryCCVsReply struct {
+	_            tlb.Magic                             `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID      uint64                                `tlb:"## 64"`
+	RequiredCCVs common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	ReplyPayload *cell.Cell                            `tlb:"maybe ^"`
+}
+
 // --- Messages - outgoing ---
 
 // LockOrBurnWithdraw requests token withdrawal from the on-ramp.
@@ -667,12 +770,19 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	PreflightCheckFailed{},
 	PostflightCheckFinished{},
 	PostflightCheckFailed{},
+	// CCV/fee query + reply
+	GetCCVs{},
+	GetCCVsAndFees{},
+	QueryCCVsReply{},
 	// Outgoing
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},
 	LockOrBurnFailure{},
 	ReleaseOrMintFinished{},
 	ReleaseOrMintFailure{},
+	CCVs{},
+	CCVsAndFees{},
+	GetCCVsFailed{},
 	RemotePoolAddedNotification{},
 	RemotePoolRemovedNotification{},
 	FinalityConfigSet{},
@@ -683,26 +793,10 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	AdvancedPoolHooksSet{},
 	DeployableCodeSet{},
 	AllowedDepositNamespacesSet{},
-	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
+	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract).
+	// GetCCVs (registered above) is reused for the pool→hooks hop.
 	PreflightCheck{},
 	PostflightCheck{},
-	// Events
-	LockedOrBurned{},
-	ReleasedOrMinted{},
-	ChainAdded{},
-	ChainRemoved{},
-	RemotePoolAdded{},
-	RemotePoolRemoved{},
-	RateLimitConfigured{},
-	RampAccessUpdated{},
-	OutboundRateLimitConsumed{},
-	InboundRateLimitConsumed{},
-	FastFinalityOutboundRateLimitConsumed{},
-	FastFinalityInboundRateLimitConsumed{},
-	OutboundRateLimitRefunded{},
-	InboundRateLimitRefunded{},
-	TokenTransferFeeConfigUpdated{},
-	TokenTransferFeeConfigDeleted{},
 }).MustWithStorageType(Storage{})
 
 // Opcode constants for events (CRC32 topics)

@@ -146,6 +146,17 @@ get fun getFee(
     throw 0xFFFF;
 }
 
+/// Matches Go binding GetCCVAmount (Name: "getCCVAmount").
+get fun getCCVAmount(
+    remoteChainSelector: uint64,
+    sourceDenominatedAmount: coins,
+    requestedFinalityConfig: uint32,
+    direction: uint8,
+    extraData: cell?,
+): coins {
+    throw 0xFFFF;
+}
+
 /// Matches Go binding GetIsSupportedToken (Name: "isSupportedToken").
 get fun isSupportedToken(token: address): bool {
     throw 0xFFFF;
