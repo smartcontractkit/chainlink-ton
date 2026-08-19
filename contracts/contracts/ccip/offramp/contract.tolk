@@ -456,7 +456,7 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: Relea
         bounce: false,
         value: 0,
         dest: receiveExecutor,
-        body: ReleaseOrMint_ReleaseOrMintFailed {
+        body: ReceiveExecutor_ReleaseOrMintFailed {
             queryID,
             reason,
         }
@@ -846,13 +846,10 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
-    var outgingValue = 0;
 
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
-        outgingValue += AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT;
-
         val deployMsg = createMessage({
             bounce: BounceMode.RichBounce,
             value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,

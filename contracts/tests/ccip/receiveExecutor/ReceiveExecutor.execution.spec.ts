@@ -557,7 +557,7 @@ describe('ReceiveExecutor - Execution', () => {
       it('should send NotifyFailure when ReleaseOrMintBounced', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintFailed(
+        const result = await receiveExecutorWithToken.sendReceiveExecutorReleaseOrMintFailed(
           deployer.getSender(),
           toNano('0.05'),
           {
@@ -568,7 +568,7 @@ describe('ReceiveExecutor - Execution', () => {
           from: deployer.address,
           to: receiveExecutorWithToken.address,
           success: true,
-          op: rx.ReleaseOrMint_ReleaseOrMintFailed.PREFIX,
+          op: rx.ReceiveExecutor_ReleaseOrMintFailed.PREFIX,
         })
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -581,7 +581,7 @@ describe('ReceiveExecutor - Execution', () => {
       it('should reject ReleaseOrMintBounced from non-owner', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintFailed(
+        const result = await receiveExecutorWithToken.sendReceiveExecutorReleaseOrMintFailed(
           nonOwner.getSender(),
           toNano('0.05'),
           {
@@ -597,7 +597,7 @@ describe('ReceiveExecutor - Execution', () => {
       })
 
       it('should reject ReleaseOrMintBounced when state is not ReleaseOrMint', async () => {
-        const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintFailed(
+        const result = await receiveExecutorWithToken.sendReceiveExecutorReleaseOrMintFailed(
           deployer.getSender(),
           toNano('0.05'),
           {

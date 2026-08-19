@@ -1,5 +1,5 @@
-import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano, beginCell, AccountState } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Cell, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import { errorCode, facilityId } from '../../../wrappers/utils'
@@ -16,7 +16,7 @@ import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
-import { findTransaction, flattenTransaction, prettifyTransaction } from '@ton/test-utils'
+import { findTransaction, flattenTransaction } from '@ton/test-utils'
 import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
 
 interface MerkleRootStorageOverrides {

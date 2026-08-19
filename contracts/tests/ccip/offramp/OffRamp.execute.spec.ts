@@ -1939,7 +1939,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         to: setup.receiveExecutorAddress(message),
-        op: of.ReleaseOrMint_ReleaseOrMintFailed.PREFIX,
+        op: of.ReceiveExecutor_ReleaseOrMintFailed.PREFIX,
         success: true,
       })
 
@@ -2171,7 +2171,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         to: setup.receiveExecutorAddress(message),
-        op: of.ReleaseOrMint_ReleaseOrMintFailed.PREFIX,
+        op: of.ReceiveExecutor_ReleaseOrMintFailed.PREFIX,
         success: true,
       })
 

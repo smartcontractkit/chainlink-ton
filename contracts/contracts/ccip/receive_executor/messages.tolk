@@ -10,7 +10,7 @@ type ReceiveExecutor_InMessage =
     | TokenRegistry_ReturnTokenInfo
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
-    | ReleaseOrMint_ReleaseOrMintFailed
+    | ReceiveExecutor_ReleaseOrMintFailed
     | ReceiveExecutor_CCIPReceiveFailed
     | ReceiveExecutor_CCIPReceiveConfirm
     ;
@@ -30,7 +30,7 @@ struct ReceiveExecutor_TokenTransfer {
 }
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
-struct (0x5845e468) ReleaseOrMint_ReleaseOrMintFailed {
+struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
     queryID: uint64;
     reason: ReleaseOrMint_ReleaseOrMintFailedReason;
 }

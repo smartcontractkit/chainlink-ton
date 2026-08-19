@@ -78,7 +78,7 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the owner (OffRamp)
-        ReleaseOrMint_ReleaseOrMintFailed => {
+        ReceiveExecutor_ReleaseOrMintFailed => {
             var st = ReceiveExecutor_Storage.load();
             assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
             val ttInfo = st.state.tokenTransfer.loadOpt();
