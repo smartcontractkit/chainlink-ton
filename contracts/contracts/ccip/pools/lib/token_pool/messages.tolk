@@ -175,6 +175,91 @@ struct (0x703c2b58) TokenPool_PostflightCheck {
     replyPayload: cell?;
 }
 
+/// Optional fee parameters computed by the pool for a `TokenPool_GetCCVsAndFees` request
+/// (mirroring EVM `getFee` + the outbound fee-subtraction). `feesProvided=false` means the
+/// fields are meaningless and callers must fall back to FeeQuoter defaults (isEnabled=false).
+struct TokenPool_FeeContext {
+    feeConfig: TokenPool_TokenTransferFeeConfig;
+    amountPostFee: coins;
+    feesProvided: bool;
+}
+
+/// Requests the pool's required CCVs for a transfer (no fees). The pool replies with
+/// `TokenPool_CCVs`. This same message is also used for the pool→hooks hop (`replyTo` = pool,
+/// `forwardPayload` carries the pool's context) in BOTH the CCVs and CCVsAndFees flows, so the
+/// hooks only ever need to handle this one message.
+/// @dev The pool replies to the request sender. `forwardPayload` is per-request context echoed
+///      back in the reply (and failure) so the caller can resume its flow.
+struct (0xc5476d2b) TokenPool_GetCCVs {
+    queryId: uint64;
+    localToken: address;                            // The pool's local token.
+    remoteChainSelector: uint64;                    // The remote lane for this transfer.
+    amount: coins;                                  // Source-denominated amount (post-fee/local on the hooks hop).
+    requestedFinalityConfig: uint32;                // Finality encoding (see `FinalityCodec`).
+    direction: uint8;                               // TokenPool_MessageDirection (0 outbound, 1 inbound).
+    extraData: cell?;                               // tokenArgs outbound, sourcePoolData inbound.
+    replyTo: address;                               // Hooks reply destination on the pool→hooks hop (the pool).
+    forwardPayload: cell?;                          // Caller context; pool→hooks: Cell<TokenPool_GetCCVsContext>.
+}
+
+/// Requests the pool's required CCVs AND applicable token-transfer fee parameters for a transfer.
+/// Same query inputs as `TokenPool_GetCCVs`; the pool additionally computes the fees
+/// (`TokenPool_FeeContext`) and replies with `TokenPool_CCVsAndFees`.
+/// TON-native, asynchronous replacement for EVM `getRequiredCCVs` + `getFee`.
+struct (0xd22944d5) TokenPool_GetCCVsAndFees {
+    queryId: uint64;
+    localToken: address;                            // The pool's local token.
+    remoteChainSelector: uint64;                    // The remote lane for this transfer.
+    amount: coins;                                  // Source-denominated amount.
+    requestedFinalityConfig: uint32;                // Finality encoding (see `FinalityCodec`).
+    direction: uint8;                               // TokenPool_MessageDirection (0 outbound, 1 inbound).
+    extraData: cell?;                               // tokenArgs outbound, sourcePoolData inbound.
+    forwardPayload: cell?;                          // Per-request context echoed back in the reply.
+}
+
+/// Reply from the pool to a `TokenPool_GetCCVs` request, carrying only the required CCVs.
+/// `fwdPayload` echoes the caller's per-request context.
+struct (0x6c70b2dd) TokenPool_CCVs {
+    queryId: uint64;
+    requiredCCVs: SnakedCell<address>;              // Empty = use lane defaults.
+    fwdPayload: cell?;
+}
+
+/// Reply from the pool to a `TokenPool_GetCCVsAndFees` request, carrying the required CCVs plus
+/// the pool-computed fee params (`TokenPool_FeeContext`). `fwdPayload` echoes the caller's
+/// per-request context.
+struct (0x158dd7d5) TokenPool_CCVsAndFees {
+    queryId: uint64;
+    requiredCCVs: SnakedCell<address>;              // Empty = use lane defaults.
+    fees: Cell<TokenPool_FeeContext>;
+    fwdPayload: cell?;
+}
+
+/// Failure reply when a `TokenPool_GetCCVs`/`TokenPool_GetCCVsAndFees` cannot complete (e.g. the
+/// hooks contract bounced). Finalizes the query so the caller can abort/resume using `fwdPayload`.
+struct (0x0449d467) TokenPool_GetCCVsFailed {
+    queryId: uint64;
+    errorCode: uint16;
+    fwdPayload: cell?;
+}
+
+/// Context the pool captures from a `TokenPool_GetCCVs`/`TokenPool_GetCCVsAndFees` and echoes
+/// through the hooks hop so it can reassemble the final reply on the callback. `fees` is set only
+/// for the `AndFees` flow (computed eagerly in `onGetCCVsAndFees`) and selects the reply variant.
+struct TokenPool_GetCCVsContext {
+    replyTo: address;
+    fwdPayload: cell?;
+    fees: cell?;                                    // Cell<TokenPool_FeeContext>; null for CCVs-only.
+}
+
+/// Reply from AdvancedPoolHooks carrying the required CCV set for a `TokenPool_GetCCVs`
+/// forwarded by the pool. An empty `requiredCCVs` list signals "use the lane defaults".
+struct (0x30612b17) TokenPool_QueryCCVsReply {
+    queryId: uint64;
+    requiredCCVs: SnakedCell<address>;
+    replyPayload: cell?;                            // Cell<TokenPool_GetCCVsContext> echoed back.
+}
+
 type TokenPool_InMessage =
     | TokenPool_LockOrBurn
     | TransferNotificationForRecipient // fwdPayload = TokenPool_LockOrBurnForwardPayload
@@ -183,6 +268,9 @@ type TokenPool_InMessage =
     | TokenPool_ReleaseOrMint
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
+    | TokenPool_GetCCVs
+    | TokenPool_GetCCVsAndFees
+    | TokenPool_QueryCCVsReply
     | TokenPool_ApplyChainUpdates
     | TokenPool_AddRemotePool
     | TokenPool_RemoveRemotePool
@@ -297,6 +385,11 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
+    | TokenPool_CCVs
+    | TokenPool_CCVsAndFees
+    | TokenPool_GetCCVsFailed
+    // The same GetCCVs struct is reused for the pool→hooks hop.
+    | TokenPool_GetCCVs
     | TokenPool_RemotePoolAddedNotification
     | TokenPool_RemotePoolRemovedNotification
     | TokenPool_FinalityConfigSet

@@ -5,6 +5,8 @@
 //   queryId % 2 == 1  → Failed    (failure)
 
 import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
+import "../../lib/utils"
 
 contract MockAdvancedPoolHooks {
     author: "SmartContract Chainlink Limited SEZC"
@@ -21,7 +23,8 @@ struct MockAdvancedPoolHooks_Data {
 
 type MockAdvancedPoolHooks_InMessage =
   | TokenPool_PreflightCheck
-  | TokenPool_PostflightCheck;
+  | TokenPool_PostflightCheck
+  | TokenPool_GetCCVs;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MockAdvancedPoolHooks_InMessage.fromSlice(in.body);
@@ -33,11 +36,30 @@ fun onInternalMessage(in: InMessage) {
         TokenPool_PostflightCheck => {
             replyPostflight(msg);
         }
+        TokenPool_GetCCVs => {
+            replyGetCCVs(msg);
+        }
         else => {
             // Accept empty messages (top-up), reject everything else.
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
     }
+}
+
+/// Echoes an empty CCV set (signaling "use lane defaults") back to the pool, preserving the
+/// context in `replyPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
+fun replyGetCCVs(msg: TokenPool_GetCCVs) {
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: msg.replyTo,
+        body: TokenPool_QueryCCVsReply {
+            queryId: msg.queryId,
+            requiredCCVs: beginCell().endCell() as SnakedCell<address>,
+            replyPayload: msg.forwardPayload,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun replyPreflight(msg: TokenPool_PreflightCheck) {
