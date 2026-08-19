@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/messages"
+import "../lib/token_pool/messages"
 import "../../accounts/deposit/messages"
 
 type LockReleaseTokenPool_InMessage =
@@ -12,4 +13,5 @@ type LockReleaseTokenPool_OutMessage =
 
 type LockReleaseTokenPool_BouncedMessage =
     | AskToTransfer
-    | DepositAccount_Init;
+    | DepositAccount_Init
+    | TokenPool_GetCCVs;

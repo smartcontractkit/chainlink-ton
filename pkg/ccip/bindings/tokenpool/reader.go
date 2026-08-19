@@ -571,3 +571,31 @@ var GetFee = tvm.Getter[GetFeeArgs, GetFeeResult]{
 		}, nil
 	}),
 }
+
+// --- GetCCVAmount getter ---
+
+// GetCCVAmountArgs holds the arguments for the getCCVAmount getter.
+type GetCCVAmountArgs struct {
+	RemoteChainSelector     uint64
+	SourceDenominatedAmount *big.Int
+	RequestedFinalityConfig uint32
+	Direction               uint8
+	ExtraData               *cell.Cell
+}
+
+// GetCCVAmount gets the amount that would be passed to the CCV hooks for a `getCCVs`
+// query, given a transfer direction. Mirrors EVM's `getRequiredCCVs` amount logic: outbound is
+// the post-fee source-denominated amount; inbound is the source amount converted to local
+// decimals (via `sourcePoolData` in `extraData`).
+//
+// On-chain: fun TokenPool<T>.getCCVAmount(self, remoteChainSelector: uint64, sourceDenominatedAmount: coins, requestedFinalityConfig: uint32, direction: uint8, extraData: cell?): coins
+var GetCCVAmount = tvm.Getter[GetCCVAmountArgs, *big.Int]{
+	Name: "getCCVAmount",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return nil, fmt.Errorf("error getting Int(0) - getCCVAmount: %w", err)
+		}
+		return v, nil
+	}),
+}

@@ -169,10 +169,11 @@ fun onDepositAccountReply(
 
 /// Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
-    val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    var st = Storage.load();
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
-            var st = Storage.load();
             // Distinguish a fee-withdrawal `AskToTransfer` (tagged with a `WithdrawContext`) from a
             // lock `AskToTransfer` (tagged with a `LockContext`).
             val data = st.poolData.load();
@@ -189,8 +190,14 @@ fun onBouncedMessage(in: InMessageBounced) {
         // The account rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
         // reply with a failure so the sender can retry instead of the release silently stalling.
         DepositAccount_Init => {
-            var st = Storage.load();
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
+            st.store();
+        }
+        // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
+        TokenPool_GetCCVs => {
+            var pool = loadPool(st);
+            pool.onGetCCVsBounced(msg);
+            st.poolData = pool.data.toCell();
             st.store();
         }
     }
@@ -589,4 +596,24 @@ get fun getFeeAmount(
 ): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
+}
+
+/// Returns the amount that would be passed to the CCV hooks for a `getCCVs` query,
+/// given a transfer direction. Mirrors EVM's `getRequiredCCVs` amount logic: outbound is the
+/// post-fee source-denominated amount; inbound is the source amount converted to local decimals
+/// (via `sourcePoolData` in `extraData`).
+/// @param remoteChainSelector The remote lane.
+/// @param sourceDenominatedAmount The source-denominated amount.
+/// @param requestedFinalityConfig Requested finality encoding.
+/// @param direction `TokenPool_MessageDirection` (0 outbound, 1 inbound).
+/// @param extraData Direction-specific payload (tokenArgs outbound, sourcePoolData inbound).
+get fun getCCVAmount(
+    remoteChainSelector: uint64,
+    sourceDenominatedAmount: coins,
+    requestedFinalityConfig: uint32,
+    direction: uint8,
+    extraData: cell?,
+): coins {
+    val pool = loadPool(Storage.load());
+    return pool.getCCVAmount(remoteChainSelector, sourceDenominatedAmount, requestedFinalityConfig, direction, extraData);
 }

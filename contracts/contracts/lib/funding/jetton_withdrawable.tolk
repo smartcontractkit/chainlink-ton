@@ -122,7 +122,7 @@ fun JettonWithdrawable.onWithdraw(
     // A running sum of relayed TON values + reserve must stay under `msgValue`
     var totalValue: coins = 0;
     var totalWithdrawn: coins = 0;
-    var iter: ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer> = ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer>.new(msg.transfers);
+    var iter = ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer>.new(msg.transfers);
     while (!iter.empty()) {
         val transfer = iter.next();
         val ask = transfer.msg;
