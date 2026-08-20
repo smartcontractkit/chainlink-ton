@@ -61,6 +61,52 @@ describe('ReceiveExecutor - Execution', () => {
     return result
   }
 
+  /** InitExecute -> queries the TokenAdminRegistry. */
+  async function initExecuteQueriesRegistry(
+    executor: SandboxContract<rx.ReceiveExecutor>,
+    tokenAdminRegistry: SandboxContract<TreasuryContract>,
+  ) {
+    const result = await executor.sendReceiveExecutorInitExecute(
+      deployer.getSender(),
+      toNano('0.05'),
+      {
+        ...defaultInitExecute,
+        root: deployer.address,
+        tokenAdminRegistry: tokenAdminRegistry.address,
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: executor.address,
+      to: tokenAdminRegistry.address,
+      success: true,
+      op: rx.TokenRegistry_GetTokenInfo.PREFIX,
+    })
+    return result
+  }
+
+  /** TokenAdminRegistry returns a token pool -> sends ReleaseOrMint. */
+  async function returnTokenInfoWithPool(
+    executor: SandboxContract<rx.ReceiveExecutor>,
+    tokenAdminRegistry: SandboxContract<TreasuryContract>,
+    tokenPool: SandboxContract<TreasuryContract>,
+  ) {
+    const result = await executor.sendTokenRegistryReturnTokenInfo(
+      tokenAdminRegistry.getSender(),
+      toNano('0.05'),
+      {
+        minterAddress: deployer.address,
+        tokenPool: tokenPool.address,
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: executor.address,
+      to: deployer.address,
+      success: true,
+      op: of.OffRamp_ReleaseOrMint.PREFIX,
+    })
+    return result
+  }
+
   // --- InitExecute Tests ---
 
   it('should execute InitExecute and send DispatchValidated to owner', async () => {
@@ -80,7 +126,7 @@ describe('ReceiveExecutor - Execution', () => {
       {
         ...defaultInitExecute,
         root: deployer.address,
-        gasOverride: toNano('0.01'),
+        gasOverride: of.GasOverride.create({ receiverExecutionGasLimit: toNano('0.01') }),
       },
     )
     expect(result.transactions).toHaveTransaction({
@@ -286,60 +332,10 @@ describe('ReceiveExecutor - Execution', () => {
       )
     })
 
-    async function transitionToTokenAdminRegistryQuery() {
-      const result = await receiveExecutorWithToken.sendReceiveExecutorInitExecute(
-        deployer.getSender(),
-        toNano('0.05'),
-        {
-          ...defaultInitExecute,
-          root: deployer.address,
-          tokenAdminRegistry: tokenAdminRegistry.address,
-        },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: receiveExecutorWithToken.address,
-        success: true,
-        op: rx.ReceiveExecutor_InitExecute.PREFIX,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: receiveExecutorWithToken.address,
-        to: tokenAdminRegistry.address,
-        success: true,
-        op: rx.TokenRegistry_GetTokenInfo.PREFIX,
-      })
-      return result
-    }
-
-    async function transitionToTokenTransfer() {
-      await transitionToTokenAdminRegistryQuery()
-      const result = await receiveExecutorWithToken.sendTokenRegistryReturnTokenInfo(
-        tokenAdminRegistry.getSender(),
-        toNano('0.05'),
-        {
-          minterAddress: deployer.address,
-          tokenPool: tokenPool.address,
-        },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: tokenAdminRegistry.address,
-        to: receiveExecutorWithToken.address,
-        success: true,
-        op: rx.TokenRegistry_ReturnTokenInfo.PREFIX,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: receiveExecutorWithToken.address,
-        to: deployer.address,
-        success: true,
-        op: of.OffRamp_ReleaseOrMint.PREFIX,
-      })
-      return result
-    }
-
     // --- InitExecute with token transfer ---
 
     it('should query TokenAdminRegistry when InitExecute has a token transfer', async () => {
-      await transitionToTokenAdminRegistryQuery()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
     })
 
     it('should reject InitExecute with token transfer from non-owner', async () => {
@@ -360,42 +356,15 @@ describe('ReceiveExecutor - Execution', () => {
       )
     })
 
-    // TODO remove when PTT is supported
-    it('should reject InitExecute when message has both data and a token transfer', async () => {
-      const receiveExecutorWithDataAndToken = await setupTestReceiveExecutor(
-        blockchain,
-        deployer,
-        receiveExecutorCode,
-        createTestMessageWithToken({
-          receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
-        }),
-      )
-      const result = await receiveExecutorWithDataAndToken.sendReceiveExecutorInitExecute(
-        deployer.getSender(),
-        toNano('0.05'),
-        {
-          ...defaultInitExecute,
-          root: deployer.address,
-          tokenAdminRegistry: tokenAdminRegistry.address,
-        },
-      )
-      expectFailedTransaction(
-        result,
-        deployer.address,
-        receiveExecutorWithDataAndToken.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.PTTNotSupported'],
-      )
-    })
-
     // --- TokenAdminRegistry response ---
 
     it('should send ReleaseOrMint when TokenAdminRegistry returns a token pool', async () => {
-      await transitionToTokenTransfer()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
     })
 
     it('should send NotifyFailure when TokenAdminRegistry returns no token pool', async () => {
-      await transitionToTokenAdminRegistryQuery()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
       const result = await receiveExecutorWithToken.sendTokenRegistryReturnTokenInfo(
         tokenAdminRegistry.getSender(),
         toNano('0.05'),
@@ -419,7 +388,7 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     it('should reject ReturnTokenInfo from non-tokenAdminRegistry', async () => {
-      await transitionToTokenAdminRegistryQuery()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
       const result = await receiveExecutorWithToken.sendTokenRegistryReturnTokenInfo(
         nonOwner.getSender(),
         toNano('0.05'),
@@ -456,7 +425,8 @@ describe('ReceiveExecutor - Execution', () => {
     // --- TokenPool release/mint response ---
 
     it('should send NotifySuccess when ReleaseOrMintFinished', async () => {
-      await transitionToTokenTransfer()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
       const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinished(
         tokenPool.getSender(),
         toNano('0.05'),
@@ -481,7 +451,8 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     it('should send NotifyFailure when ReleaseOrMintFailure', async () => {
-      await transitionToTokenTransfer()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
       const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
         tokenPool.getSender(),
         toNano('0.05'),
@@ -489,12 +460,6 @@ describe('ReceiveExecutor - Execution', () => {
           errorCode: 1n,
         },
       )
-      expect(result.transactions).toHaveTransaction({
-        from: tokenPool.address,
-        to: receiveExecutorWithToken.address,
-        success: true,
-        op: rx.TokenPool_ReleaseOrMintFailure.PREFIX,
-      })
       expect(result.transactions).toHaveTransaction({
         from: receiveExecutorWithToken.address,
         to: deployer.address,
@@ -504,7 +469,8 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     it('should reject ReleaseOrMintFinished from non-tokenPool', async () => {
-      await transitionToTokenTransfer()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
       const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinished(
         nonOwner.getSender(),
         toNano('0.05'),
@@ -523,7 +489,8 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     it('should reject ReleaseOrMintFailure from non-tokenPool', async () => {
-      await transitionToTokenTransfer()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
       const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
         nonOwner.getSender(),
         toNano('0.05'),
@@ -573,11 +540,71 @@ describe('ReceiveExecutor - Execution', () => {
       )
     })
 
+    // --- ReleaseOrMintBounced (from owner) ---
+
+    it('should send NotifyFailure when ReleaseOrMintBounced', async () => {
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
+      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintBounced(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          exitCode: 1n,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutorWithToken.address,
+        success: true,
+        op: rx.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutorWithToken.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+      })
+    })
+
+    it('should reject ReleaseOrMintBounced from non-owner', async () => {
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
+      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintBounced(
+        nonOwner.getSender(),
+        toNano('0.05'),
+        {
+          exitCode: 1n,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        nonOwner.address,
+        receiveExecutorWithToken.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+      )
+    })
+
+    it('should reject ReleaseOrMintBounced when state is not ReleaseOrMint', async () => {
+      const result = await receiveExecutorWithToken.sendReleaseOrMintReleaseOrMintBounced(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          exitCode: 1n,
+        },
+      )
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        receiveExecutorWithToken.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
+      )
+    })
+
     // --- Retry flows ---
 
     it('should re-query TokenAdminRegistry when retrying from TokenAdminRegistryQueryFailed', async () => {
       // First query fails because no token pool is returned.
-      await transitionToTokenAdminRegistryQuery()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
       await receiveExecutorWithToken.sendTokenRegistryReturnTokenInfo(
         tokenAdminRegistry.getSender(),
         toNano('0.05'),
@@ -588,26 +615,13 @@ describe('ReceiveExecutor - Execution', () => {
       )
 
       // Retry InitExecute: should query TokenAdminRegistry again.
-      const result = await receiveExecutorWithToken.sendReceiveExecutorInitExecute(
-        deployer.getSender(),
-        toNano('0.05'),
-        {
-          ...defaultInitExecute,
-          root: deployer.address,
-          tokenAdminRegistry: tokenAdminRegistry.address,
-        },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: receiveExecutorWithToken.address,
-        to: tokenAdminRegistry.address,
-        success: true,
-        op: rx.TokenRegistry_GetTokenInfo.PREFIX,
-      })
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
     })
 
     it('should send ReleaseOrMint when retrying from TokenTransferFailed', async () => {
       // First transfer fails.
-      await transitionToTokenTransfer()
+      await initExecuteQueriesRegistry(receiveExecutorWithToken, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorWithToken, tokenAdminRegistry, tokenPool)
       await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
         tokenPool.getSender(),
         toNano('0.05'),
@@ -631,6 +645,198 @@ describe('ReceiveExecutor - Execution', () => {
         to: deployer.address,
         success: true,
         op: of.OffRamp_ReleaseOrMint.PREFIX,
+      })
+    })
+  })
+
+  describe('ReceiveExecutor - PTT', () => {
+    let tokenAdminRegistry: SandboxContract<TreasuryContract>
+    let tokenPool: SandboxContract<TreasuryContract>
+    let receiveExecutorPtt: SandboxContract<rx.ReceiveExecutor>
+
+    beforeEach(async () => {
+      tokenAdminRegistry = await blockchain.treasury('tokenAdminRegistry')
+      tokenPool = await blockchain.treasury('tokenPool')
+      receiveExecutorPtt = await setupTestReceiveExecutor(
+        blockchain,
+        deployer,
+        receiveExecutorCode,
+        createTestMessageWithToken({
+          receiver: deployer.address,
+          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+        }),
+      )
+    })
+
+    // A PTT message carries both a token transfer and data, so after the token
+    // transfer completes the message is executed (DispatchValidated) instead of
+    // being finalized with NotifySuccess.
+    async function transitionToPttExecute() {
+      await initExecuteQueriesRegistry(receiveExecutorPtt, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorPtt, tokenAdminRegistry, tokenPool)
+      const finishedResult = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
+        tokenPool.getSender(),
+        toNano('0.05'),
+        {
+          out: rx.TokenPool_ReleaseOrMintOutV1.create({
+            destinationAmount: 1000n,
+          }),
+        },
+      )
+      expect(finishedResult.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
+      return finishedResult
+    }
+
+    it('should execute the message after the token transfer completes', async () => {
+      await transitionToPttExecute()
+    })
+
+    it('should send NotifySuccess on Confirm after PTT execution', async () => {
+      await transitionToPttExecute()
+      const result = await receiveExecutorPtt.sendReceiveExecutorConfirm(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_NotifySuccess.PREFIX,
+      })
+    })
+
+    it('should send NotifyFailure on Bounced after PTT execution', async () => {
+      await transitionToPttExecute()
+      const result = await receiveExecutorPtt.sendReceiveExecutorBounced(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          receiver: deployer.address,
+          reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+      })
+    })
+
+    it('should retry the message execution when retrying from ExecuteFailed', async () => {
+      // Execute the message, then bounce it to set ExecuteFailed.
+      await transitionToPttExecute()
+      await receiveExecutorPtt.sendReceiveExecutorBounced(deployer.getSender(), toNano('0.05'), {
+        receiver: deployer.address,
+        reason: rx.ReceiveExecutor_BouncedReason.NotEnoughGas,
+      })
+
+      // Retry InitExecute: token transfer is already done (TokenTransferSuccess),
+      // so it should re-execute the message (DispatchValidated).
+      const result = await receiveExecutorPtt.sendReceiveExecutorInitExecute(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+          tokenAdminRegistry: tokenAdminRegistry.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
+    })
+
+    // --- PTT retry flows ---
+    // When a PTT message fails during the token transfer phase, the retry must
+    // resume the token transfer AND then continue to execute the message.
+
+    it('should retry both token transfer and execution when retrying from TokenAdminRegistryQueryFailed', async () => {
+      // First query fails because no token pool is returned.
+      await initExecuteQueriesRegistry(receiveExecutorPtt, tokenAdminRegistry)
+      await receiveExecutorPtt.sendTokenRegistryReturnTokenInfo(
+        tokenAdminRegistry.getSender(),
+        toNano('0.05'),
+        {
+          minterAddress: deployer.address,
+          tokenPool: null,
+        },
+      )
+
+      // Retry InitExecute: should re-query TokenAdminRegistry, then resume the
+      // token transfer and finally execute the message.
+      await initExecuteQueriesRegistry(receiveExecutorPtt, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorPtt, tokenAdminRegistry, tokenPool)
+      const finishedResult = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
+        tokenPool.getSender(),
+        toNano('0.05'),
+        {
+          out: rx.TokenPool_ReleaseOrMintOutV1.create({
+            destinationAmount: 1000n,
+          }),
+        },
+      )
+      expect(finishedResult.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
+    })
+
+    it('should retry both token transfer and execution when retrying from ReleaseOrMintFailed', async () => {
+      // First transfer fails.
+      await initExecuteQueriesRegistry(receiveExecutorPtt, tokenAdminRegistry)
+      await returnTokenInfoWithPool(receiveExecutorPtt, tokenAdminRegistry, tokenPool)
+      await receiveExecutorPtt.sendTokenPoolReleaseOrMintFailure(
+        tokenPool.getSender(),
+        toNano('0.05'),
+        {
+          errorCode: 1n,
+        },
+      )
+
+      // Retry InitExecute: should send ReleaseOrMint directly, then execute the message.
+      const retryResult = await receiveExecutorPtt.sendReceiveExecutorInitExecute(
+        deployer.getSender(),
+        toNano('0.05'),
+        {
+          ...defaultInitExecute,
+          root: deployer.address,
+          tokenAdminRegistry: tokenAdminRegistry.address,
+        },
+      )
+      expect(retryResult.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_ReleaseOrMint.PREFIX,
+      })
+      const finishedResult = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
+        tokenPool.getSender(),
+        toNano('0.05'),
+        {
+          out: rx.TokenPool_ReleaseOrMintOutV1.create({
+            destinationAmount: 1000n,
+          }),
+        },
+      )
+      expect(finishedResult.transactions).toHaveTransaction({
+        from: receiveExecutorPtt.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
       })
     })
   })

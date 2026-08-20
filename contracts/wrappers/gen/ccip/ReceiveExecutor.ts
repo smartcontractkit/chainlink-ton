@@ -154,6 +154,42 @@ type uint192 = bigint
 type uint256 = bigint
 
 /**
+ > struct GasOverride {
+ >     receiverExecutionGasLimit: coins?
+ > }
+ */
+export interface GasOverride {
+    readonly $: 'GasOverride'
+    receiverExecutionGasLimit: coins | null /* = null */
+}
+
+export const GasOverride = {
+    create(args: {
+        receiverExecutionGasLimit?: coins | null /* = null */
+    }): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
+        }
+    },
+    store(self: GasOverride, b: c.Builder): void {
+        storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
+            (v,b) => b.storeCoins(v)
+        );
+    },
+    toCell(self: GasOverride): c.Cell {
+        return makeCellFrom<GasOverride>(self, GasOverride.store);
+    }
+}
+
+/**
  > struct Any2TVMRampMessage {
  >     header: RampMessageHeader
  >     sender: Cell<CrossChainAddress>
@@ -299,7 +335,7 @@ export interface ReceiveExecutor_Storage {
     message: Any2TVMRampMessage
     root: c.Address
     execId: uint192
-    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState } */
+    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, null as null as GasOverride? } */
     lastExecutionTimestamp: uint64 /* = 0 */
 }
 
@@ -309,12 +345,12 @@ export const ReceiveExecutor_Storage = {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, null as null as GasOverride? } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }): ReceiveExecutor_Storage {
         return {
             $: 'ReceiveExecutor_Storage',
-            state: { $: 'ReceiveExecutor_State', tokenTransfer: null, messageExecution: 0n },
+            state: { $: 'ReceiveExecutor_State', tokenTransfer: null, messageExecution: 0n, gasOverride: null },
             lastExecutionTimestamp: 0n,
             ...args
         }
@@ -345,7 +381,7 @@ export const ReceiveExecutor_Storage = {
 
 /**
  > struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
  >     root: address
  >     sequenceNumber: uint64
  >     sourceChainSelector: uint64
@@ -355,7 +391,7 @@ export const ReceiveExecutor_Storage = {
  */
 export interface ReceiveExecutor_InitExecute {
     readonly $: 'ReceiveExecutor_InitExecute'
-    gasOverride: coins | null /* = null */
+    gasOverride: GasOverride | null /* = null */
     root: c.Address
     sequenceNumber: uint64
     sourceChainSelector: uint64
@@ -367,7 +403,7 @@ export const ReceiveExecutor_InitExecute = {
     PREFIX: 0x64cd2fd2,
 
     create(args: {
-        gasOverride?: coins | null /* = null */
+        gasOverride?: GasOverride | null /* = null */
         root: c.Address
         sequenceNumber: uint64
         sourceChainSelector: uint64
@@ -385,7 +421,7 @@ export const ReceiveExecutor_InitExecute = {
         loadAndCheckPrefix32(s, 0x64cd2fd2, 'ReceiveExecutor_InitExecute');
         return {
             $: 'ReceiveExecutor_InitExecute',
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
             root: s.loadAddress(),
             sequenceNumber: s.loadUintBig(64),
             sourceChainSelector: s.loadUintBig(64),
@@ -397,9 +433,7 @@ export const ReceiveExecutor_InitExecute = {
     },
     store(self: ReceiveExecutor_InitExecute, b: c.Builder): void {
         b.storeUint(0x64cd2fd2, 32);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
         b.storeAddress(self.root);
         b.storeUint(self.sequenceNumber, 64);
         b.storeUint(self.sourceChainSelector, 64);
@@ -562,18 +596,21 @@ export const ReceiveExecutor_BouncedReason = {
  > struct ReceiveExecutor_State {
  >     tokenTransfer: Cell<ReceiveExecutor_TokenTransferInfo>?
  >     messageExecution: ReceiveExecutor_MessageExecutionState
+ >     gasOverride: GasOverride?
  > }
  */
 export interface ReceiveExecutor_State {
     readonly $: 'ReceiveExecutor_State'
     tokenTransfer: ReceiveExecutor_TokenTransferInfo | null
     messageExecution: ReceiveExecutor_MessageExecutionState
+    gasOverride: GasOverride | null
 }
 
 export const ReceiveExecutor_State = {
     create(args: {
         tokenTransfer: ReceiveExecutor_TokenTransferInfo | null
         messageExecution: ReceiveExecutor_MessageExecutionState
+        gasOverride: GasOverride | null
     }): ReceiveExecutor_State {
         return {
             $: 'ReceiveExecutor_State',
@@ -585,6 +622,7 @@ export const ReceiveExecutor_State = {
             $: 'ReceiveExecutor_State',
             tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransferInfo>(s, ReceiveExecutor_TokenTransferInfo.fromSlice) : null,
             messageExecution: ReceiveExecutor_MessageExecutionState.fromSlice(s),
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
         }
     },
     store(self: ReceiveExecutor_State, b: c.Builder): void {
@@ -592,6 +630,7 @@ export const ReceiveExecutor_State = {
             (v,b) => storeCellRef<ReceiveExecutor_TokenTransferInfo>(v, b, ReceiveExecutor_TokenTransferInfo.store)
         );
         ReceiveExecutor_MessageExecutionState.store(self.messageExecution, b);
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
     },
     toCell(self: ReceiveExecutor_State): c.Cell {
         return makeCellFrom<ReceiveExecutor_State>(self, ReceiveExecutor_State.store);
@@ -884,7 +923,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 11 variants }
+ > enum ReceiveExecutor_Error { 10 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -899,7 +938,6 @@ export const ReceiveExecutor_Error = {
     TokenAdminRegistryUnexpectedResponse: 37607n,
     TokenPoolUnexpectedResponse: 37608n,
     TokenNotEnabledInTokenRegistry: 37609n,
-    PTTNotSupported: 37610n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -916,14 +954,14 @@ export const ReceiveExecutor_Error = {
  > struct (0x58cfcb02) OffRamp_DispatchValidated {
  >     message: Cell<Any2TVMRampMessage>
  >     execId: uint192
- >     gasOverride: coins?
+ >     receiverExecutionGasLimit: coins?
  > }
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
     message: Any2TVMRampMessage
     execId: uint192
-    gasOverride: coins | null
+    receiverExecutionGasLimit: coins | null
 }
 
 export const OffRamp_DispatchValidated = {
@@ -932,7 +970,7 @@ export const OffRamp_DispatchValidated = {
     create(args: {
         message: Any2TVMRampMessage
         execId: uint192
-        gasOverride: coins | null
+        receiverExecutionGasLimit: coins | null
     }): OffRamp_DispatchValidated {
         return {
             $: 'OffRamp_DispatchValidated',
@@ -945,14 +983,14 @@ export const OffRamp_DispatchValidated = {
             $: 'OffRamp_DispatchValidated',
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             execId: s.loadUintBig(192),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
         }
     },
     store(self: OffRamp_DispatchValidated, b: c.Builder): void {
         b.storeUint(0x58cfcb02, 32);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.execId, 192);
-        storeTolkNullable<coins>(self.gasOverride, b,
+        storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
             (v,b) => b.storeCoins(v)
         );
     },
@@ -1630,7 +1668,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -1645,7 +1683,6 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37607,
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37608,
         'ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry': 37609,
-        'ReceiveExecutor_Error.PTTNotSupported': 37610,
     }
 
     readonly address: c.Address
@@ -1676,7 +1713,7 @@ export class ReceiveExecutor implements c.Contract {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, null as null as GasOverride? } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -1688,7 +1725,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     static createCellOfReceiveExecutorInitExecute(body: {
-        gasOverride?: coins | null /* = null */
+        gasOverride?: GasOverride | null /* = null */
         root: c.Address
         sequenceNumber: uint64
         sourceChainSelector: uint64
@@ -1756,7 +1793,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     async sendReceiveExecutorInitExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        gasOverride?: coins | null /* = null */
+        gasOverride?: GasOverride | null /* = null */
         root: c.Address
         sequenceNumber: uint64
         sourceChainSelector: uint64

@@ -96,13 +96,8 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) { 
+    st.state.gasOverride = msg.gasOverride;
     if (msg.tokenAdminRegistry != null) { // Message has token transfer
-        {
-            // st.shouldOverrideGas = msg.gasOverride; // TODO
-            val ccipSend = lazy st.message.load();
-            // TODO data and token transfer not supported
-            assert (ccipSend.data.beginParse().isEmpty()) throw ReceiveExecutor_Error.PTTNotSupported;
-        }
         var ttInfo = st.state.tokenTransfer.loadOpt();
         ttInfo = ttInfo.init(msg.tokenAdminRegistry.load());
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
@@ -121,9 +116,9 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
         }
     }
     match (st.state.messageExecution) {
-        ReceiveExecutor_MessageExecutionState.Untouched => execute(mutate st, msg.gasOverride),
+        ReceiveExecutor_MessageExecutionState.Untouched => execute(mutate st),
         ReceiveExecutor_MessageExecutionState.Execute => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
-        ReceiveExecutor_MessageExecutionState.ExecuteFailed => execute(mutate st, msg.gasOverride),
+        ReceiveExecutor_MessageExecutionState.ExecuteFailed => execute(mutate st),
         ReceiveExecutor_MessageExecutionState.Success =>  throw ReceiveExecutor_Error.MessageAlreadyExecuted,
     }
 }
@@ -188,9 +183,13 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
     releseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
+fun execute(mutate st: ReceiveExecutor_Storage) {
     st.lastExecutionTimestamp = blockchain.now();
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
+    var receiverExecutionGasLimit: coins? = null;
+    if (st.state.gasOverride != null) {
+        receiverExecutionGasLimit = st.state.gasOverride.receiverExecutionGasLimit;
+    }
     createMessage(
         {
             bounce: true,
@@ -199,7 +198,7 @@ fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
             body: OffRamp_DispatchValidated {
                 message: st.message,
                 execId: st.execId,
-                gasOverride,
+                receiverExecutionGasLimit,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -245,9 +244,7 @@ fun onReleaseOrMintFinished(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
     if (ccipMessage.data.beginParse().isEmpty()) {
         return endExecutionSuccessfully(mutate st, ccipMessage.header);
     }
-    // UNREACHABLE: onInitExecute should have thrown an error if there was any data in the message, so we should never get here.
-    throw ReceiveExecutor_Error.PTTNotSupported;
-    // TODO: PTT should execute after transfer
+    execute(mutate st)
 }
 
 fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader) {

@@ -15,6 +15,29 @@ struct ExecutionReport {
     proofFlagBits: uint256;
 }
 
+struct GasOverride {
+    receiverExecutionGasLimit: coins? = null;
+    // TODO TTGasOverride: tokenGasOverrides: array<coins>?;
+}
+
+// getEffectiveGasLimit returns the gas limit to use for the receiver execution
+// If the gasOverride is null, it returns the gasLimit passed in.
+fun getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit: coins): coins {
+    if (receiverExecutionGasLimit != null && receiverExecutionGasLimit >= gasLimit) {
+        gasLimit = receiverExecutionGasLimit;
+    }
+    return gasLimit;
+}
+
+fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
+    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
+        return self.receiverExecutionGasLimit;
+    }
+    return gasLimit;
+}
+
+
+
 // Matches the EVM struct
 struct CommitReport {
     priceUpdates: Cell<PriceUpdates>? = null; // Price updates for the fee_quoter

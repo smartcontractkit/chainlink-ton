@@ -12,5 +12,4 @@ enum ReceiveExecutor_Error {
     TokenAdminRegistryUnexpectedResponse
     TokenPoolUnexpectedResponse
     TokenNotEnabledInTokenRegistry
-    PTTNotSupported
 }

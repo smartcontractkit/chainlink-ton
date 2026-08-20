@@ -59,14 +59,14 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
-    gasOverride: coins?;
+    gasOverride: GasOverride? = null;
     executionState: ExecutionState;
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
     queryId: uint64;
     report: ExecutionReport;
-    gasOverride: coins; 
+    gasOverride: GasOverride;
 }
 
 //Must be sent by owner
@@ -84,7 +84,7 @@ struct SourceChainConfigUpdate {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
-    gasOverride: coins?;
+    receiverExecutionGasLimit: coins?;
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {

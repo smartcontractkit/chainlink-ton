@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
+import "../offramp/types"
 import "../token_registry/messages"
 import "../pools/lib/token_pool/messages"
 
@@ -15,7 +16,7 @@ type ReceiveExecutor_InMessage =
     ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
-    gasOverride: coins? = null;
+    gasOverride: GasOverride? = null;
     root: address;
     sequenceNumber: uint64;
     sourceChainSelector: uint64;
