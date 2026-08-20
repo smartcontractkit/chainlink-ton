@@ -96,12 +96,7 @@ type Handler<T extends CombinedLogType> = (
 
 const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: (actual, from, expected, addressesMap) =>
-    testLogCCIPMessageSent(
-      actual,
-      from,
-      expected as DeepPartial<on.CCIPMessageSent>,
-      addressesMap,
-    ),
+    testLogCCIPMessageSent(actual, from, expected as DeepPartial<on.CCIPMessageSent>, addressesMap),
 
   [CCIPLogs.LogTypes.CommitReportAccepted]: (actual, from, expected) =>
     testLogGen(
