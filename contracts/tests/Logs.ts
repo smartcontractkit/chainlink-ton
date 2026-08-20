@@ -56,7 +56,7 @@ type DeepPartial<T> = {
 
 // map from log type → expected payload type
 type LogTypeMap = {
-  [CCIPLogs.LogTypes.CCIPMessageSentV2]: DeepPartial<on.CCIPMessageSentV2>
+  [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<on.CCIPMessageSent>
   [CCIPLogs.LogTypes.CommitReportAccepted]: DeepPartial<of.CommitReportAccepted>
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<of.ExecutionStateChanged>
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: DeepPartial<of.SourceChainSelectorAdded>
@@ -95,11 +95,11 @@ type Handler<T extends CombinedLogType> = (
 ) => boolean
 
 const handlers: { [K in CombinedLogType]: Handler<K> } = {
-  [CCIPLogs.LogTypes.CCIPMessageSentV2]: (actual, from, expected, addressesMap) =>
+  [CCIPLogs.LogTypes.CCIPMessageSent]: (actual, from, expected, addressesMap) =>
     testLogCCIPMessageSent(
       actual,
       from,
-      expected as DeepPartial<on.CCIPMessageSentV2>,
+      expected as DeepPartial<on.CCIPMessageSent>,
       addressesMap,
     ),
 
@@ -275,11 +275,11 @@ export const assertLog = <T extends CombinedLogType>(
 export const testLogCCIPMessageSent = (
   actual: Message,
   from: Address,
-  expected: DeepPartial<on.CCIPMessageSentV2>,
+  expected: DeepPartial<on.CCIPMessageSent>,
   prettyAddressesMap: Map<string, string>,
 ) => {
-  return testLog(actual, from, CCIPLogs.LogTypes.CCIPMessageSentV2, (actual) => {
-    const msg = on.CCIPMessageSentV2.fromSlice(actual.beginParse())
+  return testLog(actual, from, CCIPLogs.LogTypes.CCIPMessageSent, (actual) => {
+    const msg = on.CCIPMessageSent.fromSlice(actual.beginParse())
     const sender = msg.message.sender
 
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)

@@ -18,8 +18,7 @@ import (
 )
 
 type Account256 = cciplibonramp.Account256
-type CCIPMessageSentV1 = cciplibonramp.CCIPMessageSentV1
-type CCIPMessageSentV2 = cciplibonramp.CCIPMessageSentV2
+type CCIPMessageSent = cciplibonramp.CCIPMessageSent
 type DestChainConfig = cciplibonramp.DestChainConfig
 type DynamicConfig = cciplibonramp.DynamicConfig
 type ExecutorDeployment = cciplibonramp.ExecutorDeployment

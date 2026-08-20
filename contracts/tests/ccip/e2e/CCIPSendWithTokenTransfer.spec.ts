@@ -427,7 +427,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
 
     // OnRamp emits the CCIPMessageSent log. Verify the token-transfer amount equals TOKEN_AMOUNT (wGRAM).
-    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSentV2, {
+    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
         header: {
           destChainSelector: DestChainSelector,

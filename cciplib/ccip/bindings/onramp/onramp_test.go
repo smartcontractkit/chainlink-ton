@@ -24,14 +24,9 @@ func TestTopicCRC32Values(t *testing.T) {
 		expected uint32
 	}{
 		{
-			name:     "TopicCCIPMessageSentV1",
+			name:     "TopicCCIPMessageSent",
 			topic:    "CCIPMessageSent",
-			expected: TopicCCIPMessageSentV1,
-		},
-		{
-			name:     "TopicCCIPMessageSentV2",
-			topic:    "CCIPMessageSentV2",
-			expected: TopicCCIPMessageSentV2,
+			expected: TopicCCIPMessageSent,
 		},
 		{
 			name:     "TopicDestChainSelectorAdded",

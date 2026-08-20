@@ -70,27 +70,6 @@ type TVM2AnyRampMessageBody struct {
 	FeeTokenAmount *tlb.Coins                              `tlb:"."`
 }
 
-// TVM2AnyRampMessageV1 is the legacy (pre token-transfer-wrapper) shape of the OnRamp's
-// CCIPMessageSent event message, kept only to decode already-emitted historical logs.
-type TVM2AnyRampMessageV1 struct {
-	Header        RampMessageHeader        `tlb:"."`
-	Sender        *address.Address         `tlb:"addr"`
-	Body          TVM2AnyRampMessageBodyV1 `tlb:"^"`
-	FeeValueJuels *big.Int                 `tlb:"## 96"`
-}
-
-// TVM2AnyRampMessageBodyV1 is the legacy CCIPMessageSent body: the fourth body reference
-// is tokenAmounts directly, with no sourcePoolAddress/post-fee-amount/destTokenAddress/
-// extraData/destExecData wrapper.
-type TVM2AnyRampMessageBodyV1 struct {
-	Receiver       common.CrossChainAddress       `tlb:"^"`
-	Data           common.SnakeBytes              `tlb:"^"`
-	ExtraArgs      *cell.Cell                     `tlb:"^"`
-	TokenAmounts   common.SnakedCell[TokenAmount] `tlb:"^"`
-	FeeToken       *address.Address               `tlb:"addr"`
-	FeeTokenAmount *tlb.Coins                     `tlb:"."`
-}
-
 // TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer, the TON counterpart
 // of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. The current TVM2Any flow supports a
 // single token transfer, so TVM2AnyRampMessageBody.TokenTransfer is empty when the
@@ -113,10 +92,4 @@ type TVM2AnyTokenTransfer struct {
 	// TODO: always empty today; the FeeQuoter does not yet produce a per-token
 	// destGasOverhead for token transfers.
 	DestExecData *cell.Cell `tlb:"^"`
-}
-
-// TokenAmount mirrors the contract's common TokenAmount { amount: coins, token: address }.
-type TokenAmount struct {
-	Amount tlb.Coins        `tlb:"."`
-	Token  *address.Address `tlb:"addr"`
 }

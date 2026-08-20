@@ -15,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
@@ -39,14 +38,6 @@ const (
 	// defaultCCIPMaxLogsKept is the maximum number of logs to retain per filter.
 	// 0 = unlimited (no count-based pruning).
 	defaultCCIPMaxLogsKept = int64(0)
-
-	// eventNameCCIPMessageSentV1 matches the topic already-deployed OnRamp contracts used
-	// before the token-transfer wrapper was added to the event body
-	// (onramp.TopicCCIPMessageSentV1). Kept so historical logs stay decodable.
-	eventNameCCIPMessageSentV1 = consts.EventNameCCIPMessageSent
-	// eventNameCCIPMessageSentV2 matches the topic the OnRamp emits going forward
-	// (onramp.TopicCCIPMessageSentV2), carrying the token-transfer wrapper body.
-	eventNameCCIPMessageSentV2 = "CCIPMessageSentV2"
 )
 
 // bindContractEvent binds contract events to the logpoller for monitoring blockchain events.
@@ -60,10 +51,7 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 
 	switch contractName {
 	case consts.ContractNameOnRamp:
-		eventNames = []string{
-			eventNameCCIPMessageSentV1,
-			eventNameCCIPMessageSentV2,
-		}
+		eventNames = []string{consts.EventNameCCIPMessageSent}
 	case consts.ContractNameOffRamp:
 		eventNames = []string{
 			consts.EventNameCommitReportAccepted,
@@ -103,31 +91,8 @@ func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *
 	return nil
 }
 
-// convertCCIPMessageSentV1 converts a TON-specific legacy CCIPMessageSent event (no
-// token-transfer wrapper) to a generic ccipocr3.SendRequestedEvent.
-func (a *TONAccessor) convertCCIPMessageSentV1(
-	tonEvent *onramp.CCIPMessageSentV1,
-) (*ccipocr3.SendRequestedEvent, error) {
-	body := tonEvent.Message.Body
-
-	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(body.TokenAmounts))
-	for _, ta := range body.TokenAmounts {
-		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
-			Amount: ccipocr3.NewBigInt(ta.Amount.Nano()),
-		})
-	}
-
-	return a.buildSendRequestedEvent(
-		tonEvent.Message.Header, tonEvent.Message.Sender,
-		body.Receiver, body.Data, body.ExtraArgs, body.FeeToken, body.FeeTokenAmount,
-		tokenAmounts,
-	)
-}
-
-// convertCCIPMessageSentV2 converts a TON-specific CCIPMessageSent event (with the
-// token-transfer wrapper) to a generic ccipocr3.SendRequestedEvent.
-func (a *TONAccessor) convertCCIPMessageSentV2(
-	tonEvent *onramp.CCIPMessageSentV2,
+func (a *TONAccessor) convertCCIPMessageSent(
+	tonEvent *onramp.CCIPMessageSent,
 ) (*ccipocr3.SendRequestedEvent, error) {
 	body := tonEvent.Message.Body
 
@@ -155,49 +120,29 @@ func (a *TONAccessor) convertCCIPMessageSentV2(
 		})
 	}
 
-	return a.buildSendRequestedEvent(
-		tonEvent.Message.Header, tonEvent.Message.Sender,
-		body.Receiver, body.Data, body.ExtraArgs, body.FeeToken, body.FeeTokenAmount,
-		tokenAmounts,
-	)
-}
-
-// buildSendRequestedEvent maps the fields shared by every CCIPMessageSent version - header,
-// sender, receiver/data/extraArgs/fee - into a generic ccipocr3.SendRequestedEvent, given
-// the tokenAmounts already converted by the caller's version-specific logic.
-func (a *TONAccessor) buildSendRequestedEvent(
-	header ocr.RampMessageHeader,
-	sender *address.Address,
-	receiver common.CrossChainAddress,
-	data common.SnakeBytes,
-	extraArgs *cell.Cell,
-	feeToken *address.Address,
-	feeTokenAmount *tlb.Coins,
-	tokenAmounts []ccipocr3.RampTokenAmount,
-) (*ccipocr3.SendRequestedEvent, error) {
-	senderAddr, err := codec.ToRawAddr(sender)
+	senderAddr, err := codec.ToRawAddr(tonEvent.Message.Sender)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert sender address: %w", err)
 	}
-	feeTokenAddr, err := codec.ToRawAddr(feeToken)
+	feeTokenAddr, err := codec.ToRawAddr(body.FeeToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert fee token address: %w", err)
 	}
 
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
-			MessageID:           ccipocr3.Bytes32(header.MessageID),
+			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),
 			SourceChainSelector: a.chainSelector,
-			DestChainSelector:   ccipocr3.ChainSelector(header.DestChainSelector),
-			SequenceNumber:      ccipocr3.SeqNum(header.SequenceNumber),
-			Nonce:               header.Nonce,
+			DestChainSelector:   ccipocr3.ChainSelector(tonEvent.Message.Header.DestChainSelector),
+			SequenceNumber:      ccipocr3.SeqNum(tonEvent.Message.Header.SequenceNumber),
+			Nonce:               tonEvent.Message.Header.Nonce,
 		},
 		Sender:         ccipocr3.UnknownAddress(senderAddr[:]),
-		Data:           ccipocr3.Bytes(data),
-		Receiver:       ccipocr3.UnknownAddress(receiver),
-		ExtraArgs:      ccipocr3.Bytes(extraArgs.ToBOC()),
+		Data:           ccipocr3.Bytes(body.Data),
+		Receiver:       ccipocr3.UnknownAddress(body.Receiver),
+		ExtraArgs:      ccipocr3.Bytes(body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
-		FeeTokenAmount: ccipocr3.NewBigInt(feeTokenAmount.Nano()),
+		FeeTokenAmount: ccipocr3.NewBigInt(body.FeeTokenAmount.Nano()),
 		TokenAmounts:   tokenAmounts,
 	}
 	genericEvent := &ccipocr3.SendRequestedEvent{

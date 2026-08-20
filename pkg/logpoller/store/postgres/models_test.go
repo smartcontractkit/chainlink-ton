@@ -181,7 +181,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 				feeToken, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 
 				feeAmount := tlb.MustFromTON("0.001")
-				event := onramp.CCIPMessageSentV2{
+				event := onramp.CCIPMessageSent{
 					Message: ocr.TVM2AnyRampMessage{
 						Header: ocr.RampMessageHeader{
 							MessageID:           make([]byte, 32),

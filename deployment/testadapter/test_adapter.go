@@ -771,7 +771,7 @@ func getValidatedFee(ctx context.Context, clientConn ton.APIClientWrapped, feeQu
 
 // sendCellAndAwaitCCIPMessageSent sends bodyCell with the given value to dstAddr, waits for the
 // transaction trace to complete, and flattens the resulting message tree looking for the
-// onramp.CCIPMessageSentV2 event emitted once the request reaches the OnRamp.
+// onramp.CCIPMessageSent event emitted once the request reaches the OnRamp.
 func sendCellAndAwaitCCIPMessageSent(
 	ctx context.Context,
 	chain cldf_ton.Chain,
@@ -854,11 +854,7 @@ func sendCellAndAwaitCCIPMessageSent(
 }
 
 // waitForReceivedMsgFlatten walks the received message tree looking for the CCIPMessageSent
-// event emitted by the OnRamp, and returns its messageID and sequence number. The event may be
-// emitted as either CCIPMessageSentV1 (legacy body layout, still emitted by already-deployed
-// OnRamp contracts under the original topic) or CCIPMessageSentV2 (current body layout, new
-// topic) - the topic embedded in the emitting log's destination address decides which shape to
-// decode.
+// event emitted by the OnRamp, and returns its messageID and sequence number.
 func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) ([]byte, uint64, error) {
 	if msg == nil {
 		return nil, 0, errors.New("received message is nil")
@@ -922,24 +918,15 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 		return nil, 0, fmt.Errorf("failed to decode event topic: %w", err)
 	}
 
-	switch topic {
-	case cciplibonramp.TopicCCIPMessageSentV1:
-		var event onramp.CCIPMessageSentV1
-		if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
-			l.Errorf("failed to parse CCIPMessageSentV1 from cell: %v", err)
-			return nil, 0, err
-		}
-		return event.Message.Header.MessageID, event.Message.Header.SequenceNumber, nil
-	case cciplibonramp.TopicCCIPMessageSentV2:
-		var event onramp.CCIPMessageSentV2
-		if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
-			l.Errorf("failed to parse CCIPMessageSentV2 from cell: %v", err)
-			return nil, 0, err
-		}
-		return event.Message.Header.MessageID, event.Message.Header.SequenceNumber, nil
-	default:
+	if topic != cciplibonramp.TopicCCIPMessageSent {
 		return nil, 0, fmt.Errorf("unexpected event topic %#x for CCIPMessageSent", topic)
 	}
+	var event onramp.CCIPMessageSent
+	if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
+		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
+		return nil, 0, err
+	}
+	return event.Message.Header.MessageID, event.Message.Header.SequenceNumber, nil
 }
 
 var (

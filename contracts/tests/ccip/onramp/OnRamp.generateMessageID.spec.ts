@@ -234,7 +234,7 @@ describe('OnRamp - generate message id', () => {
       ) {
         for (const msg of tx.outMessages.values()) {
           if (msg.info.type === 'external-out') {
-            const event = or.CCIPMessageSentV2.fromSlice(msg.body.beginParse())
+            const event = or.CCIPMessageSent.fromSlice(msg.body.beginParse())
             if (event.message.header.messageId !== expectedTVM2AnyRampMessage.header.messageId) {
               expect(event.message.sender).toEqual(expectedTVM2AnyRampMessage.sender)
               expect(event.message.body.receiver.toString()).toBe(ccipSend.receiver.toString())

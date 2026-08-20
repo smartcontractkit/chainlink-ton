@@ -87,7 +87,7 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 		feeValueJuels: 0
 	};
 	
-	emit(CCIP_MESSAGE_SENT_V2_TOPIC, CCIPMessageSentV2 { message: message });
+	emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: message });
 }
 
 // Note: getStaticConfig name is kept to match EVM implementation

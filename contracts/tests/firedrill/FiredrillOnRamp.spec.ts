@@ -64,7 +64,7 @@ describe('FiredrillOnRamp - Unit Tests', () => {
     })
 
     // Assert CCIPMessageSent log was emitted
-    assertLog(result.transactions, onramp.address, LogTypes.CCIPMessageSentV2, {
+    assertLog(result.transactions, onramp.address, LogTypes.CCIPMessageSent, {
       message: {
         sender,
         header: {

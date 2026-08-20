@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -260,12 +259,6 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 }
 
 // TON as source chain methods
-//
-// CCIPMessageSentMessageSize/DestChainSelectorSize/SequenceNumberSize describe the outer
-// TVM2AnyRampMessage.Header/Sender fields, which are identical between the V1 (legacy) and
-// V2 (token-transfer wrapper) event bodies - only the Body's inner ref layout differs - so
-// the same byte-level DB filtering applies to both. A single WithEventSig filters one topic
-// only, so each version is queried separately and the results merged below.
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
 	// Validate sequence number range to fail fast with clear error message
 	if seqNumRange.Start() > seqNumRange.End() {
@@ -278,19 +271,46 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	msgsV1, err := a.msgsBetweenSeqNumsV1(ctx, lggr, onrampAddr, dest, seqNumRange)
+	logs, _, _, err := a.logPoller.NewQuery().
+		WithSource(onrampAddr).
+		WithEventSig(onramp.TopicCCIPMessageSent).
+		WithBocBytes(
+			query.SkipBytes(CCIPMessageSentMessageSize),
+			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(dest)), primitives.Eq)),
+			query.MatchBytes(CCIPMessageSentSequenceNumberSize,
+				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())), primitives.Gte),
+				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())), primitives.Lte),
+			),
+		).
+		WithLimitAndSort(commonquery.LimitAndSort{
+			SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
+			Limit:  commonquery.CountLimit(uint64(seqNumRange.End() - seqNumRange.Start() + 1)),
+		}).
+		Execute(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
-	msgsV2, err := a.msgsBetweenSeqNumsV2(ctx, lggr, onrampAddr, dest, seqNumRange)
+	lggr.Infow("queried messages between sequence numbers", "numMsgs", len(logs))
+
+	typedLogs, err := query.DecodedLogs[onramp.CCIPMessageSent](logs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode CCIPMessageSent events: %w", err)
 	}
 
-	msgs := make([]ccipocr3.Message, 0, len(msgsV1)+len(msgsV2))
-	msgs = append(msgs, msgsV1...)
-	msgs = append(msgs, msgsV2...)
-	sort.Slice(msgs, func(i, j int) bool { return msgs[i].Header.SequenceNumber < msgs[j].Header.SequenceNumber })
+	msgs := make([]ccipocr3.Message, 0, len(typedLogs))
+	for _, typedLog := range typedLogs {
+		genericEvent, err := a.convertCCIPMessageSent(&typedLog.TypedData)
+		if err != nil {
+			lggr.Errorw("convert CCIP message sent", "txHash", typedLog.TxHash, "err", err)
+			continue
+		}
+		msg, err := a.finalizeSendRequestedEvent(genericEvent, onrampAddr, typedLog.TxHash, dest, seqNumRange)
+		if err != nil {
+			lggr.Errorw("finalize CCIP message sent", "err", err, "message", genericEvent)
+			continue
+		}
+		msgs = append(msgs, *msg)
+	}
 
 	msgsWithoutDataField := make([]ccipocr3.Message, len(msgs))
 	for i, msg := range msgs {
@@ -301,102 +321,6 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	return msgs, nil
 }
 
-func (a *TONAccessor) msgsBetweenSeqNumsV1(
-	ctx context.Context, lggr logger.Logger, onrampAddr *address.Address,
-	dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange,
-) ([]ccipocr3.Message, error) {
-	logs, _, _, err := a.logPoller.NewQuery().
-		WithSource(onrampAddr).
-		WithEventSig(onramp.TopicCCIPMessageSentV1).
-		WithBocBytes(
-			query.SkipBytes(CCIPMessageSentMessageSize),
-			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(dest)), primitives.Eq)),
-			query.MatchBytes(CCIPMessageSentSequenceNumberSize,
-				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())), primitives.Gte),
-				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())), primitives.Lte),
-			),
-		).
-		WithLimitAndSort(commonquery.LimitAndSort{
-			SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
-			Limit:  commonquery.CountLimit(uint64(seqNumRange.End() - seqNumRange.Start() + 1)),
-		}).
-		Execute(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query onRamp logs (v1): %w", err)
-	}
-	lggr.Infow("queried messages between sequence numbers (v1)", "numMsgs", len(logs))
-
-	typedLogs, err := query.DecodedLogs[onramp.CCIPMessageSentV1](logs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode CCIPMessageSentV1 events: %w", err)
-	}
-
-	msgs := make([]ccipocr3.Message, 0, len(typedLogs))
-	for _, typedLog := range typedLogs {
-		genericEvent, err := a.convertCCIPMessageSentV1(&typedLog.TypedData)
-		if err != nil {
-			lggr.Errorw("convert CCIP message sent (v1)", "txHash", typedLog.TxHash, "err", err)
-			continue
-		}
-		msg, err := a.finalizeSendRequestedEvent(genericEvent, onrampAddr, typedLog.TxHash, dest, seqNumRange)
-		if err != nil {
-			lggr.Errorw("finalize CCIP message sent (v1)", "err", err, "message", genericEvent)
-			continue
-		}
-		msgs = append(msgs, *msg)
-	}
-	return msgs, nil
-}
-
-func (a *TONAccessor) msgsBetweenSeqNumsV2(
-	ctx context.Context, lggr logger.Logger, onrampAddr *address.Address,
-	dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange,
-) ([]ccipocr3.Message, error) {
-	logs, _, _, err := a.logPoller.NewQuery().
-		WithSource(onrampAddr).
-		WithEventSig(onramp.TopicCCIPMessageSentV2).
-		WithBocBytes(
-			query.SkipBytes(CCIPMessageSentMessageSize),
-			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(dest)), primitives.Eq)),
-			query.MatchBytes(CCIPMessageSentSequenceNumberSize,
-				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())), primitives.Gte),
-				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())), primitives.Lte),
-			),
-		).
-		WithLimitAndSort(commonquery.LimitAndSort{
-			SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
-			Limit:  commonquery.CountLimit(uint64(seqNumRange.End() - seqNumRange.Start() + 1)),
-		}).
-		Execute(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query onRamp logs (v2): %w", err)
-	}
-	lggr.Infow("queried messages between sequence numbers (v2)", "numMsgs", len(logs))
-
-	typedLogs, err := query.DecodedLogs[onramp.CCIPMessageSentV2](logs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode CCIPMessageSentV2 events: %w", err)
-	}
-
-	msgs := make([]ccipocr3.Message, 0, len(typedLogs))
-	for _, typedLog := range typedLogs {
-		genericEvent, err := a.convertCCIPMessageSentV2(&typedLog.TypedData)
-		if err != nil {
-			lggr.Errorw("convert CCIP message sent (v2)", "txHash", typedLog.TxHash, "err", err)
-			continue
-		}
-		msg, err := a.finalizeSendRequestedEvent(genericEvent, onrampAddr, typedLog.TxHash, dest, seqNumRange)
-		if err != nil {
-			lggr.Errorw("finalize CCIP message sent (v2)", "err", err, "message", genericEvent)
-			continue
-		}
-		msgs = append(msgs, *msg)
-	}
-	return msgs, nil
-}
-
-// finalizeSendRequestedEvent validates a decoded event against dest/seqNumRange and attaches
-// the onramp address and tx hash - common to every CCIPMessageSent version.
 func (a *TONAccessor) finalizeSendRequestedEvent(
 	genericEvent *ccipocr3.SendRequestedEvent,
 	onrampAddr *address.Address,
@@ -422,32 +346,11 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	if err != nil {
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
-
-	seqV1, err := a.latestMessageToV1(ctx, lggr, onrampAddr, dest)
-	if err != nil {
-		return 0, err
-	}
-	seqV2, err := a.latestMessageToV2(ctx, lggr, onrampAddr, dest)
-	if err != nil {
-		return 0, err
-	}
-
-	// OnRamp sequence numbers per destination strictly increase regardless of which event
-	// version emitted them, so the greater of the two candidates is the latest.
-	latest := seqV1
-	if seqV2 > latest {
-		latest = seqV2
-	}
-	lggr.Debugw("LatestMessageTo result", "seqV1", seqV1, "seqV2", seqV2, "latest", latest)
-	return latest, nil
-}
-
-func (a *TONAccessor) latestMessageToV1(ctx context.Context, lggr logger.Logger, onrampAddr *address.Address, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
 	destBytes := binary.BigEndian.AppendUint64(nil, uint64(dest))
 
 	logs, _, _, err := a.logPoller.NewQuery().
 		WithSource(onrampAddr).
-		WithEventSig(onramp.TopicCCIPMessageSentV1).
+		WithEventSig(onramp.TopicCCIPMessageSent).
 		WithBocBytes(
 			query.SkipBytes(CCIPMessageSentMessageSize),
 			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(destBytes, primitives.Eq)),
@@ -458,75 +361,32 @@ func (a *TONAccessor) latestMessageToV1(ctx context.Context, lggr logger.Logger,
 		}).
 		Execute(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("failed to query onRamp logs (v1): %w", err)
+		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
-	lggr.Debugw("queried latest message from source (v1)", "numMsgs", len(logs))
+	lggr.Debugw("queried latest message from source", "numMsgs", len(logs))
 
 	if len(logs) > 1 {
-		return 0, fmt.Errorf("more than one message found for the latest message query (v1), found: %d", len(logs))
+		return 0, fmt.Errorf("more than one message found for the latest message query, found: %d", len(logs))
 	}
 	if len(logs) == 0 {
 		return 0, nil
 	}
 	log := logs[0]
 
-	var event onramp.CCIPMessageSentV1
+	var event onramp.CCIPMessageSent
 	const skipMagic = true // Always skip magic (opcode in msg) when parsing log cells, we only store message body
 	if parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), skipMagic); parseErr != nil {
-		return 0, fmt.Errorf("failed to decode log at tx %s (v1): %w", hex.EncodeToString(log.TxHash[:]), parseErr)
+		return 0, fmt.Errorf("failed to decode log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), parseErr)
 	}
 
-	genericEvent, err := a.convertCCIPMessageSentV1(&event)
+	genericEvent, err := a.convertCCIPMessageSent(&event)
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert CCIP message sent (v1): %w", err)
+		return 0, fmt.Errorf("failed to convert CCIP message sent: %w", err)
 	}
 	if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, ccipocr3.NewSeqNumRange(genericEvent.Message.Header.SequenceNumber, genericEvent.Message.Header.SequenceNumber)); err != nil {
-		return 0, fmt.Errorf("message invalid msg %v (v1): %w", genericEvent, err)
+		return 0, fmt.Errorf("message invalid msg %v: %w", genericEvent, err)
 	}
-	return genericEvent.SequenceNumber, nil
-}
-
-func (a *TONAccessor) latestMessageToV2(ctx context.Context, lggr logger.Logger, onrampAddr *address.Address, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	destBytes := binary.BigEndian.AppendUint64(nil, uint64(dest))
-
-	logs, _, _, err := a.logPoller.NewQuery().
-		WithSource(onrampAddr).
-		WithEventSig(onramp.TopicCCIPMessageSentV2).
-		WithBocBytes(
-			query.SkipBytes(CCIPMessageSentMessageSize),
-			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(destBytes, primitives.Eq)),
-		).
-		WithLimitAndSort(commonquery.LimitAndSort{
-			SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
-			Limit:  commonquery.CountLimit(1),
-		}).
-		Execute(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to query onRamp logs (v2): %w", err)
-	}
-	lggr.Debugw("queried latest message from source (v2)", "numMsgs", len(logs))
-
-	if len(logs) > 1 {
-		return 0, fmt.Errorf("more than one message found for the latest message query (v2), found: %d", len(logs))
-	}
-	if len(logs) == 0 {
-		return 0, nil
-	}
-	log := logs[0]
-
-	var event onramp.CCIPMessageSentV2
-	const skipMagic = true // Always skip magic (opcode in msg) when parsing log cells, we only store message body
-	if parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), skipMagic); parseErr != nil {
-		return 0, fmt.Errorf("failed to decode log at tx %s (v2): %w", hex.EncodeToString(log.TxHash[:]), parseErr)
-	}
-
-	genericEvent, err := a.convertCCIPMessageSentV2(&event)
-	if err != nil {
-		return 0, fmt.Errorf("failed to convert CCIP message sent (v2): %w", err)
-	}
-	if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, ccipocr3.NewSeqNumRange(genericEvent.Message.Header.SequenceNumber, genericEvent.Message.Header.SequenceNumber)); err != nil {
-		return 0, fmt.Errorf("message invalid msg %v (v2): %w", genericEvent, err)
-	}
+	lggr.Debugw("LatestMessageTo result", "genericEvent", genericEvent)
 	return genericEvent.SequenceNumber, nil
 }
 

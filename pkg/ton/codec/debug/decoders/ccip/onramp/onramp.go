@@ -35,21 +35,13 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 	if err != nil {
 		return nil, codec.ErrUnknownMessage
 	}
-	if topic == onramp.TopicCCIPMessageSentV1 {
-		var ccipMessageSent onramp.CCIPMessageSentV1
+	if topic == onramp.TopicCCIPMessageSent {
+		var ccipMessageSent onramp.CCIPMessageSent
 		err := tlb.LoadFromCell(&ccipMessageSent, msg.BeginParse())
 		if err != nil {
 			return nil, err
 		}
-		return lib.NewMessageInfo("CCIPMessageSentV1", ccipMessageSent)
-	}
-	if topic == onramp.TopicCCIPMessageSentV2 {
-		var ccipMessageSent onramp.CCIPMessageSentV2
-		err := tlb.LoadFromCell(&ccipMessageSent, msg.BeginParse())
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("CCIPMessageSentV2", ccipMessageSent)
+		return lib.NewMessageInfo("CCIPMessageSent", ccipMessageSent)
 	}
 
 	return nil, codec.ErrUnknownMessage
