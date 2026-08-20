@@ -88,8 +88,8 @@ type TVM2AnyTokenTransfer struct {
 	// (LockOrBurnOutV1.destPoolData).
 	ExtraData *cell.Cell `tlb:"^"`
 	// DestExecData is the destination-chain execution data (gas for the offRamp's
-	// releaseOrMint on EVM destinations).
-	// TODO: always empty today; the FeeQuoter does not yet produce a per-token
-	// destGasOverhead for token transfers.
+	// releaseOrMint on EVM destinations). Today it is populated by the CCIPSendExecutor
+	// as a 32-bit big-endian uint32 gas amount (DEFAULT_TOKEN_DEST_GAS_OVERHEAD) until
+	// FeeQuoter produces per-token values.
 	DestExecData *cell.Cell `tlb:"^"`
 }
