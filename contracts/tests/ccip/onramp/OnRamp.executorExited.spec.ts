@@ -1,4 +1,4 @@
-import { Address, Cell, Sender, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
@@ -13,6 +13,7 @@ import { getStorage } from '../../../wrappers/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
+import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - executor exit', () => {
@@ -148,6 +149,13 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: beginCell().endCell(),
+          destExecData: beginCell().endCell(),
+        }),
       },
     )
 
@@ -222,6 +230,13 @@ describe('OnRamp - executor exit', () => {
         metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
+        }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: beginCell().endCell(),
+          destExecData: beginCell().endCell(),
         }),
       },
     )

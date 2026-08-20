@@ -10,6 +10,7 @@ import "../token_registry/messages"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../onramp/messages"
+import "../onramp/types"
 import "../router/messages"
 import "../common/types"
 
@@ -148,7 +149,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     // If token amounts is empty finalize the message
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
-        self.exitSuccessfully(msg.fee);
+        // No token transfer, so there are no pool-supplied details to report.
+        self.exitSuccessfully(msg.fee, null);
         return;
      }
 
@@ -278,10 +280,26 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    self.exitSuccessfully(self.state.load().fee);
+    // Forward what the pool returned so the OnRamp can emit it. sourcePoolAddress comes
+    // from our own state (the pool we routed the lockOrBurn to) rather than from the
+    // pool's reply, so it stays trusted.
+    val state = self.state.load();
+    val out = TokenPool_LockOrBurnOutV1.fromCell(msg.out);
+    val tokenTransfer = OnRamp_ExecutorTokenTransfer {
+        sourcePoolAddress: state.tokenPool,
+        amount: msg.destTokenAmount as uint256,
+        destTokenAddress: out.destTokenAddress,
+        extraData: out.destPoolData,
+        // TODO: source this from FeeQuoter_TokenTransferFeeConfig.destGasOverhead once the
+        // FeeQuoter fee path accepts token transfers. It cannot be left empty in the
+        // meantime: the offchain nodes fail to hash a message whose token transfer carries
+        // no destExecData, which stalls the lane.
+        destExecData: encodeDestExecData(DEFAULT_TOKEN_DEST_GAS_OVERHEAD),
+    }.toCell();
+    self.exitSuccessfully(state.fee, tokenTransfer);
 }
 
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -300,6 +318,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
+            tokenTransfer,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);

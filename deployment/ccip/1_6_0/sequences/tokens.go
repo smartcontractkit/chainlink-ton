@@ -416,12 +416,16 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenTransferFeeConfigs: nil,
 			}
 
+			// MockTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
+			// has to go behind a ref; passing it bare makes every storage read underflow.
+			storage := tokenpool.MockStorage{PoolData: poolData}
+
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
 				dp,
 				input.ChainSelector,
 				compiled,
-				poolData,
+				storage,
 				nil,
 				defaultJettonDeployCoin,
 			)
@@ -528,11 +532,8 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			}
 
 			// Register the Router as the pool's trusted onRamp for every remote chain
-			// being wired up. Router_LockOrBurn (router/contract.tolk onLockOrBurn)
-			// forwards TokenPool_LockOrBurn on the Router's own behalf
-			// offRamp is left unset since ReleaseOrMint isn't wired up on the inbound (OffRamp) path yet.
-			// Without this, TokenPool.ensureOutboundAccess (entrypoint.tolk) rejects
-			// LockOrBurn with TokenPool_Error.Unauthorized
+			// being wired up.
+			// TODO This should be changed in the contracts flow so that the onramp is the one calling instead of the Router
 			if err := applyRampAccessUpdates(b, dp, poolAddr, routerAddr, nil, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure ramp access on token pool at %s: %w", poolAddr.String(), err)
 			}

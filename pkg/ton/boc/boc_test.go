@@ -327,6 +327,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 				var msgEvent onramp.CCIPMessageSent
 				err = tlb.LoadFromCell(&msgEvent, bocCell.BeginParse(), true)
 				require.NoError(t, err)
+				require.Empty(t, msgEvent.Message.Body.TokenTransfer)
 
 				require.Equal(t, tc.expectedSeqNum, msgEvent.Message.Header.SequenceNumber)
 				require.Equal(t, tc.expectedDestSel, msgEvent.Message.Header.DestChainSelector)

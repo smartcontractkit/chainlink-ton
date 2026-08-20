@@ -250,6 +250,17 @@ type Storage struct {
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
 }
 
+// MockStorage represents the ccip.test.MockTokenPool contract storage
+// (contracts/contracts/ccip/test/tokenPool/contract.tolk), which holds the shared
+// TokenPool_Data behind a ref and adds no pool-specific state of its own.
+//
+// Deploying with a bare Storage instead of this wrapper produces a data cell whose
+// refs are [adminConfig, mirroredPolicy] rather than [poolData], so the first
+// handler that touches storage fails with exit code 9.
+type MockStorage struct {
+	PoolData Storage `tlb:"^"`
+}
+
 // --- Messages - incoming ---
 
 // ApplyChainUpdates applies chain updates to the token pool.

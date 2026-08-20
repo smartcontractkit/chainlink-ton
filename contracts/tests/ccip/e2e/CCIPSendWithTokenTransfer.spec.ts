@@ -12,6 +12,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
+import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import * as tr from '../../../wrappers/gen/ccip/TokenRegistry'
 import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
@@ -433,7 +434,21 @@ describe('CCIPSend with token transfer (e2e)', () => {
         },
         sender: sender.address,
         body: {
-          tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
+          tokenTransfer: [
+            {
+              // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
+              sourcePoolAddress: mockTokenPool.address,
+              // No token transfer fee is configured, so the post-fee amount is the full amount.
+              amount: TOKEN_AMOUNT,
+              destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
+              // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
+              extraData: beginCell().storeUint(0, 256).endCell(),
+              // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
+              // Still a constant: the FeeQuoter does not report a per-token value yet.
+              destExecData: beginCell().storeUint(90000, 32).endCell(),
+            },
+          ],
+          // The pool's lockOrBurn output reaches the event end to end.
         },
       },
     })

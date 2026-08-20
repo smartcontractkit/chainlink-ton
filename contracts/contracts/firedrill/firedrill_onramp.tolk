@@ -74,7 +74,8 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 			gasLimit: null,
 			allowOutOfOrderExecution: true,
 		} as ExtraArgs).toCell(),
-		tokenAmounts: createEmptyCell(),
+		// No token transfer.
+		tokenTransfer: createEmptyCell(),
 		feeToken: tokenAddress,
 		feeTokenAmount: 0
 	};
