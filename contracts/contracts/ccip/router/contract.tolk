@@ -91,10 +91,10 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be OffRamp
         Router_RouteMessage => {
             val st = lazy Storage.load();
-            val message: Any2TVMMessage = msg.message.load();
+            val message = lazy msg.message.load();
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
-            onRouteMessage(msg, message);
+            onRouteMessage(msg, msg.message);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPool => {
@@ -290,7 +290,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage (process)
 //     Router          ->> Receiver: Receiver_CCIPReceive
-fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
+fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     val ccipReceive: Receiver_CCIPReceive = {
         execId: msg.execId,
         message,

@@ -5,7 +5,7 @@ import "../../ccip/router/messages"
 
 struct (0xb3126df1) Receiver_CCIPReceive {
     execId: uint192; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
-    message: Any2TVMMessage;
+    message: Cell<Any2TVMMessage>;
 }
 
 struct Receiver_InMessagePartial { // Tolk compiler doesn't allow passing builtin InMessage as argument of a function
