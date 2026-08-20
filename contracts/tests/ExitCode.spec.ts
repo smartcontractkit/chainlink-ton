@@ -18,9 +18,9 @@ import * as onrGen from '../wrappers/gen/ccip/OnRamp'
 import * as rxGen from '../wrappers/gen/ccip/ReceiveExecutor'
 import * as sxGen from '../wrappers/gen/ccip/CCIPSendExecutor'
 import * as mrGen from '../wrappers/gen/ccip/MerkleRoot'
+import * as receGen from '../wrappers/gen/ccip/TestReceiver'
 
 import * as deployable from '../wrappers/libraries/Deployable'
-import * as rec from '../wrappers/libraries/Receiver'
 import * as ownable2step from '../wrappers/libraries/access/Ownable2Step'
 import * as withdrawable from '../wrappers/libraries/funding/Withdrawable'
 import * as upgradeable from '../wrappers/libraries/versioning/Upgradeable'
@@ -82,13 +82,7 @@ describe('Exit Codes', () => {
       facilityId: rece.FACILITY_ID,
       facilityName: rece.FACILITY_NAME,
       errorCode: rece.ERROR_CODE,
-      error0: rece.error.Rejected,
-    },
-    {
-      facilityId: rec.FACILITY_ID,
-      facilityName: rec.FACILITY_NAME,
-      errorCode: rec.ERROR_CODE,
-      error0: rec.error.Unauthorized,
+      error0: receGen.TestReceiver.Errors['TestReceiver_Error.Rejected'],
     },
     {
       facilityId: ownable2step.FACILITY_ID,

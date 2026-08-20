@@ -10,7 +10,7 @@ type TestReceiver_InMessage =
     | Upgradeable_Upgrade;
 
 struct (0xcf87a147) TestReceiver_UpdateBehavior {
-    behavior: TestReceiverBehavior
+    behavior: TestReceiver_Behavior
 }
 
 struct (0x9f5e489f) TestReceiver_UpdateAuthorizedCaller {

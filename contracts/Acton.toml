@@ -7,6 +7,8 @@ license = "see LICENSE in LICENSE"
 [wrappers.typescript]
 output-dir = "wrappers/gen"
 
+# CCIP contracts
+
 [contracts.Router]
 display-name = "link.chain.ton.ccip.Router"
 src = "contracts/ccip/router/contract.tolk"
@@ -67,6 +69,25 @@ display-name = "link.chain.ton.ccip.MerkleRoot"
 src = "contracts/ccip/merkle_root/contract.tolk"
 domain = "ccip"
 depends = []
+
+# CCIP Libraries
+
+[contracts.Receiver]
+display-name = "link.chain.ton.ccip.lib.Receiver"
+src = "contracts/lib/receiver/wrapper.tolk"
+domain = "ccip"
+depends = []
+
+
+# CCIP Test contracts
+
+[contracts.TestReceiver]
+display-name = "link.chain.ton.ccip.test.Receiver"
+src = "contracts/ccip/test/receiver/contract.tolk"
+domain = "ccip"
+depends = []
+
+# TokenTransfer contracts
 
 [contracts.JettonMinter]
 display-name = "link.chain.ton.ccip.cct.JettonMinter"

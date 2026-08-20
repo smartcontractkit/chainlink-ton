@@ -1,6 +1,6 @@
 import { Address, toNano } from '@ton/core'
 import { compile, NetworkProvider } from '@ton/blueprint'
-import { Receiver, ReceiverBehavior } from '../wrappers/examples/Receiver'
+import * as tr from '../wrappers/gen/ccip/TestReceiver'
 import { generateRandomContractId } from '../src/utils'
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -25,17 +25,14 @@ export async function deployReceiver(
 ): Promise<Address> {
   const deployer = provider.sender().address!
   const receiver = provider.open(
-    Receiver.createFromConfig(
+    tr.TestReceiver.fromStorage(
       {
         id: generateRandomContractId(),
-        behavior: ReceiverBehavior.RejectAll,
-        ownable: {
-          owner: deployer,
-          pendingOwner: null,
-        },
+        behavior: tr.TestReceiver_Behavior.RejectAll,
+        ownable: tr.Ownable2Step.create({ owner: deployer }),
         authorizedCaller: routerAddress,
       },
-      await compile('ccip.test.receiver'),
+      { overrideContractCode: await compile('ccip.test.receiver') },
     ),
   )
 
