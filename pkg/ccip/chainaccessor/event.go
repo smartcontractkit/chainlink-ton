@@ -131,9 +131,12 @@ func (a *TONAccessor) convertCCIPMessageSentV2(
 ) (*ccipocr3.SendRequestedEvent, error) {
 	body := tonEvent.Message.Body
 
-	// The current TON flow supports a single token transfer, so the single
-	// Body.TokenTransfer applies to every source tokenAmounts entry.
-	transfer := body.TokenTransfer
+	// The current TON flow supports a single token transfer, so Body.TokenTransfer is
+	// always a one-item SnakedCell.
+	if len(body.TokenTransfer) != 1 {
+		return nil, fmt.Errorf("expected exactly one token transfer entry, got %d", len(body.TokenTransfer))
+	}
+	transfer := body.TokenTransfer[0]
 	sourcePoolAddress, err := sourcePoolAddressBytes(transfer.SourcePoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert source pool address: %w", err)
@@ -142,8 +145,10 @@ func (a *TONAccessor) convertCCIPMessageSentV2(
 	extraData := cellPayload(transfer.ExtraData)
 	destExecData := cellPayload(transfer.DestExecData)
 
+	// A nil sourcePoolAddress (addr_none on-chain) means the message carries no token
+	// transfer; the single entry's fields are all zero/empty in that case.
 	var tokenAmounts []ccipocr3.RampTokenAmount
-	for range transfer.TokenAmounts {
+	if sourcePoolAddress != nil {
 		// The cross-chain amount is the post-fee amount the pool reported
 		// (LockOrBurnFinished.destTokenAmount)
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{

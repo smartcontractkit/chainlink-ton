@@ -434,19 +434,20 @@ describe('CCIPSend with token transfer (e2e)', () => {
         },
         sender: sender.address,
         body: {
-          tokenTransfer: {
-            // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
-            sourcePoolAddress: mockTokenPool.address,
-            // No token transfer fee is configured, so the post-fee amount is the full amount.
-            amount: TOKEN_AMOUNT,
-            tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
-            destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
-            // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
-            extraData: beginCell().storeUint(0, 256).endCell(),
-            // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
-            // Still a constant: the FeeQuoter does not report a per-token value yet.
-            destExecData: beginCell().storeUint(90000, 32).endCell(),
-          },
+          tokenTransfer: [
+            {
+              // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
+              sourcePoolAddress: mockTokenPool.address,
+              // No token transfer fee is configured, so the post-fee amount is the full amount.
+              amount: TOKEN_AMOUNT,
+              destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
+              // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
+              extraData: beginCell().storeUint(0, 256).endCell(),
+              // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
+              // Still a constant: the FeeQuoter does not report a per-token value yet.
+              destExecData: beginCell().storeUint(90000, 32).endCell(),
+            },
+          ],
           // The pool's lockOrBurn output reaches the event end to end.
         },
       },

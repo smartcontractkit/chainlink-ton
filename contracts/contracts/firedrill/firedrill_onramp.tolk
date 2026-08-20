@@ -77,7 +77,6 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 		tokenTransfer: TVM2AnyTokenTransfer {
 			sourcePoolAddress: null,
 			amount: 0,
-			tokenAmounts: createEmptyCell(),
 			destTokenAddress: beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>,
 			extraData: createEmptyCell(),
 			destExecData: createEmptyCell(),

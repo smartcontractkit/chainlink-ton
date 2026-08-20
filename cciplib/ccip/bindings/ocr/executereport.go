@@ -59,12 +59,14 @@ type TVM2AnyRampMessage struct {
 }
 
 type TVM2AnyRampMessageBody struct {
-	Receiver       common.CrossChainAddress `tlb:"^"`
-	Data           common.SnakeBytes        `tlb:"^"`
-	ExtraArgs      *cell.Cell               `tlb:"^"`
-	TokenTransfer  TVM2AnyTokenTransfer     `tlb:"^"`
-	FeeToken       *address.Address         `tlb:"addr"`
-	FeeTokenAmount *tlb.Coins               `tlb:"."`
+	Receiver  common.CrossChainAddress `tlb:"^"`
+	Data      common.SnakeBytes        `tlb:"^"`
+	ExtraArgs *cell.Cell               `tlb:"^"`
+	// TokenTransfer is always a one-item SnakedCell: the current TVM2Any flow supports a
+	// single token transfer per message.
+	TokenTransfer  common.SnakedCell[TVM2AnyTokenTransfer] `tlb:"^"`
+	FeeToken       *address.Address                        `tlb:"addr"`
+	FeeTokenAmount *tlb.Coins                              `tlb:"."`
 }
 
 // TVM2AnyRampMessageV1 is the legacy (pre token-transfer-wrapper) shape of the OnRamp's
@@ -89,7 +91,9 @@ type TVM2AnyRampMessageBodyV1 struct {
 }
 
 // TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer, the TON counterpart
-// of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. All pool-supplied fields are
+// of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. The current TVM2Any flow supports a
+// single token transfer, so TVM2AnyRampMessageBody.TokenTransfer is always a one-item
+// SnakedCell[TVM2AnyTokenTransfer]; all pool-supplied fields on that entry are
 // zero/empty when the message carries no token transfer.
 type TVM2AnyTokenTransfer struct {
 	// SourcePoolAddress is the TON pool the OnRamp routed the lockOrBurn to. Trusted:
@@ -97,11 +101,8 @@ type TVM2AnyTokenTransfer struct {
 	// this is addr_none when the message carries no token transfer; callers must treat
 	// nil and address.IsAddrNone() alike.
 	SourcePoolAddress *address.Address `tlb:"addr"`
-	// Amount is the post-fee cross-chain amount reported by the pool. It may differ from
-	// TokenAmounts[0].Amount, which is the pre-fee amount the sender supplied.
+	// Amount is the post-fee cross-chain amount reported by the pool.
 	Amount *big.Int `tlb:"## 256"`
-	// TokenAmounts carries the source-chain amount(s) and the local jetton address.
-	TokenAmounts common.SnakedCell[TokenAmount] `tlb:"^"`
 	// DestTokenAddress is UNTRUSTED: any pool owner can return whatever value they want.
 	DestTokenAddress common.CrossChainAddress `tlb:"^"`
 	// ExtraData is the pool data forwarded to the destination chain

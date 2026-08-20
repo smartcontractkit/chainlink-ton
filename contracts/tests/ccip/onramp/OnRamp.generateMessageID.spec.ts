@@ -181,14 +181,15 @@ describe('OnRamp - generate message id', () => {
         receiver: ccipSend.receiver,
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
-        tokenTransfer: on.TVM2AnyTokenTransfer.create({
-          sourcePoolAddress: senderAddress,
-          amount: 0n,
-          tokenAmounts: ccipSend.tokenAmounts,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
-          extraData: beginCell().endCell(),
-          destExecData: beginCell().endCell(),
-        }),
+        tokenTransfer: [
+          on.TVM2AnyTokenTransfer.create({
+            sourcePoolAddress: senderAddress,
+            amount: 0n,
+            destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
+            extraData: beginCell().endCell(),
+            destExecData: beginCell().endCell(),
+          }),
+        ],
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       }),

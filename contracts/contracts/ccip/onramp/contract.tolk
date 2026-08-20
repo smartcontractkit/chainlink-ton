@@ -372,10 +372,11 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             receiver: ccipsend.receiver.toCell(),
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
+            // The current flow supports a single token transfer, so this is always a
+            // one-item SnakedCell<TVM2AnyTokenTransfer>.
             tokenTransfer: TVM2AnyTokenTransfer {
                 sourcePoolAddress: executorTokenTransfer.sourcePoolAddress,
                 amount: executorTokenTransfer.amount,
-                tokenAmounts: ccipsend.tokenAmounts,
                 destTokenAddress: executorTokenTransfer.destTokenAddress,
                 extraData: executorTokenTransfer.extraData,
                 destExecData: executorTokenTransfer.destExecData,

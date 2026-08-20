@@ -78,7 +78,7 @@ struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
     extraArgs: Cell<ExtraArgs>;
-    tokenTransfer: Cell<TVM2AnyTokenTransfer>;
+    tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>;
     feeToken: address;
     feeTokenAmount: coins;
 }
@@ -87,9 +87,8 @@ struct TVM2AnyRampMessageBody {
 // EVM2AnyTokenTransfer on the other chain families so offchain nodes can build the
 // release/mint on the destination chain.
 //
-// The current flow supports a single token transfer, so this is one struct rather than
-// a list; `tokenAmounts` (the source-chain amount(s) supplied by the sender) is kept
-// alongside it because it is the only place the local jetton address is carried.
+// The current flow supports a single token transfer, so TVM2AnyRampMessageBody.tokenTransfer
+// is always a one-item SnakedCell<TVM2AnyTokenTransfer> rather than a variable-length list.
 // All pool-supplied fields are zero/empty when the message carries no token transfer.
 struct TVM2AnyTokenTransfer {
     // The source pool address on TON. This value is trusted: the OnRamp sets it from the
@@ -98,10 +97,8 @@ struct TVM2AnyTokenTransfer {
     sourcePoolAddress: address?;
     // Cross-chain token amount, always a u256 to match the other chain families. This is
     // the post-fee amount the pool reported (LockOrBurnFinished.destTokenAmount), which
-    // may differ from tokenAmounts[0].amount (the pre-fee amount the sender supplied).
+    // may differ from the pre-fee amount the sender supplied.
     amount: uint256;
-    // Source-chain amount(s) and local jetton address supplied by the sender.
-    tokenAmounts: SnakedCell<TokenAmount>;
     // The address of the destination token, abi encoded in the case of EVM chains.
     // This value is UNTRUSTED as any pool owner can return whatever value they want.
     destTokenAddress: Cell<CrossChainAddress>;

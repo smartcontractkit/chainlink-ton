@@ -146,8 +146,6 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 
 	receiver, err := (common.CrossChainAddress{4, 5, 6}).ToCell()
 	require.NoError(t, err)
-	tokenAmounts, err := common.SnakedCell[TokenAmount]{{Amount: tlb.MustFromTON("1"), Token: addr}}.ToCell()
-	require.NoError(t, err)
 	destTokenAddress, err := (common.CrossChainAddress{1, 2, 3}).ToCell()
 	require.NoError(t, err)
 	extraData := cell.BeginCell().MustStoreUInt(18, 256).EndCell()
@@ -155,7 +153,6 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 	transfer := cell.BeginCell().
 		MustStoreAddr(addr).
 		MustStoreBigUInt(big.NewInt(4242), 256).
-		MustStoreRef(tokenAmounts).
 		MustStoreRef(destTokenAddress).
 		MustStoreRef(extraData).
 		MustStoreRef(destExecData).
@@ -165,12 +162,12 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 	var decoded TVM2AnyRampMessageBody
 	err = tlb.LoadFromCell(&decoded, body.BeginParse())
 	require.NoError(t, err)
-	require.Len(t, decoded.TokenTransfer.TokenAmounts, 1)
-	require.Equal(t, addr.String(), decoded.TokenTransfer.SourcePoolAddress.String())
-	require.Equal(t, big.NewInt(4242), decoded.TokenTransfer.Amount)
-	require.Equal(t, common.CrossChainAddress{1, 2, 3}, decoded.TokenTransfer.DestTokenAddress)
-	require.Equal(t, extraData, decoded.TokenTransfer.ExtraData)
-	require.Equal(t, destExecData, decoded.TokenTransfer.DestExecData)
+	require.Len(t, decoded.TokenTransfer, 1)
+	require.Equal(t, addr.String(), decoded.TokenTransfer[0].SourcePoolAddress.String())
+	require.Equal(t, big.NewInt(4242), decoded.TokenTransfer[0].Amount)
+	require.Equal(t, common.CrossChainAddress{1, 2, 3}, decoded.TokenTransfer[0].DestTokenAddress)
+	require.Equal(t, extraData, decoded.TokenTransfer[0].ExtraData)
+	require.Equal(t, destExecData, decoded.TokenTransfer[0].DestExecData)
 }
 
 // The legacy (pre-wrapper) CCIPMessageSent layout, kept only to decode already-emitted
