@@ -159,9 +159,8 @@ type ExecutorFinishedSuccessfully struct {
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
 	// Pool-supplied token transfer details the OnRamp folds into the emitted
-	// CCIPMessageSent event. Zeroed, with an addr_none SourcePoolAddress, when the
-	// message carries no token transfer.
-	TokenTransfer ExecutorTokenTransfer `tlb:"^"`
+	// CCIPMessageSent event. Nil when the message carries no token transfer.
+	TokenTransfer *ExecutorTokenTransfer `tlb:"maybe ^"`
 }
 
 // ExecutorTokenTransfer mirrors the contract's OnRamp_ExecutorTokenTransfer: the portion
