@@ -101,7 +101,7 @@ fun onInternalMessage(in: InMessage) {
 
 fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
-        message: msg.message,
+        message: msg.message.load(),
     });
 }
 
