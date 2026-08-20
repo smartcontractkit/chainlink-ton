@@ -132,31 +132,26 @@ func (a *TONAccessor) convertCCIPMessageSentV2(
 	body := tonEvent.Message.Body
 
 	// The current TON flow supports a single token transfer, so Body.TokenTransfer is
-	// always a one-item SnakedCell.
-	if len(body.TokenTransfer) != 1 {
-		return nil, fmt.Errorf("expected exactly one token transfer entry, got %d", len(body.TokenTransfer))
+	// empty when the message carries none, or a one-item SnakedCell when it does.
+	if len(body.TokenTransfer) > 1 {
+		return nil, fmt.Errorf("expected at most one token transfer entry, got %d", len(body.TokenTransfer))
 	}
-	transfer := body.TokenTransfer[0]
-	sourcePoolAddress, err := sourcePoolAddressBytes(transfer.SourcePoolAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert source pool address: %w", err)
-	}
-	destTokenAddress := ccipocr3.UnknownAddress(transfer.DestTokenAddress)
-	extraData := cellPayload(transfer.ExtraData)
-	destExecData := cellPayload(transfer.DestExecData)
 
-	// A nil sourcePoolAddress (addr_none on-chain) means the message carries no token
-	// transfer; the single entry's fields are all zero/empty in that case.
 	var tokenAmounts []ccipocr3.RampTokenAmount
-	if sourcePoolAddress != nil {
+	if len(body.TokenTransfer) == 1 {
+		transfer := body.TokenTransfer[0]
+		sourcePoolAddress, err := sourcePoolAddressBytes(transfer.SourcePoolAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert source pool address: %w", err)
+		}
 		// The cross-chain amount is the post-fee amount the pool reported
 		// (LockOrBurnFinished.destTokenAmount)
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 			SourcePoolAddress: sourcePoolAddress,
-			DestTokenAddress:  destTokenAddress,
-			ExtraData:         extraData,
+			DestTokenAddress:  ccipocr3.UnknownAddress(transfer.DestTokenAddress),
+			ExtraData:         cellPayload(transfer.ExtraData),
 			Amount:            ccipocr3.NewBigInt(transfer.Amount),
-			DestExecData:      destExecData,
+			DestExecData:      cellPayload(transfer.DestExecData),
 		})
 	}
 
@@ -214,8 +209,8 @@ func (a *TONAccessor) buildSendRequestedEvent(
 }
 
 // sourcePoolAddressBytes converts the TON source pool address to its raw
-// (workchain + account id) byte form. A none-address means the message carries no token
-// transfer, in which case there is no pool to report.
+// (workchain + account id) byte form. Defensively treats a none-address as absent, even
+// though the OnRamp always sets a real address on the single token-transfer entry.
 func sourcePoolAddressBytes(addr *address.Address) (ccipocr3.UnknownAddress, error) {
 	if addr == nil || addr.IsAddrNone() {
 		return nil, nil

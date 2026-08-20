@@ -150,7 +150,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
         // No token transfer, so there are no pool-supplied details to report.
-        self.exitSuccessfully(msg.fee, emptyExecutorTokenTransfer());
+        self.exitSuccessfully(msg.fee, null);
         return;
      }
 
@@ -299,7 +299,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdra
     self.exitSuccessfully(state.fee, tokenTransfer);
 }
 
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,

@@ -74,13 +74,8 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 			gasLimit: null,
 			allowOutOfOrderExecution: true,
 		} as ExtraArgs).toCell(),
-		tokenTransfer: TVM2AnyTokenTransfer {
-			sourcePoolAddress: null,
-			amount: 0,
-			destTokenAddress: beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>,
-			extraData: createEmptyCell(),
-			destExecData: createEmptyCell(),
-		}.toCell(),
+		// No token transfer.
+		tokenTransfer: createEmptyCell(),
 		feeToken: tokenAddress,
 		feeTokenAmount: 0
 	};

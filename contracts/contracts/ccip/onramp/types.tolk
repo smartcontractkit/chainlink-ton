@@ -88,13 +88,12 @@ struct TVM2AnyRampMessageBody {
 // release/mint on the destination chain.
 //
 // The current flow supports a single token transfer, so TVM2AnyRampMessageBody.tokenTransfer
-// is always a one-item SnakedCell<TVM2AnyTokenTransfer> rather than a variable-length list.
-// All pool-supplied fields are zero/empty when the message carries no token transfer.
+// is a SnakedCell<TVM2AnyTokenTransfer> that is empty when the message carries no token
+// transfer, or holds exactly one entry when it does.
 struct TVM2AnyTokenTransfer {
     // The source pool address on TON. This value is trusted: the OnRamp sets it from the
     // pool it actually routed the lockOrBurn to, so the destination pool can rely on it.
-    // Null when the message carries no token transfer (serialized as addr_none).
-    sourcePoolAddress: address?;
+    sourcePoolAddress: address;
     // Cross-chain token amount, always a u256 to match the other chain families. This is
     // the post-fee amount the pool reported (LockOrBurnFinished.destTokenAmount), which
     // may differ from the pre-fee amount the sender supplied.
@@ -112,9 +111,9 @@ struct TVM2AnyTokenTransfer {
     // calls made by the offRamp. Encoded as a bare 32-bit big-endian integer; see
     // encodeDestExecData.
     //
-    // Must be non-empty whenever tokenAmounts is non-empty: the offchain nodes decode this
-    // field to build the destination-chain token transfer, and an empty value makes message
-    // hashing fail, which drops the merkle root and stalls the lane.
+    // Must be non-empty whenever the message carries a token transfer: the offchain nodes
+    // decode this field to build the destination-chain token transfer, and an empty value
+    // makes message hashing fail, which drops the merkle root and stalls the lane.
     destExecData: cell;
 }
 
@@ -138,23 +137,27 @@ fun encodeDestExecData(destGasAmount: uint32): cell {
 // the OnRamp. Kept in its own cell because these fields plus the executor's own do not
 // fit in a single cell alongside the ramp message.
 struct OnRamp_ExecutorTokenTransfer {
-    // Null when the message carries no token transfer (serialized as addr_none).
-    sourcePoolAddress: address?;
+    sourcePoolAddress: address;
     amount: uint256;
     destTokenAddress: Cell<CrossChainAddress>;
     extraData: cell;
     destExecData: cell;
 }
 
-// A token transfer with every field zeroed, used when a send carries no token transfer.
-fun emptyExecutorTokenTransfer(): Cell<OnRamp_ExecutorTokenTransfer> {
-    return OnRamp_ExecutorTokenTransfer {
-        sourcePoolAddress: null,
-        amount: 0,
-        // An empty CrossChainAddress is a 0-byte length prefix.
-        destTokenAddress: beginCell().storeUint(0, 8).endCell() as Cell<CrossChainAddress>,
-        extraData: createEmptyCell(),
-        destExecData: createEmptyCell(),
+// Builds the outbound TVM2AnyRampMessageBody.tokenTransfer wrapper from the executor's
+// optional pool-supplied details: an empty SnakedCell when the message carries no token
+// transfer (transfer is null), or a one-item SnakedCell when it does.
+fun buildTVM2AnyTokenTransfer(transfer: Cell<OnRamp_ExecutorTokenTransfer>?): SnakedCell<TVM2AnyTokenTransfer> {
+    if (transfer == null) {
+        return createEmptyCell();
+    }
+    val t = transfer!.load();
+    return TVM2AnyTokenTransfer {
+        sourcePoolAddress: t.sourcePoolAddress,
+        amount: t.amount,
+        destTokenAddress: t.destTokenAddress,
+        extraData: t.extraData,
+        destExecData: t.destExecData,
     }.toCell();
 }
 

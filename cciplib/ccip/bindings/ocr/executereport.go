@@ -62,8 +62,9 @@ type TVM2AnyRampMessageBody struct {
 	Receiver  common.CrossChainAddress `tlb:"^"`
 	Data      common.SnakeBytes        `tlb:"^"`
 	ExtraArgs *cell.Cell               `tlb:"^"`
-	// TokenTransfer is always a one-item SnakedCell: the current TVM2Any flow supports a
-	// single token transfer per message.
+	// TokenTransfer is empty when the message carries no token transfer, or a one-item
+	// SnakedCell when it does; the current TVM2Any flow supports a single token transfer
+	// per message.
 	TokenTransfer  common.SnakedCell[TVM2AnyTokenTransfer] `tlb:"^"`
 	FeeToken       *address.Address                        `tlb:"addr"`
 	FeeTokenAmount *tlb.Coins                              `tlb:"."`
@@ -92,14 +93,13 @@ type TVM2AnyRampMessageBodyV1 struct {
 
 // TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer, the TON counterpart
 // of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. The current TVM2Any flow supports a
-// single token transfer, so TVM2AnyRampMessageBody.TokenTransfer is always a one-item
-// SnakedCell[TVM2AnyTokenTransfer]; all pool-supplied fields on that entry are
-// zero/empty when the message carries no token transfer.
+// single token transfer, so TVM2AnyRampMessageBody.TokenTransfer is empty when the
+// message carries no token transfer, or a one-item SnakedCell[TVM2AnyTokenTransfer] when
+// it does.
 type TVM2AnyTokenTransfer struct {
 	// SourcePoolAddress is the TON pool the OnRamp routed the lockOrBurn to. Trusted:
-	// the OnRamp sets it, not the pool. The contract field is an optional address, so
-	// this is addr_none when the message carries no token transfer; callers must treat
-	// nil and address.IsAddrNone() alike.
+	// the OnRamp sets it, not the pool. Only present when the message carries a token
+	// transfer (see TVM2AnyRampMessageBody.TokenTransfer).
 	SourcePoolAddress *address.Address `tlb:"addr"`
 	// Amount is the post-fee cross-chain amount reported by the pool.
 	Amount *big.Int `tlb:"## 256"`

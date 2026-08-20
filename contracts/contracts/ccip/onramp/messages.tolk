@@ -89,9 +89,8 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
     // Pool-supplied token transfer details, forwarded so the OnRamp can include them in
-    // the emitted CCIPMessageSent event. Zeroed, with a null sourcePoolAddress, when the
-    // message carries no token transfer (see emptyExecutorTokenTransfer).
-    tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>
+    // the emitted CCIPMessageSent event. Null when the message carries no token transfer.
+    tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
