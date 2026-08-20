@@ -223,7 +223,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 			c, err := cell.FromBOC(boc)
 			require.NoError(t, err)
 			var report ocr.ExecuteReport
-			err = tlb.LoadFromCell(&report, c.BeginParse())
+			err = tlb.Parse(&report, c)
 			require.NoError(t, err)
 			return report
 		}

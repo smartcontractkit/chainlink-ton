@@ -37,7 +37,7 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 	}
 	if topic == onramp.TopicCCIPMessageSent {
 		var ccipMessageSent onramp.CCIPMessageSent
-		err := tlb.LoadFromCell(&ccipMessageSent, msg.BeginParse())
+		err := tlb.Parse(&ccipMessageSent, msg)
 		if err != nil {
 			return nil, err
 		}

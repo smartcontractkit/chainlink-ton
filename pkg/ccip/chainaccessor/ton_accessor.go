@@ -378,7 +378,11 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 
 	var event onramp.CCIPMessageSent
 	const skipMagic = true // Always skip magic (opcode in msg) when parsing log cells, we only store message body
-	if parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), skipMagic); parseErr != nil {
+	s, err := log.Data.BeginParse()
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin parsing log data cell: %w", err)
+	}
+	if parseErr := tlb.LoadFromCell(&event, s, skipMagic); parseErr != nil {
 		return 0, fmt.Errorf("failed to decode log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), parseErr)
 	}
 

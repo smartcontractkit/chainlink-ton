@@ -112,7 +112,9 @@ func TestHeaderLenSimple(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := tt.createCell()
-			boc := c.ToBOCWithFlags(tt.withCRC)
+			boc := c.ToBOCWithOptions(cell.BOCSerializeOptions{
+				WithCRC32C: tt.withCRC,
+			})
 
 			headerLen, err := HeaderLen(boc)
 			require.NoError(t, err)
@@ -257,7 +259,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 				require.NoError(t, err)
 
 				var execEvent offramp.ExecutionStateChanged
-				err = tlb.LoadFromCell(&execEvent, bocCell.BeginParse(), true)
+				err = tlb.LoadFromCell(&execEvent, bocCell.MustBeginParse(), true)
 				require.NoError(t, err)
 
 				require.Equal(t, tc.expectedSourceChain, execEvent.SourceChainSelector)
@@ -325,7 +327,7 @@ func TestPayloadByteFiltering(t *testing.T) {
 				require.NoError(t, err)
 
 				var msgEvent onramp.CCIPMessageSent
-				err = tlb.LoadFromCell(&msgEvent, bocCell.BeginParse(), true)
+				err = tlb.LoadFromCell(&msgEvent, bocCell.MustBeginParse(), true)
 				require.NoError(t, err)
 
 				require.Equal(t, tc.expectedSeqNum, msgEvent.Message.Header.SequenceNumber)
@@ -350,15 +352,17 @@ func TestBOCHeaderVariability(t *testing.T) {
 	testCases := []struct {
 		name               string
 		createCell         func() *cell.Cell
-		flags              []bool // withCRC, withIndex, withCache
-		expectedHeaderSize int    // exact expected header size (deterministic!)
+		options            cell.BOCSerializeOptions
+		expectedHeaderSize int // exact expected header size (deterministic!)
 	}{
 		{
 			name: "simple_cell_no_crc",
 			createCell: func() *cell.Cell {
 				return cell.BeginCell().MustStoreUInt(0xABCD, 16).EndCell()
 			},
-			flags: []bool{false}, // no CRC
+			options: cell.BOCSerializeOptions{
+				WithCRC32C: false,
+			},
 			// 1 cell, 1 root, cellSizeBytes=1, sizeBytes=1, no index
 			// Formula: 6 + (3×1) + 1 + (1×1) = 11 bytes
 			expectedHeaderSize: 11,
@@ -368,7 +372,9 @@ func TestBOCHeaderVariability(t *testing.T) {
 			createCell: func() *cell.Cell {
 				return cell.BeginCell().MustStoreUInt(0x12345678, 32).EndCell()
 			},
-			flags: []bool{true}, // with CRC
+			options: cell.BOCSerializeOptions{
+				WithCRC32C: true,
+			},
 			// 1 cell, 1 root, cellSizeBytes=1, sizeBytes=1, no index
 			// Formula: 6 + (3×1) + 1 + (1×1) = 11 bytes
 			expectedHeaderSize: 11,
@@ -378,7 +384,10 @@ func TestBOCHeaderVariability(t *testing.T) {
 			createCell: func() *cell.Cell {
 				return cell.BeginCell().MustStoreUInt(0xDEADBEEF, 32).EndCell()
 			},
-			flags: []bool{true, true}, // CRC + index
+			options: cell.BOCSerializeOptions{
+				WithCRC32C: true,
+				WithIndex:  true,
+			},
 			// 1 cell, 1 root, cellSizeBytes=1, sizeBytes=1, WITH index
 			// Formula: 6 + (3×1) + 1 + (1×1) + (1×1) = 12 bytes
 			expectedHeaderSize: 12,
@@ -397,7 +406,9 @@ func TestBOCHeaderVariability(t *testing.T) {
 					MustStoreRef(ref3).
 					EndCell()
 			},
-			flags: []bool{true}, // with CRC
+			options: cell.BOCSerializeOptions{
+				WithCRC32C: true,
+			},
 			// 4 cells total, 1 root, cellSizeBytes=1, sizeBytes=1, no index
 			// Formula: 6 + (3×1) + 1 + (1×1) = 11 bytes
 			expectedHeaderSize: 11,
@@ -412,7 +423,9 @@ func TestBOCHeaderVariability(t *testing.T) {
 				}
 				return cell.BeginCell().MustStoreSlice(data, 800).EndCell()
 			},
-			flags: []bool{true}, // with CRC
+			options: cell.BOCSerializeOptions{
+				WithCRC32C: true,
+			},
 			// 1 cell, 1 root, cellSizeBytes=1, sizeBytes=1, no index
 			// Formula: 6 + (3×1) + 1 + (1×1) = 11 bytes
 			expectedHeaderSize: 11,
@@ -459,7 +472,9 @@ func TestBOCHeaderVariability(t *testing.T) {
 
 				return cells[0]
 			},
-			flags: []bool{true}, // with CRC
+			options: cell.BOCSerializeOptions{
+				WithCRC32C: true,
+			},
 			// ~400 cells total, 1 root, cellSizeBytes=2, sizeBytes=2, no index
 			// Formula: 6 + (3×2) + 2 + (1×2) = 16 bytes
 			expectedHeaderSize: 16,
@@ -471,7 +486,7 @@ func TestBOCHeaderVariability(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testCell := tc.createCell()
-			bocBytes := testCell.ToBOCWithFlags(tc.flags...)
+			bocBytes := testCell.ToBOCWithOptions(tc.options)
 
 			headerLen, err := HeaderLen(bocBytes)
 			require.NoError(t, err)

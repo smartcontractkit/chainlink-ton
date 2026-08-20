@@ -269,7 +269,11 @@ func (d Dict[K, V]) ToCell() (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
-func (d *Dict[K, V]) LoadFromCell(slice *cell.Slice) error {
+func (d *Dict[K, V]) LoadFromCell(cell *cell.Cell) error {
+	slice, err := cell.BeginParse()
+	if err != nil {
+		return fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	if d == nil {
 		return errors.New("invalid nil receiver")
 	}

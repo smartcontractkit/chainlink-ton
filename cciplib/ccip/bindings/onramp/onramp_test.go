@@ -63,7 +63,7 @@ func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded GenericExtraArgsV2
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.Parse(&decoded, c)
 	require.NoError(t, err)
 	require.Equal(t, orig.GasLimit, decoded.GasLimit)
 	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
@@ -94,7 +94,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded SVMExtraArgsV1
-	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
+	err = tlb.Parse(&decoded, cell)
 	require.NoError(t, err)
 	require.Equal(t, orig.ComputeUnits, decoded.ComputeUnits)
 	require.Equal(t, orig.AccountIsWritableBitmap, decoded.AccountIsWritableBitmap)
@@ -132,7 +132,7 @@ func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded SuiExtraArgsV1
-	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
+	err = tlb.Parse(&decoded, cell)
 	require.NoError(t, err)
 	require.Equal(t, orig.GasLimit, decoded.GasLimit)
 	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
@@ -155,7 +155,7 @@ func TestOwnable2Step(t *testing.T) {
 	cell, err := tlb.ToCell(orig)
 	require.NoError(t, err)
 	var decoded ownable2step.Storage
-	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
+	err = tlb.Parse(&decoded, cell)
 	require.NoError(t, err)
 	require.Equal(t, orig.Owner, decoded.Owner)
 	require.Equal(t, orig.PendingOwner, decoded.PendingOwner)
@@ -167,7 +167,7 @@ func TestOwnable2Step(t *testing.T) {
 	}
 	cell, err = tlb.ToCell(orig2)
 	require.NoError(t, err)
-	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
+	err = tlb.Parse(&decoded, cell)
 	require.NoError(t, err)
 	require.Equal(t, orig2.Owner, decoded.Owner)
 	require.Equal(t, orig2.PendingOwner, decoded.PendingOwner)
@@ -196,7 +196,7 @@ func TestDestChainConfig(t *testing.T) {
 	c, err := tlb.ToCell(dc)
 	require.NoError(t, err)
 	var decoded DestChainConfig
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.Parse(&decoded, c)
 	require.NoError(t, err)
 	require.Equal(t, dc.Router, decoded.Router)
 	require.Equal(t, dc.SequenceNumber, decoded.SequenceNumber)
@@ -275,7 +275,7 @@ func TestStorage(t *testing.T) {
 	c, err = tlb.ToCell(s)
 	require.NoError(t, err)
 	var decoded Storage
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.Parse(&decoded, c)
 	require.NoError(t, err)
 	require.Equal(t, s.ID, decoded.ID)
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)

@@ -107,7 +107,7 @@ func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
 
 	skipMagic := true // logpoller skips the opcode
 	var messageSent onramp.CCIPMessageSent
-	err = tlb.LoadFromCell(&messageSent, messageSentCell.BeginParse(), skipMagic)
+	err = tlb.LoadFromCell(&messageSent, messageSentCell.MustBeginParse(), skipMagic)
 	require.NoError(t, err, "failed to decode CCIPMessageSent from BOC")
 
 	// Validate expected values from the TypeScript test
@@ -132,7 +132,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
 				require.NoError(t, err)
 
 				var messageSent onramp.CCIPMessageSent
-				err = tlb.LoadFromCell(&messageSent, bocCell.BeginParse(), true)
+				err = tlb.LoadFromCell(&messageSent, bocCell.MustBeginParse(), true)
 				require.NoError(t, err)
 
 				require.Equal(t, tc.SeqNum, messageSent.Message.Header.SequenceNumber)
@@ -170,7 +170,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Analyze BOC structure - MerkleRoot detection", func(t *testing.T) {
 		// Examine cell data to understand 'maybe' encoding pattern
 		t.Logf("=== MerkleRoot Only BOC Analysis ===")
-		merkleParser := merkleRootOnlyCell.BeginParse()
+		merkleParser := merkleRootOnlyCell.MustBeginParse()
 		t.Logf("BOC Hex: %s", CommitReportAcceptedMerkleRootOnlyBOC)
 		t.Logf("Cell bits remaining: %d", merkleParser.BitsLeft())
 
@@ -187,7 +187,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		}
 
 		t.Logf("=== Price Updates Only BOC Analysis ===")
-		priceParser := priceOnlyCell.BeginParse()
+		priceParser := priceOnlyCell.MustBeginParse()
 		t.Logf("BOC Hex: %s", CommitReportAcceptedPriceOnlyBOC)
 		t.Logf("Cell bits remaining: %d", priceParser.BitsLeft())
 
@@ -204,7 +204,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		}
 
 		t.Logf("=== Both MerkleRoot AND PriceUpdates BOC Analysis ===")
-		bothParser := bothCell.BeginParse()
+		bothParser := bothCell.MustBeginParse()
 		t.Logf("BOC Hex: %s", CommitReportAcceptedBothBOC)
 		t.Logf("Cell bits remaining: %d", bothParser.BitsLeft())
 
@@ -224,7 +224,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Test BOC decoding - Merkle Root only", func(t *testing.T) {
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
-		err = tlb.LoadFromCell(&commitReportAccepted, merkleRootOnlyCell.BeginParse())
+		err = tlb.Parse(&commitReportAccepted, merkleRootOnlyCell)
 		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
 
 		// Validate the decoded data
@@ -247,7 +247,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Test BOC decoding - Price Updates only", func(t *testing.T) {
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
-		err = tlb.LoadFromCell(&commitReportAccepted, priceOnlyCell.BeginParse())
+		err = tlb.Parse(&commitReportAccepted, priceOnlyCell)
 		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
 
 		// Validate the decoded data
@@ -294,7 +294,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
 		// Decode using Go bindings
 		var commitReportAccepted offramp.CommitReportAccepted
-		err = tlb.LoadFromCell(&commitReportAccepted, bothCell.BeginParse())
+		err = tlb.Parse(&commitReportAccepted, bothCell)
 		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
 
 		// Validate the decoded data
@@ -689,7 +689,7 @@ func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
 			require.NoError(t, err, "failed to parse BOC from hex")
 
 			var execEvent offramp.ExecutionStateChanged
-			err = tlb.LoadFromCell(&execEvent, bocCell.BeginParse(), true) // Skip magic for logpoller
+			err = tlb.LoadFromCell(&execEvent, bocCell.MustBeginParse(), true) // Skip magic for logpoller
 			require.NoError(t, err, "failed to decode ExecutionStateChanged from BOC")
 
 			// Validate expected values from the TypeScript test

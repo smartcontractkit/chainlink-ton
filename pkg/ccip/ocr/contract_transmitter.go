@@ -153,7 +153,7 @@ var CommitCallData = func(
 	}
 
 	var commitReport ocr.CommitReport
-	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
+	if err = tlb.Parse(&commitReport, reportCell); err != nil {
 		return nil, fmt.Errorf("cannot decode commit report from cell: %w", err)
 	}
 
@@ -190,7 +190,7 @@ var ExecuteCallData = func(
 
 	// Decode as single ExecuteReport (not array) since TON supports single chain only
 	var executeReport ocr.ExecuteReport
-	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
+	if err = tlb.Parse(&executeReport, reportCell); err != nil {
 		return nil, fmt.Errorf("cannot decode execute report from cell (reportLen=%d, cellBits=%d, cellRefs=%d): %w",
 			len(report.Report), reportCell.BitsSize(), reportCell.RefsNum(), err)
 	}
@@ -241,24 +241,24 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 
 	// Check ExecuteReport first
 	var executeReport ocr.ExecuteReport
-	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err == nil {
+	if err = tlb.Parse(&executeReport, reportCell); err == nil {
 		// This is an execute report
 		messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
 		txID = fmt.Sprintf("seq-%d-msg-%s", seqNr, messageIDHex)
 
 		// Calculate cost: ExecuteCostTON + message gas limit
 		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
-		totalCost, err1 := baseCost.Add(&executeReport.Message.GasLimit)
+		totalCost, err1 := baseCost.Add(executeReport.Message.GasLimit)
 		if err1 != nil {
 			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err1)
 		}
 
-		return txID, totalCost, &executeReport.Message.GasLimit, nil
+		return txID, &totalCost, &executeReport.Message.GasLimit, nil
 	}
 
 	// Not an execute report, try to decode as CommitReport
 	var commitReport ocr.CommitReport
-	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
+	if err = tlb.Parse(&commitReport, reportCell); err != nil {
 		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode as commit report: %w", err)
 	}
 

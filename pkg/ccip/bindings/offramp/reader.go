@@ -44,7 +44,7 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 			}
 
 			var config OCR3Config
-			if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
+			if err = tlb.Parse(&config, configCell); err != nil {
 				return c, fmt.Errorf("load OCR3Config from cell: %w", err)
 			}
 			c.Commit = &config
@@ -62,7 +62,7 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 			}
 
 			var config OCR3Config
-			if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
+			if err = tlb.Parse(&config, configCell); err != nil {
 				return c, fmt.Errorf("load OCR3Config from cell: %w", err)
 			}
 			c.Execute = &config

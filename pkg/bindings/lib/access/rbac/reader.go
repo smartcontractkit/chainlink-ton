@@ -160,7 +160,10 @@ var GetRoleMembers = tvm.Getter[*big.Int, map[*address.Address]bool]{
 			return nil, fmt.Errorf("error getting Cell(0) - getRoleMembers: %w", err)
 		}
 
-		cs := c.BeginParse()
+		cs, err := c.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parsing cell - getRoleMembers: %w", err)
+		}
 		dict, err := cs.LoadDict(267) // address keys use 267 bits
 		if err != nil {
 			return nil, fmt.Errorf("error loading dict - getRoleMembers: %w", err)

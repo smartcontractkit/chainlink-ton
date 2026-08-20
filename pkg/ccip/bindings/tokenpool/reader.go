@@ -343,7 +343,7 @@ var GetTokenTransferFeeConfig = tvm.Getter[uint64, GetTokenTransferFeeConfigResu
 		}
 
 		var cfg TokenTransferFeeConfig
-		if err := tlb.LoadFromCell(&cfg, c.BeginParse()); err != nil {
+		if err := tlb.Parse(&cfg, c); err != nil {
 			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error decoding TokenTransferFeeConfig: %w", err)
 		}
 
@@ -367,7 +367,7 @@ var GetCurrentRateLimiterState = tvm.Getter[GetCurrentRateLimiterStateArgs, Rate
 		}
 
 		var pair RateLimiterPair
-		if err := tlb.LoadFromCell(&pair, c.BeginParse()); err != nil {
+		if err := tlb.Parse(&pair, c); err != nil {
 			return RateLimiterPair{}, fmt.Errorf("error decoding RateLimiterPair: %w", err)
 		}
 
@@ -414,7 +414,7 @@ var GetAdminConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[AdminConfig]{
 		}
 
 		var cfg AdminConfig
-		if err := tlb.LoadFromCell(&cfg, c.BeginParse()); err != nil {
+		if err := tlb.Parse(&cfg, c); err != nil {
 			return AdminConfig{}, fmt.Errorf("error decoding AdminConfig: %w", err)
 		}
 
@@ -434,7 +434,7 @@ var GetMirroredPolicy = tvm.NewNoArgsGetter(tvm.NoArgsOpts[MirroredPolicy]{
 		}
 
 		var mp MirroredPolicy
-		if err := tlb.LoadFromCell(&mp, c.BeginParse()); err != nil {
+		if err := tlb.Parse(&mp, c); err != nil {
 			return MirroredPolicy{}, fmt.Errorf("error decoding MirroredPolicy: %w", err)
 		}
 
@@ -463,7 +463,7 @@ var GetRemoteChainConfig = tvm.Getter[uint64, GetRemoteChainConfigResult]{
 		}
 
 		var cfg RemoteChainConfig
-		if err := tlb.LoadFromCell(&cfg, c.BeginParse()); err != nil {
+		if err := tlb.Parse(&cfg, c); err != nil {
 			return GetRemoteChainConfigResult{}, fmt.Errorf("error decoding RemoteChainConfig: %w", err)
 		}
 
@@ -488,7 +488,10 @@ func loadCrossChainAddressFromCell(c *cell.Cell) (common.CrossChainAddress, erro
 		return nil, errors.New("nil cell")
 	}
 
-	cs := c.BeginParse()
+	cs, err := c.BeginParse()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+	}
 	return common.LoadCrossChainAddressWithoutPrefix(cs)
 }
 

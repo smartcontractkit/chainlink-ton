@@ -221,7 +221,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 		}
 
 		var gas feequoter.USDPerUnitGas
-		if err3 := tlb.LoadFromCell(&gas, dcc.USDPerUnitGasRef.BeginParse()); err3 != nil {
+		if err3 := tlb.Parse(&gas, dcc.USDPerUnitGasRef); err3 != nil {
 			return fmt.Errorf("error while decoding USDPerUnitGas from DestChainConfigs: %w", err3)
 		}
 
