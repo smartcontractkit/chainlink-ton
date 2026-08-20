@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import * as rec from '../../../wrappers/libraries/Receiver'
+import * as rec from '../../../wrappers/gen/ccip/Receiver'
 import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -75,7 +75,7 @@ describe('Router', () => {
       to: receiver.address,
       success: true,
       value: toNano('0.5'),
-      op: rec.opcodes.in.ccipReceive,
+      op: rec.Receiver_CCIPReceive.PREFIX,
     })
   })
 

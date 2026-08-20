@@ -8,12 +8,15 @@ import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
 import { MerkleRoot } from './ccip/MerkleRoot';
 
+import { CCIPReceiver } from './ccip/Receiver';
+
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
 
 import { TestMsgHasher } from './test/TestMsgHasher'
+import { TestReceiver } from './ccip/TestReceiver';
 
 import * as CrossChainAddressCodec from '../ccip/common/CrossChainAddressCodec'
 
@@ -27,6 +30,7 @@ export function setupGenBindings() {
       FeeQuoter,
       Router,
       MerkleRoot,
+      CCIPReceiver
     ]
 
     const TokenPools = [
@@ -38,6 +42,7 @@ export function setupGenBindings() {
 
     const TestContracts = [
       TestMsgHasher,
+      TestReceiver,
     ]
 
     for (const wrapper of [

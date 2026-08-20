@@ -51,13 +51,13 @@ fun onInternalMessage(in: InMessage) {
 
             // 3. Process the message according to your product logic
             match (st.behavior) {
-                TestReceiverBehavior.Accept => {
+                TestReceiver_Behavior.Accept => {
                     processAccept(msg, in.senderAddress)
                 },
-                TestReceiverBehavior.RejectAll => {
+                TestReceiver_Behavior.RejectAll => {
                     processRejectAll()
                 },
-                TestReceiverBehavior.ConsumeAllGas => {
+                TestReceiver_Behavior.ConsumeAllGas => {
                     processConsumeAllGas()
                 }
             }
