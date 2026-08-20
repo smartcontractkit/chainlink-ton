@@ -21,8 +21,7 @@ type OffRamp_InMessage =
     | OffRamp_Commit
     | OffRamp_Execute
     | OffRamp_ExecuteValidated
-    // TODO support OffRamp_ManuallyExecute
-    | OffRamp_ManuallyExecute_V2
+    | OffRamp_ManuallyExecute
     | OffRamp_DispatchValidated
     | OffRamp_ReleaseOrMint
     | OffRamp_UpdateSourceChainConfigs
@@ -64,8 +63,7 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     executionState: ExecutionState;
 }
 
-// `OffRamp_ManuallyExecute_V2` is a variant of the previous `OffRamp_ManuallyExecute` that adds token transfer support in CCIP 1.6
-struct (0xfef433bd) OffRamp_ManuallyExecute_V2 {
+struct (0xa00785cf) OffRamp_ManuallyExecute {
     queryId: uint64;
     report: ExecutionReport;
     gasOverride: GasOverride;

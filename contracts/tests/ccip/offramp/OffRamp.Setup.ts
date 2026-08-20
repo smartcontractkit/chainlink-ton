@@ -535,7 +535,7 @@ export class OffRampTestSetup {
       | undefined = undefined,
     expectSuccess = true,
   ) {
-    const result = await this.offRamp.sendOffRampManuallyExecuteV2(
+    const result = await this.offRamp.sendOffRampManuallyExecute(
       this.transmitters[0].getSender(),
       toNano('0.5'),
       {

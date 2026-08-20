@@ -78,7 +78,7 @@ fun onInternalMessage(in:InMessage) {
             onReleaseOrMint(in.senderAddress, msg)
         }
         // Permissionless
-        OffRamp_ManuallyExecute_V2 => {
+        OffRamp_ManuallyExecute => {
             onManuallyExecute(msg, in.valueCoins)
         }
         // Sender must be owner
@@ -665,9 +665,9 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 //     participant OffRamp
 //     participant MerkleRoot
 
-//     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute_V2
+//     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onManuallyExecute(msg: OffRamp_ManuallyExecute_V2, value: coins) {
+fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
     onExecuteSingleReport(msg.report, msg.gasOverride, value);
 }
 
