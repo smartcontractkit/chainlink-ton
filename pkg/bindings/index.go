@@ -56,7 +56,8 @@ const (
 	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
 
 	// Token Pools
-	TypeLockReleaseTokenPool tvm.FullyQualifiedName = PkgCCIP + ".pools.LockReleaseTokenPool"
+	TypeLockReleaseTokenPool        tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseTokenPool"
+	TypeLockReleaseLockboxTokenPool tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseLockboxTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -67,19 +68,20 @@ const (
 // These are used in types.Transaction.ContractType and the CLD datastore.
 // They must match the ds.ContractType values defined in deployment/state/.
 const (
-	ShortRouter               = "Router"
-	ShortFeeQuoter            = "FeeQuoter"
-	ShortOnRamp               = "OnRamp"
-	ShortOffRamp              = "OffRamp"
-	ShortSendExecutor         = "SendExecutor"
-	ShortDeployer             = "Deployer"
-	ShortMerkleRoot           = "MerkleRoot"
-	ShortReceiveExecutor      = "ReceiveExecutor"
-	ShortReceiver             = "Receiver"
-	ShortTimelock             = "RBACTimelock"
-	ShortMCMS                 = "MCMS"
-	ShortTokenRegistry        = "TokenAdminRegistry"
-	ShortLockReleaseTokenPool = "LockReleaseTokenPool"
+	ShortRouter                      = "Router"
+	ShortFeeQuoter                   = "FeeQuoter"
+	ShortOnRamp                      = "OnRamp"
+	ShortOffRamp                     = "OffRamp"
+	ShortSendExecutor                = "SendExecutor"
+	ShortDeployer                    = "Deployer"
+	ShortMerkleRoot                  = "MerkleRoot"
+	ShortReceiveExecutor             = "ReceiveExecutor"
+	ShortReceiver                    = "Receiver"
+	ShortTimelock                    = "RBACTimelock"
+	ShortMCMS                        = "MCMS"
+	ShortTokenRegistry               = "TokenAdminRegistry"
+	ShortLockReleaseTokenPool        = "LockReleaseTokenPool"
+	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
@@ -107,6 +109,7 @@ var AllContractTypes = []struct {
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
 	{ShortLockReleaseTokenPool, TypeLockReleaseTokenPool},
+	{ShortLockReleaseLockboxTokenPool, TypeLockReleaseLockboxTokenPool},
 	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},

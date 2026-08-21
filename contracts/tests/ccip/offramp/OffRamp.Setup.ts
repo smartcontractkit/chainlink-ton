@@ -33,6 +33,7 @@ import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as tr from '../../../wrappers/examples/Receiver'
 import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
@@ -902,7 +903,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          pendingReleases: new Map(),
+          offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
         },
         { overrideContractCode: this.code.tokenPool },
       ),
@@ -1013,14 +1014,21 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   /**
    * Gets the balance of the given token for the given address
    */
-  async getTokenBalance(opt: { address?: Address; token?: Address } = {}): Promise<bigint> {
+  async getTokenBalance(
+    opt: { receiver?: Address; token?: { minterAddress: Address; tokenPool: Address } } = {},
+  ): Promise<bigint> {
+    const depositAccount = da.DepositAccount.fromStorage({
+      owner: opt.token?.tokenPool ?? this.tokenPool.address,
+      proxy: opt.token?.tokenPool ?? this.tokenPool.address,
+      beneficiaries: new Set([opt.receiver ?? this.receiver.address]),
+    })
     const wallet = this.blockchain.openContract(
       JettonWallet.fromStorage(
         {
           status: 0n,
           jettonBalance: 0n,
-          ownerAddress: opt.address ?? this.receiver.address,
-          minterAddress: opt.token ?? this.token,
+          ownerAddress: depositAccount.address,
+          minterAddress: opt.token?.minterAddress ?? this.token,
         },
         { overrideContractCode: this.code.jettonWallet },
       ),

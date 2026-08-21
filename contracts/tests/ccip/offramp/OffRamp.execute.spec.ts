@@ -1853,7 +1853,7 @@ describe('OffRamp - Execute', () => {
       )
 
       // Verify the receiver actually received the tokens.
-      expect(await setup.getTokenBalance({ address: stranger.address })).toEqual(
+      expect(await setup.getTokenBalance({ receiver: stranger.address })).toEqual(
         setup.DEFAULT_TOKEN_AMOUNT,
       )
       // TODO: when escrow account is integrated
