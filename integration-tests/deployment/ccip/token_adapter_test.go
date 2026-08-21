@@ -96,7 +96,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 			Qualifier:     tokenRef.Qualifier,
 		},
 		TokenPoolQualifier: "test-pool",
-		PoolType:           bindings.ShortMockTokenPool,
+		PoolType:           bindings.ShortLockReleaseTokenPool,
 		TokenPoolVersion:   semver.MustParse("1.6.0"),
 		ChainSelector:      tonSelector,
 		ExistingDataStore:  env.DataStore,
@@ -105,7 +105,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 	require.Len(t, poolOut.Output.Addresses, 1)
 
 	poolRef := poolOut.Output.Addresses[0]
-	require.Equal(t, datastore.ContractType(bindings.ShortMockTokenPool), poolRef.Type)
+	require.Equal(t, datastore.ContractType(bindings.ShortLockReleaseTokenPool), poolRef.Type)
 	require.Equal(t, "test-pool", poolRef.Qualifier)
 
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
@@ -171,7 +171,7 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 			Qualifier:     tokenRef.Qualifier,
 		},
 		TokenPoolQualifier: "test-pool",
-		PoolType:           bindings.ShortMockTokenPool,
+		PoolType:           bindings.ShortLockReleaseTokenPool,
 		TokenPoolVersion:   semver.MustParse("1.6.0"),
 		ChainSelector:      tonSelector,
 		ExistingDataStore:  env.DataStore,
