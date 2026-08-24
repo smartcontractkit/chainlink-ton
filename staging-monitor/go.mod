@@ -17,7 +17,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
 	github.com/smartcontractkit/chainlink-deployments-framework v0.105.0
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260710204427-f53ee44a1088
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260714130443-bb3cf7801e11
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260820224955-011a846f2fb8
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
 	github.com/xssnick/tonutils-go v1.14.1
 )
