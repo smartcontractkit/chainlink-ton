@@ -11,6 +11,33 @@ import EVM_ADDRESS from '../../utils/evmAddress'
 import { MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 
 /**
+ * Creates a test CCIP message with no token transfers.
+ */
+export function createTestMessage(
+  opts: {
+    receiver?: Address
+    data?: Cell
+  } = {},
+): of.Any2TVMRampMessage {
+  return of.Any2TVMRampMessage.create({
+    header: of.RampMessageHeader.create({
+      messageId: generateRandomContractId(),
+      sourceChainSelector: 0n,
+      destChainSelector: 0n,
+      sequenceNumber: 0n,
+      nonce: 0n,
+    }),
+    sender: EVM_ADDRESS,
+    data: opts.data ?? Cell.EMPTY,
+    receiver:
+      opts.receiver ??
+      Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000'),
+    gasLimit: 0n,
+    tokenAmounts: null,
+  })
+}
+
+/**
  * Creates a test CCIP message with a single token transfer.
  */
 export function createTestMessageWithToken(

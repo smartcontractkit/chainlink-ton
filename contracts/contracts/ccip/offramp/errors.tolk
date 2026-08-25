@@ -21,4 +21,5 @@ enum OffRamp_Error {
     EmptyCommitReport
     MerkleRootCannotBeZero
     UnsupportedNumberOfTokens
+    ManualExecutionGasAmountCountMismatch
 }
