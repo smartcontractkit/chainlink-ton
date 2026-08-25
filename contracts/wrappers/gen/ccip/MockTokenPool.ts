@@ -770,13 +770,13 @@ export const TokenPool_DeployableCodeSet = {
 /**
  > struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
  >     queryId: uint64
- >     allowedDepositNamespaces: map<uint32, bool>
+ >     allowedDepositNamespaces: map<uint32, ()>
  > }
  */
 export interface TokenPool_SetAllowedDepositNamespaces {
     readonly $: 'TokenPool_SetAllowedDepositNamespaces'
     queryId: uint64
-    allowedDepositNamespaces: Map<uint32, boolean>
+    allowedDepositNamespaces: Set<uint32>
 }
 
 export const TokenPool_SetAllowedDepositNamespaces = {
@@ -784,7 +784,7 @@ export const TokenPool_SetAllowedDepositNamespaces = {
 
     create(args: {
         queryId?: uint64
-        allowedDepositNamespaces: Map<uint32, boolean>
+        allowedDepositNamespaces: Set<uint32>
     }): TokenPool_SetAllowedDepositNamespaces {
         return {
             $: 'TokenPool_SetAllowedDepositNamespaces',
@@ -797,13 +797,22 @@ export const TokenPool_SetAllowedDepositNamespaces = {
         return {
             $: 'TokenPool_SetAllowedDepositNamespaces',
             queryId: s.loadUintBig(64),
-            allowedDepositNamespaces: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
+            allowedDepositNamespaces: dictToSet(c.Dictionary.load<uint32, []>(c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: TokenPool_SetAllowedDepositNamespaces, b: c.Builder): void {
         b.storeUint(0x84384142, 32);
         b.storeUint(self.queryId, 64);
-        b.storeDict<uint32, boolean>(mapToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
+        b.storeDict<uint32, []>(setToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
     },
     toCell(self: TokenPool_SetAllowedDepositNamespaces): c.Cell {
         return makeCellFrom<TokenPool_SetAllowedDepositNamespaces>(self, TokenPool_SetAllowedDepositNamespaces.store);
@@ -2933,7 +2942,7 @@ export const CursedSubjects = {
  >     router: address
  >     rateLimitAdmin: address?
  >     feeAdmin: address?
- >     allowedDepositNamespaces: map<uint32, bool>
+ >     allowedDepositNamespaces: map<uint32, ()>
  > }
  */
 export interface TokenPool_DynamicConfig {
@@ -2941,7 +2950,7 @@ export interface TokenPool_DynamicConfig {
     router: c.Address
     rateLimitAdmin: c.Address | null /* = null */
     feeAdmin: c.Address | null
-    allowedDepositNamespaces: Map<uint32, boolean> /* = [] as map<uint32, bool> */
+    allowedDepositNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
 }
 
 export const TokenPool_DynamicConfig = {
@@ -2949,7 +2958,7 @@ export const TokenPool_DynamicConfig = {
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin: c.Address | null
-        allowedDepositNamespaces: Map<uint32, boolean> /* = [] as map<uint32, bool> */
+        allowedDepositNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }): TokenPool_DynamicConfig {
         return {
             $: 'TokenPool_DynamicConfig',
@@ -2963,14 +2972,23 @@ export const TokenPool_DynamicConfig = {
             router: s.loadAddress(),
             rateLimitAdmin: s.loadMaybeAddress(),
             feeAdmin: s.loadMaybeAddress(),
-            allowedDepositNamespaces: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
+            allowedDepositNamespaces: dictToSet(c.Dictionary.load<uint32, []>(c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: TokenPool_DynamicConfig, b: c.Builder): void {
         b.storeAddress(self.router);
         b.storeAddress(self.rateLimitAdmin);
         b.storeAddress(self.feeAdmin);
-        b.storeDict<uint32, boolean>(mapToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
+        b.storeDict<uint32, []>(setToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
     },
     toCell(self: TokenPool_DynamicConfig): c.Cell {
         return makeCellFrom<TokenPool_DynamicConfig>(self, TokenPool_DynamicConfig.store);
@@ -4839,7 +4857,7 @@ export class MockTokenPool implements c.Contract {
 
     static createCellOfTokenPoolSetAllowedDepositNamespaces(body: {
         queryId?: uint64
-        allowedDepositNamespaces: Map<uint32, boolean>
+        allowedDepositNamespaces: Set<uint32>
     }) {
         return TokenPool_SetAllowedDepositNamespaces.toCell(TokenPool_SetAllowedDepositNamespaces.create(body));
     }
@@ -5111,7 +5129,7 @@ export class MockTokenPool implements c.Contract {
 
     async sendTokenPoolSetAllowedDepositNamespaces(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        allowedDepositNamespaces: Map<uint32, boolean>
+        allowedDepositNamespaces: Set<uint32>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

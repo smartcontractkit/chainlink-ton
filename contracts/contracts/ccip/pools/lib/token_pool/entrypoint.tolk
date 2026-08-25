@@ -460,7 +460,7 @@ fun TokenPool<T>.setAllowedDepositNamespaces(
     mutate self,
     sender: address,
     queryId: uint64,
-    allowedDepositNamespaces: map<uint32, bool>,
+    allowedDepositNamespaces: map<uint32, ()>,
 ) {
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);

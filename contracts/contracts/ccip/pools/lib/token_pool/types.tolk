@@ -30,7 +30,7 @@ struct TokenPool_DynamicConfig {
     /// @dev This field is part of dynamic config so it can be updated without redeploying the
     ///      pool. Only namespaces whose deployable code is registered (see `TokenPool_AdminConfig`)
     ///      are meaningful.
-    allowedDepositNamespaces: map<uint32, bool> = [];
+    allowedDepositNamespaces: map<uint32, ()> = [];
 }
 
 struct TokenPool_LocalPolicy {
