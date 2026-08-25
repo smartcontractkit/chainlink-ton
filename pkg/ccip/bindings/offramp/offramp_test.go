@@ -110,18 +110,19 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	dummyCell, err := common.NewDummyCell()
 	require.NoError(t, err)
 	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	destGasAmount := tlb.MustFromTON("1000")
 	tokenAmountsSlice := []ocr.Any2TVMTokenTransfer{
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(20),
 		},

@@ -84,7 +84,8 @@ struct SourceChainConfigUpdate {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
-    receiverExecutionGasLimit: coins?;
+    // Gas limit to use for the message execution
+    effectiveGasLimit: coins;
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
@@ -129,8 +130,13 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
     queryId: uint64
     execId: ReceiveExecutorId
     tokenPool: address
+    destGasAmount: coins
     requestedFinalityConfig: uint32
     request: Cell<TokenPool_ReleaseOrMintInV1>
+}
+
+fun OffRamp_ReleaseOrMint.cost(): coins {
+    return ton("0.02"); // TODO
 }
 
 struct OffRamp_Costs{}

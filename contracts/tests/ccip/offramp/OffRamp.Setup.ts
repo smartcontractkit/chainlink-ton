@@ -35,6 +35,7 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
+import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 
 export async function deployOffRampContract(
   blockchain: Blockchain,
@@ -125,6 +126,8 @@ export class OffRampTestSetup {
   public offRamp: SandboxContract<of.OffRamp> = null as any
   public router: SandboxContract<rt.Router> = null as any
   public receiver: SandboxContract<tr.Receiver> = null as any
+
+  public readonly DEFAULT_GAS_LIMIT = toNano('0.03')
 
   constructor(
     public readonly blockchain: Blockchain,
@@ -345,7 +348,7 @@ export class OffRampTestSetup {
       sender: EVM_SENDER_ADDRESS_TEST,
       data: data,
       receiver: receiverAddress,
-      gasLimit: toNano('0.03'), // 200_000_000 nanotons
+      gasLimit: this.DEFAULT_GAS_LIMIT,
       tokenAmounts: null,
     })
   }
@@ -506,9 +509,16 @@ export class OffRampTestSetup {
 
   // Helper to test execute report flow
   async executeReport(report: of.ExecutionReport, sequenceBytes = 0x02, expectSuccess = true) {
+    let totalGas = EXECUTE_COST
+    try {
+      const msg = of.Any2TVMRampMessage.fromSlice(report.messages.asSlice())
+      totalGas += msg.gasLimit
+    } catch {
+      // Probably an empty report
+    }
     const result = await this.offRamp.sendOffRampExecute(
       this.transmitters[0].getSender(),
-      toNano('0.2'),
+      totalGas,
       {
         reportContext: of.ReportContext.create({
           configDigest: this.configDigest,
@@ -530,19 +540,28 @@ export class OffRampTestSetup {
     gasOverride:
       | {
           receiverExecutionGasLimit?: bigint
-          // TODO TTGasOverride?: tokenGasOverrides: array<coins>;
+          tokenGasOverrides?: bigint[]
         }
       | undefined = undefined,
     expectSuccess = true,
   ) {
+    const msg = of.Any2TVMRampMessage.fromSlice(report.messages.asSlice())
+    const gasOverride_ = of.GasOverride.create({ ...gasOverride })
+    let totalGas = max(msg.gasLimit, gasOverride_?.receiverExecutionGasLimit ?? 0n)
+    if (msg.tokenAmounts != null) {
+      totalGas += msg.tokenAmounts
+        .map((ta: of.Any2TVMTokenTransfer) => ta.destGasAmount)
+        .map((destGas: bigint, i) =>
+          max(destGas, gasOverride_.tokenGasOverrides ? gasOverride_.tokenGasOverrides[i] : 0n),
+        )
+        .reduce((a: bigint, b: bigint) => a + b, 0n)
+    }
     const result = await this.offRamp.sendOffRampManuallyExecute(
       this.transmitters[0].getSender(),
-      toNano('0.5'),
+      totalGas + EXECUTE_COST,
       {
         report,
-        gasOverride: of.GasOverride.create({
-          ...gasOverride,
-        }),
+        gasOverride: gasOverride_,
       },
     )
 
@@ -909,7 +928,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         sourcePoolAddress:
           opts.sourcePoolAddress ?? CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool')),
         token: opts.token ?? this.token,
-        destGasAmount: opts.destGasAmount ?? 0n,
+        destGasAmount: opts.destGasAmount ?? MIN_TT_GASLIMIT,
         extraData: opts.extraData ?? null,
         amount: opts.amount ?? this.DEFAULT_TOKEN_AMOUNT,
       }),
@@ -1007,4 +1026,8 @@ export function generateMerkleRootBytes(
 // Helper to build CursedSubjects from an array of subject IDs
 export function buildCursedSubjects(subjects: Set<bigint>): of.CursedSubjects {
   return of.CursedSubjects.create({ data: subjects })
+}
+
+function max(a: bigint, b: bigint): bigint {
+  return a > b ? a : b
 }

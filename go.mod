@@ -2,6 +2,8 @@ module github.com/smartcontractkit/chainlink-ton
 
 go 1.26.2
 
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/TyphonHill/go-mermaid v1.0.0

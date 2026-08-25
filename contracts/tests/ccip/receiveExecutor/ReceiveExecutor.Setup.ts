@@ -8,6 +8,7 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import EVM_ADDRESS from '../../utils/evmAddress'
+import { MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 
 /**
  * Creates a test CCIP message with a single token transfer.
@@ -44,7 +45,7 @@ export function createTestMessageWithToken(
         token:
           opts.token ??
           Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000'),
-        destGasAmount: opts.destGasAmount ?? 0n,
+        destGasAmount: opts.destGasAmount ?? MIN_TT_GASLIMIT,
         extraData: opts.extraData ?? null,
         amount: opts.amount ?? 1000n,
       }),

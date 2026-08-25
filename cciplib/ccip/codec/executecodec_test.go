@@ -171,10 +171,11 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		// and tlb.LoadBigInt interprets it as signed two's complement)
 		negativeAmount := big.NewInt(-1)
 
+		destGasAmount := tlb.FromNanoTONU(uint64(1000))
 		tokenTransfer := ocr.Any2TVMTokenTransfer{
 			SourcePoolAddress: common.CrossChainAddress("test-pool"),
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         extraDataCell,
 			Amount:            negativeAmount,
 		}

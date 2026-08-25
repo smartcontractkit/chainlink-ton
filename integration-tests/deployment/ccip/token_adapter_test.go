@@ -6,9 +6,10 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"

@@ -17,26 +17,8 @@ struct ExecutionReport {
 
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;
-    // TODO TTGasOverride: tokenGasOverrides: array<coins>?;
+    tokenGasOverrides: SnakedCell<coins>? = null
 }
-
-// getEffectiveGasLimit returns the gas limit to use for the receiver execution
-// If the gasOverride is null, it returns the gasLimit passed in.
-fun getEffectiveGasLimit(receiverExecutionGasLimit: coins?, gasLimit: coins): coins {
-    if (receiverExecutionGasLimit != null && receiverExecutionGasLimit >= gasLimit) {
-        gasLimit = receiverExecutionGasLimit;
-    }
-    return gasLimit;
-}
-
-fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
-    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
-        return self.receiverExecutionGasLimit;
-    }
-    return gasLimit;
-}
-
-
 
 // Matches the EVM struct
 struct CommitReport {
@@ -89,13 +71,24 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
-// Helper to extract the single token transfer from the message, and assert that there is only one token transfer
-fun SnakedCell<Any2TVMTokenTransfer>.getTokenTransfer(self, error: int): Any2TVMTokenTransfer {
+// Helper to extract the single item from a SnakedCell, and assert that there is only one
+fun SnakedCell<T>.asSingle(self): T? {
     var it = self.iter();
-    assert (!it.empty(), error);
+    if (it.empty()) {
+        return null;
+    }
     val token = it.next();
-    assert (it.empty(), error);
+    if (!it.empty()) {
+        return null;
+    }
     return token
+}
+
+fun T?.unwrap(self, error: int): T {
+    if (self == null) {
+        throw error;
+    }
+    return self;
 }
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
@@ -144,7 +137,7 @@ struct MerkleRoot {
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
     token: address;
-    destGasAmount: uint32; // TBD: This field was removed in CCIP 2.0 and it's purpose/utility in TON is unclear.
+    destGasAmount: coins;
     // Data from the source pool to be passed to the destination pool.
     extraData: cell?;
     // amount of transfered tokens in source chain decimals

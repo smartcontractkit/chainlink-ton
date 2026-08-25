@@ -486,7 +486,7 @@ export const Any2TVMRampMessage = {
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
  >     token: address
- >     destGasAmount: uint32
+ >     destGasAmount: coins
  >     extraData: cell?
  >     amount: uint256
  > }
@@ -495,7 +495,7 @@ export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
     sourcePoolAddress: CrossChainAddress
     token: c.Address
-    destGasAmount: uint32
+    destGasAmount: coins
     extraData: c.Cell | null
     amount: uint256
 }
@@ -504,7 +504,7 @@ export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
         token: c.Address
-        destGasAmount: uint32
+        destGasAmount: coins
         extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
@@ -518,7 +518,7 @@ export const Any2TVMTokenTransfer = {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             token: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
+            destGasAmount: s.loadCoins(),
             extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
@@ -526,7 +526,7 @@ export const Any2TVMTokenTransfer = {
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
         b.storeAddress(self.token);
-        b.storeUint(self.destGasAmount, 32);
+        b.storeCoins(self.destGasAmount);
         storeTolkNullable<c.Cell>(self.extraData, b,
             (v,b) => b.storeRef(v)
         );

@@ -11,7 +11,8 @@ struct ReceiveExecutor_Storage {
         // tokenTransfer is initialized it in the handler `onInitExecute` if it is null.
         tokenTransfer: null,
         messageExecution: ReceiveExecutor_MessageExecutionState.Untouched,
-        gasOverride: null,
+        // effectiveGasLimit is initialized it in `onInitExecute`.
+        effectiveGasLimit: 0,
     };
     lastExecutionTimestamp: uint64 = 0;
 }

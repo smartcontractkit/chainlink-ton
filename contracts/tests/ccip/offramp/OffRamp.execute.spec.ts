@@ -1,5 +1,6 @@
 import { Cell, toNano, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
+import { findTransaction } from '@ton/test-utils'
 
 import { generateMockTonAddress, asSnakedCell } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
@@ -7,6 +8,7 @@ import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHel
 import { assertLog } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID from '../../../src/offramp/generateMessageID'
+import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -23,6 +25,7 @@ import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
 import { OffRampWithTokenPoolTestSetup } from './OffRamp.Setup'
+import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Execute', () => {
@@ -489,7 +492,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         success: true,
-        op: rx.ReceiveExecutor_Bounced.PREFIX,
+        op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
       })
 
       assertLog(
@@ -709,7 +712,7 @@ describe('OffRamp - Execute', () => {
         {
           message,
           execId: execId,
-          receiverExecutionGasLimit: null,
+          effectiveGasLimit: setup.DEFAULT_GAS_LIMIT,
         },
       )
 
@@ -719,6 +722,69 @@ describe('OffRamp - Execute', () => {
         success: false,
         exitCode: of.OffRamp.Errors['OffRamp_Error.MessageNotFromOwnedContract'],
       })
+    })
+
+    it('should preserve OffRamp balance through onExecuteSingleReport and onExecuteValidated', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      const { root } = await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      const body = of.OffRamp.createCellOfOffRampExecute({
+        reportContext: of.ReportContext.create({
+          configDigest: setup.configDigest,
+          sequenceBytes: 0x02n,
+        }),
+        report,
+      })
+
+      const txs = await sendMessageAsync(blockchain, setup.transmitters[0].address, {
+        to: setup.offRamp.address,
+        value: EXECUTE_COST + message.gasLimit,
+        body,
+      })
+
+      const { transactions, accountSnapshots } = await captureAccountChanges(blockchain, txs, [
+        setup.offRamp.address,
+      ])
+
+      // Sanity: happy path executed end-to-end.
+      expect(transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      // Handler 1: onExecuteSingleReport — triggered by OffRamp_Execute from the transmitter.
+      const executeTX = findTransaction(transactions, {
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        success: true,
+        op: of.OffRamp_Execute.PREFIX,
+      })
+      if (!executeTX) throw new Error('OffRamp_Execute transaction not found')
+      const executeSnap = accountSnapshots.get(executeTX.lt)
+      if (!executeSnap) throw new Error('OffRamp snapshot missing for OffRamp_Execute tx')
+
+      expect(executeSnap.before.balance).toBeGreaterThan(0n)
+      // CARRY_ALL_REMAINING_MESSAGE_VALUE keeps the OffRamp's reserve.
+      expect(executeSnap.before.balance).toEqual(executeSnap.after.balance)
+
+      // Handler 2: onExecuteValidated — triggered by MerkleRoot forwarding OffRamp_ExecuteValidated.
+      const merkleRootAddress = setup.merkleRootAddress(root)
+      const validatedTX = findTransaction(transactions, {
+        from: merkleRootAddress,
+        to: setup.offRamp.address,
+        success: true,
+        op: of.OffRamp_ExecuteValidated.PREFIX,
+      })
+      if (!validatedTX) throw new Error('OffRamp_ExecuteValidated transaction not found')
+      const validatedSnap = accountSnapshots.get(validatedTX.lt)
+      if (!validatedSnap)
+        throw new Error('OffRamp snapshot missing for OffRamp_ExecuteValidated tx')
+
+      expect(validatedSnap.before.balance).toBeGreaterThan(0n)
+      // reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE) + CARRY_ALL_BALANCE keeps the OffRamp's original balance intact.
+      expect(validatedSnap.before.balance).toEqual(validatedSnap.after.balance)
     })
   })
 
@@ -1873,7 +1939,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         to: setup.receiveExecutorAddress(message),
-        op: of.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
+        op: of.ReceiveExecutor_ReleaseOrMintFailed.PREFIX,
         success: true,
       })
 
@@ -2105,7 +2171,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         to: setup.receiveExecutorAddress(message),
-        op: of.ReleaseOrMint_ReleaseOrMintBounced.PREFIX,
+        op: of.ReceiveExecutor_ReleaseOrMintFailed.PREFIX,
         success: true,
       })
 
@@ -2185,6 +2251,196 @@ describe('OffRamp - Execute', () => {
 
       // TODO after we connect to a real token pool
       // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    // --- gasOverride validation ---
+
+    it('fails manual execute when token gas override count does not match token transfers', async () => {
+      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const message = setup.createTestMessageWithToken({ data })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // First execution: make the receiver reject so the message ends in Failure.
+      await setup.receiver.sendUpdateBehavior(setup.deployer.getSender(), toNano('0.1'), {
+        behavior: tr.ReceiverBehavior.RejectAll,
+      })
+      await setup.executeReport(report)
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // Manual execute with a gasOverride that has an empty tokenGasOverrides array
+      // while the message has a token transfer. The OffRamp should mark the
+      // message as failed because the count doesn't match.
+      const gasOverride = of.GasOverride.create({
+        receiverExecutionGasLimit: toNano('0.05'),
+        tokenGasOverrides: [], // mismatch: message has 1 token transfer
+      })
+      const result = await setup.offRamp.sendOffRampManuallyExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.5'),
+        {
+          report,
+          gasOverride,
+        },
+      )
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails manual execute when token gas override is provided but message has no token transfer', async () => {
+      // A plain message with no token transfer.
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // First execution: make the receiver reject so the message ends in Failure.
+      await setup.receiver.sendUpdateBehavior(setup.deployer.getSender(), toNano('0.1'), {
+        behavior: tr.ReceiverBehavior.RejectAll,
+      })
+      await setup.executeReport(report)
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // Manual execute with a gasOverride that has a tokenGasOverrides entry
+      // while the message has no token transfer.
+      const gasOverride = of.GasOverride.create({
+        receiverExecutionGasLimit: toNano('0.05'),
+        tokenGasOverrides: [toNano('0.01')], // mismatch: message has 0 token transfers
+      })
+      const result = await setup.offRamp.sendOffRampManuallyExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.5'),
+        {
+          report,
+          gasOverride,
+        },
+      )
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails execute when incoming value is not enough to cover totalGas', async () => {
+      const message = setup.createTestMessageWithToken({
+        destGasAmount: toNano('0.5'),
+      })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // Send with very low value — not enough to cover execute cost + totalGas.
+      const result = await setup.offRamp.sendOffRampExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.01'),
+        {
+          reportContext: of.ReportContext.create({
+            configDigest: setup.configDigest,
+            sequenceBytes: 0x02n,
+          }),
+          report,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        success: false,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
+      })
+    })
+
+    it('blocks token transfers with gas below MIN_TT_GASLIMIT and allows retry above it', async () => {
+      // Create a message with a destGasAmount below MIN_TT_GASLIMIT (0.025 TON).
+      const message = setup.createTestMessageWithToken({
+        destGasAmount: toNano('0.001'),
+      })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. Regular execution: destGasAmount (0.001) is below MIN_TT_GASLIMIT,
+      //    so the message should fail.
+      const firstResult = await setup.executeReport(report)
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // 2. Manual exec with a tokenGasOverride slightly higher than destGasAmount
+      //    but still below MIN_TT_GASLIMIT — should still fail.
+      const lowOverrideResult = await setup.manualExecuteReport(
+        report,
+        { tokenGasOverrides: [toNano('0.01')] },
+        false,
+      )
+      assertLog(
+        lowOverrideResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // 3. Manual exec with a tokenGasOverride above MIN_TT_GASLIMIT — should succeed.
+      const successResult = await setup.manualExecuteReport(
+        report,
+        { tokenGasOverrides: [MIN_TT_GASLIMIT] },
+        true,
+      )
+      expect(successResult.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        success: true,
+      })
+      assertLog(
+        successResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
     })
   })
 

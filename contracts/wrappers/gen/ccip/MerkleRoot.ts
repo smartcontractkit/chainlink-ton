@@ -251,20 +251,24 @@ export const OffRamp_ExecuteValidated = {
 /**
  > struct GasOverride {
  >     receiverExecutionGasLimit: coins?
+ >     tokenGasOverrides: SnakedCell<coins>?
  > }
  */
 export interface GasOverride {
     readonly $: 'GasOverride'
     receiverExecutionGasLimit: coins | null /* = null */
+    tokenGasOverrides: SnakedCell<coins> | null /* = null */
 }
 
 export const GasOverride = {
     create(args: {
         receiverExecutionGasLimit?: coins | null /* = null */
+        tokenGasOverrides?: SnakedCell<coins> | null /* = null */
     }): GasOverride {
         return {
             $: 'GasOverride',
             receiverExecutionGasLimit: null,
+            tokenGasOverrides: null,
             ...args
         }
     },
@@ -272,12 +276,14 @@ export const GasOverride = {
         return {
             $: 'GasOverride',
             receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
+            tokenGasOverrides: s.loadBoolean() ? loadSnakedCellOf(s, (s) => s.loadCoins()) : null,
         }
     },
     store(self: GasOverride, b: c.Builder): void {
         storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
             (v,b) => b.storeCoins(v)
         );
+        storeTolkNullable<SnakedCell<coins>>(self.tokenGasOverrides, b, (v,b) => storeSnakedCellOf(v, b, (v, b) => b.storeCoins(v)));
     },
     toCell(self: GasOverride): c.Cell {
         return makeCellFrom<GasOverride>(self, GasOverride.store);
@@ -346,7 +352,7 @@ export const Any2TVMRampMessage = {
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
  >     token: address
- >     destGasAmount: uint32
+ >     destGasAmount: coins
  >     extraData: cell?
  >     amount: uint256
  > }
@@ -355,7 +361,7 @@ export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
     sourcePoolAddress: CrossChainAddress
     token: c.Address
-    destGasAmount: uint32
+    destGasAmount: coins
     extraData: c.Cell | null
     amount: uint256
 }
@@ -364,7 +370,7 @@ export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
         token: c.Address
-        destGasAmount: uint32
+        destGasAmount: coins
         extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
@@ -378,7 +384,7 @@ export const Any2TVMTokenTransfer = {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             token: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
+            destGasAmount: s.loadCoins(),
             extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
@@ -386,7 +392,7 @@ export const Any2TVMTokenTransfer = {
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
         b.storeAddress(self.token);
-        b.storeUint(self.destGasAmount, 32);
+        b.storeCoins(self.destGasAmount);
         storeTolkNullable<c.Cell>(self.extraData, b,
             (v,b) => b.storeRef(v)
         );
@@ -703,7 +709,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAokAART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwC/DHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABntMAAZP6ADCSMG3igQCHkzBtcOIE0CDT/zHTPzHTPzHXCz+BSK1TGb6VUxi7wwCRcOLy9FMIoYFIrSHBQPL0cyGqAKwosAGqAK2BSKshwAOVIcAAwwDjDQYHAf4x7UTQ0//6SNM/0z/TP9N/1wsPgUip+JInxwXy9AfTP9cLByDCA/JFgUitUyW+lVMku8MAkXDi8vRTFKGBSK0hwUDy9HMhqgCsJLABqgCtgUisAcMC8vSBSKwhwAKRf5UhwAPDAOLy9IFIrVMlvpVTJLvDAJFw4vL0URShgUitCQACfwH+8vQmwwCOFvgjK6FQBryBSKoBkX+VJcADwwDi8vSXNYFIqCXy8uKBSK1TGb6VUxi7wwCRcOLy9CihgUitIcFA8vRzIaoArLMXsAaqAK4WsQXIzsnIz5Mc9WoqzCrPC/8Sy/8DjhECz4MibpRsEs+Blc+DWPoC4pQwAc+B4ssHyQgATsjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAo8AART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwC/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABn9MAAZL6AJJtAeL0BYEAh5QwbW1w4gXQINP/MdM/MdM/MdcLP4FIrVMavpVTGbvDAJFw4vL0UwmhgUitIcFA8vRzIaoArCmwAaoArYFIqyHAA5F/4w7y9CcGBwH+Me1E0NP/+kjTP9M/0z/Tf9cLD4FIqfiSJ8cF8vQH0z/XCwcgwgPyRYFIrVMlvpVTJLvDAJFw4vL0UxShgUitIcFA8vRzIaoArCSwAaoArYFIrAHDAvL0gUisIcACkX+VIcADwwDi8vSBSK1TJb6VUyS7wwCRcOLy9FEUoYFIrQkACiHAAMMAAf7DAI4W+CMsoVAHvIFIqgGRf5UmwAPDAOLy9Jc2gUioJvLy4oFIrVMavpVTGbvDAJFw4vL0KaGBSK0hwUDy9HMhqgCssxiwB6oArhexBsjOycjPkxz1airMK88L/xPL/wSOFQPPgyNulDMCz4GWz4NQA/oC4hL0AJRbAc+B4ssHCABQycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
 
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
