@@ -4000,6 +4000,80 @@ export const TokenPool_AdvancedPoolHooksSet = {
 }
 
 /**
+ > struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
+ >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
+ > }
+ */
+export interface LockReleaseLockboxTokenPool_LockContext {
+    readonly $: 'LockReleaseLockboxTokenPool_LockContext'
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const LockReleaseLockboxTokenPool_LockContext = {
+    PREFIX: 0x60fdb63b,
+
+    create(args: {
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): LockReleaseLockboxTokenPool_LockContext {
+        return {
+            $: 'LockReleaseLockboxTokenPool_LockContext',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): LockReleaseLockboxTokenPool_LockContext {
+        loadAndCheckPrefix32(s, 0x60fdb63b, 'LockReleaseLockboxTokenPool_LockContext');
+        return {
+            $: 'LockReleaseLockboxTokenPool_LockContext',
+            forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
+        }
+    },
+    store(self: LockReleaseLockboxTokenPool_LockContext, b: c.Builder): void {
+        b.storeUint(0x60fdb63b, 32);
+        storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
+    },
+    toCell(self: LockReleaseLockboxTokenPool_LockContext): c.Cell {
+        return makeCellFrom<LockReleaseLockboxTokenPool_LockContext>(self, LockReleaseLockboxTokenPool_LockContext.store);
+    }
+}
+
+/**
+ > struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
+ >     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>
+ > }
+ */
+export interface LockReleaseLockboxTokenPool_ReleaseContext {
+    readonly $: 'LockReleaseLockboxTokenPool_ReleaseContext'
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload
+}
+
+export const LockReleaseLockboxTokenPool_ReleaseContext = {
+    PREFIX: 0x90230477,
+
+    create(args: {
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
+    }): LockReleaseLockboxTokenPool_ReleaseContext {
+        return {
+            $: 'LockReleaseLockboxTokenPool_ReleaseContext',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): LockReleaseLockboxTokenPool_ReleaseContext {
+        loadAndCheckPrefix32(s, 0x90230477, 'LockReleaseLockboxTokenPool_ReleaseContext');
+        return {
+            $: 'LockReleaseLockboxTokenPool_ReleaseContext',
+            forwardPayload: loadCellRef<TokenPool_ReleaseOrMintForwardPayload>(s, TokenPool_ReleaseOrMintForwardPayload.fromSlice),
+        }
+    },
+    store(self: LockReleaseLockboxTokenPool_ReleaseContext, b: c.Builder): void {
+        b.storeUint(0x90230477, 32);
+        storeCellRef<TokenPool_ReleaseOrMintForwardPayload>(self.forwardPayload, b, TokenPool_ReleaseOrMintForwardPayload.store);
+    },
+    toCell(self: LockReleaseLockboxTokenPool_ReleaseContext): c.Cell {
+        return makeCellFrom<LockReleaseLockboxTokenPool_ReleaseContext>(self, LockReleaseLockboxTokenPool_ReleaseContext.store);
+    }
+}
+
+/**
  > struct Storage {
  >     poolData: Cell<TokenPool_Data>
  >     lockbox: address

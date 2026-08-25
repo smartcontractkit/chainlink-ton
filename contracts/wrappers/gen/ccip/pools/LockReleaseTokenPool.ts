@@ -4888,6 +4888,43 @@ export const TokenPool_RateLimitConfigured = {
 }
 
 /**
+ > struct (0xed696f9b) LockReleaseTokenPool_ReleaseContext {
+ >     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>
+ > }
+ */
+export interface LockReleaseTokenPool_ReleaseContext {
+    readonly $: 'LockReleaseTokenPool_ReleaseContext'
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload
+}
+
+export const LockReleaseTokenPool_ReleaseContext = {
+    PREFIX: 0xed696f9b,
+
+    create(args: {
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
+    }): LockReleaseTokenPool_ReleaseContext {
+        return {
+            $: 'LockReleaseTokenPool_ReleaseContext',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): LockReleaseTokenPool_ReleaseContext {
+        loadAndCheckPrefix32(s, 0xed696f9b, 'LockReleaseTokenPool_ReleaseContext');
+        return {
+            $: 'LockReleaseTokenPool_ReleaseContext',
+            forwardPayload: loadCellRef<TokenPool_ReleaseOrMintForwardPayload>(s, TokenPool_ReleaseOrMintForwardPayload.fromSlice),
+        }
+    },
+    store(self: LockReleaseTokenPool_ReleaseContext, b: c.Builder): void {
+        b.storeUint(0xed696f9b, 32);
+        storeCellRef<TokenPool_ReleaseOrMintForwardPayload>(self.forwardPayload, b, TokenPool_ReleaseOrMintForwardPayload.store);
+    },
+    toCell(self: LockReleaseTokenPool_ReleaseContext): c.Cell {
+        return makeCellFrom<LockReleaseTokenPool_ReleaseContext>(self, LockReleaseTokenPool_ReleaseContext.store);
+    }
+}
+
+/**
  > struct Storage {
  >     poolData: Cell<TokenPool_Data>
  >     offRampAccountCode: cell

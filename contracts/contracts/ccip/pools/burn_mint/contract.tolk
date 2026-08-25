@@ -36,6 +36,11 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
+
+    forceAbiExport: (
+        BurnMintTokenPool_BurnContext,
+        BurnMintTokenPool_MintContext
+    )
 }
 
 fun onInternalMessage(in: InMessage) {

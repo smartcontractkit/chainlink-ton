@@ -33,6 +33,11 @@ contract LockReleaseLockboxTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseLockboxTokenPool_InMessage
+
+    forceAbiExport: (
+        LockReleaseLockboxTokenPool_LockContext,
+        LockReleaseLockboxTokenPool_ReleaseContext
+    )
 }
 
 fun onInternalMessage(in: InMessage): void {

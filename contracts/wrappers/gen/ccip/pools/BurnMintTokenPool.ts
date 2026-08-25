@@ -4389,6 +4389,85 @@ export const BurnMintTokenPool_ClaimMinterAdmin = {
 }
 
 /**
+ > struct (0xba302a47) BurnMintTokenPool_BurnContext {
+ >     wallet: address
+ >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
+ > }
+ */
+export interface BurnMintTokenPool_BurnContext {
+    readonly $: 'BurnMintTokenPool_BurnContext'
+    wallet: c.Address
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const BurnMintTokenPool_BurnContext = {
+    PREFIX: 0xba302a47,
+
+    create(args: {
+        wallet: c.Address
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): BurnMintTokenPool_BurnContext {
+        return {
+            $: 'BurnMintTokenPool_BurnContext',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): BurnMintTokenPool_BurnContext {
+        loadAndCheckPrefix32(s, 0xba302a47, 'BurnMintTokenPool_BurnContext');
+        return {
+            $: 'BurnMintTokenPool_BurnContext',
+            wallet: s.loadAddress(),
+            forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
+        }
+    },
+    store(self: BurnMintTokenPool_BurnContext, b: c.Builder): void {
+        b.storeUint(0xba302a47, 32);
+        b.storeAddress(self.wallet);
+        storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
+    },
+    toCell(self: BurnMintTokenPool_BurnContext): c.Cell {
+        return makeCellFrom<BurnMintTokenPool_BurnContext>(self, BurnMintTokenPool_BurnContext.store);
+    }
+}
+
+/**
+ > struct (0xb3d52361) BurnMintTokenPool_MintContext {
+ >     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>
+ > }
+ */
+export interface BurnMintTokenPool_MintContext {
+    readonly $: 'BurnMintTokenPool_MintContext'
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload
+}
+
+export const BurnMintTokenPool_MintContext = {
+    PREFIX: 0xb3d52361,
+
+    create(args: {
+        forwardPayload: TokenPool_ReleaseOrMintForwardPayload
+    }): BurnMintTokenPool_MintContext {
+        return {
+            $: 'BurnMintTokenPool_MintContext',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): BurnMintTokenPool_MintContext {
+        loadAndCheckPrefix32(s, 0xb3d52361, 'BurnMintTokenPool_MintContext');
+        return {
+            $: 'BurnMintTokenPool_MintContext',
+            forwardPayload: loadCellRef<TokenPool_ReleaseOrMintForwardPayload>(s, TokenPool_ReleaseOrMintForwardPayload.fromSlice),
+        }
+    },
+    store(self: BurnMintTokenPool_MintContext, b: c.Builder): void {
+        b.storeUint(0xb3d52361, 32);
+        storeCellRef<TokenPool_ReleaseOrMintForwardPayload>(self.forwardPayload, b, TokenPool_ReleaseOrMintForwardPayload.store);
+    },
+    toCell(self: BurnMintTokenPool_MintContext): c.Cell {
+        return makeCellFrom<BurnMintTokenPool_MintContext>(self, BurnMintTokenPool_MintContext.store);
+    }
+}
+
+/**
  > struct Storage {
  >     poolData: Cell<TokenPool_Data>
  >     offRampAccountCode: cell
