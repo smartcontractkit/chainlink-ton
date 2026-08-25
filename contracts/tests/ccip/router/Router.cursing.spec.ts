@@ -19,6 +19,7 @@ describe('Router.cursing', () => {
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<TreasuryContract>
   let onRamp: SandboxContract<TreasuryContract>
+  let offRamp: SandboxContract<TreasuryContract>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -35,10 +36,11 @@ describe('Router.cursing', () => {
     }
     feeQuoter = await blockchain.treasury('feeQuoter')
     onRamp = await blockchain.treasury('onRamp')
+    offRamp = await blockchain.treasury('offRamp')
   })
 
   beforeEach(async () => {
-    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp }))
+    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp, offRamp }))
   })
 
   it('router respects cursing', async () => {
@@ -124,6 +126,95 @@ describe('Router.cursing', () => {
         success: true,
       })
     }
+  })
+
+  it('rejects LockOrBurn through the executor failure channel while cursed', async () => {
+    const remoteChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      queryId: 10n,
+      subjects: [remoteChainSelector],
+    })
+
+    const result = await router.sendRouterLockOrBurn(onRamp.getSender(), toNano('1'), {
+      queryID: 11n,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_LockOrBurnInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 11n,
+          details: rt.TokenPool_TransferDetails.create({
+            originalSender: sender.address,
+            remoteChainSelector,
+            receiver: EVM_ADDRESS,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+      }),
+      executorAddress: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      success: true,
+      op: 0xb76e3a84, // Router_TokenPoolLockOrBurnFailed
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: router.address,
+      to: deployer.address,
+    })
+  })
+
+  it('rejects ReleaseOrMint through replyTo while the source lane is cursed', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      queryId: 20n,
+      subjects: [sourceChainSelector],
+    })
+
+    const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
+      queryID: 21n,
+      sourceChainSelector,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_ReleaseOrMintInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 21n,
+          details: rt.TokenPool_TransferDetails.create({
+            originalSender: EVM_ADDRESS,
+            remoteChainSelector: sourceChainSelector,
+            receiver: sender.address,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+        sourcePoolAddress: EVM_ADDRESS,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      success: true,
+      op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: router.address,
+      to: deployer.address,
+    })
   })
 
   it('router respect global cursing', async () => {

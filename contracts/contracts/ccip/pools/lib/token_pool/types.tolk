@@ -33,16 +33,11 @@ struct TokenPool_DynamicConfig {
     allowedDepositNamespaces: map<uint32, bool> = [];
 }
 
-struct TokenPool_MirroredPolicy {
-    onRamps: map<uint64, address> = [];
-    offRamps: map<uint64, address> = [];
+struct TokenPool_LocalPolicy {
+    // Independently managed pool-local RMN policy. This is intentionally not a
+    // mirror of the Router's cursed subjects: the pool owner may configure a
+    // distinct RMN proxy, or disable proxy updates by setting it to addr_none.
     cursedSubjects: CursedSubjects;
-}
-
-struct TokenPool_RampUpdate {
-    remoteChainSelector: uint64;
-    onRamp: address? = null;
-    offRamp: address? = null;
 }
 
 struct TokenPool_RateLimiterPair {

@@ -49,7 +49,7 @@ struct TokenPool<T> {
 
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
-    rmnProxy: address;
+    rmnProxy: address?;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
     /// The pool's Jetton identity (master + wallet code). Single source of truth used to
     /// derive and authenticate the pool's own wallet.
@@ -70,7 +70,7 @@ struct TokenPool_AdminConfig {
 
 struct TokenPool_Data {
     adminConfig: Cell<TokenPool_AdminConfig>;
-    mirroredPolicy: Cell<TokenPool_MirroredPolicy>;
+    localPolicy: Cell<TokenPool_LocalPolicy>;
     tokenDecimals: uint8;
     remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig> = [];
     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig> = [];
@@ -90,20 +90,19 @@ fun TokenPool_Data.storeAsContractData(self) {
 
 /// Optional extension points wired by concrete pools (e.g. lock/release) to customize the base
 /// TokenPool behavior. Each field is the implementation of the corresponding hook, or `null` to
-/// use the base behavior. Pools share a generic `T` as the first arg, their per-call `context` (nullable).
+/// use the base behavior. Pools share a generic `T` = their per-call `context`, which flows
+/// through every hook (`T?` when a hook may be invoked with no context, e.g. getters).
+///
+/// There are three hook families, mirroring the three flows:
+/// - **Guards**: curse checks — override to add custom policy.
+/// - **Operation hooks**: entry + validation + (pre/post)flight for the LockOrBurn and
+///   ReleaseOrMint flows. Hooks returning a `TokenPool_*Prepared` may also signal `wait` to defer
+///   execution to the on-chain (async) `advancedPoolHooks` contract.
+/// - **Continuation hooks**: run after Jetton custody is settled, letting the pool track binding
+///   side effects (e.g. lock/release accrues fees only on confirmed deposit).
+///
+/// The fee-withdrawal hook `onWithdrawFeeTokens` is a fourth, standalone extension point.
 struct TokenPool_Hooks<T> {
-    /// Outbound (LockOrBurn) access guard.
-    /// @param sender      The msg.sender requesting the outbound transfer.
-    /// @param remoteChainSelector The destination lane; must be supported.
-    /// @dev Base behavior: requires `sender` to be the configured OnRamp for the lane.
-    ensureOutboundAccess: ((T?, address, uint64) -> void)?;
-
-    /// Inbound (ReleaseOrMint) access guard.
-    /// @param sender      The msg.sender requesting the inbound transfer.
-    /// @param remoteChainSelector The source lane; must be supported.
-    /// @dev Base behavior: requires `sender` to be the configured OffRamp for the lane.
-    ensureInboundAccess: ((T?, address, uint64) -> void)?;
-
     /// RMN curse guard for a remote lane.
     /// @param remoteChainSelector The remote lane to check for a curse.
     /// @dev Base behavior: reverts if the lane's cursed subjects mark it cursed by RMN.
@@ -251,7 +250,7 @@ fun TokenPool<T>.getTokenDecimals(self): uint8 {
 }
 
 @inline
-fun TokenPool<T>.getRmnProxy(self): address {
+fun TokenPool<T>.getRmnProxy(self): address? {
     val ac = lazy self.data.adminConfig.load();
     return ac.rmnProxy;
 }
@@ -279,20 +278,8 @@ fun TokenPool<T>.getAdvancedPoolHooks(self): address? {
 }
 
 @inline
-fun TokenPool<T>.getOnRamp(self, remoteChainSelector: uint64): address? {
-    val entry = self.data.mirroredPolicy.load().onRamps.get(remoteChainSelector);
-    return entry.isFound ? entry.loadValue() : null;
-}
-
-@inline
-fun TokenPool<T>.getOffRamp(self, remoteChainSelector: uint64): address? {
-    val entry = self.data.mirroredPolicy.load().offRamps.get(remoteChainSelector);
-    return entry.isFound ? entry.loadValue() : null;
-}
-
-@inline
 fun TokenPool<T>.verifyNotCursed(self, subject: uint128): bool {
-    return !self.data.mirroredPolicy.load().cursedSubjects.isCursed(subject);
+    return !self.data.localPolicy.load().cursedSubjects.isCursed(subject);
 }
 
 /// Checks whether a remote chain is supported in the token pool.
@@ -361,6 +348,7 @@ fun TokenPool<T>.setDynamicConfig(
     assert(!isZeroAddress(router), TokenPool_Error.ZeroAddressInvalid);
     // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
     assert(feeAdmin == null || !isZeroAddress(feeAdmin!), TokenPool_Error.ZeroAddressInvalid);
+
     adminConfig.dynamicConfig = TokenPool_DynamicConfig {
         router,
         rateLimitAdmin,
@@ -631,62 +619,20 @@ fun TokenPool<T>.applyChainUpdates(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun TokenPool<T>.applyRampAccessUpdates(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    updates: SnakedCell<TokenPool_RampUpdate>,
-) {
-    val adminConfig = self.data.adminConfig.load();
-    adminConfig.ownable.load().requireOwner(sender);
-
-    var mirroredPolicy = self.data.mirroredPolicy.load();
-    var iter = updates.iter();
-    while (!iter.empty()) {
-        val update = iter.next();
-
-        if (update.onRamp != null) {
-            mirroredPolicy.onRamps.set(update.remoteChainSelector, update.onRamp!);
-        } else {
-            mirroredPolicy.onRamps.delete(update.remoteChainSelector);
-        }
-
-        if (update.offRamp != null) {
-            mirroredPolicy.offRamps.set(update.remoteChainSelector, update.offRamp!);
-        } else {
-            mirroredPolicy.offRamps.delete(update.remoteChainSelector);
-        }
-
-        emit(TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED, TokenPool_RampAccessUpdated {
-            remoteChainSelector: update.remoteChainSelector,
-            onRamp: update.onRamp,
-            offRamp: update.offRamp,
-        });
-    }
-
-    self.data.mirroredPolicy = mirroredPolicy.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_RampAccessUpdatesApplied { queryId },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
+// TODO: make rmnProxy immutable (same as EVM)
 fun TokenPool<T>.setRMNProxy(
     mutate self,
     sender: address,
     queryId: uint64,
-    rmnProxy: address
+    rmnProxy: address?
 ) {
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
     // EVM makes `rmnProxy` immutable (constructor-checked); TON makes it mutable here, so the
     // zero-address guard must live on the setter. See AUDIT_REPORT.md L-11.
-    assert(!isZeroAddress(rmnProxy), TokenPool_Error.ZeroAddressInvalid);
+    // `null` is a legal value: it unsets the proxy; the zero address is never valid.
+    assert(rmnProxy == null || !isZeroAddress(rmnProxy!), TokenPool_Error.ZeroAddressInvalid);
 
     adminConfig.rmnProxy = rmnProxy;
     self.data.adminConfig = adminConfig.toCell();
@@ -708,9 +654,9 @@ fun TokenPool<T>.setCursedSubjects(
 ) {
     self.onlyOwnerOrRMNProxy(sender);
 
-    var mirroredPolicy = self.data.mirroredPolicy.load();
-    mirroredPolicy.cursedSubjects = cursedSubjects;
-    self.data.mirroredPolicy = mirroredPolicy.toCell();
+    var localPolicy = self.data.localPolicy.load();
+    localPolicy.cursedSubjects = cursedSubjects;
+    self.data.localPolicy = localPolicy.toCell();
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
@@ -789,9 +735,6 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_ApplyTokenTransferFeeConfigUpdates => {
             self.applyTokenTransferFeeConfigUpdates(msgSender, msg.queryId, msg.updates, msg.disableChainSelectors);
         }
-        TokenPool_UpdateRampAccess => {
-            self.applyRampAccessUpdates(msgSender, msg.queryId, msg.updates);
-        }
         TokenPool_SetRMNProxy => {
             self.setRMNProxy(msgSender, msg.queryId, msg.rmnProxy);
         }
@@ -832,6 +775,7 @@ fun TokenPool<T>.onPreflightCheckFinished(
     sender: address,
     msg: TokenPool_PreflightCheckFinished,
 ): void {
+    self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
     val originalSender = fwdp.originalSender;
     val requestMsg = lazy fwdp.requestMsg.load();
@@ -848,6 +792,7 @@ fun TokenPool<T>.onPreflightCheckFailed(
     sender: address,
     msg: TokenPool_PreflightCheckFailed,
 ): void {
+    self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
 
     // Refund outbound rate limit that was consumed before the hook check.
@@ -864,6 +809,7 @@ fun TokenPool<T>.onPostflightCheckFinished(
     sender: address,
     msg: TokenPool_PostflightCheckFinished,
 ): void {
+    self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
     val originalSender = fwdp.originalSender;
     val requestMsg = lazy fwdp.requestMsg.load();
@@ -880,6 +826,7 @@ fun TokenPool<T>.onPostflightCheckFailed(
     sender: address,
     msg: TokenPool_PostflightCheckFailed,
 ): void {
+    self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
 
     // Refund inbound rate limit that was consumed before the hook check.
@@ -1436,7 +1383,6 @@ fun TokenPool<T>.validateLockOrBurn(
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
-    self.ensureOutboundAccess(sender, details.remoteChainSelector);
 
     val feeAmount = self.getFeeAmount(request.transfer, msg.requestedFinalityConfig);
     val destTokenAmount = details.amount - feeAmount;
@@ -1475,6 +1421,10 @@ fun TokenPool<T>.onLockOrBurn(
     sender: address,
     msg: TokenPool_LockOrBurn,
 ): void {
+    // Authenticate before invoking an overridable operation hook so a custom
+    // pool cannot accidentally bypass the Router boundary.
+    self.onlyRouter(sender);
+
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
 
@@ -1822,7 +1772,6 @@ fun TokenPool<T>.validateReleaseOrMint(
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
-    self.ensureInboundAccess(sender, details.remoteChainSelector);
     assert(self.isRemotePool(details.remoteChainSelector, request.sourcePoolAddress), TokenPool_Error.InvalidRemotePoolForChain);
 
     val remoteDecimals = self.parseRemoteDecimals(request.sourcePoolData);
@@ -1862,6 +1811,10 @@ fun TokenPool<T>.onReleaseOrMint(
     sender: address,
     msg: TokenPool_ReleaseOrMint,
 ): void {
+    // Authenticate before invoking an overridable operation hook so a custom
+    // pool cannot accidentally bypass the Router boundary.
+    self.onlyRouter(sender);
+
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
 
@@ -2003,38 +1956,38 @@ fun TokenPool<T>.onlyOwnerOrRMNProxy(self, sender: address) {
     val adminConfig = self.data.adminConfig.load();
     val ownable = adminConfig.ownable.load();
     assert(
-        sender == ownable.owner || sender == adminConfig.rmnProxy,
+        sender == ownable.owner || (adminConfig.rmnProxy != null && sender == adminConfig.rmnProxy!),
         TokenPool_Error.Unauthorized
     );
 }
 
+/// Restricts CCIP token operations to the configured Router.
+///
+/// This check intentionally runs in the message dispatcher, before any pool
+/// hook can handle LockOrBurn or ReleaseOrMint. The Router owns ramp
+/// authentication and applies its own RMN policy; the pool independently
+/// applies its local cursed-subject policy during request validation.
+fun TokenPool<T>.onlyRouter(self, sender: address) {
+    val router = self.data.adminConfig.load().dynamicConfig.load().router;
+    assert(sender == router, TokenPool_Error.Unauthorized);
+}
+
+/// Authenticates asynchronous pool-hook continuations. Without this boundary,
+/// an arbitrary sender could forge a success/failure continuation after the
+/// Router-authenticated operation returned to the async flow.
+fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
+    val hooks = self.data.adminConfig.load().advancedPoolHooks;
+    assert(hooks != null && sender == hooks!, TokenPool_Error.Unauthorized);
+}
+
 fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
+    // The owner-selected local RMN policy is mandatory. Hooks may impose an
+    // additional restriction, but cannot bypass this policy domain.
+    assert(self.verifyNotCursed(remoteChainSelector as uint128), TokenPool_Error.CursedByRMN);
+
     if (self.hooks != null && self.hooks.ensureNotCursed != null) {
         return self.hooks.ensureNotCursed(self.context, remoteChainSelector);
     }
-    assert(self.verifyNotCursed(remoteChainSelector as uint128), TokenPool_Error.CursedByRMN);
-}
-
-fun TokenPool<T>.ensureOutboundAccess(self, sender: address, remoteChainSelector: uint64) {
-    if (self.hooks != null && self.hooks.ensureOutboundAccess != null) {
-        self.hooks.ensureOutboundAccess(self.context, sender, remoteChainSelector);
-
-        return;
-    }
-
-    val onRamp = self.getOnRamp(remoteChainSelector);
-    assert(onRamp != null && onRamp! == sender, TokenPool_Error.Unauthorized);
-}
-
-fun TokenPool<T>.ensureInboundAccess(self, sender: address, remoteChainSelector: uint64) {
-    if (self.hooks != null && self.hooks.ensureInboundAccess != null) {
-        self.hooks.ensureInboundAccess(self.context, sender, remoteChainSelector);
-
-        return;
-    }
-
-    val offRamp = self.getOffRamp(remoteChainSelector);
-    assert(offRamp != null && offRamp! == sender, TokenPool_Error.Unauthorized);
 }
 
 fun TokenPool<T>.preflightCheck(
