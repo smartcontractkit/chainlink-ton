@@ -308,7 +308,7 @@ describe('JettonLockBox', () => {
           customPayload: null,
           forwardTonAmount: toNano('0.05'),
           // Empty forward payload → `loadForwardPayloadAsSlice` returns null.
-          forwardPayload: beginCell().endCell(),
+          forwardPayload: Cell.EMPTY,
         },
       })
 

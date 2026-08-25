@@ -356,7 +356,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-      from: ctx.deployer.address,
+        from: ctx.deployer.address,
         to: ctx.pool.address,
         success: true,
       })

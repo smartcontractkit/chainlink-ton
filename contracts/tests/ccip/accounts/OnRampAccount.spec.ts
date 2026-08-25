@@ -123,7 +123,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload: ForwardPayloadRemainder.fromSlice(beginCell().endCell().beginParse()),
+      forwardPayload: ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
     })
 
   it('deploys with owner and proxy (Router) and is not yet initialized', async () => {

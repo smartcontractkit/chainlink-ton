@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import {
   CrossChainAddress,
   CursedSubjects,
@@ -133,7 +133,7 @@ export function runTokenPoolBehaviorTests(
           queryId: 920n,
           jettonAmount: toNano('1'),
           transferInitiator: ctx.unauthorized.address,
-          forwardPayload: beginCell().endCell().beginParse(),
+          forwardPayload: Cell.EMPTY.beginParse(),
         },
       )
 
