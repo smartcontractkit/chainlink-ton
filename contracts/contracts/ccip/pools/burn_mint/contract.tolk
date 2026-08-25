@@ -253,7 +253,7 @@ fun onClaimMinterAdmin(
 /// The minter relays the burn continuation context (the `BurnMintTokenPool_BurnContext`
 /// embedded by this pool in `CCT_AskToBurn.forwardPayload`) back to this pool, which then
 /// finalizes the lock/burn. Context-less excess signals (e.g. from the mint/transfer paths)
-/// are ignored. Mint still finalizes via OffRampAccount.
+/// are ignored.
 fun onCCTReturnExcessesBack(
     mutate st: Storage,
     sender: address,
@@ -272,8 +272,6 @@ fun onCCTReturnExcessesBack(
 
     val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
     val operation = lazy context.forwardPayload.load();
-    // TODO: is this check necessary?
-    assert(context.wallet == pool.data.jettonClient().walletAddress(), BurnMintTokenPool_Error.UnexpectedBurnBounce);
 
     pool.onLockOrBurnTransferFinalize(operation);
     st.poolData = pool.data.toCell();
