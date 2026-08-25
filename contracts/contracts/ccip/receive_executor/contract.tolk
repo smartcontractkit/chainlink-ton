@@ -107,25 +107,18 @@ fun onInternalMessage(in: InMessage) {
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute, value: coins) {
     val message = lazy st.message.load();
     
-    st.state.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
+    st.state.effectiveGasLimit = msg.effectiveGasLimit;
     if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec()) {
         return endExecutionWithFailure(mutate st, message.header, 0);
     }
 
-    if (msg.tokenTransfers != null) { // Message has token transfer
-        if (msg.tokenTransfers.size() != 1) {
-            return endExecutionWithFailure(mutate st, message.header, ReceiveExecutor_Error.UnsupportedNumberOfTokens);
-        }
-        val tokenTransfer = msg.tokenTransfers.first();
+    if (msg.tokenTransfer != null) { // Message has token transfer
+        val tokenTransfer = lazy msg.tokenTransfer.load();
         var ttInfo = st.state.tokenTransfer.loadOpt();
-        val (destGasLimit, err) = msg.gasOverride.getEffectiveDestGasAmount(tokenTransfer.transfer);
-        if (err != null) {
-            return endExecutionWithFailure(mutate st, message.header, err);
-        }
-        if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + destGasLimit + ReceiveExecutor_Costs.tokenTransfer()) {
+        if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + tokenTransfer.transfer.destGasAmount + ReceiveExecutor_Costs.tokenTransfer()) {
             return endExecutionWithFailure(mutate st, message.header, 0);
         }
-        ttInfo = ttInfo.init(tokenTransfer.tokenAdminRegistry, destGasLimit);
+        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry);
 
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
             return match (ttInfo.state) {
@@ -174,18 +167,17 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenR
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint { tokenPool };
     st.state.tokenTransfer = ttInfo.toCell();
+    val transfer = lazy ttInfo.transfer.load();
     val rampMsg = lazy st.message.load();
-    assert (rampMsg.tokenAmounts != null) throw ReceiveExecutor_Error.NoTokenAmountsInMessage;
-    val tokenTransfer = rampMsg.tokenAmounts.asSingle().unwrap(ReceiveExecutor_Error.UnsupportedNumberOfTokens);
     val releaseOrMint = createMessage(
         {
             bounce: true,
-            value: ttInfo.effectiveDestGasLimit + OffRamp_ReleaseOrMint.cost(),
+            value: transfer.destGasAmount + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
                 queryId: 0,
                 execId: st.execId,
-                destGasAmount: ttInfo.effectiveDestGasLimit,
+                destGasAmount: transfer.destGasAmount,
                 tokenPool,
                 requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
                 request: TokenPool_ReleaseOrMintInV1 {
@@ -195,12 +187,12 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
                             receiver: rampMsg.receiver,
                             remoteChainSelector: rampMsg.header.sourceChainSelector,
                             originalSender: rampMsg.sender,
-                            amount: tokenTransfer.amount,
-                            localToken: tokenTransfer.token,
+                            amount: transfer.amount,
+                            localToken: transfer.token,
                         }.toCell(),
                     },
-                    sourcePoolAddress: tokenTransfer.sourcePoolAddress,
-                    sourcePoolData: tokenTransfer.extraData,
+                    sourcePoolAddress: transfer.sourcePoolAddress,
+                    sourcePoolData: transfer.extraData,
                     offchainTokenData: null, // TBD Any2TVMTokenTransfer doesn't have this.
                 }.toCell(),
             }

@@ -7,7 +7,6 @@ enum ReceiveExecutor_Error {
     MessageAlreadyExecuted
     NotificationFromInvalidReceiver
     Unauthorized
-    UnsupportedNumberOfTokens
     NoTokenAmountsInMessage
     TokenAdminRegistryUnexpectedResponse
     TokenPoolUnexpectedResponse
