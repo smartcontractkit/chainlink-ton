@@ -8,6 +8,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
+import { ccipSendCost } from '../../../wrappers/ccip/Router'
 
 describe('Router.ccipSend', () => {
   let blockchain: Blockchain
@@ -49,7 +50,7 @@ describe('Router.ccipSend', () => {
   })
 
   it('should accept message for enabled dest chain', async () => {
-    const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('1'), msg)
+    const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -67,7 +68,7 @@ describe('Router.ccipSend', () => {
 
   it('should reject message for disabled dest chain (never added)', async () => {
     const badMsg = { ...msg, destChainSelector: msg.destChainSelector + 1n }
-    const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('1'), badMsg)
+    const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, badMsg)
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -104,7 +105,7 @@ describe('Router.ccipSend', () => {
       })
     }
 
-    const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('1'), msg)
+    const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,

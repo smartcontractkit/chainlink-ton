@@ -1,4 +1,4 @@
-import { Cell } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
@@ -41,3 +41,4 @@ export const opcodes = {
     rmnRemoteVerifyNotCursedResponse: 0x22ba83b3,
   },
 }
+export const ccipSendCost = toNano('3') // TODO this should be calculated based on the message size and gas limit, but for now we use a fixed value

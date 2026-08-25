@@ -1,4 +1,4 @@
-import { Cell } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import { contractCode } from '../codeLoader'
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
@@ -7,8 +7,12 @@ export const ARTIFACT_NAME = 'OffRamp'
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
 }
-export const OFFRAMP_CONTRACT_VERSION = '1.6.3'
+export const OFFRAMP_CONTRACT_VERSION = '1.7.0'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
+
+export const EXECUTE_COST = toNano('0.5') // TODO
+export const MIN_TT_GASLIMIT = toNano('0.025')
+export const OFFRAMP_RELEASE_OR_MINT_COST = toNano('0.02') // TODO

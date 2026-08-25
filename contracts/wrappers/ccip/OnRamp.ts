@@ -1,4 +1,4 @@
-import { Cell } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
@@ -15,6 +15,8 @@ export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
 }
 export const CONTRACT_VERSION = '1.6.1'
+
+export const onrampSendCost = toNano('4') // TODO this should be calculated based on the message size and gas limit, but for now we use a fixed value
 
 export const opcodes = {
   in: {

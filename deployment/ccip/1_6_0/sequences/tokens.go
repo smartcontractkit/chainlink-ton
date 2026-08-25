@@ -1,8 +1,10 @@
 package sequences
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -24,10 +26,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	jettoncommon "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
+	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -43,6 +50,13 @@ const (
 	// defaultJettonContentURI mirrors the value used by the existing jetton integration helper.
 	defaultJettonContentURI = "smartcontract.com"
 
+	// defaultJettonMintCoin is the TON value attached to a MintNewJettons message; it must
+	// cover the forwarded amount plus gas for deploying the recipient's jetton wallet.
+	defaultJettonMintCoin = "0.1"
+
+	// defaultJettonMintForwardCoin is the TON forwarded to the recipient's jetton wallet on mint.
+	defaultJettonMintForwardCoin = "0.05"
+
 	// defaultJettonDecimals is returned by DeriveTokenDecimals until the on-chain getter is wired up.
 	// TON jettons commonly use 9 decimas.
 	defaultJettonDecimals uint8 = 9
@@ -56,6 +70,7 @@ type TonTokenAdapter struct {
 }
 
 var _ tokensapi.TokenAdapter = (*TonTokenAdapter)(nil)
+var _ tokensapi.RateLimitReaderAdapter = (*TonTokenAdapter)(nil)
 
 // NewTonTokenAdapter constructs the TON token adapter.
 func NewTonTokenAdapter() *TonTokenAdapter {
@@ -189,10 +204,80 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy jetton minter: %w", err)
 			}
 
-			// TODO: PreMint support — send a MintNewJettons message to the deployed minter
-			// when input.PreMint != nil.
+			// Pre-mint tokens to the deployer (or the first configured sender) so the
+			// account has a balance to transfer during token-transfer tests. The deployer
+			// wallet is the jetton admin (see InitData.Admin above) and is therefore
+			// authorized to mint.
 			if input.PreMint != nil && *input.PreMint > 0 {
-				b.Logger.Warnf("PreMint of %d tokens requested for %s but PreMint is not yet implemented for TON jettons", *input.PreMint, input.Symbol)
+				recipient := chain.Wallet.WalletAddress()
+				if len(input.Senders) > 0 && input.Senders[0] != "" {
+					parsed, parseErr := address.ParseAddr(input.Senders[0])
+					if parseErr != nil {
+						return sequences.OnChainOutput{}, fmt.Errorf("failed to parse pre-mint recipient %q: %w", input.Senders[0], parseErr)
+					}
+					recipient = parsed
+				}
+
+				// PreMint is expressed in whole tokens; scale to base units by the token decimals.
+				mintBaseUnits := new(big.Int).Mul(
+					new(big.Int).SetUint64(*input.PreMint),
+					new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(input.Decimals)), nil),
+				)
+				mintAmount, mintErr := tlb.FromNano(mintBaseUnits, int(input.Decimals))
+				if mintErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to build pre-mint amount: %w", mintErr)
+				}
+
+				queryID, qErr := ton_tvm.RandomQueryID()
+				if qErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query id for pre-mint: %w", qErr)
+				}
+
+				mintMsg, mintErr := contract.CallWaitRecursively(minter.MintNewJettons{
+					QueryID:       queryID,
+					MintRecipient: recipient,
+					TonAmount:     tlb.MustFromTON(defaultJettonMintForwardCoin),
+					InternalTransferMsg: jettonwallet.InternalTransferStep{
+						QueryID:           queryID,
+						JettonAmount:      mintAmount,
+						TransferInitiator: chain.Wallet.WalletAddress(),
+						SendExcessesTo:    chain.Wallet.WalletAddress(),
+						ForwardTonAmount:  tlb.ZeroCoins,
+						ForwardPayload:    nil,
+					},
+				}, tlb.MustFromTON(defaultJettonMintCoin))
+				if mintErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to pre-mint %d tokens to %s: %w", *input.PreMint, recipient.String(), mintErr)
+				}
+
+				mintExitCode, ecErr := mintMsg.ExitCode()
+				if ecErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to get pre-mint exit code: %w", ecErr)
+				}
+				if mintExitCode != ton_tvm.ExitCodeSuccess {
+					return sequences.OnChainOutput{}, fmt.Errorf("pre-mint message rejected: exit code %d: %s", mintExitCode, mintExitCode.Describe())
+				}
+
+				traceExitCode, teErr := mintMsg.TraceExitCode()
+				if teErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to get pre-mint trace exit code: %w", teErr)
+				}
+				if traceExitCode != ton_tvm.ExitCodeSuccess {
+					return sequences.OnChainOutput{}, fmt.Errorf("pre-mint %d tokens to %s failed: trace exit code %d: %s", *input.PreMint, recipient.String(), traceExitCode, traceExitCode.Describe())
+				}
+
+				recipientWalletAddr, walletAddrErr := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, contract.Address, minter.GetWalletAddress, recipient)
+				if walletAddrErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to derive jetton wallet address for pre-mint recipient %s: %w", recipient.String(), walletAddrErr)
+				}
+				recipientBalance, balanceErr := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, recipientWalletAddr, jettonwallet.GetWalletData)
+				if balanceErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to read jetton balance for pre-mint recipient %s: %w", recipient.String(), balanceErr)
+				}
+
+				if recipientBalance.Cmp(mintBaseUnits) != 0 {
+					return sequences.OnChainOutput{}, fmt.Errorf("pre-mint balance mismatch for %s: expected %s base units, got %s", recipient.String(), mintBaseUnits.String(), recipientBalance.String())
+				}
 			}
 
 			return sequences.OnChainOutput{
@@ -201,6 +286,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 					ChainSelector: input.ChainSelector,
 					Type:          datastore.ContractType(bindings.ShortJettonMinter),
 					Version:       semver.MustParse("1.0.0"),
+					Qualifier:     input.Symbol,
 					Labels:        datastore.NewLabelSet("package:github.com/smartcontractkit/chainlink-ton/jetton"),
 				}},
 			}, nil
@@ -220,6 +306,10 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			}
 			if input.TokenRef == nil {
 				return sequences.OnChainOutput{}, errors.New("token ref is required to deploy a TON token pool")
+			}
+			tokenAddr, err := address.ParseAddr(input.TokenRef.Address)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse token ref address %q: %w", input.TokenRef.Address, err)
 			}
 
 			stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
@@ -242,6 +332,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				Package: a.Package,
 				Contracts: []ton_tvm.FullyQualifiedName{
 					bindings.TypeMockTokenPool,
+					bindings.TypeJettonWallet,
 				},
 			})
 			if err != nil {
@@ -257,12 +348,84 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			}
 			compiled.Metadata.ID = bindings.TypeMockTokenPool
 
+			compiledWallet, ok := compiledContracts[bindings.TypeJettonWallet]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf(
+					"jetton wallet contract not found in compiled contracts package under %q",
+					bindings.TypeJettonWallet,
+				)
+			}
+
+			// The owner and RMN proxy are both set to the deployer wallet; RMN is not yet
+			// wired up on TON, so this is a placeholder like the productive pool wrappers use.
+			owner := chain.Wallet.WalletAddress()
+
+			routerAddr := stateCCIP.Router
+			if input.RouterRef != nil && input.RouterRef.Address != "" {
+				parsedRouter, routerErr := address.ParseAddr(input.RouterRef.Address)
+				if routerErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse router ref address %q: %w", input.RouterRef.Address, routerErr)
+				}
+				routerAddr = *parsedRouter
+			}
+
+			rateLimitAdmin, err := parseMaybeAddr(input.RateLimitAdmin)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse rate limit admin address %q: %w", input.RateLimitAdmin, err)
+			}
+
+			feeAdmin, err := parseMaybeAddr(input.FeeAggregator)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee aggregator address: %w", err)
+			}
+			rawFinality := input.AllowedFinalityConfig.Raw()
+			allowedFinality := binary.BigEndian.Uint32(rawFinality[:])
+
+			// Storage mirrors the productive TokenPool_Data layout (see
+			// contracts/contracts/ccip/pools/lib/token_pool/entrypoint.tolk and the e2e test
+			// setup in contracts/tests/ccip/e2e/CCIPSendWithTokenTransfer.spec.ts); remote
+			// chain configs are populated later via ApplyChainUpdates.
+			poolData := tokenpool.Storage{
+				AdminConfig: tokenpool.AdminConfig{
+					Ownable: ownable2step.Storage{
+						Owner:        owner,
+						PendingOwner: nil,
+					},
+					RMNProxy: owner,
+					DynamicConfig: tokenpool.DynamicConfig{
+						Router:         &routerAddr,
+						RateLimitAdmin: rateLimitAdmin,
+						FeeAdmin:       feeAdmin,
+					},
+					JettonClient: tokenpool.JettonClient{
+						MasterAddress:    tokenAddr,
+						JettonWalletCode: compiledWallet.Code,
+					},
+					AllowedFinalityConfig: allowedFinality,
+					AdvancedPoolHooks:     nil,
+				},
+				MirroredPolicy: tokenpool.MirroredPolicy{
+					// nil dicts serialize as an empty map (a single "no entries" bit), matching
+					// the Tolk contract's createEmptyMap() default.
+					OnRamps:        nil,
+					OffRamps:       nil,
+					CursedSubjects: tokenpool.CursedSubjects{Data: nil},
+				},
+				TokenDecimals:           defaultJettonDecimals,
+				RemoteChainConfigs:      nil,
+				TokenTransferFeeConfigs: nil,
+			}
+
+			// MockTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
+			// has to go behind a ref; passing it bare makes every storage read underflow.
+			storage := tokenpool.MockStorage{PoolData: poolData}
+
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
 				dp,
 				input.ChainSelector,
 				compiled,
-				struct{}{},
+				storage,
 				nil,
 				defaultJettonDeployCoin,
 			)
@@ -363,9 +526,138 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send TokenRegistrySetTokenInfo to router at %s: %w", routerAddr.String(), err)
 			}
 
+			// Configure the pool's remote-chain token addresses.
+			if err := applyRemoteChainUpdates(b, dp, poolAddr, input.RemoteChains); err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure remote chains on token pool at %s: %w", poolAddr.String(), err)
+			}
+
+			// Register the Router as the pool's trusted onRamp for every remote chain
+			// being wired up.
+			// TODO This should be changed in the contracts flow so that the onramp is the one calling instead of the Router
+			if err := applyRampAccessUpdates(b, dp, poolAddr, routerAddr, nil, input.RemoteChains); err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure ramp access on token pool at %s: %w", poolAddr.String(), err)
+			}
+
 			return sequences.OnChainOutput{}, nil
 		},
 	)
+}
+
+// applyRemoteChainUpdates builds a TokenPool_ApplyChainUpdates message from the
+// resolved remote-chain configs and sends it to the token pool. It is a no-op when
+// no remote chains are provided. The remote token/pool addresses are resolved by the
+// changeset (see convertRemoteChainConfig in chainlink-ccip/deployment/tokens),
+// left-padded to 32 bytes for EVM remotes, before reaching here.
+func applyRemoteChainUpdates(
+	b cldf_ops.Bundle,
+	dp *dep.DependencyProvider,
+	poolAddr *address.Address,
+	remoteChains map[uint64]tokensapi.RemoteChainConfig[[]byte, string],
+) error {
+	if len(remoteChains) == 0 {
+		return nil
+	}
+
+	chainsToAdd := make(common.SnakedCell[tokenpool.ChainUpdate], 0, len(remoteChains))
+	for remoteSelector, rc := range remoteChains {
+		if len(rc.RemoteToken) == 0 {
+			return fmt.Errorf("remote token address is empty for remote chain %d", remoteSelector)
+		}
+		remoteTokenCell, err := tlbe.NewCellFrom(common.CrossChainAddress(rc.RemoteToken))
+		if err != nil {
+			return fmt.Errorf("failed to build remote token address cell for chain %d: %w", remoteSelector, err)
+		}
+
+		remotePools := common.SnakedCell[common.CrossChainAddress]{}
+		if len(rc.RemotePool) > 0 {
+			remotePools = append(remotePools, common.CrossChainAddress(rc.RemotePool))
+		}
+
+		chainsToAdd = append(chainsToAdd, tokenpool.ChainUpdate{
+			RemoteChainSelector: remoteSelector,
+			RemotePoolAddresses: remotePools,
+			RemoteTokenAddress:  remoteTokenCell,
+			// The mock ignores rate limiters; a disabled pair keeps the message
+			// compatible with the productive TokenPool.
+			RateLimitConfigs: disabledRateLimitConfigPair(),
+		})
+	}
+
+	body := codec.MustWrapMessage[any](bindings.TypeMockTokenPool, tokenpool.ApplyChainUpdates{
+		RemoteChainSelectorsToRemove: common.SnakedCell[tokenpool.ChainSelector]{},
+		ChainsToAdd:                  chainsToAdd,
+	})
+
+	_, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+		Messages: []opston.InternalMessage[any]{
+			{
+				Bounce:  true,
+				DstAddr: poolAddr,
+				Amount:  tlb.MustFromTON("0.1"),
+				Body:    body,
+			},
+		},
+	})
+	return err
+}
+
+// applyRampAccessUpdates registers onRamp/offRamp as the trusted local ramps for every
+// remote chain in remoteChains, via TokenPool_UpdateRampAccess. It is a no-op when no
+// remote chains are provided. Without this, the pool's mirroredPolicy.onRamps/offRamps
+// maps stay empty and TokenPool.ensureOutboundAccess/ensureInboundAccess (entrypoint.tolk)
+// reject LockOrBurn/ReleaseOrMint with TokenPool_Error.Unauthorized.
+func applyRampAccessUpdates(
+	b cldf_ops.Bundle,
+	dp *dep.DependencyProvider,
+	poolAddr *address.Address,
+	onRamp *address.Address,
+	offRamp *address.Address,
+	remoteChains map[uint64]tokensapi.RemoteChainConfig[[]byte, string],
+) error {
+	if len(remoteChains) == 0 {
+		return nil
+	}
+
+	updates := make(common.SnakedCell[tokenpool.RampUpdate], 0, len(remoteChains))
+	for remoteSelector := range remoteChains {
+		updates = append(updates, tokenpool.RampUpdate{
+			RemoteChainSelector: remoteSelector,
+			OnRamp:              onRamp,
+			OffRamp:             offRamp,
+		})
+	}
+
+	queryID, err := ton_tvm.RandomQueryID()
+	if err != nil {
+		return fmt.Errorf("failed to generate query id for ramp access update: %w", err)
+	}
+
+	body := codec.MustWrapMessage[any](bindings.TypeMockTokenPool, tokenpool.UpdateRampAccess{
+		QueryID: queryID,
+		Updates: updates,
+	})
+
+	_, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+		Messages: []opston.InternalMessage[any]{
+			{
+				Bounce:  true,
+				DstAddr: poolAddr,
+				Amount:  tlb.MustFromTON("0.1"),
+				Body:    body,
+			},
+		},
+	})
+	return err
+}
+
+// disabledRateLimitConfigPair returns a fully-disabled rate limiter pair.
+func disabledRateLimitConfigPair() tokenpool.RateLimitConfigPair {
+	disabled := tokenpool.RateLimitConfig{
+		IsEnabled: false,
+		Capacity:  big.NewInt(0),
+		Rate:      big.NewInt(0),
+	}
+	return tokenpool.RateLimitConfigPair{Outbound: disabled, Inbound: disabled}
 }
 
 // TODO: ManualRegistration is a no-op for the minimal skeleton.
@@ -412,6 +704,34 @@ func (a *TonTokenAdapter) MigrateLockReleasePoolLiquiditySequence() *cldf_ops.Se
 	return nil
 }
 
+// GetOnchainRateLimits reports the on-chain outbound and inbound rate limits for a lane.
+// TON's MockTokenPool does not enforce rate limits yet, so there is never a
+// configured bucket: return disabled zero-value configs. FastFinality is not a
+// concept on TON, so reject that bucket per the interface contract.
+func (a *TonTokenAdapter) GetOnchainRateLimits(
+	b cldf_ops.Bundle,
+	chains cldf_chain.BlockChains,
+	ds datastore.DataStore,
+	chainSelector uint64,
+	poolRef datastore.AddressRef,
+	tokenRef datastore.AddressRef,
+	remoteSelector uint64,
+	fastFinality bool,
+) (tokensapi.OnchainRateLimits, error) {
+	if fastFinality {
+		return tokensapi.OnchainRateLimits{}, fmt.Errorf("fast finality rate limits are not supported on TON (chain selector %d)", chainSelector)
+	}
+	disabled := tokensapi.RateLimiterConfig{
+		IsEnabled: false,
+		Capacity:  big.NewInt(0),
+		Rate:      big.NewInt(0),
+	}
+	return tokensapi.OnchainRateLimits{
+		Outbound: disabled,
+		Inbound:  disabled,
+	}, nil
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -426,4 +746,17 @@ func buildOffchainJettonContent(symbol string) *cell.Cell {
 		}
 	}
 	return b.EndCell()
+}
+
+// Parses the address, if the string is empty returns a non initialized address
+func parseMaybeAddr(addr string) (*address.Address, error) {
+	var out *address.Address
+	if addr != "" {
+		var err error
+		out, err = address.ParseAddr(addr)
+		if err != nil {
+			return out, fmt.Errorf("failed to parse address %q: %w", addr, err)
+		}
+	}
+	return out, nil
 }

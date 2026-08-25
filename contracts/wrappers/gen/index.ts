@@ -6,6 +6,7 @@ import { OnRamp } from './ccip/OnRamp';
 import { FeeQuoter } from './ccip/FeeQuoter';
 import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
+import { MerkleRoot } from './ccip/MerkleRoot';
 
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
@@ -87,6 +88,12 @@ export function setupGenBindings() {
     )
 
     TestMsgHasher.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    MerkleRoot.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,

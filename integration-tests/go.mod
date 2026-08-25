@@ -6,7 +6,6 @@ replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
 
 	github.com/smartcontractkit/chainlink-ton => ../
-
 	github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
@@ -20,7 +19,7 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.100
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260428205619-2db1389501a1
 	github.com/smartcontractkit/chainlink-ccip/chains/evm v0.0.0-20260707140017-7180acbfcd82
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260706103253-30ab530178da
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260707150956-619b7a982bd0
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
 	github.com/smartcontractkit/chainlink-common/keystore v1.0.2
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
@@ -29,7 +28,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.20.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.8
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260710204427-f53ee44a1088
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260714130443-bb3cf7801e11
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260820224955-011a846f2fb8
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260422202036-5de86080ceb5
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260422202036-5de86080ceb5

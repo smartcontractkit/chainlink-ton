@@ -51,12 +51,19 @@ describe('SendExecutor - Opcodes', () => {
   })
 })
 
+// Value that is sent by the user and should be enough to pay for fees and gas
+const SentValue = toNano('5')
+const CCISendCost = toNano('3.0')
+const FeeTokenAmount = toNano('0.1')
+const AmountOfTokens = toNano('1')
+
 describe('SendExecutor - Unit tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
   let deployable: SandboxContract<dep.ContractClient>
   let onrampSend: or.OnRamp_Send
+  let routerMock: SandboxContract<TreasuryContract>
   let onRampMock: SandboxContract<TreasuryContract>
   let feeQuoterMock: SandboxContract<TreasuryContract>
   let tokenRegistryMock: SandboxContract<TreasuryContract>
@@ -65,7 +72,6 @@ describe('SendExecutor - Unit tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
-    blockchain.verbosity.debugLogs = true
 
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
@@ -75,6 +81,7 @@ describe('SendExecutor - Unit tests', () => {
 
     deployer = await blockchain.treasury('deployer')
     onRampMock = await blockchain.treasury('onrampMock')
+    routerMock = await blockchain.treasury('router')
     feeQuoterMock = await blockchain.treasury('feeQuoterMock')
     tokenRegistryMock = await blockchain.treasury('tokenRegistryMock')
     sender = await blockchain.treasury('sender')
@@ -94,7 +101,7 @@ describe('SendExecutor - Unit tests', () => {
       }),
       metadata: or.Metadata.create({
         sender: sender.address,
-        value: toNano('0.6'),
+        value: SentValue,
       }),
       tokenRegistry: null,
     })
@@ -102,13 +109,13 @@ describe('SendExecutor - Unit tests', () => {
     tokenOnrampSend = or.OnRamp_Send.create({
       msg: {
         ...onrampSend.msg,
-        tokenAmounts: [or.TokenAmount.create({ amount: toNano('1'), token: WRAPPED_NATIVE })],
+        tokenAmounts: [or.TokenAmount.create({ amount: AmountOfTokens, token: WRAPPED_NATIVE })],
       },
       metadata: or.Metadata.create({
         sender: sender.address,
         // Must comfortably exceed fee + Router_Costs.CCIPSend() so the executor proceeds to the
         // token-transfer path instead of exiting with InsufficientFunds.
-        value: toNano('5'),
+        value: SentValue,
       }),
       tokenRegistry: tokenRegistryMock.address,
     })
@@ -162,11 +169,12 @@ describe('SendExecutor - Unit tests', () => {
   }> {
     const send = opts?.send ?? { ...onrampSend, tokenRegistry: null }
     const { sendExecutor, result } = await sendDeploy({
-      value: toNano('0.3'),
+      value: toNano('3'), // TODO temporarily raise value to cover for fixed cost of TokenPool. Entry point could check whether the user has to do a token transfer or not
       body: sx.CCIPSendExecutor_Execute.toCell(
         sx.CCIPSendExecutor_Execute.create({
           onrampSend: send,
           config: sx.CCIPSendExecutor_Config.create({
+            router: routerMock.address,
             feeQuoter: opts?.feeQuoterBouncer
               ? opts.feeQuoterBouncer.address
               : feeQuoterMock.address,
@@ -205,10 +213,11 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       sender.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend,
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -227,10 +236,11 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       deployer.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend,
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -249,10 +259,11 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       sender.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend: { ...onrampSend, tokenRegistry: null },
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -271,10 +282,11 @@ describe('SendExecutor - Unit tests', () => {
 
     const execResult = await sendExecutor.sendCCIPSendExecutorExecute(
       deployer.getSender(),
-      toNano('0.3'),
+      toNano('1'),
       {
         onrampSend: { ...onrampSend, tokenRegistry: null },
         config: sx.CCIPSendExecutor_Config.create({
+          router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
         }),
       },
@@ -328,7 +340,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: tokenOnrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -357,7 +369,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -383,7 +395,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -416,7 +428,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -450,7 +462,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -474,7 +486,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -543,7 +555,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
         context: beginCell().asSlice(),
       }),
@@ -563,7 +575,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
-          fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+          fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           msg: onrampSend.msg,
           context: beginCell().asSlice(),
         }),
@@ -590,7 +602,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
@@ -611,7 +623,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
-          fee: sx.Fee.create({ feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') }),
+          fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           msg: onrampSend.msg,
           context: beginCell().asSlice(),
         }),

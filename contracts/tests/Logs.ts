@@ -277,16 +277,8 @@ export const testLogCCIPMessageSent = (
     const msg = on.CCIPMessageSent.fromSlice(actual.beginParse())
     const sender = msg.message.sender
 
-    // Generated bindings decode tokenAmounts into an array directly.
-    const decodedMessage = {
-      ...msg.message,
-      body: {
-        ...msg.message.body,
-      },
-    }
-
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)
-    const { sender: _, ...messageWithoutSender } = decodedMessage
+    const { sender: _, ...messageWithoutSender } = msg.message
     const { sender: __, ...matchWithoutSender } = expected.message || {}
 
     matchesObject(messageWithoutSender, matchWithoutSender as object)
