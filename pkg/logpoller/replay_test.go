@@ -220,12 +220,15 @@ func TestReplay(t *testing.T) {
 		require.Nil(t, lp.replay.prevBlock, "prevBlock should be nil for block 1 replay")
 	})
 
-	t.Run("rejects fromBlock at or beyond current block", func(t *testing.T) {
+	t.Run("accepts current block and rejects future blocks", func(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
 		mock := &mockAPIClient{
 			masterchainInfo: currentMasterchainBlock,
+			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+			},
 		}
 
 		lp := &service{
@@ -236,12 +239,12 @@ func TestReplay(t *testing.T) {
 		}
 
 		err := lp.Replay(context.Background(), 100)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "at or beyond current block")
+		require.NoError(t, err)
+		require.Equal(t, uint32(100), lp.replay.fromBlock)
 
 		err = lp.Replay(context.Background(), 150)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "at or beyond current block")
+		require.Contains(t, err.Error(), "beyond current block")
 	})
 
 	t.Run("rejects unavailable block in liteserver", func(t *testing.T) {
@@ -292,6 +295,31 @@ func TestReplay(t *testing.T) {
 		require.Equal(t, models.ReplayStatusRequested, lp.replay.status)
 		require.Equal(t, uint32(980), lp.replay.fromBlock)
 		require.Equal(t, uint32(979), lp.replay.prevBlock.SeqNo)
+	})
+
+	t.Run("uses block 1 when zero lookback resolves before localnet genesis", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 1, Shard: 1}
+		mock := &mockAPIClient{
+			masterchainInfo: currentMasterchainBlock,
+			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+			},
+		}
+
+		lp := &service{
+			lggr:             logger.Sugared(logger.Nop()),
+			startingLookback: time.Hour,
+			blockTime:        time.Second,
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+
+		err := lp.Replay(context.Background(), 0)
+		require.NoError(t, err)
+		require.Equal(t, uint32(1), lp.replay.fromBlock)
+		require.Nil(t, lp.replay.prevBlock)
 	})
 
 	t.Run("ignores redundant request with higher block", func(t *testing.T) {

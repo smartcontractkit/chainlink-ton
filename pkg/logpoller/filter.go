@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 
@@ -61,6 +62,12 @@ func (lp *service) getDistinctAddresses(ctx context.Context) ([]*address.Address
 // RegisterFilter registers a filter for log polling.
 // Checks cache first - skips DB if filter already exists with same config.
 //
+// A newly registered filter schedules a replay before it becomes visible to the
+// polling loop. Without that replay, blocks processed before the filter was
+// registered are never revisited, so an event emitted during plugin startup can
+// be lost permanently. StartingSeqNo bounds the backfill; a zero value uses the
+// service's configured safe lookback (see Replay).
+//
 // Note: Filter changes take effect on the next LogPoller loop tick (up to pollPeriod delay).
 // If registration occurs before run() reads addresses, the change applies immediately.
 // Otherwise, it waits until the next tick.
@@ -89,6 +96,13 @@ func (lp *service) RegisterFilter(ctx context.Context, filter models.Filter) (in
 	id, err := lp.filterStore.RegisterFilter(ctx, filter)
 	if err != nil {
 		return 0, err
+	}
+
+	// The replay request is intentionally made before adding the filter to the
+	// cache. If scheduling fails, a subsequent registration attempt will retry
+	// instead of treating this filter as ready and risking an unrecoverable gap.
+	if err := lp.Replay(ctx, filter.StartingSeqNo); err != nil {
+		return 0, fmt.Errorf("schedule filter backfill from block %d: %w", filter.StartingSeqNo, err)
 	}
 
 	// Update cache (write lock)

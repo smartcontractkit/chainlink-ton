@@ -4,11 +4,13 @@ import (
 	"context"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -88,12 +90,52 @@ func testAddress2(t *testing.T) *address.Address {
 
 func newTestService(t *testing.T, store *mockFilterStore) *service {
 	lggr := logger.Test(t)
+	mock := &mockAPIClient{
+		masterchainInfo: &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1},
+		lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+			return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+		},
+	}
 	svc := &service{
-		lggr:          logger.Sugared(lggr),
-		filterStore:   store,
-		filtersByName: make(map[string]*models.Filter),
+		lggr:             logger.Sugared(lggr),
+		filterStore:      store,
+		filtersByName:    make(map[string]*models.Filter),
+		startingLookback: time.Minute,
+		blockTime:        time.Second,
+		clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+			return mock, nil
+		},
 	}
 	return svc
+}
+
+func TestRegisterFilter_SchedulesBackfill(t *testing.T) {
+	ctx := context.Background()
+	store := newMockFilterStore()
+	svc := newTestService(t, store)
+
+	_, err := svc.RegisterFilter(ctx, models.Filter{
+		Name:          "test-filter",
+		Address:       testAddress(t),
+		MsgType:       tlb.MsgTypeExternalOut,
+		EventSig:      0x12345678,
+		StartingSeqNo: 50,
+	})
+	require.NoError(t, err)
+	require.Equal(t, models.ReplayStatusRequested, svc.ReplayStatus())
+	require.Equal(t, uint32(50), svc.replay.fromBlock)
+
+	// A second registration with the same filter is a cache hit and must not
+	// schedule another replay.
+	_, err = svc.RegisterFilter(ctx, models.Filter{
+		Name:          "test-filter",
+		Address:       testAddress(t),
+		MsgType:       tlb.MsgTypeExternalOut,
+		EventSig:      0x12345678,
+		StartingSeqNo: 50,
+	})
+	require.NoError(t, err)
+	require.Equal(t, uint32(50), svc.replay.fromBlock)
 }
 
 func TestRegisterFilter_CacheHit(t *testing.T) {

@@ -53,6 +53,11 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 	// Use safe lookback window if fromBlock is 0 (avoid replaying entire chain)
 	if fromBlock == 0 {
 		fromBlock = computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
+		// Block 0 is not a queryable TON block. A safe lookback can resolve to
+		// zero on a fresh localnet, where the intended replay range is [1, head].
+		if fromBlock == 0 {
+			fromBlock = 1
+		}
 		lp.lggr.Infow("Replay with no starting block specified, using lookback window",
 			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
 	}
@@ -106,8 +111,8 @@ func (lp *service) ReplayStatus() models.ReplayStatus {
 // lookupRequestedReplayBlock validates and retrieves a replay block.
 // Returns error if block is beyond current block or not available in liteserver.
 func (lp *service) lookupRequestedReplayBlock(ctx context.Context, requestedReplayBlockSeqNo uint32, currentMasterchainBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
-	if requestedReplayBlockSeqNo >= currentMasterchainBlock.SeqNo {
-		return nil, fmt.Errorf("block %d is at or beyond current block %d", requestedReplayBlockSeqNo, currentMasterchainBlock.SeqNo)
+	if requestedReplayBlockSeqNo > currentMasterchainBlock.SeqNo {
+		return nil, fmt.Errorf("block %d is beyond current block %d", requestedReplayBlockSeqNo, currentMasterchainBlock.SeqNo)
 	}
 
 	block, err := lp.lookupBlock(ctx, requestedReplayBlockSeqNo, currentMasterchainBlock)
