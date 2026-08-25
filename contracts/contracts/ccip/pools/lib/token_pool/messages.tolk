@@ -61,7 +61,7 @@ struct (0x89d602e5) TokenPool_DeployableCodeSet {
 ///      `TokenPool_AdminConfig.deployableCode` is registered. Replaces any previous set.
 struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
     queryId: uint64;
-    allowedDepositNamespaces: map<uint32, bool>;
+    allowedDepositNamespaces: map<uint32, ()>;
 }
 
 /// Replied on `TokenPool_SetAllowedDepositNamespaces` to confirm tx and return excess to sender.

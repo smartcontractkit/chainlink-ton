@@ -121,7 +121,7 @@ describe('BurnMintTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Map(),
+                allowedDepositNamespaces: new Set(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: cctMinter.address,
