@@ -12,6 +12,7 @@ import "../../lib/receiver/messages"
 import "../../lib/jetton/jetton_client"
 import "../rmn_remote/lib.tolk"
 
+import "../common/types"
 import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
@@ -21,14 +22,13 @@ import "../token_registry/storage"
 import "../token_registry/messages"
 import "../token_registry/types"
 import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
 import "events"
-import "../pools/lib/token_pool/types"
-import "../common/types"
 
 tolk 1.4.1
 
@@ -93,6 +93,7 @@ fun onInternalMessage(in: InMessage) {
             val message: Any2TVMMessage = msg.message.load();
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+            assertNotCursed(st, message.sourceChainSelector);
             onRouteMessage(msg, message);
         }
         // Sender must be OnRamp
@@ -178,7 +179,34 @@ fun onInternalMessage(in: InMessage) {
             val request = lazy msg.request.load();
             val details = lazy request.transfer.details.load();
             assertSenderIsOnRamp(st, details.remoteChainSelector, in.senderAddress);
+            if (isCursed(st, details.remoteChainSelector)) {
+                return sendLockOrBurnRelayFailure(
+                    msg.executorAddress,
+                    msg.queryID,
+                    msg.tokenPool,
+                    Router_Error.SubjectCursed as int32,
+                );
+            }
             onLockOrBurn(msg);
+        }
+        // Sender must be the OffRamp registered for the request's source chain.
+        Router_RelayReleaseOrMint => {
+            val st = lazy Storage.load();
+            val expectedOffRamp = st.offRamps.mustGet(msg.sourceChainSelector, Router_Error.SourceChainNotEnabled);
+            assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+
+            val request = lazy msg.request.load();
+            val details = lazy request.transfer.details.load();
+            assert(details.remoteChainSelector == msg.sourceChainSelector, Router_Error.SourceChainSelectorMismatch);
+            if (isCursed(st, msg.sourceChainSelector)) {
+                return sendReleaseOrMintRelayFailure(
+                    msg.replyTo,
+                    msg.queryID,
+                    msg.tokenPool,
+                    Router_Error.SubjectCursed as int32,
+                );
+            }
+            onRelayReleaseOrMint(msg);
         }
         // Sender must be a Jetton Wallet owned by the Router
         TransferNotificationForRecipient => {
@@ -260,6 +288,34 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
+    if (in.bouncedBody.preloadUint(32) == 0xfffffffe) {
+        val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+        val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
+        match (richMsg) {
+            TokenPool_LockOrBurn => {
+                if (richMsg.replyTo != null) {
+                    sendLockOrBurnRelayFailure(
+                        richMsg.replyTo!,
+                        richMsg.queryId,
+                        in.senderAddress,
+                        rich.exitCode,
+                    );
+                }
+            }
+            TokenPool_ReleaseOrMint => {
+                if (richMsg.replyTo != null) {
+                    sendReleaseOrMintRelayFailure(
+                        richMsg.replyTo!,
+                        richMsg.queryId,
+                        in.senderAddress,
+                        rich.exitCode,
+                    );
+                }
+            }
+        }
+        return;
+    }
+
     val msg = lazy Router_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
       // We are lazy matching and only accessing the first element of the struct.
@@ -750,7 +806,7 @@ withdraw path should go through the executor - so the TP needs to withdraw -> ex
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
     val tokenPoolLockOrBurn = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: msg.tokenPool,
         body: TokenPool_LockOrBurn {
@@ -762,7 +818,22 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-} 
+}
+
+fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
+    val tokenPoolReleaseOrMint = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: msg.tokenPool,
+        body: TokenPool_ReleaseOrMint {
+            queryId: msg.queryID,
+            request: msg.request,
+            requestedFinalityConfig: msg.requestedFinalityConfig,
+            replyTo: msg.replyTo,
+        },
+    });
+    tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
 
 /*
 Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -778,6 +849,48 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
+}
+
+/// Enforces the Router's authoritative RMN policy for a remote chain.
+///
+/// Token pools can additionally enforce an independently managed local curse
+/// policy. A transfer is admitted only when both policy domains allow it.
+fun assertNotCursed(st: Storage, remoteChainSelector: uint64) {
+    assert(!isCursed(st, remoteChainSelector), Router_Error.SubjectCursed);
+}
+
+fun isCursed(st: Storage, remoteChainSelector: uint64): bool {
+    return st.rmnRemote.load().cursedSubjects.isCursed(remoteChainSelector as uint128);
+}
+
+fun sendLockOrBurnRelayFailure(
+    executor: address,
+    queryID: uint64,
+    tokenPool: address,
+    exitCode: int32,
+) {
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: Router_TokenPoolLockOrBurnFailed { queryID, tokenPool, exitCode },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun sendReleaseOrMintRelayFailure(
+    executor: address,
+    queryID: uint64,
+    tokenPool: address,
+    exitCode: int32,
+) {
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: Router_TokenPoolReleaseOrMintFailed { queryID, tokenPool, exitCode },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 @method_id(1000)

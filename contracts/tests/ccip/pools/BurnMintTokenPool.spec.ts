@@ -11,7 +11,6 @@ import {
   TokenPool,
   TokenPool_Data,
   TokenPool_AdminConfig,
-  TokenPool_RampUpdate,
   TokenPool_RateLimitConfigPair,
   TokenPool_ChainUpdate,
   TokenPool_LockOrBurn,
@@ -23,7 +22,7 @@ import {
   TokenPool_LockOrBurnOutV1,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintFinished,
-  TokenPool_MirroredPolicy,
+  TokenPool_LocalPolicy,
   TokenPool_DynamicConfig,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
@@ -130,9 +129,7 @@ describe('BurnMintTokenPool', () => {
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
             }),
-            mirroredPolicy: TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
+            localPolicy: TokenPool_LocalPolicy.create({
               cursedSubjects: CursedSubjects.create({
                 data: new Set(),
               }),
@@ -186,17 +183,6 @@ describe('BurnMintTokenPool', () => {
         success: true,
       })
     }
-
-    await burnMintPool.sendTokenPoolUpdateRampAccess(deployer.getSender(), toNano('0.2'), {
-      queryId: 2n,
-      updates: [
-        TokenPool_RampUpdate.create({
-          remoteChainSelector,
-          onRamp: deployer.address,
-          offRamp: offRamp.address,
-        }),
-      ],
-    })
 
     // Mint user-side test balance before handing minter admin to the pool.
     const mintToOnRamp = await cctMinterRuntime.sendMint(deployer.getSender(), {
@@ -270,6 +256,7 @@ describe('BurnMintTokenPool', () => {
 
   runTokenPoolBehaviorTests('BurnMintTokenPool', async () => ({
     pool,
+    blockchain,
     deployer,
     offRamp,
     altOffRamp: deployer,
@@ -313,6 +300,7 @@ describe('BurnMintTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized,
@@ -756,7 +744,7 @@ describe('BurnMintTokenPool', () => {
 
   it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.6'),
       {
         queryId: 22n,
@@ -781,7 +769,7 @@ describe('BurnMintTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: burnMintPool.address,
       success: true,
     })
@@ -807,7 +795,7 @@ describe('BurnMintTokenPool', () => {
 
   it('mints on releaseOrMint with null replyTo without emitting response message', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.6'),
       {
         queryId: 305n,
@@ -832,7 +820,7 @@ describe('BurnMintTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: burnMintPool.address,
       success: true,
     })

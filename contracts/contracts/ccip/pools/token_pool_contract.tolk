@@ -43,16 +43,8 @@ get fun isSupportedChain(remoteChainSelector: uint64): bool {
     throw 0xFFFF;
 }
 
-get fun onRamp(remoteChainSelector: uint64): address? {
-    throw 0xFFFF;
-}
-
-get fun offRamp(remoteChainSelector: uint64): address? {
-    throw 0xFFFF;
-}
-
 /// Matches Go binding GetRMNProxy (Name: "getRMNProxy").
-get fun getRMNProxy(): address {
+get fun getRMNProxy(): address? {
     throw 0xFFFF;
 }
 
@@ -121,11 +113,6 @@ get fun cursedSubjects(): lisp_list<uint128> {
 
 /// Matches Go binding GetAdminConfig (Name: "getAdminConfig").
 get fun getAdminConfig(): TokenPool_AdminConfig {
-    throw 0xFFFF;
-}
-
-/// Matches Go binding GetMirroredPolicy (Name: "getMirroredPolicy").
-get fun getMirroredPolicy(): TokenPool_MirroredPolicy {
     throw 0xFFFF;
 }
 

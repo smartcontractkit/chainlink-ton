@@ -78,6 +78,40 @@ fun onInternalMessage(in: InMessage) {
             assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onConfirmWithdraw(msg);
         }
+        // Structured pool failures can arrive either before custody withdrawal
+        // or while the withdrawal/finalization phase is in progress.
+        TokenPool_LockOrBurnFailure => {
+            val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
+            if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
+                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+                assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+                this.exitWithError(msg.errorCode as uint256);
+            } else {
+                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
+                assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+                this.exitWithError(msg.errorCode as uint256);
+            }
+        }
+        // Router policy rejection, a pre-admission pool bounce, or a bounced
+        // Router-wallet withdrawal is reported by the configured Router.
+        Router_TokenPoolLockOrBurnFailed => {
+            val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
+            if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
+                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+                val state = lazy this.state.load();
+                val addresses = lazy this.addresses.load();
+                assert(addresses.router == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+                assert(state.tokenPool == msg.tokenPool, CCIPSendExecutor_Error.Unauthorized);
+                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256);
+            } else {
+                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
+                val state = lazy this.state.load();
+                val addresses = lazy this.addresses.load();
+                assert(addresses.router == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+                assert(state.tokenPool == msg.tokenPool, CCIPSendExecutor_Error.Unauthorized);
+                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256);
+            }
+        }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
         },   

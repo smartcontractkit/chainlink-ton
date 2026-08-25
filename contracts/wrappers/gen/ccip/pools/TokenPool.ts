@@ -392,108 +392,35 @@ export const TokenPool_DynamicConfig = {
 }
 
 /**
- > struct TokenPool_MirroredPolicy {
- >     onRamps: map<uint64, address>
- >     offRamps: map<uint64, address>
+ > struct TokenPool_LocalPolicy {
  >     cursedSubjects: CursedSubjects
  > }
  */
-export interface TokenPool_MirroredPolicy {
-    readonly $: 'TokenPool_MirroredPolicy'
-    onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
-    offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
+export interface TokenPool_LocalPolicy {
+    readonly $: 'TokenPool_LocalPolicy'
     cursedSubjects: CursedSubjects
 }
 
-export const TokenPool_MirroredPolicy = {
+export const TokenPool_LocalPolicy = {
     create(args: {
-        onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
-        offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
         cursedSubjects: CursedSubjects
-    }): TokenPool_MirroredPolicy {
+    }): TokenPool_LocalPolicy {
         return {
-            $: 'TokenPool_MirroredPolicy',
+            $: 'TokenPool_LocalPolicy',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_MirroredPolicy {
+    fromSlice(s: c.Slice): TokenPool_LocalPolicy {
         return {
-            $: 'TokenPool_MirroredPolicy',
-            onRamps: dictToMap(c.Dictionary.load<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-                            (s) => s.loadAddress(),
-                            (v,b) => b.storeAddress(v)
-                        ), s)),
-            offRamps: dictToMap(c.Dictionary.load<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-                            (s) => s.loadAddress(),
-                            (v,b) => b.storeAddress(v)
-                        ), s)),
+            $: 'TokenPool_LocalPolicy',
             cursedSubjects: CursedSubjects.fromSlice(s),
         }
     },
-    store(self: TokenPool_MirroredPolicy, b: c.Builder): void {
-        b.storeDict<uint64, c.Address>(mapToDict(self.onRamps, c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-                        (s) => s.loadAddress(),
-                        (v,b) => b.storeAddress(v)
-                    )), c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-            (s) => s.loadAddress(),
-            (v,b) => b.storeAddress(v)
-        ));
-        b.storeDict<uint64, c.Address>(mapToDict(self.offRamps, c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-                        (s) => s.loadAddress(),
-                        (v,b) => b.storeAddress(v)
-                    )), c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-            (s) => s.loadAddress(),
-            (v,b) => b.storeAddress(v)
-        ));
+    store(self: TokenPool_LocalPolicy, b: c.Builder): void {
         CursedSubjects.store(self.cursedSubjects, b);
     },
-    toCell(self: TokenPool_MirroredPolicy): c.Cell {
-        return makeCellFrom<TokenPool_MirroredPolicy>(self, TokenPool_MirroredPolicy.store);
-    }
-}
-
-/**
- > struct TokenPool_RampUpdate {
- >     remoteChainSelector: uint64
- >     onRamp: address?
- >     offRamp: address?
- > }
- */
-export interface TokenPool_RampUpdate {
-    readonly $: 'TokenPool_RampUpdate'
-    remoteChainSelector: uint64
-    onRamp: c.Address | null /* = null */
-    offRamp: c.Address | null /* = null */
-}
-
-export const TokenPool_RampUpdate = {
-    create(args: {
-        remoteChainSelector: uint64
-        onRamp?: c.Address | null /* = null */
-        offRamp?: c.Address | null /* = null */
-    }): TokenPool_RampUpdate {
-        return {
-            $: 'TokenPool_RampUpdate',
-            onRamp: null,
-            offRamp: null,
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_RampUpdate {
-        return {
-            $: 'TokenPool_RampUpdate',
-            remoteChainSelector: s.loadUintBig(64),
-            onRamp: s.loadMaybeAddress(),
-            offRamp: s.loadMaybeAddress(),
-        }
-    },
-    store(self: TokenPool_RampUpdate, b: c.Builder): void {
-        b.storeUint(self.remoteChainSelector, 64);
-        b.storeAddress(self.onRamp);
-        b.storeAddress(self.offRamp);
-    },
-    toCell(self: TokenPool_RampUpdate): c.Cell {
-        return makeCellFrom<TokenPool_RampUpdate>(self, TokenPool_RampUpdate.store);
+    toCell(self: TokenPool_LocalPolicy): c.Cell {
+        return makeCellFrom<TokenPool_LocalPolicy>(self, TokenPool_LocalPolicy.store);
     }
 }
 
@@ -1211,7 +1138,7 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 /**
  > struct TokenPool_AdminConfig {
  >     ownable: Cell<Ownable2Step>
- >     rmnProxy: address
+ >     rmnProxy: address?
  >     dynamicConfig: Cell<TokenPool_DynamicConfig>
  >     jettonClient: JettonClient
  >     allowedFinalityConfig: uint32
@@ -1222,7 +1149,7 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 export interface TokenPool_AdminConfig {
     readonly $: 'TokenPool_AdminConfig'
     ownable: Ownable2Step
-    rmnProxy: c.Address
+    rmnProxy: c.Address | null
     dynamicConfig: TokenPool_DynamicConfig
     jettonClient: JettonClient
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
@@ -1233,7 +1160,7 @@ export interface TokenPool_AdminConfig {
 export const TokenPool_AdminConfig = {
     create(args: {
         ownable: Ownable2Step
-        rmnProxy: c.Address
+        rmnProxy: c.Address | null
         dynamicConfig: TokenPool_DynamicConfig
         jettonClient: JettonClient
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
@@ -1252,7 +1179,7 @@ export const TokenPool_AdminConfig = {
         return {
             $: 'TokenPool_AdminConfig',
             ownable: loadCellRef<Ownable2Step>(s, Ownable2Step.fromSlice),
-            rmnProxy: s.loadAddress(),
+            rmnProxy: s.loadMaybeAddress(),
             dynamicConfig: loadCellRef<TokenPool_DynamicConfig>(s, TokenPool_DynamicConfig.fromSlice),
             jettonClient: JettonClient.fromSlice(s),
             allowedFinalityConfig: s.loadUintBig(32),
@@ -1279,7 +1206,7 @@ export const TokenPool_AdminConfig = {
 /**
  > struct TokenPool_Data {
  >     adminConfig: Cell<TokenPool_AdminConfig>
- >     mirroredPolicy: Cell<TokenPool_MirroredPolicy>
+ >     localPolicy: Cell<TokenPool_LocalPolicy>
  >     tokenDecimals: uint8
  >     remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig>
  >     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>
@@ -1288,7 +1215,7 @@ export const TokenPool_AdminConfig = {
 export interface TokenPool_Data {
     readonly $: 'TokenPool_Data'
     adminConfig: TokenPool_AdminConfig
-    mirroredPolicy: TokenPool_MirroredPolicy
+    localPolicy: TokenPool_LocalPolicy
     tokenDecimals: uint8
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
@@ -1297,7 +1224,7 @@ export interface TokenPool_Data {
 export const TokenPool_Data = {
     create(args: {
         adminConfig: TokenPool_AdminConfig
-        mirroredPolicy: TokenPool_MirroredPolicy
+        localPolicy: TokenPool_LocalPolicy
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
@@ -1311,7 +1238,7 @@ export const TokenPool_Data = {
         return {
             $: 'TokenPool_Data',
             adminConfig: loadCellRef<TokenPool_AdminConfig>(s, TokenPool_AdminConfig.fromSlice),
-            mirroredPolicy: loadCellRef<TokenPool_MirroredPolicy>(s, TokenPool_MirroredPolicy.fromSlice),
+            localPolicy: loadCellRef<TokenPool_LocalPolicy>(s, TokenPool_LocalPolicy.fromSlice),
             tokenDecimals: s.loadUintBig(8),
             remoteChainConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_RemoteChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store), s)),
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_TokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store), s)),
@@ -1319,7 +1246,7 @@ export const TokenPool_Data = {
     },
     store(self: TokenPool_Data, b: c.Builder): void {
         storeCellRef<TokenPool_AdminConfig>(self.adminConfig, b, TokenPool_AdminConfig.store);
-        storeCellRef<TokenPool_MirroredPolicy>(self.mirroredPolicy, b, TokenPool_MirroredPolicy.store);
+        storeCellRef<TokenPool_LocalPolicy>(self.localPolicy, b, TokenPool_LocalPolicy.store);
         b.storeUint(self.tokenDecimals, 8);
         b.storeDict<uint64, TokenPool_RemoteChainConfig>(mapToDict(self.remoteChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store));
         b.storeDict<uint64, TokenPool_TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store));
@@ -1877,58 +1804,15 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
 }
 
 /**
- > struct (0xe30764be) TokenPool_UpdateRampAccess {
- >     queryId: uint64
- >     updates: SnakedCell<TokenPool_RampUpdate>
- > }
- */
-export interface TokenPool_UpdateRampAccess {
-    readonly $: 'TokenPool_UpdateRampAccess'
-    queryId: uint64
-    updates: SnakedCell<TokenPool_RampUpdate>
-}
-
-export const TokenPool_UpdateRampAccess = {
-    PREFIX: 0xe30764be,
-
-    create(args: {
-        queryId?: uint64
-        updates: SnakedCell<TokenPool_RampUpdate>
-    }): TokenPool_UpdateRampAccess {
-        return {
-            $: 'TokenPool_UpdateRampAccess',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_UpdateRampAccess {
-        loadAndCheckPrefix32(s, 0xe30764be, 'TokenPool_UpdateRampAccess');
-        return {
-            $: 'TokenPool_UpdateRampAccess',
-            queryId: s.loadUintBig(64),
-            updates: loadSnakedCellOf(s, TokenPool_RampUpdate.fromSlice),
-        }
-    },
-    store(self: TokenPool_UpdateRampAccess, b: c.Builder): void {
-        b.storeUint(0xe30764be, 32);
-        b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.updates, b, TokenPool_RampUpdate.store);
-    },
-    toCell(self: TokenPool_UpdateRampAccess): c.Cell {
-        return makeCellFrom<TokenPool_UpdateRampAccess>(self, TokenPool_UpdateRampAccess.store);
-    }
-}
-
-/**
  > struct (0x9929b642) TokenPool_SetRMNProxy {
  >     queryId: uint64
- >     rmnProxy: address
+ >     rmnProxy: address?
  > }
  */
 export interface TokenPool_SetRMNProxy {
     readonly $: 'TokenPool_SetRMNProxy'
     queryId: uint64
-    rmnProxy: c.Address
+    rmnProxy: c.Address | null
 }
 
 export const TokenPool_SetRMNProxy = {
@@ -1936,7 +1820,7 @@ export const TokenPool_SetRMNProxy = {
 
     create(args: {
         queryId?: uint64
-        rmnProxy: c.Address
+        rmnProxy: c.Address | null
     }): TokenPool_SetRMNProxy {
         return {
             $: 'TokenPool_SetRMNProxy',
@@ -1949,7 +1833,7 @@ export const TokenPool_SetRMNProxy = {
         return {
             $: 'TokenPool_SetRMNProxy',
             queryId: s.loadUintBig(64),
-            rmnProxy: s.loadAddress(),
+            rmnProxy: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_SetRMNProxy, b: c.Builder): void {
@@ -3316,44 +3200,6 @@ export const TokenPool_ChainUpdatesApplied = {
 }
 
 /**
- > struct (0xd7f5c563) TokenPool_RampAccessUpdatesApplied {
- >     queryId: uint64
- > }
- */
-export interface TokenPool_RampAccessUpdatesApplied {
-    readonly $: 'TokenPool_RampAccessUpdatesApplied'
-    queryId: uint64
-}
-
-export const TokenPool_RampAccessUpdatesApplied = {
-    PREFIX: 0xd7f5c563,
-
-    create(args: {
-        queryId?: uint64
-    }): TokenPool_RampAccessUpdatesApplied {
-        return {
-            $: 'TokenPool_RampAccessUpdatesApplied',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_RampAccessUpdatesApplied {
-        loadAndCheckPrefix32(s, 0xd7f5c563, 'TokenPool_RampAccessUpdatesApplied');
-        return {
-            $: 'TokenPool_RampAccessUpdatesApplied',
-            queryId: s.loadUintBig(64),
-        }
-    },
-    store(self: TokenPool_RampAccessUpdatesApplied, b: c.Builder): void {
-        b.storeUint(0xd7f5c563, 32);
-        b.storeUint(self.queryId, 64);
-    },
-    toCell(self: TokenPool_RampAccessUpdatesApplied): c.Cell {
-        return makeCellFrom<TokenPool_RampAccessUpdatesApplied>(self, TokenPool_RampAccessUpdatesApplied.store);
-    }
-}
-
-/**
  > struct (0x28cbcc64) TokenPool_FeeConfigApplied {
  >     queryId: uint64
  > }
@@ -3864,51 +3710,6 @@ export const TokenPool_RateLimitConfigured = {
     },
     toCell(self: TokenPool_RateLimitConfigured): c.Cell {
         return makeCellFrom<TokenPool_RateLimitConfigured>(self, TokenPool_RateLimitConfigured.store);
-    }
-}
-
-/**
- > struct TokenPool_RampAccessUpdated {
- >     remoteChainSelector: uint64
- >     onRamp: address?
- >     offRamp: address?
- > }
- */
-export interface TokenPool_RampAccessUpdated {
-    readonly $: 'TokenPool_RampAccessUpdated'
-    remoteChainSelector: uint64
-    onRamp: c.Address | null /* = null */
-    offRamp: c.Address | null /* = null */
-}
-
-export const TokenPool_RampAccessUpdated = {
-    create(args: {
-        remoteChainSelector: uint64
-        onRamp?: c.Address | null /* = null */
-        offRamp?: c.Address | null /* = null */
-    }): TokenPool_RampAccessUpdated {
-        return {
-            $: 'TokenPool_RampAccessUpdated',
-            onRamp: null,
-            offRamp: null,
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_RampAccessUpdated {
-        return {
-            $: 'TokenPool_RampAccessUpdated',
-            remoteChainSelector: s.loadUintBig(64),
-            onRamp: s.loadMaybeAddress(),
-            offRamp: s.loadMaybeAddress(),
-        }
-    },
-    store(self: TokenPool_RampAccessUpdated, b: c.Builder): void {
-        b.storeUint(self.remoteChainSelector, 64);
-        b.storeAddress(self.onRamp);
-        b.storeAddress(self.offRamp);
-    },
-    toCell(self: TokenPool_RampAccessUpdated): c.Cell {
-        return makeCellFrom<TokenPool_RampAccessUpdated>(self, TokenPool_RampAccessUpdated.store);
     }
 }
 
@@ -4439,7 +4240,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECNgEAAXUAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICorAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBSBITAgFmDg8CAUgQEQALoF4QP8vCAAuhxhA/y8IAC6V1CB/l4QALpyMIH+XhAAypX4QP8vAADKrQhA/y8AANs2ohA/y8IAIBIBYXAA2sPkIH+XhAAA2sgMIH+XhAAgEgGhsCASAkJQIBIBwdAgEgIiMCASAeHwIBYiAhAAyqh4QP8vAADKkdhA/y8AALofoQP8vCAAugfhA/y8IADa9FQgf5eEAADazjQgf5eEACAVgmJwICdSgpAAypeoQP8vAADKq2hA/y8AALo64QP8vCAAuiGhA/y8ICASAsLQIBIC4vAA20fbCB/l4QAA233PCB/l4QAA20jbCB/l4QAgEgMDECAWoyMwIBIDQ1AAulXwgf5eEAC6cDCB/l4QANrGvCB/l4QAANrDjCB/l4QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECMAEAAU8AART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICQlAgEgCAkCASAUFQIBIAoLAgEgEhMCASAMDQIBSBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAAypX4QP8vAADKrQhA/y8AANs2ohA/y8IAANsB8hA/y8IAIBIBYXAgEgICECASAYGQIBIB4fAgEgGhsCAWIcHQAMqoeED/LwAAypHYQP8vAAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYIiMADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgEgJicCASAoKQANtH2wgf5eEAANt9zwgf5eEAANtI2wgf5eEAIBICorAgFqLC0CASAuLwALpV8IH+XhAAunAwgf5eEADaxrwgf5eEAADaw4wgf5eEA=');
 
     static Errors = {
     }
@@ -4469,7 +4270,7 @@ export class TokenPool implements c.Contract {
 
     static fromStorage(emptyStorage: {
         adminConfig: TokenPool_AdminConfig
-        mirroredPolicy: TokenPool_MirroredPolicy
+        localPolicy: TokenPool_LocalPolicy
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
@@ -4649,16 +4450,9 @@ export class TokenPool implements c.Contract {
         return TokenPool_ApplyTokenTransferFeeConfigUpdates.toCell(TokenPool_ApplyTokenTransferFeeConfigUpdates.create(body));
     }
 
-    static createCellOfTokenPoolUpdateRampAccess(body: {
-        queryId?: uint64
-        updates: SnakedCell<TokenPool_RampUpdate>
-    }) {
-        return TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body));
-    }
-
     static createCellOfTokenPoolSetRMNProxy(body: {
         queryId?: uint64
-        rmnProxy: c.Address
+        rmnProxy: c.Address | null
     }) {
         return TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body));
     }
@@ -4940,20 +4734,9 @@ export class TokenPool implements c.Contract {
         });
     }
 
-    async sendTokenPoolUpdateRampAccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        updates: SnakedCell<TokenPool_RampUpdate>
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body)),
-            ...extraOptions
-        });
-    }
-
     async sendTokenPoolSetRMNProxy(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        rmnProxy: c.Address
+        rmnProxy: c.Address | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5012,27 +4795,11 @@ export class TokenPool implements c.Contract {
         return r.readBoolean();
     }
 
-    async getOnRamp(provider: ContractProvider, remoteChainSelector: uint64): Promise<c.Address | null> {
-        const r = StackReader.fromGetMethod(1, await provider.get('onRamp', [
-            { type: 'int', value: remoteChainSelector },
-        ]));
-        return r.readNullable<c.Address>(
-            (r) => r.readSlice().loadAddress()
-        );
-    }
-
-    async getOffRamp(provider: ContractProvider, remoteChainSelector: uint64): Promise<c.Address | null> {
-        const r = StackReader.fromGetMethod(1, await provider.get('offRamp', [
-            { type: 'int', value: remoteChainSelector },
-        ]));
-        return r.readNullable<c.Address>(
-            (r) => r.readSlice().loadAddress()
-        );
-    }
-
-    async getRMNProxy(provider: ContractProvider): Promise<c.Address> {
+    async getRMNProxy(provider: ContractProvider): Promise<c.Address | null> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
-        return r.readSlice().loadAddress();
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {
@@ -5154,7 +4921,9 @@ export class TokenPool implements c.Contract {
         return ({
             $: 'TokenPool_AdminConfig',
             ownable: r.readCellRef<Ownable2Step>(Ownable2Step.fromSlice),
-            rmnProxy: r.readSlice().loadAddress(),
+            rmnProxy: r.readNullable<c.Address>(
+                (r) => r.readSlice().loadAddress()
+            ),
             dynamicConfig: r.readCellRef<TokenPool_DynamicConfig>(TokenPool_DynamicConfig.fromSlice),
             jettonClient: ({
                 $: 'JettonClient',
@@ -5168,28 +4937,6 @@ export class TokenPool implements c.Contract {
             deployableCode: r.readNullable<c.Cell>(
                 (r) => r.readCell()
             ),
-        });
-    }
-
-    async getMirroredPolicy(provider: ContractProvider): Promise<TokenPool_MirroredPolicy> {
-        const r = StackReader.fromGetMethod(3, await provider.get('getMirroredPolicy', []));
-        return ({
-            $: 'TokenPool_MirroredPolicy',
-            onRamps: dictToMap(r.readDictionary<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-                            (s) => s.loadAddress(),
-                            (v,b) => b.storeAddress(v)
-                        ))),
-            offRamps: dictToMap(r.readDictionary<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
-                            (s) => s.loadAddress(),
-                            (v,b) => b.storeAddress(v)
-                        ))),
-            cursedSubjects: ({
-                $: 'CursedSubjects',
-                data: dictToSet(r.readDictionary<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                                    (s) => [],
-                                    (v,b) => { {} }
-                                ))),
-            }),
         });
     }
 

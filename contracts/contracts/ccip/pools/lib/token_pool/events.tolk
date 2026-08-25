@@ -10,7 +10,6 @@ const TOPIC_TOKEN_POOL_CHAIN_REMOVED = "TokenPool_ChainRemoved".crc32();
 const TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED = "TokenPool_RemotePoolAdded".crc32();
 const TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED = "TokenPool_RemotePoolRemoved".crc32();
 const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = "TokenPool_DynamicConfigSet".crc32();
-const TOPIC_TOKEN_POOL_RAMP_ACCESS_UPDATED = "TokenPool_RampAccessUpdated".crc32();
 const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = "TokenPool_FinalityConfigSet".crc32();
 const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = "TokenPool_RateLimitConfigured".crc32();
 const TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED = "TokenPool_TokenTransferFeeConfigUpdated".crc32();
@@ -155,17 +154,10 @@ struct TokenPool_RateLimitConfigured {
 //   );
 //   event AdvancedPoolHooksUpdated(IAdvancedPoolHooks oldHook, IAdvancedPoolHooks newHook);
 
-struct TokenPool_RampAccessUpdated {
-    remoteChainSelector: uint64;
-    onRamp: address? = null;
-    offRamp: address? = null;
-}
-
 type TokenPool_Events = 
     | TokenPool_ChainAdded
     | TokenPool_ChainRemoved
     | TokenPool_RateLimitConfigured
-    | TokenPool_RampAccessUpdated
     | TokenPool_TokenTransferFeeConfigUpdated
     | TokenPool_TokenTransferFeeConfigDeleted
     | TokenPool_OutboundRateLimitConsumed

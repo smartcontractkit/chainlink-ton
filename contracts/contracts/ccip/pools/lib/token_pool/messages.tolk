@@ -2,6 +2,7 @@
 import "../../../../lib/jetton/messages"
 import "../../../../lib/funding/jetton_withdrawable"
 import "../../../../lib/utils"
+
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 
@@ -79,15 +80,10 @@ struct (0x30a1d1f7) TokenPool_ApplyTokenTransferFeeConfigUpdates {
     disableChainSelectors: SnakedCell<uint64>;
 }
 
-struct (0xe30764be) TokenPool_UpdateRampAccess {
-    queryId: uint64;
-    updates: SnakedCell<TokenPool_RampUpdate>;
-}
-
 /// Sets the RMN proxy address, a role which is responsible for updating the cursed subjects list.
 struct (0x9929b642) TokenPool_SetRMNProxy {
     queryId: uint64;
-    rmnProxy: address;
+    rmnProxy: address?;
 }
 
 struct (0x9da4da09) TokenPool_SetCursedSubjects {
@@ -281,7 +277,6 @@ type TokenPool_InMessage =
     | TokenPool_SetAllowedDepositNamespaces
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
-    | TokenPool_UpdateRampAccess
     | TokenPool_SetRMNProxy
     | TokenPool_SetCursedSubjects
     | JettonWithdrawable_Withdraw;
@@ -350,7 +345,7 @@ struct (0xdd7b0c71) TokenPool_RateLimitConfiguredNotification {
 /// Replied on `TokenPool_SetRMNProxy` to confirm tx and return excess to sender.
 struct (0xe5d08b2e) TokenPool_RMNProxySet {
     queryId: uint64;
-    rmnProxy: address;
+    rmnProxy: address?;
 }
 
 /// Replied on `TokenPool_SetCursedSubjects` to confirm tx and return excess to sender.
@@ -361,11 +356,6 @@ struct (0x15800161) TokenPool_CursedSubjectsSet {
 
 /// Replied on `TokenPool_ApplyChainUpdates` to confirm tx and return excess to sender.
 struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
-    queryId: uint64;
-}
-
-/// Replied on `TokenPool_UpdateRampAccess` to confirm tx and return excess to sender.
-struct (0xd7f5c563) TokenPool_RampAccessUpdatesApplied {
     queryId: uint64;
 }
 
@@ -400,5 +390,4 @@ type TokenPool_OutMessage =
     | TokenPool_CursedSubjectsSet
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied
-    | TokenPool_RampAccessUpdatesApplied
     | TokenPool_FeeConfigApplied;

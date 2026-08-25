@@ -12,7 +12,7 @@ import {
   TokenPool_Data,
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
-  TokenPool_MirroredPolicy,
+  TokenPool_LocalPolicy,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
   TokenPool_LockOrBurn,
@@ -23,7 +23,6 @@ import {
   TokenPool_LockOrBurnPrepared,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_RateLimitConfigPair,
-  TokenPool_RampUpdate,
   TokenPool_ChainUpdate,
   Ownable2Step,
   TokenPool_TransferDetails,
@@ -160,9 +159,7 @@ describe('LockReleaseTokenPool', () => {
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
             }),
-            mirroredPolicy: TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
+            localPolicy: TokenPool_LocalPolicy.create({
               cursedSubjects: CursedSubjects.create({
                 data: new Set(),
               }),
@@ -216,27 +213,6 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    const updateRampAccess = await lockReleasePool.sendTokenPoolUpdateRampAccess(
-      deployer.getSender(),
-      toNano('0.2'),
-      {
-        queryId: 2n,
-        updates: [
-          TokenPool_RampUpdate.create({
-            remoteChainSelector,
-            onRamp: deployer.address,
-            offRamp: offRamp.address,
-          }),
-        ],
-      },
-    )
-
-    expect(updateRampAccess.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: lockReleasePool.address,
-      success: true,
-    })
-
     const mintToOnRamp = await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
       message: {
@@ -281,6 +257,7 @@ describe('LockReleaseTokenPool', () => {
     'LockReleaseTokenPool',
     async () => ({
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized: recipient,
@@ -326,6 +303,7 @@ describe('LockReleaseTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized: recipient,
@@ -711,7 +689,7 @@ describe('LockReleaseTokenPool', () => {
 
   it('reverts releaseOrMint when requested amount exceeds pool liquidity', async () => {
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 46n,
@@ -736,7 +714,7 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: lockReleasePool.address,
       success: false,
     })
@@ -751,7 +729,7 @@ describe('LockReleaseTokenPool', () => {
     expect(before.inbound.tokens).toEqual(toNano('100'))
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 77n,
@@ -890,7 +868,7 @@ describe('LockReleaseTokenPool', () => {
     })
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 22n,
@@ -915,7 +893,7 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: lockReleasePool.address,
       success: true,
     })
@@ -967,7 +945,7 @@ describe('LockReleaseTokenPool', () => {
     })
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 223n,
@@ -1028,7 +1006,7 @@ describe('LockReleaseTokenPool', () => {
     })
   })
 
-  it('mirrors cursed state locally and blocks release while cursed', async () => {
+  it('applies local cursed state and blocks release while cursed', async () => {
     const curseUpdate = await lockReleasePool.sendTokenPoolSetCursedSubjects(
       deployer.getSender(),
       toNano('0.2'),
@@ -1047,7 +1025,7 @@ describe('LockReleaseTokenPool', () => {
     expect(await lockReleasePool.getVerifyNotCursed(remoteChainSelector)).toBe(false)
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.3'),
       {
         queryId: 33n,
@@ -1072,7 +1050,7 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: lockReleasePool.address,
       success: false,
     })

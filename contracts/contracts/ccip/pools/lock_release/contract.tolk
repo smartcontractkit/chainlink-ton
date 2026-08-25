@@ -333,8 +333,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
         data: st.poolData.load(),
         context: st,
         hooks: TokenPool_Hooks<Storage> {
-            ensureOutboundAccess: null,
-            ensureInboundAccess: null,
             ensureNotCursed: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
@@ -410,22 +408,12 @@ get fun isSupportedChain(remoteChainSelector: uint64): bool {
     return Storage.load().poolData.load().remoteChainConfigs.get(remoteChainSelector).isFound;
 }
 
-get fun onRamp(remoteChainSelector: uint64): address? {
-    val entry = Storage.load().poolData.load().mirroredPolicy.load().onRamps.get(remoteChainSelector);
-    return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun offRamp(remoteChainSelector: uint64): address? {
-    val entry = Storage.load().poolData.load().mirroredPolicy.load().offRamps.get(remoteChainSelector);
-    return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun getRMNProxy(): address {
+get fun getRMNProxy(): address? {
     return Storage.load().poolData.load().adminConfig.load().rmnProxy;
 }
 
 get fun verifyNotCursed(subject: uint128): bool {
-    return !Storage.load().poolData.load().mirroredPolicy.load().cursedSubjects.isCursed(subject);
+    return !Storage.load().poolData.load().localPolicy.load().cursedSubjects.isCursed(subject);
 }
 
 get fun owner(): address {

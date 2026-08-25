@@ -44,9 +44,7 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
                 advancedPoolHooks: createAddressNone() as address,
                 deployableCode: config.deployableCode,
             }.toCell(),
-            mirroredPolicy: TokenPool_MirroredPolicy {
-                onRamps: createEmptyMap(),
-                offRamps: createEmptyMap(),
+            localPolicy: TokenPool_LocalPolicy {
                 cursedSubjects: CursedSubjects {
                     data: createEmptyMap(),
                 },
