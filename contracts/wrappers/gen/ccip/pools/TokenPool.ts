@@ -1584,7 +1584,7 @@ export const TokenPool_SetAdvancedPoolHooks = {
 }
 
 /**
- > struct (0x6c2a91e4) TokenPool_SetDeployableCode {
+ > struct (0x3868e309) TokenPool_SetDeployableCode {
  >     queryId: uint64
  >     deployableCode: cell?
  > }
@@ -1596,7 +1596,7 @@ export interface TokenPool_SetDeployableCode {
 }
 
 export const TokenPool_SetDeployableCode = {
-    PREFIX: 0x6c2a91e4,
+    PREFIX: 0x3868e309,
 
     create(args: {
         queryId?: uint64
@@ -1609,7 +1609,7 @@ export const TokenPool_SetDeployableCode = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetDeployableCode {
-        loadAndCheckPrefix32(s, 0x6c2a91e4, 'TokenPool_SetDeployableCode');
+        loadAndCheckPrefix32(s, 0x3868e309, 'TokenPool_SetDeployableCode');
         return {
             $: 'TokenPool_SetDeployableCode',
             queryId: s.loadUintBig(64),
@@ -1617,7 +1617,7 @@ export const TokenPool_SetDeployableCode = {
         }
     },
     store(self: TokenPool_SetDeployableCode, b: c.Builder): void {
-        b.storeUint(0x6c2a91e4, 32);
+        b.storeUint(0x3868e309, 32);
         b.storeUint(self.queryId, 64);
         storeTolkNullable<c.Cell>(self.deployableCode, b,
             (v,b) => b.storeRef(v)
@@ -1629,7 +1629,7 @@ export const TokenPool_SetDeployableCode = {
 }
 
 /**
- > struct (0x09d4a7b1) TokenPool_DeployableCodeSet {
+ > struct (0x89d602e5) TokenPool_DeployableCodeSet {
  >     queryId: uint64
  >     deployableCode: cell?
  > }
@@ -1641,7 +1641,7 @@ export interface TokenPool_DeployableCodeSet {
 }
 
 export const TokenPool_DeployableCodeSet = {
-    PREFIX: 0x09d4a7b1,
+    PREFIX: 0x89d602e5,
 
     create(args: {
         queryId?: uint64
@@ -1654,7 +1654,7 @@ export const TokenPool_DeployableCodeSet = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_DeployableCodeSet {
-        loadAndCheckPrefix32(s, 0x09d4a7b1, 'TokenPool_DeployableCodeSet');
+        loadAndCheckPrefix32(s, 0x89d602e5, 'TokenPool_DeployableCodeSet');
         return {
             $: 'TokenPool_DeployableCodeSet',
             queryId: s.loadUintBig(64),
@@ -1662,7 +1662,7 @@ export const TokenPool_DeployableCodeSet = {
         }
     },
     store(self: TokenPool_DeployableCodeSet, b: c.Builder): void {
-        b.storeUint(0x09d4a7b1, 32);
+        b.storeUint(0x89d602e5, 32);
         b.storeUint(self.queryId, 64);
         storeTolkNullable<c.Cell>(self.deployableCode, b,
             (v,b) => b.storeRef(v)
@@ -1674,7 +1674,7 @@ export const TokenPool_DeployableCodeSet = {
 }
 
 /**
- > struct (0x1f8e33c2) TokenPool_SetAllowedDepositNamespaces {
+ > struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
  >     queryId: uint64
  >     allowedDepositNamespaces: map<uint32, bool>
  > }
@@ -1686,7 +1686,7 @@ export interface TokenPool_SetAllowedDepositNamespaces {
 }
 
 export const TokenPool_SetAllowedDepositNamespaces = {
-    PREFIX: 0x1f8e33c2,
+    PREFIX: 0x84384142,
 
     create(args: {
         queryId?: uint64
@@ -1699,7 +1699,7 @@ export const TokenPool_SetAllowedDepositNamespaces = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetAllowedDepositNamespaces {
-        loadAndCheckPrefix32(s, 0x1f8e33c2, 'TokenPool_SetAllowedDepositNamespaces');
+        loadAndCheckPrefix32(s, 0x84384142, 'TokenPool_SetAllowedDepositNamespaces');
         return {
             $: 'TokenPool_SetAllowedDepositNamespaces',
             queryId: s.loadUintBig(64),
@@ -1707,7 +1707,7 @@ export const TokenPool_SetAllowedDepositNamespaces = {
         }
     },
     store(self: TokenPool_SetAllowedDepositNamespaces, b: c.Builder): void {
-        b.storeUint(0x1f8e33c2, 32);
+        b.storeUint(0x84384142, 32);
         b.storeUint(self.queryId, 64);
         b.storeDict<uint32, boolean>(mapToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
     },
@@ -1717,7 +1717,7 @@ export const TokenPool_SetAllowedDepositNamespaces = {
 }
 
 /**
- > struct (0x7a53c9f4) TokenPool_AllowedDepositNamespacesSet {
+ > struct (0xc1ffe3a6) TokenPool_AllowedDepositNamespacesSet {
  >     queryId: uint64
  > }
  */
@@ -1727,7 +1727,7 @@ export interface TokenPool_AllowedDepositNamespacesSet {
 }
 
 export const TokenPool_AllowedDepositNamespacesSet = {
-    PREFIX: 0x7a53c9f4,
+    PREFIX: 0xc1ffe3a6,
 
     create(args: {
         queryId?: uint64
@@ -1739,14 +1739,14 @@ export const TokenPool_AllowedDepositNamespacesSet = {
         }
     },
     fromSlice(s: c.Slice): TokenPool_AllowedDepositNamespacesSet {
-        loadAndCheckPrefix32(s, 0x7a53c9f4, 'TokenPool_AllowedDepositNamespacesSet');
+        loadAndCheckPrefix32(s, 0xc1ffe3a6, 'TokenPool_AllowedDepositNamespacesSet');
         return {
             $: 'TokenPool_AllowedDepositNamespacesSet',
             queryId: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_AllowedDepositNamespacesSet, b: c.Builder): void {
-        b.storeUint(0x7a53c9f4, 32);
+        b.storeUint(0xc1ffe3a6, 32);
         b.storeUint(self.queryId, 64);
     },
     toCell(self: TokenPool_AllowedDepositNamespacesSet): c.Cell {

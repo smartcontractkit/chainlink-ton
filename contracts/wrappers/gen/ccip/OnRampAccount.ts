@@ -362,7 +362,7 @@ export const OnRampAccount_Data = {
 }
 
 /**
- > struct (0x2c1f6a90) OnRampAccount_Init {
+ > struct (0xa5f69550) OnRampAccount_Init {
  >     queryId: uint64
  >     jettonClient: JettonClient
  > }
@@ -374,7 +374,7 @@ export interface OnRampAccount_Init {
 }
 
 export const OnRampAccount_Init = {
-    PREFIX: 0x2c1f6a90,
+    PREFIX: 0xa5f69550,
 
     create(args: {
         queryId?: uint64
@@ -387,7 +387,7 @@ export const OnRampAccount_Init = {
         }
     },
     fromSlice(s: c.Slice): OnRampAccount_Init {
-        loadAndCheckPrefix32(s, 0x2c1f6a90, 'OnRampAccount_Init');
+        loadAndCheckPrefix32(s, 0xa5f69550, 'OnRampAccount_Init');
         return {
             $: 'OnRampAccount_Init',
             queryId: s.loadUintBig(64),
@@ -395,7 +395,7 @@ export const OnRampAccount_Init = {
         }
     },
     store(self: OnRampAccount_Init, b: c.Builder): void {
-        b.storeUint(0x2c1f6a90, 32);
+        b.storeUint(0xa5f69550, 32);
         b.storeUint(self.queryId, 64);
         JettonClient.store(self.jettonClient, b);
     },
@@ -405,7 +405,7 @@ export const OnRampAccount_Init = {
 }
 
 /**
- > struct (0x0a53d7e1) OnRampAccount_InitAck {
+ > struct (0x2efdb932) OnRampAccount_InitAck {
  >     queryId: uint64
  >     jettonWallet: address
  > }
@@ -417,7 +417,7 @@ export interface OnRampAccount_InitAck {
 }
 
 export const OnRampAccount_InitAck = {
-    PREFIX: 0x0a53d7e1,
+    PREFIX: 0x2efdb932,
 
     create(args: {
         queryId?: uint64
@@ -430,7 +430,7 @@ export const OnRampAccount_InitAck = {
         }
     },
     fromSlice(s: c.Slice): OnRampAccount_InitAck {
-        loadAndCheckPrefix32(s, 0x0a53d7e1, 'OnRampAccount_InitAck');
+        loadAndCheckPrefix32(s, 0x2efdb932, 'OnRampAccount_InitAck');
         return {
             $: 'OnRampAccount_InitAck',
             queryId: s.loadUintBig(64),
@@ -438,7 +438,7 @@ export const OnRampAccount_InitAck = {
         }
     },
     store(self: OnRampAccount_InitAck, b: c.Builder): void {
-        b.storeUint(0x0a53d7e1, 32);
+        b.storeUint(0x2efdb932, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.jettonWallet);
     },
@@ -448,7 +448,7 @@ export const OnRampAccount_InitAck = {
 }
 
 /**
- > struct (0x8f6c1a21) OnRampAccount_Withdraw {
+ > struct (0x12b3afbb) OnRampAccount_Withdraw {
  >     queryId: uint64
  >     walletAddress: address
  >     ask: AskToTransfer
@@ -462,7 +462,7 @@ export interface OnRampAccount_Withdraw {
 }
 
 export const OnRampAccount_Withdraw = {
-    PREFIX: 0x8f6c1a21,
+    PREFIX: 0x12b3afbb,
 
     create(args: {
         queryId?: uint64
@@ -476,7 +476,7 @@ export const OnRampAccount_Withdraw = {
         }
     },
     fromSlice(s: c.Slice): OnRampAccount_Withdraw {
-        loadAndCheckPrefix32(s, 0x8f6c1a21, 'OnRampAccount_Withdraw');
+        loadAndCheckPrefix32(s, 0x12b3afbb, 'OnRampAccount_Withdraw');
         return {
             $: 'OnRampAccount_Withdraw',
             queryId: s.loadUintBig(64),
@@ -485,7 +485,7 @@ export const OnRampAccount_Withdraw = {
         }
     },
     store(self: OnRampAccount_Withdraw, b: c.Builder): void {
-        b.storeUint(0x8f6c1a21, 32);
+        b.storeUint(0x12b3afbb, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.walletAddress);
         AskToTransfer.store(self.ask, b);
@@ -496,7 +496,7 @@ export const OnRampAccount_Withdraw = {
 }
 
 /**
- > struct (0x5d0fb6c4) OnRampAccount_WithdrawAck {
+ > struct (0xa855eda2) OnRampAccount_WithdrawAck {
  >     queryId: uint64
  > }
  */
@@ -506,7 +506,7 @@ export interface OnRampAccount_WithdrawAck {
 }
 
 export const OnRampAccount_WithdrawAck = {
-    PREFIX: 0x5d0fb6c4,
+    PREFIX: 0xa855eda2,
 
     create(args: {
         queryId?: uint64
@@ -518,14 +518,14 @@ export const OnRampAccount_WithdrawAck = {
         }
     },
     fromSlice(s: c.Slice): OnRampAccount_WithdrawAck {
-        loadAndCheckPrefix32(s, 0x5d0fb6c4, 'OnRampAccount_WithdrawAck');
+        loadAndCheckPrefix32(s, 0xa855eda2, 'OnRampAccount_WithdrawAck');
         return {
             $: 'OnRampAccount_WithdrawAck',
             queryId: s.loadUintBig(64),
         }
     },
     store(self: OnRampAccount_WithdrawAck, b: c.Builder): void {
-        b.storeUint(0x5d0fb6c4, 32);
+        b.storeUint(0xa855eda2, 32);
         b.storeUint(self.queryId, 64);
     },
     toCell(self: OnRampAccount_WithdrawAck): c.Cell {
@@ -572,7 +572,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAArMAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASAJCgKjT4kfJA7UTQ+kj6SPQE0SPXLCFg+1SE4wLXLCR7YNEM4wLXLCObFoTkjh00A9M/+gD6UPiSEGcQVlUw8AICyPpS+lL0AMntVOBfBIQPAccA8vSAYHAfdDGBEASBEAUmbrPy9CXQ+kjU0fgoyM+EAvpSEvpSyQHIz4TQzMz5FsjPigBAy//PUFAFxwUU8vQC9AQhbpsxIMcAkjBt4MjOyZHR4iBukl8D4IEQBSRus/L0I9D6SNTR+CjIz4QC+lIS+lLJAcjPhNDMzPkWyM+KAEDL/4CAD6NAPTP/pI10z4koEQAlMWxwWRf5ZTFccFwwDi8vSBEAYHbhfy9AHI+lLMyYEQBSFus/L0IND6SNTR+CjIz4QC+lIS+lLJAcjPhNDMzPkWyM+KAEDL/89QyM+FCBb6UoIQClPX4c8LjhLLPxT6UsmAQPsAAcj6UvpS9ADJ7VQAzDEzAtM/MfpI1ywgfFP1LPK/0z/6APpI+lD0BPoA+JIggRACC8cFkzA5f5ZQCscFwwDiGPL0yM+QPin6lhXLP1AD+gL6UvpU9ABY+gISzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AACGz1D4KG2CCJiWgATI9ADPUMjPkD4p+pYWyz9QBvoCUnD6UvpUFPQAAfoCzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AAIBSAsMAgFiDQ4AW7Yr8aELY0tzWXMbQwtLcXOje3FzGxtLgXJ7cpMLa4ILGxt7q3OkEWpgXGJcYRAAF7XQPaiaH0kGP0kGEAARs6J7UTQ+kgwgAIGxSrtRND6SDH6SDH0BSBukjBtjiuBEAUhbrPy9ND6SNTR+CjIz4QC+lIS+lLJAcjPhNDMzPkWyM+KAEDL/89Q4oA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAArMAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASAJCgKjT4kfJA7UTQ+kj6SPQE0SPXLCUvtKqE4wLXLCCVnX3c4wLXLCObFoTkjh00A9M/+gD6UPiSEGcQVlUw8AICyPpS+lL0AMntVOBfBIQPAccA8vSAYHAfdDGBEASBEAUmbrPy9CXQ+kjU0fgoyM+EAvpSEvpSyQHIz4TQzMz5FsjPigBAy//PUFAFxwUU8vQC9AQhbpsxIMcAkjBt4MjOyZHR4iBukl8D4IEQBSRus/L0I9D6SNTR+CjIz4QC+lIS+lLJAcjPhNDMzPkWyM+KAEDL/4CAD6NAPTP/pI10z4koEQAlMWxwWRf5ZTFccFwwDi8vSBEAYHbhfy9AHI+lLMyYEQBSFus/L0IND6SNTR+CjIz4QC+lIS+lLJAcjPhNDMzPkWyM+KAEDL/89QyM+FCBb6UoIQLv25Ms8LjhLLPxT6UsmAQPsAAcj6UvpS9ADJ7VQAzDEzAtM/MfpI1ywgfFP1LPK/0z/6APpI+lD0BPoA+JIggRACC8cFkzA5f5ZQCscFwwDiGPL0yM+QPin6lhXLP1AD+gL6UvpU9ABY+gISzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AACGz1D4KG2CCJiWgATI9ADPUMjPkD4p+pYWyz9QBvoCUnD6UvpUFPQAAfoCzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AAIBSAsMAgFiDQ4AW7Yr8aELY0tzWXMbQwtLcXOje3FzGxtLgXJ7cpMLa4ILGxt7q3OkEWpgXGJcYRAAF7XQPaiaH0kGP0kGEAARs6J7UTQ+kgwgAIGxSrtRND6SDH6SDH0BSBukjBtjiuBEAUhbrPy9ND6SNTR+CjIz4QC+lIS+lLJAcjPhNDMzPkWyM+KAEDL/89Q4oA==');
 
     static Errors = {
         'OnRampAccount_Error.OnlyOwnerOrBeneficiary': 4098,
