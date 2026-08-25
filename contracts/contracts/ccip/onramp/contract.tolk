@@ -371,7 +371,10 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             receiver: ccipsend.receiver.toCell(),
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
-            tokenAmounts: ccipsend.tokenAmounts,
+            // Empty when the send carries no token transfer; a one-item
+            // SnakedCell<TVM2AnyTokenTransfer> when it does (the current flow supports a
+            // single token transfer).
+            tokenTransfer: buildTVM2AnyTokenTransfer(msg.tokenTransfer),
             feeToken: ccipsend.feeToken!, // guaranteed to be non-null by this point
             feeTokenAmount: msg.fee.feeTokenAmount,
         }.toCell(),

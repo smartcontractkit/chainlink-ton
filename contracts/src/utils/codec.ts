@@ -11,3 +11,8 @@ export interface Encoder<T> {
 }
 
 export interface Codec<T> extends Decoder<T>, Encoder<T> {}
+
+/// S is the data without the $ key
+export interface Builder<S, D> {
+  create(args: S): D
+}

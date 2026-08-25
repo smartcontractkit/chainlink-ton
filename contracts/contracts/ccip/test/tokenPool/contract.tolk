@@ -1,7 +1,6 @@
 import "../../pools/lib/token_pool/entrypoint"
 import "../../pools/lib/token_pool/messages"
 
-
 contract MockTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.1"
@@ -15,7 +14,6 @@ const CONTRACT_VERSION = "0.0.1".literalSlice();
 struct Storage {
 	poolData: Cell<TokenPool_Data>
 }
-
 
 fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
@@ -47,7 +45,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
 }
 
 fun onInternalMessage(in: InMessage) {
-	var st = Storage.load();
+    var st = Storage.load();
     var pool = loadPool(st);
     val handled = pool.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
     if (handled) {

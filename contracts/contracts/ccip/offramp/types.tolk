@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/utils"
 import "../common/types"
 import "../fee_quoter/types"
-import "../../lib/utils"
+import "errors"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
 const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
@@ -13,6 +14,37 @@ struct ExecutionReport {
     offchainTokenData: cell; // vec<vec<u8>>, one per token, we don't support token transfers right now, so this is ignored
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
+}
+
+struct GasOverride {
+    receiverExecutionGasLimit: coins? = null;
+    tokenGasOverrides: SnakedCell<coins>? = null
+}
+
+// getEffectiveTotalDestGasAmount returns the total gas amount to use for token transfer
+//
+// @note: We currently only support a single token transfer
+//
+// If the gasOverride is null, it returns the sum of destGasAmount from all token transfers in the message.
+// If the gasOverride is not null, it returns the sum of max(destGasAmount, tokenGasOverride) for each
+// token transfer in the message.
+fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTransfer): coins? {
+    if (self == null || self.tokenGasOverrides == null) {
+        return tokenTransfer.destGasAmount;
+    }
+    return max(tokenTransfer.destGasAmount, self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch));
+}
+
+// getEffectiveGasLimit returns the total gas amount to use for message execution
+//
+// If the gasOverride is not null and its receiverExecutionGasLimit is greater
+// than the gasLimit from the message, it returns its receiverExecutionGasLimit.
+// Otherwise, it returns gasLimit from the message, passed as an argument.
+fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
+    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
+        return self.receiverExecutionGasLimit;
+    }
+    return gasLimit;
 }
 
 // Matches the EVM struct
@@ -66,6 +98,26 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
+// Helper to extract the single item from a SnakedCell, and assert that there is only one
+fun SnakedCell<T>.asSingle(self): T? {
+    var it = self.iter();
+    if (it.empty()) {
+        return null;
+    }
+    val token = it.next();
+    if (!it.empty()) {
+        return null;
+    }
+    return token
+}
+
+fun T?.unwrap(self, error: int): T {
+    if (self == null) {
+        throw error;
+    }
+    return self;
+}
+
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
     return Any2TVMRampMessageIDData{
@@ -111,9 +163,11 @@ struct MerkleRoot {
 
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
-    destPoolAddress: address;
-    destGasAmount: uint32;
-    extraData: cell;
+    token: address;
+    destGasAmount: coins;
+    // Data from the source pool to be passed to the destination pool.
+    extraData: cell?;
+    // amount of transfered tokens in source chain decimals
     amount: uint256;
 }
 

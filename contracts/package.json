@@ -14,6 +14,7 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "clean": "[ -d build ] && rm -rf build || true",
+    "build-only": "blueprint build",
     "build": "yarn clean && blueprint build --all && yarn build:pin-artifacts && yarn generate-pkg",
     "build:pin-artifacts": "ts-node scripts/pinArtifacts.ts",
     "generate-pkg": "ts-node scripts/generateContractsPkg.ts",

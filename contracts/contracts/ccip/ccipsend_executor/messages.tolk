@@ -37,13 +37,13 @@ fun SendExecutor_Costs.Deploy(): int {
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
-    val baseFee =
-        + ton("0.002") // computeFee
+    return
+        ton("0.002") // computeFee
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
-        + ton("2"); // TODO
-    return baseFee;
+        //TODO: estimate correct gas needed here
+        + ton("0.2"); // overhead for token transfers
 }
 
 @inline

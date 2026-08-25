@@ -43,7 +43,6 @@ const (
 	destChainSelectorsGetter = "destChainSelectors"
 )
 
-// CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
 type CCIPMessageSent struct {
 	Message ocr.TVM2AnyRampMessage `tlb:"."`
 }
@@ -159,6 +158,21 @@ type ExecutorFinishedSuccessfully struct {
 	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
+	// Pool-supplied token transfer details the OnRamp folds into the emitted
+	// CCIPMessageSent event. Nil when the message carries no token transfer.
+	TokenTransfer *ExecutorTokenTransfer `tlb:"maybe ^"`
+}
+
+// ExecutorTokenTransfer mirrors the contract's OnRamp_ExecutorTokenTransfer: the portion
+// of a token transfer that the CCIPSendExecutor learns from the token pool.
+type ExecutorTokenTransfer struct {
+	// SourcePoolAddress is an optional address on the contract side: addr_none when the
+	// message carries no token transfer.
+	SourcePoolAddress *address.Address         `tlb:"addr"`
+	Amount            *big.Int                 `tlb:"## 256"`
+	DestTokenAddress  common.CrossChainAddress `tlb:"^"`
+	ExtraData         *cell.Cell               `tlb:"^"`
+	DestExecData      *cell.Cell               `tlb:"^"`
 }
 
 type ExecutorFinishedWithError struct {

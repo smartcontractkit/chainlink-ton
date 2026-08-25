@@ -1,29 +1,61 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
+import "../offramp/types"
+import "../token_registry/messages"
+import "../pools/lib/token_pool/messages"
+import "types"
+
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
-    | ReceiveExecutor_Bounced
-    | ReceiveExecutor_Confirm;
+    | TokenRegistry_ReturnTokenInfo
+    | TokenPool_ReleaseOrMintFinished
+    | TokenPool_ReleaseOrMintFailure
+    | ReceiveExecutor_ReleaseOrMintFailed
+    | ReceiveExecutor_CCIPReceiveFailed
+    | ReceiveExecutor_CCIPReceiveConfirm
+    ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
-    gasOverride: coins? = null;
+    effectiveGasLimit: coins;
     root: address;
     sequenceNumber: uint64;
     sourceChainSelector: uint64;
     messageId: uint256;
+    tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>? = null;
 }
 
-struct (0x00e5dd97) ReceiveExecutor_Confirm {
+struct ReceiveExecutor_TokenTransfer {
+    tokenAdminRegistry: address;
+    transfer: Any2TVMTokenTransfer;
+}
+
+// Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
+struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
+    queryID: uint64;
+    reason: ReleaseOrMint_ReleaseOrMintFailedReason;
+}
+
+type ReleaseOrMint_ReleaseOrMintFailedReason =
+    | ReleaseOrMintBounced
+    | NotEnoughDestGasAmountForTokenTransfer;
+
+struct (0xb70c2a9a) ReleaseOrMintBounced {
+    exitCode: int32
+}
+
+struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
+
+struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
     receiver: address
 }
 
-struct (0x05dee1bb) ReceiveExecutor_Bounced {
+struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
     receiver: address
-    reason: ReceiveExecutor_BouncedReason;
+    reason: ReceiveExecutor_FailedReason;
 }
 
-enum ReceiveExecutor_BouncedReason: uint8 {
+enum ReceiveExecutor_FailedReason: uint8 {
     NotEnoughGas = 0,
     BouncedFromReceiver,
     BouncedFromRouter,
@@ -42,4 +74,8 @@ fun ReceiveExecutor_Costs.initExec(): int {
 fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
     val baseFee = RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE;
     return baseFee + OffRamp_Costs.notify();
+}
+
+fun ReceiveExecutor_Costs.tokenTransfer(): int {
+    return ton("0.02"); // TODO
 }
