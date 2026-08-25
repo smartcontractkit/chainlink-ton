@@ -36,6 +36,11 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
+
+    forceAbiExport: (
+        BurnMintTokenPool_BurnContext,
+        BurnMintTokenPool_MintContext
+    )
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -248,7 +253,7 @@ fun onClaimMinterAdmin(
 /// The minter relays the burn continuation context (the `BurnMintTokenPool_BurnContext`
 /// embedded by this pool in `CCT_AskToBurn.forwardPayload`) back to this pool, which then
 /// finalizes the lock/burn. Context-less excess signals (e.g. from the mint/transfer paths)
-/// are ignored. Mint still finalizes via OffRampAccount.
+/// are ignored.
 fun onCCTReturnExcessesBack(
     mutate st: Storage,
     sender: address,
@@ -267,8 +272,6 @@ fun onCCTReturnExcessesBack(
 
     val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
     val operation = lazy context.forwardPayload.load();
-    // TODO: is this check necessary?
-    assert(context.wallet == pool.data.jettonClient().walletAddress(), BurnMintTokenPool_Error.UnexpectedBurnBounce);
 
     pool.onLockOrBurnTransferFinalize(operation);
     st.poolData = pool.data.toCell();
@@ -427,8 +430,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
         data: st.poolData.load(),
         context: st,
         hooks: TokenPool_Hooks<Storage> {
-            ensureOutboundAccess: null,
-            ensureInboundAccess: null,
             ensureNotCursed: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
@@ -460,22 +461,12 @@ get fun isSupportedChain(remoteChainSelector: uint64): bool {
     return Storage.load().poolData.load().remoteChainConfigs.get(remoteChainSelector).isFound;
 }
 
-get fun onRamp(remoteChainSelector: uint64): address? {
-    val entry = Storage.load().poolData.load().mirroredPolicy.load().onRamps.get(remoteChainSelector);
-    return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun offRamp(remoteChainSelector: uint64): address? {
-    val entry = Storage.load().poolData.load().mirroredPolicy.load().offRamps.get(remoteChainSelector);
-    return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun getRMNProxy(): address {
+get fun getRMNProxy(): address? {
     return Storage.load().poolData.load().adminConfig.load().rmnProxy;
 }
 
 get fun verifyNotCursed(subject: uint128): bool {
-    return !Storage.load().poolData.load().mirroredPolicy.load().cursedSubjects.isCursed(subject);
+    return !Storage.load().poolData.load().localPolicy.load().cursedSubjects.isCursed(subject);
 }
 
 get fun owner(): address {

@@ -31,6 +31,7 @@ type Router_InMsg =
     | Router_MessageSent
     | Router_MessageRejected
     | Router_LockOrBurn
+    | Router_RelayReleaseOrMint
     | Router_RMNOwnableMessage
     | Router_TokenRegistrySetTokenInfo
     | TransferNotificationForRecipient;
@@ -43,6 +44,10 @@ type Router_BouncedMessage =
     | Receiver_CCIPReceive
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced;
+
+type Router_RichBouncedMessage =
+    | TokenPool_LockOrBurn
+    | TokenPool_ReleaseOrMint;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -150,6 +155,18 @@ struct (0x6f2d00df) Router_LockOrBurn {
     executorAddress: address,
 }
 
+/// Relays an inbound token operation from the registered OffRamp to the pool.
+/// The Router binds the authenticated OffRamp selector to the selector encoded
+/// in the pool request and applies its own RMN policy before dispatch.
+struct (0xb19862a3) Router_RelayReleaseOrMint {
+    queryID: uint64;
+    sourceChainSelector: uint64;
+    tokenPool: address;
+    request: Cell<TokenPool_ReleaseOrMintInV1>;
+    requestedFinalityConfig: uint32;
+    replyTo: address;
+}
+
 struct (0xfed7cfba) Router_TokenRegistrySetTokenInfo {
     tokenAddress: address,
     tokenInfo: TokenRegistry_TokenInfo,
@@ -181,6 +198,22 @@ struct (0xec23c562) Router_MessageValidationFailed<T> {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
     context: RemainingBitsOrRef<T>
+}
+
+/// Canonical Router failure returned when a LockOrBurn request bounced before
+/// the token pool admitted it.
+struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
+    queryID: uint64;
+    tokenPool: address;
+    exitCode: int32;
+}
+
+/// Canonical Router failure returned when a ReleaseOrMint request bounced
+/// before the token pool admitted it.
+struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
+    queryID: uint64;
+    tokenPool: address;
+    exitCode: int32;
 }
 
 // Costs associated with Router operations

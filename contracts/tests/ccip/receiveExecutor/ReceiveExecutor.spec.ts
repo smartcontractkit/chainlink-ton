@@ -352,11 +352,7 @@ describe('ReceiveExecutor', () => {
     // --- Message Handling Tests ---
 
     it('should ignore empty messages', async () => {
-      const result = await receiveExecutor.send(
-        deployer.getSender(),
-        toNano('0.05'),
-        beginCell().endCell(),
-      )
+      const result = await receiveExecutor.send(deployer.getSender(), toNano('0.05'), Cell.EMPTY)
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: receiveExecutor.address,

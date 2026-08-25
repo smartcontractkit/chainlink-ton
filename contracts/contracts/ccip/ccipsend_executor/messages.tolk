@@ -1,5 +1,6 @@
 import "../../lib/jetton/messages"
 
+import "../router/messages"
 import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../token_registry/messages"
@@ -14,7 +15,9 @@ type CCIPSendExecutor_InMessage =
     | TokenRegistry_ReturnTokenInfo
     | ResponseWalletAddress
     | TokenPool_LockOrBurnWithdraw
-    | TokenPool_LockOrBurnFinished;
+    | TokenPool_LockOrBurnFinished
+    | TokenPool_LockOrBurnFailure
+    | Router_TokenPoolLockOrBurnFailed;
 
 type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
 type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>

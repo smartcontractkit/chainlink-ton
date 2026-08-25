@@ -11,7 +11,7 @@ import {
   TokenPool_Data,
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
-  TokenPool_MirroredPolicy,
+  TokenPool_LocalPolicy,
   TokenPool_ReleaseOrMintFinished,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnForwardPayload,
@@ -20,7 +20,6 @@ import {
   TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_RateLimitConfigPair,
-  TokenPool_RampUpdate,
   TokenPool_ChainUpdate,
   Ownable2Step,
   TokenPool_TransferDetails,
@@ -37,6 +36,7 @@ import {
 } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import {
   JettonLockBox,
+  AccessControl_Data,
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import {
@@ -45,18 +45,18 @@ import {
 } from '../../../wrappers/gen/ccip/ContextExecutor'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
-import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
-import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
-import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import {
   DepositAccount,
   DepositAccount_ForwardNotification,
 } from '../../../wrappers/gen/ccip/DepositAccount'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
+
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -162,7 +162,7 @@ describe('LockReleaseLockboxTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Map(),
+                allowedDepositNamespaces: new Set(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: jettonMinter.address,
@@ -171,9 +171,7 @@ describe('LockReleaseLockboxTokenPool', () => {
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
             }),
-            mirroredPolicy: TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
+            localPolicy: TokenPool_LocalPolicy.create({
               cursedSubjects: CursedSubjects.create({
                 data: new Set(),
               }),
@@ -245,28 +243,6 @@ describe('LockReleaseLockboxTokenPool', () => {
     )
 
     expect(applyChains.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: lockReleaseLockboxPool.address,
-      success: true,
-    })
-
-    // Update ramp access (deployer is the on-ramp)
-    const updateRampAccess = await lockReleaseLockboxPool.sendTokenPoolUpdateRampAccess(
-      deployer.getSender(),
-      toNano('0.2'),
-      {
-        queryId: 2n,
-        updates: [
-          TokenPool_RampUpdate.create({
-            remoteChainSelector,
-            onRamp: deployer.address,
-            offRamp: offRamp.address,
-          }),
-        ],
-      },
-    )
-
-    expect(updateRampAccess.transactions).toHaveTransaction({
       from: deployer.address,
       to: lockReleaseLockboxPool.address,
       success: true,
@@ -376,6 +352,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     'LockReleaseLockboxTokenPool',
     async () => ({
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized: recipient,
@@ -421,6 +398,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized: recipient,
@@ -716,7 +694,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
-        offRamp.getSender(),
+        deployer.getSender(),
         toNano('0.5'),
         {
           queryId: 200n,
@@ -742,7 +720,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       // Pool processes the release request
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: deployer.address,
         to: lockReleaseLockboxPool.address,
         success: true,
       })
@@ -758,7 +736,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     it('should reject release when requested amount exceeds lockbox liquidity', async () => {
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
-        offRamp.getSender(),
+        deployer.getSender(),
         toNano('0.4'),
         {
           queryId: 201n,
@@ -783,7 +761,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: deployer.address,
         to: lockReleaseLockboxPool.address,
         success: false,
       })
@@ -891,7 +869,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       // Trigger release from off-ramp
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
-        offRamp.getSender(),
+        deployer.getSender(),
         toNano('1'),
         {
           queryId: 400n,
@@ -917,7 +895,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       // Pool processes the release request
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: deployer.address,
         to: lockReleaseLockboxPool.address,
         success: true,
       })
@@ -957,7 +935,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       // Trigger release request for more than the lockbox holds
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
-        offRamp.getSender(),
+        deployer.getSender(),
         toNano('0.5'),
         {
           queryId: 401n,
@@ -983,7 +961,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       // The release request should fail or bounce
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: deployer.address,
         to: lockReleaseLockboxPool.address,
         success: false,
       })
@@ -993,7 +971,7 @@ describe('LockReleaseLockboxTokenPool', () => {
   })
 
   describe('cursed state', () => {
-    it('should mirror cursed state locally and block release while cursed', async () => {
+    it('should apply local cursed state and block release while cursed', async () => {
       const curseUpdate = await lockReleaseLockboxPool.sendTokenPoolSetCursedSubjects(
         deployer.getSender(),
         toNano('0.2'),

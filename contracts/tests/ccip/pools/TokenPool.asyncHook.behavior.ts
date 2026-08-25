@@ -100,7 +100,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_ReleaseOrMintForwardPayload.create({
-        originalSender: ctx.offRamp.address,
+        originalSender: ctx.deployer.address,
         requestMsg: TokenPool_ReleaseOrMint.create({
           queryId: 0n,
           request,
@@ -208,7 +208,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const request = releaseRequest(ctx)
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
+        ctx.deployer.getSender(),
         toNano('1'),
         {
           queryId: 2n,
@@ -241,7 +241,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const request = releaseRequest(ctx)
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
+        ctx.deployer.getSender(),
         toNano('1'),
         {
           queryId: 1n,
@@ -285,7 +285,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const request = releaseRequest(ctx)
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
+        ctx.deployer.getSender(),
         toNano('1'),
         {
           queryId: 3n,
@@ -345,7 +345,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const request = releaseRequest(ctx)
 
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
+        ctx.deployer.getSender(),
         toNano('1'),
         {
           queryId: 100n,
@@ -356,7 +356,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
+        from: ctx.deployer.address,
         to: ctx.pool.address,
         success: true,
       })
@@ -421,7 +421,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       // Even → success
       const requestEven = releaseRequest(ctx)
       const evenResult = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
+        ctx.deployer.getSender(),
         toNano('1'),
         {
           queryId: 6n,
@@ -440,7 +440,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       // Odd → failure
       const requestOdd = releaseRequest(ctx)
       const oddResult = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
+        ctx.deployer.getSender(),
         toNano('1'),
         {
           queryId: 7n,

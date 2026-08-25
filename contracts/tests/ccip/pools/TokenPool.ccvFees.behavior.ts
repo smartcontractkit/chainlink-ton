@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, internal } from '@ton/sandbox'
-import { Address, beginCell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import {
   TokenPool,
   TokenPool_CCVs,
@@ -444,7 +444,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
             TokenPool_QueryCCVsReply.create({
               queryId: 23n,
               requiredCCVs: [ctx.pool.address],
-              replyPayload: beginCell().endCell(),
+              replyPayload: Cell.EMPTY,
             }),
           ),
         }),

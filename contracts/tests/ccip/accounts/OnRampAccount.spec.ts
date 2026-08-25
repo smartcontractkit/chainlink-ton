@@ -7,6 +7,7 @@ import {
   ForwardPayloadRemainder,
   DepositAccount_WithdrawFailed,
 } from '../../../wrappers/gen/ccip/OnRampAccount'
+import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 
@@ -123,7 +124,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload: ForwardPayloadRemainder.fromSlice(beginCell().endCell().beginParse()),
+      forwardPayload: ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
     })
 
   it('deploys with owner and proxy (Router) and is not yet initialized', async () => {
@@ -188,13 +189,15 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
       to: account.address,
       value: toNano('0.5'),
       bounce: false,
-      body: beginCell()
-        .storeUint(0x7362d09c, 32) // TransferNotificationForRecipient
-        .storeUint(5n, 64)
-        .storeCoins(toNano('1'))
-        .storeAddress(user.address)
-        .storeMaybeRef(ccipSendCell())
-        .endCell(),
+      body: TransferNotificationForRecipient.toCell(
+        TransferNotificationForRecipient.create({
+          queryId: 5n,
+          jettonAmount: toNano('1'),
+          transferInitiator: user.address,
+          // A real jetton wallet boxes the transfer's forward payload as a maybe_ref.
+          forwardPayload: beginCell().storeMaybeRef(ccipSendCell()).asSlice(),
+        }),
+      ),
     })
     // The CCIPSend (op 0x31768d95) is relayed to the Router.
     expect(res.transactions).toHaveTransaction({

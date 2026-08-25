@@ -16,4 +16,5 @@ enum Router_Error {
     JettonTransferNotificationWithoutForwardPayload
     TokenAmountMismatch
     ForwardPayloadIsNotCCIPSend
+    SourceChainSelectorMismatch
 }

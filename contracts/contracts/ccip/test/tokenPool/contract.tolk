@@ -29,8 +29,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
         data: st.poolData.load(),
         context: st,
         hooks: TokenPool_Hooks<Storage> {
-            ensureOutboundAccess: null,
-            ensureInboundAccess: null,
             ensureNotCursed: null,
             onLockOrBurn: null,
             validateLockOrBurn: null,
