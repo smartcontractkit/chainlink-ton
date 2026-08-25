@@ -34,6 +34,11 @@ contract LockReleaseLockboxTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseLockboxTokenPool_InMessage
+
+    forceAbiExport: (
+        LockReleaseLockboxTokenPool_LockContext,
+        LockReleaseLockboxTokenPool_ReleaseContext
+    )
 }
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
