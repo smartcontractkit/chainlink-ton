@@ -25,7 +25,7 @@ import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as tr from '../../../wrappers/examples/Receiver'
 import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
-import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as jtw from '../../../wrappers/gen/ccip/cct/JettonWallet'
 
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
@@ -160,7 +160,7 @@ export class OffRampTestSetup {
         router: await contractCode.ccip.local('Router'),
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
-        tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
+        tokenRegistry: await contractCode.ccip.local('TokenAdminRegistryEntry'),
       },
       await Promise.all([
         blockchain.treasury('transmitter1'),
@@ -624,7 +624,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
 
   public readonly token: Address = generateMockTonAddress()
   public tokenPool: SandboxContract<mtp.MockTokenPool> = null as any
-  public tokenRegistry: SandboxContract<trg.TokenRegistry> = null as any
+  public tokenRegistry: SandboxContract<trg.TokenAdminRegistryEntry> = null as any
   // Register the remote chain config.
   public readonly sourcePoolAddress: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(
     Buffer.from('source-pool'),
@@ -666,7 +666,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         router: await contractCode.ccip.local('Router'),
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
-        tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
+        tokenRegistry: await contractCode.ccip.local('TokenAdminRegistryEntry'),
         tokenPool: await contractCode.ccip.local('ccip.test.mockTokenPool'),
         jettonMinter: await contractCode.ccip.local('ccip.cct.JettonMinter'),
         jettonWallet: await contractCode.ccip.local('ccip.cct.JettonWallet'),
@@ -753,7 +753,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     token: Address,
     tokenPool: Address,
     enabled = true,
-  ): Promise<SandboxContract<trg.TokenRegistry>> {
+  ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     const registry = await deployable.Deploy(
       this.blockchain,
       this.deployer.getSender(),
@@ -763,7 +763,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         owner: this.router.address,
         id: beginCell().storeAddress(token),
       },
-      trg.TokenRegistry,
+      trg.TokenAdminRegistryEntry,
       {
         tokenAddress: token,
         tokenInfo: trg.TokenRegistry_TokenInfo.create({
@@ -773,7 +773,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         }),
       },
       trg.TokenRegistry_Storage,
-      await contractCode.ccip.local('TokenRegistry'),
+      await contractCode.ccip.local('TokenAdminRegistryEntry'),
     )
 
     return registry

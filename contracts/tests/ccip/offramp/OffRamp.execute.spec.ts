@@ -18,7 +18,7 @@ import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as tr from '../../../wrappers/examples/Receiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
-import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'

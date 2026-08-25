@@ -6,7 +6,7 @@ import "../../lib/jetton/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 
-import "../token_registry/messages"
+import "../token_admin_registry_entry/messages"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../onramp/messages"

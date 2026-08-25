@@ -110,7 +110,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       }),
       tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
         deployableCode: await contractCode.ccip.local('Deployable'),
-        tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+        tokenRegistryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
       }),
     })
     router = blockchain.openContract(

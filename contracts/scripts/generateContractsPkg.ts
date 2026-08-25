@@ -98,9 +98,14 @@ const CONTRACTS: ContractSource[] = [
     tolkSource: 'contracts/ccip/receive_executor/contract.tolk',
   },
   {
-    contractType: 'link.chain.ton.ccip.TokenRegistry',
-    compiledFile: 'TokenRegistry.compiled.json',
-    tolkSource: 'contracts/ccip/token_registry/contract.tolk',
+    contractType: 'link.chain.ton.ccip.TokenAdminRegistry',
+    compiledFile: 'TokenAdminRegistry.compiled.json',
+    tolkSource: 'contracts/ccip/token_admin_registry/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.TokenAdminRegistryEntry',
+    compiledFile: 'TokenAdminRegistryEntry.compiled.json',
+    tolkSource: 'contracts/ccip/token_admin_registry_entry/contract.tolk',
   },
   {
     contractType: 'link.chain.ton.ccip.test.Receiver',

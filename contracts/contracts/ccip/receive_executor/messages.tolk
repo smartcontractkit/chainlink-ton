@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
 import "../offramp/types"
-import "../token_registry/messages"
+import "../token_admin_registry_entry/messages"
 import "../pools/lib/token_pool/messages"
 
 

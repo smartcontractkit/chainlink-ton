@@ -108,9 +108,15 @@ src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
 domain = "ccip/test"
 depends = []
 
-[contracts.TokenRegistry]
-display-name = "link.chain.ton.ccip.TokenRegistry"
-src = "contracts/ccip/token_registry/contract.tolk"
+[contracts.TokenAdminRegistry]
+display-name = "link.chain.ton.ccip.TokenAdminRegistry"
+src = "contracts/ccip/token_admin_registry/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.TokenAdminRegistryEntry]
+display-name = "link.chain.ton.ccip.TokenAdminRegistryEntry"
+src = "contracts/ccip/token_admin_registry_entry/contract.tolk"
 domain = "ccip"
 depends = []
 

@@ -13,7 +13,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import * as tr from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as tr from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
@@ -56,7 +56,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
   let minter: SandboxContract<JettonMinter>
   let mockTokenPool: SandboxContract<mtp.MockTokenPool>
-  let tokenRegistry: SandboxContract<tr.TokenRegistry>
+  let tokenRegistry: SandboxContract<tr.TokenAdminRegistryEntry>
 
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<fq.FeeQuoter>
@@ -250,7 +250,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       throw new Error('TokenRegistry address not found')
     })()
 
-    tokenRegistry = blockchain.openContract(tr.TokenRegistry.fromAddress(tokenRegistryAddress))
+    tokenRegistry = blockchain.openContract(tr.TokenAdminRegistryEntry.fromAddress(tokenRegistryAddress))
     expect(setTokenInfoResult.transactions).toHaveTransaction({
       from: router.address,
       to: tokenRegistry.address,

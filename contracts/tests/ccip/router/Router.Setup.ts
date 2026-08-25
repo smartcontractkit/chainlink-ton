@@ -138,7 +138,7 @@ async function deployRouterInstance(
     }),
     tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
       deployableCode: await contractCode.ccip.local('Deployable'),
-      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+      tokenRegistryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
     }),
   })
   const router = blockchain.openContract(
@@ -484,7 +484,7 @@ export async function deployRouterContract(
     }),
     tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
       deployableCode: await contractCode.ccip.local('Deployable'),
-      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
+      tokenRegistryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
     }),
   })
 

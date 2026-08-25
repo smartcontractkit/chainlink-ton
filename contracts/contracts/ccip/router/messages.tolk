@@ -10,7 +10,7 @@ import "../common/types"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
-import "../token_registry/types"
+import "../token_admin_registry_entry/types"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 

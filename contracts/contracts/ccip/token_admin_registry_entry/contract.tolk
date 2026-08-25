@@ -4,10 +4,12 @@ import "storage"
 
 tolk 1.4.1
 
-contract TokenRegistry {
+// The state-bearing shard of TokenAdminRegistry. Its message ABI intentionally
+// remains TokenRegistry_* until all consumers have migrated.
+contract TokenAdminRegistryEntry {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.0"
-    description: "link.chain.ton.ccip.TokenRegistry"
+    description: "link.chain.ton.ccip.TokenAdminRegistryEntry"
 
     storage: TokenRegistry_Storage
     incomingMessages: TokenRegistry_InMessage
@@ -20,10 +22,11 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         TokenRegistry_GetTokenInfo => {
-            //TODO: min value assertion
+            // TODO: min value assertion
             onGetTokenInfo(in.senderAddress);
         }
         TokenRegistry_SetTokenInfo => {
+            // Authorization moves to the parent registry in the next step.
             onSetTokenInfo(msg, in.senderAddress);
         }
         else => {
@@ -33,7 +36,7 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
-    //TODO access control
+    // TODO: parent-registry access control
     var st = lazy TokenRegistry_Storage.load();
     st.tokenInfo = msg.info;
     st.store();

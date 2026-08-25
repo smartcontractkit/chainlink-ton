@@ -19,7 +19,7 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
-import "../token_registry/types"
+import "../token_admin_registry_entry/types"
 
 import "messages"
 import "errors"
@@ -905,7 +905,7 @@ fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTran
     
     // TODO probably the tokenRegistryMaster
     val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
-    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
+    val registryAddress = TokenAdminRegistryEntry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
     return [
         ReceiveExecutor_TokenTransfer {
             tokenAdminRegistry: registryAddress,

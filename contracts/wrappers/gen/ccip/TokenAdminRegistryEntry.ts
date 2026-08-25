@@ -1,5 +1,5 @@
 // AUTO-GENERATED, do not edit
-// It's a TypeScript wrapper for a TokenRegistry contract in Tolk.
+// It's a TypeScript wrapper for a TokenAdminRegistryEntry contract in Tolk.
 /* eslint-disable */
 
 import * as c from '@ton/core';
@@ -303,7 +303,7 @@ export const TokenRegistry_TokenInfo = {
 }
 
 // ————————————————————————————————————————————
-//    class TokenRegistry
+//    class TokenAdminRegistryEntry
 //
 
 interface ExtraSendOptions {
@@ -340,7 +340,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
     return new c.Address(options.workchain ?? 0, addrHash);
 }
 
-export class TokenRegistry implements c.Contract {
+export class TokenAdminRegistryEntry implements c.Contract {
     static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAgAABFP8A9KQT9LzyyAsBAOLT+JHyQCDXLCbq6ok8jjRb+JLtRND6SDH6SPpI0gDRbQGRMJEy4sjPk3czdtb6UvpUycjPhQgS+lJxzwtuzMmAQPsA4NcsJpIcPSSOGzH6SPpI1woA7UTQ+kgwyPpSE/pS+lLKAMntVOAwhA8BxwDy9A==');
 
     static Errors = {
@@ -355,7 +355,7 @@ export class TokenRegistry implements c.Contract {
     }
 
     static fromAddress(address: c.Address) {
-        return new TokenRegistry(address);
+        return new TokenAdminRegistryEntry(address);
     }
 
     static fromStorage(emptyStorage: {
@@ -363,11 +363,11 @@ export class TokenRegistry implements c.Contract {
         tokenInfo: TokenRegistry_TokenInfo
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TokenRegistry.CodeCell,
+            code: deployedOptions?.overrideContractCode ?? TokenAdminRegistryEntry.CodeCell,
             data: TokenRegistry_Storage.toCell(TokenRegistry_Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
-        return new TokenRegistry(address, initialState);
+        return new TokenAdminRegistryEntry(address, initialState);
     }
 
     static createCellOfTokenRegistrySetTokenInfo(body: {
