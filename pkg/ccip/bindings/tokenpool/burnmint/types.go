@@ -5,29 +5,38 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
 // --- Constants ---
 
+const (
+	// ClaimAdminValue is the TON value for claiming minter admin.
+	ClaimAdminValue = 50000000 // 0.05 TON in nanotons
+	// BurnValue is the TON value for burn operations.
+	BurnValue = 50000000 // 0.05 TON in nanotons
+	// MintValue is the TON value for mint operations.
+	MintValue = 100000000 // 0.1 TON in nanotons
+	// ContextExecutorDeployValue is the TON value for deploying a ContextExecutor.
+	ContextExecutorDeployValue = 20000000 // 0.02 TON in nanotons
+)
+
 // --- Data types ---
 
-// PendingBurn represents a pending burn operation.
-// Corresponds to BurnMintTokenPool_PendingBurn in the Tolk contract.
-type PendingBurn struct {
-	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"."`
-	ExpectedSender *address.Address                   `tlb:"addr"`
+// BurnContext represents the context for a burn operation managed by ContextExecutor.
+// Corresponds to BurnMintTokenPool_BurnContext in the Tolk contract (opcode: 0xba302a47).
+type BurnContext struct {
+	_              tlb.Magic                          `tlb:"#ba302a47" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Wallet         *address.Address                   `tlb:"addr"`
+	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
 }
 
-// PendingMint represents a pending mint operation.
-// Corresponds to BurnMintTokenPool_PendingMint in the Tolk contract.
-type PendingMint struct {
-	ReplyTo        *address.Address             `tlb:"addr"`
-	Request        tokenpool.ReleaseOrMintInV1  `tlb:"^"`
-	Out            tokenpool.ReleaseOrMintOutV1 `tlb:"^"`
-	ExpectedSender *address.Address             `tlb:"addr"`
+// MintContext represents the context for a mint operation managed by ContextExecutor.
+// Corresponds to BurnMintTokenPool_MintContext in the Tolk contract (opcode: 0xb3d52361).
+type MintContext struct {
+	_              tlb.Magic                             `tlb:"#b3d52361" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
 }
 
 // --- Messages (incoming) ---
@@ -48,12 +57,11 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the BurnMintTokenPool contract storage.
-// Extends the common TokenPool storage with burn/mint specific state.
+// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; contextExecutorCode: cell; contextExecutorNextId: uint64; }
 type Storage struct {
-	PoolData     tokenpool.Storage              `tlb:"^"`
-	JettonClient *cell.Cell                     `tlb:"^"`       // Cell<JettonClient> - TODO: define JettonClient type in common/jetton bindings
-	PendingBurns *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingBurn>>
-	PendingMints *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingMint>>
+	PoolData              tokenpool.Storage `tlb:"^"`
+	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
+	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
 }
 
 // --- Exit Codes ---
@@ -65,12 +73,9 @@ type ExitCode tvm.ExitCode
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodePendingBurnAlreadyExists ExitCode = iota + 41200 // Facility ID 412 * 100
-	ExitCodePendingBurnNotFound
-	ExitCodePendingMintAlreadyExists
-	ExitCodePendingMintNotFound
-	ExitCodeUnexpectedBurnConfirmationSender
-	ExitCodeUnexpectedMintConfirmationSender
+	ExitCodeUnexpectedBurnBounce ExitCode = iota + 41200 // Facility ID 412 * 100
+	ExitCodeUnexpectedMintBounce
+	ExitCodeContextExecutorUnavailable
 )
 
 // New converts an ExitCode to a tvm.ExitCode.
@@ -84,6 +89,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	ClaimMinterAdmin{},
 	ReturnExcessesBack{},
+	// Context types
+	BurnContext{},
+	MintContext{},
 }).MustWithStorageType(Storage{})
 
 // --- Standard interface ---

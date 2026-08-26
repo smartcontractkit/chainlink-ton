@@ -44,6 +44,18 @@ src = "contracts/ccip/executors/context_executor/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.OffRampAccount]
+display-name = "link.chain.ton.ccip.OffRampAccount"
+src = "contracts/ccip/accounts/off_ramp_account/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.OnRampAccount]
+display-name = "link.chain.ton.ccip.OnRampAccount"
+src = "contracts/ccip/accounts/on_ramp_account/contract.tolk"
+domain = "ccip"
+depends = []
+
 [contracts.ReceiveExecutor]
 display-name = "link.chain.ton.ccip.ReceiveExecutor"
 src = "contracts/ccip/receive_executor/contract.tolk"

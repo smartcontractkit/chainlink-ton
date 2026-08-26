@@ -5,10 +5,8 @@ import "../../../lib/utils"
 import "types"
 import "messages"
 
-struct ContextExecutor<T> {
-	data: ContextExecutor_Data<T>;
-}
-
+/// @notice Handles incoming messages: Set/Ask are control messages from owner,
+/// all other messages from `forwardFrom` addresses are forwarded to owner.
 fun ContextExecutor<T>.onInternalMessage(
 	mutate self,
 	in: ContextExecutor_InMessageForward,
@@ -62,6 +60,9 @@ fun ContextExecutor<T>.onInternalMessage(
 		}
 		else => {
 			if (self._isForwardSender(in.senderAddress)) {
+				val forwardFrom = self.data.forwardFrom;
+				self.data.forwardFrom = [];
+
 				val reply = createMessage({
 					bounce: BounceMode.NoBounce,
 					value: 0,
@@ -69,7 +70,7 @@ fun ContextExecutor<T>.onInternalMessage(
 					body: ContextExecutor_ForwardNotification<T> {
 						id: self.data.id,
 						context: self.data.context,
-						forwardFrom: self.data.forwardFrom,
+						forwardFrom,
 						message: in.toCell(),
 					},
 				});

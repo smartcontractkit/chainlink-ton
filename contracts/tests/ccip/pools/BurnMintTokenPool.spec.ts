@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, Dictionary, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import {
@@ -15,6 +15,7 @@ import {
   TokenPool_RateLimitConfigPair,
   TokenPool_ChainUpdate,
   TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnInV1,
   TokenPool_LockOrBurnFinished,
   TokenPool_LockOrBurnForwardPayload,
@@ -29,10 +30,24 @@ import {
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
-import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
+import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMinter'
+import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
+
+// Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
+// from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
+function buildForgedCCTReturnExcessesBack(poolAddress: Address): Cell {
+  return CCT_ReturnExcessesBack.toCell(
+    CCT_ReturnExcessesBack.create({
+      queryId: 999n,
+      initiator: poolAddress,
+      forwardPayload: beginCell().storeUint(0xba302a47, 32).endCell(),
+    }),
+  )
+}
 
 describe('BurnMintTokenPool', () => {
   let blockchain: Blockchain
@@ -98,6 +113,7 @@ describe('BurnMintTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
+                allowedDepositNamespaces: new Map(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: cctMinter.address,
@@ -117,8 +133,7 @@ describe('BurnMintTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          pendingMints: new Map(),
-          pendingBurns: new Map(),
+          offRampAccountCode: OffRampAccount.CodeCell,
         },
         { overrideContractCode: burnMintPoolCode },
       ),
@@ -308,11 +323,6 @@ describe('BurnMintTokenPool', () => {
     }
   })
 
-  it('has no pending burn or mint by default', async () => {
-    expect(await burnMintPool.getHasPendingBurn(300n)).toBe(false)
-    expect(await burnMintPool.getHasPendingMint(301n)).toBe(false)
-  })
-
   it('rejects claim-minter-admin from non-owner sender', async () => {
     const result = await burnMintPool.sendBurnMintTokenPoolClaimMinterAdmin(
       unauthorized.getSender(),
@@ -327,7 +337,7 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  it('reverts lockOrBurn when caller is not configured on-ramp', async () => {
+  it('returns transfer inputs that bypass the prevalidated forward path', async () => {
     const unauthorizedWallet = await userWallet(unauthorized.address)
     const poolWallet = await userWallet(burnMintPool.address)
     const result = await unauthorizedWallet.sendTransfer(unauthorized.getSender(), {
@@ -365,53 +375,127 @@ describe('BurnMintTokenPool', () => {
     expect(result.transactions).toHaveTransaction({
       from: poolWallet.address,
       to: burnMintPool.address,
-      success: false,
+      success: true,
     })
+    expect(await unauthorizedWallet.getJettonBalance()).toEqual(toNano('2'))
+    expect(await poolWallet.getJettonBalance()).toEqual(0n)
   })
 
-  it('reverts lockOrBurn when payload amount does not match transferred amount', async () => {
-    const onRampWallet = await userWallet(deployer.address)
-    const poolWallet = await userWallet(burnMintPool.address)
-    const result = await onRampWallet.sendTransfer(deployer.getSender(), {
-      value: toNano('2'),
-      message: {
-        queryId: 304,
-        jettonAmount: toNano('2'),
-        destination: burnMintPool.address,
-        responseDestination: deployer.address,
-        customPayload: null,
-        forwardTonAmount: toNano('0.2'),
-        forwardPayload: TokenPool_LockOrBurn.toCell(
-          TokenPool_LockOrBurn.create({
-            queryId: 304n,
-            request: TokenPool_LockOrBurnInV1.create({
-              transfer: TokenPool_Transfer.create({
-                id: 304n,
-                details: TokenPool_TransferDetails.create({
-                  receiver: receiverAddress,
-                  remoteChainSelector,
-                  originalSender: deployer.address,
-                  amount: toNano('1'),
-                  localToken: cctMinter.address,
-                }),
-              }),
+  describe('lockOrBurn transfer input validation', () => {
+    it('returns tokens and notifies the requester when payload amount does not match transferred amount', async () => {
+      const onRampWallet = await userWallet(deployer.address)
+      const poolWallet = await userWallet(burnMintPool.address)
+      const requestMsg = TokenPool_LockOrBurn.create({
+        queryId: 304n,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 304n,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount: toNano('1'),
+              localToken: cctMinter.address,
             }),
-            requestedFinalityConfig: 0n,
-            tokenArgs: null,
-            replyTo: deployer.address,
           }),
-        ),
-      },
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+      const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: toNano('1'),
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 304,
+          jettonAmount: toNano('2'),
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: burnMintPool.address,
+        to: poolWallet.address,
+        success: true,
+        op: 0x0f8a7ea5, // AskToTransfer
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: burnMintPool.address,
+        to: deployer.address,
+        // The Treasury test recipient does not implement this callback. Assert
+        // the emitted message, including that it carries the residual inbound
+        // value instead of consuming it in the pool.
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        value: (value) => value !== undefined && value > 0n,
+        body(body) {
+          if (!body) return false
+          const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
+          return failure.queryId === 304n && failure.errorCode === 14920n
+        },
+      })
+      expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
+      expect(await poolWallet.getJettonBalance()).toEqual(0n)
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: poolWallet.address,
-      to: burnMintPool.address,
-      success: false,
+    it('returns tokens without a callback when transfer forward payload is malformed', async () => {
+      const deployerWallet = await userWallet(deployer.address)
+      const poolWallet = await userWallet(burnMintPool.address)
+
+      const result = await deployerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 45,
+          jettonAmount: toNano('1'),
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: beginCell().storeUint(0, 32).endCell(),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: burnMintPool.address,
+        to: poolWallet.address,
+        success: true,
+        op: 0x0f8a7ea5, // AskToTransfer
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: burnMintPool.address,
+        to: deployer.address,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+      })
+      expect(await deployerWallet.getJettonBalance()).toEqual(toNano('10'))
+      expect(await poolWallet.getJettonBalance()).toEqual(0n)
     })
   })
 
-  it('burns tokens on lockOrBurn path and clears pending burn on confirmation', async () => {
+  it('burns tokens on lockOrBurn path and finalizes through the executor notification', async () => {
     const deployerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(burnMintPool.address)
 
@@ -488,7 +572,7 @@ describe('BurnMintTokenPool', () => {
         feeAmount: 0n,
         destTokenAmount: jettonAmount,
         out: TokenPool_LockOrBurnOutV1.create({
-          destTokenAddress: destTokenAddress,
+          destTokenAddress,
           destPoolData: Cell.EMPTY,
         }),
       }),
@@ -510,10 +594,9 @@ describe('BurnMintTokenPool', () => {
       withdrawBody.forwardPayload,
     )
 
-    // Jetton wallet sends TransferNotificationForRecipient to pool
-    // Pool receives notification → validates forward payload → creates pending burn → sends AskToBurn to minter
-    // Minter receives AskToBurn → burns → sends ReturnExcessesBack to pool
-    // Pool receives ReturnExcessesBack → clears pending burn → finalizes → TokenPool_LockOrBurnFinished
+    // Jetton wallet sends TransferNotificationForRecipient to the pool.
+    // Pool sends CCT_AskToBurn (with continuation context) to its own wallet; the CCT wallet
+    // relays it via the minter back to the pool on CCT_ReturnExcessesBack, which finalizes.
     const result2 = await deployerWallet.sendTransfer(deployer.getSender(), {
       value: toNano('0.5'),
       message: {
@@ -527,8 +610,6 @@ describe('BurnMintTokenPool', () => {
       },
     })
 
-    // Verify full async flow completed
-    expect(await burnMintPool.getHasPendingBurn(queryId)).toBe(false)
     expect(await poolWallet.getJettonBalance()).toEqual(0n)
 
     expect(result2.transactions).toHaveTransaction({
@@ -539,7 +620,7 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  it('mints tokens on releaseOrMint path and clears pending mint on confirmation', async () => {
+  it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(
       offRamp.getSender(),
       toNano('0.6'),
@@ -556,7 +637,7 @@ describe('BurnMintTokenPool', () => {
               localToken: cctMinter.address,
             }),
           }),
-          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolAddress,
           sourcePoolData: null,
           offchainTokenData: null,
         }),
@@ -576,8 +657,6 @@ describe('BurnMintTokenPool', () => {
       to: cctMinter.address,
       success: true,
     })
-
-    expect(await burnMintPool.getHasPendingMint(22n)).toBe(false)
 
     expect(result.transactions).toHaveTransaction({
       from: burnMintPool.address,
@@ -609,7 +688,7 @@ describe('BurnMintTokenPool', () => {
               localToken: cctMinter.address,
             }),
           }),
-          sourcePoolAddress: sourcePoolAddress,
+          sourcePoolAddress,
           sourcePoolData: null,
           offchainTokenData: null,
         }),
@@ -630,13 +709,38 @@ describe('BurnMintTokenPool', () => {
     })
 
     const releaseResponses = result.transactions.filter((tx: any) => {
+      const body = tx.inMessage?.body
+      if (!body) {
+        return false
+      }
+
+      const slice = body.beginParse()
+      if (slice.remainingBits < 32) {
+        return false
+      }
+
       return (
         tx.inMessage?.info?.src?.equals?.(burnMintPool.address) &&
-        tx.inMessage?.body?.beginParse?.().preloadUint?.(32) ===
-          TokenPool_ReleaseOrMintFinished.PREFIX
+        slice.preloadUint(32) === TokenPool_ReleaseOrMintFinished.PREFIX
       )
     })
     expect(releaseResponses.length).toBe(0)
-    expect(await burnMintPool.getHasPendingMint(305n)).toBe(false)
+  })
+
+  it('rejects forged CCT burn completions from an untrusted sender', async () => {
+    const forged = await unauthorized.send({
+      to: burnMintPool.address,
+      value: toNano('0.1'),
+      bounce: false,
+      body: buildForgedCCTReturnExcessesBack(burnMintPool.address),
+    })
+
+    // A forged CCT_ReturnExcessesBack carrying a burn continuation must be rejected:
+    // the sender is not the CCT JettonMinter, so the pool must not finalize the burn.
+    expect(forged.transactions).toHaveTransaction({
+      from: unauthorized.address,
+      to: burnMintPool.address,
+      success: false,
+    })
   })
 })

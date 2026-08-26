@@ -68,7 +68,7 @@ fun replyPreflight(msg: TokenPool_PreflightCheck) {
 
 fun replyPostflight(msg: TokenPool_PostflightCheck) {
     val queryId = msg.queryId;
-    val fwd = msg.replyPayload!;
+    val fwd: cell = msg.replyPayload!;
 
     var body: cell;
     if (queryId % 2 == 0) {

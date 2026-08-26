@@ -393,9 +393,10 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					},
 					RMNProxy: owner,
 					DynamicConfig: tokenpool.DynamicConfig{
-						Router:         &routerAddr,
-						RateLimitAdmin: rateLimitAdmin,
-						FeeAdmin:       feeAdmin,
+						Router:                   &routerAddr,
+						RateLimitAdmin:           rateLimitAdmin,
+						FeeAdmin:                 feeAdmin,
+						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, bool](),
 					},
 					JettonClient: tokenpool.JettonClient{
 						MasterAddress:    tokenAddr,

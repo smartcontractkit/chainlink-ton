@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
+import "../../accounts/off_ramp_account/messages"
 import "../lockbox/messages"
+import "types"
 
-// Messages we receive from lockbox or jetton system:
-// - JettonLockBox_Deposited: lockbox confirms deposit (lock flow completion)
-// - JettonLockBox_WithdrawFailed: lockbox reports withdraw failure (release error)
-// - ReturnExcessesBack: completion signal for both lock and release flows
 type LockReleaseLockboxTokenPool_InMessage =
     | ReturnExcessesBack
     | JettonLockBox_Deposited
-    | JettonLockBox_WithdrawFailed;
+    | JettonLockBox_WithdrawFailed
+    | OffRampAccount_Reply
+    | OffRampAccount_ForwardNotification;
 
 type LockReleaseLockboxTokenPool_OutMessage =
     | AskToTransfer;
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | OffRampAccount_Init;

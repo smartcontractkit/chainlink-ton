@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
+import "@stdlib/gas-payments"
 
 import "../../../../lib/math"
 import "../../../../lib/utils"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/jetton/jetton_client"
+import "../../../../lib/jetton/jetton-utils"
 import "../../../../lib/access/ownable_2step"
+import "../../../../lib/deployable/namespace"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 
@@ -32,6 +35,11 @@ import "../rate_limiter"
 /// 0.000567 tokens.
 /// In the case of a burnMint pool on chain A, these funds are burned in the pool on chain A.
 /// In the case of a lockRelease pool on chain A, these funds accumulate in the pool on chain A.
+/// TON value needed to return Jettons after a recoverable transfer failure.
+/// Any value left from the inbound notification is forwarded with the failure
+/// notification after the pool's pre-message balance has been reserved.
+const TokenPool_RETURN_TRANSFER_VALUE = ton("0.1");
+
 struct TokenPool<T> {
     data: TokenPool_Data;
     context: T? = null;
@@ -50,6 +58,13 @@ struct TokenPool_AdminConfig {
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
     /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
     advancedPoolHooks: address? = null;
+    /// Compiled code of the Deployable contract used to derive source-chain deposit accounts
+    /// (e.g. OnRampAccount). Stored here (owner-only, immutable by design) so the pool can
+    /// authenticate a deposit source purely by recomputing the account's deterministic address
+    /// and its jetton wallet.
+    /// @dev Upgrading this after flows are in-flight can break auth for older accounts; it is
+    ///      intentionally part of admin (not dynamic) config.
+    deployableCode: cell? = null;
 }
 
 struct TokenPool_Data {
@@ -89,7 +104,7 @@ struct TokenPool_Hooks<T> {
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
     preflightCheck: ((T?, TokenPool_LockOrBurn, TokenPool_LockOrBurnForwardPayload) -> bool)?;
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
-    onLockOrBurnTransferContinue: ((T, address, TokenPool_LockOrBurnForwardPayload) -> T)?;
+    onLockOrBurnTransferContinue: ((T, address, TransferNotificationForRecipient, TokenPool_LockOrBurnForwardPayload) -> T)?;
 }
 
 @inline
@@ -309,6 +324,62 @@ fun TokenPool<T>.setAdvancedPoolHooks(
             queryId,
             advancedPoolHooks,
         },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Sets the compiled Deployable code used to derive source-chain deposit accounts
+/// (e.g. OnRampAccount). Combined with `dynamicConfig.allowedDepositNamespaces` + the Router
+/// address, this lets the pool recompute and authenticate a deposit-account address.
+/// @param deployableCode The compiled Deployable code, or `null` to disable account-derived deposits.
+/// @dev Owner-only. Part of admin (not dynamic) config: upgrading after flows are in-flight can
+///      break auth for previously-derived accounts (see `TokenPool_AdminConfig.deployableCode`).
+fun TokenPool<T>.setDeployableCode(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    deployableCode: cell?,
+) {
+    var adminConfig = self.data.adminConfig.load();
+    adminConfig.ownable.load().requireOwner(sender);
+
+    adminConfig.deployableCode = deployableCode;
+    self.data.adminConfig = adminConfig.toCell();
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_DeployableCodeSet {
+            queryId,
+            deployableCode,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Sets the Deployables namespaces the pool accepts as source-chain deposit accounts.
+/// @param allowedDepositNamespaces The full set of allowed namespaces (replaces any previous set).
+/// @dev Owner-only. Part of dynamic config so it can be updated without pool redeployment.
+fun TokenPool<T>.setAllowedDepositNamespaces(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    allowedDepositNamespaces: map<uint32, bool>,
+) {
+    var adminConfig = self.data.adminConfig.load();
+    adminConfig.ownable.load().requireOwner(sender);
+
+    var dynamicConfig = adminConfig.dynamicConfig.load();
+    dynamicConfig.allowedDepositNamespaces = allowedDepositNamespaces;
+    adminConfig.dynamicConfig = dynamicConfig.toCell();
+    self.data.adminConfig = adminConfig.toCell();
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_AllowedDepositNamespacesSet { queryId },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -564,7 +635,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         //
         // In the worst case, not enough funds, received Jettons are burned.
         TransferNotificationForRecipient => {
-            self.onLockOrBurnTransfer(msgSender, msg);
+            self.onLockOrBurnTransfer(msgSender, msg, msgValue);
         }
         TokenPool_ReleaseOrMint => {
             self.onReleaseOrMint(msgSender, msg);
@@ -592,6 +663,12 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_SetAdvancedPoolHooks => {
             self.setAdvancedPoolHooks(msgSender, msg.queryId, msg.advancedPoolHooks);
+        }
+        TokenPool_SetDeployableCode => {
+            self.setDeployableCode(msgSender, msg.queryId, msg.deployableCode);
+        }
+        TokenPool_SetAllowedDepositNamespaces => {
+            self.setAllowedDepositNamespaces(msgSender, msg.queryId, msg.allowedDepositNamespaces);
         }
         TokenPool_SetRateLimitConfig => {
             self.setRateLimitConfig(msgSender, msg.queryId, msg.updates);
@@ -656,31 +733,12 @@ fun TokenPool<T>.onPreflightCheckFailed(
     msg: TokenPool_PreflightCheckFailed,
 ): void {
     val fwdp = msg.forwardPayload.load();
-    val requestMsg = lazy fwdp.requestMsg.load();
-    val prepared = lazy fwdp.prepared.load();
 
     // Refund outbound rate limit that was consumed before the hook check.
-    val request = requestMsg.request.load();
-    val details = request.transfer.details.load();
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        self.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
-    } else {
-        self.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
-    }
+    self.refundLockOrBurnRateLimit(fwdp);
 
     // Send failure response back to the executor (replyTo).
-    if (requestMsg.replyTo != null) {
-        val failure = createMessage({
-            bounce: false,
-            value: 0,
-            dest: requestMsg.replyTo!,
-            body: TokenPool_LockOrBurnFailure {
-                queryId: requestMsg.queryId,
-                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
-            },
-        });
-        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
+    self.sendLockOrBurnFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16);
 }
 
 /// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check.
@@ -707,30 +765,145 @@ fun TokenPool<T>.onPostflightCheckFailed(
     msg: TokenPool_PostflightCheckFailed,
 ): void {
     val fwdp = msg.forwardPayload.load();
-    val requestMsg = lazy fwdp.requestMsg.load();
-    val prepared = lazy fwdp.prepared.load();
 
     // Refund inbound rate limit that was consumed before the hook check.
-    val request = requestMsg.request.load();
-    val details = request.transfer.details.load();
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        self.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
-    } else {
-        self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
-    }
+    self.refundReleaseOrMintRateLimit(fwdp);
 
     // Send failure response back to the executor (replyTo).
+    self.sendReleaseOrMintFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16);
+}
+
+// ================================================================
+// │      Common notification & rate-limit refund helpers           │
+// ================================================================
+
+/// Sends `LockOrBurnFailure` reply to the executor (replyTo address) when an outbound
+/// operation fails after admission.
+/// @param forwardPayload The full forward payload carrying the original request message.
+/// @param errorCode The pool-specific error code to attach to the failure message.
+/// @dev Only sends a message if `replyTo` is set on the original request. Instance method
+/// so concrete pools can override (e.g. reserve balance before sending).
+fun TokenPool<T>.sendLockOrBurnFailure(
+    self,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
     if (requestMsg.replyTo != null) {
         val failure = createMessage({
-            bounce: false, // TODO: ?
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFailure {
+                queryId: requestMsg.queryId,
+                errorCode,
+            },
+        });
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Emits `ReleasedOrMinted` event and sends `ReleaseOrMintFinished` reply to the executor
+/// when an inbound operation completes successfully.
+/// @param forwardPayload The full forward payload carrying the original request and prepared data.
+/// @dev Event is always emitted. Reply message is only sent if `replyTo` is set. Instance method
+/// so concrete pools can override (e.g. customize event or reply body).
+fun TokenPool<T>.sendReleaseOrMintFinished(
+    self,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: details.remoteChainSelector,
+        details: TokenPool_ReleasedOrMintedDetails {
+            token: details.localToken,
+            sender: contract.getAddress(),
+            amount: prepared.out.destinationAmount,
+            recipient: details.receiver.toCell(),
+        }.toCell(),
+    });
+
+    if (requestMsg.replyTo != null) {
+        val notify = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_ReleaseOrMintFinished {
+                queryId: requestMsg.queryId,
+                out: prepared.out.toCell(),
+            },
+        });
+        notify.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Sends `ReleaseOrMintFailure` reply to the executor (replyTo address) when an inbound
+/// operation fails after admission.
+/// @param forwardPayload The full forward payload carrying the original request message.
+/// @param errorCode The pool-specific error code to attach to the failure message.
+/// @dev Only sends a message if `replyTo` is set on the original request. Instance method
+/// so concrete pools can override (e.g. reserve balance before sending).
+fun TokenPool<T>.sendReleaseOrMintFailure(
+    self,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+    errorCode: uint16,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
+        val failure = createMessage({
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: requestMsg.replyTo!,
             body: TokenPool_ReleaseOrMintFailure {
                 queryId: requestMsg.queryId,
-                errorCode: TokenPool_errorCode(TokenPool_Error.UnsupportedOperation),
+                errorCode,
             },
         });
         failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
+/// Refunds the outbound (or fast-finality outbound) rate limit capacity that was consumed
+/// before a LockOrBurn operation when it later fails.
+/// @param forwardPayload The forward payload carrying the original request and prepared data.
+/// @dev Picks the correct rate limiter bucket based on the requested finality config.
+fun TokenPool<T>.refundLockOrBurnRateLimit(
+    mutate self,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        self.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    } else {
+        self.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
+    }
+}
+
+/// Refunds the inbound (or fast-finality inbound) rate limit capacity that was consumed
+/// before a ReleaseOrMint operation when it later fails.
+/// @param forwardPayload The forward payload carrying the original request and prepared data.
+/// @dev Picks the correct rate limiter bucket based on the requested finality config.
+fun TokenPool<T>.refundReleaseOrMintRateLimit(
+    mutate self,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
+): void {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+        self.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
+    } else {
+        self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
     }
 }
 
@@ -832,7 +1005,7 @@ fun TokenPool<T>.getFee(
     );
 }
 
-/// @dev Calculates the fee based on the transferred amount, and the configured basis points.
+/// Calculates the fee based on the transferred amount, and the configured basis points.
 /// @param lockOrBurnIn The original lock or burn request.
 /// @param requestedFinalityConfig The requested finality encoding (see `FinalityCodec`).
 /// A value of zero (FinalityCodec.WAIT_FOR_FINALITY_FLAG) applies default finality fees.
@@ -874,9 +1047,11 @@ fun TokenPool<T>.getFeeAmount(
 /// - if the sender is a valid onRamp
 /// - rate limiting for either default or FTF transfer messages.
 /// - preflight checks hooks (if enabled)
+/// 
+/// @param sender The address of the original sender of the lock or burn request.
 /// @param msg The full LockOrBurn message containing all request fields.
-/// @dev This function should always be called before executing a lock or burn. Not doing so would allow
-/// for various exploits.
+/// 
+/// @dev This function should always be called before executing a lock or burn.
 fun TokenPool<T>.validateLockOrBurn(
     mutate self,
     sender: address,
@@ -983,68 +1158,235 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     mutate self,
     sender: address,
     msg: TransferNotificationForRecipient,
+    msgValue: coins,
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurnTransfer != null) {
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
+
+        return;
     }
 
-    // Check the notification originates from a valid Jetton wallet
+    // This is a trust boundary, rather than a recoverable transfer failure.
+    // Never return tokens in response to a notification from an arbitrary
+    // contract: only this pool's Jetton wallet can have credited custody.
     assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
 
-    // We either get this transfer from the Router, in which case we trust the transfer is valid;
-    // Or for a different sender (e.g., per-user deposit account), we need to validate the transfer,
-    // which we can only do with context -> recover from ContextExecutor.
-    // 
-    // The context contains info about the sender, the amount, etc. that we can use to validate the transfer.
-    // If we can't validate the transfer, we try to return the funds.
+    try {
+        // Authentication - we accept a deposit from either (1) the Router, or (2) a known Deployable namespace
+        // with Router as owner (a known deployable addr key, per-user deposit account), where  multiple namespaces
+        // can represent different types of OnRampAccount contracts. The TP needs to know (1) the Deployable
+        // code (stable), (2) the Router address (stable), and (3) a set of namespaces (account types) it trusts.
 
-    // TODO: check message value is enough to cover full flow, or error
-    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
-    if (fwdps == null) {
-        self.returnTransfer(sender, msg);
+        val forwardPayload = loadForwardPayloadAsSlice(msg.forwardPayload);
+        val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(forwardPayload!);
+
+        // A valid pool wallet has already credited the tokens before it
+        // delivers this notification. Once its payload is decoded, every
+        // failure can return custody and notify the original requester.
+        try {
+            self.processLockOrBurnTransfer(sender, msg, fwdp);
+        } catch (errorCode) {
+            self.failLockOrBurnTransfer(sender, msg, fwdp, errorCode as uint16, msgValue);
+        }
+    } catch {
+        // A malformed payload has no reliable reply target, but custody can
+        // still be returned to a valid pool wallet.
+        TokenPool<T>.returnTransfer(sender, msg);
+    }
+}
+
+/// Process a decoded Jetton transfer notification after its sender has been authenticated.
+/// @dev Deposit-source auth happens here, on the decoded forward payload: we accept custody that
+///      was initiated by (1) the configured Router's own wallet, or (2) a Deployables-derived
+///      per-user deposit account (e.g. OnRampAccount) whose namespace is allowed in dynamic config.
+fun TokenPool<T>.processLockOrBurnTransfer(
+    mutate self,
+    sender: address,
+    msg: TransferNotificationForRecipient,
+    fwdp: TokenPool_LockOrBurnForwardPayload,
+): void {
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+
+    assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+    assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
+
+    // Authenticate it before accepting custody.
+    // `msg.transferInitiator` is the account whose wallet initiated the deposit: the Router in the
+    // standard path, or the derived deposit account in the per-user path.
+    self.assertAuthorizedDepositInitiator(msg.transferInitiator!, details.originalSender);
+
+    self.onLockOrBurnTransferContinue(sender, msg, fwdp);
+}
+
+/// Verifies that a deposit was initiated by a trusted source before the pool accepts custody.
+///
+/// @param initiator The wallet owner that initiated the inbound Jetton transfer (`transferInitiator`).
+/// @param originalSender The original CCIP sender on the source chain (the account's Deployables `id`).
+///
+/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) any per-user deposit
+///      account derived via Deployables — Router as owner, an allowed namespace, id = originalSender.
+/// 
+///      Account-auth is opt-in: it is only enforced once the pool owner configures it (code, allowed namespaces).
+fun TokenPool<T>.assertAuthorizedDepositInitiator(
+    self,
+    initiator: address,
+    originalSender: address,
+): void {
+    val adminConfig = self.data.adminConfig.load();
+    val dynamicConfig = adminConfig.dynamicConfig.load();
+
+    // The Router itself is always a trusted source (standard Router -> pool withdraw path).
+    if (initiator == dynamicConfig.router) {
         return;
     }
-    val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(fwdps!);
 
-    // TODO: can we trust (any) JettonWallet forward payloads?
-    // assert(request.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
-
-    // Continue if transfer initiator is the Router, otherwise try to validate the transfer
-    val router = self.data.adminConfig.load().dynamicConfig.load().router;
-    // TODO: should check if transferInitiator == walletAddress(router) - missing info for now
-    // if (msg.transferInitiator != null && msg.transferInitiator! == router) {
-    if (msg.transferInitiator != null) {
-        self.onLockOrBurnTransferContinue(sender, fwdp);
-        return;
+    // Look through all allowed namespace/account types for one that derives to `initiator`.
+    var entry = dynamicConfig.allowedDepositNamespaces.findFirst();
+    while (entry.isFound) {
+        val namespace: Namespace = entry.getKey();
+        val account = self.deriveDepositAccount(
+            dynamicConfig.router,
+            namespace,
+            originalSender,
+        ).calculateAddress();
+        if (initiator == account) {
+            return;
+        }
+        entry = dynamicConfig.allowedDepositNamespaces.iterateNext(entry);
     }
 
-    // TODO: should throw as unsupported for now
-    // TODO: check if this is a registered deposit account
-    // ContextExecutor_Ask(fwdp: msg + fwdp) -> ContextExecutor_Reply(ctx, fwdp)
-    // if reply is valid, continue, else return transfer
+    throw TokenPool_Error.Unauthorized;
+}
+
+/// Derives the on-chain address of a per-user deposit account, deployed via the Deployables namespace
+///
+/// @param deployableCode The compiled Deployable contract code (address-namespace seed).
+/// @param router The Router that owns the deployable deployment.
+/// @param namespace The Deployables namespace identifying the account type (e.g. OnRampAccount).
+/// @param user The on-chain user the account is keyed by (its Deployables `id`).
+@inline
+fun TokenPool<T>.deriveDepositAccount(
+    self,
+    router: address,
+    namespace: Namespace,
+    user: address,
+): AutoDeployAddress {
+    val code = self.data.adminConfig.load().deployableCode;
+    assert(code != null, TokenPool_Error.Unauthorized);
+    return AutoDeployAddress {
+        stateInit: ContractState {
+            code: code!,
+            data: NamespacedDeployableData<address>({
+                namespace,
+                owner: router,
+                id: user,
+            }),
+        },
+    };
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(
     mutate self,
     sender: address,
+    msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurnTransferContinue != null) {
-        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, fwdPayload);
-
+        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, msg, fwdPayload);
         return;
     }
 
     return self.onLockOrBurnTransferFinalize(fwdPayload);
 }
 
-fun TokenPool<T>.returnTransfer(self, sender: address, msg: TransferNotificationForRecipient): void {
-    // TODO: check available gas, we don't want to drain the contract with return transfers
-    // send back the tokens, we don't support direct transfers to the pool
+/// Returns a failure notification to the original requester, carrying the remaining value of the inbound transfer.
+/// The pool's balance is reserved to ensure that the notification can be sent safely (without consuming the pool's balance).
+fun TokenPool<T>.notifyLockOrBurnFailure(
+    self,
+    msgValue: coins,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+): void {
+    self.reserveLockOrBurnFailureValue(msgValue);
+
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    if (requestMsg.replyTo != null) {
+        val failure = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: requestMsg.replyTo!,
+            body: TokenPool_LockOrBurnFailure {
+                queryId: requestMsg.queryId,
+                errorCode,
+            },
+        });
+        failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+    }
+}
+
+/// Keep the pool's balance from before the inbound Jetton notification, then
+/// allow recovery messages to carry only the notification's remaining value.
+fun TokenPool<T>.reserveLockOrBurnFailureValue(self, msgValue: coins): void {
+    // Storage accounting can leave a minimally funded pool with less balance
+    // than the forwarded value. Saturate rather than throwing before recovery.
+    val originalBalance = contract.getOriginalBalance();
+    val balanceBeforeMessage = originalBalance > msgValue
+        ? originalBalance - msgValue
+        : 0 as coins;
+    val toLeaveOnBalance = balanceBeforeMessage + contract.getStorageDuePayment();
+    reserveToncoinsOnBalance(toLeaveOnBalance, RESERVE_MODE_AT_MOST);
+}
+
+/// Returns custody to the sender and notifies the original requester of a failed transfer.
+fun TokenPool<T>.failLockOrBurnTransfer(
+    self,
+    sender: address,
+    msg: TransferNotificationForRecipient,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    errorCode: uint16,
+    msgValue: coins,
+): void {
+    TokenPool<T>.returnTransfer(sender, msg);
+    self.notifyLockOrBurnFailure(msgValue, forwardPayload, errorCode);
+}
+
+/// Returns jettons to the original sender after a failed lock (deposit) operation.
+/// @dev Sends AskToTransfer to the pool's jetton wallet with original sender as recipient.
+fun TokenPool<T>.returnTransferLocked(self, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+
     val returnTransfer = createMessage({
         bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender, // the wallet we own which sent us the notification
+        value: TokenPool_RETURN_TRANSFER_VALUE,
+        dest: self.data.jettonClient().walletAddress(),
+        body: AskToTransfer {
+            queryId: requestMsg.queryId,
+            jettonAmount: details.amount,
+            transferRecipient: details.originalSender,
+            sendExcessesTo: details.originalSender,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    });
+    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
+}
+
+fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRecipient): void {
+    // Only valid for a real inbound transfer (initiator + wallet set, amount > 0).
+    if (msg.transferInitiator == null) {
+        return; // nothing to do, no one to return to
+    }
+
+    // Send back tokens; direct transfers to the pool are not supported.
+    val returnTransfer = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: TokenPool_RETURN_TRANSFER_VALUE,
+        dest: sender, // wallet address which sent us the transfer notification (our wallet)
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
@@ -1055,7 +1397,9 @@ fun TokenPool<T>.returnTransfer(self, sender: address, msg: TransferNotification
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     });
-    returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // Returning custody is best-effort. The remaining inbound value is carried
+    // by the subsequent failure notification, after reserving pool balance.
+    returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
 }
 
 fun TokenPool<T>.onLockOrBurnTransferFinalize(
@@ -1154,6 +1498,8 @@ fun TokenPool<T>.onReleaseOrMint(
 ): void {
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
+
+        return;
     }
 
     // Validate and call postflightCheck with full message.
@@ -1174,6 +1520,7 @@ fun TokenPool<T>.onReleaseOrMintContinue(
 ): void {
     if (self.hooks != null && self.hooks.onReleaseOrMintContinue != null) {
         self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msg, prepared);
+
         return;
     }
 
@@ -1303,21 +1650,25 @@ fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
 }
 
 fun TokenPool<T>.ensureOutboundAccess(self, sender: address, remoteChainSelector: uint64) {
-    val onRamp = self.getOnRamp(remoteChainSelector);
-    assert(onRamp != null, TokenPool_Error.Unauthorized);
-    assert(onRamp! == sender, TokenPool_Error.Unauthorized);
     if (self.hooks != null && self.hooks.ensureOutboundAccess != null) {
         self.hooks.ensureOutboundAccess(self.context, sender, remoteChainSelector);
+
+        return;
     }
+
+    val onRamp = self.getOnRamp(remoteChainSelector);
+    assert(onRamp != null && onRamp! == sender, TokenPool_Error.Unauthorized);
 }
 
 fun TokenPool<T>.ensureInboundAccess(self, sender: address, remoteChainSelector: uint64) {
-    val offRamp = self.getOffRamp(remoteChainSelector);
-    assert(offRamp != null, TokenPool_Error.Unauthorized);
-    assert(offRamp! == sender, TokenPool_Error.Unauthorized);
     if (self.hooks != null && self.hooks.ensureInboundAccess != null) {
         self.hooks.ensureInboundAccess(self.context, sender, remoteChainSelector);
+
+        return;
     }
+
+    val offRamp = self.getOffRamp(remoteChainSelector);
+    assert(offRamp != null && offRamp! == sender, TokenPool_Error.Unauthorized);
 }
 
 fun TokenPool<T>.preflightCheck(
@@ -1561,17 +1912,13 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.outbound.load();
-        bucket.consume(amount, self.data.token());
-        rateLimiters.outbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
+        self.consumeOutboundRateLimit(remoteChainSelector, amount);
     } else {
         fastBucket.consume(amount, self.data.token());
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.data.remoteChainConfigs.set(remoteChainSelector, config);
     }
-    self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityOutboundRateLimitConsumed {
         remoteChainSelector,
@@ -1590,17 +1937,13 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.inbound.load();
-        bucket.consume(amount, self.data.token());
-        rateLimiters.inbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
+        self.consumeInboundRateLimit(remoteChainSelector, amount);
     } else {
         fastBucket.consume(amount, self.data.token());
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.data.remoteChainConfigs.set(remoteChainSelector, config);
     }
-    self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityInboundRateLimitConsumed {
         remoteChainSelector,

@@ -34,6 +34,10 @@ import {
   JettonLockBox,
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
+import {
+  ContextExecutor,
+  ContextExecutor_ForwardNotification,
+} from '../../../wrappers/gen/ccip/ContextExecutor'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
@@ -41,6 +45,10 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
+import {
+  OffRampAccount,
+  OffRampAccount_ForwardNotification,
+} from '../../../wrappers/gen/ccip/OffRampAccount'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -146,6 +154,7 @@ describe('LockReleaseLockboxTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
+                allowedDepositNamespaces: new Map(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: jettonMinter.address,
@@ -166,8 +175,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: jettonLockBox.address,
-          pendingLocks: new Map(),
-          pendingReleases: new Map(),
+          offRampAccountCode: OffRampAccount.CodeCell,
         },
         {
           overrideContractCode: await contractCode.ccip.local(
@@ -282,18 +290,98 @@ describe('LockReleaseLockboxTokenPool', () => {
     }
   })
 
-  runTokenPoolBehaviorTests('LockReleaseLockboxTokenPool', async () => ({
-    pool,
-    deployer,
-    offRamp,
-    unauthorized: recipient,
-    recipient,
-    remoteChainSelector,
-    onRampAddress: deployer.address,
-    destTokenAddress,
-    sourcePoolAddress,
-    localToken: jettonMinter.address,
-  }))
+  // Funds the lockbox with jettons so release flows can actually complete.
+  // A raw mint to the lockbox does NOT work: the mint flow isn't required to
+  // set the transferInitiator so we cannot check if OPERATOR. Instead, deposit
+  // through the pool (the OPERATOR) with a valid forward payload so the jettons
+  // stay in the lockbox.
+  // @param amount Number of jettons to deposit into the lockbox.
+  // @param queryId Unique queryId to avoid collisions across repeated calls.
+  // @returns The lockbox's jetton wallet address.
+  const fundLockboxViaLock = async (
+    amount: bigint,
+    queryId: number | bigint = 7000n,
+  ): Promise<Address> => {
+    const onRampWallet = await userWallet(deployer.address)
+    const lockOrBurn = TokenPool_LockOrBurn.create({
+      queryId: BigInt(queryId),
+      request: TokenPool_LockOrBurnInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: BigInt(queryId),
+          details: TokenPool_TransferDetails.create({
+            receiver: receiverAddress,
+            remoteChainSelector,
+            originalSender: deployer.address,
+            amount,
+            localToken: jettonMinter.address,
+          }),
+        }),
+      }),
+      requestedFinalityConfig: 0n,
+      tokenArgs: null,
+      replyTo: deployer.address,
+    })
+    const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+      originalSender: deployer.address,
+      requestMsg: lockOrBurn,
+      prepared: TokenPool_LockOrBurnPrepared.create({
+        feeAmount: 0n,
+        destTokenAmount: amount,
+        out: TokenPool_LockOrBurnOutV1.create({
+          destTokenAddress: destTokenAddress,
+          destPoolData: Cell.EMPTY,
+        }),
+      }),
+    })
+    const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+      value: toNano('3'),
+      message: {
+        queryId: Number(queryId),
+        jettonAmount: amount,
+        destination: lockReleaseLockboxPool.address,
+        responseDestination: deployer.address,
+        customPayload: null,
+        forwardTonAmount: toNano('0.5'),
+        forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+      },
+    })
+    // The pool (OPERATOR) deposits into the lockbox; the lock must finalize successfully.
+    expect(result.transactions).toHaveTransaction({
+      to: jettonLockBox.address,
+      success: true,
+    })
+    // Verify the jettons actually stayed in the lockbox wallet (not D1-returned).
+    const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
+    const lockboxWallet = blockchain.openContract(
+      JettonWallet.createFromAddress(lockboxWalletAddress),
+    )
+    expect(await lockboxWallet.getJettonBalance()).toEqual(amount)
+    return lockboxWalletAddress
+  }
+
+  const setupTokenPoolBehaviorContext = async () => {
+    // Fund the lockbox so release completions can actually be observed in behavior tests.
+    await fundLockboxViaLock(toNano('10'))
+  }
+
+  runTokenPoolBehaviorTests(
+    'LockReleaseLockboxTokenPool',
+    async () => ({
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+    }),
+    {
+      setup: setupTokenPoolBehaviorContext,
+    },
+  )
 
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseLockboxTokenPool', async () => {
@@ -348,14 +436,6 @@ describe('LockReleaseLockboxTokenPool', () => {
     it('should return correct token and decimals', async () => {
       expect(await lockReleaseLockboxPool.getToken()).toEqualAddress(jettonMinter.address)
       expect(await lockReleaseLockboxPool.getTokenDecimals()).toBe(9n)
-    })
-
-    it('should have no pending lock by default', async () => {
-      expect(await lockReleaseLockboxPool.getHasPendingLock(999n)).toBe(false)
-    })
-
-    it('should have no pending release by default', async () => {
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(999n)).toBe(false)
     })
   })
 
@@ -416,9 +496,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: lockReleaseLockboxPool.address,
         success: true,
       })
-
-      // Pool should have a pending lock
-      expect(await lockReleaseLockboxPool.getHasPendingLock(100n)).toBe(true)
     })
 
     it('should store pending lock when forwarded amount matches transfer amount', async () => {
@@ -469,8 +546,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
         },
       })
-
-      expect(await lockReleaseLockboxPool.getHasPendingLock(101n)).toBe(true)
     })
   })
 
@@ -523,9 +598,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: true,
       })
 
-      // Pool should have a pending release
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(200n)).toBe(true)
-
       // Pool sends JettonLockBox_Withdraw to the lockbox (lockbox will handle the jetton transfer)
       expect(result.transactions).toHaveTransaction({
         from: lockReleaseLockboxPool.address,
@@ -533,91 +605,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: 0xd065c306, // JettonLockBox_Withdraw
         success: true,
       })
-    })
-
-    it('should reject duplicate release requests with PendingReleaseAlreadyExists', async () => {
-      // Fund lockbox first
-      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
-      await jettonMinter.sendMint(deployer.getSender(), {
-        value: toNano('1'),
-        message: {
-          queryId: 0n,
-          destination: lockboxWalletAddress,
-          tonAmount: toNano('0.05'),
-          jettonAmount: toNano('50'),
-          from: deployer.address,
-          responseDestination: deployer.address,
-          forwardTonAmount: 0n,
-        },
-      })
-
-      // First release request - should succeed
-      const firstResult = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
-        offRamp.getSender(),
-        toNano('0.5'),
-        {
-          queryId: 220n,
-          request: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 220n,
-              details: TokenPool_TransferDetails.create({
-                originalSender: sourcePoolAddress,
-                remoteChainSelector,
-                receiver: recipient.address,
-                amount: toNano('5'),
-                localToken: jettonMinter.address,
-              }),
-            }),
-            sourcePoolAddress: sourcePoolAddress,
-            sourcePoolData: null,
-            offchainTokenData: null,
-          }),
-          requestedFinalityConfig: 0n,
-          replyTo: deployer.address,
-        },
-      )
-
-      expect(firstResult.transactions).toHaveTransaction({
-        to: lockReleaseLockboxPool.address,
-        success: true,
-      })
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(220n)).toBe(true)
-
-      // Second release with same queryId - should be rejected
-      const secondResult = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
-        offRamp.getSender(),
-        toNano('0.5'),
-        {
-          queryId: 220n,
-          request: TokenPool_ReleaseOrMintInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 220n,
-              details: TokenPool_TransferDetails.create({
-                originalSender: sourcePoolAddress,
-                remoteChainSelector,
-                receiver: recipient.address,
-                amount: toNano('5'),
-                localToken: jettonMinter.address,
-              }),
-            }),
-            sourcePoolAddress: sourcePoolAddress,
-            sourcePoolData: null,
-            offchainTokenData: null,
-          }),
-          requestedFinalityConfig: 0n,
-          replyTo: deployer.address,
-        },
-      )
-
-      // Exit code 48702 = PendingReleaseAlreadyExists
-      expect(secondResult.transactions).toHaveTransaction({
-        to: lockReleaseLockboxPool.address,
-        success: false,
-        exitCode: 48702,
-      })
-
-      // Original pending release should still exist
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(220n)).toBe(true)
     })
 
     it('should reject release when requested amount exceeds lockbox liquidity', async () => {
@@ -651,7 +638,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: lockReleaseLockboxPool.address,
         success: false,
       })
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(201n)).toBe(false)
     })
   })
 
@@ -745,143 +731,14 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: 0x178d4519, // TransferNotificationForRecipient
         success: true,
       })
-
-      // Pool stores pending lock after receiving TransferNotificationForRecipient
-      expect(await lockReleaseLockboxPool.getHasPendingLock(300n)).toBe(true)
-
-      // The pool computes the lockbox wallet address and sends AskToTransfer to forward jettons
-      // In the sandbox, the lockbox wallet is a standard jetton wallet (not JettonLockBox contract).
-      // It returns excesses but does NOT send JettonLockBox_Deposited back to finalize.
-      // In production, the JettonLockBox contract would process the deposit and send the callback,
-      // clearing the pending lock and emitting TokenPool_LockedOrBurned.
-    })
-
-    it('should return jettons for transfers without transferInitiator (direct user transfers)', async () => {
-      // When a user sends jettons directly to the pool wallet (not through on-ramp),
-      // the transferInitiator will be null (user's own wallet).
-      // The pool should detect this and return the jettons instead of processing.
-      // This is tested by verifying that onLockOrBurnTransfer checks transferInitiator != null.
-      // The TokenPool library handles this - if transferInitiator is null, it calls returnTransfer().
-      // In the current test setup, all transfers go through JettonWallet which sets transferInitiator.
-      // The onLockOrBurnTransfer hook in token_pool.tolk asserts:
-      //   if (msg.transferInitiator != null) { onLockOrBurnTransferContinue(); return; }
-      //   else { returnTransfer(); }
-      // This prevents rogue transfers from being processed as locks.
-    })
-
-    it('should reject duplicate lock requests with PendingLockAlreadyExists', async () => {
-      // This tests the onLockOrBurnTransferContinue hook directly.
-      // When a lock request with the same queryId arrives twice, the second should be rejected.
-      // The contract asserts: !pendingLocks.get(msg.queryId).isFound -> PendingLockAlreadyExists
-
-      const onRampWallet = await userWallet(deployer.address)
-      const poolWallet = await userWallet(lockReleaseLockboxPool.address)
-
-      const lockOrBurn = TokenPool_LockOrBurn.create({
-        queryId: 310n,
-        request: TokenPool_LockOrBurnInV1.create({
-          transfer: TokenPool_Transfer.create({
-            id: 310n,
-            details: TokenPool_TransferDetails.create({
-              receiver: receiverAddress,
-              remoteChainSelector,
-              originalSender: deployer.address,
-              amount: toNano('5'),
-              localToken: jettonMinter.address,
-            }),
-          }),
-        }),
-        requestedFinalityConfig: 0n,
-        tokenArgs: null,
-        replyTo: deployer.address,
-      })
-
-      const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
-        requestMsg: lockOrBurn,
-        prepared: TokenPool_LockOrBurnPrepared.create({
-          feeAmount: 0n,
-          destTokenAmount: toNano('5'),
-          out: TokenPool_LockOrBurnOutV1.create({
-            destTokenAddress: destTokenAddress,
-            destPoolData: Cell.EMPTY,
-          }),
-        }),
-      })
-
-      // First lock request - should succeed
-      const firstResult = await onRampWallet.sendTransfer(deployer.getSender(), {
-        value: toNano('3'),
-        message: {
-          queryId: 310,
-          jettonAmount: toNano('5'),
-          destination: lockReleaseLockboxPool.address,
-          responseDestination: deployer.address,
-          customPayload: null,
-          forwardTonAmount: toNano('0.5'),
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
-        },
-      })
-
-      expect(firstResult.transactions).toHaveTransaction({
-        to: lockReleaseLockboxPool.address,
-        success: true,
-      })
-      expect(await lockReleaseLockboxPool.getHasPendingLock(310n)).toBe(true)
-
-      // Second lock request with same queryId - should be rejected by onLockOrBurnTransferContinue
-      // The pool's jetton wallet will forward this back to the pool
-      // The pool processes it in onLockOrBurnTransfer which checks transferInitiator
-      // Then calls onLockOrBurnTransferContinue which checks for duplicate queryId
-      const secondResult = await onRampWallet.sendTransfer(deployer.getSender(), {
-        value: toNano('3'),
-        message: {
-          queryId: 310,
-          jettonAmount: toNano('5'),
-          destination: lockReleaseLockboxPool.address,
-          responseDestination: deployer.address,
-          customPayload: null,
-          forwardTonAmount: toNano('0.5'),
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
-        },
-      })
-
-      // The pool rejects duplicate with exit code 48700 (PendingLockAlreadyExists)
-      expect(secondResult.transactions).toHaveTransaction({
-        to: lockReleaseLockboxPool.address,
-        success: false,
-        exitCode: 48700,
-      })
-
-      // Original pending lock should still exist
-      expect(await lockReleaseLockboxPool.getHasPendingLock(310n)).toBe(true)
     })
   })
 
   describe('full release flow (end-to-end through lockbox)', () => {
     it('should complete full release flow: offRamp -> pool -> lockbox -> lockbox wallet -> ReturnExcessesBack -> pool finalize', async () => {
-      // Fund lockbox wallet with jettons (simulating prior locks)
-      const lockboxWalletAddress = await jettonMinter.getWalletAddress(jettonLockBox.address)
-      const mintResult = await jettonMinter.sendMint(deployer.getSender(), {
-        value: toNano('2'),
-        message: {
-          queryId: 0n,
-          destination: jettonLockBox.address,
-          tonAmount: toNano('0.5'),
-          jettonAmount: toNano('50'),
-          from: deployer.address,
-          responseDestination: deployer.address,
-          forwardTonAmount: toNano('0.3'),
-        },
-      })
-      expect(mintResult.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: jettonMinter.address,
-        success: true,
-      })
-
-      // Note: the standard jetton minter deploys wallets at computed addresses.
-      // We mainly verify the release transaction flow and state transitions.
+      // Fund the lockbox with jettons via the shared lock-deposit helper (through the pool, an
+      // OPERATOR). A raw mint cannot fund the lockbox (see `fundLockboxViaLock`).
+      const lockboxWalletAddress = await fundLockboxViaLock(toNano('50'), 500n)
 
       // Trigger release from off-ramp
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
@@ -937,18 +794,13 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: true,
       })
 
-      // Recipient's wallet sends ReturnExcessesBack to the pool
+      // ReturnExcessesBack is routed through the OAA before the
+      // pool finalizes the release and clears the direct failure context.
       expect(result.transactions).toHaveTransaction({
         to: lockReleaseLockboxPool.address,
-        op: 0xd53276db, // ReturnExcessesBack
+        op: OffRampAccount_ForwardNotification.PREFIX,
         success: true,
       })
-
-      // Pending release should be cleared (release completed)
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(400n)).toBe(false)
-
-      // Release flow complete: offRamp -> pool -> lockbox -> lockbox wallet -> TransferNotification -> recipient wallet
-      // Recipient wallet sends ReturnExcessesBack to pool confirming the transfer.
     })
 
     it('should handle release flow failure when lockbox has insufficient balance', async () => {
@@ -988,7 +840,6 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       // No pending release should exist (either rejected upfront or cleaned up)
-      expect(await lockReleaseLockboxPool.getHasPendingRelease(401n)).toBe(false)
     })
   })
 
