@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "types"
-import "../../lib/ocr/types.tolk"
-import "../../lib/ocr/multi_ocr3_base.tolk"
-import "../../lib/utils"
-import "../../lib/funding/withdrawable"
-import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
-import "../common/types.tolk"
-import "../rmn_remote/lib"
-import "../merkle_root/messages"
-import "../receive_executor/messages"
+import "../../lib/funding/withdrawable"
+import "../../lib/ocr/multi_ocr3_base"
+import "../../lib/ocr/types"
+import "../../lib/utils"
+import "../../lib/versioning/upgradeable"
+
+import "../common/types"
 import "../fee_quoter/messages"
+import "../merkle_root/messages"
+import "../pools/lib/token_pool/messages"
+import "../pools/lib/token_pool/types"
+import "../receive_executor/messages"
+import "../rmn_remote/lib"
 import "../router/messages"
+
+import "types"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -19,6 +23,7 @@ type OffRamp_InMessage =
     | OffRamp_ExecuteValidated
     | OffRamp_ManuallyExecute
     | OffRamp_DispatchValidated
+    | OffRamp_ReleaseOrMint
     | OffRamp_UpdateSourceChainConfigs
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced
@@ -34,6 +39,7 @@ type OffRamp_InMessage =
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
+    | TokenPool_ReleaseOrMint
     | Router_RouteMessage;
 
 struct (0x9d431905) OffRamp_Commit {
@@ -53,14 +59,14 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
-    gasOverride: coins?;
+    gasOverride: GasOverride? = null;
     executionState: ExecutionState;
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
     queryId: uint64;
     report: ExecutionReport;
-    gasOverride: coins; 
+    gasOverride: GasOverride;
 }
 
 //Must be sent by owner
@@ -78,7 +84,8 @@ struct SourceChainConfigUpdate {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
-    gasOverride: coins?;
+    // Gas limit to use for the message execution
+    effectiveGasLimit: coins;
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
@@ -117,6 +124,19 @@ struct (0xa015e0e2) OffRamp_UpdateDeployables {
     queryId: uint64;
     receiveExecutorCode: cell?;
     merkleRootCode: cell?;
+}
+
+struct (0x7deaf076) OffRamp_ReleaseOrMint {
+    queryId: uint64
+    execId: ReceiveExecutorId
+    tokenPool: address
+    destGasAmount: coins
+    requestedFinalityConfig: uint32
+    request: Cell<TokenPool_ReleaseOrMintInV1>
+}
+
+fun OffRamp_ReleaseOrMint.cost(): coins {
+    return ton("0.02"); // TODO
 }
 
 struct OffRamp_Costs{}

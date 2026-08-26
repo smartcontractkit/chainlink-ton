@@ -6,20 +6,17 @@ struct TokenRegistry_TokenInfo {
     enabled: bool
 }
 
-struct TokenRegistry {
-    deployableCode: cell
-    tokenAddress: address
-}
+struct TokenRegistry {}
 
 /// Derives the token registry contract address from the token address
-fun TokenRegistry.deriveAddress(self): AutoDeployAddress {
+fun TokenRegistry.deriveAddress(deployableCode: cell, tokenAddress: address, tokenRegistryOwner: address): AutoDeployAddress {
     return {
         stateInit: {
-            code: self.deployableCode,
+            code: deployableCode,
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_TokenRegistry,
-                owner: contract.getAddress(),
-                id: self.tokenAddress,
+                owner: tokenRegistryOwner,
+                id: tokenAddress,
             }),
         }
     }

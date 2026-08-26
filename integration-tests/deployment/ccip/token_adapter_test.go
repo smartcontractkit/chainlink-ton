@@ -6,15 +6,15 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"

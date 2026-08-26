@@ -1,4 +1,4 @@
-import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { Cell, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'

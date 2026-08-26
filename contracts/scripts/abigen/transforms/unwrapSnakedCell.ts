@@ -22,6 +22,7 @@ const PRIMITIVE_SNAKE_ITEMS: Record<string, [store: string, load: string]> = {
   uint192: ['(v, b) => b.storeUint(v, 192)', '(s) => s.loadUintBig(192)'],
   uint256: ['(v, b) => b.storeUint(v, 256)', '(s) => s.loadUintBig(256)'],
   'c.Address': ['(v, b) => b.storeAddress(v)', '(s) => s.loadAddress()'],
+  coins: ['(v, b) => b.storeCoins(v)', '(s) => s.loadCoins()'],
 }
 
 function snakeStoreExpr(itemType: string): string {

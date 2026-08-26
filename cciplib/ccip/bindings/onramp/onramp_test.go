@@ -309,3 +309,27 @@ func TestStorage(t *testing.T) {
 		}
 	}
 }
+
+// TestExecutorTokenTransferAddrNone covers the no-token-transfer case: the contract
+// stores OnRamp_ExecutorTokenTransfer.sourcePoolAddress as an optional address, so the
+// wire value is addr_none and must decode without error.
+func TestExecutorTokenTransferAddrNone(t *testing.T) {
+	emptyCrossChainAddress := cell.BeginCell().MustStoreUInt(0, 8).EndCell()
+	packed := cell.BeginCell().
+		MustStoreAddr(nil). // addr_none, as emptyExecutorTokenTransfer() emits
+		MustStoreBigUInt(big.NewInt(0), 256).
+		MustStoreRef(emptyCrossChainAddress).
+		MustStoreRef(cell.BeginCell().EndCell()).
+		MustStoreRef(cell.BeginCell().EndCell()).
+		EndCell()
+
+	var decoded ExecutorTokenTransfer
+	require.NoError(t, tlb.LoadFromCell(&decoded, packed.BeginParse()))
+	require.True(t, decoded.SourcePoolAddress == nil || decoded.SourcePoolAddress.IsAddrNone())
+	require.Equal(t, 0, decoded.Amount.Sign())
+
+	// And it round-trips back to the same cell.
+	reencoded, err := tlb.ToCell(decoded)
+	require.NoError(t, err)
+	require.Equal(t, packed.Hash(), reencoded.Hash())
+}

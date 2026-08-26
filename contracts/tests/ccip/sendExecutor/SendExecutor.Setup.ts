@@ -50,7 +50,7 @@ export async function sendDeployOnBlockchain(
         ...initialize,
         selfMessage,
       })
-    : await deployable.sendInitialize(deployer.getSender(), toNano('0.5'), initialize)
+    : await deployable.sendInitialize(deployer.getSender(), toNano('2'), initialize)
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: deployable.address,

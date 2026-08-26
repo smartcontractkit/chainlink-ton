@@ -2,6 +2,8 @@ module github.com/smartcontractkit/chainlink-ton
 
 go 1.26.2
 
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/TyphonHill/go-mermaid v1.0.0
@@ -102,7 +104,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20260326111235-8c09d1a4491f // indirect
 	github.com/smartcontractkit/chainlink-protos/linking-service/go v0.0.0-20251002192024-d2ad9222409b // indirect
 	github.com/smartcontractkit/chainlink-protos/node-platform v0.0.0-20260211172625-dff40e83b3c9 // indirect
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260714130443-bb3cf7801e11
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260820224955-011a846f2fb8
 	github.com/smartcontractkit/freeport v0.1.3-0.20250828155247-add56fa28aad // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect

@@ -105,7 +105,6 @@ fun deployOffRampAccountWithRelease(
 
 /// Handles DepositAccount_Reply after account deployment for release.
 /// Extracts context from Reply forwardPayload, then sends JettonLockBox_Withdraw to the lockbox.
-/// The lockbox withdraws to the account's jetton wallet, which forwards the notification via account to pool.
 fun onDepositAccountReply(
     mutate st: Storage,
     sender: address,
