@@ -34,10 +34,6 @@ import {
   JettonLockBox,
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
-import {
-  ContextExecutor,
-  ContextExecutor_ForwardNotification,
-} from '../../../wrappers/gen/ccip/ContextExecutor'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
