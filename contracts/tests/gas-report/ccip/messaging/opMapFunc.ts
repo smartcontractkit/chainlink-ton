@@ -51,7 +51,7 @@ export function opMapFunc(): OpMapFunc {
   //   opcodeMap.set(code, `TestReceiver::In::${name}`)
   // })
   const testReceiverOpcodes: Array<[string, number]> = [
-    ['Receiver_CCIPReceive', testReceiver.Receiver_CCIPReceive.PREFIX],
+    ['CCIPReceive', testReceiver.CCIPReceive.PREFIX],
     ['TestReceiver_UpdateBehavior', testReceiver.TestReceiver_UpdateBehavior.PREFIX],
     [
       'TestReceiver_UpdateAuthorizedCaller',

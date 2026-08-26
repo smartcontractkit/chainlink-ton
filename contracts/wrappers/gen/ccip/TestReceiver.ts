@@ -341,44 +341,44 @@ export const TestReceiver_UpdateAuthorizedCaller = {
 }
 
 /**
- > struct (0xb3126df1) Receiver_CCIPReceive {
+ > struct (0x4b15e3e8) CCIPReceive {
  >     execId: uint192
  >     message: Cell<Any2TVMMessage>
  > }
  */
-export interface Receiver_CCIPReceive {
-    readonly $: 'Receiver_CCIPReceive'
+export interface CCIPReceive {
+    readonly $: 'CCIPReceive'
     execId: uint192
     message: Any2TVMMessage
 }
 
-export const Receiver_CCIPReceive = {
-    PREFIX: 0xb3126df1,
+export const CCIPReceive = {
+    PREFIX: 0x4b15e3e8,
 
     create(args: {
         execId: uint192
         message: Any2TVMMessage
-    }): Receiver_CCIPReceive {
+    }): CCIPReceive {
         return {
-            $: 'Receiver_CCIPReceive',
+            $: 'CCIPReceive',
             ...args
         }
     },
-    fromSlice(s: c.Slice): Receiver_CCIPReceive {
-        loadAndCheckPrefix32(s, 0xb3126df1, 'Receiver_CCIPReceive');
+    fromSlice(s: c.Slice): CCIPReceive {
+        loadAndCheckPrefix32(s, 0x4b15e3e8, 'CCIPReceive');
         return {
-            $: 'Receiver_CCIPReceive',
+            $: 'CCIPReceive',
             execId: s.loadUintBig(192),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
     },
-    store(self: Receiver_CCIPReceive, b: c.Builder): void {
-        b.storeUint(0xb3126df1, 32);
+    store(self: CCIPReceive, b: c.Builder): void {
+        b.storeUint(0x4b15e3e8, 32);
         b.storeUint(self.execId, 192);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
-    toCell(self: Receiver_CCIPReceive): c.Cell {
-        return makeCellFrom<Receiver_CCIPReceive>(self, Receiver_CCIPReceive.store);
+    toCell(self: CCIPReceive): c.Cell {
+        return makeCellFrom<CCIPReceive>(self, CCIPReceive.store);
     }
 }
 
@@ -667,7 +667,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestReceiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAAowAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhLMSbfGcYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/10wijhRbIMABlYFKnPLw4MACk3DrpODyBeBsEtDT/9M/0wchwUHyhQGqAtcY1PQE0QTIy/8Tyz8h10kgqTgC8kWrAiDBQfKFzwsHzgkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UALox7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAQLIzMv/zsnIz48YAASCEKM7SY7PC/dxzwthzMlw+wAAcMz0AMnIz48YAASCEMWkCrPPC/dxzwthzMlw+wBwdPsC+JLIz4WI+lKCEB5Vu/bPC47Lv8mDBvsAAB8gU28AYtTEuNi4wjHBfL0gAA8i1MS42LjGIAIBIA4PACO/tRdqJoaY+Y/SQY/SgY/SQYQCASAQEQALuGhYEAv4AgEgEhMAGbXFEClTlAQQgfd+UJACASAUFQBbsFfjQhbGluay5jaGFpbi50b24uY2NpcC50ZXN0LlJlY2VpdmVygi1MS42LjGIAARrhD2omhrhY/AADOvRXaiaGmPmP0kGP0oGP0kGOuFg5BhAXkiwA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAAowAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhEsV4+icYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/10wijhRbIMABlYFKnPLw4MACk3DrpODyBeBsEtDT/9M/0wchwUHyhQGqAtcY1PQE0QTIy/8Tyz8h10kgqTgC8kWrAiDBQfKFzwsHzgkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UALox7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAQLIzMv/zsnIz48YAASCEKM7SY7PC/dxzwthzMlw+wAAcMz0AMnIz48YAASCEMWkCrPPC/dxzwthzMlw+wBwdPsC+JLIz4WI+lKCEB5Vu/bPC47Lv8mDBvsAAB8gU28AYtTEuNi4wjHBfL0gAA8i1MS42LjGIAIBIA4PACO/tRdqJoaY+Y/SQY/SgY/SQYQCASAQEQALuGhYEAv4AgEgEhMAGbXFEClTlAQQgfd+UJACASAUFQBbsFfjQhbGluay5jaGFpbi50b24uY2NpcC50ZXN0LlJlY2VpdmVygi1MS42LjGIAARrhD2omhrhY/AADOvRXaiaGmPmP0kGP0oGP0kGOuFg5BhAXkiwA==');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -715,11 +715,11 @@ export class TestReceiver implements c.Contract {
         return new TestReceiver(address, initialState);
     }
 
-    static createCellOfReceiverCCIPReceive(body: {
+    static createCellOfCCIPReceive(body: {
         execId: uint192
         message: Any2TVMMessage
     }) {
-        return Receiver_CCIPReceive.toCell(Receiver_CCIPReceive.create(body));
+        return CCIPReceive.toCell(CCIPReceive.create(body));
     }
 
     static createCellOfTestReceiverUpdateBehavior(body: {
@@ -757,13 +757,13 @@ export class TestReceiver implements c.Contract {
         });
     }
 
-    async sendReceiverCCIPReceive(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCCIPReceive(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         execId: uint192
         message: Any2TVMMessage
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Receiver_CCIPReceive.toCell(Receiver_CCIPReceive.create(body)),
+            body: CCIPReceive.toCell(CCIPReceive.create(body)),
             ...extraOptions
         });
     }

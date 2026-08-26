@@ -19,7 +19,7 @@ contract CCIPReceiver {
 
 struct MockCCIPReceiver_Storage {}
 
-type CCIPReceiver_InMessage = Receiver_CCIPReceive
+type CCIPReceiver_InMessage = CCIPReceive
 
 fun onInternalMessage(_: InMessage) {
     throw 0xFFFF; // template for bindings, should not be deployed

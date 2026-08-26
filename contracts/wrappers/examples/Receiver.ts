@@ -18,7 +18,7 @@ export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<c.Cell>> = {
 
 export const opcodes = {
   in: {
-    CCIPReceive: receiver.Receiver_CCIPReceive.PREFIX,
+    CCIPReceive: receiver.CCIPReceive.PREFIX,
     updateBehavior: 0xcf87a147,
     updateAuthorizedCaller: 0x9f5e489f,
   },

@@ -290,7 +290,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
+//     Receiver        ->> Router:          CCIPReceive (bounce)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
@@ -378,7 +378,7 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive
+//     Receiver        ->> Router:          CCIPReceive
 //     Router          ->> OffRamp:         Router_CCIPReceiveConfirm
 //     OffRamp         ->> ReceiveExecutor: OffRamp_CCIPReceiveConfirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
@@ -408,7 +408,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
 
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage
-//     Router          ->> Receiver: Receiver_CCIPReceive
+//     Router          ->> Receiver: CCIPReceive
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);

@@ -40,7 +40,7 @@ type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Ro
 type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
 
 type Router_BouncedMessage = 
-    | Receiver_CCIPReceive
+    | CCIPReceive
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced;
 
