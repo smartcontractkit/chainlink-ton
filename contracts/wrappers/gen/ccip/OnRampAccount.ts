@@ -166,6 +166,14 @@ class StackReader {
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
     }
+
+    readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+        }
+        return c.Dictionary.loadDirect<K, V>(keySerializer, valueSerializer, this.readCell());
+    }
 }
 
 // ————————————————————————————————————————————
@@ -671,7 +679,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAAz0AART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHAgEgCwwB90+JGONe1E0PpI+kj0BNFtbW2S8AIAcIEAhPiSKVGJVEGYBQdEFFBtE/AHmwHI+lL6UvQAye1U4F8D4O1E0PpI+kj0BNFtbW2S8AIAcIEAhPiS+Jf4kviX+Jj4kyf4OviU+JVWEcjOyRCuEK0QrBCrVhJVYPADbGEDyPpSgIAgEgCQoAJBL6UvQAye1UkTDghA8BxwDy9ACNDpfCAHQ1ywjmxaE5PK/0z8x+gAx+lAx9AQhbpsxIMcAkjBt4MjOyZHR4iBuklt/4NDIzsnIz4UIEvpScc8LbszJgED7AH+AAwztou37OAbXLCNEhRAsmGxx0z/0BfAEjkfXLCDJtoiUjiAwNy9Rf1F/UX9Rf1F/UX9Rf1F/BxBWEEUQNEEw8AbbMeFscdM/+kjXTCxRTFFMUUxRTFFMUUxRTFFMVTDwBeJ/gAgEgDQ4CASAPEABzCPDAJUnbrPDAJFw4plUe6krVSMr2nDggR9AUzzHBfL0yM+FCBP6UoIQ2gRjDM8Ljss/9ADJgED7AIADVDU1NgHDAJUjbrPDAJFw4pQEA9qA4GwzNDQigR9BA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCBH0IhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAfcMzQ01ywn////9PK/10zQ1ywgfFP1LI5j0z/6APpI+lD0BPoACcMAlSZus8MAkXDilhB4VRXawI5ANjg4ODjIz5A+KfqWIc8LP1AI+gIW+lJSQPpUE/QAUAT6AhPOycjPhQgS+lKCEKUbbLrPC44Tyz/6UszJgED7AOJ/gEQAI4F8IcABbvIr8aELY0tzWXMbQwtLcXOje3FzGxtLgXJ7cpMLa4ILGxt7q3OkEWpgXGJcYRAIBSBQVABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECGAEAA1IAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHAgEgCwwB90+JGONe1E0PpI+kj0BNFtbW2S8AIAcIEAhPiSKVGJVEGYBQdEFFBtE/AHmwHI+lL6UvQAye1U4F8D4O1E0PpI+kj0BNFtbW2S8AIAcIEAhPiS+Jf4kviX+Jj4kyf4OviU+JVWEcjOyRCuEK0QrBCrVhJVYPADbGEDyPpSgIAgEgCQoAJBL6UvQAye1UkTDghA8BxwDy9ACNDpfCAHQ1ywjmxaE5PK/0z8x+gAx+lAx9AQhbpsxIMcAkjBt4MjOyZHR4iBuklt/4NDIzsnIz4UIEvpScc8LbszJgED7AH+AAwztou37OAbXLCNEhRAsmGxx0z/0BfAEjkfXLCDJtoiUjiAwNy9Rf1F/UX9Rf1F/UX9Rf1F/BxBWEEUQNEEw8AbbMeFscdM/+kjXTCxRTFFMUUxRTFFMUUxRTFFMVTDwBeJ/gAgEgDQ4CASAPEABzCPDAJUnbrPDAJFw4plUe6krVSMr2nDggR9AUzzHBfL0yM+FCBP6UoIQ2gRjDM8Ljss/9ADJgED7AIADVDU1NgHDAJUjbrPDAJFw4pQEA9qA4GwzNDQigR9BA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCBH0IhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAfcMzQ01ywn////9PK/10zQ1ywgfFP1LI5j0z/6APpI+lD0BPoACcMAlSZus8MAkXDilhB4VRXawI5ANjg4ODjIz5A+KfqWIc8LP1AI+gIW+lJSQPpUE/QAUAT6AhPOycjPhQgS+lKCEKUbbLrPC44Tyz/6UszJgED7AOJ/gEQAI4F8IcAIBIBQVAgFIFhcAW7kV+NCFsaW5rLmNoYWluLnRvbi5jY2lwLk9uUmFtcEFjY291bnSCLUwLjEuMIgAG7nQjtRND6SDH6SDH0BYABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 8000,
@@ -777,5 +785,13 @@ export class OnRampAccount implements c.Contract {
     async getProxy(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getProxy', []));
         return r.readSlice().loadAddress();
+    }
+
+    async getBeneficiaries(provider: ContractProvider): Promise<Set<c.Address>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getBeneficiaries', []));
+        return dictToSet(r.readDictionary<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                    (s) => [],
+                    (v,b) => { {} }
+                )));
     }
 }

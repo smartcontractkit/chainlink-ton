@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.1
 
-import "@stdlib/gas-payments"
-
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../deposit/types"
@@ -148,4 +146,10 @@ get fun getOwner(): address {
 get fun getProxy(): address {
     val data = lazy DepositAccount_Data.load();
     return data.proxy;
+}
+
+/// Returns the set of addresses that are allowed to withdraw jettons from this account's wallet.
+get fun getBeneficiaries(): map<address, ()> {
+    val data = lazy DepositAccount_Data.load();
+    return data.beneficiaries;
 }
