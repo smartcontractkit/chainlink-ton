@@ -56,13 +56,13 @@ func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector 
 
 func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
 	return lanes.FeeQuoterDestChainConfig{
-		IsEnabled:                   true,
-		MaxDataBytes:                2_000,
-		MaxPerMsgGasLimit:           4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
-		DestGasOverhead:             242_500,
-		DestGasPerPayloadByteBase:   42,
-		ChainFamilySelector:         config.TVMFamilySelector,
-		DefaultTokenFeeUSDCents:     0,
+		IsEnabled:                 true,
+		MaxDataBytes:              2_000,
+		MaxPerMsgGasLimit:         4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
+		DestGasOverhead:           242_500,
+		DestGasPerPayloadByteBase: 42,
+		ChainFamilySelector:       config.TVMFamilySelector,
+		DefaultTokenFeeUSDCents:   0,
 		// DefaultTokenDestGasOverhead is the nanoTON value budgeted for the releaseOrMint
 		// flow on TON. The OffRamp rejects releases with destGasAmount < MIN_TT_GASLIMIT
 		// (ton("0.025") = 25_000_000 nanoTON), and the LockReleaseTokenPool needs

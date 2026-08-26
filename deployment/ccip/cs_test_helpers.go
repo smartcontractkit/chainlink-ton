@@ -76,11 +76,11 @@ var (
 		DefaultTokenFeeUSDCents:         0,
 		// Must be >= MIN_TT_GASLIMIT (ton("0.025") = 25_000_000 nanoTON) on the TON OffRamp.
 		// 100_000_000 (0.1 TON) covers the full releaseOrMin flow including pool transfer costs.
-		DefaultTokenDestGasOverhead:     100_000_000,
-		DefaultTxGasLimit:               1,
-		GasMultiplierWeiPerEth:          0,
-		GasPriceStalenessThreshold:      0,
-		NetworkFeeUSDCents:              0,
+		DefaultTokenDestGasOverhead: 100_000_000,
+		DefaultTxGasLimit:           1,
+		GasMultiplierWeiPerEth:      0,
+		GasPriceStalenessThreshold:  0,
+		NetworkFeeUSDCents:          0,
 	}
 )
 
