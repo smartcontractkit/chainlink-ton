@@ -421,7 +421,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 
 			offRampAccount, ok := compiledContracts[bindings.TypeDepositAccount]
 			if !ok {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to load off-ramp-account code")
+				return sequences.OnChainOutput{}, errors.New("failed to load off-ramp-account code")
 			}
 
 			// LockReleaseTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
