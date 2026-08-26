@@ -224,8 +224,11 @@ fun onInternalMessage(in: InMessage) {
                         stateInit: {
                             code: st.tokenRegistryDeployment.load().tokenRegistryCode,
                             data: TokenRegistry_Storage {
+                                tokenAdminRegistry: contract.getAddress(),
                                 tokenAddress: msg.tokenAddress,
-                                tokenInfo: msg.tokenInfo
+                                tokenInfo: msg.tokenInfo,
+                                administrator: null,
+                                pendingAdministrator: null,
                             }.toCell(),
                         }
                     },

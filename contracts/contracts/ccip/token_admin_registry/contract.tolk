@@ -35,10 +35,10 @@ fun onInternalMessage(in: InMessage) {
             st.entryDeployment = msg.entryDeployment;
             st.store();
         }
-        TokenAdminRegistry_SetTokenInfo => {
+        TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            setTokenInfo(st, msg);
+            registerToken(st, msg);
         }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -52,10 +52,15 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// Deploys the deterministic shard when requested, then updates its token info.
-/// The `isNewEntry` flag mirrors the Router's current behavior and will be
-/// removed once registration becomes fully idempotent.
-fun setTokenInfo(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_SetTokenInfo) {
+/// Deploys a deterministic shard with an unclaimed administrator proposal, or
+/// replaces an unaccepted proposal on an existing shard. Once claimed, the
+/// entry rejects further root proposals.
+fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
+    // TODO: add self-service registration once TON has a canonical,
+    // independently verifiable proof that the sender controls the token minter.
+    // Until then, the root owner is the trusted registration module.
+    assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
+
     val deployment = st.entryDeployment;
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
         deployment.deployableCode,
@@ -72,8 +77,11 @@ fun setTokenInfo(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_SetToke
                 stateInit: {
                     code: deployment.entryCode,
                     data: TokenRegistry_Storage {
+                        tokenAdminRegistry: contract.getAddress(),
                         tokenAddress: msg.tokenAddress,
                         tokenInfo: msg.tokenInfo,
+                        administrator: null,
+                        pendingAdministrator: msg.administrator,
                     }.toCell(),
                 }
             },
@@ -81,13 +89,15 @@ fun setTokenInfo(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_SetToke
         deployMsg.send(SEND_MODE_REGULAR);
     }
 
-    val updateMsg = createMessage({
+    val proposeMsg = createMessage({
         bounce: false,
         value: ton("0.015"),
         dest: entryAddress,
-        body: TokenRegistry_SetTokenInfo { info: msg.tokenInfo },
+        body: TokenAdminRegistryEntry_ProposeAdministrator {
+            administrator: msg.administrator,
+        },
     });
-    updateMsg.send(SEND_MODE_REGULAR);
+    proposeMsg.send(SEND_MODE_REGULAR);
 }
 
 get fun typeAndVersion(): (slice, slice) {
