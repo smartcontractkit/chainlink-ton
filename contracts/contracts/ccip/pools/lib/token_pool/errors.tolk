@@ -31,8 +31,3 @@ enum TokenPool_Error {
     InvalidRequestedFinality
     RateLimitExceeded
 }
-
-@inline
-fun TokenPool_errorCode(local: uint16): uint16 {
-    return getErrorCode("link.chain.ton.ccip.TokenPool".crc32(), local);
-}

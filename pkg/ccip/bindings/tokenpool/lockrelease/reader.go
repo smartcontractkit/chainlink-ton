@@ -2,7 +2,6 @@ package lockrelease
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
@@ -14,25 +13,9 @@ import (
 
 // --- Getters from lock_release/contract.tolk ---
 
-// GetHasPendingRelease checks if there is a pending release operation for the given query ID.
-//
-// On-chain: get fun hasPendingRelease(queryId: uint64): bool
-var GetHasPendingRelease = tvm.Getter[uint64, bool]{
-	Name: "hasPendingRelease",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("error getting Int(0) - hasPendingRelease: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
-	}),
-}
-
 // GetLockbox gets the lockbox address (for lock_release variant with lockbox support).
 //
-// On-chain: matching EVM getLockBox() -> address
-// Note: The base lock_release contract may not expose this, but the lock_release_lockbox variant does.
-// This is provided here for consistency with the EVM LockReleaseTokenPool spec.
+// On-chain: get fun lockbox(): address
 var GetLockbox = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 	Name: "lockbox",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {

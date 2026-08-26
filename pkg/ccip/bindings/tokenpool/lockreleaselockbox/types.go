@@ -1,0 +1,96 @@
+package lockreleaselockbox
+
+import (
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
+)
+
+// --- Constants ---
+
+const (
+	// ContextExecutorDeployValue is the TON value for deploying a ContextExecutor.
+	// Matches Tolk: LockReleaseLockboxTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02")
+	ContextExecutorDeployValue = 20000000 // 0.02 TON in nanotons
+)
+
+// --- Data types ---
+
+// LockContext represents the context for a lock operation managed by ContextExecutor.
+// Corresponds to LockReleaseLockboxTokenPool_LockContext (opcode: 0x60fdb63b).
+type LockContext struct {
+	_              tlb.Magic                          `tlb:"#60fdb63b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
+}
+
+// ReleaseContext represents the context for a release operation managed by ContextExecutor.
+// Corresponds to LockReleaseLockboxTokenPool_ReleaseContext (opcode: 0x90230477).
+type ReleaseContext struct {
+	_              tlb.Magic                             `tlb:"#90230477" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
+}
+
+// --- Messages (incoming) ---
+
+// ReturnExcessesBack is sent by the jetton wallet after a transfer operation.
+// TODO: move to shared jetton bindings package, shared opcode 0xd53276db
+type ReturnExcessesBack struct {
+	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+}
+
+// --- Storage ---
+
+// Storage represents the LockReleaseLockboxTokenPool contract storage.
+// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; lockbox: address; contextExecutorCode: cell; contextExecutorNextId: uint64; }
+type Storage struct {
+	PoolData              tokenpool.Storage `tlb:"^"`
+	Lockbox               *address.Address  `tlb:"addr"`  // JettonLockBox address
+	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
+	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
+}
+
+// --- Exit Codes ---
+
+// ExitCode represents a LockReleaseLockboxTokenPool-specific error code.
+// FACILITY_ID = 487, base error = 48700.
+type ExitCode tvm.ExitCode
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
+
+const (
+	ExitCodeContextExecutorUnavailable ExitCode = iota + 48700 // Facility ID 487 * 100
+	ExitCodeLockboxNotConfigured
+	ExitCodeUnexpectedLockboxConfirmationSender
+	ExitCodeUnexpectedLockBounce
+)
+
+// New converts an ExitCode to a tvm.ExitCode.
+func (e ExitCode) New() tvm.ExitCode {
+	return tvm.ExitCode(e)
+}
+
+// --- TLB Registry ---
+
+var TLBs = tvm.MustNewTLBMap([]any{
+	// Incoming
+	ReturnExcessesBack{},
+	// Context types
+	LockContext{},
+	ReleaseContext{},
+}).MustWithStorageType(Storage{})
+
+// --- Standard interface ---
+
+// Re-import common types from the parent tokenpool package for convenience.
+type (
+	LockOrBurn                   = tokenpool.LockOrBurn
+	ReleaseOrMint                = tokenpool.ReleaseOrMint
+	LockOrBurnTransferDetails    = tokenpool.LockOrBurnTransferDetails
+	ReleaseOrMintTransferDetails = tokenpool.ReleaseOrMintTransferDetails
+	LockOrBurnForwardPayload     = tokenpool.LockOrBurnForwardPayload
+	ChainSelector                = tokenpool.ChainSelector
+)

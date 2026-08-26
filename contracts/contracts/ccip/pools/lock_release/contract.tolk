@@ -9,6 +9,8 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
 import "../../common/types"
+import "../../accounts/off_ramp_account/messages"
+import "../../accounts/off_ramp_account/types"
 import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -45,9 +47,16 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
-        ReturnExcessesBack => {
-            onReturnExcessesBack(mutate st, in.senderAddress, msg);
+        OffRampAccount_Reply => {
+            onOffRampAccountReply(mutate st, in.senderAddress, msg);
             st.store();
+        }
+        OffRampAccount_ForwardNotification => {
+            onOffRampAccountForwardNotification(mutate st, in.senderAddress, msg);
+            st.store();
+        }
+        ReturnExcessesBack => {
+            // Excess TON from jetton transfer — just keep the coins.
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
@@ -55,17 +64,122 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// TODO: implement me
+/// @notice Deploys OffRampAccount for release operations.
+/// OAA owner = recipient (can withdraw jettons), notificationTarget = pool.
+/// allowedJettonWallet = OAA's own jetton wallet (notifications come from here).
+fun deployOffRampAccountWithRelease(
+    st: Storage,
+    recipient: address,
+    queryId: uint64,
+    context: LockReleaseTokenPool_ReleaseContext,
+) {
+    val jettonClient = st.poolData.load().jettonClient();
+    val oaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        recipient,
+        contract.getAddress(),
+    );
+
+    // OAA's own jetton wallet — notifications come from here when forwardTonAmount > 0.
+    val oaaWallet = calcAddressOfJettonWallet(
+        oaa.calculateAddress(),
+        jettonClient.masterAddress,
+        jettonClient.jettonWalletCode,
+    );
+
+    val deploy = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
+        dest: oaa,
+        body: OffRampAccount_Init {
+            queryId,
+            allowedJettonWallet: oaaWallet,
+            forwardPayload: context.toCell(),
+        },
+    });
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// @notice Handles OffRampAccount_Reply after OAA deployment for release.
+/// Extracts context from Reply forwardPayload, then sends AskToTransfer to the pool's jetton wallet.
+/// Context is embedded in forwardPayload so it flows through: wallet → OAA → pool.
+fun onOffRampAccountReply(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_Reply,
+) {
+    // Extract release context from Reply forwardPayload.
+    assert(msg.forwardPayload != null, Error.InvalidOffRampAccountReply);
+    val contextCell = msg.forwardPayload!;
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+    val requestIn = lazy operation.requestMsg.load().request.load();
+    val details = lazy requestIn.transfer.details.load();
+
+    // Validate sender: derive expected OAA address and verify.
+    val jettonClient = st.poolData.load().jettonClient();
+    val expectedOaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        details.receiver,
+        contract.getAddress(),
+    );
+    assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountReply);
+
+    val transfer = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: st.poolData.load().jettonClient().walletAddress(),
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: prepared.localAmount,
+            transferRecipient: sender,
+            sendExcessesTo: contract.getAddress(), // pool keeps any excesses
+            customPayload: null,
+            forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardPayload: beginCell()
+                .storeMaybeRef(contextCell)
+                .endCell()
+                .beginParse(),
+        },
+    });
+    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// @notice Handles bounced release messages: refunds rate limit and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
-    // TODO: use TokenPool.onBouncedMessage (lib) handler
-    val msg = lazy LockReleaseTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    var st = Storage.load();
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy LockReleaseTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
-            var st = Storage.load();
             onReleaseTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
+        // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
+        // reply with a failure so the sender can retry instead of the release silently stalling.
+        OffRampAccount_Init => {
+            onOffRampAccountInitBounced(mutate st, in.senderAddress, msg);
+            st.store();
+        }
     }
+}
+
+/// @notice Handles a bounced `OffRampAccount_Init`: refunds the inbound rate limit and sends a
+/// release failure reply. The init carries the release context in `forwardPayload`.
+fun onOffRampAccountInitBounced(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_Init,
+) {
+    assert(msg.forwardPayload != null, Error.UnexpectedReleaseBounce);
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
+    val operation = lazy context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, Error.OffRampAccountDeployFailed as uint16);
 }
 
 fun onReleaseOrMintContinue(
@@ -76,91 +190,30 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
-    assert(!st.pendingReleases.get(msg.queryId).isFound, Error.PendingReleaseAlreadyExists);
-    val jettonClient = st.poolData.load().jettonClient();
 
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
+    val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
+        originalSender: sender,
+        requestMsg: msg.toCell(),
+        prepared: prepared.toCell(),
+    };
 
-    val recipientWallet = calcAddressOfJettonWallet(
+    val context = LockReleaseTokenPool_ReleaseContext {
+        forwardPayload: forwardPayload.toCell(),
+    };
+
+    // Deploy OffRampAccount with context embedded.
+    // OAA owner = recipient (can withdraw released jettons).
+    // OAA notificationTarget = this pool (receives completion notification).
+    deployOffRampAccountWithRelease(
+        st,
         details.receiver,
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
+        msg.queryId,
+        context,
     );
-
-    st.pendingReleases.set(msg.queryId, LockReleaseTokenPool_PendingRelease {
-        replyTo: msg.replyTo,
-        request: request.toCell(),
-        out: prepared.out.toCell(),
-        expectedSender: recipientWallet,
-    }.toCell());
-
-    val ownWallet = calcAddressOfJettonWallet(
-        contract.getAddress(),
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
-    );
-
-    val transfer = createMessage({
-        // TODO: use RichBounce to recover context, currently breaks with exitCode: 63 b/x
-        // `skipBouncedPrefix` in the handler.
-        bounce: true,
-        value: LockReleaseTokenPool_RELEASE_TRANSFER_VALUE,
-        dest: ownWallet,
-        body: AskToTransfer {
-            queryId: msg.queryId,
-            jettonAmount: prepared.localAmount,
-            transferRecipient: details.receiver,
-            sendExcessesTo: contract.getAddress(), // TODO: ContextExecutor
-            customPayload: null,
-            forwardTonAmount: 0, // TODO: add fwdp amount
-            // TODO: add fwdp
-            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
-        },
-    });
-    transfer.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     return st;
-}
-
-fun onReturnExcessesBack(
-    mutate st: Storage,
-    sender: address,
-    msg: ReturnExcessesBack,
-) {
-    val pendingEntry = st.pendingReleases.get(msg.queryId);
-    assert(pendingEntry.isFound, Error.PendingReleaseNotFound);
-
-    val pending = pendingEntry.loadValue().load();
-    assert(sender == pending.expectedSender, Error.UnexpectedReleaseConfirmationSender);
-
-    st.pendingReleases.delete(msg.queryId);
-    val request = lazy pending.request.load();
-    val details = lazy request.transfer.details.load();
-    val out = lazy pending.out.load();
-
-    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: details.remoteChainSelector,
-        details: TokenPool_ReleasedOrMintedDetails {
-            token: details.localToken,
-            sender: contract.getAddress(), // TODO: who should we put as sender? (msg.sender on EVM)
-            amount: out.destinationAmount,
-            recipient: details.receiver.toCell(),
-        }.toCell(),
-    });
-
-    if (pending.replyTo != null) {
-        val notify = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: pending.replyTo!,
-            body: TokenPool_ReleaseOrMintFinished {
-                queryId: msg.queryId,
-                out: pending.out,
-            },
-        });
-        notify.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
 }
 
 fun onReleaseTransferBounced(
@@ -168,39 +221,66 @@ fun onReleaseTransferBounced(
     sender: address,
     msg: AskToTransfer,
 ) {
-    val jettonClient = st.poolData.load().jettonClient();
-    assert(jettonClient.isWallet(sender), Error.UnexpectedReleaseBounce);
+    assert(st.poolData.load().jettonClient().isWallet(sender)) throw Error.UnexpectedReleaseBounce;
+    val contextCell = loadForwardPayloadAsCell(msg.forwardPayload);
+    assert(contextCell != null) throw Error.UnexpectedReleaseBounce;
 
-    val pendingEntry = st.pendingReleases.get(msg.queryId);
-    assert(pendingEntry.isFound, Error.PendingReleaseNotFound);
+    val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell!);
+    val operation = lazy context.forwardPayload.load();
 
-    val pending = pendingEntry.loadValue().load();
-    st.pendingReleases.delete(msg.queryId);
-
-    // TODO: should use shared onBouncedMessage handler from TokenPool lib to
-    // reuse the logic across pool implementations.
-    // The release consumed inbound rate-limit capacity at admission, but the transfer
-    // bounced so no tokens were delivered. Return that capacity to the bucket.
-    val request = lazy pending.request.load();
-    val details = lazy request.transfer.details.load();
-    val out = lazy pending.out.load();
-    var pool: TokenPool<Storage> = loadPool(st);
-    pool.releaseInboundRateLimit(details.remoteChainSelector, out.destinationAmount);
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
     st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
+}
 
-    // TODO: we should always reply back
-    if (pending.replyTo != null) {
-        val fail = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: pending.replyTo!,
-            body: TokenPool_ReleaseOrMintFailure {
-                queryId: msg.queryId,
-                errorCode: Error.UnexpectedReleaseBounce as uint16,
-            },
-        });
-        fail.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
+/// @notice Handles ForwardNotification from OffRampAccount after release completion.
+/// The forwarded message body contains TransferNotificationForRecipient with the release context
+/// embedded in its forwardPayload. Validates OAA sender, extracts context, finalizes.
+fun onOffRampAccountForwardNotification(
+    mutate st: Storage,
+    sender: address,
+    msg: OffRampAccount_ForwardNotification,
+) {
+    val forwarded = msg.message.load();
+
+    // Parse the forwarded body as TransferNotificationForRecipient.
+    val jettonMsg = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
+
+    // Extract context from the jetton notification's forwardPayload.
+    val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
+    assert(contextCell != null, Error.InvalidOffRampAccountNotification);
+
+    val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
+
+    // Validate sender: derive expected OAA address and verify.
+    val mintRecipient = getReleaseRecipientFromContext(contextCell);
+    val jettonClient = st.poolData.load().jettonClient();
+    val expectedOaa = calcAddressOfOffRampAccount(
+        st.offRampAccountCode,
+        mintRecipient,
+        contract.getAddress(),
+    );
+    assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountNotification);
+
+    // Verify transferInitiator is the pool (auth the transfer source).
+    assert(jettonMsg.transferInitiator != null, Error.InvalidOffRampAccountNotification);
+    assert(jettonMsg.transferInitiator! == contract.getAddress(), Error.InvalidOffRampAccountNotification);
+
+    var pool = loadPool(st);
+    pool.sendReleaseOrMintFinished(operation);
+    st.poolData = pool.data.toCell();
+}
+
+/// @notice Extracts the recipient address from a release context cell.
+fun getReleaseRecipientFromContext(contextCell: cell): address {
+    val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
+    val requestMsg = lazy operation.requestMsg.load();
+    val request = lazy requestMsg.request.load();
+    val details = lazy request.transfer.details.load();
+    return details.receiver;
 }
 
 fun loadPool(st: Storage): TokenPool<Storage> {
@@ -248,10 +328,6 @@ get fun onRamp(remoteChainSelector: uint64): address? {
 get fun offRamp(remoteChainSelector: uint64): address? {
     val entry = Storage.load().poolData.load().mirroredPolicy.load().offRamps.get(remoteChainSelector);
     return entry.isFound ? entry.loadValue() : null;
-}
-
-get fun hasPendingRelease(queryId: uint64): bool {
-    return Storage.load().pendingReleases.get(queryId).isFound;
 }
 
 get fun getRMNProxy(): address {

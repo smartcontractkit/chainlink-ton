@@ -14,7 +14,10 @@ import {
   TokenPool_LockOrBurnTransfer,
   TokenPool_RampUpdate,
   TokenPool_RateLimitConfigPair,
+  TokenPool_RateLimitConfigArgs,
   TokenPool_ReleaseOrMint,
+  TokenPool_ReleaseOrMintFailure,
+  TokenPool_ReleaseOrMintFinished,
   TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintOutV1,
@@ -36,6 +39,10 @@ export type TokenPoolBehaviorContext = {
   destTokenAddress: CrossChainAddress
   sourcePoolAddress: CrossChainAddress
   localToken: Address
+}
+
+export type TokenPoolBehaviorHooks = {
+  setup?: (ctx: TokenPoolBehaviorContext) => Promise<void>
 }
 
 function releaseRequest(
@@ -63,7 +70,15 @@ function releaseRequest(
 export function runTokenPoolBehaviorTests(
   name: string,
   setup: () => Promise<TokenPoolBehaviorContext>,
+  hooks: TokenPoolBehaviorHooks = {},
 ) {
+  const baseSetup = setup
+  setup = async () => {
+    const ctx = await baseSetup()
+    await hooks.setup?.(ctx)
+    return ctx
+  }
+
   describe(`${name} TokenPool behavior`, () => {
     it('mirrors ramp access and supported chain state after setup', async () => {
       const ctx = await setup()
@@ -124,9 +139,7 @@ export function runTokenPoolBehaviorTests(
 
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set([ctx.remoteChainSelector]),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
@@ -151,6 +164,66 @@ export function runTokenPoolBehaviorTests(
     it('starts with chain not cursed', async () => {
       const ctx = await setup()
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
+    })
+
+    it('rejects releaseOrMint once the inbound rate limit is exhausted', async () => {
+      const ctx = await setup()
+
+      // Tighten the inbound bucket to a non-refilling capacity of 1 so we can
+      // deterministically hit the ceiling on the second release (EVM parity: TokenRateLimitReached).
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 930n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 1n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 1n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      // First release consumes the single inbound token and admits.
+      const first = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 931n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
+      expect(first.transactions).toHaveTransaction({
+        from: ctx.offRamp.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      // Second release of the same amount must be rejected (bucket has no refill, rate=0).
+      const second = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 932n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
+      expect(second.transactions).toHaveTransaction({
+        from: ctx.offRamp.address,
+        to: ctx.pool.address,
+        success: false,
+      })
     })
 
     it('returns null ramps for unknown chain', async () => {
@@ -216,9 +289,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 904n,
-          cursedSubjects: CursedSubjects.create({
-            data: new Set([ctx.remoteChainSelector]),
-          }),
+          cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
         },
       )
 
@@ -233,17 +304,13 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set([ctx.remoteChainSelector]),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 902n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set(),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set<bigint>() }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
     })
@@ -519,6 +586,88 @@ export function runTokenPoolBehaviorTests(
       })
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(true)
     })
+
+    it('reuses the same caller queryId safely across repeated release continuations', async () => {
+      const ctx = await setup()
+      const amount = toNano('1')
+      const queryId = 700n
+
+      const repeatedRequest = {
+        queryId,
+        request: releaseRequest(ctx, {
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: TokenPool_TransferDetails.create({
+              originalSender: ctx.sourcePoolAddress,
+              remoteChainSelector: ctx.remoteChainSelector,
+              receiver: ctx.recipient.address,
+              amount,
+              localToken: ctx.localToken,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        replyTo: ctx.deployer.address,
+      }
+
+      const first = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.6'),
+        repeatedRequest,
+      )
+      const second = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.6'),
+        repeatedRequest,
+      )
+
+      const allTransactions = [...first.transactions, ...second.transactions]
+      const completions = allTransactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        if (!body) {
+          return false
+        }
+
+        const slice = body.beginParse()
+        if (slice.remainingBits < 32) {
+          return false
+        }
+
+        if (
+          !tx.inMessage?.info?.src?.equals?.(ctx.pool.address) ||
+          slice.preloadUint(32) !== TokenPool_ReleaseOrMintFinished.PREFIX
+        ) {
+          return false
+        }
+
+        const response = TokenPool_ReleaseOrMintFinished.fromSlice(slice)
+        return response.queryId === queryId && response.out.destinationAmount === amount
+      })
+
+      const failures = allTransactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        if (!body) {
+          return false
+        }
+
+        const slice = body.beginParse()
+        if (slice.remainingBits < 32) {
+          return false
+        }
+
+        if (
+          !tx.inMessage?.info?.src?.equals?.(ctx.pool.address) ||
+          slice.preloadUint(32) !== TokenPool_ReleaseOrMintFailure.PREFIX
+        ) {
+          return false
+        }
+
+        return TokenPool_ReleaseOrMintFailure.fromSlice(slice).queryId === queryId
+      })
+
+      expect(completions).toHaveLength(2)
+      expect(failures).toHaveLength(0)
+    })
   })
 }
 
@@ -578,12 +727,12 @@ export function runTokenPoolAsyncHookBehaviorTests(
         originalSender: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
           queryId: 0n,
-          request: request,
+          request,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: null,
         }),
-        prepared: prepared,
+        prepared,
       })
       return TokenPool_LockOrBurnForwardPayload.toCell(fwdp)
     }
@@ -606,11 +755,11 @@ export function runTokenPoolAsyncHookBehaviorTests(
         originalSender: ctx.offRamp.address,
         requestMsg: TokenPool_ReleaseOrMint.create({
           queryId: 0n,
-          request: request,
+          request,
           requestedFinalityConfig: 0n,
           replyTo: null,
         }),
-        prepared: prepared,
+        prepared,
       })
       return TokenPool_ReleaseOrMintForwardPayload.toCell(fwdp)
     }
@@ -645,7 +794,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 2n,
-        request: request,
+        request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
@@ -675,7 +824,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 1n,
-        request: request,
+        request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
@@ -715,7 +864,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 2n,
-          request: request,
+          request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
         },
@@ -748,7 +897,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 1n,
-          request: request,
+          request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
         },
@@ -773,7 +922,51 @@ export function runTokenPoolAsyncHookBehaviorTests(
         from: ctx.pool.address,
         to: ctx.offRamp.address,
         success: true,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+        body(body) {
+          if (!body) return false
+          const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse())
+          return failure.queryId === 1n
+        },
       })
+    })
+
+    it('does not emit ReleaseOrMintFailure when async postflight fails and replyTo is null', async () => {
+      const ctx = await setup()
+
+      const request = releaseRequest(ctx)
+
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('1'),
+        {
+          queryId: 3n,
+          request,
+          requestedFinalityConfig: 0n,
+          replyTo: null,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.hooks.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const failures = result.transactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        if (!body) {
+          return false
+        }
+
+        const slice = body.beginParse()
+        return (
+          slice.remainingBits >= 32 &&
+          slice.preloadUint(32) === TokenPool_ReleaseOrMintFailure.PREFIX
+        )
+      })
+
+      expect(failures).toHaveLength(0)
     })
 
     // === Inline mode (replyTo = null for LockOrBurn) ===
@@ -785,7 +978,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 100n,
-        request: request,
+        request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: null,
@@ -808,7 +1001,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         toNano('1'),
         {
           queryId: 100n,
-          request: request,
+          request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
         },

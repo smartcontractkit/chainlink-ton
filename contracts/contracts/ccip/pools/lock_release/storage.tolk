@@ -6,10 +6,11 @@ import "../lib/token_pool/entrypoint"
 
 import "types"
 
+/// @notice Pool storage: common pool data + OffRampAccount code for deployment.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    // TODO: replace with sharded ContextExecutor per message
-    pendingReleases: map<uint64, Cell<LockReleaseTokenPool_PendingRelease>> = [];
+    /// Compiled code cell of the OffRampAccount contract (deployed per-operation).
+    offRampAccountCode: cell;
 }
 
 fun Storage.load(): Storage {
@@ -38,6 +39,7 @@ fun Storage.init(config: LockReleaseTokenPool_InitConfig): Storage {
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
+                deployableCode: config.deployableCode,
             }.toCell(),
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),
@@ -50,6 +52,6 @@ fun Storage.init(config: LockReleaseTokenPool_InitConfig): Storage {
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        pendingReleases: createEmptyMap(),
+        offRampAccountCode: config.offRampAccountCode,
     };
 }

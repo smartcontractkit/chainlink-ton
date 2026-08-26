@@ -5,6 +5,9 @@ import "lib"
 import "messages"
 import "types"
 
+/// @notice Generic message interceptor deployed per async operation.
+/// Waits for messages from whitelisted `forwardFrom` addresses, then forwards them
+/// to the owner pool with the original context attached for finalization.
 contract ContextExecutor {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"

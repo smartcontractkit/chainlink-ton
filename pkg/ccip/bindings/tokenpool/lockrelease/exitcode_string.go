@@ -8,15 +8,13 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ExitCodePendingReleaseAlreadyExists-26300]
-	_ = x[ExitCodePendingReleaseNotFound-26301]
-	_ = x[ExitCodeUnexpectedReleaseConfirmationSender-26302]
-	_ = x[ExitCodeUnexpectedReleaseBounce-26303]
+	_ = x[ExitCodeUnexpectedReleaseBounce-26300]
+	_ = x[ExitCodeContextExecutorUnavailable-26301]
 }
 
-const _ExitCode_name = "PendingReleaseAlreadyExistsPendingReleaseNotFoundUnexpectedReleaseConfirmationSenderUnexpectedReleaseBounce"
+const _ExitCode_name = "UnexpectedReleaseBounceContextExecutorUnavailable"
 
-var _ExitCode_index = [...]uint8{0, 27, 49, 84, 107}
+var _ExitCode_index = [...]uint8{0, 23, 49}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 26300

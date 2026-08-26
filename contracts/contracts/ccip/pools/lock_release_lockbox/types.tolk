@@ -3,31 +3,30 @@
 import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
+import "../../accounts/off_ramp_account/types"
 
 const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool".literalSlice();
 const LockReleaseLockboxTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
-
-// Pending lock context stored by queryId until lockbox confirms deposit.
-// On JettonLockBox_Deposited, pool restores this and finalizes the lock flow.
-struct LockReleaseLockboxTokenPool_PendingLock {
-    queryId: uint64;
+/// @notice Context passed for lock (deposit) operations.
+/// Carries the full forward payload for post-lock finalization.
+struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-// Pending release context stored by queryId until ReturnExcessesBack arrives.
-// On ReturnExcessesBack, pool restores this and finalizes the release flow.
-struct LockReleaseLockboxTokenPool_PendingRelease {
-    queryId: uint64;
-    replyTo: Cell<address?>;
-    request: Cell<TokenPool_ReleaseOrMintInV1>;
-    out: Cell<TokenPool_ReleaseOrMintOutV1>;
+/// @notice Context passed to OffRampAccount for release (withdraw) operations.
+/// Carries the full forward payload for post-release finalization.
+struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
+    forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
 struct LockReleaseLockboxTokenPool_InitConfig {
     owner: address;
     jettonClient: JettonClient;
+    offRampAccountCode: cell;
     tokenDecimals: uint8;
     router: address;
     rmnProxy: address;
     lockbox: address;
+    /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
+    deployableCode: cell? = null;
 }

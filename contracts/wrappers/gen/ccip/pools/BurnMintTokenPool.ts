@@ -245,6 +245,14 @@ class StackReader {
     readCellRef<T>(loadFn_T: LoadCallback<T>): T {
         return loadFn_T(this.readCell().beginParse());
     }
+
+    readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+        }
+        return c.Dictionary.loadDirect<K, V>(keySerializer, valueSerializer, this.readCell());
+    }
 }
 
 // ————————————————————————————————————————————
@@ -278,6 +286,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -285,6 +295,34 @@ type uint64 = bigint
 type uint120 = bigint
 type uint128 = bigint
 type uint256 = bigint
+
+type varuint32 = bigint
+
+/**
+ > type ExtraCurrenciesMap = map<int32, varuint32>
+ */
+export type ExtraCurrenciesMap = Map<int32, varuint32>
+
+export const ExtraCurrenciesMap = {
+    fromSlice(s: c.Slice): ExtraCurrenciesMap {
+        return dictToMap(c.Dictionary.load<int32, varuint32>(c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
+                    (s) => s.loadVarUintBig(5),
+                    (v,b) => b.storeVarUint(v, 5)
+                ), s));
+    },
+    store(self: ExtraCurrenciesMap, b: c.Builder): void {
+        b.storeDict<int32, varuint32>(mapToDict(self, c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
+                        (s) => s.loadVarUintBig(5),
+                        (v,b) => b.storeVarUint(v, 5)
+                    )), c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
+            (s) => s.loadVarUintBig(5),
+            (v,b) => b.storeVarUint(v, 5)
+        ));
+    },
+    toCell(self: ExtraCurrenciesMap): c.Cell {
+        return makeCellFrom<ExtraCurrenciesMap>(self, ExtraCurrenciesMap.store);
+    }
+}
 
 /**
  > type SnakedCell<T> = cell
@@ -659,99 +697,6 @@ export const InternalTransferStep = {
 }
 
 /**
- > struct (0xd53276db) ReturnExcessesBack {
- >     queryId: uint64
- > }
- */
-export interface ReturnExcessesBack {
-    readonly $: 'ReturnExcessesBack'
-    queryId: uint64
-}
-
-export const ReturnExcessesBack = {
-    PREFIX: 0xd53276db,
-
-    create(args: {
-        queryId?: uint64
-    }): ReturnExcessesBack {
-        return {
-            $: 'ReturnExcessesBack',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): ReturnExcessesBack {
-        loadAndCheckPrefix32(s, 0xd53276db, 'ReturnExcessesBack');
-        return {
-            $: 'ReturnExcessesBack',
-            queryId: s.loadUintBig(64),
-        }
-    },
-    store(self: ReturnExcessesBack, b: c.Builder): void {
-        b.storeUint(0xd53276db, 32);
-        b.storeUint(self.queryId, 64);
-    },
-    toCell(self: ReturnExcessesBack): c.Cell {
-        return makeCellFrom<ReturnExcessesBack>(self, ReturnExcessesBack.store);
-    }
-}
-
-/**
- > struct (0x595f07bc) AskToBurn {
- >     queryId: uint64
- >     jettonAmount: coins
- >     sendExcessesTo: address?
- >     customPayload: cell?
- > }
- */
-export interface AskToBurn {
-    readonly $: 'AskToBurn'
-    queryId: uint64
-    jettonAmount: coins
-    sendExcessesTo: c.Address | null
-    customPayload: c.Cell | null
-}
-
-export const AskToBurn = {
-    PREFIX: 0x595f07bc,
-
-    create(args: {
-        queryId?: uint64
-        jettonAmount: coins
-        sendExcessesTo: c.Address | null
-        customPayload: c.Cell | null
-    }): AskToBurn {
-        return {
-            $: 'AskToBurn',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): AskToBurn {
-        loadAndCheckPrefix32(s, 0x595f07bc, 'AskToBurn');
-        return {
-            $: 'AskToBurn',
-            queryId: s.loadUintBig(64),
-            jettonAmount: s.loadCoins(),
-            sendExcessesTo: s.loadMaybeAddress(),
-            customPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: AskToBurn, b: c.Builder): void {
-        b.storeUint(0x595f07bc, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeCoins(self.jettonAmount);
-        b.storeAddress(self.sendExcessesTo);
-        storeTolkNullable<c.Cell>(self.customPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: AskToBurn): c.Cell {
-        return makeCellFrom<AskToBurn>(self, AskToBurn.store);
-    }
-}
-
-/**
  > struct (0x00000015) MintNewJettons {
  >     queryId: uint64
  >     mintRecipient: address
@@ -843,6 +788,157 @@ export const ClaimMinterAdmin = {
 }
 
 /**
+ > struct JettonClient {
+ >     masterAddress: address
+ >     jettonWalletCode: cell
+ > }
+ */
+export interface JettonClient {
+    readonly $: 'JettonClient'
+    masterAddress: c.Address
+    jettonWalletCode: c.Cell
+}
+
+export const JettonClient = {
+    create(args: {
+        masterAddress: c.Address
+        jettonWalletCode: c.Cell
+    }): JettonClient {
+        return {
+            $: 'JettonClient',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonClient {
+        return {
+            $: 'JettonClient',
+            masterAddress: s.loadAddress(),
+            jettonWalletCode: s.loadRef(),
+        }
+    },
+    store(self: JettonClient, b: c.Builder): void {
+        b.storeAddress(self.masterAddress);
+        b.storeRef(self.jettonWalletCode);
+    },
+    toCell(self: JettonClient): c.Cell {
+        return makeCellFrom<JettonClient>(self, JettonClient.store);
+    }
+}
+
+/**
+ > struct (0x595f07bc) CCT_AskToBurn {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     sendExcessesTo: address?
+ >     customPayload: cell?
+ >     forwardPayload: cell?
+ > }
+ */
+export interface CCT_AskToBurn {
+    readonly $: 'CCT_AskToBurn'
+    queryId: uint64
+    jettonAmount: coins
+    sendExcessesTo: c.Address | null
+    customPayload: c.Cell | null
+    forwardPayload: c.Cell | null
+}
+
+export const CCT_AskToBurn = {
+    PREFIX: 0x595f07bc,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        sendExcessesTo: c.Address | null
+        customPayload: c.Cell | null
+        forwardPayload: c.Cell | null
+    }): CCT_AskToBurn {
+        return {
+            $: 'CCT_AskToBurn',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CCT_AskToBurn {
+        loadAndCheckPrefix32(s, 0x595f07bc, 'CCT_AskToBurn');
+        return {
+            $: 'CCT_AskToBurn',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            customPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: CCT_AskToBurn, b: c.Builder): void {
+        b.storeUint(0x595f07bc, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.customPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: CCT_AskToBurn): c.Cell {
+        return makeCellFrom<CCT_AskToBurn>(self, CCT_AskToBurn.store);
+    }
+}
+
+/**
+ > struct (0xd53276db) CCT_ReturnExcessesBack {
+ >     queryId: uint64
+ >     initiator: address
+ >     forwardPayload: cell?
+ > }
+ */
+export interface CCT_ReturnExcessesBack {
+    readonly $: 'CCT_ReturnExcessesBack'
+    queryId: uint64
+    initiator: c.Address
+    forwardPayload: c.Cell | null /* = null */
+}
+
+export const CCT_ReturnExcessesBack = {
+    PREFIX: 0xd53276db,
+
+    create(args: {
+        queryId?: uint64
+        initiator: c.Address
+        forwardPayload?: c.Cell | null /* = null */
+    }): CCT_ReturnExcessesBack {
+        return {
+            $: 'CCT_ReturnExcessesBack',
+            forwardPayload: null,
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CCT_ReturnExcessesBack {
+        loadAndCheckPrefix32(s, 0xd53276db, 'CCT_ReturnExcessesBack');
+        return {
+            $: 'CCT_ReturnExcessesBack',
+            queryId: s.loadUintBig(64),
+            initiator: s.loadAddress(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: CCT_ReturnExcessesBack, b: c.Builder): void {
+        b.storeUint(0xd53276db, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.initiator);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: CCT_ReturnExcessesBack): c.Cell {
+        return makeCellFrom<CCT_ReturnExcessesBack>(self, CCT_ReturnExcessesBack.store);
+    }
+}
+
+/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice
@@ -856,6 +952,201 @@ export const CrossChainAddress = {
     },
     toCell(self: CrossChainAddress): c.Cell {
         return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
+ > struct (0x552706d7) OffRampAccount_Init {
+ >     queryId: uint64
+ >     allowedJettonWallet: address
+ >     forwardPayload: cell?
+ > }
+ */
+export interface OffRampAccount_Init {
+    readonly $: 'OffRampAccount_Init'
+    queryId: uint64
+    allowedJettonWallet: c.Address
+    forwardPayload: c.Cell | null
+}
+
+export const OffRampAccount_Init = {
+    PREFIX: 0x552706d7,
+
+    create(args: {
+        queryId?: uint64
+        allowedJettonWallet: c.Address
+        forwardPayload: c.Cell | null
+    }): OffRampAccount_Init {
+        return {
+            $: 'OffRampAccount_Init',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRampAccount_Init {
+        loadAndCheckPrefix32(s, 0x552706d7, 'OffRampAccount_Init');
+        return {
+            $: 'OffRampAccount_Init',
+            queryId: s.loadUintBig(64),
+            allowedJettonWallet: s.loadAddress(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OffRampAccount_Init, b: c.Builder): void {
+        b.storeUint(0x552706d7, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.allowedJettonWallet);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OffRampAccount_Init): c.Cell {
+        return makeCellFrom<OffRampAccount_Init>(self, OffRampAccount_Init.store);
+    }
+}
+
+/**
+ > struct (0xb2e46750) OffRampAccount_Reply {
+ >     queryId: uint64
+ >     forwardPayload: cell?
+ > }
+ */
+export interface OffRampAccount_Reply {
+    readonly $: 'OffRampAccount_Reply'
+    queryId: uint64
+    forwardPayload: c.Cell | null
+}
+
+export const OffRampAccount_Reply = {
+    PREFIX: 0xb2e46750,
+
+    create(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): OffRampAccount_Reply {
+        return {
+            $: 'OffRampAccount_Reply',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRampAccount_Reply {
+        loadAndCheckPrefix32(s, 0xb2e46750, 'OffRampAccount_Reply');
+        return {
+            $: 'OffRampAccount_Reply',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OffRampAccount_Reply, b: c.Builder): void {
+        b.storeUint(0xb2e46750, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OffRampAccount_Reply): c.Cell {
+        return makeCellFrom<OffRampAccount_Reply>(self, OffRampAccount_Reply.store);
+    }
+}
+
+/**
+ > struct (0xdb3b18bf) OffRampAccount_ForwardNotification {
+ >     message: Cell<OffRampAccount_InMessageForward>
+ > }
+ */
+export interface OffRampAccount_ForwardNotification {
+    readonly $: 'OffRampAccount_ForwardNotification'
+    message: OffRampAccount_InMessageForward
+}
+
+export const OffRampAccount_ForwardNotification = {
+    PREFIX: 0xdb3b18bf,
+
+    create(args: {
+        message: OffRampAccount_InMessageForward
+    }): OffRampAccount_ForwardNotification {
+        return {
+            $: 'OffRampAccount_ForwardNotification',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRampAccount_ForwardNotification {
+        loadAndCheckPrefix32(s, 0xdb3b18bf, 'OffRampAccount_ForwardNotification');
+        return {
+            $: 'OffRampAccount_ForwardNotification',
+            message: loadCellRef<OffRampAccount_InMessageForward>(s, OffRampAccount_InMessageForward.fromSlice),
+        }
+    },
+    store(self: OffRampAccount_ForwardNotification, b: c.Builder): void {
+        b.storeUint(0xdb3b18bf, 32);
+        storeCellRef<OffRampAccount_InMessageForward>(self.message, b, OffRampAccount_InMessageForward.store);
+    },
+    toCell(self: OffRampAccount_ForwardNotification): c.Cell {
+        return makeCellFrom<OffRampAccount_ForwardNotification>(self, OffRampAccount_ForwardNotification.store);
+    }
+}
+
+/**
+ > struct OffRampAccount_InMessageForward {
+ >     senderAddress: address
+ >     valueCoins: coins
+ >     valueExtra: ExtraCurrenciesMap
+ >     originalForwardFee: coins
+ >     createdLt: uint64
+ >     createdAt: uint32
+ >     body: cell
+ > }
+ */
+export interface OffRampAccount_InMessageForward {
+    readonly $: 'OffRampAccount_InMessageForward'
+    senderAddress: c.Address
+    valueCoins: coins
+    valueExtra: ExtraCurrenciesMap
+    originalForwardFee: coins
+    createdLt: uint64
+    createdAt: uint32
+    body: c.Cell
+}
+
+export const OffRampAccount_InMessageForward = {
+    create(args: {
+        senderAddress: c.Address
+        valueCoins: coins
+        valueExtra: ExtraCurrenciesMap
+        originalForwardFee: coins
+        createdLt: uint64
+        createdAt: uint32
+        body: c.Cell
+    }): OffRampAccount_InMessageForward {
+        return {
+            $: 'OffRampAccount_InMessageForward',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRampAccount_InMessageForward {
+        return {
+            $: 'OffRampAccount_InMessageForward',
+            senderAddress: s.loadAddress(),
+            valueCoins: s.loadCoins(),
+            valueExtra: ExtraCurrenciesMap.fromSlice(s),
+            originalForwardFee: s.loadCoins(),
+            createdLt: s.loadUintBig(64),
+            createdAt: s.loadUintBig(32),
+            body: s.loadRef(),
+        }
+    },
+    store(self: OffRampAccount_InMessageForward, b: c.Builder): void {
+        b.storeAddress(self.senderAddress);
+        b.storeCoins(self.valueCoins);
+        ExtraCurrenciesMap.store(self.valueExtra, b);
+        b.storeCoins(self.originalForwardFee);
+        b.storeUint(self.createdLt, 64);
+        b.storeUint(self.createdAt, 32);
+        b.storeRef(self.body);
+    },
+    toCell(self: OffRampAccount_InMessageForward): c.Cell {
+        return makeCellFrom<OffRampAccount_InMessageForward>(self, OffRampAccount_InMessageForward.store);
     }
 }
 
@@ -909,6 +1200,7 @@ export const CursedSubjects = {
  >     jettonClient: JettonClient
  >     allowedFinalityConfig: uint32
  >     advancedPoolHooks: address?
+ >     deployableCode: cell?
  > }
  */
 export interface TokenPool_AdminConfig {
@@ -919,6 +1211,7 @@ export interface TokenPool_AdminConfig {
     jettonClient: JettonClient
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
     advancedPoolHooks: c.Address | null /* = null */
+    deployableCode: c.Cell | null /* = null */
 }
 
 export const TokenPool_AdminConfig = {
@@ -929,11 +1222,13 @@ export const TokenPool_AdminConfig = {
         jettonClient: JettonClient
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
         advancedPoolHooks?: c.Address | null /* = null */
+        deployableCode?: c.Cell | null /* = null */
     }): TokenPool_AdminConfig {
         return {
             $: 'TokenPool_AdminConfig',
             allowedFinalityConfig: 0n,
             advancedPoolHooks: null,
+            deployableCode: null,
             ...args
         }
     },
@@ -946,6 +1241,7 @@ export const TokenPool_AdminConfig = {
             jettonClient: JettonClient.fromSlice(s),
             allowedFinalityConfig: s.loadUintBig(32),
             advancedPoolHooks: s.loadMaybeAddress(),
+            deployableCode: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_AdminConfig, b: c.Builder): void {
@@ -955,6 +1251,9 @@ export const TokenPool_AdminConfig = {
         JettonClient.store(self.jettonClient, b);
         b.storeUint(self.allowedFinalityConfig, 32);
         b.storeAddress(self.advancedPoolHooks);
+        storeTolkNullable<c.Cell>(self.deployableCode, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: TokenPool_AdminConfig): c.Cell {
         return makeCellFrom<TokenPool_AdminConfig>(self, TokenPool_AdminConfig.store);
@@ -1019,6 +1318,7 @@ export const TokenPool_Data = {
  >     router: address
  >     rateLimitAdmin: address?
  >     feeAdmin: address?
+ >     allowedDepositNamespaces: map<uint32, bool>
  > }
  */
 export interface TokenPool_DynamicConfig {
@@ -1026,6 +1326,7 @@ export interface TokenPool_DynamicConfig {
     router: c.Address
     rateLimitAdmin: c.Address | null /* = null */
     feeAdmin: c.Address | null
+    allowedDepositNamespaces: Map<uint32, boolean> /* = [] as map<uint32, bool> */
 }
 
 export const TokenPool_DynamicConfig = {
@@ -1033,6 +1334,7 @@ export const TokenPool_DynamicConfig = {
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin: c.Address | null
+        allowedDepositNamespaces: Map<uint32, boolean> /* = [] as map<uint32, bool> */
     }): TokenPool_DynamicConfig {
         return {
             $: 'TokenPool_DynamicConfig',
@@ -1046,12 +1348,14 @@ export const TokenPool_DynamicConfig = {
             router: s.loadAddress(),
             rateLimitAdmin: s.loadMaybeAddress(),
             feeAdmin: s.loadMaybeAddress(),
+            allowedDepositNamespaces: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: TokenPool_DynamicConfig, b: c.Builder): void {
         b.storeAddress(self.router);
         b.storeAddress(self.rateLimitAdmin);
         b.storeAddress(self.feeAdmin);
+        b.storeDict<uint32, boolean>(mapToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
     },
     toCell(self: TokenPool_DynamicConfig): c.Cell {
         return makeCellFrom<TokenPool_DynamicConfig>(self, TokenPool_DynamicConfig.store);
@@ -2157,6 +2461,177 @@ export const TokenPool_SetAdvancedPoolHooks = {
     },
     toCell(self: TokenPool_SetAdvancedPoolHooks): c.Cell {
         return makeCellFrom<TokenPool_SetAdvancedPoolHooks>(self, TokenPool_SetAdvancedPoolHooks.store);
+    }
+}
+
+/**
+ > struct (0x3868e309) TokenPool_SetDeployableCode {
+ >     queryId: uint64
+ >     deployableCode: cell?
+ > }
+ */
+export interface TokenPool_SetDeployableCode {
+    readonly $: 'TokenPool_SetDeployableCode'
+    queryId: uint64
+    deployableCode: c.Cell | null
+}
+
+export const TokenPool_SetDeployableCode = {
+    PREFIX: 0x3868e309,
+
+    create(args: {
+        queryId?: uint64
+        deployableCode: c.Cell | null
+    }): TokenPool_SetDeployableCode {
+        return {
+            $: 'TokenPool_SetDeployableCode',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetDeployableCode {
+        loadAndCheckPrefix32(s, 0x3868e309, 'TokenPool_SetDeployableCode');
+        return {
+            $: 'TokenPool_SetDeployableCode',
+            queryId: s.loadUintBig(64),
+            deployableCode: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_SetDeployableCode, b: c.Builder): void {
+        b.storeUint(0x3868e309, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.deployableCode, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_SetDeployableCode): c.Cell {
+        return makeCellFrom<TokenPool_SetDeployableCode>(self, TokenPool_SetDeployableCode.store);
+    }
+}
+
+/**
+ > struct (0x89d602e5) TokenPool_DeployableCodeSet {
+ >     queryId: uint64
+ >     deployableCode: cell?
+ > }
+ */
+export interface TokenPool_DeployableCodeSet {
+    readonly $: 'TokenPool_DeployableCodeSet'
+    queryId: uint64
+    deployableCode: c.Cell | null
+}
+
+export const TokenPool_DeployableCodeSet = {
+    PREFIX: 0x89d602e5,
+
+    create(args: {
+        queryId?: uint64
+        deployableCode: c.Cell | null
+    }): TokenPool_DeployableCodeSet {
+        return {
+            $: 'TokenPool_DeployableCodeSet',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_DeployableCodeSet {
+        loadAndCheckPrefix32(s, 0x89d602e5, 'TokenPool_DeployableCodeSet');
+        return {
+            $: 'TokenPool_DeployableCodeSet',
+            queryId: s.loadUintBig(64),
+            deployableCode: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_DeployableCodeSet, b: c.Builder): void {
+        b.storeUint(0x89d602e5, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.deployableCode, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_DeployableCodeSet): c.Cell {
+        return makeCellFrom<TokenPool_DeployableCodeSet>(self, TokenPool_DeployableCodeSet.store);
+    }
+}
+
+/**
+ > struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
+ >     queryId: uint64
+ >     allowedDepositNamespaces: map<uint32, bool>
+ > }
+ */
+export interface TokenPool_SetAllowedDepositNamespaces {
+    readonly $: 'TokenPool_SetAllowedDepositNamespaces'
+    queryId: uint64
+    allowedDepositNamespaces: Map<uint32, boolean>
+}
+
+export const TokenPool_SetAllowedDepositNamespaces = {
+    PREFIX: 0x84384142,
+
+    create(args: {
+        queryId?: uint64
+        allowedDepositNamespaces: Map<uint32, boolean>
+    }): TokenPool_SetAllowedDepositNamespaces {
+        return {
+            $: 'TokenPool_SetAllowedDepositNamespaces',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetAllowedDepositNamespaces {
+        loadAndCheckPrefix32(s, 0x84384142, 'TokenPool_SetAllowedDepositNamespaces');
+        return {
+            $: 'TokenPool_SetAllowedDepositNamespaces',
+            queryId: s.loadUintBig(64),
+            allowedDepositNamespaces: dictToMap(c.Dictionary.load<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool(), s)),
+        }
+    },
+    store(self: TokenPool_SetAllowedDepositNamespaces, b: c.Builder): void {
+        b.storeUint(0x84384142, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeDict<uint32, boolean>(mapToDict(self.allowedDepositNamespaces, c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool());
+    },
+    toCell(self: TokenPool_SetAllowedDepositNamespaces): c.Cell {
+        return makeCellFrom<TokenPool_SetAllowedDepositNamespaces>(self, TokenPool_SetAllowedDepositNamespaces.store);
+    }
+}
+
+/**
+ > struct (0xc1ffe3a6) TokenPool_AllowedDepositNamespacesSet {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_AllowedDepositNamespacesSet {
+    readonly $: 'TokenPool_AllowedDepositNamespacesSet'
+    queryId: uint64
+}
+
+export const TokenPool_AllowedDepositNamespacesSet = {
+    PREFIX: 0xc1ffe3a6,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenPool_AllowedDepositNamespacesSet {
+        return {
+            $: 'TokenPool_AllowedDepositNamespacesSet',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_AllowedDepositNamespacesSet {
+        loadAndCheckPrefix32(s, 0xc1ffe3a6, 'TokenPool_AllowedDepositNamespacesSet');
+        return {
+            $: 'TokenPool_AllowedDepositNamespacesSet',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_AllowedDepositNamespacesSet, b: c.Builder): void {
+        b.storeUint(0xc1ffe3a6, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_AllowedDepositNamespacesSet): c.Cell {
+        return makeCellFrom<TokenPool_AllowedDepositNamespacesSet>(self, TokenPool_AllowedDepositNamespacesSet.store);
     }
 }
 
@@ -3583,6 +4058,82 @@ export const TokenPool_AdvancedPoolHooksSet = {
 }
 
 /**
+ > struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
+ >     queryId: uint64
+ > }
+ */
+export interface BurnMintTokenPool_ClaimMinterAdmin {
+    readonly $: 'BurnMintTokenPool_ClaimMinterAdmin'
+    queryId: uint64
+}
+
+export const BurnMintTokenPool_ClaimMinterAdmin = {
+    PREFIX: 0x39898e4d,
+
+    create(args: {
+        queryId?: uint64
+    }): BurnMintTokenPool_ClaimMinterAdmin {
+        return {
+            $: 'BurnMintTokenPool_ClaimMinterAdmin',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): BurnMintTokenPool_ClaimMinterAdmin {
+        loadAndCheckPrefix32(s, 0x39898e4d, 'BurnMintTokenPool_ClaimMinterAdmin');
+        return {
+            $: 'BurnMintTokenPool_ClaimMinterAdmin',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: BurnMintTokenPool_ClaimMinterAdmin, b: c.Builder): void {
+        b.storeUint(0x39898e4d, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: BurnMintTokenPool_ClaimMinterAdmin): c.Cell {
+        return makeCellFrom<BurnMintTokenPool_ClaimMinterAdmin>(self, BurnMintTokenPool_ClaimMinterAdmin.store);
+    }
+}
+
+/**
+ > struct Storage {
+ >     poolData: Cell<TokenPool_Data>
+ >     offRampAccountCode: cell
+ > }
+ */
+export interface Storage {
+    readonly $: 'Storage'
+    poolData: TokenPool_Data
+    offRampAccountCode: c.Cell
+}
+
+export const Storage = {
+    create(args: {
+        poolData: TokenPool_Data
+        offRampAccountCode: c.Cell
+    }): Storage {
+        return {
+            $: 'Storage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Storage {
+        return {
+            $: 'Storage',
+            poolData: loadCellRef<TokenPool_Data>(s, TokenPool_Data.fromSlice),
+            offRampAccountCode: s.loadRef(),
+        }
+    },
+    store(self: Storage, b: c.Builder): void {
+        storeCellRef<TokenPool_Data>(self.poolData, b, TokenPool_Data.store);
+        b.storeRef(self.offRampAccountCode);
+    },
+    toCell(self: Storage): c.Cell {
+        return makeCellFrom<Storage>(self, Storage.store);
+    }
+}
+
+/**
  > struct TokenPool_LockedOrBurned {
  >     remoteChainSelector: uint64
  >     details: Cell<TokenPool_LockedOrBurnedDetails>
@@ -4394,229 +4945,6 @@ export const TokenPool_RampAccessUpdated = {
 }
 
 /**
- > struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
- >     queryId: uint64
- > }
- */
-export interface BurnMintTokenPool_ClaimMinterAdmin {
-    readonly $: 'BurnMintTokenPool_ClaimMinterAdmin'
-    queryId: uint64
-}
-
-export const BurnMintTokenPool_ClaimMinterAdmin = {
-    PREFIX: 0x39898e4d,
-
-    create(args: {
-        queryId?: uint64
-    }): BurnMintTokenPool_ClaimMinterAdmin {
-        return {
-            $: 'BurnMintTokenPool_ClaimMinterAdmin',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): BurnMintTokenPool_ClaimMinterAdmin {
-        loadAndCheckPrefix32(s, 0x39898e4d, 'BurnMintTokenPool_ClaimMinterAdmin');
-        return {
-            $: 'BurnMintTokenPool_ClaimMinterAdmin',
-            queryId: s.loadUintBig(64),
-        }
-    },
-    store(self: BurnMintTokenPool_ClaimMinterAdmin, b: c.Builder): void {
-        b.storeUint(0x39898e4d, 32);
-        b.storeUint(self.queryId, 64);
-    },
-    toCell(self: BurnMintTokenPool_ClaimMinterAdmin): c.Cell {
-        return makeCellFrom<BurnMintTokenPool_ClaimMinterAdmin>(self, BurnMintTokenPool_ClaimMinterAdmin.store);
-    }
-}
-
-/**
- > struct BurnMintTokenPool_PendingBurn {
- >     forwardPayload: TokenPool_LockOrBurnForwardPayload
- >     expectedSender: address
- > }
- */
-export interface BurnMintTokenPool_PendingBurn {
-    readonly $: 'BurnMintTokenPool_PendingBurn'
-    forwardPayload: TokenPool_LockOrBurnForwardPayload
-    expectedSender: c.Address
-}
-
-export const BurnMintTokenPool_PendingBurn = {
-    create(args: {
-        forwardPayload: TokenPool_LockOrBurnForwardPayload
-        expectedSender: c.Address
-    }): BurnMintTokenPool_PendingBurn {
-        return {
-            $: 'BurnMintTokenPool_PendingBurn',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): BurnMintTokenPool_PendingBurn {
-        return {
-            $: 'BurnMintTokenPool_PendingBurn',
-            forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
-            expectedSender: s.loadAddress(),
-        }
-    },
-    store(self: BurnMintTokenPool_PendingBurn, b: c.Builder): void {
-        TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
-        b.storeAddress(self.expectedSender);
-    },
-    toCell(self: BurnMintTokenPool_PendingBurn): c.Cell {
-        return makeCellFrom<BurnMintTokenPool_PendingBurn>(self, BurnMintTokenPool_PendingBurn.store);
-    }
-}
-
-/**
- > struct BurnMintTokenPool_PendingMint {
- >     replyTo: address?
- >     request: Cell<TokenPool_ReleaseOrMintInV1>
- >     out: Cell<TokenPool_ReleaseOrMintOutV1>
- >     expectedSender: address
- > }
- */
-export interface BurnMintTokenPool_PendingMint {
-    readonly $: 'BurnMintTokenPool_PendingMint'
-    replyTo: c.Address | null
-    request: TokenPool_ReleaseOrMintInV1
-    out: TokenPool_ReleaseOrMintOutV1
-    expectedSender: c.Address
-}
-
-export const BurnMintTokenPool_PendingMint = {
-    create(args: {
-        replyTo: c.Address | null
-        request: TokenPool_ReleaseOrMintInV1
-        out: TokenPool_ReleaseOrMintOutV1
-        expectedSender: c.Address
-    }): BurnMintTokenPool_PendingMint {
-        return {
-            $: 'BurnMintTokenPool_PendingMint',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): BurnMintTokenPool_PendingMint {
-        return {
-            $: 'BurnMintTokenPool_PendingMint',
-            replyTo: s.loadMaybeAddress(),
-            request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
-            out: loadCellRef<TokenPool_ReleaseOrMintOutV1>(s, TokenPool_ReleaseOrMintOutV1.fromSlice),
-            expectedSender: s.loadAddress(),
-        }
-    },
-    store(self: BurnMintTokenPool_PendingMint, b: c.Builder): void {
-        b.storeAddress(self.replyTo);
-        storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
-        storeCellRef<TokenPool_ReleaseOrMintOutV1>(self.out, b, TokenPool_ReleaseOrMintOutV1.store);
-        b.storeAddress(self.expectedSender);
-    },
-    toCell(self: BurnMintTokenPool_PendingMint): c.Cell {
-        return makeCellFrom<BurnMintTokenPool_PendingMint>(self, BurnMintTokenPool_PendingMint.store);
-    }
-}
-
-/**
- > struct Storage {
- >     poolData: Cell<TokenPool_Data>
- >     pendingBurns: map<uint64, Cell<BurnMintTokenPool_PendingBurn>>
- >     pendingMints: map<uint64, Cell<BurnMintTokenPool_PendingMint>>
- > }
- */
-export interface Storage {
-    readonly $: 'Storage'
-    poolData: TokenPool_Data
-    pendingBurns: Map<uint64, BurnMintTokenPool_PendingBurn> /* = [] as map<uint64, Cell<BurnMintTokenPool_PendingBurn>> */
-    pendingMints: Map<uint64, BurnMintTokenPool_PendingMint> /* = [] as map<uint64, Cell<BurnMintTokenPool_PendingMint>> */
-}
-
-export const Storage = {
-    create(args: {
-        poolData: TokenPool_Data
-        pendingBurns: Map<uint64, BurnMintTokenPool_PendingBurn> /* = [] as map<uint64, Cell<BurnMintTokenPool_PendingBurn>> */
-        pendingMints: Map<uint64, BurnMintTokenPool_PendingMint> /* = [] as map<uint64, Cell<BurnMintTokenPool_PendingMint>> */
-    }): Storage {
-        return {
-            $: 'Storage',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Storage {
-        return {
-            $: 'Storage',
-            poolData: loadCellRef<TokenPool_Data>(s, TokenPool_Data.fromSlice),
-            pendingBurns: dictToMap(c.Dictionary.load<uint64, BurnMintTokenPool_PendingBurn>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<BurnMintTokenPool_PendingBurn>(
-                            (s) => loadCellRef<BurnMintTokenPool_PendingBurn>(s, BurnMintTokenPool_PendingBurn.fromSlice),
-                            (v,b) => storeCellRef<BurnMintTokenPool_PendingBurn>(v, b, BurnMintTokenPool_PendingBurn.store)
-                        ), s)),
-            pendingMints: dictToMap(c.Dictionary.load<uint64, BurnMintTokenPool_PendingMint>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<BurnMintTokenPool_PendingMint>(
-                            (s) => loadCellRef<BurnMintTokenPool_PendingMint>(s, BurnMintTokenPool_PendingMint.fromSlice),
-                            (v,b) => storeCellRef<BurnMintTokenPool_PendingMint>(v, b, BurnMintTokenPool_PendingMint.store)
-                        ), s)),
-        }
-    },
-    store(self: Storage, b: c.Builder): void {
-        storeCellRef<TokenPool_Data>(self.poolData, b, TokenPool_Data.store);
-        b.storeDict<uint64, BurnMintTokenPool_PendingBurn>(mapToDict(self.pendingBurns, c.Dictionary.Keys.BigUint(64), createDictionaryValue<BurnMintTokenPool_PendingBurn>(
-                        (s) => loadCellRef<BurnMintTokenPool_PendingBurn>(s, BurnMintTokenPool_PendingBurn.fromSlice),
-                        (v,b) => storeCellRef<BurnMintTokenPool_PendingBurn>(v, b, BurnMintTokenPool_PendingBurn.store)
-                    )), c.Dictionary.Keys.BigUint(64), createDictionaryValue<BurnMintTokenPool_PendingBurn>(
-            (s) => loadCellRef<BurnMintTokenPool_PendingBurn>(s, BurnMintTokenPool_PendingBurn.fromSlice),
-            (v,b) => storeCellRef<BurnMintTokenPool_PendingBurn>(v, b, BurnMintTokenPool_PendingBurn.store)
-        ));
-        b.storeDict<uint64, BurnMintTokenPool_PendingMint>(mapToDict(self.pendingMints, c.Dictionary.Keys.BigUint(64), createDictionaryValue<BurnMintTokenPool_PendingMint>(
-                        (s) => loadCellRef<BurnMintTokenPool_PendingMint>(s, BurnMintTokenPool_PendingMint.fromSlice),
-                        (v,b) => storeCellRef<BurnMintTokenPool_PendingMint>(v, b, BurnMintTokenPool_PendingMint.store)
-                    )), c.Dictionary.Keys.BigUint(64), createDictionaryValue<BurnMintTokenPool_PendingMint>(
-            (s) => loadCellRef<BurnMintTokenPool_PendingMint>(s, BurnMintTokenPool_PendingMint.fromSlice),
-            (v,b) => storeCellRef<BurnMintTokenPool_PendingMint>(v, b, BurnMintTokenPool_PendingMint.store)
-        ));
-    },
-    toCell(self: Storage): c.Cell {
-        return makeCellFrom<Storage>(self, Storage.store);
-    }
-}
-
-/**
- > struct JettonClient {
- >     masterAddress: address
- >     jettonWalletCode: cell
- > }
- */
-export interface JettonClient {
-    readonly $: 'JettonClient'
-    masterAddress: c.Address
-    jettonWalletCode: c.Cell
-}
-
-export const JettonClient = {
-    create(args: {
-        masterAddress: c.Address
-        jettonWalletCode: c.Cell
-    }): JettonClient {
-        return {
-            $: 'JettonClient',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): JettonClient {
-        return {
-            $: 'JettonClient',
-            masterAddress: s.loadAddress(),
-            jettonWalletCode: s.loadRef(),
-        }
-    },
-    store(self: JettonClient, b: c.Builder): void {
-        b.storeAddress(self.masterAddress);
-        b.storeRef(self.jettonWalletCode);
-    },
-    toCell(self: JettonClient): c.Cell {
-        return makeCellFrom<JettonClient>(self, JettonClient.store);
-    }
-}
-
-/**
  > struct RateLimiter_Config {
  >     isEnabled: bool
  >     capacity: uint120
@@ -4751,7 +5079,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class BurnMintTokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -4770,15 +5098,17 @@ export class BurnMintTokenPool implements c.Contract {
         'TokenPool_Error.InvalidRemoteChainDecimals': 14913,
         'TokenPool_Error.OverflowDetected': 14914,
         'TokenPool_Error.UnsupportedOperation': 14917,
+        'TokenPool_Error.MissingTransferInitiator': 14919,
+        'TokenPool_Error.AmountMismatch': 14920,
         'TokenPool_Error.InvalidRequestedFinality': 14921,
         'RateLimiter_Error.BucketOverfilled': 16300,
         'RateLimiter_Error.TokenMaxCapacityExceeded': 16301,
         'RateLimiter_Error.TokenRateLimitReached': 16302,
-        'BurnMintTokenPool_Error.PendingBurnAlreadyExists': 41200,
-        'BurnMintTokenPool_Error.PendingMintAlreadyExists': 41202,
-        'BurnMintTokenPool_Error.PendingMintNotFound': 41203,
-        'BurnMintTokenPool_Error.UnexpectedBurnConfirmationSender': 41204,
-        'BurnMintTokenPool_Error.UnexpectedMintConfirmationSender': 41205,
+        'BurnMintTokenPool_Error.UnexpectedBurnBounce': 41200,
+        'BurnMintTokenPool_Error.UnexpectedMintBounce': 41201,
+        'BurnMintTokenPool_Error.InvalidOffRampAccountReply': 41202,
+        'BurnMintTokenPool_Error.InvalidOffRampAccountNotification': 41203,
+        'BurnMintTokenPool_Error.OffRampAccountDeployFailed': 41204,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -4809,8 +5139,7 @@ export class BurnMintTokenPool implements c.Contract {
 
     static fromStorage(emptyStorage: {
         poolData: TokenPool_Data
-        pendingBurns: Map<uint64, BurnMintTokenPool_PendingBurn> /* = [] as map<uint64, Cell<BurnMintTokenPool_PendingBurn>> */
-        pendingMints: Map<uint64, BurnMintTokenPool_PendingMint> /* = [] as map<uint64, Cell<BurnMintTokenPool_PendingMint>> */
+        offRampAccountCode: c.Cell
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? BurnMintTokenPool.CodeCell,
@@ -4923,6 +5252,20 @@ export class BurnMintTokenPool implements c.Contract {
         return TokenPool_SetAdvancedPoolHooks.toCell(TokenPool_SetAdvancedPoolHooks.create(body));
     }
 
+    static createCellOfTokenPoolSetDeployableCode(body: {
+        queryId?: uint64
+        deployableCode: c.Cell | null
+    }) {
+        return TokenPool_SetDeployableCode.toCell(TokenPool_SetDeployableCode.create(body));
+    }
+
+    static createCellOfTokenPoolSetAllowedDepositNamespaces(body: {
+        queryId?: uint64
+        allowedDepositNamespaces: Map<uint32, boolean>
+    }) {
+        return TokenPool_SetAllowedDepositNamespaces.toCell(TokenPool_SetAllowedDepositNamespaces.create(body));
+    }
+
     static createCellOfTokenPoolSetRateLimitConfig(body: {
         queryId?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
@@ -4965,10 +5308,25 @@ export class BurnMintTokenPool implements c.Contract {
         return BurnMintTokenPool_ClaimMinterAdmin.toCell(BurnMintTokenPool_ClaimMinterAdmin.create(body));
     }
 
-    static createCellOfReturnExcessesBack(body: {
+    static createCellOfCCTReturnExcessesBack(body: {
         queryId?: uint64
+        initiator: c.Address
+        forwardPayload?: c.Cell | null /* = null */
     }) {
-        return ReturnExcessesBack.toCell(ReturnExcessesBack.create(body));
+        return CCT_ReturnExcessesBack.toCell(CCT_ReturnExcessesBack.create(body));
+    }
+
+    static createCellOfOffRampAccountReply(body: {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }) {
+        return OffRampAccount_Reply.toCell(OffRampAccount_Reply.create(body));
+    }
+
+    static createCellOfOffRampAccountForwardNotification(body: {
+        message: OffRampAccount_InMessageForward
+    }) {
+        return OffRampAccount_ForwardNotification.toCell(OffRampAccount_ForwardNotification.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -5142,6 +5500,28 @@ export class BurnMintTokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolSetDeployableCode(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        deployableCode: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetDeployableCode.toCell(TokenPool_SetDeployableCode.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolSetAllowedDepositNamespaces(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        allowedDepositNamespaces: Map<uint32, boolean>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetAllowedDepositNamespaces.toCell(TokenPool_SetAllowedDepositNamespaces.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendTokenPoolSetRateLimitConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
@@ -5208,12 +5588,35 @@ export class BurnMintTokenPool implements c.Contract {
         });
     }
 
-    async sendReturnExcessesBack(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCCTReturnExcessesBack(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
+        initiator: c.Address
+        forwardPayload?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: ReturnExcessesBack.toCell(ReturnExcessesBack.create(body)),
+            body: CCT_ReturnExcessesBack.toCell(CCT_ReturnExcessesBack.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOffRampAccountReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OffRampAccount_Reply.toCell(OffRampAccount_Reply.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOffRampAccountForwardNotification(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        message: OffRampAccount_InMessageForward
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OffRampAccount_ForwardNotification.toCell(OffRampAccount_ForwardNotification.create(body)),
             ...extraOptions
         });
     }
@@ -5264,20 +5667,6 @@ export class BurnMintTokenPool implements c.Contract {
         );
     }
 
-    async getHasPendingBurn(provider: ContractProvider, queryId: uint64): Promise<boolean> {
-        const r = StackReader.fromGetMethod(1, await provider.get('hasPendingBurn', [
-            { type: 'int', value: queryId },
-        ]));
-        return r.readBoolean();
-    }
-
-    async getHasPendingMint(provider: ContractProvider, queryId: uint64): Promise<boolean> {
-        const r = StackReader.fromGetMethod(1, await provider.get('hasPendingMint', [
-            { type: 'int', value: queryId },
-        ]));
-        return r.readBoolean();
-    }
-
     async getRMNProxy(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
         return r.readSlice().loadAddress();
@@ -5317,7 +5706,7 @@ export class BurnMintTokenPool implements c.Contract {
     }
 
     async getDynamicConfig(provider: ContractProvider): Promise<TokenPool_DynamicConfig> {
-        const r = StackReader.fromGetMethod(3, await provider.get('getDynamicConfig', []));
+        const r = StackReader.fromGetMethod(4, await provider.get('getDynamicConfig', []));
         return ({
             $: 'TokenPool_DynamicConfig',
             router: r.readSlice().loadAddress(),
@@ -5327,6 +5716,7 @@ export class BurnMintTokenPool implements c.Contract {
             feeAdmin: r.readNullable<c.Address>(
                 (r) => r.readSlice().loadAddress()
             ),
+            allowedDepositNamespaces: dictToMap(r.readDictionary<uint32, boolean>(c.Dictionary.Keys.BigUint(32), c.Dictionary.Values.Bool())),
         });
     }
 
