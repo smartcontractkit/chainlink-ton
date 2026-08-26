@@ -571,3 +571,22 @@ var GetFee = tvm.Getter[GetFeeArgs, GetFeeResult]{
 		}, nil
 	}),
 }
+
+// GetDepositAccount gets the deposit account address for a given receiver.
+//
+// On-chain: get fun depositAccount(receiver: address): address
+var GetDepositAccount = tvm.Getter[*address.Address, *address.Address]{
+	Name: "getDepositAccount",
+	Encoder: tvm.NewArgsEncoder(func(addr *address.Address) ([]any, error) {
+		// Encode address as a cell slice (as expected by the contract)
+		addrSlice := cell.BeginCell().MustStoreAddr(addr).EndCell().BeginParse()
+		return []any{addrSlice}, nil
+	}),
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
+		addrSlice, err := r.Slice(0)
+		if err != nil {
+			return nil, fmt.Errorf("error getting Slice(0) - depositAccount: %w", err)
+		}
+		return addrSlice.LoadAddr()
+	}),
+}

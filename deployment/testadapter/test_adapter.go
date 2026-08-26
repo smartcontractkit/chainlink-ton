@@ -51,6 +51,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
@@ -440,7 +441,22 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 		return nil, fmt.Errorf("failed to parse owner address %q: %w", ownerAddrStr, err)
 	}
 
-	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, ownerAddr)
+	// Look up the pool address from the datastore via the state provider.
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool address: %w", err)
+	}
+	poolAddr, err := address.ParseAddr(poolAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
+	}
+
+	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, poolAddr, tokenpool.GetDepositAccount, ownerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive deposit account for receiver %q: %w", ownerAddrStr, err)
+	}
+
+	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, depositAccountAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive jetton wallet address for owner %q: %w", ownerAddrStr, err)
 	}

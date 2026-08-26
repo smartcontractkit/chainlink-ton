@@ -457,3 +457,18 @@ get fun getFeeAmount(
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
 }
+
+get fun getDepositAccount(
+    receiver: address,
+): address {
+    val st = Storage.load();
+
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(receiver, ());
+    return calcAddressOfDepositAccount(
+        st.offRampAccountCode,
+        contract.getAddress(),
+        contract.getAddress(),
+        beneficiaries,
+    ).calculateAddress();
+}
