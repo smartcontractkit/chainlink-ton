@@ -4,7 +4,7 @@ import "../../../lib/receiver/messages"
 import "../../../lib/versioning/upgradeable"
 
 type TestReceiver_InMessage = 
-    | Receiver_CCIPReceive 
+    | CCIPReceive 
     | TestReceiver_UpdateBehavior
     | TestReceiver_UpdateAuthorizedCaller
     | Upgradeable_Upgrade;

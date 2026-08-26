@@ -168,16 +168,16 @@ export const MockCCIPReceiver_Storage = {
 }
 
 /**
- > type CCIPReceiver_InMessage = Receiver_CCIPReceive
+ > type CCIPReceiver_InMessage = CCIPReceive
  */
-export type CCIPReceiver_InMessage = Receiver_CCIPReceive
+export type CCIPReceiver_InMessage = CCIPReceive
 
 export const CCIPReceiver_InMessage = {
     fromSlice(s: c.Slice): CCIPReceiver_InMessage {
-        return Receiver_CCIPReceive.fromSlice(s);
+        return CCIPReceive.fromSlice(s);
     },
     store(self: CCIPReceiver_InMessage, b: c.Builder): void {
-        Receiver_CCIPReceive.store(self, b);
+        CCIPReceive.store(self, b);
     },
     toCell(self: CCIPReceiver_InMessage): c.Cell {
         return makeCellFrom<CCIPReceiver_InMessage>(self, CCIPReceiver_InMessage.store);
@@ -185,44 +185,44 @@ export const CCIPReceiver_InMessage = {
 }
 
 /**
- > struct (0xb3126df1) Receiver_CCIPReceive {
+ > struct (0x4b15e3e8) CCIPReceive {
  >     execId: uint192
  >     message: Cell<Any2TVMMessage>
  > }
  */
-export interface Receiver_CCIPReceive {
-    readonly $: 'Receiver_CCIPReceive'
+export interface CCIPReceive {
+    readonly $: 'CCIPReceive'
     execId: uint192
     message: Any2TVMMessage
 }
 
-export const Receiver_CCIPReceive = {
-    PREFIX: 0xb3126df1,
+export const CCIPReceive = {
+    PREFIX: 0x4b15e3e8,
 
     create(args: {
         execId: uint192
         message: Any2TVMMessage
-    }): Receiver_CCIPReceive {
+    }): CCIPReceive {
         return {
-            $: 'Receiver_CCIPReceive',
+            $: 'CCIPReceive',
             ...args
         }
     },
-    fromSlice(s: c.Slice): Receiver_CCIPReceive {
-        loadAndCheckPrefix32(s, 0xb3126df1, 'Receiver_CCIPReceive');
+    fromSlice(s: c.Slice): CCIPReceive {
+        loadAndCheckPrefix32(s, 0x4b15e3e8, 'CCIPReceive');
         return {
-            $: 'Receiver_CCIPReceive',
+            $: 'CCIPReceive',
             execId: s.loadUintBig(192),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
     },
-    store(self: Receiver_CCIPReceive, b: c.Builder): void {
-        b.storeUint(0xb3126df1, 32);
+    store(self: CCIPReceive, b: c.Builder): void {
+        b.storeUint(0x4b15e3e8, 32);
         b.storeUint(self.execId, 192);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
-    toCell(self: Receiver_CCIPReceive): c.Cell {
-        return makeCellFrom<Receiver_CCIPReceive>(self, Receiver_CCIPReceive.store);
+    toCell(self: CCIPReceive): c.Cell {
+        return makeCellFrom<CCIPReceive>(self, CCIPReceive.store);
     }
 }
 
