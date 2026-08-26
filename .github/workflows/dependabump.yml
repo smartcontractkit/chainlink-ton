@@ -19,3 +19,5 @@ jobs:
     secrets:
       SLACK_TOKEN: ${{ secrets.DEPENDABUMP_SLACK_TOKEN }}
       SLACK_CHANNEL_ID: ${{ secrets.DEPENDABUMP_SLACK_CHANNEL_ID }}
+    with:
+      post-bump-command: nix run .#lock-nix-tidy
