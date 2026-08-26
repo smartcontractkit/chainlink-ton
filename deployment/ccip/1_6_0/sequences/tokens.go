@@ -334,6 +334,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				Contracts: []ton_tvm.FullyQualifiedName{
 					bindings.TypeLockReleaseTokenPool,
 					bindings.TypeJettonWallet,
+					bindings.TypeDepositAccount,
 				},
 			})
 			if err != nil {
@@ -418,9 +419,14 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenTransferFeeConfigs: nil,
 			}
 
+			offRampAccount, ok := compiledContracts[bindings.TypeDepositAccount]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to load off-ramp-account code")
+			}
+
 			// LockReleaseTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
 			// has to go behind a ref; passing it bare makes every storage read underflow.
-			storage := lockrelease.Storage{PoolData: poolData}
+			storage := lockrelease.Storage{PoolData: poolData, OffRampAccountCode: offRampAccount.Code}
 
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,

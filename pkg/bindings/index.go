@@ -51,6 +51,7 @@ const (
 	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
 	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
 	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
+	TypeDepositAccount  tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
 
 	// Test contract types
 	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
