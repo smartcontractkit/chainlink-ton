@@ -39,7 +39,7 @@ struct CCIPMessageReceived {
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TestReceiver_InMessage.fromSlice(in.body);
     match (msg) {
-        Receiver_CCIPReceive => {
+        CCIPReceive => {
             var st = lazy Storage.load();
             // Standard way for a receiver to be implemented:
 
@@ -51,13 +51,13 @@ fun onInternalMessage(in: InMessage) {
 
             // 3. Process the message according to your product logic
             match (st.behavior) {
-                TestReceiverBehavior.Accept => {
+                TestReceiver_Behavior.Accept => {
                     processAccept(msg, in.senderAddress)
                 },
-                TestReceiverBehavior.RejectAll => {
+                TestReceiver_Behavior.RejectAll => {
                     processRejectAll()
                 },
-                TestReceiverBehavior.ConsumeAllGas => {
+                TestReceiver_Behavior.ConsumeAllGas => {
                     processConsumeAllGas()
                 }
             }
@@ -99,9 +99,9 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
+fun processAccept(msg: CCIPReceive, senderAddress: address) {
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
-        message: msg.message,
+        message: msg.message.load(),
     });
 }
 

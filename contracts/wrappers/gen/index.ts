@@ -8,6 +8,10 @@ import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
 import { MerkleRoot } from './ccip/MerkleRoot';
 
+import { CCIPReceiver } from './ccip/Receiver';
+  
+import { TestReceiver } from './ccip/TestReceiver';
+
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
@@ -70,6 +74,18 @@ export function setupGenBindings() {
     )
 
     FeeQuoter.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    CCIPReceiver.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    TestReceiver.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,

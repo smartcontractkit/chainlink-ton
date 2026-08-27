@@ -21,7 +21,7 @@ import {
   WRAPPED_NATIVE,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { Receiver, ReceiverBehavior } from '../../../../wrappers/examples/Receiver'
+import * as tr from '../../../../wrappers/gen/ccip/TestReceiver'
 import {
   hashReport,
   OCR3_PLUGIN_TYPE_COMMIT,
@@ -66,7 +66,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
   let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<or.OnRamp>
   let offRamp: SandboxContract<of.OffRamp>
-  let receiver: SandboxContract<Receiver>
+  let receiver: SandboxContract<tr.TestReceiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let transmitters: SandboxContract<TreasuryContract>[]
@@ -323,16 +323,16 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy ExampleReceiver
     {
-      const receiverCode = await Receiver.code()
+      const receiverCode = await contractCode.ccip.local('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig(
+        tr.TestReceiver.fromStorage(
           {
             id: 0n,
-            ownable: { owner: deployer.address, pendingOwner: null },
+            ownable: tr.Ownable2Step.create({ owner: deployer.address }),
             authorizedCaller: router.address,
-            behavior: ReceiverBehavior.Accept,
+            behavior: tr.TestReceiver_Behavior.Accept,
           },
-          receiverCode,
+          { overrideContractCode: receiverCode },
         ),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('1'))

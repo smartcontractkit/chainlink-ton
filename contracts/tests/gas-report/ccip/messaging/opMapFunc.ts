@@ -3,8 +3,7 @@ import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import * as onRamp from '../../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as sx from '../../../../wrappers/ccip/CCIPSendExecutor'
-import * as receiver from '../../../../wrappers/libraries/Receiver'
-import * as testReceiver from '../../../../wrappers/examples/Receiver'
+import * as testReceiver from '../../../../wrappers/gen/ccip/TestReceiver'
 import * as deployable from '../../../../wrappers/libraries/Deployable'
 import * as offRamp from '../../../../wrappers/gen/ccip/OffRamp'
 import * as mr from '../../../../wrappers/ccip/MerkleRoot'
@@ -48,12 +47,19 @@ export function opMapFunc(): OpMapFunc {
     'OffRamp::In::updateSourceChainConfigs',
   )
   opcodeMap.set(offRamp.OCR3Base_SetOCR3Config.PREFIX, 'OffRamp::In::setOCR3Config')
-  Object.entries(testReceiver.opcodes.in).forEach(([name, code]) => {
-    opcodeMap.set(code, `TestReceiver::In::${name}`)
-  })
-  Object.entries(receiver.opcodes.in).forEach(([name, code]) => {
-    opcodeMap.set(code, `Receiver::In::${name}`)
-  })
+  // Object.entries(testReceiver.opcodes.in).forEach(([name, code]) => {
+  //   opcodeMap.set(code, `TestReceiver::In::${name}`)
+  // })
+  const testReceiverOpcodes: Array<[string, number]> = [
+    ['CCIPReceive', testReceiver.CCIPReceive.PREFIX],
+    ['TestReceiver_UpdateBehavior', testReceiver.TestReceiver_UpdateBehavior.PREFIX],
+    [
+      'TestReceiver_UpdateAuthorizedCaller',
+      testReceiver.TestReceiver_UpdateAuthorizedCaller.PREFIX,
+    ],
+    ['Upgradeable_Upgrade', testReceiver.Upgradeable_Upgrade.PREFIX],
+  ]
+  testReceiverOpcodes.forEach(([name, code]) => opcodeMap.set(code, `TestReceiver::${name}`))
   Object.entries(mr.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `MerkleRoot::${name}`)
   })
