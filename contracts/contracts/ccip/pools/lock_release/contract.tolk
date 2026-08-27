@@ -8,19 +8,20 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
+
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
+
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
-import "../lib/token_pool/events"
 import "../lib/token_pool/errors"
+import "../lib/token_pool/events"
 
 import "messages"
 import "types"
-import "errors"
 import "storage"
 
 contract LockReleaseTokenPool {
@@ -33,6 +34,8 @@ contract LockReleaseTokenPool {
         | TokenPool_InMessage
         | LockReleaseTokenPool_InMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
@@ -316,7 +319,15 @@ fun loadPool(st: Storage): TokenPool<Storage> {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (LockReleaseTokenPool_CONTRACT_NAME, LockReleaseTokenPool_CONTRACT_VERSION);
+    return (LockReleaseTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return LockReleaseTokenPool_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(LockReleaseTokenPool_FACILITY_NAME.crc32(), local);
 }
 
 get fun token(): address {

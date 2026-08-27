@@ -18,22 +18,20 @@ const (
 	BurnValue = 50000000 // 0.05 TON in nanotons
 	// MintValue is the TON value for mint operations.
 	MintValue = 100000000 // 0.1 TON in nanotons
-	// ContextExecutorDeployValue is the TON value for deploying a ContextExecutor.
-	ContextExecutorDeployValue = 20000000 // 0.02 TON in nanotons
 )
 
 // --- Data types ---
 
-// BurnContext represents the context for a burn operation managed by ContextExecutor.
-// Corresponds to BurnMintTokenPool_BurnContext in the Tolk contract (opcode: 0xba302a47).
+// BurnContext represents the context carried by the CCT burn path. Stores the pool's own
+// jetton wallet address (the burn source) and the full forward payload for finalization.
 type BurnContext struct {
 	_              tlb.Magic                          `tlb:"#ba302a47" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	Wallet         *address.Address                   `tlb:"addr"`
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
 }
 
-// MintContext represents the context for a mint operation managed by ContextExecutor.
-// Corresponds to BurnMintTokenPool_MintContext in the Tolk contract (opcode: 0xb3d52361).
+// MintContext represents the context passed to the DepositAccount (off-ramp role) for mint
+// (release) operations. Carries the full forward payload for post-mint finalization.
 type MintContext struct {
 	_              tlb.Magic                             `tlb:"#b3d52361" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
@@ -57,11 +55,9 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the BurnMintTokenPool contract storage.
-// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; contextExecutorCode: cell; contextExecutorNextId: uint64; }
 type Storage struct {
-	PoolData              tokenpool.Storage `tlb:"^"`
-	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
-	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
+	PoolData           tokenpool.Storage `tlb:"^"`
+	OffRampAccountCode *cell.Cell        `tlb:"^"` // Compiled code cell of the DepositAccount (off-ramp role)
 }
 
 // --- Exit Codes ---
@@ -75,7 +71,9 @@ type ExitCode tvm.ExitCode
 const (
 	ExitCodeUnexpectedBurnBounce ExitCode = iota + 41200 // Facility ID 412 * 100
 	ExitCodeUnexpectedMintBounce
-	ExitCodeContextExecutorUnavailable
+	ExitCodeInvalidOffRampAccountReply
+	ExitCodeInvalidOffRampAccountNotification
+	ExitCodeOffRampAccountDeployFailed
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

@@ -10,12 +10,14 @@ func _() {
 	var x [1]struct{}
 	_ = x[ExitCodeUnexpectedBurnBounce-41200]
 	_ = x[ExitCodeUnexpectedMintBounce-41201]
-	_ = x[ExitCodeContextExecutorUnavailable-41202]
+	_ = x[ExitCodeInvalidOffRampAccountReply-41202]
+	_ = x[ExitCodeInvalidOffRampAccountNotification-41203]
+	_ = x[ExitCodeOffRampAccountDeployFailed-41204]
 }
 
-const _ExitCode_name = "UnexpectedBurnBounceUnexpectedMintBounceContextExecutorUnavailable"
+const _ExitCode_name = "UnexpectedBurnBounceUnexpectedMintBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailed"
 
-var _ExitCode_index = [...]uint8{0, 20, 40, 66}
+var _ExitCode_index = [...]uint8{0, 20, 40, 66, 99, 125}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 41200

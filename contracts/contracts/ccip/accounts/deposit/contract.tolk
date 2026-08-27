@@ -3,6 +3,8 @@ tolk 1.4.1
 
 import "@stdlib/gas-payments"
 
+import "../../../lib/utils"
+
 import "types"
 import "messages"
 import "storage"
@@ -18,7 +20,7 @@ import "lib"
 contract DepositAccount {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.DepositAccount"
+    description: "link.chain.ton.ccip.account.DepositAccount"
 
     storage: DepositAccount_Data
     incomingMessages:
@@ -26,6 +28,8 @@ contract DepositAccount {
     outgoingMessages:
         | DepositAccount_OutMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 /// Dispatches incoming messages with the default forward-on-notification hooks.
 fun onInternalMessage(in: InMessage) {
@@ -62,7 +66,15 @@ fun onBouncedMessage(in: InMessageBounced) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (DepositAccount_CONTRACT_NAME, DepositAccount_CONTRACT_VERSION);
+    return (DepositAccount_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return DepositAccount_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(DepositAccount_FACILITY_NAME.crc32(), local);
 }
 
 get fun getOwner(): address {

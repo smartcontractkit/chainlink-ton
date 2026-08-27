@@ -184,6 +184,7 @@ type coins = bigint
 
 type int32 = bigint
 
+type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
 
@@ -679,12 +680,12 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECGAEAA1IAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHAgEgCwwB90+JGONe1E0PpI+kj0BNFtbW2S8AIAcIEAhPiSKVGJVEGYBQdEFFBtE/AHmwHI+lL6UvQAye1U4F8D4O1E0PpI+kj0BNFtbW2S8AIAcIEAhPiS+Jf4kviX+Jj4kyf4OviU+JVWEcjOyRCuEK0QrBCrVhJVYPADbGEDyPpSgIAgEgCQoAJBL6UvQAye1UkTDghA8BxwDy9ACNDpfCAHQ1ywjmxaE5PK/0z8x+gAx+lAx9AQhbpsxIMcAkjBt4MjOyZHR4iBuklt/4NDIzsnIz4UIEvpScc8LbszJgED7AH+AAwztou37OAbXLCNEhRAsmGxx0z/0BfAEjkfXLCDJtoiUjiAwNy9Rf1F/UX9Rf1F/UX9Rf1F/BxBWEEUQNEEw8AbbMeFscdM/+kjXTCxRTFFMUUxRTFFMUUxRTFFMVTDwBeJ/gAgEgDQ4CASAPEABzCPDAJUnbrPDAJFw4plUe6krVSMr2nDggR9AUzzHBfL0yM+FCBP6UoIQ2gRjDM8Ljss/9ADJgED7AIADVDU1NgHDAJUjbrPDAJFw4pQEA9qA4GwzNDQigR9BA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCBH0IhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAfcMzQ01ywn////9PK/10zQ1ywgfFP1LI5j0z/6APpI+lD0BPoACcMAlSZus8MAkXDilhB4VRXawI5ANjg4ODjIz5A+KfqWIc8LP1AI+gIW+lJSQPpUE/QAUAT6AhPOycjPhQgS+lKCEKUbbLrPC44Tyz/6UszJgED7AOJ/gEQAI4F8IcAIBIBQVAgFIFhcAW7kV+NCFsaW5rLmNoYWluLnRvbi5jY2lwLk9uUmFtcEFjY291bnSCLUwLjEuMIgAG7nQjtRND6SDH6SDH0BYABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECHQEAA4AAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASATFAIBIAYHAKnZydHQLhgEqTN1nhgEi4cUuIHCOqg21gcBscHBwcZGfIHxT9SxNnhZ+oAv0BfSkpMH0qCXoAAP0BZ2TkZ8KECn0pQQhSjbZdZ4XHZZ/9KWZkwCB9gEAgEgCAkCASANDgH3T4kY417UTQ+kj6SPQE0W1tbZLwAgBwgQCE+JIpUYlUQZgFB0QUUG0T8AebAcj6UvpS9ADJ7VTgXwPg7UTQ+kj6SPQE0W1tbZLwAgBwgQCE+JL4l/iS+Jf4mPiTJ/g6+JT4lVYRyM7JEK4QrRCsEKtWElVg8ANsYQPI+lKAoCASALDAAkEvpS9ADJ7VSRMOCEDwHHAPL0AI0Ol8IAdDXLCObFoTk8r/TPzH6ADH6UDH0BCFumzEgxwCSMG3gyM7JkdHiIG6SW3/g0MjOycjPhQgS+lJxzwtuzMmAQPsAf4ADDO2i7fs4BtcsI0SFECyYbHHTP/QF8ASOR9csIMm2iJSOIDA3L1F/UX9Rf1F/UX9Rf1F/UX8HEFYQRRA0QTDwBtsx4Wxx0z/6SNdMLFFMUUxRTFFMUUxRTFFMUUxVMPAF4n+ACASAPEAIBIBESAHUI8MAlSdus8MAkXDimVR7qStVIyvacOCCAM0UUzzHBfL0yM+FCBP6UoIQ2gRjDM8Ljss/9ADJgED7AIADZDU1NgHDAJUjbrPDAJFw4pQEA9qA4GwzNDQiggDNFQOBAQv0Cm+hMRLy9CLQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwggDNFiFus5UDxwXDAJMxMnDiEvL0yM+FiPpSz4QQc/oCcc8LZczJgFD7AIACTDk5OQTDAJUkbrPDAJFw4pZHZVUD2rHgNDc3OAXI+lJQBPoCFPQAUAX6AhTLP8sfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAIf+BfC3CACASAVFgIBSBscAgEgFxgCAUgZGgBrtivxoUtjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6Fye3KTC2uCCxsbe6tzpBFqYFxiXGEQABu1xRBAEOUUBBCB935QkAALsaFgQFagABuzQjtRND6SDH6SDH0BYAARtdE9qJofSQYQABe0A32omh9JBj9JBhA=');
 
     static Errors = {
-        'DepositAccount_Error.OnlyOwner': 8000,
-        'DepositAccount_Error.OnlyBeneficiary': 8001,
-        'DepositAccount_Error.OnlySendExcessesToSender': 8002,
+        'DepositAccount_Error.OnlyOwner': 52500,
+        'DepositAccount_Error.OnlyBeneficiary': 52501,
+        'DepositAccount_Error.OnlySendExcessesToSender': 52502,
     }
 
     readonly address: c.Address
@@ -775,6 +776,18 @@ export class OnRampAccount implements c.Contract {
             r.readSlice(),
             r.readSlice(),
         ];
+    }
+
+    async getFacilityId(provider: ContractProvider): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('facilityId', []));
+        return r.readBigInt();
+    }
+
+    async getErrorCode(provider: ContractProvider, local: uint16): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('errorCode', [
+            { type: 'int', value: local },
+        ]));
+        return r.readBigInt();
     }
 
     async getOwner(provider: ContractProvider): Promise<c.Address> {

@@ -8,11 +8,13 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
+
 import "../../cct/messages"
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
+
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
@@ -20,12 +22,10 @@ import "../lib/token_pool/errors"
 
 import "messages"
 import "types"
-import "errors"
 import "storage"
 
 /// @notice Burn-Mint Token Pool implementation for CCIP.
 /// Burns jettons on the source chain and mints them on the destination chain.
-/// Uses ContextExecutor contracts for async operation handling.
 contract BurnMintTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
@@ -35,8 +35,9 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
-    
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
@@ -76,8 +77,6 @@ fun onInternalMessage(in: InMessage) {
 /// @notice Sends the CCT `AskToBurn` operational message to the pool's own jetton wallet
 /// to burn the locked tokens. The burn continuation context is attached as `forwardPayload`,
 /// which the CCT wallet relays via the minter back to the pool on `CCT_ReturnExcessesBack`.
-/// `sendExcessesTo` points back to this pool so the minter routes the completion (and excess)
-/// here directly — no ContextExecutor hop required.
 fun sendBurnMessage(
     st: Storage,
     queryId: uint64,
@@ -428,7 +427,15 @@ fun loadPool(st: Storage): TokenPool<Storage> {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (BurnMintTokenPool_CONTRACT_NAME, BurnMintTokenPool_CONTRACT_VERSION);
+    return (BurnMintTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return BurnMintTokenPool_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(BurnMintTokenPool_FACILITY_NAME.crc32(), local);
 }
 
 get fun token(): address {

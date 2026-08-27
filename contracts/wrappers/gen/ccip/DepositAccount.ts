@@ -184,6 +184,7 @@ type coins = bigint
 
 type int32 = bigint
 
+type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
 
@@ -679,12 +680,12 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAAwMAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAQEQIBIAYHAgFIDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKAMM7aLt+zgG1ywjRIUQLJhscdM/9AXwAo5H1ywgybaIlI4gMDcvUX9Rf1F/UX9Rf1F/UX9RfwcQVhBFEDRBMPAE2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQAcwjwwCVJ26zwwCRcOKZVHupK1UjK9pw4IEfQFM8xwXy9MjPhQgT+lKCENoEYwzPC47LP/QAyYBA+wCAA1Q1NTYBwwCVI26zwwCRcOKUBAPagOBsMzQ0IoEfQQOBAQv0Cm+hMRLy9CLQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwgR9CIW6zlQPHBcMAkzEycOIS8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAJMOTk5BMMAlSRus8MAkXDilkdlVQPaseA0Nzc4Bcj6UlAE+gIU9ABQBfoCFMs/yx8SzMnIz4UIEvpSghC0/lwMzwuOzMmAQPsAf4AH3DM0NNcsJ/////Tyv9dM0NcsIHxT9SyOY9M/+gD6SPpQ9AT6AAnDAJUmbrPDAJFw4pYQeFUV2sCOQDY4ODg4yM+QPin6liHPCz9QCPoCFvpSUkD6VBP0AFAE+gITzsnIz4UIEvpSghClG2y6zwuOE8s/+lLMyYBA+wDif4A8ACOBfCHACASASEwIBSBQVAF25FfjQibGluay5jaGFpbi50b24uY2NpcC5EZXBvc2l0QWNjb3VudIItTAuMS4wiAAbudCO1E0PpIMfpIMfQFgAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
+    static CodeCell = c.Cell.fromBase64('te6ccgECGwEAAzEAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAREgIBIAYHAgEgDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKAMM7aLt+zgG1ywjRIUQLJhscdM/9AXwAo5H1ywgybaIlI4gMDcvUX9Rf1F/UX9Rf1F/UX9RfwcQVhBFEDRBMPAE2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQAdQjwwCVJ26zwwCRcOKZVHupK1UjK9pw4IIAzRRTPMcF8vTIz4UIE/pSghDaBGMMzwuOyz/0AMmAQPsAgANkNTU2AcMAlSNus8MAkXDilAQD2oDgbDM0NCKCAM0VA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQPHBcMAkzEycOIS8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAgEgDxAAqUOTo6BcMAlSZus8MAkXDilxA4R1UG2sDgNjg4ODjIz5A+KfqWJs8LP1AF+gL6UlJg+lQS9AAB+gLOycjPhQgU+lKCEKUbbLrPC47LP/pSzMmAQPsAgAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAE81ywn////9PK/10zQ1ywgfFP1LJ/TP/oA+kj6UPQE+gDwBn/gXwtwgAgEgExQCAUgZGgIBIBUWAgFIFxgAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAG7NCO1E0PpIMfpIMfQFgABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
 
     static Errors = {
-        'DepositAccount_Error.OnlyOwner': 8000,
-        'DepositAccount_Error.OnlyBeneficiary': 8001,
-        'DepositAccount_Error.OnlySendExcessesToSender': 8002,
+        'DepositAccount_Error.OnlyOwner': 52500,
+        'DepositAccount_Error.OnlyBeneficiary': 52501,
+        'DepositAccount_Error.OnlySendExcessesToSender': 52502,
     }
 
     readonly address: c.Address
@@ -775,6 +776,18 @@ export class DepositAccount implements c.Contract {
             r.readSlice(),
             r.readSlice(),
         ];
+    }
+
+    async getFacilityId(provider: ContractProvider): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('facilityId', []));
+        return r.readBigInt();
+    }
+
+    async getErrorCode(provider: ContractProvider, local: uint16): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('errorCode', [
+            { type: 'int', value: local },
+        ]));
+        return r.readBigInt();
     }
 
     async getOwner(provider: ContractProvider): Promise<c.Address> {

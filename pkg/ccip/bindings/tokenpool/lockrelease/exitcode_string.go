@@ -9,12 +9,14 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[ExitCodeUnexpectedReleaseBounce-26300]
-	_ = x[ExitCodeContextExecutorUnavailable-26301]
+	_ = x[ExitCodeInvalidOffRampAccountReply-26301]
+	_ = x[ExitCodeInvalidOffRampAccountNotification-26302]
+	_ = x[ExitCodeOffRampAccountDeployFailed-26303]
 }
 
-const _ExitCode_name = "UnexpectedReleaseBounceContextExecutorUnavailable"
+const _ExitCode_name = "UnexpectedReleaseBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailed"
 
-var _ExitCode_index = [...]uint8{0, 23, 49}
+var _ExitCode_index = [...]uint8{0, 23, 49, 82, 108}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 26300

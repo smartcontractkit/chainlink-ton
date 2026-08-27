@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/jetton_client"
-import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
-import "../../accounts/deposit/types"
 
-const LockReleaseLockboxTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool".literalSlice();
-const LockReleaseLockboxTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
+/// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
+const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool";
+const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACILITY_NAME.crc32() % 640 + 10;
+
+
 /// @notice Context passed for lock (deposit) operations.
 /// Carries the full forward payload for post-lock finalization.
 struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
@@ -19,6 +20,19 @@ struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
+enum LockReleaseLockBoxTokenPool_Error {
+    LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100 // TOOD: facilityId = 487?
+    UnexpectedLockboxConfirmationSender
+
+    UnexpectedLockBounce
+    InvalidOffRampAccountReply
+    InvalidOffRampAccountNotification
+    OffRampAccountDeployFailed
+    // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
+    LockBoxWithdrawFailed
+}
+
+// TODO: remove?
 struct LockReleaseLockboxTokenPool_InitConfig {
     owner: address;
     jettonClient: JettonClient;

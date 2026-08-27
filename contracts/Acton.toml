@@ -38,20 +38,14 @@ src = "contracts/ccip/ccipsend_executor/contract.tolk"
 domain = "ccip"
 depends = []
 
-[contracts.ContextExecutor]
-display-name = "link.chain.ton.ccip.ContextExecutor"
-src = "contracts/ccip/executors/context_executor/contract.tolk"
-domain = "ccip"
-depends = []
-
 [contracts.DepositAccount]
-display-name = "link.chain.ton.ccip.DepositAccount"
+display-name = "link.chain.ton.ccip.account.DepositAccount"
 src = "contracts/ccip/accounts/deposit/contract.tolk"
 domain = "ccip"
 depends = []
 
 [contracts.OnRampAccount]
-display-name = "link.chain.ton.ccip.OnRampAccount"
+display-name = "link.chain.ton.ccip.account.OnRampAccount"
 src = "contracts/ccip/accounts/on_ramp_account/contract.tolk"
 domain = "ccip"
 depends = []
