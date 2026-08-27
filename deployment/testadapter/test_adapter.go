@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -446,10 +445,6 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 }
 
 func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
-	if os.Getenv("TON_TOKEN_TRANSFERS_ENABLED") == "" {
-		return nil, errors.ErrUnsupported
-	}
-
 	suffix := strconv.FormatUint(a.Selector, 10) + "-" + chain_selectors.FamilyTon
 	registryAddr, err := a.GetRegistryAddress()
 	if err != nil {
