@@ -58,13 +58,13 @@ type Storage struct {
 // --- Exit Codes ---
 
 // ExitCode represents a LockReleaseLockboxTokenPool-specific error code.
-// FACILITY_ID = 487, base error = 48700.
+// FACILITY_ID = 550, base error = 55000.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodeLockboxNotConfigured ExitCode = iota + 48700 // Facility ID 487 * 100
+	ExitCodeLockboxNotConfigured ExitCode = iota + 55000 // Facility ID 550 * 100
 	ExitCodeUnexpectedLockboxConfirmationSender
 	ExitCodeUnexpectedLockBounce
 	ExitCodeInvalidOffRampAccountReply

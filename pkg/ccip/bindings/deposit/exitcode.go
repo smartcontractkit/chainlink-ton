@@ -16,8 +16,8 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	// Facility ID 80 * 100 = 8000
-	ExitCodeOnlyOwner ExitCode = iota + 8000
+	// Facility ID 525 * 100 = 52500
+	ExitCodeOnlyOwner ExitCode = iota + 52500
 	ExitCodeOnlyBeneficiary
 	ExitCodeOnlySendExcessesToSender
 )

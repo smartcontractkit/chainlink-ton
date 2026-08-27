@@ -8,9 +8,9 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ExitCodeOnlyOwner-8000]
-	_ = x[ExitCodeOnlyBeneficiary-8001]
-	_ = x[ExitCodeOnlySendExcessesToSender-8002]
+	_ = x[ExitCodeOnlyOwner-52500]
+	_ = x[ExitCodeOnlyBeneficiary-52501]
+	_ = x[ExitCodeOnlySendExcessesToSender-52502]
 }
 
 const _ExitCode_name = "OnlyOwnerOnlyBeneficiaryOnlySendExcessesToSender"
@@ -18,8 +18,8 @@ const _ExitCode_name = "OnlyOwnerOnlyBeneficiaryOnlySendExcessesToSender"
 var _ExitCode_index = [...]uint8{0, 9, 24, 48}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 8000
-	if i < 8000 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 52500
+	if i < 52500 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

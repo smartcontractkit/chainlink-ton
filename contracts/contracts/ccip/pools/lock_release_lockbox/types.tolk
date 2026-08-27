@@ -20,16 +20,17 @@ struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
+/// Error codes for LockReleaseLockboxTokenPool. FACILITY_ID = 550, so codes start at 55000.
 enum LockReleaseLockBoxTokenPool_Error {
-    LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100 // TOOD: facilityId = 487?
-    UnexpectedLockboxConfirmationSender
+    LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100 // 55000
+    UnexpectedLockboxConfirmationSender // 55001
 
-    UnexpectedLockBounce
-    InvalidOffRampAccountReply
-    InvalidOffRampAccountNotification
-    OffRampAccountDeployFailed
+    UnexpectedLockBounce // 55002
+    InvalidOffRampAccountReply // 55003
+    InvalidOffRampAccountNotification // 55004
+    OffRampAccountDeployFailed // 55005
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
-    LockBoxWithdrawFailed
+    LockBoxWithdrawFailed // 55006
 }
 
 // TODO: remove?

@@ -27,12 +27,13 @@ struct (0xb3d52361) BurnMintTokenPool_MintContext {
 /// @notice Context stored in OffRampAccount for mint operations.
 type BurnMintTokenPool_OffRampAccountContext = BurnMintTokenPool_MintContext;
 
+/// Error codes for BurnMintTokenPool. FACILITY_ID = 94, so codes start at 9400.
 enum BurnMintTokenPool_Error {
-    UnexpectedBurnBounce = BurnMintTokenPool_FACILITY_ID * 100 // TODO: facilityId=412?
-    UnexpectedMintBounce
-    InvalidOffRampAccountReply
-    InvalidOffRampAccountNotification
-    OffRampAccountDeployFailed
+    UnexpectedBurnBounce = BurnMintTokenPool_FACILITY_ID * 100 // 9400
+    UnexpectedMintBounce // 9401
+    InvalidOffRampAccountReply // 9402
+    InvalidOffRampAccountNotification // 9403
+    OffRampAccountDeployFailed // 9404
 }
 
 // TODO: remove?

@@ -63,13 +63,13 @@ type Storage struct {
 // --- Exit Codes ---
 
 // ExitCode represents a BurnMintTokenPool-specific error code.
-// FACILITY_ID = 412, base error = 41200.
+// FACILITY_ID = 94, base error = 9400.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodeUnexpectedBurnBounce ExitCode = iota + 41200 // Facility ID 412 * 100
+	ExitCodeUnexpectedBurnBounce ExitCode = iota + 9400 // Facility ID 94 * 100
 	ExitCodeUnexpectedMintBounce
 	ExitCodeInvalidOffRampAccountReply
 	ExitCodeInvalidOffRampAccountNotification

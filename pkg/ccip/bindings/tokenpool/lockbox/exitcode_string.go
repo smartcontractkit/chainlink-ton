@@ -8,11 +8,11 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[TokenAmountCannotBeZero-4700]
-	_ = x[RecipientCannotBeZeroAddress-4701]
-	_ = x[UnsupportedToken-4702]
-	_ = x[ContractAlreadyInitialized-4703]
-	_ = x[ContractNotInitialized-4704]
+	_ = x[TokenAmountCannotBeZero-41800]
+	_ = x[RecipientCannotBeZeroAddress-41801]
+	_ = x[UnsupportedToken-41802]
+	_ = x[ContractAlreadyInitialized-41803]
+	_ = x[ContractNotInitialized-41804]
 }
 
 const _ExitCode_name = "TokenAmountCannotBeZeroRecipientCannotBeZeroAddressUnsupportedTokenContractAlreadyInitializedContractNotInitialized"
@@ -20,8 +20,8 @@ const _ExitCode_name = "TokenAmountCannotBeZeroRecipientCannotBeZeroAddressUnsup
 var _ExitCode_index = [...]uint8{0, 23, 51, 67, 93, 115}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 4700
-	if i < 4700 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 41800
+	if i < 41800 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]
