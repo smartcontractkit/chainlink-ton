@@ -65,10 +65,8 @@ func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainC
 		DefaultTokenFeeUSDCents:   0,
 		// DefaultTokenDestGasOverhead is the nanoTON value budgeted for the releaseOrMint
 		// flow on TON. The OffRamp rejects releases with destGasAmount < MIN_TT_GASLIMIT
-		// (ton("0.025") = 25_000_000 nanoTON), and the LockReleaseTokenPool needs
-		// ton("0.05") for the jetton transfer plus OffRamp_ReleaseOrMint.cost() ton("0.02").
-		// 100_000_000 (0.1 TON) comfortably covers all costs in the release flow.
-		DefaultTokenDestGasOverhead: 100_000_000,
+		// (ton("0.15") = 150_000_000 nanoTON), so the lane default must be at least that high.
+		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
 		DefaultTxGasLimit:           100_000_000,
 		NetworkFeeUSDCents:          10,
 		V1Params: &lanes.FeeQuoterV1Params{
