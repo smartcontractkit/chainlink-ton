@@ -23,7 +23,7 @@ import "messages"
 contract JettonLockBox {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.JettonLockBox"
+    description: "link.chain.ton.ccip.pool.JettonLockBox"
 
     storage: Storage
     incomingMessages: JettonLockBox_InMessage

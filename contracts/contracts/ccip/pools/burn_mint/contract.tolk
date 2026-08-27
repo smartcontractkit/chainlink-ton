@@ -29,7 +29,7 @@ import "storage"
 contract BurnMintTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.BurnMintTokenPool"
+    description: "link.chain.ton.ccip.pool.BurnMintTokenPool"
 
     storage: Storage
     incomingMessages:

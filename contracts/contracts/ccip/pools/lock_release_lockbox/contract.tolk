@@ -27,7 +27,7 @@ import "../lockbox/messages"
 contract LockReleaseLockboxTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.LockReleaseLockboxTokenPool"
+    description: "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
 
     storage: Storage
     incomingMessages:

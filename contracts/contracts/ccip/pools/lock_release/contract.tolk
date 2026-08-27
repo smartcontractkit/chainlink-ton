@@ -27,7 +27,7 @@ import "storage"
 contract LockReleaseTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.LockReleaseTokenPool"
+    description: "link.chain.ton.ccip.pool.LockReleaseTokenPool"
 
     storage: Storage
     incomingMessages:

@@ -4,7 +4,7 @@ import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
-const BurnMintTokenPool_FACILITY_NAME = "link.chain.ton.ccip.BurnMintTokenPool";
+const BurnMintTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.BurnMintTokenPool";
 const BurnMintTokenPool_FACILITY_ID = BurnMintTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
@@ -27,13 +27,13 @@ struct (0xb3d52361) BurnMintTokenPool_MintContext {
 /// @notice Context stored in OffRampAccount for mint operations.
 type BurnMintTokenPool_OffRampAccountContext = BurnMintTokenPool_MintContext;
 
-/// Error codes for BurnMintTokenPool. FACILITY_ID = 94, so codes start at 9400.
+/// Error codes for BurnMintTokenPool. FACILITY_ID = 450, so codes start at 45000.
 enum BurnMintTokenPool_Error {
-    UnexpectedBurnBounce = BurnMintTokenPool_FACILITY_ID * 100 // 9400
-    UnexpectedMintBounce // 9401
-    InvalidOffRampAccountReply // 9402
-    InvalidOffRampAccountNotification // 9403
-    OffRampAccountDeployFailed // 9404
+    UnexpectedBurnBounce = BurnMintTokenPool_FACILITY_ID * 100 // 45000
+    UnexpectedMintBounce // 45001
+    InvalidOffRampAccountReply // 45002
+    InvalidOffRampAccountNotification // 45003
+    OffRampAccountDeployFailed // 45004
 }
 
 // TODO: remove?

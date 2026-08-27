@@ -99,7 +99,7 @@ describe('JettonLockBox', () => {
           walletAddress: null,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
       ),
     )
 
@@ -149,7 +149,7 @@ describe('JettonLockBox', () => {
 
     it('should return correct type and version', async () => {
       const [type, version] = await lockbox.getTypeAndVersion()
-      expect(type.loadStringTail()).toBe('link.chain.ton.ccip.JettonLockBox')
+      expect(type.loadStringTail()).toBe('link.chain.ton.ccip.pool.JettonLockBox')
       expect(version.loadStringTail()).toBe('0.1.0')
     })
 
@@ -581,7 +581,7 @@ describe('JettonLockBox', () => {
             id: 1n,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
         ),
       )
 
@@ -618,7 +618,7 @@ describe('JettonLockBox', () => {
             id: 2n,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
         ),
       )
 

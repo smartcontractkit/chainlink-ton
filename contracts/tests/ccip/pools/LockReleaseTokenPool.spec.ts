@@ -137,7 +137,7 @@ describe('LockReleaseTokenPool', () => {
           }),
           offRampAccountCode: DepositAccount.CodeCell,
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pools.LockReleaseTokenPool') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool') },
       ),
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))

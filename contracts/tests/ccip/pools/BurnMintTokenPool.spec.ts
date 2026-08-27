@@ -85,7 +85,7 @@ describe('BurnMintTokenPool', () => {
 
     cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
-    const burnMintPoolCode = await contractCode.ccip.local('ccip.pools.BurnMintTokenPool')
+    const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
 
     cctMinter = blockchain.openContract(
       cct.JettonMinter.fromStorage(

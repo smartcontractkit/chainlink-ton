@@ -4,7 +4,7 @@ import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
-const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.LockReleaseLockboxTokenPool";
+const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool";
 const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
 
@@ -20,17 +20,17 @@ struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
-/// Error codes for LockReleaseLockboxTokenPool. FACILITY_ID = 550, so codes start at 55000.
+/// Error codes for LockReleaseLockboxTokenPool. FACILITY_ID = 209, so codes start at 20900.
 enum LockReleaseLockBoxTokenPool_Error {
-    LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100 // 55000
-    UnexpectedLockboxConfirmationSender // 55001
+    LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100 // 20900
+    UnexpectedLockboxConfirmationSender // 20901
 
-    UnexpectedLockBounce // 55002
-    InvalidOffRampAccountReply // 55003
-    InvalidOffRampAccountNotification // 55004
-    OffRampAccountDeployFailed // 55005
+    UnexpectedLockBounce // 20902
+    InvalidOffRampAccountReply // 20903
+    InvalidOffRampAccountNotification // 20904
+    OffRampAccountDeployFailed // 20905
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
-    LockBoxWithdrawFailed // 55006
+    LockBoxWithdrawFailed // 20906
 }
 
 // TODO: remove?

@@ -4,7 +4,7 @@ import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
-const LockReleaseTokenPool_FACILITY_NAME = "link.chain.ton.ccip.LockReleaseTokenPool";
+const LockReleaseTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseTokenPool";
 const LockReleaseTokenPool_FACILITY_ID = LockReleaseTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
 const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
@@ -16,11 +16,12 @@ struct (0xed696f9b) LockReleaseTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
+/// Error codes for LockReleaseTokenPool. FACILITY_ID = 72, so codes start at 7200.
 enum Error {
-    UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100
-    InvalidOffRampAccountReply
-    InvalidOffRampAccountNotification
-    OffRampAccountDeployFailed
+    UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100 // 7200
+    InvalidOffRampAccountReply // 7201
+    InvalidOffRampAccountNotification // 7202
+    OffRampAccountDeployFailed // 7203
 }
 
 // TODO: remove?

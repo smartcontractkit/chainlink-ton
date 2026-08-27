@@ -11,7 +11,7 @@ import "lib/token_pool/events"
 contract TokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.TokenPool"
+    description: "link.chain.ton.ccip.pool.TokenPool"
 
     storage: TokenPool_Data
     incomingMessages: TokenPool_InMessage // TODO: all incoming messages should be registered

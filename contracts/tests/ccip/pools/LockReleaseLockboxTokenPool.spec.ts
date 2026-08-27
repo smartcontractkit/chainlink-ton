@@ -114,7 +114,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           walletAddress: null,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
       ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
@@ -175,7 +175,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         },
         {
           overrideContractCode: await contractCode.ccip.local(
-            'ccip.pools.LockReleaseLockboxTokenPool',
+            'ccip.pool.LockReleaseLockboxTokenPool',
           ),
         },
       ),
