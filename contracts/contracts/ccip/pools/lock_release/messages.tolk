@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/messages"
-import "../../accounts/off_ramp_account/messages"
+import "../../accounts/deposit/messages"
 
 type LockReleaseTokenPool_InMessage =
-    | OffRampAccount_Reply
-    | OffRampAccount_ForwardNotification
+    | DepositAccount_Reply
+    | DepositAccount_ForwardNotification
     | ReturnExcessesBack;
 
 type LockReleaseTokenPool_OutMessage =
@@ -12,4 +12,4 @@ type LockReleaseTokenPool_OutMessage =
 
 type LockReleaseTokenPool_BouncedMessage =
     | AskToTransfer
-    | OffRampAccount_Init;
+    | DepositAccount_Init;

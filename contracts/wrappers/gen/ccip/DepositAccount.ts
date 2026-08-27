@@ -1,5 +1,5 @@
 // AUTO-GENERATED, do not edit
-// It's a TypeScript wrapper for a OnRampAccount contract in Tolk.
+// It's a TypeScript wrapper for a DepositAccount contract in Tolk.
 /* eslint-disable */
 
 import * as c from '@ton/core';
@@ -213,93 +213,6 @@ export const ExtraCurrenciesMap = {
     },
     toCell(self: ExtraCurrenciesMap): c.Cell {
         return makeCellFrom<ExtraCurrenciesMap>(self, ExtraCurrenciesMap.store);
-    }
-}
-
-/**
- > type ForwardPayloadRemainder = RemainingBitsAndRefs
- */
-export type ForwardPayloadRemainder = RemainingBitsAndRefs
-
-export const ForwardPayloadRemainder = {
-    fromSlice(s: c.Slice): ForwardPayloadRemainder {
-        return loadTolkRemaining(s);
-    },
-    store(self: ForwardPayloadRemainder, b: c.Builder): void {
-        storeTolkRemaining(self, b);
-    },
-    toCell(self: ForwardPayloadRemainder): c.Cell {
-        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
-    }
-}
-
-/**
- > struct (0x0f8a7ea5) AskToTransfer {
- >     queryId: uint64
- >     jettonAmount: coins
- >     transferRecipient: address
- >     sendExcessesTo: address?
- >     customPayload: cell?
- >     forwardTonAmount: coins
- >     forwardPayload: ForwardPayloadRemainder
- > }
- */
-export interface AskToTransfer {
-    readonly $: 'AskToTransfer'
-    queryId: uint64
-    jettonAmount: coins
-    transferRecipient: c.Address
-    sendExcessesTo: c.Address | null
-    customPayload: c.Cell | null
-    forwardTonAmount: coins
-    forwardPayload: ForwardPayloadRemainder
-}
-
-export const AskToTransfer = {
-    PREFIX: 0x0f8a7ea5,
-
-    create(args: {
-        queryId?: uint64
-        jettonAmount: coins
-        transferRecipient: c.Address
-        sendExcessesTo: c.Address | null
-        customPayload: c.Cell | null
-        forwardTonAmount: coins
-        forwardPayload: ForwardPayloadRemainder
-    }): AskToTransfer {
-        return {
-            $: 'AskToTransfer',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): AskToTransfer {
-        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
-        return {
-            $: 'AskToTransfer',
-            queryId: s.loadUintBig(64),
-            jettonAmount: s.loadCoins(),
-            transferRecipient: s.loadAddress(),
-            sendExcessesTo: s.loadMaybeAddress(),
-            customPayload: s.loadBoolean() ? s.loadRef() : null,
-            forwardTonAmount: s.loadCoins(),
-            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
-        }
-    },
-    store(self: AskToTransfer, b: c.Builder): void {
-        b.storeUint(0x0f8a7ea5, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeCoins(self.jettonAmount);
-        b.storeAddress(self.transferRecipient);
-        b.storeAddress(self.sendExcessesTo);
-        storeTolkNullable<c.Cell>(self.customPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-        b.storeCoins(self.forwardTonAmount);
-        ForwardPayloadRemainder.store(self.forwardPayload, b);
-    },
-    toCell(self: AskToTransfer): c.Cell {
-        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
     }
 }
 
@@ -641,8 +554,95 @@ export const DepositAccount_WithdrawFailed = {
     }
 }
 
+/**
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
+ */
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
+
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
+    },
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
+    },
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
+    }
+}
+
+/**
+ > struct (0x0f8a7ea5) AskToTransfer {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferRecipient: address
+ >     sendExcessesTo: address?
+ >     customPayload: cell?
+ >     forwardTonAmount: coins
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface AskToTransfer {
+    readonly $: 'AskToTransfer'
+    queryId: uint64
+    jettonAmount: coins
+    transferRecipient: c.Address
+    sendExcessesTo: c.Address | null
+    customPayload: c.Cell | null
+    forwardTonAmount: coins
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const AskToTransfer = {
+    PREFIX: 0x0f8a7ea5,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferRecipient: c.Address
+        sendExcessesTo: c.Address | null
+        customPayload: c.Cell | null
+        forwardTonAmount: coins
+        forwardPayload: ForwardPayloadRemainder
+    }): AskToTransfer {
+        return {
+            $: 'AskToTransfer',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AskToTransfer {
+        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
+        return {
+            $: 'AskToTransfer',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferRecipient: s.loadAddress(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            customPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardTonAmount: s.loadCoins(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: AskToTransfer, b: c.Builder): void {
+        b.storeUint(0x0f8a7ea5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferRecipient);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.customPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.forwardTonAmount);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: AskToTransfer): c.Cell {
+        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
+    }
+}
+
 // ————————————————————————————————————————————
-//    class OnRampAccount
+//    class DepositAccount
 //
 
 interface ExtraSendOptions {
@@ -679,8 +679,8 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
     return new c.Address(options.workchain ?? 0, addrHash);
 }
 
-export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECHQEAA4AAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASATFAIBIAYHAKnZydHQLhgEqTN1nhgEi4cUuIHCOqg21gcBscHBwcZGfIHxT9SxNnhZ+oAv0BfSkpMH0qCXoAAP0BZ2TkZ8KECn0pQQhSjbZdZ4XHZZ/9KWZkwCB9gEAgEgCAkCASANDgH3T4kY417UTQ+kj6SPQE0W1tbZLwAgBwgQCE+JIpUYlUQZgFB0QUUG0T8AebAcj6UvpS9ADJ7VTgXwPg7UTQ+kj6SPQE0W1tbZLwAgBwgQCE+JL4l/iS+Jf4mPiTJ/g6+JT4lVYRyM7JEK4QrRCsEKtWElVg8ANsYQPI+lKAoCASALDAAkEvpS9ADJ7VSRMOCEDwHHAPL0AI0Ol8IAdDXLCObFoTk8r/TPzH6ADH6UDH0BCFumzEgxwCSMG3gyM7JkdHiIG6SW3/g0MjOycjPhQgS+lJxzwtuzMmAQPsAf4ADDO2i7fs4BtcsI0SFECyYbHHTP/QF8ASOR9csIMm2iJSOIDA3L1F/UX9Rf1F/UX9Rf1F/UX8HEFYQRRA0QTDwBtsx4Wxx0z/6SNdMLFFMUUxRTFFMUUxRTFFMUUxVMPAF4n+ACASAPEAIBIBESAHUI8MAlSdus8MAkXDimVR7qStVIyvacOCCAM0UUzzHBfL0yM+FCBP6UoIQ2gRjDM8Ljss/9ADJgED7AIADZDU1NgHDAJUjbrPDAJFw4pQEA9qA4GwzNDQiggDNFQOBAQv0Cm+hMRLy9CLQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwggDNFiFus5UDxwXDAJMxMnDiEvL0yM+FiPpSz4QQc/oCcc8LZczJgFD7AIACTDk5OQTDAJUkbrPDAJFw4pZHZVUD2rHgNDc3OAXI+lJQBPoCFPQAUAX6AhTLP8sfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAIf+BfC3CACASAVFgIBSBscAgEgFxgCAUgZGgBrtivxoUtjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6Fye3KTC2uCCxsbe6tzpBFqYFxiXGEQABu1xRBAEOUUBBCB935QkAALsaFgQFagABuzQjtRND6SDH6SDH0BYAARtdE9qJofSQYQABe0A32omh9JBj9JBhA=');
+export class DepositAccount implements c.Contract {
+    static CodeCell = c.Cell.fromBase64('te6ccgECGwEAAzEAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAREgIBIAYHAgEgDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKAMM7aLt+zgG1ywjRIUQLJhscdM/9AXwAo5H1ywgybaIlI4gMDcvUX9Rf1F/UX9Rf1F/UX9RfwcQVhBFEDRBMPAE2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQAdQjwwCVJ26zwwCRcOKZVHupK1UjK9pw4IIAzRRTPMcF8vTIz4UIE/pSghDaBGMMzwuOyz/0AMmAQPsAgANkNTU2AcMAlSNus8MAkXDilAQD2oDgbDM0NCKCAM0VA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQPHBcMAkzEycOIS8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAgEgDxAAqUOTo6BcMAlSZus8MAkXDilxA4R1UG2sDgNjg4ODjIz5A+KfqWJs8LP1AF+gL6UlJg+lQS9AAB+gLOycjPhQgU+lKCEKUbbLrPC47LP/pSzMmAQPsAgAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAE81ywn////9PK/10zQ1ywgfFP1LJ/TP/oA+kj6UPQE+gDwBn/gXwtwgAgEgExQCAUgZGgIBIBUWAgFIFxgAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAG7NCO1E0PpIMfpIMfQFgABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
@@ -697,7 +697,7 @@ export class OnRampAccount implements c.Contract {
     }
 
     static fromAddress(address: c.Address) {
-        return new OnRampAccount(address);
+        return new DepositAccount(address);
     }
 
     static fromStorage(emptyStorage: {
@@ -706,11 +706,11 @@ export class OnRampAccount implements c.Contract {
         beneficiaries: Set<c.Address>
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? OnRampAccount.CodeCell,
+            code: deployedOptions?.overrideContractCode ?? DepositAccount.CodeCell,
             data: DepositAccount_Data.toCell(DepositAccount_Data.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
-        return new OnRampAccount(address, initialState);
+        return new DepositAccount(address, initialState);
     }
 
     static createCellOfDepositAccountInit(body: {

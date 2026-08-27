@@ -8,19 +8,22 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ExitCodeContextExecutorUnavailable-48700]
-	_ = x[ExitCodeLockboxNotConfigured-48701]
-	_ = x[ExitCodeUnexpectedLockboxConfirmationSender-48702]
-	_ = x[ExitCodeUnexpectedLockBounce-48703]
+	_ = x[ExitCodeLockboxNotConfigured-20900]
+	_ = x[ExitCodeUnexpectedLockboxConfirmationSender-20901]
+	_ = x[ExitCodeUnexpectedLockBounce-20902]
+	_ = x[ExitCodeInvalidOffRampAccountReply-20903]
+	_ = x[ExitCodeInvalidOffRampAccountNotification-20904]
+	_ = x[ExitCodeOffRampAccountDeployFailed-20905]
+	_ = x[ExitCodeLockboxWithdrawFailed-20906]
 }
 
-const _ExitCode_name = "ContextExecutorUnavailableLockboxNotConfiguredUnexpectedLockboxConfirmationSenderUnexpectedLockBounce"
+const _ExitCode_name = "LockboxNotConfiguredUnexpectedLockboxConfirmationSenderUnexpectedLockBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailedLockboxWithdrawFailed"
 
-var _ExitCode_index = [...]uint8{0, 26, 46, 81, 101}
+var _ExitCode_index = [...]uint8{0, 20, 55, 75, 101, 134, 160, 181}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 48700
-	if i < 48700 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 20900
+	if i < 20900 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

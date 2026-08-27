@@ -3845,7 +3845,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECNAEAAWkAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICgpAgEgCAkCASAWFwIBIAoLAgEgEhMCASAMDQANsFfhA/y8IAIBZg4PAgFIEBEAC6BeED/LwgALocYQP8vCAAuldQgf5eEAC6cjCB/l4QANs2ohA/y8IAIBIBQVAA2sPkIH+XhAAA2sgMIH+XhAAgEgGBkCASAiIwIBIBobAgEgICECASAcHQIBYh4fAAyqh4QP8vAADKkdhA/y8AALofoQP8vCAAugfhA/y8IADa9FQgf5eEAADazjQgf5eEACAVgkJQICdSYnAAypeoQP8vAADKq2hA/y8AALo64QP8vCAAuiGhA/y8ICASAqKwIBICwtAA20fbCB/l4QAA233PCB/l4QAA20jbCB/l4QAgEgLi8CAWowMQIBIDIzAAulXwgf5eEAC6cDCB/l4QANrGvCB/l4QAANrDjCB/l4QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECOAEAAYIAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgEhMCASAMDQANsFfhA/y8IAIBZg4PAgFIEBEAC6BeED/LwgALocYQP8vCAAuldQgf5eEAC6cjCB/l4QIBbhQVAgEgFhcAC6dRCB/l4QALpFEIH+XhAA2sPkIH+XhAAA2sgMIH+XhAAgEgGhsCASAmJwIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYKCkCAnUqKwAMqXqED/LwAAyqtoQP8vAAC6OuED/LwgALohoQP8vCAgEgLi8CASAwMQANtH2wgf5eEAANt9zwgf5eEAANtI2wgf5eEAIBIDIzAgFqNDUCASA2NwALpV8IH+XhAAunAwgf5eEADaxrwgf5eEAADaw4wgf5eEA=');
 
     static Errors = {
     }
@@ -4299,6 +4299,18 @@ export class TokenPool implements c.Contract {
             r.readSlice(),
             r.readSlice(),
         ];
+    }
+
+    async getFacilityId(provider: ContractProvider): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('facilityId', []));
+        return r.readBigInt();
+    }
+
+    async getErrorCode(provider: ContractProvider, local: uint16): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('errorCode', [
+            { type: 'int', value: local },
+        ]));
+        return r.readBigInt();
     }
 
     async getToken(provider: ContractProvider): Promise<c.Address> {

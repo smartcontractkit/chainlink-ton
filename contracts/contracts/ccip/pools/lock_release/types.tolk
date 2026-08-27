@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
+
 import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
-import "../../accounts/off_ramp_account/types"
 
-const LockReleaseTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseTokenPool".literalSlice();
-const LockReleaseTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
+/// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
+const LockReleaseTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseTokenPool";
+const LockReleaseTokenPool_FACILITY_ID = LockReleaseTokenPool_FACILITY_NAME.crc32() % 640 + 10;
+
 const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
 const LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE = ton("0.1");
 
@@ -14,6 +16,15 @@ struct (0xed696f9b) LockReleaseTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
+/// Error codes for LockReleaseTokenPool. FACILITY_ID = 72, so codes start at 7200.
+enum Error {
+    UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100 // 7200
+    InvalidOffRampAccountReply // 7201
+    InvalidOffRampAccountNotification // 7202
+    OffRampAccountDeployFailed // 7203
+}
+
+// TODO: remove?
 struct LockReleaseTokenPool_InitConfig {
     owner: address;
     jettonClient: JettonClient;

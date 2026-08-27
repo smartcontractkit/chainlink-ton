@@ -16,7 +16,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorInvalidTransferFeeBps ExitCode = iota + 14900 // Facility ID 149 * 100
+	ErrorInvalidTransferFeeBps ExitCode = iota + 51700 // Facility ID 517 * 100
 	ErrorInvalidTokenTransferFeeConfig
 	ErrorCallerIsNotARampOnRouter
 	ErrorZeroAddressInvalid

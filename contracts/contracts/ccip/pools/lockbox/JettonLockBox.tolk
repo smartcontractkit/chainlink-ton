@@ -23,12 +23,14 @@ import "messages"
 contract JettonLockBox {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.JettonLockBox"
+    description: "link.chain.ton.ccip.pool.JettonLockBox"
 
     storage: Storage
     incomingMessages: JettonLockBox_InMessage
     outgoingMessages: JettonLockBox_OutMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 /// Storage rent reserve to keep the contract alive.
 const MIN_GRAM_TO_RESERVE: int = ton("0.05");
@@ -280,9 +282,16 @@ fun hookTrait__AccessControl(st: Storage): AccessControl<null?> {
 
 // --- Getters ---
 
-/// Returns the contract type and version.
 get fun typeAndVersion(): (slice, slice) {
-    return (JettonLockBox_FACILITY_NAME.literalSlice(), JettonLockBox_CONTRACT_VERSION.literalSlice());
+    return (JettonLockBox_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return JettonLockBox_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(JettonLockBox_FACILITY_NAME.crc32(), local);
 }
 
 /// Returns the jetton minter address (token) held by this lockbox.
