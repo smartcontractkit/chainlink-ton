@@ -38,6 +38,17 @@ struct (0xa7c4c16c) TokenAdminRegistryEntry_SetPool {
     enabled: bool
 }
 
+struct TokenAdminRegistryEntry_AdministratorTransferRequested {
+    token: address
+    currentAdministrator: address?
+    newAdministrator: address?
+}
+
+struct TokenAdminRegistryEntry_AdministratorTransferred {
+    token: address
+    newAdministrator: address
+}
+
 struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
     minterAddress: address
     tokenPool: address?

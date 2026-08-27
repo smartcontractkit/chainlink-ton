@@ -50,44 +50,50 @@ fun onInternalMessage(in: InMessage) {
 
 fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
-    assert(sender == st.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    val adminConfig = st.adminConfig.load();
+    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
     st.tokenInfo = msg.info;
     st.store();
 }
 
 fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
-    assert(sender == st.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
-    assert(st.administrator == null) throw TokenAdminRegistryEntry_Error.AlreadyRegistered;
+    var adminConfig = st.adminConfig.load();
+    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.administrator == null) throw TokenAdminRegistryEntry_Error.AlreadyRegistered;
     assert(msg.administrator != createAddressNone()) throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
-    st.pendingAdministrator = msg.administrator;
+    adminConfig.pendingAdministrator = msg.administrator;
+    st.adminConfig = adminConfig.toCell();
     st.store();
-
-    // TODO: emit AdministratorTransferRequested.
+    emitAdministratorTransferRequested(st.tokenAddress, adminConfig.administrator, msg.administrator);
 }
 
 fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
-    assert(st.administrator != null && sender == st.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
-    st.pendingAdministrator = msg.newAdministrator;
+    var adminConfig = st.adminConfig.load();
+    assert(adminConfig.administrator != null && sender == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    val currentAdministrator = adminConfig.administrator;
+    adminConfig.pendingAdministrator = msg.newAdministrator;
+    st.adminConfig = adminConfig.toCell();
     st.store();
-
-    // TODO: emit AdministratorTransferRequested.
+    emitAdministratorTransferRequested(st.tokenAddress, currentAdministrator, msg.newAdministrator);
 }
 
 fun onAcceptAdminRole(sender: address) {
     var st = lazy TokenRegistry_Storage.load();
-    assert(st.pendingAdministrator != null && sender == st.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
-    st.administrator = sender;
-    st.pendingAdministrator = null;
+    var adminConfig = st.adminConfig.load();
+    assert(adminConfig.pendingAdministrator != null && sender == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
+    adminConfig.administrator = sender;
+    adminConfig.pendingAdministrator = null;
+    st.adminConfig = adminConfig.toCell();
     st.store();
-
-    // TODO: emit AdministratorTransferred.
+    emitAdministratorTransferred(st.tokenAddress, sender);
 }
 
 fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
-    assert(st.administrator != null && sender == st.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    val adminConfig = st.adminConfig.load();
+    assert(adminConfig.administrator != null && sender == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
 
     // TODO: validate that tokenPool is a CCIP pool for st.tokenAddress before enabling it.
     // TODO: reject enabled pools with addr_none once the pool-validation interface exists.
@@ -114,4 +120,27 @@ fun onGetTokenInfo(sender: address) {
         }
     });
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun emitAdministratorTransferRequested(token: address, currentAdministrator: address?, newAdministrator: address?) {
+    val event = createExternalLogMessage({
+        dest: createAddressNone(),
+        body: TokenAdminRegistryEntry_AdministratorTransferRequested {
+            token,
+            currentAdministrator,
+            newAdministrator,
+        }
+    });
+    event.send(SEND_MODE_REGULAR);
+}
+
+fun emitAdministratorTransferred(token: address, newAdministrator: address) {
+    val event = createExternalLogMessage({
+        dest: createAddressNone(),
+        body: TokenAdminRegistryEntry_AdministratorTransferred {
+            token,
+            newAdministrator,
+        }
+    });
+    event.send(SEND_MODE_REGULAR);
 }

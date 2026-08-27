@@ -40,6 +40,11 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             registerToken(st, msg);
         }
+        TokenAdminRegistry_OverridePendingAdministrator => {
+            var st = lazy TokenAdminRegistry_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            overridePendingAdministrator(st, msg);
+        }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
             val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
@@ -52,9 +57,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// Deploys a deterministic shard with an unclaimed administrator proposal, or
-/// replaces an unaccepted proposal on an existing shard. Once claimed, the
-/// entry rejects further root proposals.
+/// Deploys a deterministic shard with an unclaimed administrator proposal.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     // TODO: add self-service registration once TON has a canonical,
     // independently verifiable proof that the sender controls the token minter.
@@ -68,27 +71,50 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         contract.getAddress(),
     );
 
-    if (msg.isNewEntry) {
-        val deployMsg = createMessage({
-            bounce: false,
-            value: ton("0.015"),
-            dest: entryAddress,
-            body: Deployable_Initialize {
-                stateInit: {
-                    code: deployment.entryCode,
-                    data: TokenRegistry_Storage {
+    val deployMsg = createMessage({
+        bounce: false,
+        value: ton("0.015"),
+        dest: entryAddress,
+        body: Deployable_Initialize {
+            stateInit: {
+                code: deployment.entryCode,
+                data: TokenRegistry_Storage {
+                    tokenAddress: msg.tokenAddress,
+                    tokenInfo: msg.tokenInfo.load(),
+                    adminConfig: TokenRegistry_AdminConfig {
                         tokenAdminRegistry: contract.getAddress(),
-                        tokenAddress: msg.tokenAddress,
-                        tokenInfo: msg.tokenInfo,
                         administrator: null,
                         pendingAdministrator: msg.administrator,
                     }.toCell(),
-                }
-            },
-        });
-        deployMsg.send(SEND_MODE_REGULAR);
-    }
+                }.toCell(),
+            }
+        },
+    });
+    deployMsg.send(SEND_MODE_REGULAR);
 
+    // Send the proposal through the entry too, so initial registration follows
+    // the same event path as an override.
+    val proposeMsg = createMessage({
+        bounce: false,
+        value: ton("0.015"),
+        dest: entryAddress,
+        body: TokenAdminRegistryEntry_ProposeAdministrator {
+            administrator: msg.administrator,
+        },
+    });
+    proposeMsg.send(SEND_MODE_REGULAR);
+}
+
+/// Replaces an unaccepted administrator proposal. The shard enforces that no
+/// active administrator exists, so this cannot reclaim a configured token.
+fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_OverridePendingAdministrator) {
+    assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
+    val deployment = st.entryDeployment;
+    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
+        deployment.deployableCode,
+        msg.tokenAddress,
+        contract.getAddress(),
+    );
     val proposeMsg = createMessage({
         bounce: false,
         value: ton("0.015"),

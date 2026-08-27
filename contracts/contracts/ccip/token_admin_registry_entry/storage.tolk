@@ -1,11 +1,15 @@
 import "types"
 
-struct TokenRegistry_Storage {
+struct TokenRegistry_AdminConfig {
     tokenAdminRegistry: address
-    tokenAddress: address
-    tokenInfo: TokenRegistry_TokenInfo
     administrator: address?
     pendingAdministrator: address?
+}
+
+struct TokenRegistry_Storage {
+    tokenAddress: address
+    tokenInfo: TokenRegistry_TokenInfo
+    adminConfig: Cell<TokenRegistry_AdminConfig>
 }
 
 fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
@@ -14,10 +18,8 @@ fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
 
 fun TokenRegistry_Storage.store(self) {
     contract.setData(TokenRegistry_Storage{
-        tokenAdminRegistry: self.tokenAdminRegistry,
         tokenAddress: self.tokenAddress,
         tokenInfo: self.tokenInfo,
-        administrator: self.administrator,
-        pendingAdministrator: self.pendingAdministrator,
+        adminConfig: self.adminConfig,
     }.toCell());
 }
