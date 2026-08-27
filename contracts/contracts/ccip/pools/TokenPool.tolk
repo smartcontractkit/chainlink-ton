@@ -6,12 +6,13 @@ import "../common/types"
 import "lib/token_pool/types"
 import "lib/token_pool/entrypoint"
 import "lib/token_pool/messages"
+import "lib/token_pool/errors"
 import "lib/token_pool/events"
 
 contract TokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.TokenPool"
+    description: "link.chain.ton.ccip.pool.TokenPool"
 
     storage: TokenPool_Data
     incomingMessages: TokenPool_InMessage // TODO: all incoming messages should be registered
@@ -28,6 +29,14 @@ fun onInternalMessage(_: InMessage) {
 // All getters throw at runtime — they should never be deployed.
 
 get fun typeAndVersion(): (slice, slice) {
+    throw 0xFFFF;
+}
+
+get fun facilityId(): uint16  {
+    throw 0xFFFF;
+}
+
+get fun errorCode(local: uint16): uint16 {
     throw 0xFFFF;
 }
 

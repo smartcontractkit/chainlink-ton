@@ -34,10 +34,6 @@ import {
   JettonLockBox,
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
-import {
-  ContextExecutor,
-  ContextExecutor_ForwardNotification,
-} from '../../../wrappers/gen/ccip/ContextExecutor'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
 import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
@@ -46,9 +42,9 @@ import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockB
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import {
-  OffRampAccount,
-  OffRampAccount_ForwardNotification,
-} from '../../../wrappers/gen/ccip/OffRampAccount'
+  DepositAccount,
+  DepositAccount_ForwardNotification,
+} from '../../../wrappers/gen/ccip/DepositAccount'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -118,7 +114,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           walletAddress: null,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
       ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
@@ -175,11 +171,11 @@ describe('LockReleaseLockboxTokenPool', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: jettonLockBox.address,
-          offRampAccountCode: OffRampAccount.CodeCell,
+          offRampAccountCode: DepositAccount.CodeCell,
         },
         {
           overrideContractCode: await contractCode.ccip.local(
-            'ccip.pools.LockReleaseLockboxTokenPool',
+            'ccip.pool.LockReleaseLockboxTokenPool',
           ),
         },
       ),
@@ -798,7 +794,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       // pool finalizes the release and clears the direct failure context.
       expect(result.transactions).toHaveTransaction({
         to: lockReleaseLockboxPool.address,
-        op: OffRampAccount_ForwardNotification.PREFIX,
+        op: DepositAccount_ForwardNotification.PREFIX,
         success: true,
       })
     })

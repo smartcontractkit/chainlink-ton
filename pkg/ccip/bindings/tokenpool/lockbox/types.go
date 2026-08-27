@@ -81,13 +81,13 @@ type WithdrawFailed struct {
 }
 
 // ExitCode represents a JettonLockBox-specific error code.
-// FACILITY_ID = 47, base error = 4700.
+// FACILITY_ID = 567, base error = 56700.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	TokenAmountCannotBeZero ExitCode = iota + 4700 // Facility ID 47 * 100
+	TokenAmountCannotBeZero ExitCode = iota + 56700 // Facility ID 567 * 100
 	RecipientCannotBeZeroAddress
 	UnsupportedToken
 	ContractAlreadyInitialized

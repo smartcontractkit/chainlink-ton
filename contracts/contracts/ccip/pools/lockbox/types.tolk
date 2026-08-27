@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
-/// JettonLockBox types, error codes, and storage.
 
 import "../../../lib/access/access_control"
 
 /// Facility ID used for error code derivation.
-const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.JettonLockBox";
+const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pool.JettonLockBox";
 const JettonLockBox_FACILITY_ID = JettonLockBox_FACILITY_NAME.crc32() % 640 + 10;
-const JettonLockBox_CONTRACT_VERSION = "0.1.0";
-
-const JettonLockBox_ERROR_CODE = JettonLockBox_FACILITY_ID * 100;
 
 /// Role granted to pool contracts that can deposit and withdraw from the lockbox.
 const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
@@ -17,18 +13,18 @@ const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
 const TOPIC_DEPOSIT = "JettonLockBox_Deposit".crc32();
 const TOPIC_WITHDRAWAL = "JettonLockBox_Withdrawal".crc32();
 
-/// Error codes for JettonLockBox.
+/// Error codes for JettonLockBox. FACILITY_ID = 567, so codes start at 56700.
 enum JettonLockBox_Error {
     /// Thrown when a deposit or withdraw amount is zero.
-    TokenAmountCannotBeZero = JettonLockBox_ERROR_CODE
+    TokenAmountCannotBeZero = JettonLockBox_FACILITY_ID * 100; // 56700
     /// Thrown when a withdrawal target is the zero address.
-    RecipientCannotBeZeroAddress
+    RecipientCannotBeZeroAddress // 56701
     /// Thrown for operations on unsupported tokens (wrong wallet or uninitialized).
-    UnsupportedToken
+    UnsupportedToken // 56702
     /// Thrown when trying to initialize the contract more than once.
-    ContractAlreadyInitialized
+    ContractAlreadyInitialized // 56703
     /// Thrown when calling a function on an uninitialized contract or with invalid input.
-    ContractNotInitialized
+    ContractNotInitialized // 56704
 }
 
 /// Lockbox storage: tracks the supported jetton and RBAC state.

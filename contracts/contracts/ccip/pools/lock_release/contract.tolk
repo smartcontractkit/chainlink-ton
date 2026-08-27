@@ -8,31 +8,34 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
+
 import "../../common/types"
-import "../../accounts/off_ramp_account/messages"
-import "../../accounts/off_ramp_account/types"
+import "../../accounts/deposit/messages"
+import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
+
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
-import "../lib/token_pool/events"
 import "../lib/token_pool/errors"
+import "../lib/token_pool/events"
 
 import "messages"
 import "types"
-import "errors"
 import "storage"
 
 contract LockReleaseTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.LockReleaseTokenPool"
+    description: "link.chain.ton.ccip.pool.LockReleaseTokenPool"
 
     storage: Storage
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseTokenPool_InMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
@@ -47,12 +50,12 @@ fun onInternalMessage(in: InMessage) {
 
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
-        OffRampAccount_Reply => {
-            onOffRampAccountReply(mutate st, in.senderAddress, msg);
+        DepositAccount_Reply => {
+            onDepositAccountReply(mutate st, in.senderAddress, msg);
             st.store();
         }
-        OffRampAccount_ForwardNotification => {
-            onOffRampAccountForwardNotification(mutate st, in.senderAddress, msg);
+        DepositAccount_ForwardNotification => {
+            onDepositAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
         }
         ReturnExcessesBack => {
@@ -64,49 +67,43 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// @notice Deploys OffRampAccount for release operations.
-/// OAA owner = recipient (can withdraw jettons), notificationTarget = pool.
-/// allowedJettonWallet = OAA's own jetton wallet (notifications come from here).
+/// @notice Deploys a DepositAccount (off-ramp role) for release operations.
+/// owner = pool (deploys and inits the account), proxy = pool, beneficiary = recipient
+/// (can withdraw released jettons).
 fun deployOffRampAccountWithRelease(
     st: Storage,
     recipient: address,
     queryId: uint64,
     context: LockReleaseTokenPool_ReleaseContext,
 ) {
-    val jettonClient = st.poolData.load().jettonClient();
-    val oaa = calcAddressOfOffRampAccount(
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(recipient, ());
+    val oaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        recipient,
-        contract.getAddress(),
-    );
-
-    // OAA's own jetton wallet — notifications come from here when forwardTonAmount > 0.
-    val oaaWallet = calcAddressOfJettonWallet(
-        oaa.calculateAddress(),
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
+        contract.getAddress(), // owner = pool (inits the account)
+        contract.getAddress(), // proxy = pool
+        beneficiaries,
     );
 
     val deploy = createMessage({
         bounce: BounceMode.RichBounce,
         value: LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE,
         dest: oaa,
-        body: OffRampAccount_Init {
+        body: DepositAccount_Init {
             queryId,
-            allowedJettonWallet: oaaWallet,
             forwardPayload: context.toCell(),
         },
     });
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-/// @notice Handles OffRampAccount_Reply after OAA deployment for release.
+/// @notice Handles DepositAccount_Reply after account deployment for release.
 /// Extracts context from Reply forwardPayload, then sends AskToTransfer to the pool's jetton wallet.
-/// Context is embedded in forwardPayload so it flows through: wallet → OAA → pool.
-fun onOffRampAccountReply(
+/// Context is embedded in forwardPayload so it flows through: wallet → account → pool.
+fun onDepositAccountReply(
     mutate st: Storage,
     sender: address,
-    msg: OffRampAccount_Reply,
+    msg: DepositAccount_Reply,
 ) {
     // Extract release context from Reply forwardPayload.
     assert(msg.forwardPayload != null, Error.InvalidOffRampAccountReply);
@@ -117,12 +114,16 @@ fun onOffRampAccountReply(
     val requestIn = lazy operation.requestMsg.load().request.load();
     val details = lazy requestIn.transfer.details.load();
 
-    // Validate sender: derive expected OAA address and verify.
+    // Validate sender: derive expected account address and verify. Owner = proxy = pool,
+    // beneficiary = the final recipient.
     val jettonClient = st.poolData.load().jettonClient();
-    val expectedOaa = calcAddressOfOffRampAccount(
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(details.receiver, ());
+    val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        details.receiver,
-        contract.getAddress(),
+        contract.getAddress(), // owner = pool
+        contract.getAddress(), // proxy = pool
+        beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountReply);
 
@@ -156,21 +157,21 @@ fun onBouncedMessage(in: InMessageBounced) {
             onReleaseTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
-        // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
+        // The account rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
         // reply with a failure so the sender can retry instead of the release silently stalling.
-        OffRampAccount_Init => {
-            onOffRampAccountInitBounced(mutate st, in.senderAddress, msg);
+        DepositAccount_Init => {
+            onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
     }
 }
 
-/// @notice Handles a bounced `OffRampAccount_Init`: refunds the inbound rate limit and sends a
+/// @notice Handles a bounced `DepositAccount_Init`: refunds the inbound rate limit and sends a
 /// release failure reply. The init carries the release context in `forwardPayload`.
-fun onOffRampAccountInitBounced(
+fun onDepositAccountInitBounced(
     mutate st: Storage,
     sender: address,
-    msg: OffRampAccount_Init,
+    msg: DepositAccount_Init,
 ) {
     assert(msg.forwardPayload != null, Error.UnexpectedReleaseBounce);
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
@@ -203,9 +204,9 @@ fun onReleaseOrMintContinue(
         forwardPayload: forwardPayload.toCell(),
     };
 
-    // Deploy OffRampAccount with context embedded.
-    // OAA owner = recipient (can withdraw released jettons).
-    // OAA notificationTarget = this pool (receives completion notification).
+    // Deploy DepositAccount (off-ramp role) with context embedded.
+    // owner = recipient (can withdraw released jettons).
+    // proxy = this pool (receives completion notification).
     deployOffRampAccountWithRelease(
         st,
         details.receiver,
@@ -234,13 +235,13 @@ fun onReleaseTransferBounced(
     pool.sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
 }
 
-/// @notice Handles ForwardNotification from OffRampAccount after release completion.
+/// @notice Handles ForwardNotification from DepositAccount after release completion.
 /// The forwarded message body contains TransferNotificationForRecipient with the release context
-/// embedded in its forwardPayload. Validates OAA sender, extracts context, finalizes.
-fun onOffRampAccountForwardNotification(
+/// embedded in its forwardPayload. Validates account sender, extracts context, finalizes.
+fun onDepositAccountForwardNotification(
     mutate st: Storage,
     sender: address,
-    msg: OffRampAccount_ForwardNotification,
+    msg: DepositAccount_ForwardNotification,
 ) {
     val forwarded = msg.message.load();
 
@@ -254,15 +255,28 @@ fun onOffRampAccountForwardNotification(
     val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
 
-    // Validate sender: derive expected OAA address and verify.
+    // Validate sender: the forwarded notification must come from the account and its original
+    // jetton wallet (the account's own derived wallet for this pool's token).
     val mintRecipient = getReleaseRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
-    val expectedOaa = calcAddressOfOffRampAccount(
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(mintRecipient, ());
+    val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        mintRecipient,
-        contract.getAddress(),
+        contract.getAddress(), // owner = pool
+        contract.getAddress(), // proxy = pool
+        beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountNotification);
+
+    // The original message's sender must be the account's own jetton wallet for this token, proving
+    // a real transfer of the pool's token reached the account (not a spoofed arbitrary sender).
+    val expectedWallet = calcAddressOfJettonWallet(
+        expectedOaa.calculateAddress(),
+        jettonClient.masterAddress,
+        jettonClient.jettonWalletCode,
+    );
+    assert(forwarded.senderAddress == expectedWallet, Error.InvalidOffRampAccountNotification);
 
     // Verify transferInitiator is the pool (auth the transfer source).
     assert(jettonMsg.transferInitiator != null, Error.InvalidOffRampAccountNotification);
@@ -305,7 +319,15 @@ fun loadPool(st: Storage): TokenPool<Storage> {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (LockReleaseTokenPool_CONTRACT_NAME, LockReleaseTokenPool_CONTRACT_VERSION);
+    return (LockReleaseTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return LockReleaseTokenPool_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(LockReleaseTokenPool_FACILITY_NAME.crc32(), local);
 }
 
 get fun token(): address {

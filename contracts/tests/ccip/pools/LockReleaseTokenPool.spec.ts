@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
-import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
+import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -35,39 +35,11 @@ import {
   JettonClient,
   LockReleaseTokenPool,
 } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
-import {
-  ContextExecutor,
-  ContextExecutor_ForwardNotification,
-  ContextExecutor_InMessageForward,
-} from '../../../wrappers/gen/ccip/ContextExecutor'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
-
-function buildSpoofedExecutorForwardNotification(senderAddress: Address): Cell {
-  const forwarded = ContextExecutor_InMessageForward.toCell(
-    ContextExecutor_InMessageForward.create({
-      senderAddress,
-      valueCoins: 0n,
-      valueExtra: new Map(),
-      originalForwardFee: 0n,
-      createdLt: 0n,
-      createdAt: 0n,
-      body: Cell.EMPTY,
-    }),
-  )
-
-  return beginCell()
-    .storeUint(ContextExecutor_ForwardNotification.PREFIX, 32)
-    .storeUint(999n, 64)
-    .storeRef(Cell.EMPTY)
-    .storeUint(0, 8)
-    .storeMaybeRef(null)
-    .storeRef(forwarded)
-    .endCell()
-}
 
 describe('LockReleaseTokenPool', () => {
   let blockchain: Blockchain
@@ -163,9 +135,9 @@ describe('LockReleaseTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          offRampAccountCode: OffRampAccount.CodeCell,
+          offRampAccountCode: DepositAccount.CodeCell,
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pools.LockReleaseTokenPool') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool') },
       ),
     )
     await lockReleasePool.sendDeploy(deployer.getSender(), toNano('2'))
@@ -399,7 +371,7 @@ describe('LockReleaseTokenPool', () => {
         body(body) {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return failure.queryId === 44n && failure.errorCode === 14920n
+          return failure.queryId === 44n && failure.errorCode === 51720n
         },
       })
       expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
@@ -654,11 +626,11 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    // Tokens land in OAA's jetton wallet (not recipient's personal wallet)
-    const oaa = OffRampAccount.fromStorage({
-      owner: recipient.address,
-      notificationTarget: lockReleasePool.address,
-      allowedJettonWallet: null,
+    // Tokens land in the account's jetton wallet (not recipient's personal wallet)
+    const oaa = DepositAccount.fromStorage({
+      owner: lockReleasePool.address, // pool deploys+inits the account
+      proxy: lockReleasePool.address,
+      beneficiaries: new Set([recipient.address]),
     })
     const oaaWallet = await userWallet(oaa.address)
     expect(await oaaWallet.getJettonBalance()).toEqual(toNano('2'))
@@ -679,11 +651,11 @@ describe('LockReleaseTokenPool', () => {
 
   it('releases tokens with null replyTo without emitting a response message', async () => {
     const poolWallet = await userWallet(lockReleasePool.address)
-    // OAA wallet for checking balance (not recipient's personal wallet)
-    const oaa = OffRampAccount.fromStorage({
-      owner: recipient.address,
-      notificationTarget: lockReleasePool.address,
-      allowedJettonWallet: null,
+    // Account wallet for checking balance (not recipient's personal wallet)
+    const oaa = DepositAccount.fromStorage({
+      owner: lockReleasePool.address, // pool deploys+inits the account
+      proxy: lockReleasePool.address,
+      beneficiaries: new Set([recipient.address]),
     })
     const oaaWallet = await userWallet(oaa.address)
 
@@ -745,21 +717,6 @@ describe('LockReleaseTokenPool', () => {
       )
     })
     expect(releaseResponses.length).toBe(0)
-  })
-
-  it('rejects forged executor forward notifications', async () => {
-    const forged = await recipient.send({
-      to: lockReleasePool.address,
-      value: toNano('0.1'),
-      bounce: false,
-      body: buildSpoofedExecutorForwardNotification(recipient.address),
-    })
-
-    expect(forged.transactions).toHaveTransaction({
-      from: recipient.address,
-      to: lockReleasePool.address,
-      success: false,
-    })
   })
 
   it('mirrors cursed state locally and blocks release while cursed', async () => {

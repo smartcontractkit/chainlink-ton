@@ -35,7 +35,7 @@ import { runTokenPoolAsyncHookBehaviorTests, runTokenPoolBehaviorTests } from '.
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { OffRampAccount } from '../../../wrappers/gen/ccip/OffRampAccount'
+import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
 
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
 // from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
@@ -85,7 +85,7 @@ describe('BurnMintTokenPool', () => {
 
     cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
-    const burnMintPoolCode = await contractCode.ccip.local('ccip.pools.BurnMintTokenPool')
+    const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
 
     cctMinter = blockchain.openContract(
       cct.JettonMinter.fromStorage(
@@ -133,7 +133,7 @@ describe('BurnMintTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          offRampAccountCode: OffRampAccount.CodeCell,
+          offRampAccountCode: DepositAccount.CodeCell,
         },
         { overrideContractCode: burnMintPoolCode },
       ),
@@ -450,7 +450,7 @@ describe('BurnMintTokenPool', () => {
         body(body) {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return failure.queryId === 304n && failure.errorCode === 14920n
+          return failure.queryId === 304n && failure.errorCode === 51720n
         },
       })
       expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
