@@ -76,7 +76,7 @@ depends = []
 
 [contracts.TokenPool]
 display-name = "link.chain.ton.ccip.pool.TokenPool"
-src = "contracts/ccip/pools/token_pool_contract.tolk"
+src = "contracts/ccip/pools/TokenPool.tolk"
 domain = "ccip/pools"
 depends = []
 

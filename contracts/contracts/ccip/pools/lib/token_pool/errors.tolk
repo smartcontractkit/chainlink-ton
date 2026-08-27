@@ -2,7 +2,7 @@
 import "../../../../lib/utils"
 
 const TokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.TokenPool";
-const TokenPool_FACILITY_ID = TokenPool_FACILITY_NAME.crc32();  // (crc32(<facility>) % 640) + 10
+const TokenPool_FACILITY_ID = TokenPool_FACILITY_NAME.crc32() % 640 + 10; // 517
 
 /// Error codes for TokenPool. FACILITY_ID = 517, so codes start at 51700.
 enum TokenPool_Error {

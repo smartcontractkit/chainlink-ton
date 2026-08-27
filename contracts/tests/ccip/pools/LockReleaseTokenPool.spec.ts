@@ -371,7 +371,7 @@ describe('LockReleaseTokenPool', () => {
         body(body) {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return failure.queryId === 44n && failure.errorCode === 14920n
+          return failure.queryId === 44n && failure.errorCode === 51720n
         },
       })
       expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))

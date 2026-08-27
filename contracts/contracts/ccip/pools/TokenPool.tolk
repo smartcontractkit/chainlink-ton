@@ -6,6 +6,7 @@ import "../common/types"
 import "lib/token_pool/types"
 import "lib/token_pool/entrypoint"
 import "lib/token_pool/messages"
+import "lib/token_pool/errors"
 import "lib/token_pool/events"
 
 contract TokenPool {
@@ -28,6 +29,14 @@ fun onInternalMessage(_: InMessage) {
 // All getters throw at runtime — they should never be deployed.
 
 get fun typeAndVersion(): (slice, slice) {
+    throw 0xFFFF;
+}
+
+get fun facilityId(): uint16  {
+    throw 0xFFFF;
+}
+
+get fun errorCode(local: uint16): uint16 {
     throw 0xFFFF;
 }
 
