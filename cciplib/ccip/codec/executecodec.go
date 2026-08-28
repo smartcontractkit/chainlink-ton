@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -304,12 +305,19 @@ func extractDestGasAmountFromMap(input map[string]any) (*tlb.Coins, error) {
 		lowercase := strings.ToLower(fieldName)
 		switch lowercase {
 		case "destgasamount":
-			// Expect uint32
-			if val, ok := fieldValue.(uint32); ok {
+			switch val := fieldValue.(type) {
+			case uint32:
 				coins := tlb.FromNanoTONU(uint64(val))
 				return &coins, nil
+			case int64: // LOOP converts expected uint32 to int64
+				if val < 0 || val > math.MaxUint32 {
+					return nil, fmt.Errorf("destgasamount out of uint32 range: %d", val)
+				}
+				coins := tlb.FromNanoTONU(uint64(val))
+				return &coins, nil
+			default:
+				return nil, fmt.Errorf("invalid type for destgasamount, expected uint32 or int64, got %T", fieldValue)
 			}
-			return nil, errors.New("invalid type for destgasamount, expected uint32")
 		default:
 		}
 	}
