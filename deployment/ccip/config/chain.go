@@ -28,7 +28,7 @@ const (
 
 	// DefaultTokenDestGasOverheadTON is the minimum nanoTON budget we must send
 	// for Any2TON token transfers so OffRamp.onReleaseOrMint does not reject them.
-	DefaultTokenDestGasOverheadTON uint32 = 150_000_000
+	DefaultTokenDestGasOverheadTON uint32 = 250_000_000
 )
 
 // ConnectionConfig defines how a chain should connect with other chains.

@@ -137,7 +137,7 @@ fun onDepositAccountReply(
             transferRecipient: sender,
             sendExcessesTo: contract.getAddress(), // pool keeps any excesses
             customPayload: null,
-            forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardTonAmount: ton("0.05"), // TODO: make dynamic, required for TransferNotificationForRecipient
             forwardPayload: beginCell()
                 .storeMaybeRef(contextCell)
                 .endCell()
