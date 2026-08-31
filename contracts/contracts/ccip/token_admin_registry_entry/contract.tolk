@@ -2,6 +2,8 @@
 import "messages"
 import "storage"
 import "errors"
+import "types"
+import "../token_admin_registry/messages"
 
 tolk 1.4.1
 
@@ -23,12 +25,16 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenRegistry_InMessage.fromSlice(in.body);
 
     match (msg) {
+
+        // TODO: min value assertion throughout
         TokenRegistry_GetTokenInfo => {
-            // TODO: min value assertion
             onGetTokenInfo(in.senderAddress);
         }
         TokenRegistry_SetTokenInfo => {
             onSetTokenInfo(msg, in.senderAddress);
+        }
+        TokenAdminRegistryEntry_RegistrationInitialized => {
+            onRegistrationInitialized(in.senderAddress);
         }
         TokenAdminRegistryEntry_ProposeAdministrator => {
             onProposeAdministrator(msg, in.senderAddress);
@@ -46,6 +52,17 @@ fun onInternalMessage(in: InMessage) {
             assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
+}
+
+/// Emits the initial proposal after Deployable has atomically installed this
+/// shard's state. Only an internal self-message can reach this path.
+fun onRegistrationInitialized(sender: address) {
+    val st = TokenRegistry_Storage.load();
+    val adminConfig = st.adminConfig.load();
+    assert(sender == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
+        throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
+    emitAdministratorTransferRequested(st.tokenAddress, null, adminConfig.pendingAdministrator);
 }
 
 fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
@@ -97,11 +114,15 @@ fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
 
     // TODO: validate that tokenPool is a CCIP pool for st.tokenAddress before enabling it.
     // TODO: reject enabled pools with addr_none once the pool-validation interface exists.
+    val previousPool = st.tokenInfo.tokenPool;
+    val previousEnabled = st.tokenInfo.enabled;
     st.tokenInfo.tokenPool = msg.tokenPool;
     st.tokenInfo.enabled = msg.enabled;
     st.store();
 
-    // TODO: emit PoolSet with the previous and new pool.
+    if (previousPool != msg.tokenPool || previousEnabled != msg.enabled) {
+        emitPoolSet(st.tokenAddress, previousPool, msg.tokenPool, previousEnabled, msg.enabled);
+    }
 }
 
 fun onGetTokenInfo(sender: address) {
@@ -123,24 +144,48 @@ fun onGetTokenInfo(sender: address) {
 }
 
 fun emitAdministratorTransferRequested(token: address, currentAdministrator: address?, newAdministrator: address?) {
-    val event = createExternalLogMessage({
-        dest: createAddressNone(),
-        body: TokenAdminRegistryEntry_AdministratorTransferRequested {
+    notifyRoot(TokenAdminRegistry_AdministratorTransferRequested {
             token,
             currentAdministrator,
             newAdministrator,
-        }
-    });
-    event.send(SEND_MODE_REGULAR);
+    }.toCell());
 }
 
 fun emitAdministratorTransferred(token: address, newAdministrator: address) {
-    val event = createExternalLogMessage({
-        dest: createAddressNone(),
-        body: TokenAdminRegistryEntry_AdministratorTransferred {
+    notifyRoot(TokenAdminRegistry_AdministratorTransferred {
             token,
             newAdministrator,
-        }
-    });
-    event.send(SEND_MODE_REGULAR);
+    }.toCell());
+}
+
+fun emitPoolSet(token: address, previousPool: address, newPool: address, previousEnabled: bool, newEnabled: bool) {
+    notifyRoot(TokenAdminRegistry_PoolSet {
+            token,
+            previousPool,
+            newPool,
+            previousEnabled,
+            newEnabled,
+    }.toCell());
+}
+
+/// The root validates this entry's deterministic address before emitting the
+/// payload as an external event. The attached value funds root execution/logging.
+fun notifyRoot(body: cell) {
+    val st = TokenRegistry_Storage.load();
+    createMessage({
+        bounce: true,
+        value: ton("0.001"),
+        dest: st.adminConfig.load().tokenAdminRegistry,
+        body,
+    }).send(SEND_MODE_REGULAR);
+}
+
+/// Read this after registration finality to determine whether the proposed
+/// administrator has accepted. The root deliberately stores no per-entry state.
+get fun tokenAdminRegistryConfig(): TokenRegistry_AdminConfig {
+    return TokenRegistry_Storage.load().adminConfig.load();
+}
+
+get fun tokenInfo(): TokenRegistry_TokenInfo {
+    return TokenRegistry_Storage.load().tokenInfo;
 }

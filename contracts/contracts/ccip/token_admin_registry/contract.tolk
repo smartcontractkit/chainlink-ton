@@ -2,6 +2,7 @@
 import "messages"
 import "storage"
 import "types"
+import "errors"
 
 import "../../lib/access/ownable_2step"
 import "../../lib/deployable/types"
@@ -21,7 +22,7 @@ contract TokenAdminRegistry {
 
     storage: TokenAdminRegistry_Storage
     incomingMessages: TokenAdminRegistry_InMessage | Ownable2Step_Messages
-    thrownErrors: Ownable2Step_Error
+    thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error
 }
 
 const CONTRACT_VERSION = "1.6.0".literalSlice();
@@ -45,6 +46,21 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             overridePendingAdministrator(st, msg);
         }
+        TokenAdminRegistry_AdministratorTransferRequested => {
+            val st = TokenAdminRegistry_Storage.load();
+            requireEntrySender(st, msg.token, in.senderAddress);
+            emitAdministratorTransferRequested(msg);
+        }
+        TokenAdminRegistry_AdministratorTransferred => {
+            val st = TokenAdminRegistry_Storage.load();
+            requireEntrySender(st, msg.token, in.senderAddress);
+            emitAdministratorTransferred(msg);
+        }
+        TokenAdminRegistry_PoolSet => {
+            val st = TokenAdminRegistry_Storage.load();
+            requireEntrySender(st, msg.token, in.senderAddress);
+            emitPoolSet(msg);
+        }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
             val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
@@ -57,7 +73,34 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+/// Every entry event is relayed through the root. The token in the payload is
+/// sufficient to recompute the only entry address that may send that event.
+fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
+    val expectedEntry = TokenAdminRegistryEntry.deriveAddress(
+        st.entryDeployment.deployableCode,
+        token,
+        contract.getAddress(),
+    ).calculateAddress();
+    assert(sender == expectedEntry) throw TokenAdminRegistry_Error.UnauthorizedEntry;
+}
+
+fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
+    createExternalLogMessage({ dest: createAddressNone(), body: event }).send(SEND_MODE_REGULAR);
+}
+
+fun emitAdministratorTransferred(event: TokenAdminRegistry_AdministratorTransferred) {
+    createExternalLogMessage({ dest: createAddressNone(), body: event }).send(SEND_MODE_REGULAR);
+}
+
+fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
+    createExternalLogMessage({ dest: createAddressNone(), body: event }).send(SEND_MODE_REGULAR);
+}
+
 /// Deploys a deterministic shard with an unclaimed administrator proposal.
+///
+/// This is intentionally create-only. Callers resolve the outcome by deriving
+/// the entry address and reading its config after finality; retrying this
+/// message against an existing entry is expected to fail in Deployable.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     // TODO: add self-service registration once TON has a canonical,
     // independently verifiable proof that the sender controls the token minter.
@@ -73,9 +116,11 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 
     val deployMsg = createMessage({
         bounce: false,
-        value: ton("0.015"),
+        // Matches the funding of the former deploy + proposal messages while
+        // keeping the registration protocol to one root-to-entry message.
+        value: ton("0.03"),
         dest: entryAddress,
-        body: Deployable_Initialize {
+        body: Deployable_InitializeAndSend {
             stateInit: {
                 code: deployment.entryCode,
                 data: TokenRegistry_Storage {
@@ -87,22 +132,16 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
                         pendingAdministrator: msg.administrator,
                     }.toCell(),
                 }.toCell(),
-            }
+            },
+            // The entry emits the initial proposal event after its state is
+            // installed. This is not a second root-to-entry operation.
+            selfMessage: {
+                value: ton("0.015"),
+                body: TokenAdminRegistryEntry_RegistrationInitialized {}.toCell(),
+            },
         },
     });
     deployMsg.send(SEND_MODE_REGULAR);
-
-    // Send the proposal through the entry too, so initial registration follows
-    // the same event path as an override.
-    val proposeMsg = createMessage({
-        bounce: false,
-        value: ton("0.015"),
-        dest: entryAddress,
-        body: TokenAdminRegistryEntry_ProposeAdministrator {
-            administrator: msg.administrator,
-        },
-    });
-    proposeMsg.send(SEND_MODE_REGULAR);
 }
 
 /// Replaces an unaccepted administrator proposal. The shard enforces that no

@@ -3,6 +3,7 @@ import "types"
 type TokenRegistry_InMessage =
     | TokenRegistry_SetTokenInfo
     | TokenRegistry_GetTokenInfo
+    | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_ProposeAdministrator
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
@@ -23,6 +24,10 @@ struct (0xd24387a4) TokenRegistry_SetTokenInfo {
     info: TokenRegistry_TokenInfo
 }
 
+// crc32('TokenAdminRegistryEntry_RegistrationInitialized')
+// Sent only by Deployable_InitializeAndSend after initial state installation.
+struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {}
+
 struct (0x31d2bb6e) TokenAdminRegistryEntry_ProposeAdministrator {
     administrator: address
 }
@@ -36,17 +41,6 @@ struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {}
 struct (0xa7c4c16c) TokenAdminRegistryEntry_SetPool {
     tokenPool: address
     enabled: bool
-}
-
-struct TokenAdminRegistryEntry_AdministratorTransferRequested {
-    token: address
-    currentAdministrator: address?
-    newAdministrator: address?
-}
-
-struct TokenAdminRegistryEntry_AdministratorTransferred {
-    token: address
-    newAdministrator: address
 }
 
 struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
