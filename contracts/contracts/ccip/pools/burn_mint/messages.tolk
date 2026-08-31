@@ -20,9 +20,10 @@ type BurnMintTokenPool_OutMessage =
     | MintNewJettons
     | ClaimMinterAdmin;
 
+// TokenPool_GetCCVs and TokenPool_LockOrBurnWithdraw bounces are handled by the base library's
+// shared TokenPool.onBouncedMessage (see TokenPool_BouncedMessage), so they are not listed here.
 type BurnMintTokenPool_BouncedMessage =
     | AskToTransfer
     | CCT_AskToBurn
     | MintNewJettons
-    | DepositAccount_Init
-    | TokenPool_GetCCVs;
+    | DepositAccount_Init;

@@ -156,6 +156,15 @@ fun onDepositAccountReply(
 /// Handles bounced release messages: refunds rate limit and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     var st = Storage.load();
+
+    // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
+    var basePool = loadPool(st);
+    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody)) {
+        st.poolData = basePool.data.toCell();
+        st.store();
+        return;
+    }
+
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy LockReleaseTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
@@ -173,13 +182,6 @@ fun onBouncedMessage(in: InMessageBounced) {
         // reply with a failure so the sender can retry instead of the release silently stalling.
         DepositAccount_Init => {
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
-            st.store();
-        }
-        // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
-        TokenPool_GetCCVs => {
-            var pool = loadPool(st);
-            pool.onGetCCVsBounced(msg, rich.exitCode);
-            st.poolData = pool.data.toCell();
             st.store();
         }
     }
@@ -222,9 +224,8 @@ fun onDepositAccountInitBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.refundReleaseOrMintRateLimit(operation);
+    pool.recoverReleaseOrMintFailure(operation, LockRelease_Error.OffRampAccountDeployFailed as uint16);
     st.poolData = pool.data.toCell();
-    pool.sendReleaseOrMintFailure(operation, LockRelease_Error.OffRampAccountDeployFailed as uint16);
 }
 
 fun onReleaseOrMintContinue(
@@ -269,9 +270,8 @@ fun onReleaseTransferBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.refundReleaseOrMintRateLimit(operation);
+    pool.recoverReleaseOrMintFailure(operation, LockRelease_Error.UnexpectedReleaseBounce as uint16);
     st.poolData = pool.data.toCell();
-    pool.sendReleaseOrMintFailure(operation, LockRelease_Error.UnexpectedReleaseBounce as uint16);
 }
 
 /// @notice Handles ForwardNotification from DepositAccount after release completion.
