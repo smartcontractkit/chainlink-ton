@@ -153,11 +153,6 @@ const CONTRACTS: ContractSource[] = [
     tolkSource: 'contracts/ccip/test/receiver/contract.tolk',
   },
   {
-    contractType: 'link.chain.ton.ccip.test.MockTokenPool',
-    compiledFile: 'ccip.test.mockTokenPool.compiled.json',
-    tolkSource: 'contracts/ccip/test/tokenPool/contract.tolk',
-  },
-  {
     contractType: 'link.chain.ton.ccip.test.MockAdvancedPoolHooks',
     compiledFile: 'ccip.test.mockAdvancedPoolHooks.compiled.json',
     tolkSource: 'contracts/ccip/test/mock_advanced_pool_hooks.tolk',

@@ -53,7 +53,7 @@ describe('wGRAM', () => {
   beforeAll(async () => {
     minterCode = await contractCode.ccip.local('wgram.JettonMinter')
     walletCode = await contractCode.ccip.local('wgram.JettonWallet')
-    bouncerCode = await contractCode.ccip.local('ccip.test.mockTokenPool')
+    bouncerCode = await contractCode.ccip.local('tests.mock.Bouncer')
   })
 
   async function deployMinter(customWalletCode: Cell = walletCode) {

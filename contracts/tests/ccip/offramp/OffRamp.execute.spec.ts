@@ -1817,13 +1817,16 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // TODO after we connect to a real token pool
-      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // Verify the receiver actually received the tokens.
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // TODO: when escrow account is integrated
+      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
+      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     it('executes a token transfer to a non-contract receiver', async () => {
-      const stranger = generateMockTonAddress()
-      const message = setup.createTestMessageWithToken()
+      const stranger = await blockchain.treasury('stranger')
+      const message = setup.createTestMessageWithToken({ receiverAddress: stranger.address })
 
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
@@ -1849,8 +1852,13 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // TODO after we connect to a real token pool
-      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // Verify the receiver actually received the tokens.
+      expect(await setup.getTokenBalance({ address: stranger.address })).toEqual(
+        setup.DEFAULT_TOKEN_AMOUNT,
+      )
+      // TODO: when escrow account is integrated
+      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
+      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     // TODO extraData with different decimals and some out of range and invalid data
@@ -2010,8 +2018,11 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // TODO after we connect to a real token pool
-      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // Verify the receiver actually received the tokens after retry.
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // TODO: when escrow account is integrated
+      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
+      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     it('executes a PTT (token transfer + data) end to end', async () => {
@@ -2114,8 +2125,11 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // TODO after we connect to a real token pool
-      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // Verify the receiver actually received the tokens.
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // TODO: when escrow account is integrated
+      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
+      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     it('fails a PTT when the token is not enabled in the TokenRegistry', async () => {
@@ -2249,8 +2263,11 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // TODO after we connect to a real token pool
-      // expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // Verify the receiver actually received the tokens after retry.
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+      // TODO: when escrow account is integrated
+      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
+      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     // --- gasOverride validation ---
