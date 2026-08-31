@@ -96,9 +96,12 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
 
-			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-			if err != nil {
-				return nil, fmt.Errorf("pack extra data: %w", err)
+			var extraData *cell.Cell
+			if len(tokenAmount.ExtraData) > 0 {
+				extraData, err = tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
+				if err != nil {
+					return nil, fmt.Errorf("pack extra data: %w", err)
+				}
 			}
 
 			destPoolTonAddr := AddressBytesToTONAddressWithBurning(tokenAmount.DestTokenAddress)
@@ -219,9 +222,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		var tokenAmounts []ccipocr3.RampTokenAmount
 		for _, tokenAmount := range msg.TokenAmounts {
 			var extraData common.SnakeBytes
-			err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
-			if err != nil {
-				return executeReport, fmt.Errorf("unpack extra data: %w", err)
+			if tokenAmount.ExtraData != nil {
+				err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
+				if err != nil {
+					return executeReport, fmt.Errorf("unpack extra data: %w", err)
+				}
 			}
 
 			destTokenRaw, err := ToRawAddr(tokenAmount.DestPoolAddress)
