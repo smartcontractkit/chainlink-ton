@@ -175,6 +175,15 @@ fun onDepositAccountReply(
 /// Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     var st = Storage.load();
+
+    // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
+    var basePool = loadPool(st);
+    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody)) {
+        st.poolData = basePool.data.toCell();
+        st.store();
+        return;
+    }
+
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
@@ -198,13 +207,6 @@ fun onBouncedMessage(in: InMessageBounced) {
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
-        // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
-        TokenPool_GetCCVs => {
-            var pool = loadPool(st);
-            pool.onGetCCVsBounced(msg);
-            st.poolData = pool.data.toCell();
-            st.store();
-        }
     }
 }
 
@@ -220,9 +222,8 @@ fun onDepositAccountInitBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.refundReleaseOrMintRateLimit(operation);
+    pool.recoverReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16);
     st.poolData = pool.data.toCell();
-    pool.sendReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16);
 }
 
 /* === Lock (deposit) flow === */
@@ -317,11 +318,10 @@ fun onLockTransferBounced(
 
     var pool = loadPool(st);
     pool.returnTransferLocked(operation);
-    // The outbound rate limit was consumed at admission. Since the lock/deposit failed and
-    // custody is being returned, release the consumed capacity mirroring burn_mint semantics.
-    pool.refundLockOrBurnRateLimit(operation);
+    // The outbound rate limit was consumed at admission. Since the lock/deposit failed and custody
+    // is being returned, unwind the consumed capacity and notify (mirroring burn_mint semantics).
+    pool.recoverLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as uint16);
     st.poolData = pool.data.toCell();
-    pool.sendLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as uint16);
 }
 
 /* === Release (withdraw) flow === */

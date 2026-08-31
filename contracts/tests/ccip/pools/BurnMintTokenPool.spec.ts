@@ -42,6 +42,7 @@ import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMin
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
@@ -744,6 +745,75 @@ describe('BurnMintTokenPool', () => {
       success: true,
       op: TokenPool_LockOrBurnFinished.PREFIX,
     })
+  })
+
+  it('recovers a bounced LockOrBurnWithdraw via the shared base handler: refunds outbound rate limit + replies LockOrBurnFailure', async () => {
+    // A Bouncer stands in for a dead / rejecting executor. The pool consumes outbound capacity at
+    // admission and sends TokenPool_LockOrBurnWithdraw to `replyTo`; the Bouncer bounces it. The
+    // shared base TokenPool.onBouncedMessage must unwind the consumed capacity and finalize the
+    // flow with a LockOrBurnFailure instead of stalling with the rate limit stuck consumed.
+    const executorBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    await executorBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+    const queryId = 33n
+    const amount = toNano('5') // < outbound capacity (100), so admission succeeds
+
+    const before = await burnMintPool.getCurrentRateLimiterState(remoteChainSelector, false)
+
+    const lockOrBurn = TokenPool_LockOrBurn.create({
+      queryId,
+      request: TokenPool_LockOrBurnInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: queryId,
+          details: TokenPool_TransferDetails.create({
+            receiver: receiverAddress,
+            remoteChainSelector,
+            originalSender: deployer.address,
+            amount,
+            localToken: cctMinter.address,
+          }),
+        }),
+      }),
+      requestedFinalityConfig: 0n,
+      tokenArgs: null,
+      replyTo: executorBouncer.address,
+    })
+
+    const result = await burnMintPool.sendTokenPoolLockOrBurn(
+      deployer.getSender(),
+      toNano('1'),
+      lockOrBurn,
+    )
+
+    // The pool sent the withdraw request to the (bouncing) executor.
+    expect(result.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: executorBouncer.address,
+      op: TokenPool_LockOrBurnWithdraw.PREFIX,
+    })
+    // It bounced back to the pool and the shared base handler processed it successfully.
+    expect(result.transactions).toHaveTransaction({
+      to: burnMintPool.address,
+      inMessageBounced: true,
+      success: true,
+    })
+    // The flow finalizes with a LockOrBurnFailure (errorCode = LockOrBurnWithdrawBounced = 14923).
+    expect(result.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: executorBouncer.address,
+      op: TokenPool_LockOrBurnFailure.PREFIX,
+      body(body) {
+        if (!body) return false
+        const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
+        return failure.queryId === queryId && failure.errorCode === 14923n
+      },
+    })
+
+    // The outbound capacity consumed at admission was refunded: the bucket is back to its start.
+    const after = await burnMintPool.getCurrentRateLimiterState(remoteChainSelector, false)
+    expect(after.outbound.tokens).toEqual(before.outbound.tokens)
   })
 
   it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {

@@ -30,4 +30,7 @@ enum TokenPool_Error {
     AmountMismatch
     InvalidRequestedFinality
     RateLimitExceeded
+    // A base-library message sent to the executor (`TokenPool_LockOrBurnWithdraw`) bounced back,
+    // so the admitted lock/burn could not proceed. Appended last to keep existing codes stable.
+    LockOrBurnWithdrawBounced
 }

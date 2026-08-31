@@ -16,7 +16,8 @@ type LockReleaseLockboxTokenPool_InMessage =
 type LockReleaseLockboxTokenPool_OutMessage =
     | AskToTransfer;
 
+// TokenPool_GetCCVs and TokenPool_LockOrBurnWithdraw bounces are handled by the base library's
+// shared TokenPool.onBouncedMessage (see TokenPool_BouncedMessage), so they are not listed here.
 type LockReleaseLockboxTokenPool_BouncedMessage =
     | AskToTransfer
-    | DepositAccount_Init
-    | TokenPool_GetCCVs;
+    | DepositAccount_Init;

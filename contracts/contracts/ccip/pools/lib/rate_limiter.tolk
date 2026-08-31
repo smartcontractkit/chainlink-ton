@@ -28,6 +28,9 @@ struct RateLimiter_TokenBucket {
 }
 
 fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_TokenBucket {
+    // Mirror EVM `_setTokenBucketConfig`: reject rate > capacity (enabled) and non-zero
+    // rate/capacity on a disabled limiter. Without this, misconfigured lanes could be stored.
+    config.validate();
     return RateLimiter_TokenBucket {
         tokens: config.capacity,
         lastUpdated: blockchain.now(),
