@@ -10,12 +10,64 @@
   # source yarn.lock at the root of the repo
   yarnLock = ../yarn.lock;
 
+  acton = pkgs.callPackage ./acton.nix {inherit pkgs;};
+
+  # Wraps a repo-local ts-node script (under scripts/) as a nix app/devShell command.
+  #
+  # These run via `node --require ts-node/register/transpile-only`, which resolves
+  # `ts-node` itself, and any of the script's own relative imports (e.g.
+  # scripts/acton/toml.ts), against real, yarn-installed node_modules on disk -- not
+  # anything embedded in the nix store. ts-node also looks up tsconfig.json relative
+  # to the process cwd, not the script's location. So, unlike a typical
+  # writeShellApplication, this locates the real on-disk script and cd's there before
+  # running it, instead of embedding a `${./scripts/<name>.ts}` store path.
+  mkTsScriptApp = {
+    name,
+    scriptPath,
+  }:
+    pkgs.writeShellApplication {
+      inherit name;
+      runtimeInputs = [
+        acton
+        pkgs.nodejs_24
+      ];
+      text = ''
+        root="$PWD"
+        if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
+          root="$root/contracts"
+        fi
+        if [ ! -f "$root/${scriptPath}" ]; then
+          echo "error: could not find ${scriptPath} under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
+          exit 1
+        fi
+
+        # Resolve any path arguments (e.g. a manifest or ABI JSON file) before
+        # changing directories below, so they stay correct relative to the caller's
+        # cwd. Leave anything that isn't an existing path (e.g. a --flag) untouched,
+        # so realpath doesn't fail on it and abort the script under set -e.
+        args=()
+        for arg in "$@"; do
+          if [ -e "$arg" ]; then
+            args+=("$(realpath "$arg")")
+          else
+            args+=("$arg")
+          fi
+        done
+
+        # repo root has no tsconfig.json, which would otherwise make ts-node fall
+        # back to its bundled default config and fail with TS5109 on this
+        # TypeScript version -- cd into $root so it finds the real one.
+        cd "$root"
+        exec node --require ts-node/register/transpile-only ${scriptPath} "''${args[@]}"
+      '';
+    };
+
   packages = rec {
     # Official TON Jetton contract in FunC
     contracts-jetton-func = pkgs.buildNpmPackage (finalAttrs: rec {
       pname = "contracts-jetton-func";
 
-      src = builtins.fetchGit {
+      src = fetchGit {
         url = "https://github.com/ton-blockchain/jetton-contract.git";
         rev = "3d24b419f2ce49c09abf6b8703998187fe358ec9"; # jetton-1.2, Jun 7, 2025
       };
@@ -30,57 +82,7 @@
       };
     });
 
-    acton = pkgs.callPackage ./acton.nix {inherit pkgs;};
-
-    # Wraps a repo-local ts-node script (under scripts/) as a nix app/devShell command.
-    #
-    # These run via `node --require ts-node/register/transpile-only`, which resolves
-    # `ts-node` itself, and any of the script's own relative imports (e.g.
-    # scripts/acton/toml.ts), against real, yarn-installed node_modules on disk -- not
-    # anything embedded in the nix store. ts-node also looks up tsconfig.json relative
-    # to the process cwd, not the script's location. So, unlike a typical
-    # writeShellApplication, this locates the real on-disk script and cd's there before
-    # running it, instead of embedding a `${./scripts/<name>.ts}` store path.
-    mkTsScriptApp = {
-      name,
-      scriptPath,
-    }:
-      pkgs.writeShellApplication {
-        inherit name;
-        runtimeInputs = [
-          acton
-          pkgs.nodejs_24
-        ];
-        text = ''
-          root="$PWD"
-          if [ ! -f "$root/Acton.toml" ] && [ -f "$root/contracts/Acton.toml" ]; then
-            root="$root/contracts"
-          fi
-          if [ ! -f "$root/${scriptPath}" ]; then
-            echo "error: could not find ${scriptPath} under $root (run from the contracts directory, repo root, or set your cwd there)" >&2
-            exit 1
-          fi
-
-          # Resolve any path arguments (e.g. a manifest or ABI JSON file) before
-          # changing directories below, so they stay correct relative to the caller's
-          # cwd. Leave anything that isn't an existing path (e.g. a --flag) untouched,
-          # so realpath doesn't fail on it and abort the script under set -e.
-          args=()
-          for arg in "$@"; do
-            if [ -e "$arg" ]; then
-              args+=("$(realpath "$arg")")
-            else
-              args+=("$arg")
-            fi
-          done
-
-          # repo root has no tsconfig.json, which would otherwise make ts-node fall
-          # back to its bundled default config and fail with TS5109 on this
-          # TypeScript version -- cd into $root so it finds the real one.
-          cd "$root"
-          exec node --require ts-node/register/transpile-only ${scriptPath} "''${args[@]}"
-        '';
-      };
+    inherit acton;
 
     abigen = mkTsScriptApp {
       name = "abigen";
