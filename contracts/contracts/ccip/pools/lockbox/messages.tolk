@@ -52,7 +52,7 @@ type JettonLockBox_BouncedMessage =
 struct (0x6d077f2e) JettonLockBox_Deposited {
     queryId: uint64;
     token: address;
-    remoteChainSelector: uint64;
+    depositor: address;
     amount: coins;
     context: cell?;
 }

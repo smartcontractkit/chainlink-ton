@@ -2,6 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
+import { getExternals, testLog } from '../../Logs'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
@@ -24,6 +25,7 @@ import {
   TokenPool_ReleaseOrMintInV1,
   TokenPool_RateLimitConfigPair,
   TokenPool_ChainUpdate,
+  TokenPool_ChainAdded,
   Ownable2Step,
   TokenPool_TransferDetails,
   TokenPool_LockOrBurnTransfer,
@@ -775,6 +777,46 @@ describe('LockReleaseTokenPool', () => {
     // Consumed capacity (5) was refunded: the bucket is restored to its starting balance.
     const after = await lockReleasePool.getCurrentRateLimiterState(remoteChainSelector, false)
     expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+  })
+
+  it('emits ChainAdded carrying the lane rate-limiter configs (EVM parity)', async () => {
+    const newSel = 91000009n
+    const outCfg = RateLimiter_Config.create({ isEnabled: true, capacity: toNano('55'), rate: 3n })
+    const inCfg = RateLimiter_Config.create({ isEnabled: true, capacity: toNano('77'), rate: 4n })
+
+    const result = await lockReleasePool.sendTokenPoolApplyChainUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 90n,
+        remoteChainSelectorsToRemove: [],
+        chainsToAdd: [
+          TokenPool_ChainUpdate.create({
+            remoteChainSelector: newSel,
+            remotePoolAddresses: [sourcePoolAddress],
+            remoteTokenAddress: destTokenAddress,
+            rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+              outbound: outCfg,
+              inbound: inCfg,
+            }),
+          }),
+        ],
+      },
+    )
+
+    const matched = getExternals(result.transactions).some((ext) =>
+      testLog(ext, lockReleasePool.address, 'TokenPool_ChainAdded', (body) => {
+        const ev = TokenPool_ChainAdded.fromSlice(body.beginParse())
+        return (
+          ev.remoteChainSelector === newSel &&
+          ev.outboundRateLimiterConfig.capacity === outCfg.capacity &&
+          ev.outboundRateLimiterConfig.rate === outCfg.rate &&
+          ev.inboundRateLimiterConfig.capacity === inCfg.capacity &&
+          ev.inboundRateLimiterConfig.rate === inCfg.rate
+        )
+      }),
+    )
+    expect(matched).toBe(true)
   })
 
   it('locks tokens through a jetton transfer notification and credits the pool wallet', async () => {

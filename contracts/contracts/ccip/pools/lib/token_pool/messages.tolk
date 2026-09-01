@@ -286,6 +286,13 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
+/// Messages the base TokenPool library itself emits with a bounceable mode. The shared base
+/// `TokenPool<T>.onBouncedMessage` decodes this set so concrete pools don't each re-implement the
+/// recovery; a bounced body outside this set falls through to the pool's own bounce matcher.
+type TokenPool_BouncedMessage =
+    | TokenPool_LockOrBurnWithdraw
+    | TokenPool_GetCCVs;
+
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
     // TODO: unwrap and inline this type

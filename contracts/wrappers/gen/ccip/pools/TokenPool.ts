@@ -3302,18 +3302,24 @@ export const TokenPool_AdvancedPoolHooksSet = {
  > struct TokenPool_ChainAdded {
  >     remoteChainSelector: uint64
  >     remoteTokenAddress: Cell<CrossChainAddress>
+ >     outboundRateLimiterConfig: Cell<RateLimiter_Config>
+ >     inboundRateLimiterConfig: Cell<RateLimiter_Config>
  > }
  */
 export interface TokenPool_ChainAdded {
     readonly $: 'TokenPool_ChainAdded'
     remoteChainSelector: uint64
     remoteTokenAddress: CrossChainAddress
+    outboundRateLimiterConfig: RateLimiter_Config
+    inboundRateLimiterConfig: RateLimiter_Config
 }
 
 export const TokenPool_ChainAdded = {
     create(args: {
         remoteChainSelector: uint64
         remoteTokenAddress: CrossChainAddress
+        outboundRateLimiterConfig: RateLimiter_Config
+        inboundRateLimiterConfig: RateLimiter_Config
     }): TokenPool_ChainAdded {
         return {
             $: 'TokenPool_ChainAdded',
@@ -3325,11 +3331,15 @@ export const TokenPool_ChainAdded = {
             $: 'TokenPool_ChainAdded',
             remoteChainSelector: s.loadUintBig(64),
             remoteTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            outboundRateLimiterConfig: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
+            inboundRateLimiterConfig: loadCellRef<RateLimiter_Config>(s, RateLimiter_Config.fromSlice),
         }
     },
     store(self: TokenPool_ChainAdded, b: c.Builder): void {
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remoteTokenAddress, b, CrossChainAddress.store);
+        storeCellRef<RateLimiter_Config>(self.outboundRateLimiterConfig, b, RateLimiter_Config.store);
+        storeCellRef<RateLimiter_Config>(self.inboundRateLimiterConfig, b, RateLimiter_Config.store);
     },
     toCell(self: TokenPool_ChainAdded): c.Cell {
         return makeCellFrom<TokenPool_ChainAdded>(self, TokenPool_ChainAdded.store);

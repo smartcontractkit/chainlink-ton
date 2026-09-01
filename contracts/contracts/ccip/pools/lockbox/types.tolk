@@ -25,6 +25,8 @@ enum JettonLockBox_Error {
     RecipientCannotBeZeroAddress
     /// Thrown for operations on unsupported tokens (wrong wallet or uninitialized).
     UnsupportedToken
+    /// Thrown when the forward payload is missing or malformed during a deposit.
+    MissingOrMalformedForwardPayload
     /// Thrown when trying to initialize the contract more than once.
     ContractAlreadyInitialized
     /// Thrown when calling a function on an uninitialized contract or with invalid input.

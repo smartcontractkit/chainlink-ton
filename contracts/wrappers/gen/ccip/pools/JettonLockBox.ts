@@ -561,7 +561,7 @@ export const JettonLockBox_Withdraw = {
  > struct (0x6d077f2e) JettonLockBox_Deposited {
  >     queryId: uint64
  >     token: address
- >     remoteChainSelector: uint64
+ >     depositor: address
  >     amount: coins
  >     context: cell?
  > }
@@ -570,7 +570,7 @@ export interface JettonLockBox_Deposited {
     readonly $: 'JettonLockBox_Deposited'
     queryId: uint64
     token: c.Address
-    remoteChainSelector: uint64
+    depositor: c.Address
     amount: coins
     context: c.Cell | null
 }
@@ -581,7 +581,7 @@ export const JettonLockBox_Deposited = {
     create(args: {
         queryId?: uint64
         token: c.Address
-        remoteChainSelector: uint64
+        depositor: c.Address
         amount: coins
         context: c.Cell | null
     }): JettonLockBox_Deposited {
@@ -597,7 +597,7 @@ export const JettonLockBox_Deposited = {
             $: 'JettonLockBox_Deposited',
             queryId: s.loadUintBig(64),
             token: s.loadAddress(),
-            remoteChainSelector: s.loadUintBig(64),
+            depositor: s.loadAddress(),
             amount: s.loadCoins(),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
@@ -606,7 +606,7 @@ export const JettonLockBox_Deposited = {
         b.storeUint(0x6d077f2e, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
-        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.depositor);
         b.storeCoins(self.amount);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -822,14 +822,15 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockBox implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('te6ccgECQwEACo4AART/APSkE/S88sgLAQIBYgIDAgLLGBkCASAEBQIBIAYHAgEgEBECAUgICQIBSA4PAgEgCgsAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAuSmV0dG9uTG9ja0JveIItTAuMS4wiAAN6wLdqJoaZ+Y/SQY/SgY+gK2rDa2tqwBuAD4BcACASAMDQAWq5HtRNDTPzH6SDAAHKh27UTQ0z8x+kgx+lAwABuyH7tRNDTPzH6SDDHBYAA3sFH7UTQ0z8x+kgx+lAx9AVtWG1tbVgDcAHwDYAIBIBITAgEgFhcAN7aC3aiaGmfmP0kGP0oGPoCgTa2rTa2rTgBeANACAUgUFQA3rpt2omhpn5j9JBj9KBj6ArasNra2rAG4APgHwAA3rY72omhpn5j9JBj9KBj6ArasNra2rAG4APgIwAA3tK2dqJoaZ+Y/SQY/SgY+gKBNratNratOAF4B0AA3tEq9qJoaZ+Y/SQY/SgY+gKBNratNratOAF4CEAIBIBobAgHOQUICASAcHQIBIDAxAgEgHh8CASAsLQH1Ttou37+JGOce1E0AHXLCf////08r/XTNAB0z8x+kgwAdcsIHxT9SyOTdM/+gD6SPpQMfQE+gAxAdD6SDAB9AQhbpsxIMcAkjBt4MjOyZHR4sjPkYLrlVoVyz8V+lJY+gL6UvQAycjPhQgS+lJxzwtuzMmAQPsA4PI/4IIABfUgwAGeMPgo+kQwgXUwAfg2qwDgwAOd+Cj6RDCBdTAB+DaqAOD4KPpEMIF1MAH4NoA+7tRNDTP/pI+lD0BNEk1ywjmxaE5I9R1ywmgy4YNI7E1ywn/Td1zI44MG1tbW1wJfiS+JcsEDgQNxA2EDUQNPAJbFGOETE0AsjLP/pS+lT0AMntVNsx4DCEDwXHABXy9APjDQPjDVUC4w0DyMs/EvpS+lT0AMntVCEiIwH+MzQB0z/6SPpI+lAw+JKCAKNMBm4W8vSCAKNKiwIkxwWz8vSCAKNKiwIjxwWz8vRTIW1tbW1wVFDhUwGDB/QOb6GbMdTR0NP/0z/0BNGOGTBwIG1wyMv/cM8LP1IQ9ADJQEWDB/QXQTPicMjL/xLLP/QAyQFWEFADgwf0Fz8rcSQC+DUE0z/6SNM/+gD6SPQF+JKCAKNNKG6z8vQqbW1tbXCCEKJ3HQQn8AWCAKNIJMIA8vSCAKNJiwIkxwWz8vSCAKNKKG6z8vQhbrOOIyHQ+lD0BDH6ADH0BDHRbrOeIdD6UPQEMfoAMfQEMdGS+Cjikvgo4iJus5Fw4w0jbrMnKAGyNQTTP/oA+lD4koIAo00mbrPy9IIAo0gkwgDy9IIAo0ombrOWUxbHBcMAkXDi8vSCALkoI26z8vRUJDBUY2BUepgul1sQOEdl8Aft47p5f+0Riu1B7fEB8v8qAvzwA8jPkvX6LzoSyz9wzwv/Esv/cM8L/8nIz4UIUuD6Ulj6AnHPC2rMyXH7AIIQoncdBFHuUwGDB/QOb6GbMdTR0NP/0z/0BNGOGTBwIG1wyMv/cM8LP1IQ9ADJQEWDB/QXQTPicMjL/xLLP/QAyQFWEFADgwf0Fz8rcfADyIklJgAIvX6LzgDgzxYSyz+CEKJ3HQTPC/8Sy/9wzwv/ycjPhQhS4PpSWPoCcc8LaszJcfsAJ26zVBCM4wQnEG4YcCxUTjBSsPAIXwaAEIIK+vCAAfsCyM+Tp9OMRhbLPxT6UhL6UvpSycjPhQgU+lJxzwtuE8zJgED7AAAcItD6UDH0BDH6APQEMdEB/I4SI9D6UDH0BDH6ADH0BNFus8MAkXDiniPQ+lAx9AQx+gAx9ATRkW3iA8j6UskDyPQAz1DIz5A+KfqWKs8LPyf6AlJg+lIT+lQT9ABY+gLOycjPhYhSgPpSz4QQc/oCcc8LZczJgFD7AMjPk0GXDBoWyz8U+lISyz8B+gL6UikANvQAycjPjxgABIIQLQyBg88L93HPC2HMyXD7AAH+AvQEIW6YMSDHAJIwbeCS0dDiggCjSyFus/L0Jm1tbW1wghCidx0EKfAF1ywk9PYbDPK/0z/6SNM/+gD0BNGCAKNKU0nHBfL0IYIAo0sHuhby9MjPknp7DYYkzws/UjD6UhLLPyH6AlJA9ADJyM+PGAAEghCensNhzwv3cc8LYSsAXMzJcPsAyM+RtB38uhPLP/pSUjD6UgH6AvQAycjPhQgS+lJxzwtuzMmAQPsAVQIALVVVFTdvAGkVvgyPpSy//PUIIAuSjy8YAgEgLi8APxsUgKDB/QOb6GSW3Dh1NHQgQFA1yH0BYEBC/QKb6ExgAIMMCBukl8E4IIQBfXhAG2LBMjPkD4p+pYWyz9QBPoCUiD6UhL6VBL0AM+EIBLOycjPhQgT+lIB+gJxzwtqzMlz+wCACASAyMwIBIDo7AgEgNDUCASA4OQH3CXDAJUnbrPDAJFw4pdUeUJTStpA3lGiUwGDB/QOb6GbMdTR0NP/0z/0BNGOGTBwIG1wyMv/cM8LP1IQ9ADJQEWDB/QXQTPiU0CBAQv0Cm+hMZYQN18HNnDgyM+DUlKBAQv0QQGkAsjL/xLLP/QAyVIygwf0F3HwA1RyQoDYB5yO8O2i7fsxVHdlVHdlf1GH8AoB1ywkrmqgfI5T1ywktNhtzI4h0z/T//pIMFR6mFR6mCfwC1RrsFRrsFRrsCrwBUEE8AwwjibXLCHKKWI0lV8DcNsx4dM/0//6SDBTA8cFloIAuSny8OFBBPAMMOLjDX/YgNwDSJ8cFkTSOLMjPkzzyoN4ozws/Js8L/1Ig+lJSEPpSycjPhQgW+lIj+gJxzwtqFczJcfsA4nBUTRPjBMjPkzzyoN4Xyz8Uy/8T+lL6UsnIz4UIE/pSUAP6AnHPC2rMyQeSgECRceIX+wB/AELTP9P/+kgwVHqYVHqYJ/ALVGuwVGuwVGuwKvAFQQTwCDAALwzMzUEwwCVIW6zwwCRcOKUQDPaMeBsMYAAnGxRAYMH9A5voZIwcOHU0dDXC/+ACASA8PQIBID9AAfUJcMAlSZus8MAkXDil1R5QlNJ2kDeUaJTAYMH9A5voZsx1NHQ0//TP/QE0Y4ZMHAgbXDIy/9wzws/UhD0AMlARYMH9BdBM+JTQIEBC/QKb6ExlhA3Xwc2cOFSQIEBC/RZMAGlAsjL/xLLP/QAyVIygwf0F3HwA1RyQieA+AC8bFEBgwf0Dm+hmdTR0NP/MdcLP5IwcOKAA0McFkTSOLMjPkmQ/hx4ozws/Js8L/1Ig+lJSEPpSycjPhQgW+lIj+gJxzwtqFczJcfsA4nBUTRPjBMjPkmQ/hx4Xyz8Uy/8T+lL6UsnIz4UIE/pSUAP6AnHPC2rMyQeSgECRceIX+wB/AJcbFICgwf0Dm+hjjzU0dDT/zHTP/QFUiK+kltt4HAhgQEL9IJvpTKaUyS5kyHDAJFw4p0xIoEBC/R0b6UyAqQC6GwiMpIwbd+SW23igAE8bFEBgwf0Dm+hjhjU0dDT/zHTP/QFAZIwbeGBAQv0gm+lMDGSMG3igAE0bFICgwf0Dm+hjhfU0dCBAUDXIfQFgQEL9HRvpWwSkjBt4ZJbbeKAAMRsUQGDB/QOb6Ga1NHQgQFA1yH0BZIwbeKA=');
 
     static Errors = {
         'JettonLockBox_Error.TokenAmountCannotBeZero': 41800,
         'JettonLockBox_Error.RecipientCannotBeZeroAddress': 41801,
         'JettonLockBox_Error.UnsupportedToken': 41802,
-        'JettonLockBox_Error.ContractAlreadyInitialized': 41803,
-        'JettonLockBox_Error.ContractNotInitialized': 41804,
+        'JettonLockBox_Error.MissingOrMalformedForwardPayload': 41803,
+        'JettonLockBox_Error.ContractAlreadyInitialized': 41804,
+        'JettonLockBox_Error.ContractNotInitialized': 41805,
         'AccessControl_Error.UnauthorizedAccount': 47400,
         'AccessControl_Error.BadConfirmation': 47401,
     }

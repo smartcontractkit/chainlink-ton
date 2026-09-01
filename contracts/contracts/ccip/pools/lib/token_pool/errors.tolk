@@ -30,4 +30,5 @@ enum TokenPool_Error {
     AmountMismatch
     InvalidRequestedFinality
     RateLimitExceeded
+    LockOrBurnWithdrawBounced
 }

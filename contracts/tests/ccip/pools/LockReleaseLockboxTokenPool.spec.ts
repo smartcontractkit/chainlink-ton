@@ -57,7 +57,6 @@ import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavi
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 
-
 function emptyAccessControlData(): AccessControl_Data {
   return {
     $: 'AccessControl_Data',
