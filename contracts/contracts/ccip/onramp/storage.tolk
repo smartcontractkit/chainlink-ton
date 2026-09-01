@@ -8,6 +8,8 @@ struct OnRamp_Storage {
 
     // static config
     chainSelector: uint64; // source chain selector
+    // Separate TokenAdminRegistry root used to derive deterministic entries.
+    tokenAdminRegistry: address;
 
     // dynamic config
     config: Cell<OnRamp_DynamicConfig>;

@@ -40,7 +40,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         // Sender must be this contract (called when initializing the contract)
         CCIPSendExecutor_Execute => {
-            var this = init(msg.onrampSend, msg.config.load());
+            var this = init(msg.onrampSend, msg.tokenRegistry, msg.config.load());
             assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
             assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute();
@@ -98,7 +98,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+fun init(onrampSend: OnRamp_Send, tokenRegistry: address?, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         id: st.id,
@@ -107,7 +107,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
             onramp: st.onramp,
             router: config.router,
             feeQuoter: config.feeQuoter,
-            tokenRegistry: onrampSend.tokenRegistry.toOptCell(),
+            tokenRegistry: tokenRegistry.toOptCell(),
         }.toCell(),
         state: CCIPSendExecutor_State_Initialized{
         }.toCell(),

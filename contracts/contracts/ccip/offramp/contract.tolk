@@ -903,9 +903,11 @@ fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTran
     }
     val tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     
-    // TODO probably the tokenRegistryMaster
-    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
-    val registryAddress = TokenAdminRegistryEntry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
+    val registryAddress = TokenAdminRegistryEntry.deriveAddress(
+        st.deployables.load().deployer,
+        tokenTransfer.token,
+        st.deployables.load().tokenAdminRegistry,
+    ).calculateAddress();
     return [
         ReceiveExecutor_TokenTransfer {
             tokenAdminRegistry: registryAddress,
@@ -1036,6 +1038,7 @@ get fun config(): Config {
     val st = lazy Storage.load();
     return {
         chainSelector: st.chainSelector,
+        tokenAdminRegistry: st.deployables.load().tokenAdminRegistry,
         feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
     }

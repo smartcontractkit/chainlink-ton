@@ -22,6 +22,8 @@ type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<R
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
     onrampSend: OnRamp_Send,
+    // Derived by the OnRamp rather than supplied by the Router.
+    tokenRegistry: address?,
     config: Cell<CCIPSendExecutor_Config>,
 }
 

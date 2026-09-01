@@ -10,7 +10,6 @@ import "../common/types"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
-import "../token_admin_registry_entry/types"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 
@@ -32,7 +31,6 @@ type Router_InMsg =
     | Router_MessageRejected
     | Router_LockOrBurn
     | Router_RMNOwnableMessage
-    | Router_TokenRegistrySetTokenInfo
     | TransferNotificationForRecipient;
 
 type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
@@ -150,12 +148,6 @@ struct (0x6f2d00df) Router_LockOrBurn {
     executorAddress: address,
 }
 
-struct (0xfed7cfba) Router_TokenRegistrySetTokenInfo {
-    tokenAddress: address,
-    tokenInfo: TokenRegistry_TokenInfo,
-    isNewEntry: bool,
-}
- 
 struct Router_GetValidatedFeeContext {
     routerContext: address; // sender
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,

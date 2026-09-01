@@ -45,7 +45,7 @@ struct Config {
     // gasForCallExactCheck
     // rmnRemote
     // nonceManager
-    // tokenAdminRegistry
+    tokenAdminRegistry: address
     // -- Dynamic config
     feeQuoter: address
     permissionlessExecutionThresholdSeconds: uint32
@@ -146,6 +146,8 @@ struct Any2TVMTokenTransfer {
 
 struct OffRamp_Deployables {
     rmnRouter: address;
+    // Separate TokenAdminRegistry root used to derive deterministic entries.
+    tokenAdminRegistry: address;
     deployer: cell; // Deployable stub contract compiled code
     merkleRootCode: cell; // MerkleRoot contract compiled code 
     receiveExecutorCode: cell; // ReceiveExecutor contract compiled code

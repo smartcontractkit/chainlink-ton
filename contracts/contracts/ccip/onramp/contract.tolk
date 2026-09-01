@@ -10,6 +10,7 @@ import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
+import "../token_admin_registry_entry/types"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
@@ -265,6 +266,18 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         }
     }
     val config = st.config.load();
+    var tokenRegistry: address? = null;
+    val tokenAmounts = payload.msg.load().tokenAmounts;
+    if (!tokenAmounts.empty()) {
+        // The Router deliberately does not supply this address. The OnRamp
+        // derives the entry from its configured standalone registry root.
+        val token = tokenAmounts.iter().next().token;
+        tokenRegistry = TokenAdminRegistryEntry.deriveAddress(
+            st.executor.deployableCode,
+            token,
+            st.tokenAdminRegistry,
+        ).calculateAddress();
+    }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
         bounce: true,
@@ -282,6 +295,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 value: SendExecutor_Costs.Execute() + ton("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
+                    tokenRegistry,
                     config: CCIPSendExecutor_Config {
                         router: destChainConfig.router,
                         feeQuoter: config.feeQuoter,
