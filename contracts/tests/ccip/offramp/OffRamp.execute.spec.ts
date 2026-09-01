@@ -1753,13 +1753,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: registryAddress,
-        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: registryAddress,
         to: executorAddress,
-        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
         success: true,
       })
 
@@ -2036,13 +2036,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: registryAddress,
-        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: registryAddress,
         to: executorAddress,
-        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
         success: true,
       })
 

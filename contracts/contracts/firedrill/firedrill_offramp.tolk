@@ -112,6 +112,7 @@ get fun config(): Config {
 	val st = lazy FiredrillOffRamp_Storage.load();
 	return {
 		chainSelector: st.chainSelector,
+		tokenAdminRegistry: st.controlAddress,
 		feeQuoter: st.controlAddress,
 		permissionlessExecutionThresholdSeconds: 10,
 	};

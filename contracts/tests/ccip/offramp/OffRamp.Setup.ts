@@ -46,6 +46,7 @@ export async function deployOffRampContract(
     merkleRootCode?: Cell
     receiveExecutorCode?: Cell
     feeQuoter?: Address
+    tokenAdminRegistry?: Address
   },
 ): Promise<SandboxContract<of.OffRamp>> {
   const storage = of.Storage.create({
@@ -55,6 +56,7 @@ export async function deployOffRampContract(
     }),
     deployables: of.OffRamp_Deployables.create({
       rmnRouter: owner.address, // used to determine who can send RMN updates
+      tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
       deployer: opts?.deployerCode ?? Cell.EMPTY,
       merkleRootCode: opts?.merkleRootCode ?? Cell.EMPTY,
       receiveExecutorCode: opts?.receiveExecutorCode ?? Cell.EMPTY,
@@ -126,6 +128,8 @@ export class OffRampTestSetup {
   public offRamp: SandboxContract<of.OffRamp> = null as any
   public router: SandboxContract<rt.Router> = null as any
   public receiver: SandboxContract<tr.Receiver> = null as any
+  // Isolated fixtures use a unique root so their deterministic entry addresses do not collide.
+  public tokenAdminRegistry: Address = generateMockTonAddress()
 
   public readonly DEFAULT_GAS_LIMIT = toNano('0.03')
 
@@ -179,6 +183,10 @@ export class OffRampTestSetup {
   }
 
   async SetupContracts() {
+    // Setup instances are reused across test cases. Refresh the synthetic root
+    // so deterministic TokenAdminRegistryEntry addresses cannot collide.
+    this.tokenAdminRegistry = generateMockTonAddress()
+
     // setup offramp
     {
       this.offRamp = await deployOffRampContract(
@@ -190,6 +198,7 @@ export class OffRampTestSetup {
           merkleRootCode: this.code.merkleRoot,
           receiveExecutorCode: this.code.receiveExecutor,
           feeQuoter: this.feeQuoter.address,
+          tokenAdminRegistry: this.tokenAdminRegistry,
         },
       )
 
@@ -219,10 +228,6 @@ export class OffRampTestSetup {
           admin: rt.Ownable2Step.create({ owner: this.deployer.address }),
           cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
           forwardUpdates: new Set(),
-        }),
-        tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-          deployableCode: this.code.deployable,
-          tokenRegistryCode: this.code.tokenRegistry,
         }),
       })
 
@@ -730,15 +735,15 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   // ---------------------------------------------------------------------------
 
   /**
-   * Derives the TokenRegistry contract address for a given token, matching the
-   * OffRamp's `getTokenAdminRegistry` derivation (Deployable namespace 3).
+   * Derives the entry address for a token, matching the OffRamp's registry-root
+   * derivation (Deployable namespace 3).
    */
   tokenRegistryAddress(token?: Address): Address {
     if (!token) {
       return this.tokenRegistry.address
     }
     return NameSpace.deriveAddress(
-      this.offRamp.address,
+      this.tokenAdminRegistry,
       NameSpace.CCIPNamespace.TokenRegistry,
       beginCell().storeAddress(token),
       this.code.deployable,
@@ -746,8 +751,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
-   * Deploys a TokenRegistry contract at the OffRamp-derived address and sets
-   * the token info (tokenPool + minter + enabled). Returns the registry.
+   * Deploys an entry at the registry-root-derived address and sets its token info.
    */
   async setupTokenRegistry(
     token: Address,
@@ -760,7 +764,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       toNano('1'),
       NameSpace.CCIPNamespace.TokenRegistry,
       {
-        owner: this.router.address,
+        owner: this.tokenAdminRegistry,
         id: beginCell().storeAddress(token),
       },
       trg.TokenAdminRegistryEntry,
@@ -770,6 +774,12 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
           tokenPool,
           minterAddress: token,
           enabled,
+          version: 1n,
+        }),
+        adminConfig: trg.TokenRegistry_AdminConfig.create({
+          tokenAdminRegistry: this.tokenAdminRegistry,
+          administrator: null,
+          pendingAdministrator: null,
         }),
       },
       trg.TokenRegistry_Storage,
@@ -954,20 +964,21 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   async disableToken(): Promise<void> {
-    const result = await this.tokenRegistry.sendTokenRegistrySetTokenInfo(
-      this.blockchain.sender(this.router.address),
+    const result = await this.tokenRegistry.sendTokenAdminRegistryEntrySetTokenInfo(
+      this.blockchain.sender(this.tokenAdminRegistry),
       toNano('0.1'),
       {
         info: trg.TokenRegistry_TokenInfo.create({
           tokenPool: this.tokenPool.address,
           minterAddress: this.token,
           enabled: false, // disabled
+          version: 1n,
         }),
       },
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: this.router.address,
+      from: this.tokenAdminRegistry,
       to: this.tokenRegistry.address,
       success: true,
     })

@@ -39,6 +39,7 @@ export async function deployOnRampContractW(
       pendingOwner: null,
     }),
     chainSelector: ChainSelectors.testnet.ton,
+    tokenAdminRegistry: randomAddress(),
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter: randomAddress(),
       feeAggregator: (await blockchain.treasury('fee-aggregator')).address,

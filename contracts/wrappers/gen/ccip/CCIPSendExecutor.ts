@@ -743,74 +743,79 @@ export const TokenPool_LockOrBurnOutV1 = {
 }
 
 /**
- > struct (0xdd5d5127) TokenRegistry_GetTokenInfo {
+ > struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
  > }
  */
-export interface TokenRegistry_GetTokenInfo {
-    readonly $: 'TokenRegistry_GetTokenInfo'
+export interface TokenAdminRegistryEntry_GetTokenInfo {
+    readonly $: 'TokenAdminRegistryEntry_GetTokenInfo'
 }
 
-export const TokenRegistry_GetTokenInfo = {
-    PREFIX: 0xdd5d5127,
+export const TokenAdminRegistryEntry_GetTokenInfo = {
+    PREFIX: 0x7aef4c2d,
 
-    create(): TokenRegistry_GetTokenInfo {
+    create(): TokenAdminRegistryEntry_GetTokenInfo {
         return {
-            $: 'TokenRegistry_GetTokenInfo',
+            $: 'TokenAdminRegistryEntry_GetTokenInfo',
         }
     },
-    fromSlice(s: c.Slice): TokenRegistry_GetTokenInfo {
-        loadAndCheckPrefix32(s, 0xdd5d5127, 'TokenRegistry_GetTokenInfo');
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_GetTokenInfo {
+        loadAndCheckPrefix32(s, 0x7aef4c2d, 'TokenAdminRegistryEntry_GetTokenInfo');
         return {
-            $: 'TokenRegistry_GetTokenInfo',
+            $: 'TokenAdminRegistryEntry_GetTokenInfo',
         }
     },
-    store(self: TokenRegistry_GetTokenInfo, b: c.Builder): void {
-        b.storeUint(0xdd5d5127, 32);
+    store(self: TokenAdminRegistryEntry_GetTokenInfo, b: c.Builder): void {
+        b.storeUint(0x7aef4c2d, 32);
     },
-    toCell(self: TokenRegistry_GetTokenInfo): c.Cell {
-        return makeCellFrom<TokenRegistry_GetTokenInfo>(self, TokenRegistry_GetTokenInfo.store);
+    toCell(self: TokenAdminRegistryEntry_GetTokenInfo): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_GetTokenInfo>(self, TokenAdminRegistryEntry_GetTokenInfo.store);
     }
 }
 
 /**
- > struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
+ > struct (0x0a58e678) TokenAdminRegistryEntry_ReturnTokenInfo {
  >     minterAddress: address
  >     tokenPool: address?
+ >     version: uint32
  > }
  */
-export interface TokenRegistry_ReturnTokenInfo {
-    readonly $: 'TokenRegistry_ReturnTokenInfo'
+export interface TokenAdminRegistryEntry_ReturnTokenInfo {
+    readonly $: 'TokenAdminRegistryEntry_ReturnTokenInfo'
     minterAddress: c.Address
     tokenPool: c.Address | null
+    version: uint32
 }
 
-export const TokenRegistry_ReturnTokenInfo = {
-    PREFIX: 0xddccddb5,
+export const TokenAdminRegistryEntry_ReturnTokenInfo = {
+    PREFIX: 0x0a58e678,
 
     create(args: {
         minterAddress: c.Address
         tokenPool: c.Address | null
-    }): TokenRegistry_ReturnTokenInfo {
+        version: uint32
+    }): TokenAdminRegistryEntry_ReturnTokenInfo {
         return {
-            $: 'TokenRegistry_ReturnTokenInfo',
+            $: 'TokenAdminRegistryEntry_ReturnTokenInfo',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenRegistry_ReturnTokenInfo {
-        loadAndCheckPrefix32(s, 0xddccddb5, 'TokenRegistry_ReturnTokenInfo');
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_ReturnTokenInfo {
+        loadAndCheckPrefix32(s, 0x0a58e678, 'TokenAdminRegistryEntry_ReturnTokenInfo');
         return {
-            $: 'TokenRegistry_ReturnTokenInfo',
+            $: 'TokenAdminRegistryEntry_ReturnTokenInfo',
             minterAddress: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
+            version: s.loadUintBig(32),
         }
     },
-    store(self: TokenRegistry_ReturnTokenInfo, b: c.Builder): void {
-        b.storeUint(0xddccddb5, 32);
+    store(self: TokenAdminRegistryEntry_ReturnTokenInfo, b: c.Builder): void {
+        b.storeUint(0x0a58e678, 32);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.tokenPool);
+        b.storeUint(self.version, 32);
     },
-    toCell(self: TokenRegistry_ReturnTokenInfo): c.Cell {
-        return makeCellFrom<TokenRegistry_ReturnTokenInfo>(self, TokenRegistry_ReturnTokenInfo.store);
+    toCell(self: TokenAdminRegistryEntry_ReturnTokenInfo): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_ReturnTokenInfo>(self, TokenAdminRegistryEntry_ReturnTokenInfo.store);
     }
 }
 
@@ -940,14 +945,12 @@ export const Fee = {
  > struct (0xdcf993c2) OnRamp_Send {
  >     msg: Cell<Router_CCIPSend>
  >     metadata: Metadata
- >     tokenRegistry: address?
  > }
  */
 export interface OnRamp_Send {
     readonly $: 'OnRamp_Send'
     msg: Router_CCIPSend
     metadata: Metadata
-    tokenRegistry: c.Address | null /* = null */
 }
 
 export const OnRamp_Send = {
@@ -956,11 +959,9 @@ export const OnRamp_Send = {
     create(args: {
         msg: Router_CCIPSend
         metadata: Metadata
-        tokenRegistry?: c.Address | null /* = null */
     }): OnRamp_Send {
         return {
             $: 'OnRamp_Send',
-            tokenRegistry: null,
             ...args
         }
     },
@@ -970,14 +971,12 @@ export const OnRamp_Send = {
             $: 'OnRamp_Send',
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
-            tokenRegistry: s.loadMaybeAddress(),
         }
     },
     store(self: OnRamp_Send, b: c.Builder): void {
         b.storeUint(0xdcf993c2, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
-        b.storeAddress(self.tokenRegistry);
     },
     toCell(self: OnRamp_Send): c.Cell {
         return makeCellFrom<OnRamp_Send>(self, OnRamp_Send.store);
@@ -2228,12 +2227,14 @@ export const FeeQuoter_MessageValidationFailed_Any = {
 /**
  > struct (0xaf3c62b3) CCIPSendExecutor_Execute {
  >     onrampSend: OnRamp_Send
+ >     tokenRegistry: address?
  >     config: Cell<CCIPSendExecutor_Config>
  > }
  */
 export interface CCIPSendExecutor_Execute {
     readonly $: 'CCIPSendExecutor_Execute'
     onrampSend: OnRamp_Send
+    tokenRegistry: c.Address | null
     config: CCIPSendExecutor_Config
 }
 
@@ -2242,6 +2243,7 @@ export const CCIPSendExecutor_Execute = {
 
     create(args: {
         onrampSend: OnRamp_Send
+        tokenRegistry: c.Address | null
         config: CCIPSendExecutor_Config
     }): CCIPSendExecutor_Execute {
         return {
@@ -2254,12 +2256,14 @@ export const CCIPSendExecutor_Execute = {
         return {
             $: 'CCIPSendExecutor_Execute',
             onrampSend: OnRamp_Send.fromSlice(s),
+            tokenRegistry: s.loadMaybeAddress(),
             config: loadCellRef<CCIPSendExecutor_Config>(s, CCIPSendExecutor_Config.fromSlice),
         }
     },
     store(self: CCIPSendExecutor_Execute, b: c.Builder): void {
         b.storeUint(0xaf3c62b3, 32);
         OnRamp_Send.store(self.onrampSend, b);
+        b.storeAddress(self.tokenRegistry);
         storeCellRef<CCIPSendExecutor_Config>(self.config, b, CCIPSendExecutor_Config.store);
     },
     toCell(self: CCIPSendExecutor_Execute): c.Cell {
@@ -2330,7 +2334,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2380,6 +2384,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfCCIPSendExecutorExecute(body: {
         onrampSend: OnRamp_Send
+        tokenRegistry: c.Address | null
         config: CCIPSendExecutor_Config
     }) {
         return CCIPSendExecutor_Execute.toCell(CCIPSendExecutor_Execute.create(body));
@@ -2393,11 +2398,12 @@ export class CCIPSendExecutor implements c.Contract {
         return FeeQuoter_MessageValidationFailed_Any.toCell(body);
     }
 
-    static createCellOfTokenRegistryReturnTokenInfo(body: {
+    static createCellOfTokenAdminRegistryEntryReturnTokenInfo(body: {
         minterAddress: c.Address
         tokenPool: c.Address | null
+        version: uint32
     }) {
-        return TokenRegistry_ReturnTokenInfo.toCell(TokenRegistry_ReturnTokenInfo.create(body));
+        return TokenAdminRegistryEntry_ReturnTokenInfo.toCell(TokenAdminRegistryEntry_ReturnTokenInfo.create(body));
     }
 
     static createCellOfResponseWalletAddress(body: {
@@ -2441,6 +2447,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendCCIPSendExecutorExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         onrampSend: OnRamp_Send
+        tokenRegistry: c.Address | null
         config: CCIPSendExecutor_Config
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2466,13 +2473,14 @@ export class CCIPSendExecutor implements c.Contract {
         });
     }
 
-    async sendTokenRegistryReturnTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenAdminRegistryEntryReturnTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         minterAddress: c.Address
         tokenPool: c.Address | null
+        version: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenRegistry_ReturnTokenInfo.toCell(TokenRegistry_ReturnTokenInfo.create(body)),
+            body: TokenAdminRegistryEntry_ReturnTokenInfo.toCell(TokenAdminRegistryEntry_ReturnTokenInfo.create(body)),
             ...extraOptions
         });
     }

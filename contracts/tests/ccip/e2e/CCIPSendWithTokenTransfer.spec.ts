@@ -14,6 +14,7 @@ import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import * as tr from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
+import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
@@ -56,6 +57,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
   let minter: SandboxContract<JettonMinter>
   let mockTokenPool: SandboxContract<mtp.MockTokenPool>
+  let tokenAdminRegistry: SandboxContract<tar.TokenAdminRegistry>
   let tokenRegistry: SandboxContract<tr.TokenAdminRegistryEntry>
 
   let router: SandboxContract<rt.Router>
@@ -112,13 +114,37 @@ describe('CCIPSend with token transfer (e2e)', () => {
       },
     })
 
-    // 3. Deploy Router/feeQuoter/onRamp/offRamp
+    // 3. Deploy the standalone token-admin registry before the ramps, so both
+    // ramps can derive the same deterministic entry address.
+    tokenAdminRegistry = blockchain.openContract(
+      tar.TokenAdminRegistry.fromStorage(
+        {
+          id: 0n,
+          ownable: tar.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+          entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
+            deployableCode: await contractCode.ccip.local('Deployable'),
+            entryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
+          }),
+        },
+        { overrideContractCode: await contractCode.ccip.local('TokenAdminRegistry') },
+      ),
+    )
+    const registryDeploymentResult = await tokenAdminRegistry.sendDeploy(deployer.getSender(), toNano('0.1'))
+    expect(registryDeploymentResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: tokenAdminRegistry.address,
+      deploy: true,
+      success: true,
+    })
+
+    // 4. Deploy Router/feeQuoter/onRamp/offRamp.
     ;({ router, feeQuoter, onRamp } = await setup(blockchain, {
       deployer,
       sender,
+      tokenAdminRegistry: tokenAdminRegistry.address,
     }))
 
-    // 4. Deploy the MockTokenPool that performs the (mock) lock/burn.
+    // 5. Deploy the MockTokenPool that performs the (mock) lock/burn.
     // TODO should be a helper
     mockTokenPool = blockchain.openContract(
       mtp.MockTokenPool.fromStorage(
@@ -221,38 +247,38 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
     })
 
-    const setTokenInfoResult = await router.sendRouterTokenRegistrySetTokenInfo(
+    const registrationResult = await tokenAdminRegistry.sendTokenAdminRegistryRegisterToken(
       deployer.getSender(),
       toNano('0.2'),
       {
         tokenAddress: minter.address,
-        tokenInfo: tr.TokenRegistry_TokenInfo.create({
+        tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool: mockTokenPool.address,
           minterAddress: minter.address,
           enabled: true,
+          version: 1n,
         }),
-        isNewEntry: true,
+        administrator: deployer.address,
       },
     )
-
     const tokenRegistryAddress = ((): Address => {
-      for (const tx of setTokenInfoResult.transactions) {
+      for (const tx of registrationResult.transactions) {
         const inMsg = tx.inMessage
         if (
           inMsg?.info.type === 'internal' &&
           inMsg.info.src instanceof Address &&
-          inMsg.info.src.equals(router.address) &&
-          inMsg.body.beginParse().preloadUint(32) === tr.TokenRegistry_SetTokenInfo.PREFIX
+          inMsg.info.src.equals(tokenAdminRegistry.address) &&
+          inMsg.body.beginParse().preloadUint(32) === deployable.opcodes.in.initializeAndSend
         ) {
           return inMsg.info.dest
         }
       }
-      throw new Error('TokenRegistry address not found')
+      throw new Error('TokenAdminRegistryEntry address not found')
     })()
 
     tokenRegistry = blockchain.openContract(tr.TokenAdminRegistryEntry.fromAddress(tokenRegistryAddress))
-    expect(setTokenInfoResult.transactions).toHaveTransaction({
-      from: router.address,
+    expect(registrationResult.transactions).toHaveTransaction({
+      from: tokenAdminRegistry.address,
       to: tokenRegistry.address,
       success: true,
       deploy: true,
@@ -344,11 +370,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
       to: onRamp.address,
       op: or.OnRamp_Send.PREFIX,
       success: true,
-      body(x) {
-        if (!x) return false
-        const msg = or.OnRamp_Send.fromSlice(x.beginParse())
-        return msg.tokenRegistry?.equals(tokenRegistry.address) ?? false
-      },
     })
     // onRamp deploys the executor
     expect(result.transactions).toHaveTransaction({
@@ -364,6 +385,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
       to: executorAddress,
       op: exe.CCIPSendExecutor_Execute.PREFIX,
       success: true,
+      body(x) {
+        if (!x) return false
+        return exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).tokenRegistry?.equals(tokenRegistry.address) ?? false
+      },
     })
     // executor -> feeQuoter and back
     expect(result.transactions).toHaveTransaction({
@@ -382,13 +407,13 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
       to: tokenRegistry.address,
-      op: tr.TokenRegistry_GetTokenInfo.PREFIX,
+      op: tr.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: tokenRegistry.address,
       to: executorAddress,
-      op: tr.TokenRegistry_ReturnTokenInfo.PREFIX,
+      op: tr.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
       success: true,
     })
     // executor -> onRamp (requests lock/burn)

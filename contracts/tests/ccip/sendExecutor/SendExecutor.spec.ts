@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
-import { beginCell, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { ChainSelectors } from '../../utils/Selectors'
 import { crc32 } from 'zlib'
 
@@ -103,7 +103,6 @@ describe('SendExecutor - Unit tests', () => {
         sender: sender.address,
         value: SentValue,
       }),
-      tokenRegistry: null,
     })
 
     tokenOnrampSend = or.OnRamp_Send.create({
@@ -117,7 +116,6 @@ describe('SendExecutor - Unit tests', () => {
         // token-transfer path instead of exiting with InsufficientFunds.
         value: SentValue,
       }),
-      tokenRegistry: tokenRegistryMock.address,
     })
   })
 
@@ -156,23 +154,25 @@ describe('SendExecutor - Unit tests', () => {
     expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
   })
 
-  // Deploys and runs the execute self-message. The payload can optionally carry a tokenRegistry,
-  // and the onrampSend can optionally carry a token transfer.
+  // Deploys and runs the execute self-message. The executor payload can
+  // optionally carry a token registry, and OnRamp_Send can carry a token transfer.
   async function afterExecute(opts?: {
     feeQuoterBouncer?: SandboxContract<bouncer.ContractClient>
     send?: or.OnRamp_Send
+    tokenRegistry?: Address | null
   }): Promise<{
     sendExecutor: SandboxContract<sx.CCIPSendExecutor>
     result: SendMessageResult & {
       result: void
     }
   }> {
-    const send = opts?.send ?? { ...onrampSend, tokenRegistry: null }
+    const send = opts?.send ?? onrampSend
     const { sendExecutor, result } = await sendDeploy({
       value: toNano('3'), // TODO temporarily raise value to cover for fixed cost of TokenPool. Entry point could check whether the user has to do a token transfer or not
       body: sx.CCIPSendExecutor_Execute.toCell(
         sx.CCIPSendExecutor_Execute.create({
           onrampSend: send,
+          tokenRegistry: opts?.tokenRegistry ?? null,
           config: sx.CCIPSendExecutor_Config.create({
             router: routerMock.address,
             feeQuoter: opts?.feeQuoterBouncer
@@ -216,6 +216,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('1'),
       {
         onrampSend,
+        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
@@ -239,6 +240,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('1'),
       {
         onrampSend,
+        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
@@ -261,7 +263,8 @@ describe('SendExecutor - Unit tests', () => {
       sender.getSender(),
       toNano('1'),
       {
-        onrampSend: { ...onrampSend, tokenRegistry: null },
+        onrampSend,
+        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
@@ -284,7 +287,8 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(),
       toNano('1'),
       {
-        onrampSend: { ...onrampSend, tokenRegistry: null },
+        onrampSend,
+        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
@@ -301,10 +305,7 @@ describe('SendExecutor - Unit tests', () => {
 
   it('should handle execute from self with a tokenRegistry in the payload', async () => {
     const { sendExecutor, result } = await afterExecute({
-      send: {
-        ...onrampSend,
-        tokenRegistry: tokenRegistryMock.address,
-      },
+      tokenRegistry: tokenRegistryMock.address,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -327,13 +328,11 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should query the tokenRegistry from the payload on validated fee for a token transfer', async () => {
-    // The message carries a token transfer and payload tokenRegistry:
+    // The message carries a token transfer and the executor payload carries tokenRegistry:
     // on a successful fee validation the executor must query that tokenRegistry.
     const { sendExecutor } = await afterExecute({
-      send: {
-        ...tokenOnrampSend,
-        tokenRegistry: tokenRegistryMock.address,
-      },
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
     })
 
     const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
