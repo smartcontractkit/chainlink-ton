@@ -38,7 +38,7 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
                 }.toCell(),
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
-                advancedPoolHooks: createAddressNone() as address,
+                advancedPoolHooks: null, // opt-in; wired later via setAdvancedPoolHooks
                 deployableCode: config.deployableCode,
             }.toCell(),
             localPolicy: TokenPool_LocalPolicy {

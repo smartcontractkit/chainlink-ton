@@ -45,8 +45,7 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         TransferNotificationForRecipient => {
-            // TODO: we should try/catch and best effort return funds if deposit fails (e.g., forwardPayload missing)
-            onDepositWithTransferNotification(mutate st, in.senderAddress, msg);
+            onDepositWithTransferNotification(mutate st, in.senderAddress, in.valueCoins, msg);
         }
         JettonLockBox_Withdraw => {
             onWithdraw(mutate st, in.senderAddress, msg);
@@ -134,33 +133,37 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
 ///      will be issued (so the pool would never finalize and its rate limit stays consumed) and the tokens
 ///      would otherwise be permanently parked in this lockbox. Return them best-effort to the transfer
 ///      initiator instead of silently dropping them.
-fun onDepositWithTransferNotification(mutate st: Storage, sender: address, msg: TransferNotificationForRecipient) {
+fun onDepositWithTransferNotification(
+    mutate st: Storage,
+    sender: address,
+    msgValue: coins,
+    msg: TransferNotificationForRecipient,
+) {
+    // Assert basic conditions before acting on it.
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
-
-    // TODO: fixme
-    // @bug transferInitiator is nullable — mint operations have null initiator, causing a crash here.
-    assert(msg.transferInitiator != null, JettonLockBox_Error.ContractNotInitialized);
-
     assert(msg.jettonAmount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
     assert(st.walletAddress != null && sender == st.walletAddress!, JettonLockBox_Error.UnsupportedToken);
 
-    // TODO: check message value is enough to cover full flow, or error
-    // If the forward payload is missing OR malformed, no pool can be notified and no
-    // `JettonLockBox_Deposited` will ever be issued — the jettons would be permanently parked here.
-    // Return custody to the token sender (best-effort) instead of silently dropping them (D1).
-    val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
-    if (fwdps == null) {
-        TokenPool<void>.returnTransfer(sender, msg);
-        // TODO: should we notify deposit failed?
-        return;
-    }
+    // TODO: a minter can impersonate any transferInitiator, meaning inject any fwdPayload
 
-    // TODO: assert fwdp and msg fields match (token, amount)
+    // A null transferInitiator means this is not an operator-initiated deposit (e.g. a bare mint into the
+    // lockbox wallet). It cannot be attributed or returned so we accept and error.
+    assert(msg.transferInitiator != null, AccessControl_Error.UnauthorizedAccount);
+
+    // TODO: check message value is enough to cover full flow, or error
+    // assert(msgValue >= DEPOSIT_MIN_MESSAGE_VALUE, JettonLockBox_Error.InsufficientValue);
+
     try {
+        val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
+        assert(fwdps != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!);
 
         val fwdp = JettonLockBox_Deposit.fromSlice(fwdps!);
+        assert(fwdp.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
+        assert(fwdp.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, fwdp);
 
         // Reply to the pool so it knows the deposit is confirmed.
@@ -171,7 +174,7 @@ fun onDepositWithTransferNotification(mutate st: Storage, sender: address, msg: 
             body: JettonLockBox_Deposited {
                 queryId: fwdp.queryId,
                 token: fwdp.token,
-                remoteChainSelector: fwdp.remoteChainSelector,
+                depositor: msg.transferInitiator,
                 amount: fwdp.amount,
                 context: fwdp.context,
             },

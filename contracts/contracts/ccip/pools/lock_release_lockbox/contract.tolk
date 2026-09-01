@@ -253,8 +253,6 @@ fun onLockOrBurnTransferContinue(
     val jettonClient = st.poolData.load().jettonClient();
     val ownWallet = jettonClient.walletAddress();
 
-    // Build JettonLockBox_Deposit using generated struct (avoids manual encoding issues).
-    // Navigate: requestMsg (TokenPool_LockOrBurn) -> request (TokenPool_LockOrBurnInV1) -> transfer -> details.
     val requestInV1 = lazy requestMsg.request.load();
     val requestDetails = lazy requestInV1.transfer.details.load();
     val depositMsg = JettonLockBox_Deposit {
@@ -300,9 +298,8 @@ fun onDeposited(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
-    assert(msg.queryId == context.forwardPayload.load().requestMsg.load().queryId) throw 0xFFFF;
     var pool = loadPool(st);
+    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
     pool.onLockOrBurnTransferFinalize(context.forwardPayload.load());
 }
 

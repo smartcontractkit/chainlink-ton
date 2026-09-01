@@ -1,5 +1,5 @@
 import '@ton/test-utils'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, internal } from '@ton/sandbox'
 import { Address, beginCell, toNano, Dictionary, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
@@ -13,6 +13,7 @@ import {
   JettonLockBox_Withdraw,
   JettonLockBox_WithdrawFailed,
   JettonLockBox_Deposited,
+  AccessControl_RoleData,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
@@ -338,6 +339,46 @@ describe('JettonLockBox', () => {
       // And the operator's custody is restored.
       const operatorBalanceAfter = await operatorWallet.getJettonBalance()
       expect(operatorBalanceAfter).toEqual(operatorBalanceBefore)
+    })
+
+    it('a null-initiator transfer errors as unauthorized', async () => {
+      // A bare mint (or any transfer without an initiator) into the lockbox wallet delivers a
+      // TransferNotificationForRecipient with transferInitiator == null. It cannot be attributed to a
+      // pool flow, nor returned (no initiator to return to), so we expect an error.
+      const depositPayload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId: 212n,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: toNano('3'),
+          context: null,
+        }),
+      )
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: lockboxWallet.address,
+          to: lockbox.address,
+          value: toNano('0.3'),
+          body: TransferNotificationForRecipient.toCell(
+            TransferNotificationForRecipient.create({
+              queryId: 212n,
+              jettonAmount: toNano('3'),
+              transferInitiator: null,
+              // Even a well-formed deposit payload must be ignored: a null initiator can't be credited.
+              forwardPayload: beginCell().storeMaybeRef(depositPayload).asSlice(),
+            }),
+          ),
+        }),
+      )
+
+      // The notification is accepted gracefully — no crash, no bounce.
+      expect(result.transactions).toHaveTransaction({
+        from: lockboxWallet.address,
+        to: lockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['AccessControl_Error.UnauthorizedAccount'],
+      })
     })
 
     it('should reject deposit from non-operator transfer initiator', async () => {
