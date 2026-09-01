@@ -450,7 +450,10 @@ describe('BurnMintTokenPool', () => {
         body(body) {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return failure.queryId === 304n && failure.errorCode === 51720n
+          return (
+            failure.queryId === 304n &&
+            failure.errorCode === BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch'])
+          )
         },
       })
       expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))

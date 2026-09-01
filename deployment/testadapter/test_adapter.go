@@ -470,7 +470,7 @@ func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPe
 			CCIPAdmin:     a.WalletAddress.String(),
 		},
 		DeployTokenPoolInput: &tokensapi.DeployTokenPoolInput{
-			PoolType:           bindings.ShortMockTokenPool,
+			PoolType:           bindings.ShortLockReleaseTokenPool,
 			TokenPoolQualifier: "TEST TOKEN POOL " + suffix,
 		},
 		TokenTransferConfig: &tokensapi.TokenTransferConfig{

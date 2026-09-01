@@ -4811,9 +4811,9 @@ export class LockReleaseTokenPool implements c.Contract {
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
-        'Error.UnexpectedReleaseBounce': 7200,
-        'Error.InvalidOffRampAccountReply': 7201,
-        'Error.InvalidOffRampAccountNotification': 7202,
+        'LockRelease_Error.UnexpectedReleaseBounce': 7200,
+        'LockRelease_Error.InvalidOffRampAccountReply': 7201,
+        'LockRelease_Error.InvalidOffRampAccountNotification': 7202,
         'Utils_Error.InvalidData': 13500,
         'RateLimiter_Error.BucketOverfilled': 16300,
         'RateLimiter_Error.TokenMaxCapacityExceeded': 16301,

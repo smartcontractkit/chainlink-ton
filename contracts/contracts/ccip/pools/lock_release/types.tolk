@@ -17,7 +17,7 @@ struct (0xed696f9b) LockReleaseTokenPool_ReleaseContext {
 }
 
 /// Error codes for LockReleaseTokenPool. FACILITY_ID = 72, so codes start at 7200.
-enum Error {
+enum LockRelease_Error {
     UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100 // 7200
     InvalidOffRampAccountReply // 7201
     InvalidOffRampAccountNotification // 7202

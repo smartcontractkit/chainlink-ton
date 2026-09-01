@@ -48,7 +48,8 @@ const RESERVE = ton("5");
 
 // TBD: These two fields should be configurable
 const MIN_GASLIMIT = ton("0.025");
-const MIN_TT_GASLIMIT = ton("0.025"); 
+// LockRelase_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
+const MIN_TT_GASLIMIT = ton("0.15"); 
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);

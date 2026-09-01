@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
 )
 
 const (
@@ -52,8 +53,14 @@ const (
 	TypeReceiveExecutor         tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
 	TypeTokenAdminRegistry      tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistry"
 	TypeTokenAdminRegistryEntry tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistryEntry"
-	TypeTestReceiver            tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
-	TypeMockTokenPool           tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
+	TypeDepositAccount          tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
+
+	// Test contract types
+	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
+
+	// Token Pools
+	TypeLockReleaseTokenPool        tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseTokenPool"
+	TypeLockReleaseLockboxTokenPool tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseLockboxTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -64,19 +71,20 @@ const (
 // These are used in types.Transaction.ContractType and the CLD datastore.
 // They must match the ds.ContractType values defined in deployment/state/.
 const (
-	ShortRouter             = "Router"
-	ShortFeeQuoter          = "FeeQuoter"
-	ShortOnRamp             = "OnRamp"
-	ShortOffRamp            = "OffRamp"
-	ShortSendExecutor       = "SendExecutor"
-	ShortDeployer           = "Deployer"
-	ShortMerkleRoot         = "MerkleRoot"
-	ShortReceiveExecutor    = "ReceiveExecutor"
-	ShortReceiver           = "Receiver"
-	ShortTimelock           = "RBACTimelock"
-	ShortMCMS               = "MCMS"
-	ShortTokenAdminRegistry = "TokenAdminRegistry"
-	ShortMockTokenPool      = "MockTokenPool"
+	ShortRouter                      = "Router"
+	ShortFeeQuoter                   = "FeeQuoter"
+	ShortOnRamp                      = "OnRamp"
+	ShortOffRamp                     = "OffRamp"
+	ShortSendExecutor                = "SendExecutor"
+	ShortDeployer                    = "Deployer"
+	ShortMerkleRoot                  = "MerkleRoot"
+	ShortReceiveExecutor             = "ReceiveExecutor"
+	ShortReceiver                    = "Receiver"
+	ShortTimelock                    = "RBACTimelock"
+	ShortMCMS                        = "MCMS"
+	ShortTokenAdminRegistry          = "TokenAdminRegistry"
+	ShortLockReleaseTokenPool        = "LockReleaseTokenPool"
+	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
@@ -103,8 +111,9 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
-	{ShortMockTokenPool, TypeMockTokenPool},
 	{ShortTokenAdminRegistry, TypeTokenAdminRegistry},
+	{ShortLockReleaseTokenPool, TypeLockReleaseTokenPool},
+	{ShortLockReleaseLockboxTokenPool, TypeLockReleaseLockboxTokenPool},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
@@ -147,6 +156,9 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeSendExecutor:            ccipsendexecutor.TLBs,
 	TypeTokenAdminRegistry:      tokenadminregistry.TLBs,
 	TypeTokenAdminRegistryEntry: tokenadminregistryentry.TLBs,
+
+	// Token pool contract types
+	TypeLockReleaseTokenPool: lockrelease.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

@@ -13,8 +13,6 @@ import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
 
-import { MockTokenPool } from './ccip/MockTokenPool';
-
 import { TestMsgHasher } from './test/TestMsgHasher'
 
 import * as CrossChainAddressCodec from '../ccip/common/CrossChainAddressCodec'
@@ -70,12 +68,6 @@ export function setupGenBindings() {
     )
 
     FeeQuoter.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    MockTokenPool.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,
