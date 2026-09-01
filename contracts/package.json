@@ -58,5 +58,17 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "zlib": "^1.0.5"
+  },
+  "resolutions": {
+    "axios": "v1.16.1",
+    "lodash": "^4.18.1",
+    "protobufjs": "^7.5.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "v1.16.1",
+      "lodash": "^4.18.1",
+      "protobufjs": "^7.5.5"
+    }
   }
 }
