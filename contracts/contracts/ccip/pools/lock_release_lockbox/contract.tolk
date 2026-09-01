@@ -120,7 +120,7 @@ fun onDepositAccountReply(
     // Extract release context from Reply forwardPayload.
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
     val contextCell = msg.forwardPayload!;
-    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val requestIn = lazy operation.requestMsg.load().request.load();
@@ -140,7 +140,7 @@ fun onDepositAccountReply(
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
 
     // Compute account's jetton wallet address (where lockbox should withdraw to).
-    val jettonClient = st.poolData.load().jettonClient();
+    val jc = st.poolData.load().jettonClient();
 
     // Build extra with sendExcessesTo so ReturnExcessesBack routes to pool.
     // Also pass release context as forwardPayload so it survives the lockbox → jetton wallet hop.
@@ -160,7 +160,7 @@ fun onDepositAccountReply(
         dest: st.lockbox,
         body: JettonLockBox_Withdraw {
             queryId: msg.queryId,
-            token: jettonClient.masterAddress,
+            token: jc.masterAddress,
             remoteChainSelector: details.remoteChainSelector,
             amount: prepared.localAmount,
             recipientWallet: sender, // account address
@@ -179,8 +179,9 @@ fun onBouncedMessage(in: InMessageBounced) {
             // Distinguish a fee-withdrawal `AskToTransfer` (tagged with a `WithdrawContext`) from a
             // lock `AskToTransfer` (tagged with a `LockContext`).
             val data = st.poolData.load();
-            if (JettonWithdrawable.onWithdrawBounced(data.jettonClient().walletAddress(), msg)) {
-                assert(data.jettonClient().isWallet(in.senderAddress)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
+            val jc = data.jettonClient();
+            if (JettonWithdrawable.onWithdrawBounced(jc.walletAddress(), msg)) {
+                assert(jc.isWallet(in.senderAddress)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
                 st.store();
 
                 return;

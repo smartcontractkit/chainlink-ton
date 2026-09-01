@@ -106,12 +106,12 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
-        // burn/mint relays an `AskToTransfer` only for fee withdrawals (burns via `CCT_AskToBurn`,
-        // mints via `MintNewJettons`), so any bounced ask here is a failed fee withdrawal.
+        // Bounced ask here is a failed fee withdrawal.
         AskToTransfer => {
             val data = st.poolData.load();
-            assert(in.senderAddress == data.jettonClient().walletAddress()) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            JettonWithdrawable.onWithdrawBounced(data.jettonClient().walletAddress(), msg);
+            val jc = data.jettonClient();
+            assert(in.senderAddress == jc.walletAddress()) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            JettonWithdrawable.onWithdrawBounced(jc.walletAddress(), msg);
             st.store();
         }
         CCT_AskToBurn => {
@@ -126,8 +126,9 @@ fun onBouncedMessage(in: InMessageBounced) {
             var pool = loadPool(st);
             pool.returnTransferLocked(operation);
             pool.refundLockOrBurnRateLimit(operation);
-            st.poolData = pool.data.toCell();
             pool.sendLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16);
+
+            st.poolData = pool.data.toCell();
             st.store();
         }
         MintNewJettons => {

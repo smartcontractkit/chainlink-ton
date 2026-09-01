@@ -12,8 +12,7 @@ struct Storage {
     /// Compiled code cell of the OffRampAccount contract (deployed per-operation).
     offRampAccountCode: cell;
     /// Accrued lock/burn fees held in the pool's own Jetton wallet that `withdrawFeeTokens`
-    /// may move. Lives only here (lock/release) — burn/mint and lockbox have no ledger and
-    /// fall back to the unbounded default in the base token pool.
+    /// may move. Accounted for here as the lock/release TP doesn't use a lockbox mechanism.
     accruedFees: coins;
 }
 

@@ -90,35 +90,21 @@ fun TokenPool_Data.storeAsContractData(self) {
 
 /// Optional extension points wired by concrete pools (e.g. lock/release) to customize the base
 /// TokenPool behavior. Each field is the implementation of the corresponding hook, or `null` to
-/// use the base behavior. Pools share a generic `T` = their per-call `context`, which flows
-/// through every hook (`T?` when a hook may be invoked with no context, e.g. getters).
-///
-/// There are three hook families, mirroring the three flows:
-/// - **Guards**: access/curse checks (outbound, inbound, curse) — override to add custom policy.
-/// - **Operation hooks**: entry + validation + (pre/post)flight for the LockOrBurn and
-///   ReleaseOrMint flows. Hooks returning a `TokenPool_*Prepared` may also signal `wait` to defer
-///   execution to the on-chain (async) `advancedPoolHooks` contract.
-/// - **Continuation hooks**: run after Jetton custody is settled, letting the pool track binding
-///   side effects (e.g. lock/release accrues fees only on confirmed deposit).
-///
-/// The fee-withdrawal hook `onWithdrawFeeTokens` is a fourth, standalone extension point.
+/// use the base behavior. Pools share a generic `T` as the first arg, their per-call `context` (nullable).
 struct TokenPool_Hooks<T> {
     /// Outbound (LockOrBurn) access guard.
-    /// @param context     The pool `context` (nullable).
     /// @param sender      The msg.sender requesting the outbound transfer.
     /// @param remoteChainSelector The destination lane; must be supported.
     /// @dev Base behavior: requires `sender` to be the configured OnRamp for the lane.
     ensureOutboundAccess: ((T?, address, uint64) -> void)?;
 
     /// Inbound (ReleaseOrMint) access guard.
-    /// @param context     The pool `context` (nullable).
     /// @param sender      The msg.sender requesting the inbound transfer.
     /// @param remoteChainSelector The source lane; must be supported.
     /// @dev Base behavior: requires `sender` to be the configured OffRamp for the lane.
     ensureInboundAccess: ((T?, address, uint64) -> void)?;
 
     /// RMN curse guard for a remote lane.
-    /// @param context     The pool `context` (nullable).
     /// @param remoteChainSelector The remote lane to check for a curse.
     /// @dev Base behavior: reverts if the lane's cursed subjects mark it cursed by RMN.
     ensureNotCursed: ((T?, uint64) -> void)?;
@@ -128,14 +114,12 @@ struct TokenPool_Hooks<T> {
     // ----------------------------------------------------------------------
 
     /// Runs before validation when an inbound `ReleaseOrMint` arrives.
-    /// @param context     The current pool `context` (non-null).
     /// @param msg         The full inbound request.
     /// @return The (possibly mutated) context flowing to subsequent hooks.
     /// @dev Base behavior: continues to `validateReleaseOrMint`.
     onReleaseOrMint: ((T, TokenPool_ReleaseOrMint) -> T)?;
 
     /// Validates an inbound request and prepares the release/mint.
-    /// @param context     The pool `context` (non-null).
     /// @param sender      The msg.sender (must be the OffRamp).
     /// @param msg         The full inbound request.
     /// @return (newContext, wait, prepared); `wait` = `true` defers to the async postflight hook.
@@ -145,7 +129,6 @@ struct TokenPool_Hooks<T> {
     validateReleaseOrMint: ((T, address, TokenPool_ReleaseOrMint) -> (T, bool, TokenPool_ReleaseOrMintPrepared))?;
 
     /// Async postflight gate: called once validation has consumed the rate limit.
-    /// @param context    The pool `context` (nullable).
     /// @param msg        The full inbound request.
     /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
     /// @return `true` to wait for a `TokenPool_PostflightCheckFinished/Failed` callback from the
@@ -155,7 +138,6 @@ struct TokenPool_Hooks<T> {
     postflightCheck: ((T?, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintForwardPayload) -> bool)?;
 
     /// Continuation after custody is confirmed and the base finalization path runs.
-    /// @param context  The pool `context` (nullable).
     /// @param sender   The msg.sender of the original request.
     /// @param msg      The full inbound request.
     /// @param prepared The validated release/mint data.
@@ -169,7 +151,6 @@ struct TokenPool_Hooks<T> {
     // ----------------------------------------------------------------------
 
     /// Runs before validation when an outbound `LockOrBurn` arrives.
-    /// @param context     The pool `context` (non-null).
     /// @param sender      The msg.sender requesting the lock/burn.
     /// @param msg         The full outbound request.
     /// @return The (possibly mutated) context flowing to subsequent hooks.
@@ -177,7 +158,6 @@ struct TokenPool_Hooks<T> {
     onLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> T)?;
 
     /// Validates an outbound request and prepares the lock/burn.
-    /// @param context     The pool `context` (non-null).
     /// @param sender      The msg.sender requesting the lock/burn.
     /// @param msg         The full outbound request.
     /// @return (newContext, wait, prepared); `wait` = `true` defers to the async preflight hook.
@@ -187,7 +167,6 @@ struct TokenPool_Hooks<T> {
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
 
     /// Async preflight gate: called once validation has consumed the rate limit.
-    /// @param context    The pool `context` (nullable).
     /// @param msg        The full outbound request.
     /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
     /// @return `true` to wait for a `TokenPool_PreflightCheckFinished/Failed` callback from the
@@ -197,7 +176,6 @@ struct TokenPool_Hooks<T> {
     preflightCheck: ((T?, TokenPool_LockOrBurn, TokenPool_LockOrBurnForwardPayload) -> bool)?;
 
     /// Entry on the Jetton transfer notification (after tokens reach the pool's wallet).
-    /// @param context The pool `context` (non-null).
     /// @param sender  The pool's Jetton wallet that delivered the notification.
     /// @param msg     The decoded inbound `TransferNotificationForRecipient`.
     /// @return The (possibly mutated) context flowing to subsequent hooks.
@@ -206,7 +184,6 @@ struct TokenPool_Hooks<T> {
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
 
     /// Continuation once deposit custody is authenticated and confirmed.
-    /// @param context   The pool `context` (non-null).
     /// @param sender    The pool's Jetton wallet that delivered the notification.
     /// @param msg       The decoded inbound transfer notification.
     /// @param fwdPayload The original request + prepared data.
@@ -220,7 +197,6 @@ struct TokenPool_Hooks<T> {
     // ----------------------------------------------------------------------
 
     /// Withdraws accrued fee jettons from the pool's wallet.
-    /// @param context  The pool `context` (nullable).
     /// @param sender   The withdrawal caller (owner or fee admin).
     /// @param msgValue The TON value on the inbound withdrawal message (must cover all asks + reserve).
     /// @param msg      The withdrawal request (wallet + `AskToTransfer` pairs).
@@ -2164,14 +2140,6 @@ fun TokenPool<T>._setRemotePool(
 }
 
 /// Withdraws accrued fee jettons.
-/// @dev Only callable by the owner or the configured fee admin (mirrors EVM `CallerIsNotOwnerOrFeeAdmin`),
-///      enforced here before invoking the shared `JettonWithdrawable` handler (which is deliberately
-///      auth-agnostic and expects the caller to gate access).
-/// @param msg The withdrawal request: concrete wallet + value + `AskToTransfer` set.
-/// Default fee-withdrawal entry point (dispatched from `onInternalMessage` for `JettonWithdrawable_Withdraw`).
-/// Consults the `onWithdrawFeeTokens` hook when one is wired otherwise relays the caller's
-/// requested transfers with no ledger bound (cap = sum of the requested amounts, so every
-/// per-transfer ask passes — the trust boundary is `onlyOwnerOrFeeAdmin`).
 fun TokenPool<T>.onWithdrawFeeTokensDispatch(
     mutate self,
     sender: address,
@@ -2189,16 +2157,13 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
     self.withdrawFeeTokens(sender, msgValue, msg, maxAmount);
 }
 
-/// Withdraws accrued fee jettons by relaying the provided transfers to the given wallets.
-/// @dev The caller (owner or fee admin) gates access here, since the shared handler is auth-agnostic.
-///      The withdrawal is restricted to exactly one transfer against the pool's own jetton wallet, so
-///      a caller cannot inject asks for arbitrary other-token wallets.
+/// Withdraws accrued fee jettons.
+/// @dev Only callable by the owner or the configured fee admin.
 /// @param sender The caller; must be the owner or fee admin.
 /// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
 ///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
 /// @param msg The withdrawal request (wallet + transfer pairs).
-/// @param maxAmount The upper bound enforced per transfer. Pools with an accrued-fee ledger pass
-///     their ledger (e.g. lock/release); others pass the sum of the requested amounts.
+/// @param maxAmount The upper bound enforced per transfer (cap).
 fun TokenPool<T>.withdrawFeeTokens(
     mutate self,
     sender: address,
@@ -2206,31 +2171,17 @@ fun TokenPool<T>.withdrawFeeTokens(
     msg: JettonWithdrawable_Withdraw,
     maxAmount: coins,
 ): coins {
-    // The caller (owner or fee admin) gates access here, since the shared handler is auth-agnostic.
     assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
 
-    // TODO: should we be less strict and allow multiple token/wallet transfers?
-    // Single-token pools relay exactly one fee withdrawal, and only against the pool's own wallet.
-    assert(msg.transfers.size() == 1, JettonWithdrawable_Error.InvalidWithdrawWallet);
-    val transfer = msg.transfers.get(0);
-    assert(transfer.wallet == self.data.jettonClient().walletAddress(), JettonWithdrawable_Error.InvalidWithdrawWallet);
-
-    // No recipient allowlist: access is gated by onlyOwnerOrFeeAdmin above, and the handler still
-    // forbids withdrawing to the zero/none address (which would burn the jettons).
-    return JettonWithdrawable.onWithdraw(
-        msgValue,
-        sender,
-        msg,
-        maxAmount,
-        null,
-    );
+    // No recipient allowlist: access is gated by onlyOwnerOrFeeAdmin above
+    return JettonWithdrawable.onWithdraw(msgValue, sender, msg, maxAmount, null);
 }
 
 /// Whether the caller is the owner or the fee admin
 fun TokenPool<T>.onlyOwnerOrFeeAdmin(self, sender: address): bool {
-    val adminConfig = self.data.adminConfig.load();
-    val dynamicConfig = adminConfig.dynamicConfig.load();
-    val ownable = adminConfig.ownable.load();
+    val adminConfig = lazy self.data.adminConfig.load();
+    val dynamicConfig = lazy adminConfig.dynamicConfig.load();
+    val ownable = lazy adminConfig.ownable.load();
     val senderIsFeeAdmin = fun () {
         return dynamicConfig.feeAdmin != null
             && sender == dynamicConfig.feeAdmin;

@@ -99,7 +99,7 @@ fun deployOffRampAccountWithRelease(
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-/// @notice Handles DepositAccount_Reply after account deployment for release.
+/// Handles DepositAccount_Reply after account deployment for release.
 /// Extracts context from Reply forwardPayload, then sends AskToTransfer to the pool's jetton wallet.
 /// Context is embedded in forwardPayload so it flows through: wallet → account → pool.
 fun onDepositAccountReply(
@@ -150,7 +150,7 @@ fun onDepositAccountReply(
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Handles bounced release messages: refunds rate limit and sends failure reply.
+/// Handles bounced release messages: refunds rate limit and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     var st = Storage.load();
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
@@ -175,22 +175,24 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-/// Handles a bounced fee-withdrawal `AskToTransfer`: validates it came from our own token wallet,
-/// re-credits `accruedFees` by the returned amount, and notifies the withdrawal initiator. Returns
-/// `true` if the ask was a recognized fee withdrawal (handled here), `false` otherwise (release ask).
+/// Handles a bounced fee-withdrawal `AskToTransfer`
+/// @dev validates it came from our own token wallet, re-credits `accruedFees` by the returned amount,
+/// and notifies the withdrawal initiator. Returns `true` if `AskToTransfer` bounce handled here.
 fun onFeeWithdrawAskBounced(
     mutate st: Storage,
     sender: address,
     ask: AskToTransfer,
 ): bool {
     val data = st.poolData.load();
+    val jc = data.jettonClient();
+
     // Notify the withdrawal initiator of the failure (default handler sends WithdrawFailed).
-    if (!JettonWithdrawable.onWithdrawBounced(data.jettonClient().walletAddress(), ask)) {
+    if (!JettonWithdrawable.onWithdrawBounced(jc.walletAddress(), ask)) {
         return false; // not a fee-withdrawal ask, let the caller handle it
     }
 
     // The bounce must come from our own jetton wallet (the fee jettons were there).
-    assert(data.jettonClient().isWallet(sender)) throw LockRelease_Error.UnexpectedReleaseBounce;
+    assert(jc.isWallet(sender)) throw LockRelease_Error.UnexpectedReleaseBounce;
 
     // Jettons returned to the wallet; restore the fee ledger so they can be withdrawn again.
     st.accruedFees += ask.jettonAmount;
@@ -346,9 +348,8 @@ fun loadPool(st: Storage): TokenPool<Storage> {
     };
 }
 
-/// Lock continuation for lock/release: settles the accrued fee on confirmed lock success, then
-/// finalizes through the base path (a hook-free pool so the base `onLockOrBurnTransferContinue`
-/// -> `onLockOrBurnTransferFinalize` runs: emits `LockedOrBurned` and replies).
+/// Lock continuation for lock/release TP
+/// @dev settles the accrued fee on confirmed lock success, then finalizes through the base path
 fun onLockOrBurnTransferContinue(
     st: Storage,
     _sender: address,
@@ -379,14 +380,13 @@ fun onWithdrawFeeTokens(
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     var st = ctx!;
 
-    // `withdrawFeeTokens` bounds the ledger via `maxAmount` (each transfer's jetton amount <= accrued
-    // fees; exactly one transfer is enforced there) and returns the total jettons actually withdrawn.
     var pool = loadPool(st);
     val withdrawn: coins = pool.withdrawFeeTokens(sender, msgValue, msg, st.accruedFees);
     st.poolData = pool.data.toCell();
 
     // Fees have physically left the wallet; reduce the ledger so it truly reflects what remains.
     st.accruedFees -= withdrawn;
+
     return st;
 }
 
