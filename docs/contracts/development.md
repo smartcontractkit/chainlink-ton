@@ -112,12 +112,14 @@ Contracts define a facility name and id on the `types.tolk` file. The facility n
 
 ```
 const ContractName_FACILITY_NAME = "link.chain.ton.ccip.ContractName";
-const ContractName_FACILITY_ID = 123;  // (crc32(<facility>) % 640) + 10
+const ContractName_FACILITY_ID = ContractName_FACILITY_NAME.crc32() % 640 + 10;
 ```
 
-The facility name uses inverse domain notation (link.chain being the domain of CLL), following the pattern `link.chain.<network>.<module>.<contract>`.
+The facility name uses inverse domain notation (link.chain being the domain of CLL), following the pattern `link.chain.<network>.<module>.<contract>`. Nested modules use additional dot segments, e.g. token pools live under `link.chain.ton.ccip.pools.<Contract>`.
 
-The facility id is calculated with the crc32 of the facility name, scaling it to fit in the range of 10 to 649.
+The facility id is derived from the crc32 of the facility name, scaled to fit in the range of 10 to 649. Always compute it inline from the name (as above) rather than hardcoding the number — a hardcoded id silently goes stale when the name is renamed, changing every error code the contract throws.
+
+> **Warning:** renaming a facility name changes its crc32-derived id, and therefore every error code (`facility_id * 100 + error_index`) the contract emits. This is a breaking change for any off-chain error decoding. Keep the Go exit-code bindings (`pkg/ccip/bindings/**/exitcode*.go`) and any test assertions in sync when you rename.
 
 ## Errors
 

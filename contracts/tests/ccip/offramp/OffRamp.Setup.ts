@@ -1,4 +1,12 @@
-import { Cell, Address, toNano, beginCell, StateInit, contractAddress } from '@ton/core'
+import {
+  Cell,
+  Address,
+  toNano,
+  beginCell,
+  StateInit,
+  contractAddress,
+  AccountState,
+} from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { KeyPair } from '@ton/crypto'
 
@@ -23,10 +31,12 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as tr from '../../../wrappers/examples/Receiver'
-import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
+import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
-import * as jtw from '../../../wrappers/gen/ccip/cct/JettonWallet'
+import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
+import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
 
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
@@ -622,8 +632,9 @@ export class OffRampTestSetup {
 export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   public readonly DEFAULT_TOKEN_AMOUNT: bigint = toNano('5')
 
-  public readonly token: Address = generateMockTonAddress()
-  public tokenPool: SandboxContract<mtp.MockTokenPool> = null as any
+  public token: Address = generateMockTonAddress()
+  public jettonMinter: SandboxContract<cct.JettonMinter> = null as any
+  public tokenPool: SandboxContract<lrp.LockReleaseTokenPool> = null as any
   public tokenRegistry: SandboxContract<trg.TokenRegistry> = null as any
   // Register the remote chain config.
   public readonly sourcePoolAddress: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(
@@ -667,7 +678,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
         tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
-        tokenPool: await contractCode.ccip.local('ccip.test.mockTokenPool'),
+        tokenPool: await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool'),
         jettonMinter: await contractCode.ccip.local('ccip.cct.JettonMinter'),
         jettonWallet: await contractCode.ccip.local('ccip.cct.JettonWallet'),
       },
@@ -689,8 +700,12 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
 
   async SetupContracts() {
     await super.SetupContracts()
+    this.jettonMinter = await this.setupJettonMinter()
+    this.token = this.jettonMinter.address
     this.tokenPool = await this.setupTokenPool()
     this.tokenRegistry = await this.setupTokenRegistry(this.token, this.tokenPool.address)
+    // Mint tokens to the pool so it has balance to release.
+    await this.mintTokensToPool(this.DEFAULT_TOKEN_AMOUNT * 10n)
   }
 
   /**
@@ -723,6 +738,63 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     }
 
     return contractAddress(0, init)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Jetton minter helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Deploys a CCT JettonMinter contract that backs the test token.
+   * The minter's jetton wallet code is loaded from `this.code.jettonWallet`.
+   */
+  async setupJettonMinter(): Promise<SandboxContract<cct.JettonMinter>> {
+    const minter = this.blockchain.openContract(
+      cct.JettonMinter.fromStorage(
+        {
+          totalSupply: 0n,
+          adminAddress: this.deployer.address,
+          nextAdminAddress: null,
+          jettonWalletCode: this.code.jettonWallet,
+          metadataUri: 'test-token',
+        },
+        { overrideContractCode: this.code.jettonMinter },
+      ),
+    )
+
+    const deployResult = await minter.sendTopUpTons(this.deployer.getSender(), toNano('0.1'), {})
+    expect(deployResult.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: minter.address,
+      success: true,
+    })
+
+    return minter
+  }
+
+  /**
+   * Mints jettons to the token pool's jetton wallet so the pool has balance to release.
+   */
+  async mintTokensToPool(amount: bigint): Promise<void> {
+    const mintResult = await this.jettonMinter.sendMintNewJettons(
+      this.deployer.getSender(),
+      toNano('1'),
+      {
+        mintRecipient: this.tokenPool.address,
+        tonAmount: toNano('0.3'),
+        internalTransferMsg: cct.InternalTransferStep.create({
+          jettonAmount: amount,
+          transferInitiator: this.deployer.address,
+          sendExcessesTo: this.deployer.address,
+          forwardTonAmount: 0n,
+          forwardPayload: beginCell().storeBit(false).endCell().beginParse(),
+        }),
+      },
+    )
+    expect(mintResult.transactions).toHaveTransaction({
+      from: this.jettonMinter.address,
+      success: true,
+    })
   }
 
   // ---------------------------------------------------------------------------
@@ -792,7 +864,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       tokenDecimals?: bigint
       rateLimitCapacity?: bigint
     } = {},
-  ): Promise<SandboxContract<mtp.MockTokenPool>> {
+  ): Promise<SandboxContract<lrp.LockReleaseTokenPool>> {
     const token = opts.token ?? this.token
     const remoteChainSelector = opts.remoteChainSelector ?? this.SOURCE_CHAIN_SELECTOR
     const jettonWalletCode = opts.jettonWalletCode ?? this.code.jettonWallet
@@ -800,7 +872,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     const rateLimitCapacity = opts.rateLimitCapacity ?? toNano('1000')
 
     const tokenPool = this.blockchain.openContract(
-      mtp.MockTokenPool.fromStorage(
+      lrp.LockReleaseTokenPool.fromStorage(
         {
           poolData: tp.TokenPool_Data.create({
             adminConfig: tp.TokenPool_AdminConfig.create({
@@ -831,6 +903,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
+          offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
         },
         { overrideContractCode: this.code.tokenPool },
       ),
@@ -941,17 +1014,54 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   /**
    * Gets the balance of the given token for the given address
    */
-  async getTokenBalance(opt: { address?: Address; token?: Address } = {}): Promise<bigint> {
+  async getTokenBalance(
+    opt: { receiver?: Address; token?: { minterAddress: Address; tokenPool: Address } } = {},
+  ): Promise<bigint> {
+    const depositAccount = da.DepositAccount.fromStorage({
+      owner: opt.token?.tokenPool ?? this.tokenPool.address,
+      proxy: opt.token?.tokenPool ?? this.tokenPool.address,
+      beneficiaries: new Set([opt.receiver ?? this.receiver.address]),
+    })
     const wallet = this.blockchain.openContract(
-      jtw.JettonWallet.fromStorage({
+      JettonWallet.fromStorage(
+        {
+          status: 0n,
+          jettonBalance: 0n,
+          ownerAddress: depositAccount.address,
+          minterAddress: opt.token?.minterAddress ?? this.token,
+        },
+        { overrideContractCode: this.code.jettonWallet },
+      ),
+    )
+    const state = (await this.blockchain.getContract(wallet.address)).accountState
+    if (state?.type === 'frozen') {
+      throw new Error(`Wallet ${wallet.address.toString()} is frozen, cannot get balance`)
+    }
+
+    if (state?.type != 'active') {
+      const result = await wallet.sendDeploy(this.deployer.getSender(), toNano('0.05'))
+      expect(result.transactions).toHaveTransaction({
+        from: this.deployer.address,
+        to: wallet.address,
+        deploy: true,
+      })
+    }
+
+    const data = await wallet.getWalletData()
+    return data.jettonBalance
+  }
+
+  walletAddress(opt: { address?: Address; token?: Address } = {}): Address {
+    const wallet = JettonWallet.fromStorage(
+      {
         status: 0n,
         jettonBalance: 0n,
         ownerAddress: opt.address ?? this.receiver.address,
         minterAddress: opt.token ?? this.token,
-      }),
+      },
+      { overrideContractCode: this.code.jettonWallet },
     )
-    const data = await wallet.getWalletData()
-    return data.jettonBalance
+    return wallet.address
   }
 
   async disableToken(): Promise<void> {

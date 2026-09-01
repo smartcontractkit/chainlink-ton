@@ -35,6 +35,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -298,7 +299,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/deploy-token-pool",
 		semver.MustParse("1.6.0"),
-		"Deploys a MockTokenPool for a jetton on a TON chain",
+		"Deploys a LockReleaseTokenPool for a jetton on a TON chain",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.DeployTokenPoolInput) (sequences.OnChainOutput, error) {
 			chain, ok := chains.TonChains()[input.ChainSelector]
 			if !ok {
@@ -331,22 +332,23 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
 				Package: a.Package,
 				Contracts: []ton_tvm.FullyQualifiedName{
-					bindings.TypeMockTokenPool,
+					bindings.TypeLockReleaseTokenPool,
 					bindings.TypeJettonWallet,
+					bindings.TypeDepositAccount,
 				},
 			})
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve mock token pool contract: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve lock-release token pool contract: %w", err)
 			}
 
-			compiled, ok := compiledContracts[bindings.TypeMockTokenPool]
+			compiled, ok := compiledContracts[bindings.TypeLockReleaseTokenPool]
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf(
-					"mock token pool contract not found in compiled contracts package under %q",
-					bindings.TypeMockTokenPool,
+					"lock-release token pool contract not found in compiled contracts package under %q",
+					bindings.TypeLockReleaseTokenPool,
 				)
 			}
-			compiled.Metadata.ID = bindings.TypeMockTokenPool
+			compiled.Metadata.ID = bindings.TypeLockReleaseTokenPool
 
 			compiledWallet, ok := compiledContracts[bindings.TypeJettonWallet]
 			if !ok {
@@ -417,9 +419,14 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenTransferFeeConfigs: nil,
 			}
 
-			// MockTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
+			offRampAccount, ok := compiledContracts[bindings.TypeDepositAccount]
+			if !ok {
+				return sequences.OnChainOutput{}, errors.New("failed to load off-ramp-account code")
+			}
+
+			// LockReleaseTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
 			// has to go behind a ref; passing it bare makes every storage read underflow.
-			storage := tokenpool.MockStorage{PoolData: poolData}
+			storage := lockrelease.Storage{PoolData: poolData, OffRampAccountCode: offRampAccount.Code}
 
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
@@ -431,7 +438,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				defaultJettonDeployCoin,
 			)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy mock token pool: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
 			}
 
 			addrRef.Qualifier = input.TokenPoolQualifier
@@ -578,13 +585,13 @@ func applyRemoteChainUpdates(
 			RemoteChainSelector: remoteSelector,
 			RemotePoolAddresses: remotePools,
 			RemoteTokenAddress:  remoteTokenCell,
-			// The mock ignores rate limiters; a disabled pair keeps the message
+			// The pool ignores rate limiters; a disabled pair keeps the message
 			// compatible with the productive TokenPool.
 			RateLimitConfigs: disabledRateLimitConfigPair(),
 		})
 	}
 
-	body := codec.MustWrapMessage[any](bindings.TypeMockTokenPool, tokenpool.ApplyChainUpdates{
+	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseTokenPool, tokenpool.ApplyChainUpdates{
 		RemoteChainSelectorsToRemove: common.SnakedCell[tokenpool.ChainSelector]{},
 		ChainsToAdd:                  chainsToAdd,
 	})
@@ -633,7 +640,7 @@ func applyRampAccessUpdates(
 		return fmt.Errorf("failed to generate query id for ramp access update: %w", err)
 	}
 
-	body := codec.MustWrapMessage[any](bindings.TypeMockTokenPool, tokenpool.UpdateRampAccess{
+	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseTokenPool, tokenpool.UpdateRampAccess{
 		QueryID: queryID,
 		Updates: updates,
 	})
@@ -706,7 +713,7 @@ func (a *TonTokenAdapter) MigrateLockReleasePoolLiquiditySequence() *cldf_ops.Se
 }
 
 // GetOnchainRateLimits reports the on-chain outbound and inbound rate limits for a lane.
-// TON's MockTokenPool does not enforce rate limits yet, so there is never a
+// TON's LockReleaseTokenPool does not enforce rate limits yet, so there is never a
 // configured bucket: return disabled zero-value configs. FastFinality is not a
 // concept on TON, so reject that bucket per the interface contract.
 func (a *TonTokenAdapter) GetOnchainRateLimits(

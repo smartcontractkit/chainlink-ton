@@ -104,8 +104,7 @@ returned mid-flow. The pool lib scaffolds this
 `TokenPool_LockOrBurnWithdraw` to `replyTo`), **but the ramp side is mock and not
 wired end-to-end:**
 
-- `router/contract.tolk:671-681` sends `MockTokenPool_LockOrBurn` (test opcode
-  `0x7dd8f942`), not the real `TokenPool_LockOrBurn`.
+- `router/contract.tolk:751` sends`TokenPool_LockOrBurn`.
 - `ccipsend_executor/contract.tolk:215` only handles `TokenPool_LockOrBurnFinished`;
   it does **not** handle the pool's `TokenPool_LockOrBurnWithdraw`. The
   pool→executor→onramp→router→(tokens)→pool-wallet loop is open.
