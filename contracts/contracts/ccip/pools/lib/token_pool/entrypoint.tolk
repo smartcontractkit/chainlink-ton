@@ -348,9 +348,9 @@ fun TokenPool<T>.setDynamicConfig(
     // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
     assert(feeAdmin == null || !isZeroAddress(feeAdmin!), TokenPool_Error.ZeroAddressInvalid);
 
+    // TODO: should we drop the setAllowedDepositNamespaces and move to setDynamicConfig?
     // Preserve allowedDepositNamespaces: it lives in dynamicConfig but is managed via its own
-    // setter (setAllowedDepositNamespaces). Rebuilding the struct from scratch here would silently
-    // wipe the configured deposit-account namespaces and break per-user deposit authentication.
+    // setter (setAllowedDepositNamespaces).
     var dynamicConfig = adminConfig.dynamicConfig.load();
     dynamicConfig.router = router;
     dynamicConfig.rateLimitAdmin = rateLimitAdmin;
@@ -752,20 +752,14 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
 }
 
 /// Shared bounce handler for the messages the base TokenPool library itself emits (see
-/// `TokenPool_BouncedMessage`). Concrete pools call this first from their own `onBouncedMessage`
-/// (mirroring the `onInternalMessage` delegation): it returns `true` when it recovered a
-/// base-emitted message — in which case the caller must persist `self.data` — or `false` so the
-/// pool can decode its own pool-specific bounces.
-/// @dev A bounced body whose opcode is outside `TokenPool_BouncedMessage` falls through to the
-///      `else` arm and returns `false` without throwing.
+/// `TokenPool_BouncedMessage`). Concrete pools call this first from their own `onBouncedMessage`.
+/// @dev A bounced body whose outside `TokenPool_BouncedMessage` falls through, returns `false`
 fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, bouncedBody: slice): bool {
     val rich = lazy RichBounceBody.fromSlice(bouncedBody);
     val msg = lazy TokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         TokenPool_LockOrBurnWithdraw => {
-            // The executor rejected the withdraw request: no custody has reached the pool yet, so
-            // only the outbound capacity consumed at admission must be unwound, then notify the
-            // requester so the flow finalizes instead of stalling with the rate limit consumed.
+            // The the withdraw request was rejected; reimburse any consumed rate limit and notify the original requester.
             self.recoverLockOrBurnFailure(msg.forwardPayload, TokenPool_Error.LockOrBurnWithdrawBounced as uint16);
             return true;
         }
@@ -1384,7 +1378,7 @@ fun TokenPool<T>.onQueryCCVsReply(
 
 /// Handles a bounced `TokenPool_GetCCVs` forwarded to the hooks contract, finalizing the
 /// query by sending `TokenPool_GetCCVsFailed` (carrying the TVM `exitCode`) to the original
-/// requester via the echoed context. Called from each concrete pool's `onBouncedMessage`.
+/// requester via the echoed context. Called from the shared base `TokenPool.onBouncedMessage`.
 fun TokenPool<T>.onGetCCVsBounced(
     self,
     msg: TokenPool_GetCCVs,
@@ -1393,6 +1387,7 @@ fun TokenPool<T>.onGetCCVsBounced(
     if (msg.forwardPayload == null) {
         return; // no requester to notify
     }
+
     val context = lazy (msg.forwardPayload! as Cell<TokenPool_GetCCVsContext>).load();
     self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, exitCode);
 }
@@ -1486,6 +1481,7 @@ fun TokenPool<T>.onLockOrBurn(
     self.onLockOrBurnWithdraw(transferInitiator, msg, prepared);
 }
 
+/// Handles the withdrawal step after a lock or burn operation has been prepared/checked.
 fun TokenPool<T>.onLockOrBurnWithdraw(
     mutate self,
     sender: address,
@@ -1493,12 +1489,10 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
     prepared: TokenPool_LockOrBurnPrepared,
 ): void {
     // TODO: expose as a hook
-    // RichBounce so the full forwardPayload survives a bounce and `onBouncedMessage` can unwind the
-    // consumed rate limit if the executor rejects the withdraw request.
     val withdrawalMsg = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: msg.replyTo!, // should always be set as msg Executor
+        dest: msg.replyTo!, // TODO: should not be optional
         body: TokenPool_LockOrBurnWithdraw {
             queryId: msg.queryId,
             forwardPayload: TokenPool_LockOrBurnForwardPayload {
@@ -1667,6 +1661,7 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
     return self.onLockOrBurnTransferFinalize(fwdPayload);
 }
 
+// TODO: duplicated with sendLockOrBurnFailure
 /// Returns a failure notification to the original requester, carrying the remaining value of the inbound transfer.
 /// The pool's balance is reserved to ensure that the notification can be sent safely (without consuming the pool's balance).
 fun TokenPool<T>.notifyLockOrBurnFailure(
