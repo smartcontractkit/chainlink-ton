@@ -768,7 +768,10 @@ describe('LockReleaseTokenPool', () => {
             remoteChainSelector: newSel,
             remotePoolAddresses: [sourcePoolAddress],
             remoteTokenAddress: destTokenAddress,
-            rateLimitConfigs: TokenPool_RateLimitConfigPair.create({ outbound: outCfg, inbound: inCfg }),
+            rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+              outbound: outCfg,
+              inbound: inCfg,
+            }),
           }),
         ],
       },
