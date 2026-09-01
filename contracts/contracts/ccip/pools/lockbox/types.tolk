@@ -27,6 +27,8 @@ enum JettonLockBox_Error {
     ContractAlreadyInitialized // 56703
     /// Thrown when calling a function on an uninitialized contract or with invalid input.
     ContractNotInitialized // 56704
+    /// Thrown when the forward payload is missing or malformed during a deposit.
+    MissingOrMalformedForwardPayload // 56705
 }
 
 /// Lockbox storage: tracks the supported jetton and RBAC state.

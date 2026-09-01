@@ -609,6 +609,8 @@ fun TokenPool<T>.applyChainUpdates(
         emit(TOPIC_TOKEN_POOL_CHAIN_ADDED, TokenPool_ChainAdded {
             remoteChainSelector,
             remoteTokenAddress,
+            outboundRateLimiterConfig: rateLimitConfigs.outbound,
+            inboundRateLimiterConfig: rateLimitConfigs.inbound,
         });
     }
 
