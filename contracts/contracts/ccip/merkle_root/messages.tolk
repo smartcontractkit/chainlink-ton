@@ -10,7 +10,7 @@ struct (0x038ede91) MerkleRoot_Validate {
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
-    gasOverride: coins?,
+    gasOverride: GasOverride?,
 }
 
 //crc32('MerkleRoot_MarkState')

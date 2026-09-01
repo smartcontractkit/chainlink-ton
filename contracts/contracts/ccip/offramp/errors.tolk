@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
 
-enum Error {
+enum OffRamp_Error {
     MessageNotFromOwnedContract = OffRamp_FACILITY_ID * 100
     SourceChainNotEnabled
     EmptyExecutionReport
@@ -20,4 +20,6 @@ enum Error {
     OnRampAddressMismatch
     EmptyCommitReport
     MerkleRootCannotBeZero
+    UnsupportedNumberOfTokens
+    ManualExecutionGasAmountCountMismatch
 }

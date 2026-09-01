@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.1
 
-import "@stdlib/gas-payments"
-
+import "../../../lib/utils"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
+
 import "../deposit/types"
 import "../deposit/messages"
 import "../deposit/storage"
 import "../deposit/lib"
+
 import "types"
 
 /// Source-chain CCIP deposit account, derived from the generic `DepositAccount` component.
@@ -27,7 +28,7 @@ import "types"
 contract OnRampAccount {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.OnRampAccount"
+    description: "link.chain.ton.ccip.account.OnRampAccount"
 
     storage: DepositAccount_Data
     incomingMessages:
@@ -35,6 +36,8 @@ contract OnRampAccount {
     outgoingMessages:
         | DepositAccount_OutMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 /// Builds an `OnRampAccount` `DepositAccount<T>` instance with the on-ramp hooks wired, so the same
 /// dispatch can be reused from both `onInternalMessage` and `onBouncedMessage`. `context` is the
@@ -137,7 +140,15 @@ fun onForwardNotification(
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OnRampAccount_CONTRACT_NAME, OnRampAccount_CONTRACT_VERSION);
+    return (OnRampAccount_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return OnRampAccount_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(OnRampAccount_FACILITY_NAME.crc32(), local);
 }
 
 get fun getOwner(): address {
@@ -148,4 +159,10 @@ get fun getOwner(): address {
 get fun getProxy(): address {
     val data = lazy DepositAccount_Data.load();
     return data.proxy;
+}
+
+/// Returns the set of addresses that are allowed to withdraw jettons from this account's wallet.
+get fun getBeneficiaries(): map<address, ()> {
+    val data = lazy DepositAccount_Data.load();
+    return data.beneficiaries;
 }

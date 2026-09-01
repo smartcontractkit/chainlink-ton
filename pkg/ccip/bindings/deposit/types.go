@@ -15,7 +15,7 @@ import (
 
 // Name and version reported by typeAndVersion() — matches deposit/types.tolk.
 const (
-	ContractName    = "link.chain.ton.ccip.DepositAccount"
+	ContractName    = "link.chain.ton.ccip.account.DepositAccount"
 	ContractVersion = "0.1.0"
 )
 
@@ -58,6 +58,19 @@ type Reply struct {
 	_              tlb.Magic  `tlb:"#da04630c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+}
+
+// InMessageForward holds the metadata of an original incoming message forwarded by the
+// account to its proxy, so the proxy (e.g. a token pool) can verify the source wallet and
+// the full original body.
+type InMessageForward struct {
+	SenderAddress      *address.Address `tlb:"addr"`
+	ValueCoins         tlb.Coins        `tlb:"."`
+	ValueExtra         *cell.Dictionary `tlb:"dict 256"` // ExtraCurrenciesMap (map<uint256, Coins>)
+	OriginalForwardFee tlb.Coins        `tlb:"."`
+	CreatedLT          uint64           `tlb:"## 64"`
+	CreatedAt          uint32           `tlb:"## 32"`
+	Body               *cell.Cell       `tlb:"^"`
 }
 
 // ForwardNotification is sent to the proxy when a message is forwarded.

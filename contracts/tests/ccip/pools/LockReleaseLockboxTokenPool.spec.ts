@@ -27,9 +27,6 @@ import {
   TokenPool_Transfer,
   TokenPool_TokenTransferFeeConfig,
   TokenPool_TokenTransferFeeConfigArgs,
-  AskToTransfer,
-  JettonWithdrawable_Withdraw,
-  JettonWithdrawable_WithdrawFeeTransfer,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import {
   JettonClient,
@@ -39,10 +36,6 @@ import {
   JettonLockBox,
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
-import {
-  ContextExecutor,
-  ContextExecutor_ForwardNotification,
-} from '../../../wrappers/gen/ccip/ContextExecutor'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
@@ -125,7 +118,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           walletAddress: null,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pools.JettonLockbox') },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
       ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
@@ -186,7 +179,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         },
         {
           overrideContractCode: await contractCode.ccip.local(
-            'ccip.pools.LockReleaseLockboxTokenPool',
+            'ccip.pool.LockReleaseLockboxTokenPool',
           ),
         },
       ),

@@ -13,7 +13,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import * as tr from '../../../wrappers/gen/ccip/TokenRegistry'
-import * as mtp from '../../../wrappers/gen/ccip/MockTokenPool'
+import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
@@ -23,6 +23,14 @@ import { setup } from '../router/Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+
+// Destination-chain token address the pool returns from lockOrBurn. In production this
+// is configured on the pool via TokenPool_ApplyChainUpdates.
+const DEST_TOKEN_ADDRESS = Buffer.from(
+  '000000000000000000000000abababababababababababababababababababab',
+  'hex',
+)
 
 const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 
@@ -32,22 +40,21 @@ const JETTON_CONTENT = beginCell().storeStringTail('wgram.e2e').endCell()
 const TOKEN_AMOUNT = toNano('5')
 
 // Native TON attached to the transfer notification, used to pay fees + execution costs.
-const FORWARD_TON_AMOUNT = toNano('3')
+const FORWARD_TON_AMOUNT = toNano('10')
 
 const DestChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-
 describe('CCIPSend with token transfer (e2e)', () => {
   let blockchain: Blockchain
 
   let minterCode: Cell
   let walletCode: Cell
-  let mockTokenPoolCode: Cell
+  let lockReleaseTokenPoolCode: Cell
 
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
 
   let minter: SandboxContract<JettonMinter>
-  let mockTokenPool: SandboxContract<mtp.MockTokenPool>
+  let tokenPool: SandboxContract<lrp.LockReleaseTokenPool>
   let tokenRegistry: SandboxContract<tr.TokenRegistry>
 
   let router: SandboxContract<rt.Router>
@@ -58,7 +65,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
   beforeAll(async () => {
     minterCode = await contractCode.ccip.local('wgram.JettonMinter')
     walletCode = await contractCode.ccip.local('wgram.JettonWallet')
-    mockTokenPoolCode = await contractCode.ccip.local('ccip.test.mockTokenPool')
+    lockReleaseTokenPoolCode = await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool')
   })
 
   beforeEach(async () => {
@@ -110,10 +117,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
       sender,
     }))
 
-    // 4. Deploy the MockTokenPool that performs the (mock) lock/burn.
+    // 4. Deploy the LockReleaseTokenPool that performs the lock/burn.
     // TODO should be a helper
-    mockTokenPool = blockchain.openContract(
-      mtp.MockTokenPool.fromStorage(
+    tokenPool = blockchain.openContract(
+      lrp.LockReleaseTokenPool.fromStorage(
         {
           poolData: tp.TokenPool_Data.create({
             adminConfig: tp.TokenPool_AdminConfig.create({
@@ -145,20 +152,22 @@ describe('CCIPSend with token transfer (e2e)', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
+          offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
+          accruedFees: 0n,
         },
-        { overrideContractCode: mockTokenPoolCode },
+        { overrideContractCode: lockReleaseTokenPoolCode },
       ),
     )
-    const deploymentResult = await mockTokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
+    const deploymentResult = await tokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
     expect(deploymentResult.transactions).toHaveTransaction({
       from: deployer.address,
-      to: mockTokenPool.address,
+      to: tokenPool.address,
       success: true,
       deploy: true,
     })
 
     // Register chain config
-    const chainUpdateResult = await mockTokenPool.sendTokenPoolApplyChainUpdates(
+    const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(
       deployer.getSender(),
       toNano('0.05'),
       {
@@ -167,7 +176,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
           tp.TokenPool_ChainUpdate.create({
             remoteChainSelector: DestChainSelector,
             remotePoolAddresses: [EVM_ADDRESS],
-            remoteTokenAddress: EVM_ADDRESS,
+            remoteTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
             rateLimitConfigs: tp.TokenPool_RateLimitConfigPair.create({
               outbound: tp.RateLimiter_Config.create({
                 isEnabled: true,
@@ -187,14 +196,14 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
     expect(chainUpdateResult.transactions).toHaveTransaction({
       from: deployer.address,
-      to: mockTokenPool.address,
+      to: tokenPool.address,
       success: true,
     })
 
     // Register the Router as the authorized caller for lock/burn on this chain.
     // The Router forwards Router_LockOrBurn on behalf of the OnRamp, so it's the
     // sender the pool sees for TokenPool_LockOrBurn.
-    const rampAccessResult = await mockTokenPool.sendTokenPoolUpdateRampAccess(
+    const rampAccessResult = await tokenPool.sendTokenPoolUpdateRampAccess(
       deployer.getSender(),
       toNano('0.05'),
       {
@@ -210,7 +219,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
     expect(rampAccessResult.transactions).toHaveTransaction({
       from: deployer.address,
-      to: mockTokenPool.address,
+      to: tokenPool.address,
       success: true,
     })
 
@@ -220,7 +229,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       {
         tokenAddress: minter.address,
         tokenInfo: tr.TokenRegistry_TokenInfo.create({
-          tokenPool: mockTokenPool.address,
+          tokenPool: tokenPool.address,
           minterAddress: minter.address,
           enabled: true,
         }),
@@ -398,15 +407,15 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: rt.Router_LockOrBurn.PREFIX,
       success: true,
     })
-    // router -> mockTokenPool (lock/burn) and back to the executor (confirmation)
+    // router -> tokenPool (lock/burn) and back to the executor (confirmation)
     expect(result.transactions).toHaveTransaction({
       from: router.address,
-      to: mockTokenPool.address,
-      op: mtp.TokenPool_LockOrBurn.PREFIX,
+      to: tokenPool.address,
+      op: lrp.TokenPool_LockOrBurn.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
-      from: mockTokenPool.address,
+      from: tokenPool.address,
       to: executorAddress,
       op: tp.TokenPool_LockOrBurnFinished.PREFIX,
       success: true,
@@ -427,7 +436,21 @@ describe('CCIPSend with token transfer (e2e)', () => {
         },
         sender: sender.address,
         body: {
-          tokenAmounts: [{ amount: TOKEN_AMOUNT, token: minter.address }],
+          tokenTransfer: [
+            {
+              // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
+              sourcePoolAddress: tokenPool.address,
+              // No token transfer fee is configured, so the post-fee amount is the full amount.
+              amount: TOKEN_AMOUNT,
+              destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
+              // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
+              extraData: beginCell().storeUint(0, 256).endCell(),
+              // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
+              // Still a constant: the FeeQuoter does not report a per-token value yet.
+              destExecData: beginCell().storeUint(90000, 32).endCell(),
+            },
+          ],
+          // The pool's lockOrBurn output reaches the event end to end.
         },
       },
     })

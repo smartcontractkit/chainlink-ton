@@ -18,14 +18,14 @@ const (
 	ReleaseTransferValue = 50000000 // 0.05 TON in nanotons
 	// ReplyValue is the TON value for reply messages.
 	ReplyValue = 10000000 // 0.01 TON in nanotons
-	// ContextExecutorDeployValue is the TON value for deploying a ContextExecutor.
-	ContextExecutorDeployValue = 20000000 // 0.02 TON in nanotons
+	// OffRampAccountDeployValue is the TON value sent when deploying the per-release off-ramp account.
+	OffRampAccountDeployValue = 100000000 // 0.1 TON in nanotons
 )
 
 // --- Data types ---
 
-// ReleaseContext represents the context for a release operation managed by ContextExecutor.
-// Corresponds to LockReleaseTokenPool_ReleaseContext in the Tolk contract (opcode: 0xed696f9b).
+// ReleaseContext represents the context passed to the DepositAccount (off-ramp role) for
+// release operations. Carries the full forward payload for post-release finalization.
 type ReleaseContext struct {
 	_              tlb.Magic                             `tlb:"#ed696f9b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
@@ -43,24 +43,24 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the LockReleaseTokenPool contract storage.
-// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; contextExecutorCode: cell; contextExecutorNextId: uint64; }
 type Storage struct {
-	PoolData              tokenpool.Storage `tlb:"^"`
-	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
-	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
+	PoolData           tokenpool.Storage `tlb:"^"`
+	OffRampAccountCode *cell.Cell        `tlb:"^"` // Compiled code cell of the DepositAccount (off-ramp role)
 }
 
 // --- Exit Codes ---
 
 // ExitCode represents a LockReleaseTokenPool-specific error code.
-// FACILITY_ID = 263, base error = 26300.
+// FACILITY_ID = 72, base error = 7200.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodeUnexpectedReleaseBounce ExitCode = iota + 26300 // Facility ID 263 * 100
-	ExitCodeContextExecutorUnavailable
+	ExitCodeUnexpectedReleaseBounce ExitCode = iota + 7200 // Facility ID 72 * 100
+	ExitCodeInvalidOffRampAccountReply
+	ExitCodeInvalidOffRampAccountNotification
+	ExitCodeOffRampAccountDeployFailed
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

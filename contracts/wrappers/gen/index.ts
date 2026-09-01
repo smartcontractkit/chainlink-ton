@@ -6,13 +6,12 @@ import { OnRamp } from './ccip/OnRamp';
 import { FeeQuoter } from './ccip/FeeQuoter';
 import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
+import { MerkleRoot } from './ccip/MerkleRoot';
 
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
-
-import { MockTokenPool } from './ccip/MockTokenPool';
 
 import { TestMsgHasher } from './test/TestMsgHasher'
 
@@ -74,12 +73,6 @@ export function setupGenBindings() {
       CrossChainAddressCodec.unpackFromSlice,
     )
 
-    MockTokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
     LockReleaseLockboxTokenPool.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
@@ -87,6 +80,12 @@ export function setupGenBindings() {
     )
 
     TestMsgHasher.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddressCodec.packToBuilder,
+      CrossChainAddressCodec.unpackFromSlice,
+    )
+
+    MerkleRoot.registerCustomPackUnpack(
       'CrossChainAddress',
       CrossChainAddressCodec.packToBuilder,
       CrossChainAddressCodec.unpackFromSlice,

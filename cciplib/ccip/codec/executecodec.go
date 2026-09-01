@@ -231,7 +231,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 
 			// big endian encoding for dest gas amount
 			destGasAmount := make([]byte, 4)
-			binary.BigEndian.PutUint32(destGasAmount, tokenAmount.DestGasAmount)
+			destGasAmountNano := tokenAmount.DestGasAmount.Nano().Uint64()
+			if destGasAmountNano > 0xFFFFFFFF {
+				return executeReport, fmt.Errorf("dest gas amount exceeds uint32 limit: %d", destGasAmountNano)
+			}
+			binary.BigEndian.PutUint32(destGasAmount, uint32(destGasAmountNano))
 
 			// Defensive check
 			if tokenAmount.Amount.Sign() < 0 {
@@ -294,7 +298,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 }
 
 // Duplicate with ccipevm, consider moving to common package
-func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
+func extractDestGasAmountFromMap(input map[string]any) (*tlb.Coins, error) {
 	// Iterate through the expected fields in the struct
 	for fieldName, fieldValue := range input {
 		lowercase := strings.ToLower(fieldName)
@@ -302,14 +306,15 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 		case "destgasamount":
 			// Expect uint32
 			if val, ok := fieldValue.(uint32); ok {
-				return val, nil
+				coins := tlb.FromNanoTONU(uint64(val))
+				return &coins, nil
 			}
-			return 0, errors.New("invalid type for destgasamount, expected uint32")
+			return nil, errors.New("invalid type for destgasamount, expected uint32")
 		default:
 		}
 	}
 
-	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
+	return nil, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
 func parseExtraArgsMapAndRetrieveGasLimit(input map[string]any) (*big.Int, error) {

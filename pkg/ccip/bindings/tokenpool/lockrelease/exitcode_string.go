@@ -8,17 +8,19 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ExitCodeUnexpectedReleaseBounce-26300]
-	_ = x[ExitCodeContextExecutorUnavailable-26301]
+	_ = x[ExitCodeUnexpectedReleaseBounce-7200]
+	_ = x[ExitCodeInvalidOffRampAccountReply-7201]
+	_ = x[ExitCodeInvalidOffRampAccountNotification-7202]
+	_ = x[ExitCodeOffRampAccountDeployFailed-7203]
 }
 
-const _ExitCode_name = "UnexpectedReleaseBounceContextExecutorUnavailable"
+const _ExitCode_name = "UnexpectedReleaseBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailed"
 
-var _ExitCode_index = [...]uint8{0, 23, 49}
+var _ExitCode_index = [...]uint8{0, 23, 49, 82, 108}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 26300
-	if i < 26300 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 7200
+	if i < 7200 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

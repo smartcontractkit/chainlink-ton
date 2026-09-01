@@ -1,7 +1,7 @@
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
 
-export const VERSION = '1.6.2'
+export const VERSION = '1.7.0'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.ReceiveExecutor'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))

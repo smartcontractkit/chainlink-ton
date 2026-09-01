@@ -8,32 +8,35 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/funding/jetton_withdrawable"
+
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
+
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
+import "../lockbox/messages"
 
 import "messages"
 import "types"
-import "errors"
 import "storage"
 
-import "../lockbox/messages"
 
 contract LockReleaseLockboxTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.LockReleaseLockboxTokenPool"
+    description: "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
 
     storage: Storage
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseLockboxTokenPool_InMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 fun onInternalMessage(in: InMessage): void {
     var st = Storage.load();
@@ -460,7 +463,15 @@ fun loadPool(st: Storage): TokenPool<Storage> {
 /* === Getters === */
 
 get fun typeAndVersion(): (slice, slice) {
-    return (LockReleaseLockboxTokenPool_CONTRACT_NAME, LockReleaseLockboxTokenPool_CONTRACT_VERSION);
+    return (LockReleaseLockboxTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return LockReleaseLockboxTokenPool_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(LockReleaseLockboxTokenPool_FACILITY_NAME.crc32(), local);
 }
 
 get fun token(): address {

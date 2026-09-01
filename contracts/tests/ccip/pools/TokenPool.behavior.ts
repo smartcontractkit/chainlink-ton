@@ -12,6 +12,7 @@ import {
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
+  TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_ReleaseOrMintInV1,
   RateLimiter_Config,
   TokenPool_Transfer,
@@ -120,7 +121,7 @@ export function runTokenPoolBehaviorTests(
         from: ctx.unauthorized.address,
         to: ctx.pool.address,
         success: false,
-        exitCode: 14910, // TokenPool_Error.Unauthorized (facility 149 → base 14900, +10)
+        exitCode: 51710, // TokenPool_Error.Unauthorized (facility 517 → base 51700, +10)
       })
     })
 

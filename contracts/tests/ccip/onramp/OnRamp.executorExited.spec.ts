@@ -1,4 +1,4 @@
-import { Address, Cell, Sender, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
@@ -8,11 +8,12 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as dep from '../../../wrappers/libraries/Deployable'
-import * as relay from '../../../wrappers/test/mock/Relay'
 import { setup } from './OnRamp.Setup'
+import { getStorage } from '../../../wrappers/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
+import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - executor exit', () => {
@@ -62,7 +63,7 @@ describe('OnRamp - executor exit', () => {
       },
       executor: {
         deployableCode: deployableCode,
-        executorCode: await relay.ContractClient.code(),
+        executorCode: Cell.EMPTY,
       },
     }))
 
@@ -123,12 +124,9 @@ describe('OnRamp - executor exit', () => {
       throw new Error('Executor address not found')
     }
 
-    const relayContract = blockchain.openContract(
-      relay.ContractClient.createFromAddress(executorAddress),
-    )
-    executorSender = await relayContract.getSender(deployer.getSender())
+    executorSender = blockchain.sender(executorAddress)
 
-    const executorStorageCell = await relayContract.getStorage()
+    const executorStorageCell = await getStorage(blockchain, executorAddress)
     const storage = ex.CCIPSendExecutor_InitialData.fromSlice(executorStorageCell.beginParse())
     executorID = storage.id
   })
@@ -150,6 +148,13 @@ describe('OnRamp - executor exit', () => {
         metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
+        }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: beginCell().endCell(),
+          destExecData: beginCell().endCell(),
         }),
       },
     )
@@ -225,6 +230,13 @@ describe('OnRamp - executor exit', () => {
         metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
+        }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: beginCell().endCell(),
+          destExecData: beginCell().endCell(),
         }),
       },
     )

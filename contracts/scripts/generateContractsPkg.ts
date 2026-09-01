@@ -97,25 +97,54 @@ const CONTRACTS: ContractSource[] = [
     compiledFile: 'ReceiveExecutor.compiled.json',
     tolkSource: 'contracts/ccip/receive_executor/contract.tolk',
   },
+  // TP contracts
   {
     contractType: 'link.chain.ton.ccip.TokenRegistry',
     compiledFile: 'TokenRegistry.compiled.json',
     tolkSource: 'contracts/ccip/token_registry/contract.tolk',
   },
+  // Deposit accounts
   {
-    contractType: 'link.chain.ton.ccip.test.Receiver',
-    compiledFile: 'ccip.test.receiver.compiled.json',
-    tolkSource: 'contracts/ccip/test/receiver/contract.tolk',
+    contractType: 'link.chain.ton.ccip.account.DepositAccount',
+    compiledFile: 'ccip.account.DepositAccount.compiled.json',
+    tolkSource: 'contracts/ccip/accounts/deposit/contract.tolk',
   },
   {
-    contractType: 'link.chain.ton.ccip.test.MockTokenPool',
-    compiledFile: 'ccip.test.mockTokenPool.compiled.json',
-    tolkSource: 'contracts/ccip/test/tokenPool/contract.tolk',
+    contractType: 'link.chain.ton.ccip.account.OnRampAccount',
+    compiledFile: 'ccip.account.OnRampAccount.compiled.json',
+    tolkSource: 'contracts/ccip/accounts/on_ramp_account/contract.tolk',
+  },
+  // TP contracts (version mirrors the <Name>_CONTRACT_VERSION const in each contract's types.tolk)
+  {
+    contractType: 'link.chain.ton.ccip.pool.JettonLockBox',
+    compiledFile: 'ccip.pool.JettonLockBox.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lockbox/JettonLockBox.tolk',
   },
   {
-    contractType: 'link.chain.ton.ccip.test.MockAdvancedPoolHooks',
-    compiledFile: 'ccip.test.mockAdvancedPoolHooks.compiled.json',
-    tolkSource: 'contracts/ccip/test/mock_advanced_pool_hooks.tolk',
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseLockboxTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.BurnMintTokenPool',
+    compiledFile: 'ccip.pool.BurnMintTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/burn_mint/contract.tolk',
+  },
+  // MCMS contracts
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseLockboxTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
   },
   {
     contractType: 'link.chain.ton.mcms.Timelock',
@@ -126,6 +155,17 @@ const CONTRACTS: ContractSource[] = [
     contractType: 'link.chain.ton.mcms.MCMS',
     compiledFile: 'mcms.MCMS.compiled.json',
     tolkSource: 'contracts/mcms/mcms.tolk',
+  },
+  // Test contracts
+  {
+    contractType: 'link.chain.ton.ccip.test.Receiver',
+    compiledFile: 'ccip.test.receiver.compiled.json',
+    tolkSource: 'contracts/ccip/test/receiver/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.test.MockAdvancedPoolHooks',
+    compiledFile: 'ccip.test.mockAdvancedPoolHooks.compiled.json',
+    tolkSource: 'contracts/ccip/test/mock_advanced_pool_hooks.tolk',
   },
 ]
 

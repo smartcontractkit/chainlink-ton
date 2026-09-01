@@ -1,8 +1,6 @@
 package lockbox
 
 import (
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -22,7 +20,7 @@ type Deposit struct {
 	QueryID             uint64           `tlb:"## 64"`
 	Token               *address.Address `tlb:"addr"`    // The address of the token to deposit.
 	RemoteChainSelector uint64           `tlb:"## 64"`   // The chain selector of the remote chain.
-	Amount              *big.Int         `tlb:"## 256"`  // The amount of tokens to deposit.
+	Amount              tlb.Coins        `tlb:"."`       // The amount of tokens to deposit.
 	Context             *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
 }
 
@@ -34,12 +32,13 @@ type WithdrawExtra struct {
 
 // Withdraws tokens to a specific recipient.
 type Withdraw struct {
-	_               tlb.Magic        `tlb:"#d065c306" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID         uint64           `tlb:"## 64"`
-	Token           *address.Address `tlb:"addr"`   // The address of the token to withdraw.
-	Amount          *big.Int         `tlb:"## 256"` // The amount of tokens to withdraw. If set to max uint256, withdraws the entire balance.
-	RecipientWallet *address.Address `tlb:"addr"`   // The jetton wallet address of the recipient.
-	Extra           *WithdrawExtra   `tlb:"maybe ^"`
+	_                   tlb.Magic        `tlb:"#d065c306" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID             uint64           `tlb:"## 64"`
+	Token               *address.Address `tlb:"addr"`  // The address of the token to withdraw.
+	RemoteChainSelector uint64           `tlb:"## 64"` // The chain selector of the remote chain.
+	Amount              tlb.Coins        `tlb:"."`     // The amount of tokens to withdraw.
+	RecipientWallet     *address.Address `tlb:"addr"`  // The jetton wallet address of the recipient.
+	Extra               *WithdrawExtra   `tlb:"maybe ^"`
 }
 
 // Deposited is sent back to the transfer initiator after a deposit is confirmed.
@@ -48,7 +47,7 @@ type Deposited struct {
 	QueryID             uint64           `tlb:"## 64"`
 	Token               *address.Address `tlb:"addr"`    // The token address.
 	RemoteChainSelector uint64           `tlb:"## 64"`   // The chain selector of the remote chain.
-	Amount              *big.Int         `tlb:"## 256"`  // The amount of tokens deposited.
+	Amount              tlb.Coins        `tlb:"."`       // The amount of tokens deposited.
 	Context             *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
 }
 
@@ -76,19 +75,19 @@ type WithdrawFailed struct {
 	_               tlb.Magic        `tlb:"#60bae556" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID         uint64           `tlb:"## 64"`
 	Token           *address.Address `tlb:"addr"`    // The token address.
-	Amount          *big.Int         `tlb:"## 256"`  // The amount that failed to withdraw.
+	Amount          tlb.Coins        `tlb:"."`       // The amount that failed to withdraw.
 	RecipientWallet *address.Address `tlb:"addr"`    // The jetton wallet address of the intended recipient.
 	Context         *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the failure chain.
 }
 
 // ExitCode represents a JettonLockBox-specific error code.
-// FACILITY_ID = 47, base error = 4700.
+// FACILITY_ID = 567, base error = 56700.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	TokenAmountCannotBeZero ExitCode = iota + 4700 // Facility ID 47 * 100
+	TokenAmountCannotBeZero ExitCode = iota + 56700 // Facility ID 567 * 100
 	RecipientCannotBeZeroAddress
 	UnsupportedToken
 	ContractAlreadyInitialized

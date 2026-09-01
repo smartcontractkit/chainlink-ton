@@ -29,9 +29,6 @@ import {
   TokenPool_TransferDetails,
   TokenPool_TokenTransferFeeConfig,
   TokenPool_TokenTransferFeeConfigArgs,
-  AskToTransfer,
-  JettonWithdrawable_Withdraw,
-  JettonWithdrawable_WithdrawFeeTransfer,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
@@ -92,7 +89,7 @@ describe('BurnMintTokenPool', () => {
 
     cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
-    const burnMintPoolCode = await contractCode.ccip.local('ccip.pools.BurnMintTokenPool')
+    const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
 
     cctMinter = blockchain.openContract(
       cct.JettonMinter.fromStorage(
@@ -563,7 +560,10 @@ describe('BurnMintTokenPool', () => {
         body(body) {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return failure.queryId === 304n && failure.errorCode === 14920n
+          return (
+            failure.queryId === 304n &&
+            failure.errorCode === BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch'])
+          )
         },
       })
       expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))

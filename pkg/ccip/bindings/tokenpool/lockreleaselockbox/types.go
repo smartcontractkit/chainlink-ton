@@ -12,22 +12,23 @@ import (
 // --- Constants ---
 
 const (
-	// ContextExecutorDeployValue is the TON value for deploying a ContextExecutor.
-	// Matches Tolk: LockReleaseLockboxTokenPool_CONTEXT_EXECUTOR_DEPLOY_VALUE = ton("0.02")
-	ContextExecutorDeployValue = 20000000 // 0.02 TON in nanotons
+	// OffRampAccountDeployValue is the TON value sent when deploying the per-release
+	// DepositAccount (off-ramp role). lock_release_lockbox deploys with value 0 and carries
+	// the remaining message value through (SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE).
+	OffRampAccountDeployValue = 0
 )
 
 // --- Data types ---
 
-// LockContext represents the context for a lock operation managed by ContextExecutor.
-// Corresponds to LockReleaseLockboxTokenPool_LockContext (opcode: 0x60fdb63b).
+// LockContext represents the context for a lock operation. Carries the full forward payload
+// for post-lock finalization.
 type LockContext struct {
 	_              tlb.Magic                          `tlb:"#60fdb63b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
 }
 
-// ReleaseContext represents the context for a release operation managed by ContextExecutor.
-// Corresponds to LockReleaseLockboxTokenPool_ReleaseContext (opcode: 0x90230477).
+// ReleaseContext represents the context passed to the DepositAccount (off-ramp role) for
+// release operations. Carries the full forward payload for post-release finalization.
 type ReleaseContext struct {
 	_              tlb.Magic                             `tlb:"#90230477" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
@@ -45,27 +46,29 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the LockReleaseLockboxTokenPool contract storage.
-// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; lockbox: address; contextExecutorCode: cell; contextExecutorNextId: uint64; }
+// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; lockbox: address; offRampAccountCode: cell; }
 type Storage struct {
-	PoolData              tokenpool.Storage `tlb:"^"`
-	Lockbox               *address.Address  `tlb:"addr"`  // JettonLockBox address
-	ContextExecutorCode   *cell.Cell        `tlb:"^"`     // Code cell for ContextExecutor deployment
-	ContextExecutorNextID uint64            `tlb:"## 64"` // Monotonically increasing ID for deterministic executor addresses
+	PoolData           tokenpool.Storage `tlb:"^"`
+	Lockbox            *address.Address  `tlb:"addr"` // JettonLockBox address
+	OffRampAccountCode *cell.Cell        `tlb:"^"`    // Compiled code cell of the DepositAccount (off-ramp role), deployed per release operation
 }
 
 // --- Exit Codes ---
 
 // ExitCode represents a LockReleaseLockboxTokenPool-specific error code.
-// FACILITY_ID = 487, base error = 48700.
+// FACILITY_ID = 209, base error = 20900.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodeContextExecutorUnavailable ExitCode = iota + 48700 // Facility ID 487 * 100
-	ExitCodeLockboxNotConfigured
+	ExitCodeLockboxNotConfigured ExitCode = iota + 20900 // Facility ID 209 * 100
 	ExitCodeUnexpectedLockboxConfirmationSender
 	ExitCodeUnexpectedLockBounce
+	ExitCodeInvalidOffRampAccountReply
+	ExitCodeInvalidOffRampAccountNotification
+	ExitCodeOffRampAccountDeployFailed
+	ExitCodeLockboxWithdrawFailed
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

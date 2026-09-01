@@ -14,6 +14,7 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "clean": "[ -d build ] && rm -rf build || true",
+    "build-only": "blueprint build",
     "build": "yarn clean && blueprint build --all && yarn build:pin-artifacts && yarn generate-pkg",
     "build:pin-artifacts": "ts-node scripts/pinArtifacts.ts",
     "generate-pkg": "ts-node scripts/generateContractsPkg.ts",
@@ -29,7 +30,8 @@
     "typecheck": "tsc --noEmit",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
     "wgram-gas-report": "blueprint test --gas-report -- --config wgram-gas-report.config.ts",
-    "get-key-pair": "ts-node scripts/getKeyPair.ts"
+    "get-key-pair": "ts-node scripts/getKeyPair.ts",
+    "check-overflows": "ts-node scripts/overflowCheck.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",

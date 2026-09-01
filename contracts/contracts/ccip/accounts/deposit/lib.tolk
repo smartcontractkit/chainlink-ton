@@ -136,6 +136,7 @@ fun DepositAccount<T>.onInit(
 ) {
     if (self.hooks != null && self.hooks.onInit != null) {
         self.hooks.onInit(self.context(), sender, msg);
+
         return;
     }
 
@@ -164,6 +165,7 @@ fun DepositAccount<T>.onWithdraw(
 ) {
     if (self.hooks != null && self.hooks.onWithdraw != null) {
         self.hooks.onWithdraw(self.context(), sender, msg);
+
         return;
     }
 
@@ -231,11 +233,7 @@ fun DepositAccount<T>.onBouncedMessage(
     val bounced = lazy DepositAccount_BouncedMessage.fromCell(rich.originalBody);
     match (bounced) {
         AskToTransfer => {
-            if (self.hooks != null && self.hooks.onWithdrawBounced != null) {
-                self.hooks.onWithdrawBounced(self.context(), bouncedSender, bounced);
-            } else {
-                self.onWithdrawBounced(bouncedSender, bounced);
-            }
+            self.onWithdrawBounced(bouncedSender, bounced);
             return true;
         }
         else => {
@@ -251,16 +249,22 @@ fun DepositAccount<T>.onBouncedMessage(
 /// beneficiary.
 fun DepositAccount<T>.onWithdrawBounced(
     self,
-    walletAddress: address,
+    sender: address,
     ask: AskToTransfer,
 ) {
+    if (self.hooks != null && self.hooks.onWithdrawBounced != null) {
+        self.hooks.onWithdrawBounced(self.context(), sender, ask);
+
+        return;
+    }
+
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: ask.sendExcessesTo!,
         body: DepositAccount_WithdrawFailed {
             queryId: ask.queryId,
-            walletAddress,
+            walletAddress: sender,
             ask: ask.toCell(),
         },
     });

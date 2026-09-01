@@ -14,9 +14,10 @@ type BurnMintTokenPool_InMessage =
     | DepositAccount_ForwardNotification;
 
 type BurnMintTokenPool_OutMessage =
-    | ClaimMinterAdmin
+    | AskToTransfer
+    | CCT_AskToBurn
     | MintNewJettons
-    | CCT_AskToBurn;
+    | ClaimMinterAdmin;
 
 type BurnMintTokenPool_BouncedMessage =
     | AskToTransfer

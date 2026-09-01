@@ -8,29 +8,29 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorInvalidTransferFeeBps-14900]
-	_ = x[ErrorInvalidTokenTransferFeeConfig-14901]
-	_ = x[ErrorCallerIsNotARampOnRouter-14902]
-	_ = x[ErrorZeroAddressInvalid-14903]
-	_ = x[ErrorNonExistentChain-14904]
-	_ = x[ErrorChainNotAllowed-14905]
-	_ = x[ErrorCursedByRMN-14906]
-	_ = x[ErrorChainAlreadyExists-14907]
-	_ = x[ErrorInvalidSourcePoolAddress-14908]
-	_ = x[ErrorInvalidToken-14909]
-	_ = x[ErrorUnauthorized-14910]
-	_ = x[ErrorPoolAlreadyAdded-14911]
-	_ = x[ErrorInvalidRemotePoolForChain-14912]
-	_ = x[ErrorInvalidRemoteChainDecimals-14913]
-	_ = x[ErrorOverflowDetected-14914]
-	_ = x[ErrorInvalidDecimalArgs-14915]
-	_ = x[ErrorCallerIsNotOwnerOrFeeAdmin-14916]
-	_ = x[ErrorUnsupportedOperation-14917]
-	_ = x[ErrorMissingForwardPayload-14918]
-	_ = x[ErrorMissingTransferInitiator-14919]
-	_ = x[ErrorAmountMismatch-14920]
-	_ = x[ErrorInvalidRequestedFinality-14921]
-	_ = x[ErrorRateLimitExceeded-14922]
+	_ = x[ErrorInvalidTransferFeeBps-51700]
+	_ = x[ErrorInvalidTokenTransferFeeConfig-51701]
+	_ = x[ErrorCallerIsNotARampOnRouter-51702]
+	_ = x[ErrorZeroAddressInvalid-51703]
+	_ = x[ErrorNonExistentChain-51704]
+	_ = x[ErrorChainNotAllowed-51705]
+	_ = x[ErrorCursedByRMN-51706]
+	_ = x[ErrorChainAlreadyExists-51707]
+	_ = x[ErrorInvalidSourcePoolAddress-51708]
+	_ = x[ErrorInvalidToken-51709]
+	_ = x[ErrorUnauthorized-51710]
+	_ = x[ErrorPoolAlreadyAdded-51711]
+	_ = x[ErrorInvalidRemotePoolForChain-51712]
+	_ = x[ErrorInvalidRemoteChainDecimals-51713]
+	_ = x[ErrorOverflowDetected-51714]
+	_ = x[ErrorInvalidDecimalArgs-51715]
+	_ = x[ErrorCallerIsNotOwnerOrFeeAdmin-51716]
+	_ = x[ErrorUnsupportedOperation-51717]
+	_ = x[ErrorMissingForwardPayload-51718]
+	_ = x[ErrorMissingTransferInitiator-51719]
+	_ = x[ErrorAmountMismatch-51720]
+	_ = x[ErrorInvalidRequestedFinality-51721]
+	_ = x[ErrorRateLimitExceeded-51722]
 }
 
 const _ExitCode_name = "ErrorInvalidTransferFeeBpsErrorInvalidTokenTransferFeeConfigErrorCallerIsNotARampOnRouterErrorZeroAddressInvalidErrorNonExistentChainErrorChainNotAllowedErrorCursedByRMNErrorChainAlreadyExistsErrorInvalidSourcePoolAddressErrorInvalidTokenErrorUnauthorizedErrorPoolAlreadyAddedErrorInvalidRemotePoolForChainErrorInvalidRemoteChainDecimalsErrorOverflowDetectedErrorInvalidDecimalArgsErrorCallerIsNotOwnerOrFeeAdminErrorUnsupportedOperationErrorMissingForwardPayloadErrorMissingTransferInitiatorErrorAmountMismatchErrorInvalidRequestedFinalityErrorRateLimitExceeded"
@@ -38,8 +38,8 @@ const _ExitCode_name = "ErrorInvalidTransferFeeBpsErrorInvalidTokenTransferFeeCo
 var _ExitCode_index = [...]uint16{0, 26, 60, 89, 112, 133, 153, 169, 192, 221, 238, 255, 276, 306, 337, 358, 381, 412, 437, 463, 492, 511, 540, 562}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 14900
-	if i < 14900 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 51700
+	if i < 51700 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

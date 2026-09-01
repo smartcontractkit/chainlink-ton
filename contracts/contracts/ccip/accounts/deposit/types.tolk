@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-const DepositAccount_CONTRACT_NAME = "link.chain.ton.ccip.DepositAccount".literalSlice();
-const DepositAccount_CONTRACT_VERSION = "0.1.0".literalSlice();
-
 /// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
 const MIN_GRAM_TO_RESERVE: int = ton("0.05");
 
@@ -22,10 +19,9 @@ struct DepositAccount_Data {
     beneficiaries: map<address, ()>;
 }
 
-/// Facility ID used for error code derivation.
-const DepositAccount_FACILITY_NAME = "link.chain.ton.ccip.DepositAccount";
-// TODO: double check this ID val
-const DepositAccount_FACILITY_ID = 80;  // (crc32(<facility>) % 640) + 10
+/// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
+const DepositAccount_FACILITY_NAME = "link.chain.ton.ccip.account.DepositAccount";
+const DepositAccount_FACILITY_ID = DepositAccount_FACILITY_NAME.crc32() % 640 + 10;
 
 /// Error codes for DepositAccount.
 enum DepositAccount_Error {

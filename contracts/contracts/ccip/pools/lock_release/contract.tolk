@@ -9,31 +9,34 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/funding/jetton_withdrawable"
+
 import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
+
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
-import "../lib/token_pool/events"
 import "../lib/token_pool/errors"
+import "../lib/token_pool/events"
 
 import "messages"
 import "types"
-import "errors"
 import "storage"
 
 contract LockReleaseTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
-    description: "link.chain.ton.ccip.LockReleaseTokenPool"
+    description: "link.chain.ton.ccip.pool.LockReleaseTokenPool"
 
     storage: Storage
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseTokenPool_InMessage
 }
+
+const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
@@ -105,7 +108,7 @@ fun onDepositAccountReply(
     msg: DepositAccount_Reply,
 ) {
     // Extract release context from Reply forwardPayload.
-    assert(msg.forwardPayload != null, Error.InvalidOffRampAccountReply);
+    assert(msg.forwardPayload != null, LockRelease_Error.InvalidOffRampAccountReply);
     val contextCell = msg.forwardPayload!;
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
@@ -124,7 +127,7 @@ fun onDepositAccountReply(
         poolAddr, // proxy = pool
         beneficiaries,
     );
-    assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountReply);
+    assert(sender == expectedOaa.calculateAddress(), LockRelease_Error.InvalidOffRampAccountReply);
 
     val jettonClient = st.poolData.load().jettonClient();
     val transfer = createMessage({
@@ -187,7 +190,7 @@ fun onFeeWithdrawAskBounced(
     }
 
     // The bounce must come from our own jetton wallet (the fee jettons were there).
-    assert(data.jettonClient().isWallet(sender)) throw Error.UnexpectedReleaseBounce;
+    assert(data.jettonClient().isWallet(sender)) throw LockRelease_Error.UnexpectedReleaseBounce;
 
     // Jettons returned to the wallet; restore the fee ledger so they can be withdrawn again.
     st.accruedFees += ask.jettonAmount;
@@ -202,14 +205,14 @@ fun onDepositAccountInitBounced(
     sender: address,
     msg: DepositAccount_Init,
 ) {
-    assert(msg.forwardPayload != null, Error.UnexpectedReleaseBounce);
+    assert(msg.forwardPayload != null, LockRelease_Error.UnexpectedReleaseBounce);
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
     st.poolData = pool.data.toCell();
-    pool.sendReleaseOrMintFailure(operation, Error.OffRampAccountDeployFailed as uint16);
+    pool.sendReleaseOrMintFailure(operation, LockRelease_Error.OffRampAccountDeployFailed as uint16);
 }
 
 fun onReleaseOrMintContinue(
@@ -246,9 +249,9 @@ fun onReleaseTransferBounced(
     sender: address,
     msg: AskToTransfer,
 ) {
-    assert(st.poolData.load().jettonClient().isWallet(sender)) throw Error.UnexpectedReleaseBounce;
+    assert(st.poolData.load().jettonClient().isWallet(sender)) throw LockRelease_Error.UnexpectedReleaseBounce;
     val contextCell = loadForwardPayloadAsCell(msg.forwardPayload);
-    assert(contextCell != null) throw Error.UnexpectedReleaseBounce;
+    assert(contextCell != null) throw LockRelease_Error.UnexpectedReleaseBounce;
 
     val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell!);
     val operation = lazy context.forwardPayload.load();
@@ -256,7 +259,7 @@ fun onReleaseTransferBounced(
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
     st.poolData = pool.data.toCell();
-    pool.sendReleaseOrMintFailure(operation, Error.UnexpectedReleaseBounce as uint16);
+    pool.sendReleaseOrMintFailure(operation, LockRelease_Error.UnexpectedReleaseBounce as uint16);
 }
 
 /// @notice Handles ForwardNotification from DepositAccount after release completion.
@@ -274,7 +277,7 @@ fun onDepositAccountForwardNotification(
 
     // Extract context from the jetton notification's forwardPayload.
     val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
-    assert(contextCell != null, Error.InvalidOffRampAccountNotification);
+    assert(contextCell != null, LockRelease_Error.InvalidOffRampAccountNotification);
 
     val context = lazy LockReleaseTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
@@ -291,7 +294,7 @@ fun onDepositAccountForwardNotification(
         contract.getAddress(), // proxy = pool
         beneficiaries,
     );
-    assert(sender == expectedOaa.calculateAddress(), Error.InvalidOffRampAccountNotification);
+    assert(sender == expectedOaa.calculateAddress(), LockRelease_Error.InvalidOffRampAccountNotification);
 
     // The original message's sender must be the account's own jetton wallet for this token, proving
     // a real transfer of the pool's token reached the account (not a spoofed arbitrary sender).
@@ -300,11 +303,11 @@ fun onDepositAccountForwardNotification(
         jettonClient.masterAddress,
         jettonClient.jettonWalletCode,
     );
-    assert(forwarded.senderAddress == expectedWallet, Error.InvalidOffRampAccountNotification);
+    assert(forwarded.senderAddress == expectedWallet, LockRelease_Error.InvalidOffRampAccountNotification);
 
     // Verify transferInitiator is the pool (auth the transfer source).
-    assert(jettonMsg.transferInitiator != null, Error.InvalidOffRampAccountNotification);
-    assert(jettonMsg.transferInitiator! == contract.getAddress(), Error.InvalidOffRampAccountNotification);
+    assert(jettonMsg.transferInitiator != null, LockRelease_Error.InvalidOffRampAccountNotification);
+    assert(jettonMsg.transferInitiator! == contract.getAddress(), LockRelease_Error.InvalidOffRampAccountNotification);
 
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);
@@ -388,7 +391,15 @@ fun onWithdrawFeeTokens(
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (LockReleaseTokenPool_CONTRACT_NAME, LockReleaseTokenPool_CONTRACT_VERSION);
+    return (LockReleaseTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return LockReleaseTokenPool_FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(LockReleaseTokenPool_FACILITY_NAME.crc32(), local);
 }
 
 get fun token(): address {

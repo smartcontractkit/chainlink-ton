@@ -80,7 +80,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
 
   it('reports type and version', async () => {
     const [name, version] = await account.getTypeAndVersion()
-    expect(name.loadStringTail()).toBe('link.chain.ton.ccip.DepositAccount')
+    expect(name.loadStringTail()).toBe('link.chain.ton.ccip.account.DepositAccount')
     expect(version.loadStringTail()).toBe('0.1.0')
   })
 

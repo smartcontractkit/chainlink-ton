@@ -195,7 +195,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
  >     executionState: ExecutionState
  > }
  */
@@ -204,7 +204,7 @@ export interface OffRamp_ExecuteValidated {
     message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
-    gasOverride: coins | null
+    gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
 }
 
@@ -215,11 +215,12 @@ export const OffRamp_ExecuteValidated = {
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
+            gasOverride: null,
             ...args
         }
     },
@@ -230,7 +231,7 @@ export const OffRamp_ExecuteValidated = {
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
             executionState: ExecutionState.fromSlice(s),
         }
     },
@@ -239,13 +240,53 @@ export const OffRamp_ExecuteValidated = {
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
         ExecutionState.store(self.executionState, b);
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
+    }
+}
+
+/**
+ > struct GasOverride {
+ >     receiverExecutionGasLimit: coins?
+ >     tokenGasOverrides: SnakedCell<coins>?
+ > }
+ */
+export interface GasOverride {
+    readonly $: 'GasOverride'
+    receiverExecutionGasLimit: coins | null /* = null */
+    tokenGasOverrides: SnakedCell<coins> | null /* = null */
+}
+
+export const GasOverride = {
+    create(args: {
+        receiverExecutionGasLimit?: coins | null /* = null */
+        tokenGasOverrides?: SnakedCell<coins> | null /* = null */
+    }): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: null,
+            tokenGasOverrides: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
+            tokenGasOverrides: s.loadBoolean() ? loadSnakedCellOf(s, (s) => s.loadCoins()) : null,
+        }
+    },
+    store(self: GasOverride, b: c.Builder): void {
+        storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
+            (v,b) => b.storeCoins(v)
+        );
+        storeTolkNullable<SnakedCell<coins>>(self.tokenGasOverrides, b, (v,b) => storeSnakedCellOf(v, b, (v, b) => b.storeCoins(v)));
+    },
+    toCell(self: GasOverride): c.Cell {
+        return makeCellFrom<GasOverride>(self, GasOverride.store);
     }
 }
 
@@ -310,27 +351,27 @@ export const Any2TVMRampMessage = {
 /**
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
- >     destPoolAddress: address
- >     destGasAmount: uint32
- >     extraData: cell
+ >     token: address
+ >     destGasAmount: coins
+ >     extraData: cell?
  >     amount: uint256
  > }
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
     sourcePoolAddress: CrossChainAddress
-    destPoolAddress: c.Address
-    destGasAmount: uint32
-    extraData: c.Cell
+    token: c.Address
+    destGasAmount: coins
+    extraData: c.Cell | null
     amount: uint256
 }
 
 export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
-        destPoolAddress: c.Address
-        destGasAmount: uint32
-        extraData: c.Cell
+        token: c.Address
+        destGasAmount: coins
+        extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
         return {
@@ -342,17 +383,19 @@ export const Any2TVMTokenTransfer = {
         return {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            destPoolAddress: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
-            extraData: s.loadRef(),
+            token: s.loadAddress(),
+            destGasAmount: s.loadCoins(),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
-        b.storeAddress(self.destPoolAddress);
-        b.storeUint(self.destGasAmount, 32);
-        b.storeRef(self.extraData);
+        b.storeAddress(self.token);
+        b.storeCoins(self.destGasAmount);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
         b.storeUint(self.amount, 256);
     },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
@@ -404,7 +447,7 @@ export const ExecutionState = {
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
  > }
  */
 export interface MerkleRoot_Validate {
@@ -412,7 +455,7 @@ export interface MerkleRoot_Validate {
     message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
-    gasOverride: coins | null
+    gasOverride: GasOverride | null
 }
 
 export const MerkleRoot_Validate = {
@@ -422,7 +465,7 @@ export const MerkleRoot_Validate = {
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
@@ -436,7 +479,7 @@ export const MerkleRoot_Validate = {
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
@@ -444,9 +487,7 @@ export const MerkleRoot_Validate = {
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
@@ -668,7 +709,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAm4AART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwD/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABk/oAMJIwbeID0CDT/zHTPzHTPzHXCz+BSK1TGL6VUxe7wwCRcOLy9FMHoYFIrSHBQPL0cyGqAKwnsAGqAK2BSKshwAORf5UhwADDAOLy9CVus+MPgUitUxgGBwgB/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1wsHIMID8kWBSK1TJb6VUyS7wwCRcOLy9FMUoYFIrSHBQPL0cyGqAKwksAGqAK2BSKwBwwLy9IFIrCHAApF/lSHAA8MA4vL0gUitUyW+lVMku8MAkXDi8vRRFKGBSK0JACz4IyqhUAW8gUiqAZF/lSTAA8MA4vL0AA40gUioJPLyANy+lVMXu8MAkXDi8vQnoYFIrSHBQPL0cyGqAKyzFrAFqgCuFbEEyM7JyM+THPVqKswpzwv/y/8ibpRsEs+Blc+DWPoC4ssHycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAo8AART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwC/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABn9MAAZL6AJJtAeL0BYEAipQwbW1w4gXQINP/MdM/MdM/MdcLP4FIrVMavpVTGbvDAJFw4vL0UwmhgUitIcFA8vRzIaoArCmwAaoArYFIqyHAA5F/4w7y9CcGBwH+Me1E0NP/+kjTP9M/0z/Tf9cLD4FIqfiSJ8cF8vQH0z/XCwcgwgPyRYFIrVMlvpVTJLvDAJFw4vL0UxShgUitIcFA8vRzIaoArCSwAaoArYFIrAHDAvL0gUisIcACkX+VIcADwwDi8vSBSK1TJb6VUyS7wwCRcOLy9FEUoYFIrQkACiHAAMMAAf7DAI4W+CMsoVAHvIFIqgGRf5UmwAPDAOLy9Jc2gUioJvLy4oFIrVMavpVTGbvDAJFw4vL0KaGBSK0hwUDy9HMhqgCssxiwB6oArhexBsjOycjPkxz1airMK88L/xPL/wSOFQPPgyNulDMCz4GWz4NQA/oC4hL0AJRbAc+B4ssHCABQycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
 
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
@@ -723,7 +764,7 @@ export class MerkleRoot implements c.Contract {
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
     }) {
         return MerkleRoot_Validate.toCell(MerkleRoot_Validate.create(body));
     }
@@ -755,7 +796,7 @@ export class MerkleRoot implements c.Contract {
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

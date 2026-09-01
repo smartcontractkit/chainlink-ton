@@ -6,15 +6,15 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
@@ -96,7 +96,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 			Qualifier:     tokenRef.Qualifier,
 		},
 		TokenPoolQualifier: "test-pool",
-		PoolType:           bindings.ShortMockTokenPool,
+		PoolType:           bindings.ShortLockReleaseTokenPool,
 		TokenPoolVersion:   semver.MustParse("1.6.0"),
 		ChainSelector:      tonSelector,
 		ExistingDataStore:  env.DataStore,
@@ -105,7 +105,7 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 	require.Len(t, poolOut.Output.Addresses, 1)
 
 	poolRef := poolOut.Output.Addresses[0]
-	require.Equal(t, datastore.ContractType(bindings.ShortMockTokenPool), poolRef.Type)
+	require.Equal(t, datastore.ContractType(bindings.ShortLockReleaseTokenPool), poolRef.Type)
 	require.Equal(t, "test-pool", poolRef.Qualifier)
 
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
@@ -171,7 +171,7 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 			Qualifier:     tokenRef.Qualifier,
 		},
 		TokenPoolQualifier: "test-pool",
-		PoolType:           bindings.ShortMockTokenPool,
+		PoolType:           bindings.ShortLockReleaseTokenPool,
 		TokenPoolVersion:   semver.MustParse("1.6.0"),
 		ChainSelector:      tonSelector,
 		ExistingDataStore:  env.DataStore,
