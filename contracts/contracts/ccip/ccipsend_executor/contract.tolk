@@ -59,7 +59,7 @@ fun onInternalMessage(in: InMessage) {
             this.onMessageValidationFailed(msg);
         }
         // Sender must be TokenRegistry
-        TokenRegistry_ReturnTokenInfo => {
+        TokenAdminRegistryEntry_ReturnTokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
@@ -160,9 +160,9 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
     val queryMsg = createMessage({
         bounce: true,
-        value: TokenRegistry_GetTokenInfo.cost(ton("0.5")), // TODO extract to constant and calculate real values
+        value: TokenAdminRegistryEntry_GetTokenInfo.cost(ton("0.5")), // TODO extract to constant and calculate real values
         dest: tokenRegistry.load(),
-        body: TokenRegistry_GetTokenInfo {
+        body: TokenAdminRegistryEntry_GetTokenInfo {
         }
     });
     queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -177,7 +177,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     newState.store();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenRegistry_ReturnTokenInfo) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistryEntry_ReturnTokenInfo) {
     val state = self.state.load();
     assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
 

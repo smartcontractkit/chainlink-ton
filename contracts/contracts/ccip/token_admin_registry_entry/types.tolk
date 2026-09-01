@@ -1,12 +1,14 @@
 import "../../lib/deployable/namespace"
 
 // A TokenAdminRegistryEntry is the deterministic, per-token shard managed by
-// TokenAdminRegistry.  The TokenRegistry_* ABI names are intentionally kept
-// during the migration so existing send/receive executors remain compatible.
+// TokenAdminRegistry.
 struct TokenRegistry_TokenInfo {
     tokenPool: address
     minterAddress: address
     enabled: bool
+    /// Pool interface version. It is currently carried but ignored, so a
+    /// future pool-interface upgrade can select the correct protocol.
+    version: uint32 = 1
 }
 
 struct TokenAdminRegistryEntry {}

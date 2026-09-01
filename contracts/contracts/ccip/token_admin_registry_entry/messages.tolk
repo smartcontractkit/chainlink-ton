@@ -1,26 +1,26 @@
 import "types"
 
-type TokenRegistry_InMessage =
-    | TokenRegistry_SetTokenInfo
-    | TokenRegistry_GetTokenInfo
+type TokenAdminRegistryEntry_InMessage =
+    | TokenAdminRegistryEntry_SetTokenInfo
+    | TokenAdminRegistryEntry_GetTokenInfo
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_ProposeAdministrator
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool;
 
-// crc32('TokenRegistry_GetTokenInfo')
-struct (0xDD5D5127) TokenRegistry_GetTokenInfo {}
+// crc32('TokenAdminRegistryEntry_GetTokenInfo')
+struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {}
 
-fun TokenRegistry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
+fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
     return
         + ton("0.002")
         + ton("0.019")
         + responseHandlerCost;
 }
 
-// crc32('TokenRegistry_SetTokenInfo')
-struct (0xd24387a4) TokenRegistry_SetTokenInfo {
+// crc32('TokenAdminRegistryEntry_SetTokenInfo')
+struct (0x75f19aae) TokenAdminRegistryEntry_SetTokenInfo {
     info: TokenRegistry_TokenInfo
 }
 
@@ -43,7 +43,9 @@ struct (0xa7c4c16c) TokenAdminRegistryEntry_SetPool {
     enabled: bool
 }
 
-struct (0xddccddb5) TokenRegistry_ReturnTokenInfo {
+// crc32('TokenAdminRegistryEntry_ReturnTokenInfo')
+struct (0x0a58e678) TokenAdminRegistryEntry_ReturnTokenInfo {
     minterAddress: address
     tokenPool: address?
+    version: uint32
 }

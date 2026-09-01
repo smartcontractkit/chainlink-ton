@@ -7,7 +7,7 @@ import "../pools/lib/token_pool/messages"
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
-    | TokenRegistry_ReturnTokenInfo
+    | TokenAdminRegistryEntry_ReturnTokenInfo
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
     | ReceiveExecutor_ReleaseOrMintFailed

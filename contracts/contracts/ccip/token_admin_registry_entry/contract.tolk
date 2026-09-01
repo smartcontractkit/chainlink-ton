@@ -7,30 +7,29 @@ import "../token_admin_registry/messages"
 
 tolk 1.4.1
 
-// The state-bearing shard of TokenAdminRegistry. Its message ABI intentionally
-// remains TokenRegistry_* until all consumers have migrated.
+// The state-bearing shard of TokenAdminRegistry.
 contract TokenAdminRegistryEntry {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.0"
     description: "link.chain.ton.ccip.TokenAdminRegistryEntry"
 
     storage: TokenRegistry_Storage
-    incomingMessages: TokenRegistry_InMessage
+    incomingMessages: TokenAdminRegistryEntry_InMessage
     thrownErrors: TokenAdminRegistryEntry_Error
 }
 
 const CONTRACT_VERSION = "1.6.0";
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy TokenRegistry_InMessage.fromSlice(in.body);
+    val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(in.body);
 
     match (msg) {
 
         // TODO: min value assertion throughout
-        TokenRegistry_GetTokenInfo => {
+        TokenAdminRegistryEntry_GetTokenInfo => {
             onGetTokenInfo(in.senderAddress);
         }
-        TokenRegistry_SetTokenInfo => {
+        TokenAdminRegistryEntry_SetTokenInfo => {
             onSetTokenInfo(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_RegistrationInitialized => {
@@ -65,7 +64,7 @@ fun onRegistrationInitialized(sender: address) {
     emitAdministratorTransferRequested(st.tokenAddress, null, adminConfig.pendingAdministrator);
 }
 
-fun onSetTokenInfo(msg: TokenRegistry_SetTokenInfo, sender: address) {
+fun onSetTokenInfo(msg: TokenAdminRegistryEntry_SetTokenInfo, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
     assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
@@ -112,8 +111,6 @@ fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
     val adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && sender == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
 
-    // TODO: validate that tokenPool is a CCIP pool for st.tokenAddress before enabling it.
-    // TODO: reject enabled pools with addr_none once the pool-validation interface exists.
     val previousPool = st.tokenInfo.tokenPool;
     val previousEnabled = st.tokenInfo.enabled;
     st.tokenInfo.tokenPool = msg.tokenPool;
@@ -135,9 +132,10 @@ fun onGetTokenInfo(sender: address) {
         dest: sender,
         value: 0,
         bounce: false,
-        body: TokenRegistry_ReturnTokenInfo {
+        body: TokenAdminRegistryEntry_ReturnTokenInfo {
             minterAddress: st.tokenInfo.minterAddress,
             tokenPool,
+            version: st.tokenInfo.version,
         }
     });
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

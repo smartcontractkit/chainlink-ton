@@ -15,6 +15,8 @@ tolk 1.4.1
 /// Root contract for the sharded token-admin registry. It owns deployment
 /// configuration for deterministic entries and is the future replacement for
 /// the Router's token-registry administration surface.
+// TODO: define a controlled shard code/storage migration protocol for a
+// deployed entry if an entry bug or storage-layout change requires one.
 contract TokenAdminRegistry {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.0"
