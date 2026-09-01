@@ -376,9 +376,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse rate limit admin address %q: %w", input.RateLimitAdmin, err)
 			}
 
-			feeAdmin, err := parseMaybeAddr(input.FeeAggregator)
+			feeAdmin, err := parseMaybeAddr(input.FeeAdmin)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee aggregator address: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee admin address: %w", err)
 			}
 			rawFinality := input.AllowedFinalityConfig.Raw()
 			allowedFinality := binary.BigEndian.Uint32(rawFinality[:])
