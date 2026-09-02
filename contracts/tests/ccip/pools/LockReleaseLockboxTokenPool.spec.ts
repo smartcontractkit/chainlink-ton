@@ -535,6 +535,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       recipient,
       unauthorized,

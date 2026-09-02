@@ -23,9 +23,6 @@ const (
 	UnallowedRecipient
 	// MaxAmountExceeded is thrown when a transfer's jetton amount exceeds the caller-allowed max.
 	MaxAmountExceeded
-	// InsufficientValue is thrown when the inbound message value cannot cover the relayed
-	// transfer values plus the pool reserve.
-	InsufficientValue
 	// NonEmptyCustomPayload is thrown when a transfer's AskToTransfer carries a non-empty
 	// customPayload; the handler owns that field to tag the withdrawal context.
 	NonEmptyCustomPayload

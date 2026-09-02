@@ -11,13 +11,12 @@ func _() {
 	_ = x[ZeroAddressNotAllowed-55700]
 	_ = x[UnallowedRecipient-55701]
 	_ = x[MaxAmountExceeded-55702]
-	_ = x[InsufficientValue-55703]
-	_ = x[NonEmptyCustomPayload-55704]
+	_ = x[NonEmptyCustomPayload-55703]
 }
 
-const _ExitCode_name = "ZeroAddressNotAllowedUnallowedRecipientMaxAmountExceededInsufficientValueNonEmptyCustomPayload"
+const _ExitCode_name = "ZeroAddressNotAllowedUnallowedRecipientMaxAmountExceededNonEmptyCustomPayload"
 
-var _ExitCode_index = [...]uint8{0, 21, 39, 56, 73, 94}
+var _ExitCode_index = [...]uint8{0, 21, 39, 56, 77}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 55700

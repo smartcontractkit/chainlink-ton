@@ -421,6 +421,7 @@ describe('BurnMintTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       recipient,
       unauthorized,

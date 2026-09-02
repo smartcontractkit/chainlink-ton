@@ -12,8 +12,9 @@ import (
 // --- Constants ---
 
 const (
-	// MinReserve is the pool's own gas/storage reserve that the inbound withdrawal
-	// value must cover on top of the sum of the relayed transfer values (0.01 TON).
+	// MinReserve is the rent cushion reserved on top of the pool's full pre-existing
+	// balance (plus its storage due payment); the inbound withdrawal value must cover it
+	// so relays and emits can only spend the caller's value (0.01 TON).
 	MinReserve = uint64(10_000_000) // 0.01 TON in nanotons
 
 	// WithdrawOpcode is the opcode of the incoming Withdraw message (0x0d00995c).

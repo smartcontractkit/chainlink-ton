@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 tolk 1.4.1
 
+import "@stdlib/gas-payments"
 import "../jetton/messages"
 import "../utils"
 
@@ -9,9 +10,7 @@ const JettonWithdrawable_FACILITY_ID = JettonWithdrawable_FACILITY_NAME.crc32() 
 
 const TOPIC_FEE_TOKEN_WITHDRAWN = "FeeTokenWithdrawn".crc32();
 
-// Pool's own gas/storage reserve the inbound value must exceed on top of the summed transfer
-// values. Each transfer's `value` pays the wallet's compute + forwarding (SEND_MODE_REGULAR), so
-// this guarantees the caller funds the pool's own costs instead of drawing on pool custody.
+// Rent cushion reserved on withdraw
 const JettonWithdrawable_MIN_RESERVE = ton("0.01");
 
 struct JettonWithdrawable {}
@@ -23,8 +22,6 @@ enum JettonWithdrawable_Error {
     UnallowedRecipient;
     // The cumulative `jettonAmount` relayed to a wallet exceeds its per-wallet `maxAmount` cap.
     MaxAmountExceeded;
-    // The inbound message value is insufficient to cover all relayed transfer values + reserve.
-    InsufficientValue;
     // A transfer's `ask.customPayload` must be empty; the handler owns it to tag the withdrawal context.
     NonEmptyCustomPayload;
 }
@@ -34,7 +31,8 @@ struct JettonWithdrawable_WithdrawFeeTransfer {
     /// The Jetton wallet owning the fees that the `AskToTransfer` is sent to.
     wallet: address;
     /// TON value forwarded with the relay, paying the wallet's compute + forward fees (deducted via
-    /// `SEND_MODE_REGULAR`). Caller allocates per transfer; pooled, `msgValue` must cover the sum + reserve.
+    /// `SEND_MODE_REGULAR`). Caller allocates per transfer; the relays spend from the balance above
+    /// the reserved pre-existing balance, funded by the inbound `msgValue`.
     value: coins;
     /// The transfer to relay. `transferRecipient` is where the jettons end up.
     msg: AskToTransfer;
@@ -98,9 +96,10 @@ fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawa
 
 /// Withdraws accrued fee jettons by relaying the provided transfers to the given wallets.
 /// @dev The caller enforces its own access control (owner/fee-admin) *before* invoking this;
-///      the handler only enforces the per-transfer allowlist, per-wallet cap, and value-coverage
-///      invariants.
-/// @param msgValue Inbound TON value; must cover the sum of relayed transfer values plus reserve.
+///      the handler enforces the per-transfer allowlist, per-wallet cap, and value invariants.
+/// @param msgValue Inbound TON value; must cover the pool's rent reserve on top of its full
+///        pre-existing balance (validated by the up-front `reserveToncoinsOnBalance`), which in
+///        turn must also fund every relayed transfer value and emitted event.
 /// @param sender The caller; retained for attribution/observability.
 /// @param msg The withdrawal request (wallet + transfer pairs, each with its own `value`).
 /// @param maxAmount Per-wallet upper bound on the cumulative `jettonAmount` relayed to each wallet
@@ -120,17 +119,18 @@ fun JettonWithdrawable.onWithdraw(
     maxAmount: map<address, coins>?,
     allowedRecipients: array<address>?,
 ): map<address, coins> {
-    // A running sum of relayed TON values + reserve must stay under `msgValue`.
-    var totalValue: coins = 0;
+    // Reserve TON to cover the original balance plus rent due and some cushion.
+    reserveToncoinsOnBalance(
+        JettonWithdrawable_MIN_RESERVE + contract.getStorageDuePayment(),
+        RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL
+    );
+
     // Per-wallet running sum of relayed jetton amounts; checked against `maxAmount` per wallet.
     var withdrawnPerWallet: map<address, coins> = [];
     var iter: ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer> = ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer>.new(msg.transfers);
     while (!iter.empty()) {
         val transfer = iter.next();
         val ask = transfer.msg;
-
-        totalValue += transfer.value;
-        assert(msgValue >= totalValue + JettonWithdrawable_MIN_RESERVE, JettonWithdrawable_Error.InsufficientValue);
 
         // Never burn: disallow relaying to the zero address regardless of the allowlist.
         assert(!isZeroAddress(ask.transferRecipient), JettonWithdrawable_Error.ZeroAddressNotAllowed);
@@ -143,8 +143,7 @@ fun JettonWithdrawable.onWithdraw(
         assert(ask.customPayload == null, JettonWithdrawable_Error.NonEmptyCustomPayload);
 
         // Accumulate the per-wallet total; if a cap is set for this wallet, the cumulative amount
-        // (this transfer + any earlier ones to the same wallet) must stay within it. This blocks
-        // split-withdrawals that would evade a naive per-transfer cap.
+        // (this transfer + any earlier ones to the same wallet) must stay within it.
         var prior: coins = 0;
         val existing = withdrawnPerWallet.get(transfer.wallet);
         if (existing.isFound) {

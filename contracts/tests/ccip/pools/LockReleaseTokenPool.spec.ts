@@ -409,6 +409,7 @@ describe('LockReleaseTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       recipient,
       unauthorized,
