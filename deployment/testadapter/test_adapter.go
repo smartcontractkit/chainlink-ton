@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -493,10 +492,6 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 // setup: EVM and Solana use BurnMintTokenPools that mint on release, but TON uses
 // LockReleaseTokenPool which custodies real tokens and must be pre-funded.
 func (a *TONAdapter) fundPoolLiquidity(ctx context.Context, tokenAddress string) error {
-	if os.Getenv("TON_TOKEN_TRANSFERS_ENABLED") == "" {
-		// Token transfers are disabled, so no pool is deployed: nothing to fund.
-		return nil
-	}
 	tokenAddr, err := address.ParseAddr(tokenAddress)
 	if err != nil {
 		return fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
@@ -622,10 +617,6 @@ func successfullJettonTransfer(minterAuthority, jettonMinter, receiverWallet *ad
 }
 
 func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
-	if os.Getenv("TON_TOKEN_TRANSFERS_ENABLED") == "" {
-		return nil, errors.ErrUnsupported
-	}
-
 	suffix := strconv.FormatUint(a.Selector, 10) + "-" + chain_selectors.FamilyTon
 	registryAddr, err := a.GetRegistryAddress()
 	if err != nil {
