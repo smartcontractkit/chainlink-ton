@@ -11,7 +11,7 @@ import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -97,6 +97,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     }
     setGasLimitToMaximum();
     
+    // FeeQuoter returns validated ExtraArgs
+    self.onrampSend.msg = msg.msg;
     self.exitSuccessfully(msg.fee);
 }
 

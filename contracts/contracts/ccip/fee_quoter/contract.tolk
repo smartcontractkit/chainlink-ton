@@ -16,7 +16,7 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.2";
+const CONTRACT_VERSION = "1.6.3";
 const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
@@ -229,10 +229,11 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
-    return calculateValidatedFee(msg).feeTokenAmount;
+    val (fee, _) = calculateValidatedFee(msg);
+    return fee.feeTokenAmount;
 }
 
-fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
+fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs) {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -260,7 +261,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
         }
     }
 
-    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
+    var (validatedExtraArgs, gasLimit) = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
 
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
@@ -300,10 +301,12 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     // Equivalent to processMessageArgs in Solidity FeeQuoter
     val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
 
-    return Fee {
-        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
-        feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
-    };
+    return (Fee {
+            feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
+            feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
+        },
+        validatedExtraArgs,
+    );
 }
 
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
@@ -350,7 +353,7 @@ fun _dataAvailabilityCost(
     return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 }
 
-fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): (ExtraArgs, int) {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
     var tokenAmounts = message.tokenAmounts.iter();
@@ -360,10 +363,10 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
-        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
+        val genericExtraArgsV2 = parseGenericExtraArgs(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
+        val gasLimit = genericExtraArgsV2.gasLimit != null ? genericExtraArgsV2.gasLimit : 0 as uint256;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
-        return gasLimit;
+        return (genericExtraArgsV2 as ExtraArgs, gasLimit);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
         val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
@@ -392,7 +395,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
 
         assert (suiExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
-        return gasLimit;
+        return (suiExtraArgs as ExtraArgs, gasLimit);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
@@ -421,14 +424,10 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
 
         assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
-        return gasLimit;
+        return (svmExtraArgs as ExtraArgs, gasLimit);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
-}
-
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int?{
-    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
 }
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
@@ -490,7 +489,9 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val fee = calculateValidatedFee(msg);
+        val (fee, extraArgs) = calculateValidatedFee(msg);
+        var ccipSend = lazy payload.msg.load();
+        ccipSend.extraArgs = extraArgs.toCell();
 
         response = createMessage({
             bounce: true,
@@ -501,7 +502,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
                     feeTokenAmount: fee.feeTokenAmount,
                     feeValueJuels: fee.feeValueJuels,
                 },
-                msg: payload.msg,
+                msg: ccipSend.toCell(),
                 context: payload.context,
             }
         });
@@ -671,6 +672,7 @@ fun requireSupportedVersion(version: slice) {
     assert (
         version.bitsEqual("1.6.0")
         || version.bitsEqual("1.6.1")
+        || version.bitsEqual("1.6.2")
     ) 
     throw Upgradeable_Error.VersionMismatch;
 }
