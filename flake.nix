@@ -12,7 +12,10 @@
     flake-utils,
     ...
   }:
-    flake-utils.lib.eachDefaultSystem (system: let
+    flake-utils.lib.eachSystem
+    # nixpkgs >= 26.11 dropped x86_64-darwin support, so we drop it from the list
+    ["aarch64-darwin" "aarch64-linux" "x86_64-linux"]
+    (system: let
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfreePredicate = pkg:
