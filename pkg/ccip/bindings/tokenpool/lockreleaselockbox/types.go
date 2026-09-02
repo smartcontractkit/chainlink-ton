@@ -46,7 +46,6 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the LockReleaseLockboxTokenPool contract storage.
-// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; lockbox: address; offRampAccountCode: cell; }
 type Storage struct {
 	PoolData           tokenpool.Storage `tlb:"^"`
 	Lockbox            *address.Address  `tlb:"addr"` // JettonLockBox address

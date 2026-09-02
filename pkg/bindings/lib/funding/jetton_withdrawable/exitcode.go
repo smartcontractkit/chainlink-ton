@@ -18,7 +18,6 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 
 const (
 	// ZeroAddressNotAllowed is thrown when a withdrawal would relay to the zero/none address.
-	// Facility ID 557 * 100 = 55700.
 	ZeroAddressNotAllowed ExitCode = iota + 55700
 	// UnallowedRecipient is thrown when a transfer does not target an allowlisted recipient
 	// (or carries a non-empty customPayload).

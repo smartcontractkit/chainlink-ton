@@ -23,9 +23,6 @@ type ChainSelector struct {
 }
 
 // --- JettonWithdrawable fee withdrawal (shared funding trait) ---
-// Convenience re-exports so pool callers can build/send a JettonWithdrawable_Withdraw
-// without importing the trait package directly. The types live in
-// pkg/bindings/lib/funding/jetton_withdrawable (link.chain.ton.lib.funding.JettonWithdrawable).
 
 type (
 	// JettonWithdrawableWithdraw mirrors the Tolk JettonWithdrawable_Withdraw message.
