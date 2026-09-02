@@ -33,7 +33,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.20.1-0.20260701185448-696c075849ea
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.9
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260713162202-124316cd10ff
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260820224955-011a846f2fb8
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260902151510-9faa280a8e1a
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260520103847-15ca4de9dba9
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260901155807-d65832e2f181
 	github.com/smartcontractkit/chainlink/v2 v2.62.0
