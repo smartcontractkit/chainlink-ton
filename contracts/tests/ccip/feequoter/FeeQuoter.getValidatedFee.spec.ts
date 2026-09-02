@@ -248,12 +248,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: feeQuoter.opcodes.out.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          feeQuoter.builder.message.out.messageValidationFailed,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.DestChainNotEnabled)
@@ -297,12 +297,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: feeQuoter.opcodes.out.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          feeQuoter.builder.message.out.messageValidationFailed,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.MsgDataTooLarge)
@@ -350,12 +350,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: feeQuoter.opcodes.out.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          feeQuoter.builder.message.out.messageValidationFailed,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.UnsupportedNumberOfTokens)
@@ -398,12 +398,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: feeQuoter.opcodes.out.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          feeQuoter.builder.message.out.messageValidationFailed,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.GasLimitTooHigh)
@@ -448,12 +448,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: feeQuoter.opcodes.out.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          feeQuoter.builder.message.out.messageValidationFailed,
           [
             (msg) => {
               return msg.error === BigInt(feeQuoter.errors.FeeTokenNotSupported)
