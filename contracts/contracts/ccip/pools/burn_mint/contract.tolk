@@ -333,7 +333,7 @@ fun onDepositAccountReply(
                 jettonAmount: prepared.localAmount,
                 transferInitiator: null,
                 sendExcessesTo: contract.getAddress(), // pool keeps any excesses
-                forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
+                forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
                 forwardPayload: beginCell()
                     .storeMaybeRef(contextCell)
                     .endCell()

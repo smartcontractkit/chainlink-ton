@@ -38,7 +38,7 @@ import "../rate_limiter"
 /// TON value needed to return Jettons after a recoverable transfer failure.
 /// Any value left from the inbound notification is forwarded with the failure
 /// notification after the pool's pre-message balance has been reserved.
-const TokenPool_RETURN_TRANSFER_VALUE = ton("0.1");
+const TokenPool_RETURN_TRANSFER_VALUE = grams("0.1");
 
 struct TokenPool<T> {
     data: TokenPool_Data;
@@ -1336,7 +1336,7 @@ fun TokenPool<T>.reserveLockOrBurnFailureValue(self, msgValue: coins): void {
         ? originalBalance - msgValue
         : 0 as coins;
     val toLeaveOnBalance = balanceBeforeMessage + contract.getStorageDuePayment();
-    reserveToncoinsOnBalance(toLeaveOnBalance, RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(toLeaveOnBalance, RESERVE_MODE_AT_MOST);
 }
 
 /// Returns custody to the sender and notifies the original requester of a failed transfer.

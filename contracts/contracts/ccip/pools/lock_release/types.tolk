@@ -7,8 +7,8 @@ import "../lib/token_pool/messages"
 const LockReleaseTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseTokenPool";
 const LockReleaseTokenPool_FACILITY_ID = LockReleaseTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
-const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
-const LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE = ton("0.2");
+const LockReleaseTokenPool_REPLY_VALUE = grams("0.01");
+const LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE = grams("0.2");
 
 /// @notice Context passed to OffRampAccount for release operations.
 /// Carries the full forward payload for post-release finalization.

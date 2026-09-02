@@ -136,7 +136,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 }
 
 fun OffRamp_ReleaseOrMint.cost(): coins {
-    return ton("0.02"); // TODO
+    return grams("0.02"); // TODO
 }
 
 struct OffRamp_Costs{}
@@ -176,9 +176,9 @@ fun OffRamp_Costs.execute(): int {
     return baseFee + MerkleRoot_Costs.validate();
 }
 
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = ton("0.012");
-const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = ton("0.005");
-const OFFRAMP_COSTS_NOTIFY_FEE = ton("0.004");
-const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = ton("0.004");
-const OFFRAMP_COSTS_COMMIT_FEE = ton("0.015");
-const OFFRAMP_COSTS_EXECUTE_FEE = ton("0.0125");
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.012");
+const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
+const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.004");
+const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.004");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.015");
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0125");

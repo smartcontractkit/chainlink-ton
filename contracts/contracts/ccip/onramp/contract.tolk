@@ -279,7 +279,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 }.toCell(),
             },
             selfMessage: {
-                value: SendExecutor_Costs.Execute() + ton("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
+                value: SendExecutor_Costs.Execute() + grams("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
@@ -404,7 +404,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             sender: metadata.sender,
         },
     });
-    reserveToncoinsOnBalance(msg.fee.feeTokenAmount, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(msg.fee.feeTokenAmount, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -535,7 +535,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
-    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
         bounce: true,

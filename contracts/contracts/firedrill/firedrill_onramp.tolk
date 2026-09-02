@@ -103,7 +103,7 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
 		feeQuoter: st.controlAddress,
 		feeAggregator: st.controlAddress,
 		allowlistAdmin: st.controlAddress,
-		reserve: ton("0")
+		reserve: grams("0")
 	};
 }
 

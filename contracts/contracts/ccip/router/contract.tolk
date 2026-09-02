@@ -34,7 +34,7 @@ import "../../lib/jetton/jetton_client"
 tolk 1.4.2
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
-const RESERVE = ton("1");
+const RESERVE = grams("1");
 
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
@@ -218,7 +218,7 @@ fun onInternalMessage(in: InMessage) {
             if (msg.isNewEntry) {
                 val deployMsg = createMessage({
                     bounce: false,
-                    value: ton("0.015"),
+                    value: grams("0.015"),
                     dest: registryAddress,
                     body: Deployable_Initialize {
                         stateInit: {
@@ -234,7 +234,7 @@ fun onInternalMessage(in: InMessage) {
             }
             val setTokenInfoMsg = createMessage({
                 bounce: false,
-                value: ton("0.015"),
+                value: grams("0.015"),
                 dest: registryAddress,
                 body: TokenRegistry_SetTokenInfo {
                     info: msg.tokenInfo
@@ -317,7 +317,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
             transferRecipient: withdrawRequest.tokenPool,
             sendExcessesTo: null, // TBD
             customPayload: null, // TBD
-            forwardTonAmount: ton("0.5"), // TODO
+            forwardTonAmount: grams("0.5"), // TODO
             forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
         },
     });
@@ -635,7 +635,7 @@ fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
         val destination = entry.getKey();
         val sendMsg = createMessage({
             bounce: false,
-            value: ton("0.05"),
+            value: grams("0.05"),
             dest: destination,
             body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
         });
@@ -669,7 +669,7 @@ fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse
         val destination = entry.getKey();
         val sendMsg = createMessage({
             bounce: false,
-            value: ton("0.05"),
+            value: grams("0.05"),
             dest: destination,
             body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
         });

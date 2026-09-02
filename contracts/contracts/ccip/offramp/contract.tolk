@@ -44,12 +44,12 @@ contract OffRamp {
 
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
-const RESERVE = ton("5");
+const RESERVE = grams("5");
 
 // TBD: These two fields should be configurable
-const MIN_GASLIMIT = ton("0.025");
+const MIN_GASLIMIT = grams("0.025");
 // LockRelase_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
-const MIN_TT_GASLIMIT = ton("0.15"); 
+const MIN_TT_GASLIMIT = grams("0.15"); 
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -749,7 +749,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
     // emit slowly drains the balance
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
@@ -886,7 +886,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         return messageExecutionFailed(initExecuteMsg);
     }
 
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
 
     // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({

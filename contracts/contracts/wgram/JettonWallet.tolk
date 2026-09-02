@@ -79,7 +79,7 @@ fun onInternalMessage(in: InMessage) {
             val preservedSurplus = balanceBeforeMessage > requiredReserveBeforeCredit
                 ? balanceBeforeMessage - requiredReserveBeforeCredit
                 : 0 as coins;
-            reserveToncoinsOnBalance(
+            reserveGramsOnBalance(
                 requiredReserve + preservedSurplus,
                 RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL
             );
@@ -128,7 +128,7 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             // Preserve the remaining wGRAM backing plus storage reserve exactly, or abort the transfer.
-            reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
+            reserveGramsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val deployMsg = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
@@ -159,7 +159,7 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             // Preserve the remaining backing exactly before sending the withdrawn GRAM to the minter.
-            reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
+            reserveGramsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val notifyMinterMsg = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
@@ -185,7 +185,7 @@ fun onInternalMessage(in: InMessage) {
             assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
             // Preserve the strict GRAM backing for the current jetton balance; anything above
             // is owner-recoverable surplus (top-ups, bounced-transfer leftovers, mint overfunding).
-            reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
+            reserveGramsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val excessMsg = createMessage({
                 bounce: BounceMode.NoBounce,
