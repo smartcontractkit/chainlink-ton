@@ -31,7 +31,7 @@ import "../pools/lib/token_pool/types"
 import "../common/types"
 import "../../lib/jetton/jetton_client"
 
-tolk 1.4.1
+tolk 1.4.2
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 const RESERVE = ton("1");

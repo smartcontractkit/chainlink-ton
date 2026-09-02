@@ -19,7 +19,7 @@ import "messages"
 import "storage"
 import "errors"
 
-tolk 1.4.1
+tolk 1.4.2
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 

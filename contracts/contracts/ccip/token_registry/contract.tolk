@@ -2,7 +2,7 @@
 import "messages"
 import "storage"
 
-tolk 1.4.1
+tolk 1.4.2
 
 contract TokenRegistry {
     author: "SmartContract Chainlink Limited SEZC"

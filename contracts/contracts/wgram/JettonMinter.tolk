@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.4.1
+tolk 1.4.2
 
 import "@stdlib/strings"
 import "@stdlib/gas-payments"

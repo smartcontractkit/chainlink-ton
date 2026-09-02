@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.1
+tolk 1.4.2
 
 import "../../../lib/utils"
 import "../../../lib/jetton/messages"

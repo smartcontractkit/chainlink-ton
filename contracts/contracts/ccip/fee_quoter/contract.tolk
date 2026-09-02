@@ -14,7 +14,7 @@ import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
 
-tolk 1.4.1
+tolk 1.4.2
 
 contract FeeQuoter {
     author: "SmartContract Chainlink Limited SEZC"
