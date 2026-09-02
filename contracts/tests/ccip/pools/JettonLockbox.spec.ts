@@ -4,7 +4,6 @@ import { Address, beginCell, toNano, Dictionary, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
-import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
   AccessControl_Data,
   JettonLockBox,
@@ -55,8 +54,8 @@ describe('JettonLockBox', () => {
     recipient = await blockchain.treasury('recipient')
 
     // Deploy jetton minter
-    const jettonWalletCode = await jetton.JettonWalletCode()
-    const jettonMinterCode = await jetton.JettonMinterCode()
+    const jettonWalletCode = await contractCode.jetton('JettonWallet')
+    const jettonMinterCode = await contractCode.jetton('JettonMinter')
 
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
