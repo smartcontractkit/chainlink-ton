@@ -42,10 +42,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	cldfproposalutils "github.com/smartcontractkit/chainlink-deployments-framework/engine/cld/mcms/proposalutils"
 	cldftesthelpers "github.com/smartcontractkit/chainlink-deployments-framework/engine/cld/mcms/proposalutils/testhelpers"
 
+	mcmschangesets "github.com/smartcontractkit/cld-changesets/legacy/mcms/changesets"
+
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/common/types"
 
 	"github.com/smartcontractkit/chainlink-common/keystore/corekeys/p2pkey"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
@@ -310,13 +312,8 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 
 	// Step 2: Deploy MCMS with Timelock (required for ValidateOwnership)
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(cldf.CreateLegacyChangeSet(commonchangeset.DeployMCMSWithTimelockV2), map[uint64]types.MCMSWithTimelockConfigV2{
-			evmSelector: {
-				Proposer:         cldftesthelpers.SingleGroupMCMS(t),
-				Bypasser:         cldftesthelpers.SingleGroupMCMS(t),
-				Canceller:        cldftesthelpers.SingleGroupMCMS(t),
-				TimelockMinDelay: big.NewInt(0),
-			},
+		commonchangeset.Configure(cldf.CreateLegacyChangeSet(mcmschangesets.DeployMCMSWithTimelockV2), map[uint64]cldfproposalutils.MCMSWithTimelockConfig{
+			evmSelector: cldftesthelpers.SingleGroupTimelockConfig(t),
 		}),
 	})
 	require.NoError(t, err, "failed to deploy MCMS with timelock")
