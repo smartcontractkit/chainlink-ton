@@ -207,7 +207,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
     createMessage(
         {
             bounce: true,
-            value: 0,
+            value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
                 message: st.message,
@@ -215,7 +215,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
                 effectiveGasLimit: st.state.effectiveGasLimit,
             }
         }
-    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract

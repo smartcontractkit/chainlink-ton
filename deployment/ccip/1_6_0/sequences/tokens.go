@@ -380,9 +380,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse rate limit admin address %q: %w", input.RateLimitAdmin, err)
 			}
 
-			feeAdmin, err := parseMaybeAddr(input.FeeAggregator)
+			feeAdmin, err := parseMaybeAddr(input.FeeAdmin)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee aggregator address: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse fee admin address: %w", err)
 			}
 			rawFinality := input.AllowedFinalityConfig.Raw()
 			allowedFinality := binary.BigEndian.Uint32(rawFinality[:])
@@ -509,6 +509,14 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("retrieve Deployable code for TokenAdminRegistry entry: %w", err)
 			}
 
+			// The OffRamp always comes from the datastore: it is the contract that sends
+			// TokenPool_ReleaseOrMint to the pool, so it must be registered as the pool's
+			// trusted offRamp (see applyRampAccessUpdates below).
+			stateCCIP, loadErr := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
+			if loadErr != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, loadErr)
+			}
+
 			var registryAddr *address.Address
 			if input.RegistryAddress != "" {
 				registryAddr, err = address.ParseAddr(input.RegistryAddress)
@@ -516,12 +524,16 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse TokenAdminRegistry address %q: %w", input.RegistryAddress, err)
 				}
 			} else {
-				stateCCIP, loadErr := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
-				if loadErr != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, loadErr)
-				}
 				r := stateCCIP.TokenAdminRegistry
 				registryAddr = &r
+			}
+
+			var offRampAddr *address.Address
+			if !stateCCIP.OffRamp.IsAddrNone() {
+				o := stateCCIP.OffRamp
+				offRampAddr = &o
+			} else if len(input.RemoteChains) > 0 {
+				return sequences.OnChainOutput{}, fmt.Errorf("no OffRamp address found in the datastore for chain %d: the token pool would reject inbound ReleaseOrMint with TokenPool_Error.Unauthorized", input.ChainSelector)
 			}
 
 			body := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.RegisterToken{
@@ -579,15 +591,11 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure remote chains on token pool at %s: %w", poolAddr.String(), err)
 			}
 
-			// Register the Router as the pool's trusted onRamp for every remote chain
-			// being wired up.
+			// Register the Router as the pool's trusted onRamp and the OffRamp as its trusted
+			// offRamp for every remote chain being wired up.
 			// TODO This should be changed in the contracts flow so that the onramp is the one calling instead of the Router
-			stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for ramp access: %w", err)
-			}
 			routerAddr := stateCCIP.Router
-			if err := applyRampAccessUpdates(b, dp, poolAddr, &routerAddr, nil, input.RemoteChains); err != nil {
+			if err := applyRampAccessUpdates(b, dp, poolAddr, &routerAddr, offRampAddr, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure ramp access on token pool at %s: %w", poolAddr.String(), err)
 			}
 

@@ -46,7 +46,7 @@ type Any2TVMTokenTransfer struct {
 	SourcePoolAddress common.CrossChainAddress `tlb:"^"`
 	DestPoolAddress   *address.Address         `tlb:"addr"`
 	DestGasAmount     *tlb.Coins               `tlb:"."`
-	ExtraData         *cell.Cell               `tlb:"^"`
+	ExtraData         *cell.Cell               `tlb:"maybe ^"`
 	Amount            *big.Int                 `tlb:"## 256"`
 }
 
