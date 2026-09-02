@@ -207,7 +207,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: OnRamp_MessageValidated_Any {
+        body: OnRamp_MessageValidated {
             fee: msg.fee.feeTokenAmount,
             msg: msg.msg,
             context: userContext,
@@ -237,7 +237,7 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: OnRamp_MessageValidationFailed_Any {
+        body: OnRamp_MessageValidationFailed {
             error: msg.error,
             msg: msg.msg,
             context: userContext,
