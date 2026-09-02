@@ -160,7 +160,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
     val queryMsg = createMessage({
         bounce: true,
-        value: TokenRegistry_GetTokenInfo.cost(ton("0.5")), // TODO extract to constant and calculate real values
+        value: TokenRegistry_GetTokenInfo.cost(grams("0.5")), // TODO extract to constant and calculate real values
         dest: tokenRegistry.load(),
         body: TokenRegistry_GetTokenInfo {
         }
@@ -183,7 +183,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
 
     val routerWalletAddressRequest = createMessage({
         bounce: true,
-        value: ton("0.5"), // TODO extract to constant and calculate real values
+        value: grams("0.5"), // TODO extract to constant and calculate real values
         dest: msg.minterAddress,
         body: RequestWalletAddress {
             queryId: 0,

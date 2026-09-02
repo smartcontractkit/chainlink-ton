@@ -33,7 +33,7 @@ fun reserveModeExactFail() {
 }
 
 fun requiredMinterReserve() {
-    return ton("0.01") + contract.getStorageDuePayment();
+    return grams("0.01") + contract.getStorageDuePayment();
 }
 
 /// Refund the mint on bounce, reuses sendExcessesTo as the bounce refund destination,
@@ -41,7 +41,7 @@ fun requiredMinterReserve() {
 fun refundMintBounce(msg: InternalTransferStep) {
     // We're already in the mint recovery path after supply rollback, so keep the minter reserve
     // if possible but never fail the bounce handler itself.
-    reserveToncoinsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST);
 
     val refundMsg = createMessage({
         // The mint-bounce refund is a forced GRAM deposit to the caller-chosen refund address.
@@ -85,7 +85,7 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             // Keep only the minter rent reserve before withdrawing GRAM.
-            reserveToncoinsOnBalance(requiredMinterReserve(), reserveModeExactFail());
+            reserveGramsOnBalance(requiredMinterReserve(), reserveModeExactFail());
 
             val excessesMsg = createMessage({
                 // Burn payout sends native GRAM to the recipient as a non-bounceable withdrawal (forced deposit).
@@ -155,7 +155,7 @@ fun onInternalMessage(in: InMessage) {
             storage.totalSupply += jettonAmount;
             storage.save();
 
-            reserveToncoinsOnBalance(requiredReserve, reserveModeExactFail());
+            reserveGramsOnBalance(requiredReserve, reserveModeExactFail());
 
             val deployMsg = createMessage({
                 // The mint-bounce refund flow need the original InternalTransferStep root cell, not

@@ -628,7 +628,7 @@ enum Timelock_Error {
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = ton("0.05");
+const MIN_TON_TO_RESERVE: int = grams("0.05");
 
 // --- Methods ---
 
@@ -931,7 +931,7 @@ fun Timelock<T>.executeBatch(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
 
     var index = 0;
     var cc = calls.iter();
@@ -1180,7 +1180,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
 
     var index = 0;
     var cc = calls.iter();
@@ -1509,8 +1509,8 @@ struct Timelock_Costs{}
 
 fun Timelock_Costs.init(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // Timelock_MinDelayChange fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.019") // Timelock_MinDelayChange fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         + MIN_TON_TO_RESERVE // rent reserve expected on initialization
         ;
@@ -1518,9 +1518,9 @@ fun Timelock_Costs.init(): int {
 
 fun Timelock_Costs.scheduleBatch(size: int): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.002") * size // Timelock_CallScheduled events fwdFee
-        + ton("0.019") // Timelock_BatchScheduled fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.002") * size // Timelock_CallScheduled events fwdFee
+        + grams("0.019") // Timelock_BatchScheduled fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
@@ -1529,26 +1529,26 @@ fun Timelock_Costs.scheduleBatch(size: int): int {
 // while the rest (rent, op.value) is paid/reserved by the contract.
 fun Timelock_Costs.executeBatch(size: int): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.002") * size // Timelock_CallExecuted events fwdFee
-        + ton("0.019") // Timelock_BatchExecuted fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.002") * size // Timelock_CallExecuted events fwdFee
+        + grams("0.019") // Timelock_BatchExecuted fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
 
 fun Timelock_Costs.bypasserExecuteBatch(size: int): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.002") * size // messages executed/sent fwdFee
-        + ton("0.019") // Timelock_BypasserBatchExecuted fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.002") * size // messages executed/sent fwdFee
+        + grams("0.019") // Timelock_BypasserBatchExecuted fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
 
 fun Timelock_Costs.submitErrorReport(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // Timelock_ErrorReportSubmitted fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.019") // Timelock_ErrorReportSubmitted fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }

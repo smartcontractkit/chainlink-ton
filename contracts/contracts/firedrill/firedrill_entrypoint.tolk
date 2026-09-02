@@ -51,7 +51,7 @@ enum FiredrillEntrypoint_Error {
 	NotEnoughTon
 }
 
-const DRILL_MESSAGE_VALUE: coins = ton("0.007");
+const DRILL_MESSAGE_VALUE: coins = grams("0.007");
 
 fun onInternalMessage(in: InMessage) {
 	var st = lazy FiredrillEntrypoint_Storage.load();
@@ -118,7 +118,7 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike, value: coins) {
 	assert(msg.from <= msg.to, FiredrillEntrypoint_Error.NothingToSend);
 	assert(msg.from > st.sSendLast, FiredrillEntrypoint_Error.MessageAlreadySent);
-	assert(value >= DRILL_MESSAGE_VALUE * (msg.to - msg.from + 1) + ton("0.005"), FiredrillEntrypoint_Error.NotEnoughTon);
+	assert(value >= DRILL_MESSAGE_VALUE * (msg.to - msg.from + 1) + grams("0.005"), FiredrillEntrypoint_Error.NotEnoughTon);
 	
 	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
