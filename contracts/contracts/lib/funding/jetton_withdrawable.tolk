@@ -17,7 +17,7 @@ const JettonWithdrawable_MIN_RESERVE = ton("0.01");
 struct JettonWithdrawable {}
 
 enum JettonWithdrawable_Error {
-    // Cannot withdraw fees to the zero/none address.
+    // Cannot withdraw fees to the zero address (would burn the jettons).
     ZeroAddressNotAllowed =  JettonWithdrawable_FACILITY_ID * 100;
     // A transfer does not target the configured allowed recipient.
     UnallowedRecipient;
@@ -105,7 +105,7 @@ fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawa
 /// @param maxAmount Upper bound enforced on each transfer's `jettonAmount` (throws `MaxAmountExceeded`).
 /// @param allowedRecipients Optional permit list of withdrawal destinations. When set, every
 ///        `ask.transferRecipient` must be in this list, so funds can only be swept to allowlisted fee
-///        aggregators. When `null`, any recipient is allowed except zero/none (which would burn).
+///        aggregators. When `null`, any non-zero recipient is allowed (the zero address would burn).
 /// @return totalWithdrawn Total jetton amount relayed
 fun JettonWithdrawable.onWithdraw(
     msgValue: coins,
@@ -126,8 +126,8 @@ fun JettonWithdrawable.onWithdraw(
         totalWithdrawn += ask.jettonAmount;
         assert(msgValue >= totalValue + JettonWithdrawable_MIN_RESERVE, JettonWithdrawable_Error.InsufficientValue);
 
-        // Never burn: disallow relaying to the zero/none address regardless of the allowlist.
-        assert (ask.transferRecipient != createAddressNone(), JettonWithdrawable_Error.ZeroAddressNotAllowed);
+        // Never burn: disallow relaying to the zero address regardless of the allowlist.
+        assert(!isZeroAddress(ask.transferRecipient), JettonWithdrawable_Error.ZeroAddressNotAllowed);
         // With an allowlist configured, every transfer must land on one of its recipients.
         if (allowedRecipients != null
             && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients!)) {

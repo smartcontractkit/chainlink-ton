@@ -17,7 +17,7 @@ func _() {
 
 const _ExitCode_name = "ZeroAddressNotAllowedUnallowedRecipientMaxAmountExceededInsufficientValueNonEmptyCustomPayload"
 
-var _ExitCode_index = [...]uint8{0, 21, 39, 56, 73, 96}
+var _ExitCode_index = [...]uint8{0, 21, 39, 56, 73, 94}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 55700

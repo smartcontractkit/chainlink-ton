@@ -357,8 +357,10 @@ fun TokenPool<T>.setDynamicConfig(
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
-    // TODO: check if address is valid (not zero)
-    // assert(!router.isNone(), TokenPool_Error.ZeroAddressInvalid);
+    // The router must be a real address; zero would break routeMessage forwarding.
+    assert(!isZeroAddress(router), TokenPool_Error.ZeroAddressInvalid);
+    // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
+    assert(feeAdmin == null || !isZeroAddress(feeAdmin!), TokenPool_Error.ZeroAddressInvalid);
     adminConfig.dynamicConfig = TokenPool_DynamicConfig {
         router,
         rateLimitAdmin,
@@ -681,6 +683,10 @@ fun TokenPool<T>.setRMNProxy(
 ) {
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
+
+    // EVM makes `rmnProxy` immutable (constructor-checked); TON makes it mutable here, so the
+    // zero-address guard must live on the setter. See AUDIT_REPORT.md L-11.
+    assert(!isZeroAddress(rmnProxy), TokenPool_Error.ZeroAddressInvalid);
 
     adminConfig.rmnProxy = rmnProxy;
     self.data.adminConfig = adminConfig.toCell();
