@@ -74,11 +74,12 @@ var (
 		ChainFamilySelector:             config.TVMFamilySelector,
 		EnforceOutOfOrder:               false,
 		DefaultTokenFeeUSDCents:         0,
-		DefaultTokenDestGasOverhead:     0,
-		DefaultTxGasLimit:               1,
-		GasMultiplierWeiPerEth:          0,
-		GasPriceStalenessThreshold:      0,
-		NetworkFeeUSDCents:              0,
+		// Must be >= MIN_TT_GASLIMIT (ton("0.15") = 150_000_000 nanoTON) on the TON OffRamp.
+		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
+		DefaultTxGasLimit:           1,
+		GasMultiplierWeiPerEth:      0,
+		GasPriceStalenessThreshold:  0,
+		NetworkFeeUSDCents:          0,
 	}
 )
 

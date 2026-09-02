@@ -137,7 +137,7 @@ fun onDepositAccountReply(
             transferRecipient: sender,
             sendExcessesTo: contract.getAddress(), // pool keeps any excesses
             customPayload: null,
-            forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardTonAmount: ton("0.05"), // TODO: make dynamic, required for TransferNotificationForRecipient
             forwardPayload: beginCell()
                 .storeMaybeRef(contextCell)
                 .endCell()
@@ -456,4 +456,19 @@ get fun getFeeAmount(
 ): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
+}
+
+get fun getDepositAccount(
+    receiver: address,
+): address {
+    val st = Storage.load();
+
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(receiver, ());
+    return calcAddressOfDepositAccount(
+        st.offRampAccountCode,
+        contract.getAddress(),
+        contract.getAddress(),
+        beneficiaries,
+    ).calculateAddress();
 }
