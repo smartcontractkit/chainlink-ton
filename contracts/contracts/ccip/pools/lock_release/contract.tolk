@@ -384,17 +384,24 @@ fun onWithdrawFeeTokens(
     var pool = loadPool(st);
 
     // The ledger accounts only the pool's own token, so it can only bound one transfer to the
-    // pool's own wallet. Multiple transfers (or a foreign-token wallet) would let the per-transfer
-    // cap overdraw the ledger, or subtract a foreign amount and corrupt it.
+    // pool's own wallet. Multiple transfers (or a foreign-token wallet) would overdraw the
+    // ledger, or subtract a foreign amount and corrupt it.
     assert(msg.transfers.size() == 1, LockRelease_Error.InvalidWithdrawWallet);
     val transfer = msg.transfers.get(0);
-    assert(transfer.wallet == pool.data.jettonClient().walletAddress(), LockRelease_Error.InvalidWithdrawWallet);
+    val poolWallet = pool.data.jettonClient().walletAddress();
+    assert(transfer.wallet == poolWallet, LockRelease_Error.InvalidWithdrawWallet);
 
-    val withdrawn: coins = pool.withdrawFeeTokens(sender, msgValue, msg, st.accruedFees);
+    // Bound the withdrawal by the ledger: a single per-wallet cap entry for our own wallet.
+    var maxAmount: map<address, coins> = [];
+    maxAmount.set(poolWallet, st.accruedFees);
+    var withdrawn = pool.withdrawFeeTokens(sender, msgValue, msg, maxAmount);
     st.poolData = pool.data.toCell();
 
     // Fees have physically left the wallet; reduce the ledger so it truly reflects what remains.
-    st.accruedFees -= withdrawn;
+    val entry = withdrawn.get(poolWallet);
+    if (entry.isFound) {
+        st.accruedFees -= entry.loadValue();
+    }
 
     return st;
 }

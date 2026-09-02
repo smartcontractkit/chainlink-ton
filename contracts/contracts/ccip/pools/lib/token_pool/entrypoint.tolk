@@ -2157,10 +2157,9 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
         return;
     }
 
-    // No cap by default, can be specialized by the hook (e.g. pools with an accrued-fee ledger,
-    // e.g. lock/release (no lockbox), bound the withdrawal).
-    val maxAmount = INT_MAX as coins;
-    self.withdrawFeeTokens(sender, msgValue, msg, maxAmount);
+    // No cap by default (the jetton wallet's physical balance is the only bound); can be
+    // specialized by the hook (e.g. lock/release, whose accrued-fee ledger bounds the withdrawal).
+    self.withdrawFeeTokens(sender, msgValue, msg, null);
 }
 
 /// Withdraws accrued fee jettons.
@@ -2169,14 +2168,15 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
 /// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
 ///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
 /// @param msg The withdrawal request (wallet + transfer pairs).
-/// @param maxAmount The upper bound enforced per transfer (cap).
+/// @param maxAmount Per-wallet upper bound on the cumulative amount relayed (cap); `null` = unbounded.
+/// @return The per-wallet total jetton amount relayed (for caller bookkeeping).
 fun TokenPool<T>.withdrawFeeTokens(
     mutate self,
     sender: address,
     msgValue: coins,
     msg: JettonWithdrawable_Withdraw,
-    maxAmount: coins,
-): coins {
+    maxAmount: map<address, coins>?,
+): map<address, coins> {
     assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
 
     // No recipient allowlist: access is gated by onlyOwnerOrFeeAdmin above

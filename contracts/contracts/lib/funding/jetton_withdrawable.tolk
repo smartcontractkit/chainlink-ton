@@ -21,7 +21,7 @@ enum JettonWithdrawable_Error {
     ZeroAddressNotAllowed =  JettonWithdrawable_FACILITY_ID * 100;
     // A transfer does not target the configured allowed recipient.
     UnallowedRecipient;
-    // Trying to withdraw more than the caller-allowed maxAmount.
+    // The cumulative `jettonAmount` relayed to a wallet exceeds its per-wallet `maxAmount` cap.
     MaxAmountExceeded;
     // The inbound message value is insufficient to cover all relayed transfer values + reserve.
     InsufficientValue;
@@ -98,32 +98,38 @@ fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawa
 
 /// Withdraws accrued fee jettons by relaying the provided transfers to the given wallets.
 /// @dev The caller enforces its own access control (owner/fee-admin) *before* invoking this;
-///      the handler only enforces the per-transfer allowlist, limit, and value-coverage invariants.
+///      the handler only enforces the per-transfer allowlist, per-wallet cap, and value-coverage
+///      invariants.
 /// @param msgValue Inbound TON value; must cover the sum of relayed transfer values plus reserve.
 /// @param sender The caller; retained for attribution/observability.
 /// @param msg The withdrawal request (wallet + transfer pairs, each with its own `value`).
-/// @param maxAmount Upper bound enforced on each transfer's `jettonAmount` (throws `MaxAmountExceeded`).
+/// @param maxAmount Per-wallet upper bound on the cumulative `jettonAmount` relayed to each wallet
+///        (throws `MaxAmountExceeded` when a wallet's running total exceeds its entry). A wallet
+///        with no entry is treated as unbounded, so callers with commingled wallets (physical
+///        balance exceeding the ledgered fee balance) MUST include an entry for every such wallet.
+///        `null` means unbounded for all wallets.
 /// @param allowedRecipients Optional permit list of withdrawal destinations. When set, every
 ///        `ask.transferRecipient` must be in this list, so funds can only be swept to allowlisted fee
 ///        aggregators. When `null`, any non-zero recipient is allowed (the zero address would burn).
-/// @return totalWithdrawn Total jetton amount relayed
+/// @return withdrawnPerWallet Per-wallet total jetton amount relayed, for caller bookkeeping
+///        (e.g. decrementing a per-wallet fee ledger on success / re-crediting on bounce).
 fun JettonWithdrawable.onWithdraw(
     msgValue: coins,
     sender: address,
     msg: JettonWithdrawable_Withdraw,
-    maxAmount: coins,
+    maxAmount: map<address, coins>?,
     allowedRecipients: array<address>?,
-): coins {
-    // A running sum of relayed TON values + reserve must stay under `msgValue`
+): map<address, coins> {
+    // A running sum of relayed TON values + reserve must stay under `msgValue`.
     var totalValue: coins = 0;
-    var totalWithdrawn: coins = 0;
+    // Per-wallet running sum of relayed jetton amounts; checked against `maxAmount` per wallet.
+    var withdrawnPerWallet: map<address, coins> = [];
     var iter: ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer> = ArrayIterator<JettonWithdrawable_WithdrawFeeTransfer>.new(msg.transfers);
     while (!iter.empty()) {
         val transfer = iter.next();
         val ask = transfer.msg;
 
         totalValue += transfer.value;
-        totalWithdrawn += ask.jettonAmount;
         assert(msgValue >= totalValue + JettonWithdrawable_MIN_RESERVE, JettonWithdrawable_Error.InsufficientValue);
 
         // Never burn: disallow relaying to the zero address regardless of the allowlist.
@@ -133,10 +139,25 @@ fun JettonWithdrawable.onWithdraw(
             && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients!)) {
             throw JettonWithdrawable_Error.UnallowedRecipient;
         }
-        // The caller guarantees each amount is within its permitted limit (e.g. accrued fees).
-        assert(ask.jettonAmount <= maxAmount, JettonWithdrawable_Error.MaxAmountExceeded);
         // We own `customPayload` to tag the withdrawal context (opcode + initiator), input must be empty.
         assert(ask.customPayload == null, JettonWithdrawable_Error.NonEmptyCustomPayload);
+
+        // Accumulate the per-wallet total; if a cap is set for this wallet, the cumulative amount
+        // (this transfer + any earlier ones to the same wallet) must stay within it. This blocks
+        // split-withdrawals that would evade a naive per-transfer cap.
+        var prior: coins = 0;
+        val existing = withdrawnPerWallet.get(transfer.wallet);
+        if (existing.isFound) {
+            prior = existing.loadValue();
+        }
+        val cumulative: coins = prior + ask.jettonAmount;
+        if (maxAmount != null) {
+            val cap = maxAmount!.get(transfer.wallet);
+            if (cap.isFound) {
+                assert(cumulative <= cap.loadValue(), JettonWithdrawable_Error.MaxAmountExceeded);
+            }
+        }
+        withdrawnPerWallet.set(transfer.wallet, cumulative);
 
         val taggedAsk = AskToTransfer {
             queryId: ask.queryId,
@@ -167,7 +188,7 @@ fun JettonWithdrawable.onWithdraw(
         });
     }
 
-    return totalWithdrawn;
+    return withdrawnPerWallet;
 }
 
 /// Whether `recipient` is one of the allowlisted withdrawal destinations.

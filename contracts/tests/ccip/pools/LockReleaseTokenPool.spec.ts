@@ -418,6 +418,9 @@ describe('LockReleaseTokenPool', () => {
       userWallet,
       feeBps,
       doLock,
+      // The accrued-fee ledger is denominated in the pool's own token, so the pool only
+      // accepts a single transfer to its own wallet (see the hook in contract.tolk).
+      allowsMultiTransfer: false,
     }
   })
 
