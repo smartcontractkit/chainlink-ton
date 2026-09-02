@@ -8,6 +8,11 @@ replace (
 	github.com/smartcontractkit/chainlink-ton => ../
 	github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+
+	// Pin ugorji/go/codec to v1.2.12: chainlink-evm's generated codec files
+	// (internal_types_codecgen.go) use codec1978.GenVersion/GenHelper which were
+	// removed in v1.3.x. MVS resolves to v1.3.1 (latest), breaking the build.
+	github.com/ugorji/go/codec => github.com/ugorji/go/codec v1.2.12
 )
 
 require (
@@ -32,6 +37,7 @@ require (
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260520103847-15ca4de9dba9
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260901155807-d65832e2f181
 	github.com/smartcontractkit/chainlink/v2 v2.62.0
+	github.com/smartcontractkit/cld-changesets v0.8.2
 	github.com/smartcontractkit/libocr v0.0.0-20260810200708-618b5bf7f342
 	github.com/smartcontractkit/mcms v0.52.1
 	github.com/stretchr/testify v1.12.1
@@ -390,7 +396,6 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/parrot v0.6.2 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/seth v1.51.5 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20260408092456-3c6369888d4a // indirect
-	github.com/smartcontractkit/cld-changesets v0.8.2 // indirect
 	github.com/smartcontractkit/freeport v0.1.3-0.20250828155247-add56fa28aad // indirect
 	github.com/smartcontractkit/go-daml v0.0.0-20260615231356-88c6ee9b5774 // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
