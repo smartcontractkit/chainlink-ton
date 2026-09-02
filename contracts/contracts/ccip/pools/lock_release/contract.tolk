@@ -369,8 +369,9 @@ fun onLockOrBurnTransferContinue(
     return s;
 }
 
-/// Bounded fee-withdrawal handler for lock/release: caps each transfer by the accrued-fee ledger
-/// and decrements it on withdrawal (re-credited on bounce, see `onBouncedMessage`).
+/// Bounded fee-withdrawal handler for lock/release: the `accruedFees` ledger is denominated in
+/// the pool's own token, so a withdrawal is a single transfer to the pool's own jetton wallet,
+/// bounded by the ledger. The ledger is decremented on withdrawal (re-credited on bounce)
 fun onWithdrawFeeTokens(
     ctx: Storage?,
     sender: address,
@@ -381,6 +382,14 @@ fun onWithdrawFeeTokens(
     var st = ctx!;
 
     var pool = loadPool(st);
+
+    // The ledger accounts only the pool's own token, so it can only bound one transfer to the
+    // pool's own wallet. Multiple transfers (or a foreign-token wallet) would let the per-transfer
+    // cap overdraw the ledger, or subtract a foreign amount and corrupt it.
+    assert(msg.transfers.size() == 1, LockRelease_Error.InvalidWithdrawWallet);
+    val transfer = msg.transfers.get(0);
+    assert(transfer.wallet == pool.data.jettonClient().walletAddress(), LockRelease_Error.InvalidWithdrawWallet);
+
     val withdrawn: coins = pool.withdrawFeeTokens(sender, msgValue, msg, st.accruedFees);
     st.poolData = pool.data.toCell();
 

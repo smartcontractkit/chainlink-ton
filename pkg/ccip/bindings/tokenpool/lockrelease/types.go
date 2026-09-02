@@ -61,6 +61,7 @@ const (
 	ExitCodeInvalidOffRampAccountReply
 	ExitCodeInvalidOffRampAccountNotification
 	ExitCodeOffRampAccountDeployFailed
+	ExitCodeInvalidWithdrawWallet
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

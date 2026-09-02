@@ -25,6 +25,8 @@ enum JettonWithdrawable_Error {
     MaxAmountExceeded;
     // The inbound message value is insufficient to cover all relayed transfer values + reserve.
     InsufficientValue;
+    // A transfer's `ask.customPayload` must be empty; the handler owns it to tag the withdrawal context.
+    NonEmptyCustomPayload;
 }
 
 /// A fee-withdrawal transfer: a destination wallet, value, and the `AskToTransfer` msg to relay.
@@ -100,7 +102,7 @@ fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawa
 /// @param msgValue Inbound TON value; must cover the sum of relayed transfer values plus reserve.
 /// @param sender The caller; retained for attribution/observability.
 /// @param msg The withdrawal request (wallet + transfer pairs, each with its own `value`).
-/// @param maxAmount Upper bound per transfer;
+/// @param maxAmount Upper bound enforced on each transfer's `jettonAmount` (throws `MaxAmountExceeded`).
 /// @param allowedRecipients Optional permit list of withdrawal destinations. When set, every
 ///        `ask.transferRecipient` must be in this list, so funds can only be swept to allowlisted fee
 ///        aggregators. When `null`, any recipient is allowed except zero/none (which would burn).
@@ -134,7 +136,7 @@ fun JettonWithdrawable.onWithdraw(
         // The caller guarantees each amount is within its permitted limit (e.g. accrued fees).
         assert(ask.jettonAmount <= maxAmount, JettonWithdrawable_Error.MaxAmountExceeded);
         // We own `customPayload` to tag the withdrawal context (opcode + initiator), input must be empty.
-        assert(ask.customPayload == null, JettonWithdrawable_Error.UnallowedRecipient);
+        assert(ask.customPayload == null, JettonWithdrawable_Error.NonEmptyCustomPayload);
 
         val taggedAsk = AskToTransfer {
             queryId: ask.queryId,

@@ -13,8 +13,8 @@ import (
 
 const (
 	// MinReserve is the pool's own gas/storage reserve that the inbound withdrawal
-	// value must cover on top of the sum of the relayed transfer values (0.1 TON).
-	MinReserve = uint64(100_000_000) // 0.1 TON in nanotons
+	// value must cover on top of the sum of the relayed transfer values (0.01 TON).
+	MinReserve = uint64(10_000_000) // 0.01 TON in nanotons
 
 	// WithdrawOpcode is the opcode of the incoming Withdraw message (0x0d00995c).
 	WithdrawOpcode = 0x0d00995c

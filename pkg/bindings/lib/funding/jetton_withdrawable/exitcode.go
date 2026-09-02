@@ -10,7 +10,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ZeroAddressNotAllowed)
-		ecMax = int32(InvalidWithdrawWallet)
+		ecMax = int32(NonEmptyCustomPayload)
 	)
 
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
@@ -19,14 +19,14 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 const (
 	// ZeroAddressNotAllowed is thrown when a withdrawal would relay to the zero/none address.
 	ZeroAddressNotAllowed ExitCode = iota + 55700
-	// UnallowedRecipient is thrown when a transfer does not target an allowlisted recipient
-	// (or carries a non-empty customPayload).
+	// UnallowedRecipient is thrown when a transfer does not target an allowlisted recipient.
 	UnallowedRecipient
 	// MaxAmountExceeded is thrown when a transfer's jetton amount exceeds the caller-allowed max.
 	MaxAmountExceeded
 	// InsufficientValue is thrown when the inbound message value cannot cover the relayed
 	// transfer values plus the pool reserve.
 	InsufficientValue
-	// InvalidWithdrawWallet is thrown when the request is malformed.
-	InvalidWithdrawWallet
+	// NonEmptyCustomPayload is thrown when a transfer's AskToTransfer carries a non-empty
+	// customPayload; the handler owns that field to tag the withdrawal context.
+	NonEmptyCustomPayload
 )
