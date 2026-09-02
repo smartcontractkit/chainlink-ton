@@ -1,4 +1,4 @@
-import { beginCell, toNano } from '@ton/core'
+import { beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
@@ -197,9 +197,9 @@ describe('OnRamp - Unit Tests', () => {
     })
 
     const executorCode = await onramp.getSendExecutorCode()
-    expect(executorCode).toEqual(beginCell().endCell())
+    expect(executorCode).toEqual(Cell.EMPTY)
     const executorCodeHash = await onramp.getSendExecutorCodeHash()
-    expect(executorCodeHash).toBe(BigInt('0x' + beginCell().endCell().hash().toString('hex')))
+    expect(executorCodeHash).toBe(BigInt('0x' + Cell.EMPTY.hash().toString('hex')))
   })
 
   afterAll(async () => {
