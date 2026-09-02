@@ -1,4 +1,4 @@
-tolk 1.4.1
+tolk 1.4.2
 
 contract FiredrillEntrypoint {
 	author: "SmartContract Chainlink Limited SEZC"
