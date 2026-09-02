@@ -25,7 +25,6 @@ import "./utils.tolk";
 /// - `h` is the header byte of the recovered public key (int)
 /// - `x` and `y` are the X and Y coordinates (uint256)
 /// - `status` is non-zero on success, zero on failure (int)
-@inline
 fun ecrecover(hash: int, v: int, r: int, s: int): (int, int, int, int)
     asm(hash v r s) "ECRECOVER NULLSWAPIFNOT2 NULLSWAPIFNOT";
 
