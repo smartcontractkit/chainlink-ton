@@ -45,6 +45,24 @@ func TestParseCompiledContractsPackageRef_AbsPath(t *testing.T) {
 	assert.Equal(t, "/usr/my-contracts-build", ref.AbsPath)
 }
 
+func TestParseCompiledContractsPackageRef_RelativePath(t *testing.T) {
+	for _, refStr := range []string{
+		"domains/ccip/artifacts/contracts-ton-1.6.4",
+		"./domains/ccip/artifacts/contracts-ton-1.6.4",
+		"../shared/contracts",
+	} {
+		ref, err := ParseCompiledContractsPackageRef(refStr)
+		require.NoError(t, err)
+		assert.Equal(t, CompiledContractsPackageKindAbsPath, ref.Kind)
+		// The parser resolves the ref against CWD, so AbsPath is always absolute.
+		absRef, err := filepath.Abs(refStr)
+		require.NoError(t, err)
+		assert.True(t, filepath.IsAbs(ref.AbsPath))
+		assert.Equal(t, absRef, ref.AbsPath)
+		t.Logf("resolved absolute path: %s", ref.AbsPath)
+	}
+}
+
 func TestParseCompiledContractsPackageRef_RepoRef(t *testing.T) {
 	ref, err := ParseCompiledContractsPackageRef("github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0")
 	require.NoError(t, err)
