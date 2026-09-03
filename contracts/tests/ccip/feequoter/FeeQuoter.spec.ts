@@ -54,6 +54,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
   const codeLoaders = {
     '1.6.0': () => contractCode.ccip.release_1_6_0('FeeQuoter'),
     '1.6.1': () => contractCode.ccip.release_1_6_1('FeeQuoter'),
+    '1.6.2': () => contractCode.ccip.release_1_6_2('FeeQuoter'),
   } as Record<string, () => Promise<Cell>>
 
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
