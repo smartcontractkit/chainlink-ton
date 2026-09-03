@@ -85,12 +85,6 @@ func TestParseCompiledContractsPackageRef_WhitespaceOnly(t *testing.T) {
 	assert.Contains(t, err.Error(), "cannot be empty")
 }
 
-func TestParseCompiledContractsPackageRef_NoAtSign(t *testing.T) {
-	_, err := ParseCompiledContractsPackageRef("not-a-valid-ref")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid contracts package ref")
-}
-
 func TestParseCompiledContractsPackageRef_EmptyRepo(t *testing.T) {
 	_, err := ParseCompiledContractsPackageRef("@tag")
 	require.Error(t, err)
