@@ -149,6 +149,12 @@ src = "contracts/test/lib/msg_hasher.tolk"
 domain = "test"
 depends = []
 
+[contracts.Verifier]
+display-name = "link.chain.ton.data_streams.Verifier"
+src = "contracts/data-streams/verifier/contract.tolk"
+domain = "data-streams"
+depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100
