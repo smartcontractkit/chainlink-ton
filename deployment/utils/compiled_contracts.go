@@ -27,7 +27,7 @@ const (
 	// ContractsVersionLocal should be used only for development.
 	ContractsVersionLocal = "local"
 
-	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.0" // Feb 19, 2026
+	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.2" // May 13, 2026
 
 	PackageMetadataFile = "contracts-pkg.json"
 )
@@ -75,6 +75,7 @@ var defaultPackageMetadata = &ContractPackageMetadata{
 // Package e.g:
 //   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
 //   - /usr/my-contracts-build
+//   - domains/ccip/artifacts/ton-1.6.4 (CWD-relative, resolved via filepath.Abs)
 //   - local (maps to {repo-root}/contracts/build)
 type RetrieveCompiledContractsOpts struct {
 	Package   string
@@ -216,10 +217,15 @@ func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
 
 	repo, tag, ok := strings.Cut(s, "@")
 	if !ok {
-		return nil, fmt.Errorf(
-			"invalid contracts package ref %q: must be 'local', an absolute path, or '<host>/<org>/<repo>@<tag>'",
-			s,
-		)
+		// No '@' separator: CWD-relative path (e.g. "domains/ccip/artifacts/contracts-ton-1.6.4").
+		absPath, err := filepath.Abs(s)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve contracts package path %q: %w", s, err)
+		}
+		return &ContractsPackageRef{
+			Kind:    CompiledContractsPackageKindAbsPath,
+			AbsPath: absPath,
+		}, nil
 	}
 
 	repo = strings.TrimSpace(repo)
