@@ -514,13 +514,13 @@ const tokenAmountCodec: CellCodec<TokenAmount> = {
   },
 }
 
-type GenericExtraArgsV2 = {
+export type GenericExtraArgsV2 = {
   kind: 'generic-v2'
   gasLimit?: bigint
   allowOutOfOrderExecution: boolean
 }
 
-type SVMExtraArgsV1 = {
+export type SVMExtraArgsV1 = {
   kind: 'svm-v1'
   computeUnits: bigint
   accountIsWritableBitMap: bigint
@@ -529,7 +529,7 @@ type SVMExtraArgsV1 = {
   accounts: Buffer[]
 }
 
-type SuiExtraArgsV1 = {
+export type SuiExtraArgsV1 = {
   kind: 'sui-v1'
   gasLimit: bigint
   allowOutOfOrderExecution: boolean
@@ -692,7 +692,41 @@ export const builder = (() => {
         }
       },
       load: function (src: Slice): ExtraArgs {
-        throw new Error('Function not implemented.')
+        if (src.remainingBits === 0) {
+          // Empty extra args — caller should apply defaults based on dest chain family
+          throw new Error('Cannot load empty extra args without dest chain config context')
+        }
+        const tag = src.loadUint(32)
+        switch (tag) {
+          case ExtraArgsOpcodes.genericV2: {
+            return {
+              kind: 'generic-v2',
+              gasLimit: src.loadMaybeUintBig(256) ?? undefined,
+              allowOutOfOrderExecution: src.loadBit(),
+            }
+          }
+          case ExtraArgsOpcodes.svmV1: {
+            return {
+              kind: 'svm-v1',
+              computeUnits: src.loadUintBig(32),
+              accountIsWritableBitMap: src.loadUintBig(64),
+              allowOutOfOrderExecution: src.loadBit(),
+              tokenReceiver: src.loadBuffer(32),
+              accounts: fromSnakeData(src.loadRef(), (s) => s.loadBuffer(32)),
+            }
+          }
+          case ExtraArgsOpcodes.suiV1: {
+            return {
+              kind: 'sui-v1',
+              gasLimit: src.loadUintBig(256),
+              allowOutOfOrderExecution: src.loadBit(),
+              tokenReceiver: src.loadBuffer(32),
+              receiverObjectIds: fromSnakeData(src.loadRef(), (s) => s.loadBuffer(32)),
+            }
+          }
+          default:
+            throw new Error(`Unknown extra args tag: 0x${tag.toString(16)}`)
+        }
       },
     }
 
