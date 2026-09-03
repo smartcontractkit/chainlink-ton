@@ -27,7 +27,7 @@ const (
 	// ContractsVersionLocal should be used only for development.
 	ContractsVersionLocal = "local"
 
-	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.0" // Feb 19, 2026
+	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.2" // May 13, 2026
 
 	PackageMetadataFile = "contracts-pkg.json"
 )
