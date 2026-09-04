@@ -129,7 +129,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:   idForContracts,
 				Coin: "0.05",
 			},
-			TokenRegistryParams: config.TokenRegistryParams{
+			TokenAdminRegistryParams: config.TokenAdminRegistryParams{
 				ID:   idForContracts,
 				Coin: "0.05",
 			},

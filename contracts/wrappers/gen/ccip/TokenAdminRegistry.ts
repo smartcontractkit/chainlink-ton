@@ -104,6 +104,14 @@ class StackReader {
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
     }
+
+    readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return null;
+        }
+        return readFn_T(this);
+    }
 }
 
 // ————————————————————————————————————————————
@@ -954,7 +962,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAA+MAART/APSkE/S88sgLAQIBYgIDAgLPBAUAZaAivxoTNjS3NZcxtDC0txc6N7cXMbG0uBcqN7WytyCyNrS3KTKztLm6OTzBFqYlxsXGEQS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsIKBY9IzjAtcsJxY6baSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gDgL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AvpI1PpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOUjD6UsmCCcnDgAPQ+kj6SNIA0x/R+ChtAcj6UvpUFvpUyQfI+lIT+lL6UsoAEssfE8zJggjk4cDIz5DFYAmmyciJzxYWzAoLANYx7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AH6SPpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOEvpSyYII5OHAyM+JCAFTJMjPhNDMzPkWzwv/AfoCgQCMzwtwE8wSzM+Qx0rtuvpSyXD7AADUMe1E0NMfMfpIMfpQMdTUMdEB+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAFyM+E0MzM+RbIz4oAQMv/z1AEggDGcAXHBRTy9IsCyM+QUCx6RhP6UvpUEvpUycjPhyASznHPC2HMyXD7AAL8jmYx7UTQ0x8x+kgx+lAx1NQx0QH6SPpIMPiS+CjI+lLPkAAAAA5SMPpSyVAEyM+E0MzM+RbIz4oAQMv/z1ADggDGcATHBRPy9IsCyM+Tix020hL6UhL6UsnIz4cgEs5xzwthzMlw+wDg1ywmd4DUPOMCMO1E0NYf+kj6UPiSDA0ACLDsUVcAWhLMAfoCE8zJyM+JCAFTJMjPhNDMzPkWzwv/UAP6AoEAjc8LcBPMEszMyXD7AADmMe1E0NMfMfpIMfpQMdTUMdEB+kj6SPpI0gDXCgD4kvgoyPpSz5AAAAAOUmD6UslQB8jPhNDMzPkWyM+KAEDL/89QBoIAxnAHxwUW8vSLAsjPkzvAah4V+lIT+lL6UsoAEsoAycjPhyASznHPC2HMyXD7AAA8QzAl8AGeNALIzhL6UhL6VM7J7VTgXwSEDwHHAPL0AGZsEtM/+kgwggDCiFE0xwUT8vSCAMKJUyPHBbPy9CGLAsjPhyDOcM8LYRLLPxL6Uslw+wA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEwEABAwAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgPEAS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsIKBY9IzjAtcsJxY6baSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gDgL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AvpI1PpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOUjD6UsmCCcnDgAPQ+kj6SNIA0x/R+ChtAcj6UvpUFvpUyQfI+lIT+lL6UsoAEssfE8zJggjk4cDIz5DFYAmmyciJzxYWzAoLANYx7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AH6SPpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOEvpSyYII5OHAyM+JCAFTJMjPhNDMzPkWzwv/AfoCgQCMzwtwE8wSzM+Qx0rtuvpSyXD7AADUMe1E0NMfMfpIMfpQMdTUMdEB+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAFyM+E0MzM+RbIz4oAQMv/z1AEggDGcAXHBRTy9IsCyM+QUCx6RhP6UvpUEvpUycjPhyASznHPC2HMyXD7AAL8jmYx7UTQ0x8x+kgx+lAx1NQx0QH6SPpIMPiS+CjI+lLPkAAAAA5SMPpSyVAEyM+E0MzM+RbIz4oAQMv/z1ADggDGcATHBRPy9IsCyM+Tix020hL6UhL6UsnIz4cgEs5xzwthzMlw+wDg1ywmd4DUPOMCMO1E0NYf+kj6UPiSDA0ACLDsUVcAWhLMAfoCE8zJyM+JCAFTJMjPhNDMzPkWzwv/UAP6AoEAjc8LcBPMEszMyXD7AADmMe1E0NMfMfpIMfpQMdTUMdEB+kj6SPpI0gDXCgD4kvgoyPpSz5AAAAAOUmD6UslQB8jPhNDMzPkWyM+KAEDL/89QBoIAxnAHxwUW8vSLAsjPkzvAah4V+lIT+lL6UsoAEsoAycjPhyASznHPC2HMyXD7AAA8QzAl8AGeNALIzhL6UhL6VM7J7VTgXwSEDwHHAPL0AGZsEtM/+kgwggDCiFE0xwUT8vSCAMKJUyPHBbPy9CGLAsjPhyDOcM8LYRLLPxL6Uslw+wAAZbkV+NCZsaW5rLmNoYWluLnRvbi5jY2lwLlRva2VuQWRtaW5SZWdpc3RyeYItTEuNi4wiAIBIBESABe0o72omhpj5j9JBhAAHbddfaiaGmPmP0kGP0oGEA==');
 
     static Errors = {
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
@@ -1152,6 +1160,18 @@ export class TokenAdminRegistry implements c.Contract {
             body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
+    }
+
+    async getOwner(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('owner', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getPendingOwner(provider: ContractProvider): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('pendingOwner', []));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

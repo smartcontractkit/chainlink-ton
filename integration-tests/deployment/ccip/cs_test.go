@@ -210,6 +210,9 @@ func TestDeployCCIP(t *testing.T) {
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
 	require.NoError(t, err)
+	tokenAdminRegistryAddr := state[chainSelector].TokenAdminRegistry
+	rawTokenAdminRegistryAddr, err := addrCodec.AddressStringToBytes(tokenAdminRegistryAddr.String())
+	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
 
@@ -332,7 +335,7 @@ func TestDeployCCIP(t *testing.T) {
 				ChainSelector:        ccipocr3.ChainSelector(tonChain.Selector),
 				GasForCallExactCheck: 0,
 				RmnRemote:            nil,
-				TokenAdminRegistry:   nil,
+				TokenAdminRegistry:   rawTokenAdminRegistryAddr,
 				NonceManager:         nil,
 			},
 			DynamicConfig: ccipocr3.OffRampDynamicChainConfig{

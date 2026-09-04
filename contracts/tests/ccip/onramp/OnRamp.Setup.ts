@@ -1,4 +1,4 @@
-import { Cell, beginCell, toNano } from '@ton/core'
+import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'
@@ -7,9 +7,10 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import { randomAddress } from '@ton/test-utils'
 import { ChainSelectors } from '../../utils/Selectors'
 
-type OnRampOverrides = Partial<Omit<or.OnRamp_Storage, '$' | 'config' | 'executor' | 'ownable'>> & {
+type OnRampOverrides = Partial<Omit<or.OnRamp_Storage, '$' | 'config' | 'deployablesConfig' | 'ownable'>> & {
   config?: Partial<Omit<or.OnRamp_DynamicConfig, '$'>>
   executor?: Partial<Omit<or.ExecutorDeployment, '$'>>
+  tokenAdminRegistry?: Address
   ownable?: Partial<Omit<or.Ownable2Step, '$'>>
 }
 
@@ -39,7 +40,6 @@ export async function deployOnRampContractW(
       pendingOwner: null,
     }),
     chainSelector: ChainSelectors.testnet.ton,
-    tokenAdminRegistry: randomAddress(),
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter: randomAddress(),
       feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
@@ -47,9 +47,12 @@ export async function deployOnRampContractW(
       reserve: toNano('0.05'),
     }),
     destChainConfigs: new Map(),
-    executor: or.ExecutorDeployment.create({
-      deployableCode: beginCell().endCell(),
-      executorCode: beginCell().endCell(),
+    deployablesConfig: or.OnRamp_DeployablesConfig.create({
+      executor: or.ExecutorDeployment.create({
+        deployableCode: beginCell().endCell(),
+        executorCode: beginCell().endCell(),
+      }),
+      tokenAdminRegistry: randomAddress(),
     }),
   }
 
@@ -66,9 +69,14 @@ export async function deployOnRampContractW(
       ...(opt.overrides?.ownable ?? {}),
     }),
     config,
-    executor: or.ExecutorDeployment.create({
-      ...defaults.executor,
-      ...(opt.overrides?.executor ?? {}),
+    deployablesConfig: or.OnRamp_DeployablesConfig.create({
+      ...defaults.deployablesConfig,
+      tokenAdminRegistry:
+        opt.overrides?.tokenAdminRegistry ?? defaults.deployablesConfig.tokenAdminRegistry,
+      executor: or.ExecutorDeployment.create({
+        ...defaults.deployablesConfig.executor,
+        ...(opt.overrides?.executor ?? {}),
+      }),
     }),
   })
   const onramp = blockchain.openContract(

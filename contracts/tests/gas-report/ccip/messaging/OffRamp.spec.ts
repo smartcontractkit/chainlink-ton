@@ -131,10 +131,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
           cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
           forwardUpdates: new Set(),
         }),
-        tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-          deployableCode: deployerCode,
-          tokenRegistryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
-        }),
       })
       router = blockchain.openContract(
         rt.Router.fromStorage(data, { overrideContractCode: routerCode }),
@@ -166,9 +162,12 @@ describe('CCIP OffRamp Gas Estimation', () => {
           reserve: toNano('1'),
         }),
         destChainConfigs: new Map(),
-        executor: or.ExecutorDeployment.create({
-          executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-          deployableCode: await contractCode.ccip.local('Deployable'),
+        deployablesConfig: or.OnRamp_DeployablesConfig.create({
+          executor: or.ExecutorDeployment.create({
+            executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
+            deployableCode: await contractCode.ccip.local('Deployable'),
+          }),
+          tokenAdminRegistry: deployer.address,
         }),
       })
       onRamp = blockchain.openContract(
@@ -232,6 +231,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         }),
         deployables: of.OffRamp_Deployables.create({
           rmnRouter: deployer.address,
+          tokenAdminRegistry: deployer.address,
           deployer: deployerCode,
           merkleRootCode,
           receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),

@@ -120,8 +120,8 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 }
 
 // TestTonTokenAdapterConfigureTokenForTransfers exercises the full
-// deploy-jetton → deploy-pool → register-with-router flow. It requires a live
-// Router + TokenRegistryDeployment on chain, so CCIP contracts are deployed first.
+// deploy-jetton → deploy-pool → register-with-TokenAdminRegistry flow. It requires
+// the standalone TokenAdminRegistry, so CCIP contracts are deployed first.
 func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 	t.Parallel()
 
@@ -186,7 +186,7 @@ func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
 		TokenRef:          tokenRef,
 		ExistingDataStore: env.DataStore,
 	})
-	require.NoError(t, err, "expected ConfigureTokenForTransfersSequence to succeed against on-chain Router")
+	require.NoError(t, err, "expected ConfigureTokenForTransfersSequence to succeed against on-chain TokenAdminRegistry")
 }
 
 func mustParseTONAddr(t *testing.T, raw string) *address.Address {

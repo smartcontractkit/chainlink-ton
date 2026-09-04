@@ -488,10 +488,9 @@ func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPe
 }
 
 func (a *TONAdapter) GetRegistryAddress() (string, error) {
-	// The Router works as the TokenAdminRegistry parent contract for now
-	addr, err := a.getAddress(state.Router)
+	addr, err := a.getAddress(state.TokenAdminRegistry)
 	if err != nil {
-		return "", fmt.Errorf("failed to get Router address: %w", err)
+		return "", fmt.Errorf("failed to get TokenAdminRegistry address: %w", err)
 	}
 	return addr.String(), nil
 }

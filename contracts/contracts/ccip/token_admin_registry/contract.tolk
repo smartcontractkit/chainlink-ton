@@ -118,9 +118,10 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 
     val deployMsg = createMessage({
         bounce: false,
-        // Matches the funding of the former deploy + proposal messages while
-        // keeping the registration protocol to one root-to-entry message.
-        value: ton("0.03"),
+        // Covers Deployable initialization and the event self-message below.
+        // The former Router flow only initialized the shard; this path also
+        // emits the initial administrator-proposal event atomically.
+        value: ton("0.05"),
         dest: entryAddress,
         body: Deployable_InitializeAndSend {
             stateInit: {
@@ -165,6 +166,18 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
         },
     });
     proposeMsg.send(SEND_MODE_REGULAR);
+}
+
+/// Gets the current owner of the registry root.
+get fun owner(): address {
+    val st = lazy TokenAdminRegistry_Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the registry root, if any.
+get fun pendingOwner(): address? {
+    val st = lazy TokenAdminRegistry_Storage.load();
+    return st.ownable.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

@@ -16,7 +16,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 )
 
 const (
@@ -41,17 +42,18 @@ const (
 	TypeTimelock tvm.FullyQualifiedName = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter          tvm.FullyQualifiedName = PkgCCIP + ".Router"
-	TypeOnRamp          tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
-	TypeOffRamp         tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter       tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor    tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
-	TypeDeployable      tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
-	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
-	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
-	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
-	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
-	TypeMockTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
+	TypeRouter                  tvm.FullyQualifiedName = PkgCCIP + ".Router"
+	TypeOnRamp                  tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
+	TypeOffRamp                 tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter               tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor            tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable              tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
+	TypeMerkleRoot              tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor         tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
+	TypeTokenAdminRegistry      tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistry"
+	TypeTokenAdminRegistryEntry tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistryEntry"
+	TypeTestReceiver            tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
+	TypeMockTokenPool           tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -62,19 +64,19 @@ const (
 // These are used in types.Transaction.ContractType and the CLD datastore.
 // They must match the ds.ContractType values defined in deployment/state/.
 const (
-	ShortRouter          = "Router"
-	ShortFeeQuoter       = "FeeQuoter"
-	ShortOnRamp          = "OnRamp"
-	ShortOffRamp         = "OffRamp"
-	ShortSendExecutor    = "SendExecutor"
-	ShortDeployer        = "Deployer"
-	ShortMerkleRoot      = "MerkleRoot"
-	ShortReceiveExecutor = "ReceiveExecutor"
-	ShortReceiver        = "Receiver"
-	ShortTimelock        = "RBACTimelock"
-	ShortMCMS            = "MCMS"
-	ShortTokenRegistry   = "TokenAdminRegistry"
-	ShortMockTokenPool   = "MockTokenPool"
+	ShortRouter             = "Router"
+	ShortFeeQuoter          = "FeeQuoter"
+	ShortOnRamp             = "OnRamp"
+	ShortOffRamp            = "OffRamp"
+	ShortSendExecutor       = "SendExecutor"
+	ShortDeployer           = "Deployer"
+	ShortMerkleRoot         = "MerkleRoot"
+	ShortReceiveExecutor    = "ReceiveExecutor"
+	ShortReceiver           = "Receiver"
+	ShortTimelock           = "RBACTimelock"
+	ShortMCMS               = "MCMS"
+	ShortTokenAdminRegistry = "TokenAdminRegistry"
+	ShortMockTokenPool      = "MockTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
@@ -102,7 +104,7 @@ var AllContractTypes = []struct {
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
 	{ShortMockTokenPool, TypeMockTokenPool},
-	{ShortTokenRegistry, TypeTokenRegistry},
+	{ShortTokenAdminRegistry, TypeTokenAdminRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
@@ -138,12 +140,13 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeTimelock: timelock.TLBs,
 
 	// CCIP contract types
-	TypeRouter:        router.TLBs,
-	TypeOnRamp:        onramp.TLBs,
-	TypeOffRamp:       offramp.TLBs,
-	TypeFeeQuoter:     feequoter.TLBs,
-	TypeSendExecutor:  ccipsendexecutor.TLBs,
-	TypeTokenRegistry: tokenregistry.TLBs,
+	TypeRouter:                  router.TLBs,
+	TypeOnRamp:                  onramp.TLBs,
+	TypeOffRamp:                 offramp.TLBs,
+	TypeFeeQuoter:               feequoter.TLBs,
+	TypeSendExecutor:            ccipsendexecutor.TLBs,
+	TypeTokenAdminRegistry:      tokenadminregistry.TLBs,
+	TypeTokenAdminRegistryEntry: tokenadminregistryentry.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

@@ -79,25 +79,25 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             val st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorFinishedSuccessfully(st, msg);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
             val st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorFinishedWithError(st, msg);
         }
         // Sender must be the owner
@@ -127,7 +127,9 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_UpdateSendExecutor => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            st.executor.executorCode = msg.code;
+            var deployables = st.deployablesConfig.load();
+            deployables.executor.executorCode = msg.code;
+            st.deployablesConfig = deployables.toCell();
             st.store();
         }
         // Permissionless
@@ -266,6 +268,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         }
     }
     val config = st.config.load();
+    val deployables = st.deployablesConfig.load();
     var tokenRegistry: address? = null;
     val tokenAmounts = payload.msg.load().tokenAmounts;
     if (!tokenAmounts.empty()) {
@@ -273,19 +276,19 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         // derives the entry from its configured standalone registry root.
         val token = tokenAmounts.iter().next().token;
         tokenRegistry = TokenAdminRegistryEntry.deriveAddress(
-            st.executor.deployableCode,
+            deployables.getExecutorDeployment().deployableCode,
             token,
-            st.tokenAdminRegistry,
+            deployables.getTokenAdminRegistry(),
         ).calculateAddress();
     }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: st.executor.autoDeployAddress(executorId),
+        dest: deployables.getExecutorDeployment().autoDeployAddress(executorId),
         body: Deployable_InitializeAndSend {
             stateInit: {
-                code: st.executor.executorCode,
+                code: deployables.getExecutorDeployment().executorCode,
                 data:  CCIPSendExecutor_InitialData {
                     onramp: contract.getAddress(),
                     id: executorId,
@@ -624,12 +627,12 @@ get fun pendingOwner(): address? {
 
 get fun sendExecutorCode(): cell {
     val st = lazy OnRamp_Storage.load();
-    return st.executor.executorCode;
+    return st.deployablesConfig.load().getExecutorDeployment().executorCode;
 }
  
 get fun sendExecutorCodeHash(): uint256 {
     val st = lazy OnRamp_Storage.load();
-    return st.executor.executorCode.hash();
+    return st.deployablesConfig.load().getExecutorDeployment().executorCode.hash();
 }
 
 get fun typeAndVersion(): (slice, slice) {

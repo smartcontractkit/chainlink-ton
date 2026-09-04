@@ -112,10 +112,6 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
         forwardUpdates: new Set(),
       }),
-      tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-        deployableCode: await contractCode.ccip.local('Deployable'),
-        tokenRegistryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
-      }),
     })
     router = blockchain.openContract(
       rt.Router.fromStorage(routerData, { overrideContractCode: routerCode }),
@@ -136,9 +132,12 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         reserve: toNano('1'),
       }),
       destChainConfigs: new Map(),
-      executor: or.ExecutorDeployment.create({
-        executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-        deployableCode: await contractCode.ccip.local('Deployable'),
+      deployablesConfig: or.OnRamp_DeployablesConfig.create({
+        executor: or.ExecutorDeployment.create({
+          executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
+          deployableCode: await contractCode.ccip.local('Deployable'),
+        }),
+        tokenAdminRegistry: deployer.address,
       }),
     })
     onRamp = blockchain.openContract(

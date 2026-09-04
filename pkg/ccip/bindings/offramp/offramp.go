@@ -88,6 +88,7 @@ type Storage struct {
 // Deployables holds the deployable code cells for the offRamp contract
 type Deployables struct {
 	RMNRouter           *address.Address `tlb:"addr"`
+	TokenAdminRegistry  *address.Address `tlb:"addr"`
 	Deployer            *cell.Cell       `tlb:"^"`
 	MerkleRootCode      *cell.Cell       `tlb:"^"`
 	ReceiveExecutorCode *cell.Cell       `tlb:"^"`
@@ -221,6 +222,7 @@ func (c *OCR3Base) GetterMethodName() string {
 // Config represents the offRamp contract configuration
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
+	TokenAdminRegistry                      *address.Address `tlb:"addr"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }

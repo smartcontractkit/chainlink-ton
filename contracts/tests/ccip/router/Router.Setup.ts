@@ -282,7 +282,6 @@ async function deployOnRampInstance(
       owner: deployer.address,
     }),
     chainSelector: ChainSelectors.testnet.ton,
-    tokenAdminRegistry,
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter,
       feeAggregator: deployer.address,
@@ -290,9 +289,12 @@ async function deployOnRampInstance(
       reserve: toNano('10'),
     }),
     destChainConfigs: new Map(),
-    executor: or.ExecutorDeployment.create({
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
+    deployablesConfig: or.OnRamp_DeployablesConfig.create({
+      executor: or.ExecutorDeployment.create({
+        deployableCode: await contractCode.ccip.local('Deployable'),
+        executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
+      }),
+      tokenAdminRegistry,
     }),
   })
 
