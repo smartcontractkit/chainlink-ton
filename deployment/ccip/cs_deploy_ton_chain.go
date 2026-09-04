@@ -218,8 +218,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
-		Reports:     reports,
-		DataStore:   dataStore,
+		Reports:   reports,
+		DataStore: dataStore,
+		//nolint:staticcheck // Required for CLD backward compatibility until all consumers use DataStore.
 		AddressBook: ab,
 	}, nil
 }
