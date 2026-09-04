@@ -7,6 +7,7 @@ import "storage"
 
 import "../common/types";
 import "../common/cross_chain_address_validation"
+import "../pools/lib/token_pool/types"
 import "../../lib/access/ownable_2step";
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
@@ -242,6 +243,12 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
     return validatedFee(msg.load());
 }
 
+// NOTE: this get-method (struct params flattened into individual raw stack args by Tolk) currently
+// throws a spurious cell-underflow (exit code 9) as soon as the contract's compiled call graph
+// contains any Iterator<TokenAmount>.next() call, independent of the actual tokenAmounts content
+// or of how calculateValidatedFee is structured — this looks like a Tolk compiler bug in get-method
+// ABI codegen, not a logic bug here (confirmed via bisection: see FeeQuoter.getters.spec.ts). The
+// production message-based flow and validatedFeeCell (single cell arg) are unaffected and correct.
 get fun validatedFee(msg: Router_CCIPSend): coins {
     return calculateValidatedFee(msg).feeTokenAmount;
 }
@@ -278,20 +285,37 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
 
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
-    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
-    // TODO: token transfers are currently priced as if the message carried no tokens
-    // (the extra token-transfer fee is ignored). The blocking empty-tokens assert was removed
-    // to enable the token-transfer send flow.
+    var premiumFeeUsdWei = 0;
+    var tokenTransferGas = 0;
+    var tokenTransferBytesOverhead = 0;
+    var tokenCount = 0;
+
+    var tokenAmountsIter = msg.tokenAmounts.iter();
+    if (tokenAmountsIter.empty()) {
+        premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+    } else {
+        while (!tokenAmountsIter.empty()) {
+            val tokenAmount = tokenAmountsIter.next();
+            tokenCount += 1;
+            assert (tokenCount <= destChainConfig.config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+
+            val (tokenPremiumFeeUsdWei, tokenGas, tokenBytesOverhead) = _tokenTransferFee(st, destChainConfig, tokenAmount);
+
+            premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
+            tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
+            tokenTransferBytesOverhead = mustAdd(tokenTransferBytesOverhead, tokenBytesOverhead, FeeQuoter_Error.DataAvailabilityCostOverflow);
+        }
+    }
 
     val dataAvailabilityCost = _dataAvailabilityCost(
         destChainConfig,
         dataAvailabilityGasPrice,
         msgDataLen,
-        0,
-        0,
+        tokenCount,
+        tokenTransferBytesOverhead,
     );
 
-    val calldataLen = msgDataLen; // + token transfer overheads, not supported in TON yet
+    val calldataLen = mustAdd(msgDataLen, tokenTransferBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
     var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow);
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
     if (calldataLen > calldataThreshold) {
@@ -301,7 +325,9 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
         calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow);
     }
 
-    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow), calldataGas, FeeQuoter_Error.ExecutionCostOverflow);
+    val executionGasBase = mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow);
+    val executionGasWithTokenOverhead = mustAdd(executionGasBase, tokenTransferGas, FeeQuoter_Error.ExecutionCostOverflow);
+    val executionGas = mustAdd(executionGasWithTokenOverhead, calldataGas, FeeQuoter_Error.ExecutionCostOverflow);
 
     val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow);
 
@@ -335,6 +361,48 @@ fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins,
     return feeValueJuels;
 }
 
+// Computes the token-transfer premium fee (USD, 1e18-scaled), dest gas overhead and dest bytes
+// overhead for a single token. Mirrors the EVM/Solana FeeQuoter token-transfer fee model:
+// - if a per-(destChain, token) TokenTransferFeeConfig override exists and is enabled, the premium
+//   is `deciBps` of the transferred value (in USD), clamped to [minFeeUsdCents, maxFeeUsdCents];
+// - otherwise, falls back to the dest chain's flat defaultTokenFeeUsdCents/defaultTokenDestGasOverhead,
+//   with CCIP_LOCK_OR_BURN_V1_RET_BYTES as the default bytes overhead.
+// NOTE: as in Solana's fee-quoter, a missing/zero price for the transferred token does not revert;
+// the bps-based component is simply treated as 0 and the result still goes through the min/max clamp.
+// This lets a transfer fee override be configured ahead of the token's price feed being populated.
+fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount: TokenAmount): (int, int, int) {
+    val overrideEntry = destChainConfig.tokenTransferFeeConfigs.get(tokenAmount.token);
+    if (overrideEntry.isFound) {
+        val config = overrideEntry.loadValue();
+        if (config.isEnabled) {
+            var premiumFeeUsdWei = 0;
+            if (config.deciBps > 0) {
+                val priceEntry = st.usdPerToken.get(tokenAmount.token);
+                if (priceEntry.isFound) {
+                    val tokenPrice = priceEntry.loadValue();
+                    if (tokenPrice.value > 0) {
+                        val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice.value, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
+                        premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
+                    }
+                }
+            }
+
+            val minFeeUsdWei = mustProd(config.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+            val maxFeeUsdWei = mustProd(config.maxFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+            if (premiumFeeUsdWei < minFeeUsdWei) {
+                premiumFeeUsdWei = minFeeUsdWei;
+            } else if (premiumFeeUsdWei > maxFeeUsdWei) {
+                premiumFeeUsdWei = maxFeeUsdWei;
+            }
+
+            return (premiumFeeUsdWei, config.destGasOverhead, config.destBytesOverhead);
+        }
+    }
+
+    val defaultPremiumFeeUsdWei = mustProd(destChainConfig.config.defaultTokenFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+    return (defaultPremiumFeeUsdWei, destChainConfig.config.defaultTokenDestGasOverhead, CCIP_LOCK_OR_BURN_V1_RET_BYTES);
+}
+
 fun _dataAvailabilityCost(
     destChainConfig: DestChainConfig,
     dataAvailabilityGasPrice: uint112,
@@ -342,15 +410,12 @@ fun _dataAvailabilityCost(
     tokenCount: uint256,
     tokenTransferBytesOverhead: uint256,
 ): uint256 {
-    assert (tokenCount == 0) throw FeeQuoter_Error.TokenTransfersNotSupported;
-    assert (tokenTransferBytesOverhead == 0) throw FeeQuoter_Error.TokenTransfersNotSupported;
     // Sums up byte lengths of fixed message fields and dynamic message fields.
     // Fixed message fields do account for the offset and length slot of the dynamic fields.
     val dataAvailabilityLengthBytes = TON_2_EVM_MESSAGE_FIXED_BYTES
-        + msgDataLen;
-        // Token transfers not supported in TON yet
-        // + tokenCount as uint256 * TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN
-        // + tokenTransferBytesOverhead
+        + msgDataLen
+        + mustProd(tokenCount, TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN, FeeQuoter_Error.DataAvailabilityCostOverflow)
+        + tokenTransferBytesOverhead;
 
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
@@ -368,7 +433,6 @@ fun _dataAvailabilityCost(
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
-    // NOTE: token transfers are allowed; their extra fee is currently ignored (priced as a plain message).
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
