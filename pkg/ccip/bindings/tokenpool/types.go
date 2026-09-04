@@ -11,6 +11,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
 )
 
 // --- Primitives / Wrappers ---
@@ -19,6 +21,19 @@ import (
 type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
+
+// --- JettonWithdrawable fee withdrawal (shared funding trait) ---
+
+type (
+	// JettonWithdrawableWithdraw mirrors the Tolk JettonWithdrawable_Withdraw message.
+	JettonWithdrawableWithdraw = jetton_withdrawable.Withdraw
+	// JettonWithdrawableWithdrawFeeTransfer is one wallet + AskToTransfer step.
+	JettonWithdrawableWithdrawFeeTransfer = jetton_withdrawable.WithdrawFeeTransfer
+	// FeeTokenWithdrawn is emitted when jettons are withdrawn from a pool wallet.
+	FeeTokenWithdrawn = jetton_withdrawable.FeeTokenWithdrawn
+	// AskToTransfer is the standard jetton transfer request used to withdraw jettons.
+	AskToTransfer = wallet.AskToTransfer
+)
 
 // --- Constants ---
 
@@ -702,6 +717,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateRampAccess{},
 	SetRMNProxy{},
 	SetCursedSubjects{},
+	JettonWithdrawableWithdraw{},
 	LockOrBurn{},
 	ReleaseOrMint{},
 	PreflightCheckFinished{},
@@ -754,4 +770,5 @@ const (
 	TopicFastFinalityInboundRateLimitRefunded  = "TokenPool_FastFinalityInboundRateLimitRefunded"
 	TopicTokenTransferFeeConfigUpdated         = "TokenPool_TokenTransferFeeConfigUpdated"
 	TopicTokenTransferFeeConfigDeleted         = "TokenPool_TokenTransferFeeConfigDeleted"
+	TopicFeeTokenWithdrawn                     = jetton_withdrawable.TopicFeeTokenWithdrawn
 )

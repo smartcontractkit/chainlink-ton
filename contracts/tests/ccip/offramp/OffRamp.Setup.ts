@@ -904,6 +904,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             tokenTransferFeeConfigs: new Map(),
           }),
           offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
+          accruedFees: 0n,
         },
         { overrideContractCode: this.code.tokenPool },
       ),

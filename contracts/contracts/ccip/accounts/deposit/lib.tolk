@@ -136,6 +136,7 @@ fun DepositAccount<T>.onInit(
 ) {
     if (self.hooks != null && self.hooks.onInit != null) {
         self.hooks.onInit(self.context(), sender, msg);
+
         return;
     }
 
@@ -207,7 +208,6 @@ fun DepositAccount<T>.onForwardNotification(
         },
     });
     notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
     return true;
 }
 

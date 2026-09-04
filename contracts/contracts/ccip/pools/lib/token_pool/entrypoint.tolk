@@ -9,6 +9,7 @@ import "../../../../lib/jetton/jetton_client"
 import "../../../../lib/jetton/jetton-utils"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/deployable/namespace"
+import "../../../../lib/funding/jetton_withdrawable"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 
@@ -87,24 +88,121 @@ fun TokenPool_Data.storeAsContractData(self) {
 
 // --- Hooks struct (extensions) ---
 
-/// Hook extensions exposed by the TokenPool contract.
+/// Optional extension points wired by concrete pools (e.g. lock/release) to customize the base
+/// TokenPool behavior. Each field is the implementation of the corresponding hook, or `null` to
+/// use the base behavior. Pools share a generic `T` as the first arg, their per-call `context` (nullable).
 struct TokenPool_Hooks<T> {
+    /// Outbound (LockOrBurn) access guard.
+    /// @param sender      The msg.sender requesting the outbound transfer.
+    /// @param remoteChainSelector The destination lane; must be supported.
+    /// @dev Base behavior: requires `sender` to be the configured OnRamp for the lane.
     ensureOutboundAccess: ((T?, address, uint64) -> void)?;
+
+    /// Inbound (ReleaseOrMint) access guard.
+    /// @param sender      The msg.sender requesting the inbound transfer.
+    /// @param remoteChainSelector The source lane; must be supported.
+    /// @dev Base behavior: requires `sender` to be the configured OffRamp for the lane.
     ensureInboundAccess: ((T?, address, uint64) -> void)?;
+
+    /// RMN curse guard for a remote lane.
+    /// @param remoteChainSelector The remote lane to check for a curse.
+    /// @dev Base behavior: reverts if the lane's cursed subjects mark it cursed by RMN.
     ensureNotCursed: ((T?, uint64) -> void)?;
 
-    // ReleaseOrMint flow
+    // ----------------------------------------------------------------------
+    // ReleaseOrMint flow (inbound)
+    // ----------------------------------------------------------------------
+
+    /// Runs before validation when an inbound `ReleaseOrMint` arrives.
+    /// @param msg         The full inbound request.
+    /// @return The (possibly mutated) context flowing to subsequent hooks.
+    /// @dev Base behavior: continues to `validateReleaseOrMint`.
     onReleaseOrMint: ((T, TokenPool_ReleaseOrMint) -> T)?;
+
+    /// Validates an inbound request and prepares the release/mint.
+    /// @param sender      The msg.sender (must be the OffRamp).
+    /// @param msg         The full inbound request.
+    /// @return (newContext, wait, prepared); `wait` = `true` defers to the async postflight hook.
+    /// @dev Base behavior: token/chain/curse/access/pool checks + inbound rate-limit consumption
+    ///      and `postflightCheck`. Regarding rate limits, an override REPLACES the base checks,
+    ///      so it must consume the inbound rate limit itself.
     validateReleaseOrMint: ((T, address, TokenPool_ReleaseOrMint) -> (T, bool, TokenPool_ReleaseOrMintPrepared))?;
+
+    /// Async postflight gate: called once validation has consumed the rate limit.
+    /// @param msg        The full inbound request.
+    /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
+    /// @return `true` to wait for a `TokenPool_PostflightCheckFinished/Failed` callback from the
+    ///         configured `advancedPoolHooks`; `false` to continue immediately.
+    /// @dev Only checked when the pool has async hooks configured; a custom hook here and async
+    ///      hooks are mutually exclusive (inline wins).
     postflightCheck: ((T?, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintForwardPayload) -> bool)?;
+
+    /// Continuation after custody is confirmed and the base finalization path runs.
+    /// @param sender   The msg.sender of the original request.
+    /// @param msg      The full inbound request.
+    /// @param prepared The validated release/mint data.
+    /// @return The (possibly mutated) context, or `null`.
+    /// @dev Base behavior (`onReleaseOrMintFinalize`): emits `ReleasedOrMinted` + sends the
+    ///      `ReleaseOrMintFinished` reply to the caller.
     onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
-    // LockOrBurn flow
+    // ----------------------------------------------------------------------
+    // LockOrBurn flow (outbound)
+    // ----------------------------------------------------------------------
+
+    /// Runs before validation when an outbound `LockOrBurn` arrives.
+    /// @param sender      The msg.sender requesting the lock/burn.
+    /// @param msg         The full outbound request.
+    /// @return The (possibly mutated) context flowing to subsequent hooks.
+    /// @dev Base behavior: continues to `validateLockOrBurn` (sender = the transfer initiator).
     onLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> T)?;
+
+    /// Validates an outbound request and prepares the lock/burn.
+    /// @param sender      The msg.sender requesting the lock/burn.
+    /// @param msg         The full outbound request.
+    /// @return (newContext, wait, prepared); `wait` = `true` defers to the async preflight hook.
+    /// @dev Base behavior: token/chain/curse/access checks + outbound rate-limit consumption and
+    ///      `preflightCheck`. Regarding rate limits, an override REPLACES the base checks, so it
+    ///      must consume the outbound rate limit itself.
     validateLockOrBurn: ((T, address, TokenPool_LockOrBurn) -> (T, bool, TokenPool_LockOrBurnPrepared))?;
+
+    /// Async preflight gate: called once validation has consumed the rate limit.
+    /// @param msg        The full outbound request.
+    /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
+    /// @return `true` to wait for a `TokenPool_PreflightCheckFinished/Failed` callback from the
+    ///         configured `advancedPoolHooks`; `false` to continue immediately.
+    /// @dev Only checked when the pool has async hooks configured; a custom hook here and async
+    ///      hooks are mutually exclusive (inline wins).
     preflightCheck: ((T?, TokenPool_LockOrBurn, TokenPool_LockOrBurnForwardPayload) -> bool)?;
+
+    /// Entry on the Jetton transfer notification (after tokens reach the pool's wallet).
+    /// @param sender  The pool's Jetton wallet that delivered the notification.
+    /// @param msg     The decoded inbound `TransferNotificationForRecipient`.
+    /// @return The (possibly mutated) context flowing to subsequent hooks.
+    /// @dev Base behavior: authenticates the wallet, decodes the forward payload, authenticates
+    ///      the deposit initiator, then continues to `onLockOrBurnTransferContinue`.
     onLockOrBurnTransfer: ((T, address, TransferNotificationForRecipient) -> T)?;
+
+    /// Continuation once deposit custody is authenticated and confirmed.
+    /// @param sender    The pool's Jetton wallet that delivered the notification.
+    /// @param msg       The decoded inbound transfer notification.
+    /// @param fwdPayload The original request + prepared data.
+    /// @return The (possibly mutated) context.
+    /// @dev Base behavior (`onLockOrBurnTransferFinalize`): emits `LockedOrBurned` + sends the
+    ///      `LockOrBurnFinished` reply.
     onLockOrBurnTransferContinue: ((T, address, TransferNotificationForRecipient, TokenPool_LockOrBurnForwardPayload) -> T)?;
+
+    // ----------------------------------------------------------------------
+    // FeeWithdrawal flow (JettonWithdrawable)
+    // ----------------------------------------------------------------------
+
+    /// Withdraws accrued fee jettons from the pool's wallet.
+    /// @param sender   The withdrawal caller (owner or fee admin).
+    /// @param msgValue The TON value on the inbound withdrawal message (must cover all asks + reserve).
+    /// @param msg      The withdrawal request (wallet + `AskToTransfer` pairs).
+    /// @return The (possibly mutated) context.
+    /// @dev Base behavior: unbounded relay (cap = sum of requested amounts) by `onlyOwnerOrFeeAdmin`.
+    onWithdrawFeeTokens: ((T?, address, coins, JettonWithdrawable_Withdraw) -> T?)?;
 }
 
 @inline
@@ -259,8 +357,10 @@ fun TokenPool<T>.setDynamicConfig(
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
-    // TODO: check if address is valid (not zero)
-    // assert(!router.isNone(), TokenPool_Error.ZeroAddressInvalid);
+    // The router must be a real address; zero would break routeMessage forwarding.
+    assert(!isZeroAddress(router), TokenPool_Error.ZeroAddressInvalid);
+    // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
+    assert(feeAdmin == null || !isZeroAddress(feeAdmin!), TokenPool_Error.ZeroAddressInvalid);
     adminConfig.dynamicConfig = TokenPool_DynamicConfig {
         router,
         rateLimitAdmin,
@@ -584,6 +684,10 @@ fun TokenPool<T>.setRMNProxy(
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
+    // EVM makes `rmnProxy` immutable (constructor-checked); TON makes it mutable here, so the
+    // zero-address guard must live on the setter. See AUDIT_REPORT.md L-11.
+    assert(!isZeroAddress(rmnProxy), TokenPool_Error.ZeroAddressInvalid);
+
     adminConfig.rmnProxy = rmnProxy;
     self.data.adminConfig = adminConfig.toCell();
 
@@ -684,6 +788,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_SetCursedSubjects => {
             self.setCursedSubjects(msgSender, msg.queryId, msg.cursedSubjects);
+        }
+        JettonWithdrawable_Withdraw => {
+            self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);
         }
         else => {
             var adminConfig = self.data.adminConfig.load();
@@ -1903,8 +2010,7 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
 }
 
 /// Consumes fast finality outbound rate limiting capacity in this pool.
-/// @dev If fast finality rate limiter is not enabled for the chain, it will fallback to the default
-/// rate limiter.
+/// @dev If FF rate limiter is not enabled for the chain, it will fallback to the default rate limiter.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
 fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
@@ -2039,7 +2145,55 @@ fun TokenPool<T>._setRemotePool(
     });
 }
 
-// TODO: withdrawFeeTokens
+/// Withdraws accrued fee jettons.
+fun TokenPool<T>.onWithdrawFeeTokensDispatch(
+    mutate self,
+    sender: address,
+    msgValue: coins,
+    msg: JettonWithdrawable_Withdraw,
+) {
+    if (self.hooks != null && self.hooks.onWithdrawFeeTokens != null) {
+        self.context = self.hooks.onWithdrawFeeTokens(self.context!, sender, msgValue, msg);
+        return;
+    }
+
+    // No cap by default (the jetton wallet's physical balance is the only bound); can be
+    // specialized by the hook (e.g. lock/release, whose accrued-fee ledger bounds the withdrawal).
+    self.withdrawFeeTokens(sender, msgValue, msg, null);
+}
+
+/// Withdraws accrued fee jettons.
+/// @dev Only callable by the owner or the configured fee admin.
+/// @param sender The caller; must be the owner or fee admin.
+/// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
+///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
+/// @param msg The withdrawal request (wallet + transfer pairs).
+/// @param maxAmount Per-wallet upper bound on the cumulative amount relayed (cap); `null` = unbounded.
+/// @return The per-wallet total jetton amount relayed (for caller bookkeeping).
+fun TokenPool<T>.withdrawFeeTokens(
+    mutate self,
+    sender: address,
+    msgValue: coins,
+    msg: JettonWithdrawable_Withdraw,
+    maxAmount: map<address, coins>?,
+): map<address, coins> {
+    assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
+
+    // No recipient allowlist: access is gated by onlyOwnerOrFeeAdmin above
+    return JettonWithdrawable.onWithdraw(msgValue, sender, msg, maxAmount, null);
+}
+
+/// Whether the caller is the owner or the fee admin
+fun TokenPool<T>.onlyOwnerOrFeeAdmin(self, sender: address): bool {
+    val adminConfig = lazy self.data.adminConfig.load();
+    val dynamicConfig = lazy adminConfig.dynamicConfig.load();
+    val ownable = lazy adminConfig.ownable.load();
+    val senderIsFeeAdmin = fun () {
+        return dynamicConfig.feeAdmin != null
+            && sender == dynamicConfig.feeAdmin;
+    };
+    return sender == ownable.owner || senderIsFeeAdmin();
+}
 
 fun TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32, allowedFinalityConfig: uint32) {
     if (requestedFinalityConfig == TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {

@@ -12,11 +12,12 @@ func _() {
 	_ = x[ExitCodeInvalidOffRampAccountReply-7201]
 	_ = x[ExitCodeInvalidOffRampAccountNotification-7202]
 	_ = x[ExitCodeOffRampAccountDeployFailed-7203]
+	_ = x[ExitCodeInvalidWithdrawWallet-7204]
 }
 
-const _ExitCode_name = "UnexpectedReleaseBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailed"
+const _ExitCode_name = "UnexpectedReleaseBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailedInvalidWithdrawWallet"
 
-var _ExitCode_index = [...]uint8{0, 23, 49, 82, 108}
+var _ExitCode_index = [...]uint8{0, 23, 49, 82, 108, 129}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 7200
