@@ -292,6 +292,151 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)
     })
 
+    // The fee-withdrawal context must be carried in the `forwardPayload` (which TEP-74 wallets
+    // forward as-is) while the caller's own `customPayload` and `forwardPayload` survive the relay
+    // untouched — so standard and custom jetton wallets both see the caller's original payloads.
+    it('relays the ask with the caller customPayload/forwardPayload untouched, tagged via a forwardPayload wrap', async () => {
+      const ctx = await setup()
+      const amount = toNano('10')
+      const { feeAmount } = await ctx.doLock(amount, 120n)
+
+      // Distinctive caller payloads: a customPayload cell and a binary (0xff-prefixed) forwardPayload.
+      const callerCustomPayload = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const callerForwardPayload = beginCell()
+        .storeUint(0xff, 8)
+        .storeUint(0x0042, 16)
+        .endCell()
+        .beginParse()
+
+      const result = await ctx.pool.sendJettonWithdrawableWithdraw(
+        ctx.deployer.getSender(), // owner
+        toNano('0.5'),
+        {
+          queryId: 320n,
+          transfers: [
+            JettonWithdrawable_WithdrawFeeTransfer.create({
+              wallet: ctx.poolWallet.address,
+              value: toNano('0.2'),
+              msg: AskToTransfer.create({
+                queryId: 320n,
+                jettonAmount: feeAmount,
+                transferRecipient: ctx.recipient.address,
+                sendExcessesTo: ctx.pool.address,
+                customPayload: callerCustomPayload,
+                forwardTonAmount: 0n,
+                forwardPayload: callerForwardPayload,
+              }),
+            }),
+          ],
+        },
+      )
+
+      const relayed = findTransaction(result.transactions, {
+        from: ctx.pool.address,
+        to: ctx.poolWallet.address,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(relayed).toBeDefined()
+
+      // Decode the ACTUAL relayed ask (the pool rewrites it before forwarding to the wallet).
+      const relayIn = relayed!.inMessage
+      if (!relayIn || 'bouncedBody' in relayIn) {
+        throw new Error('Relayed AskToTransfer in-message not found')
+      }
+      const ask = AskToTransfer.fromSlice(relayIn.body!.beginParse())
+
+      // (1) customPayload passes through untouched.
+      expect(ask.customPayload).not.toBeNull()
+      expect(ask.customPayload!.equals(callerCustomPayload)).toBe(true)
+
+      // (2) forwardPayload is a ref-wrapped Jetton_ForwardPayloadWrap carrying the withdrawal
+      //     context, with the caller's original forwardPayload preserved as its remainder.
+      const fp = ask.forwardPayload
+      expect(fp.loadBit()).toBe(true) // Either ^Cell variant
+      const wrap = fp.loadRef().beginParse()
+      expect(wrap.loadUint(32)).toBe(0x2d61600c) // Jetton_ForwardPayloadWrap opcode
+      expect(wrap.loadAddress().equals(ctx.deployer.address)).toBe(true) // initiator
+      expect(wrap.loadBit()).toBe(true) // context cell present
+      const context = wrap.loadRef().beginParse()
+      expect(context.loadUint(32)).toBe(0x943e281e) // JettonWithdrawable_WITHDRAW_OPCODE
+      expect(context.loadAddress().equals(ctx.deployer.address)).toBe(true) // withdrawInitiator
+
+      // The wrap remainder must be byte-identical to the caller's original forwardPayload.
+      const remainderCell = beginCell().storeSlice(wrap).endCell()
+      const expectedRemainder = beginCell().storeSlice(callerForwardPayload).endCell()
+      expect(remainderCell.equals(expectedRemainder)).toBe(true)
+
+      // End-to-end still works: the fee reached the recipient.
+      expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)
+    })
+
+    // A bounced fee-withdraw ask (wallet rejects the amount) is recognized via its forwardPayload
+    // context and reported to the withdrawal initiator (the owner/fee-admin that called withdraw).
+    it('notifies the withdrawal initiator when the fee-withdraw ask bounces', async () => {
+      const ctx = await setup()
+      // Ledger-bounded pools (lock/release) cap withdrawals at the accrued-fee ledger, which can
+      // never exceed the wallet's physical balance, so a bounce cannot be forced there.
+      if (ctx.allowsMultiTransfer === false) return
+
+      // A prior lock deploys the pool wallet (the wallet is lazily deployed on first use).
+      await ctx.doLock(toNano('1'), 130n)
+
+      // Request more jettons than the pool wallet physically holds → the real jetton wallet
+      // bounces the AskToTransfer back to the pool.
+      const walletBalance = await ctx.poolWallet.getJettonBalance()
+      const overAmount = walletBalance + toNano('100')
+
+      const result = await ctx.pool.sendJettonWithdrawableWithdraw(
+        ctx.deployer.getSender(), // owner
+        toNano('0.5'),
+        {
+          queryId: 400n,
+          transfers: [
+            JettonWithdrawable_WithdrawFeeTransfer.create({
+              wallet: ctx.poolWallet.address,
+              value: toNano('0.2'),
+              msg: AskToTransfer.create({
+                queryId: 400n,
+                jettonAmount: overAmount,
+                transferRecipient: ctx.recipient.address,
+                sendExcessesTo: ctx.pool.address,
+                customPayload: null,
+                forwardTonAmount: 0n,
+                forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+              }),
+            }),
+          ],
+        },
+      )
+
+      // The pool relayed the ask and the wallet bounced it back; the pool handled the bounce.
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.poolWallet.address,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: ctx.pool.address,
+        inMessageBounced: true,
+        success: true,
+      })
+
+      // JettonWithdrawable_WithdrawFailed { wallet, ask } is sent to the initiator (deployer),
+      // echoing the bounced ask (queryId 400) and the wallet it was sent to.
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        success: true,
+        body(body) {
+          if (!body) return false
+          const s = body.beginParse()
+          const wallet = s.loadAddress()
+          const ask = AskToTransfer.fromSlice(s)
+          return wallet.equals(ctx.poolWallet.address) && ask.queryId === 400n
+        },
+      })
+    })
+
     // The up-front reserveToncoinsOnBalance(originalBalance + rent) means every relay value and
     // emitted event must be paid by the INBOUND value alone; the pool's custodial GRAM stays
     // untouched. Proven by asserting the pool's balance never drops below its pre-message value.

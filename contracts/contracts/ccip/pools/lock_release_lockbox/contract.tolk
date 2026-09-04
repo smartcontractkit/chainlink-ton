@@ -172,10 +172,11 @@ fun onDepositAccountReply(
 
 /// Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
-    val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    var st = Storage.load();
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
-            var st = Storage.load();
             // Distinguish a fee-withdrawal `AskToTransfer` (tagged with a `WithdrawContext`) from a
             // lock `AskToTransfer` (tagged with a `LockContext`).
             val data = st.poolData.load();
@@ -193,7 +194,6 @@ fun onBouncedMessage(in: InMessageBounced) {
         // The account rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
         // reply with a failure so the sender can retry instead of the release silently stalling.
         DepositAccount_Init => {
-            var st = Storage.load();
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
             st.store();
         }

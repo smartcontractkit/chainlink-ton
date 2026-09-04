@@ -2,6 +2,7 @@
 tolk 1.4.1
 
 import "@stdlib/gas-payments"
+import "../jetton/forward_payload_wrap"
 import "../jetton/messages"
 import "../utils"
 
@@ -22,8 +23,6 @@ enum JettonWithdrawable_Error {
     UnallowedRecipient;
     // The cumulative `jettonAmount` relayed to a wallet exceeds its per-wallet `maxAmount` cap.
     MaxAmountExceeded;
-    // A transfer's `ask.customPayload` must be empty; the handler owns it to tag the withdrawal context.
-    NonEmptyCustomPayload;
 }
 
 /// A fee-withdrawal transfer: a destination wallet, value, and the `AskToTransfer` msg to relay.
@@ -53,14 +52,12 @@ struct JettonWithdrawable_FeeTokenWithdrawn {
     amount: coins;
 }
 
-/// Opcode embedding in the `WithdrawContext` tags a bounced `AskToTransfer` as a fee withdrawal,
-/// distinguishing it from other asks a pool sends (e.g. release asks keep `customPayload` empty).
+/// Opcode identifying a `JettonWithdrawable_WithdrawContext` inside a
+/// `Jetton_ForwardPayloadWrap.context` cell, distinguishing fee withdrawals from other asks.
 const JettonWithdrawable_WITHDRAW_OPCODE = "JettonWithdrawableWithdraw".crc32();
 
-/// Correlated with each relayed fee-withdrawal `AskToTransfer` so a bounce knows (1) this is a fee
-/// withdrawal and (2) who initiated it, to report the failure to.
-/// @dev Stored in `AskToTransfer.customPayload` (which we require to be empty), mirroring the
-///      `customPayload`-as-bounce-marker pattern used by burn/mint and the JettonLockBox.
+/// Correlated with each relayed fee-withdrawal `AskToTransfer` so a bounce knows (1) this is a
+/// fee withdrawal and (2) who initiated it. Stored as the `context` of a `Jetton_ForwardPayloadWrap`.
 struct JettonWithdrawable_WithdrawContext {
     opcode: uint32;
     /// The `sender` that initiated the withdrawal; a bounce is reported back to it.
@@ -74,15 +71,15 @@ struct JettonWithdrawable_WithdrawFailed {
     ask: AskToTransfer;
 }
 
-/// Decodes the fee-withdrawal context from a (possibly bounced) `AskToTransfer`, or `null` if the
-/// ask isn't a fee withdrawal (no `customPayload` or a non-matching opcode).
+/// Decodes the fee-withdrawal context from a (possibly bounced) `AskToTransfer`, or `null`
 @inline
-fun JettonWithdrawable.parseWithdrawContext(ask: AskToTransfer): JettonWithdrawable_WithdrawContext? {
-    if (ask.customPayload == null) {
+fun JettonWithdrawable.parseWrappedContext(ask: AskToTransfer): JettonWithdrawable_WithdrawContext? {
+    val wrap = Jetton_ForwardPayloadWrap.from(ask.forwardPayload);
+    if (wrap == null || wrap!.context == null) {
         return null;
     }
 
-    var cs = ask.customPayload!.beginParse();
+    var cs = wrap!.context!.beginParse();
     val opcode = cs.loadUint(32);
     if (opcode != JettonWithdrawable_WITHDRAW_OPCODE) {
         return null;
@@ -139,8 +136,6 @@ fun JettonWithdrawable.onWithdraw(
             && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients!)) {
             throw JettonWithdrawable_Error.UnallowedRecipient;
         }
-        // We own `customPayload` to tag the withdrawal context (opcode + initiator), input must be empty.
-        assert(ask.customPayload == null, JettonWithdrawable_Error.NonEmptyCustomPayload);
 
         // Accumulate the per-wallet total; if a cap is set for this wallet, the cumulative amount
         // (this transfer + any earlier ones to the same wallet) must stay within it.
@@ -158,21 +153,27 @@ fun JettonWithdrawable.onWithdraw(
         }
         withdrawnPerWallet.set(transfer.wallet, cumulative);
 
+        // Tag the withdrawal context in the `forwardPayload` wrap
+        val wrap = Jetton_ForwardPayloadWrap {
+            initiator: sender,
+            context: JettonWithdrawable_WithdrawContext {
+                opcode: JettonWithdrawable_WITHDRAW_OPCODE,
+                withdrawInitiator: sender,
+            }.toCell(),
+            forwardPayload: ask.forwardPayload,
+        };
+
         val taggedAsk = AskToTransfer {
             queryId: ask.queryId,
             jettonAmount: ask.jettonAmount,
             transferRecipient: ask.transferRecipient,
             sendExcessesTo: ask.sendExcessesTo,
-            customPayload: JettonWithdrawable_WithdrawContext {
-                opcode: JettonWithdrawable_WITHDRAW_OPCODE,
-                withdrawInitiator: sender,
-            }.toCell(),
+            customPayload: ask.customPayload,
             forwardTonAmount: ask.forwardTonAmount,
-            forwardPayload: ask.forwardPayload,
+            forwardPayload: wrap.asForwardPayload(),
         };
 
-        // Relay the transfer with the caller's value, paying forwarding fees out of it
-        // (SEND_MODE_REGULAR). Rich bounce returns the full original ask (with the context) on failure.
+        // Relay with the caller's value; rich bounce returns the tagged ask on failure.
         val relay = createMessage({
             bounce: BounceMode.RichBounce,
             value: transfer.value,
@@ -203,17 +204,17 @@ fun JettonWithdrawable.isAllowedRecipient(recipient: address, allowed: array<add
 }
 
 /// Default handler for a bounced fee-withdrawal `AskToTransfer`: decodes the `WithdrawContext`
-/// (tagging the ask and carrying the initiator) and notifies the initiator of the failure. The
+/// (tagged in the ask's `forwardPayload` wrap) and notifies the initiator of the failure. The
 /// caller (a pool's `onBouncedMessage`) validates authorization first (e.g. bounce from own wallet).
 ///
 /// @param wallet The jetton wallet the failed `AskToTransfer` was relayed to.
-/// @param ask    The bounced `AskToTransfer`, still tagged with the `WithdrawContext`.
+/// @param ask    The bounced `AskToTransfer`, still carrying the withdrawal context wrap.
 /// @dev Returns false when the ask isn't a recognized fee withdrawal
 fun JettonWithdrawable.onWithdrawBounced(
     wallet: address,
     ask: AskToTransfer,
 ): bool {
-    val context = JettonWithdrawable.parseWithdrawContext(ask);
+    val context = JettonWithdrawable.parseWrappedContext(ask);
     if (context == null) {
         return false;
     }

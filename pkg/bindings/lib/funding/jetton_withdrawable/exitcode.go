@@ -10,7 +10,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ZeroAddressNotAllowed)
-		ecMax = int32(NonEmptyCustomPayload)
+		ecMax = int32(MaxAmountExceeded)
 	)
 
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
@@ -23,7 +23,4 @@ const (
 	UnallowedRecipient
 	// MaxAmountExceeded is thrown when a transfer's jetton amount exceeds the caller-allowed max.
 	MaxAmountExceeded
-	// NonEmptyCustomPayload is thrown when a transfer's AskToTransfer carries a non-empty
-	// customPayload; the handler owns that field to tag the withdrawal context.
-	NonEmptyCustomPayload
 )
