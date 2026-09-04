@@ -2,7 +2,6 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
   CrossChainAddress,
   CursedSubjects,
@@ -87,8 +86,8 @@ describe('LockReleaseLockboxTokenPool', () => {
     recipient = await blockchain.treasury('recipient')
     lockboxOperator = await blockchain.treasury('lockboxOperator')
 
-    jettonWalletCode = await jetton.JettonWalletCode()
-    const jettonMinterCode = await jetton.JettonMinterCode()
+    jettonWalletCode = await contractCode.jetton('JettonWallet')
+    const jettonMinterCode = await contractCode.jetton('JettonMinter')
 
     // Deploy jetton minter
     jettonMinter = blockchain.openContract(
