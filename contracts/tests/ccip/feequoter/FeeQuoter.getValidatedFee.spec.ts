@@ -302,62 +302,12 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-  it.skip('should revert when too many tokens', async () => {
-    const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
-
-    const message = rt.Router_CCIPSend.create({
-      destChainSelector: ChainSelectors.testnet.evm,
-      receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: beginCell().endCell(),
-      tokenAmounts: tooManyTokens.map((token) =>
-        rt.TokenAmount.create({
-          token: token.token,
-          amount: toNano('100'),
-        }),
-      ),
-      feeToken: FeeQuoterSetup.NATIVE_TON.token,
-      extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: FeeQuoterSetup.GAS_LIMIT,
-        allowOutOfOrderExecution: false,
-      }),
-    })
-
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
-      setup.acc.externalCaller.getSender(),
-      toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
-    )
-
-    // Should return failure - destination chain not configured
-    expect(result.transactions).toHaveTransaction({
-      from: setup.acc.externalCaller.getSender().address,
-      to: setup.bind.feeQuoter.address,
-      success: true,
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: setup.bind.feeQuoter.address,
-      op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
-      success: true,
-      body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
-          x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
-          [
-            (msg) => {
-              return (
-                msg.error ===
-                BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens'])
-              )
-            },
-          ],
-        )
-      },
-    })
-  })
-
-  it('accepts a token transfer and prices it like a token-less message', async () => {
-    // Token transfers are now allowed; the extra token-transfer fee is currently ignored,
-    // so a single-token message is priced exactly like the equivalent token-less message.
+  // Detailed token-transfer fee math (per-token override, deciBps, min/max clamping, defaults
+  // fallback, multi-token summation, maxNumberOfTokensPerMsg enforcement) is covered in
+  // FeeQuoter.tokenTransferFee.spec.ts. This just sanity-checks that a token transfer is now
+  // priced differently from (and, given the configured overrides, higher than) an equivalent
+  // token-less message, i.e. the extra token-transfer fee is no longer ignored.
+  it('prices a token transfer differently from a token-less message', async () => {
     const feeToken = FeeQuoterSetup.NATIVE_TON.token
 
     const withToken = setup.generateSingleTokenMessage({
@@ -367,11 +317,10 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     const withoutToken = setup.generateEmptyMessage({ feeToken })
 
-    // getValidatedFee throws if validation fails, so reaching the assertion proves acceptance.
     const tokenFee = await setup.getValidatedFee(withToken)
     const emptyFee = await setup.getValidatedFee(withoutToken)
 
-    expect(tokenFee.fee.feeTokenAmount).toEqual(emptyFee.fee.feeTokenAmount)
+    expect(tokenFee.fee.feeTokenAmount).toBeGreaterThan(emptyFee.fee.feeTokenAmount)
   })
 
   it('should revert when gas limit too high', async () => {

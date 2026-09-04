@@ -75,8 +75,14 @@ const VAL_1E18: uint256 = 1000000000000000000;
   /// When abi encoded, excluding array contents, Any2EVMMessage takes up a fixed number of 13 slots, 32 bytes each.
   /// Assume 1 slot for sender
   /// For structs that contain arrays, 1 more slot is added to the front, reaching a total of 15.
-  /// The fixed bytes does not cover struct data (this is represented by MESSAGE_FIXED_BYTES_PER_TOKEN)
+  /// The fixed bytes does not cover struct data (this is represented by TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN)
 const TON_2_EVM_MESSAGE_FIXED_BYTES = 15 * 32;
+
+  /// @dev Each token transfer adds 1 RampTokenAmount to the Any2EVMRampMessage.
+  /// RampTokenAmount has 5 fields: sourcePoolAddress (bytes, 3 slots: offset/length/content),
+  /// destTokenAddress (1 slot), extraData (bytes, 2 slots: offset/length, contents billed separately),
+  /// amount (1 slot) and destGasAmount (1 slot).
+const TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN = 32 * ((2 * 3) + 3);
 
 const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
 const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
