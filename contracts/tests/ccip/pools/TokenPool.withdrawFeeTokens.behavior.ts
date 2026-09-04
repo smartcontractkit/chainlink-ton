@@ -357,9 +357,9 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(wrap.loadUint(32)).toBe(0x2d61600c) // Jetton_ForwardPayloadWrap opcode
       expect(wrap.loadAddress().equals(ctx.deployer.address)).toBe(true) // initiator
       expect(wrap.loadBit()).toBe(true) // context cell present
-      const context = wrap.loadRef().beginParse()
-      expect(context.loadUint(32)).toBe(0x943e281e) // JettonWithdrawable_WITHDRAW_OPCODE
-      expect(context.loadAddress().equals(ctx.deployer.address)).toBe(true) // withdrawInitiator
+      // Context is the opcode tag only; the failure-report destination lives on the wrap's `initiator`.
+      const contextCell = wrap.loadRef()
+      expect(contextCell.equals(beginCell().storeUint(0x943e281e, 32).endCell())).toBe(true) // JettonWithdrawable_WITHDRAW_OPCODE
 
       // The wrap remainder must be byte-identical to the caller's original forwardPayload.
       const remainderCell = beginCell().storeSlice(wrap).endCell()
