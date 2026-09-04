@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -51,6 +50,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
@@ -78,11 +78,28 @@ func NewTONAdapter(env *deployment.Environment, selector uint64) testadapters.Te
 		panic(fmt.Sprintf("chain not found: %d", selector))
 	}
 
-	s := &testadapters.DataStoreStateProvider{Selector: selector, DS: env.DataStore}
 	return &TONAdapter{
-		state: s,
+		state: &envStateProvider{selector, env},
 		Chain: c,
 	}
+}
+
+// envStateProvider resolves addresses against the environment's *current* datastore.
+//
+// The environment replaces env.DataStore with a new sealed store every time a deployment
+// step merges its output (see mergeDS in devenv), so capturing env.DataStore once at
+// adapter construction pins a snapshot taken before tokens and token pools are deployed.
+//
+// The DataStore object must not be held by reference, because it is replaced with a new
+// sealed store after every deployment step.
+type envStateProvider struct {
+	selector uint64
+	env      *deployment.Environment
+}
+
+func (p *envStateProvider) GetAddress(ty datastore.ContractType, qualifier ...string) (string, error) {
+	ds := &testadapters.DataStoreStateProvider{Selector: p.selector, DS: p.env.DataStore}
+	return ds.GetAddress(ty, qualifier...)
 }
 
 func (a *TONAdapter) getAddress(ty datastore.ContractType) (address.Address, error) {
@@ -411,6 +428,16 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
 	// Real jetton approval (e.g. minting an allowance / notifying the pool) is not
 	// yet implemented; no tokens actually move so there is nothing to approve yet.
+
+	// Fund the LockReleaseTokenPool with liquidity so it can release tokens when
+	// acting as a destination. The pool holds jettons in its own jetton wallet; we
+	// mint tokens directly to that wallet address. This is test-only setup — EVM
+	// and Solana use BurnMintTokenPools that don't need liquidity, but TON uses
+	// LockReleaseTokenPool which custodies real tokens.
+	if err := a.fundPoolLiquidity(ctx, tokenAddress); err != nil {
+		return fmt.Errorf("failed to fund pool liquidity: %w", err)
+	}
+
 	return nil
 }
 
@@ -430,7 +457,22 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 		return nil, fmt.Errorf("failed to parse owner address %q: %w", ownerAddrStr, err)
 	}
 
-	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, ownerAddr)
+	// Look up the pool address from the datastore via the state provider.
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool address: %w", err)
+	}
+	poolAddr, err := address.ParseAddr(poolAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
+	}
+
+	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, poolAddr, tokenpool.GetDepositAccount, ownerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive deposit account for receiver %q: %w", ownerAddrStr, err)
+	}
+
+	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, depositAccountAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive jetton wallet address for owner %q: %w", ownerAddrStr, err)
 	}
@@ -445,11 +487,136 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 	return balance, nil
 }
 
-func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
-	if os.Getenv("TON_TOKEN_TRANSFERS_ENABLED") == "" {
-		return nil, errors.ErrUnsupported
+// fundPoolLiquidity mints jettons directly to the LockReleaseTokenPool's jetton wallet
+// so the pool has tokens to release when it acts as a destination. This is test-only
+// setup: EVM and Solana use BurnMintTokenPools that mint on release, but TON uses
+// LockReleaseTokenPool which custodies real tokens and must be pre-funded.
+func (a *TONAdapter) fundPoolLiquidity(ctx context.Context, tokenAddress string) error {
+	tokenAddr, err := address.ParseAddr(tokenAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
 	}
 
+	// Look up the pool address from the datastore via the state provider.
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	if err != nil {
+		return fmt.Errorf("failed to look up %s address to fund pool liquidity: %w",
+			bindings.ShortLockReleaseTokenPool, err)
+	}
+	poolAddr, err := address.ParseAddr(poolAddrStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
+	}
+
+	// Derive the pool's jetton wallet address.
+	poolWalletAddr, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, poolAddr)
+	if err != nil {
+		return fmt.Errorf("failed to derive pool jetton wallet address: %w", err)
+	}
+
+	// Mint 1000 tokens to the pool's jetton wallet.
+	liquidityAmount := tlb.MustFromTON("1000")
+	queryID, err := tvm.RandomQueryID()
+	if err != nil {
+		return fmt.Errorf("failed to generate query id for liquidity mint: %w", err)
+	}
+
+	mintBody, err := tlb.ToCell(minter.MintNewJettons{
+		QueryID:       queryID,
+		MintRecipient: poolAddr,
+		TonAmount:     tlb.MustFromTON("0.05"),
+		InternalTransferMsg: jettonwallet.InternalTransferStep{
+			QueryID:           queryID,
+			JettonAmount:      liquidityAmount,
+			TransferInitiator: a.WalletAddress,
+			SendExcessesTo:    a.WalletAddress,
+			ForwardTonAmount:  tlb.ZeroCoins,
+			ForwardPayload:    nil,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build mint message: %w", err)
+	}
+
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     tokenAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        mintBody,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to mint liquidity to pool wallet %s: %w", poolWalletAddr.String(), err)
+	}
+	msg, err := tracetracking.MapToReceivedMessage(tx)
+	if err != nil {
+		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	err = msg.WaitForTrace(ctx, a.Client)
+	if err != nil {
+		return fmt.Errorf("failed to wait for trace of liquidity mint: %w", err)
+	}
+	exitCode, err := msg.TraceExitCodeWith(successfullJettonTransfer(a.Wallet.Address(), tokenAddr, poolWalletAddr))
+	if err != nil {
+		return fmt.Errorf("failed to get trace exit code for liquidity mint: %w", err)
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("liquidity mint failed with exit code %d; check pool wallet %s for balance", exitCode, poolWalletAddr.String())
+	}
+	// Check that the pool's jetton wallet has the expected balance.
+	tpBalance, err := tvm.CallGetterLatest(ctx, a.Client, poolWalletAddr, jettonwallet.GetWalletData)
+	if err != nil {
+		return fmt.Errorf("failed to get TokenPool jetton balance: %w", err)
+	}
+	if tpBalance.Cmp(liquidityAmount.Nano()) < 0 {
+		return fmt.Errorf("pool jetton wallet balance %s is lower than minimum liquidity amount %s", tpBalance.String(), liquidityAmount.String())
+	}
+
+	return nil
+}
+
+func successfullJettonTransfer(minterAuthority, jettonMinter, receiverWallet *address.Address) tracetracking.StopCondition {
+	return func(parent, current *tracetracking.ReceivedMessage) (bool, error) {
+		if current.InternalMsg == nil {
+			return false, nil
+		}
+		type Msg struct {
+			Src *address.Address
+			Dst *address.Address
+			Op  uint32
+		}
+		matchesMsg := func(msg Msg) bool {
+			if !current.InternalMsg.SrcAddr.Equals(msg.Src) || !current.InternalMsg.DstAddr.Equals(msg.Dst) {
+				return false
+			}
+			s := current.InternalMsg.Body.BeginParse()
+			op, err := s.LoadUInt(32)
+			if err != nil {
+				return false
+			}
+			return op == uint64(msg.Op)
+		}
+		// Flow: MinterAuthority --> Minter --> ReceiverWallet.
+		// Traverse those two hops; prune every other branch (excesses, notifications).
+		authorityToMinter := matchesMsg(Msg{
+			Src: minterAuthority,
+			Dst: jettonMinter,
+			Op:  0x642b7d07, // MintNewJettons // TODO make this depend on the Jetton implementation
+		})
+
+		minterToWallet := matchesMsg(Msg{
+			Src: jettonMinter,
+			Dst: receiverWallet,
+			Op:  0x178d4519, // InternalTransferStep // TODO make this depend on the Jetton implementation
+		})
+		return !authorityToMinter && !minterToWallet, nil
+	}
+}
+
+func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
 	suffix := strconv.FormatUint(a.Selector, 10) + "-" + chain_selectors.FamilyTon
 	registryAddr, err := a.GetRegistryAddress()
 	if err != nil {

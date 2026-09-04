@@ -28,7 +28,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.26.0 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -51,7 +51,7 @@ require (
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	go.mongodb.org/mongo-driver v1.12.2 // indirect
+	go.mongodb.org/mongo-driver v1.17.7 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

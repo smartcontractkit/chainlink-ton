@@ -140,7 +140,7 @@ fun onDepositAccountReply(
             transferRecipient: sender,
             sendExcessesTo: poolAddr, // pool keeps any excesses
             customPayload: null,
-            forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardTonAmount: ton("0.05"), // TODO: make dynamic, required for TransferNotificationForRecipient
             forwardPayload: beginCell()
                 .storeMaybeRef(contextCell)
                 .endCell()
@@ -549,4 +549,19 @@ get fun getFeeAmount(
 /// Returns the accrued fee balance that `withdrawFeeTokens` may currently move.
 get fun getAccruedFees(): coins {
     return Storage.load().accruedFees;
+}
+
+get fun getDepositAccount(
+    receiver: address,
+): address {
+    val st = Storage.load();
+
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(receiver, ());
+    return calcAddressOfDepositAccount(
+        st.offRampAccountCode,
+        contract.getAddress(),
+        contract.getAddress(),
+        beneficiaries,
+    ).calculateAddress();
 }

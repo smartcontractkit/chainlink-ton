@@ -50,6 +50,14 @@ func TestFastCurseTON(t *testing.T) {
 
 	toolingAPIVersion := semver.MustParse("1.6.0")
 
+	// The bumped chainlink-ccip/deployment requires an UltraFastCurse RBACTimelock to
+	// be present before the EVM DeployChainContracts sequence can deploy the RMN (it is
+	// passed as the RMN's curse admin). TON does not implement Ultra Fast Curse, so seed
+	// a placeholder ref for the EVM chain. See resolveUltraFastCurseTimelock in
+	// chainlink-ccip/chains/evm/deployment/v1_6_0/sequences/deploy_chain_contracts.go.
+	env, err = SeedUltraFastCurseMCMS(env)
+	require.NoError(t, err, "Failed to seed UltraFastCurse MCMS timelock ref")
+
 	// <deploy-evm>
 	mcmsRegistry := cs_core.GetRegistry()
 	dReg := deployops.GetRegistry()

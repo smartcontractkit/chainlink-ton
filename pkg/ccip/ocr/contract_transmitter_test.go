@@ -19,6 +19,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		CommitPriceUpdateOnlyCostTON: 0.05,
 		CommitPriceAndRootCostTON:    0.08,
 		ExecuteCostTON:               0.1,
+		ExecuteCostTONTokenTransfer:  0.2,
 	}
 
 	t.Run("execute report with gas limit", func(t *testing.T) {
@@ -114,6 +115,122 @@ func TestGetReportTxInfo(t *testing.T) {
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("1.35")
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
+			"expected cost %s, got %s", expectedCost.String(), cost.String())
+	})
+
+	t.Run("execute report with single token transfer", func(t *testing.T) {
+		gasLimit := tlb.MustFromTON("0.5")
+		destGasAmount := tlb.MustFromTON("0.3")
+		onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+		destAddr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
+		executeReport := ocr.ExecuteReport{
+			SourceChainSelector: 123,
+			Message: ocr.Any2TVMRampMessage{
+				Header: ocr.RampMessageHeader{
+					MessageID:           make([]byte, 32),
+					SourceChainSelector: 123,
+					DestChainSelector:   456,
+					SequenceNumber:      1,
+					Nonce:               1,
+				},
+				Sender:   onrampAddr,
+				Data:     []byte("test data"),
+				Receiver: destAddr,
+				GasLimit: gasLimit,
+				TokenAmounts: common.SnakedCell[ocr.Any2TVMTokenTransfer]{
+					{
+						SourcePoolAddress: onrampAddr,
+						DestPoolAddress:   destAddr,
+						DestGasAmount:     &destGasAmount,
+						Amount:            big.NewInt(1000),
+					},
+				},
+			},
+			OffChainTokenData: tvm.EmptyCell,
+			Proofs:            common.SnakedCell[common.Proof]{},
+			ProofFlagBits:     big.NewInt(0),
+		}
+
+		reportCell, err := tlb.ToCell(executeReport)
+		require.NoError(t, err)
+
+		reportBytes := reportCell.ToBOC()
+
+		// Test: ExecuteCostTON (0.1) + gasLimit (0.5) + ExecuteCostTONTokenTransfer (0.2) + destGasAmount (0.3) = 1.1 TON
+		txID, cost, returnedGasLimit, err := getReportTxInfo(reportBytes, 3, cfg)
+		require.NoError(t, err)
+
+		assert.Contains(t, txID, "seq-3-msg-")
+
+		require.NotNil(t, returnedGasLimit)
+		assert.Equal(t, gasLimit.Nano(), returnedGasLimit.Nano(),
+			"expected gas limit %s, got %s", gasLimit.String(), returnedGasLimit.String())
+
+		require.NotNil(t, cost)
+		expectedCost := tlb.MustFromTON("1.1")
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
+			"expected cost %s, got %s", expectedCost.String(), cost.String())
+	})
+
+	t.Run("execute report with multiple token transfers", func(t *testing.T) {
+		gasLimit := tlb.MustFromTON("0.5")
+		destGasAmount1 := tlb.MustFromTON("0.1")
+		destGasAmount2 := tlb.MustFromTON("0.4")
+		onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+		destAddr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
+		executeReport := ocr.ExecuteReport{
+			SourceChainSelector: 123,
+			Message: ocr.Any2TVMRampMessage{
+				Header: ocr.RampMessageHeader{
+					MessageID:           make([]byte, 32),
+					SourceChainSelector: 123,
+					DestChainSelector:   456,
+					SequenceNumber:      1,
+					Nonce:               1,
+				},
+				Sender:   onrampAddr,
+				Data:     []byte("test data"),
+				Receiver: destAddr,
+				GasLimit: gasLimit,
+				TokenAmounts: common.SnakedCell[ocr.Any2TVMTokenTransfer]{
+					{
+						SourcePoolAddress: onrampAddr,
+						DestPoolAddress:   destAddr,
+						DestGasAmount:     &destGasAmount1,
+						Amount:            big.NewInt(1000),
+					},
+					{
+						SourcePoolAddress: onrampAddr,
+						DestPoolAddress:   destAddr,
+						DestGasAmount:     &destGasAmount2,
+						Amount:            big.NewInt(2000),
+					},
+				},
+			},
+			OffChainTokenData: tvm.EmptyCell,
+			Proofs:            common.SnakedCell[common.Proof]{},
+			ProofFlagBits:     big.NewInt(0),
+		}
+
+		reportCell, err := tlb.ToCell(executeReport)
+		require.NoError(t, err)
+
+		reportBytes := reportCell.ToBOC()
+
+		// Test: ExecuteCostTON (0.1) + gasLimit (0.5) +
+		// 2 * ExecuteCostTONTokenTransfer (0.2 each) + destGasAmounts (0.1 + 0.4) = 1.5 TON
+		txID, cost, returnedGasLimit, err := getReportTxInfo(reportBytes, 4, cfg)
+		require.NoError(t, err)
+
+		assert.Contains(t, txID, "seq-4-msg-")
+
+		require.NotNil(t, returnedGasLimit)
+		assert.Equal(t, gasLimit.Nano(), returnedGasLimit.Nano(),
+			"expected gas limit %s, got %s", gasLimit.String(), returnedGasLimit.String())
+
+		require.NotNil(t, cost)
+		expectedCost := tlb.MustFromTON("1.5")
 		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
