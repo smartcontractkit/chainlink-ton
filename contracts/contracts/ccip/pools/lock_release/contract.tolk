@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.1
+tolk 1.4.2
 
 import "@stdlib/lisp-lists"
 
@@ -137,7 +137,7 @@ fun onDepositAccountReply(
             transferRecipient: sender,
             sendExcessesTo: contract.getAddress(), // pool keeps any excesses
             customPayload: null,
-            forwardTonAmount: ton("0.05"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardTonAmount: grams("0.05"), // TODO: make dynamic, required for TransferNotificationForRecipient
             forwardPayload: beginCell()
                 .storeMaybeRef(contextCell)
                 .endCell()

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.1
+tolk 1.4.2
 
 import "@stdlib/common.tolk"
 
@@ -33,7 +33,7 @@ contract JettonLockBox {
 const CONTRACT_VERSION = "0.1.0".literalSlice();
 
 /// Storage rent reserve to keep the contract alive.
-const MIN_GRAM_TO_RESERVE: int = ton("0.05");
+const MIN_GRAM_TO_RESERVE: int = grams("0.05");
 
 // --- Contract entry point ---
 
@@ -112,7 +112,7 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
 
     // We reserve some GRAM coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveToncoinsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
 
     // Notify sender that initialization is complete.
     val reply = createMessage({

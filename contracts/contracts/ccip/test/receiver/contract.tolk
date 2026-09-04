@@ -17,7 +17,7 @@ import "../../../lib/versioning/upgradeable"
 
 import "../../router/messages"
 
-tolk 1.4.1
+tolk 1.4.2
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
@@ -44,7 +44,7 @@ fun onInternalMessage(in: InMessage) {
             // Standard way for a receiver to be implemented:
 
             // 1. Check that enough value is received to process this message (you should benchmark accordingly)
-            assert( in.valueCoins >= ton("0.03") ) throw (Receiver_Error.LowValue);
+            assert( in.valueCoins >= grams("0.03") ) throw (Receiver_Error.LowValue);
 
             // 2. Check CCIPReceive only comes from router
             assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized);
@@ -69,7 +69,7 @@ fun onInternalMessage(in: InMessage) {
             // But, consider that a minimum of 0.02 TON is required for the Router to process your confirmation message,
             // and you should probably send more than that (~0.025 TON) to make sure the message goes through
             // even if there are some fluctuations in the fees.
-            reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
             val receiveConfirm = createMessage({
                 bounce: true,
                 value: 0,

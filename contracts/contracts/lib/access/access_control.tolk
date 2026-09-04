@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.4.1
+tolk 1.4.2
 
 import "../utils.tolk";
 
@@ -628,7 +628,7 @@ fun AccessControl<T>.sendReply<B>(
     returnExcess: bool = true
 ): void {
     // Create and send the message (reply) to the sender
-    value = returnExcess ? ton("0") : value; // return all, or fixed compute budget
+    value = returnExcess ? grams("0") : value; // return all, or fixed compute budget
 
     val reply = createMessage({bounce: false, value, dest: sender, body });
     reply.send(returnExcess

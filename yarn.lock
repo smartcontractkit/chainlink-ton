@@ -1319,10 +1319,10 @@
   dependencies:
     node-inspect-extracted "^2.0.0"
 
-"@ton/tolk-js@1.4.1":
-  version "1.4.1"
-  resolved "https://registry.npmjs.org/@ton/tolk-js/-/tolk-js-1.4.1.tgz#a5a75667108a99626011080ce851ee6798d7ff5d"
-  integrity sha512-4RZD7Qh7iTTF1SSpR0UvQlJvrjFWSSkPXfopq0BRZqJ4c/DQDMjs7nLnHZ99w/Z90jzE+1Eq4A4lsEsWgGaBfA==
+"@ton/tolk-js@1.4.2":
+  version "1.4.2"
+  resolved "https://registry.npmjs.org/@ton/tolk-js/-/tolk-js-1.4.2.tgz#f415313fba00ea924055142809218972456da8b7"
+  integrity sha512-+F/d0g42DR8KaQvVz9RrtSsJRw1kQAS3zwWy3POaEyxpLM8F4+dHzl8XLsFa2RHq0ADe4oLN/znW0spZBOlf7A==
   dependencies:
     arg "^5.0.2"
 

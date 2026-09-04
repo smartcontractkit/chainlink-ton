@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.4.1
+tolk 1.4.2
 
 const Withdrawable_FACILITY_NAME = "link.chain.ton.lib.funding.Withdrawable";
 const Withdrawable_FACILITY_ID = Withdrawable_FACILITY_NAME.crc32() % 640 + 10;  // 571
@@ -43,7 +43,7 @@ fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw) {
         assert (msg.amount == 0) throw Withdrawable_Error.InvalidRequest;    
         // Withdraw all balance above reserve
         assert (originalBalance > actualReserve) throw Withdrawable_Error.HitReserve;
-        reserveToncoinsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT);
+        reserveGramsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT);
 
         return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
     }

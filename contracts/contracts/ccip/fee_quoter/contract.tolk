@@ -14,7 +14,7 @@ import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
 
-tolk 1.4.1
+tolk 1.4.2
 
 contract FeeQuoter {
     author: "SmartContract Chainlink Limited SEZC"
@@ -27,7 +27,7 @@ contract FeeQuoter {
 }
 
 const CONTRACT_VERSION = "1.6.3".literalSlice();
-const RESERVE = ton("1");
+const RESERVE = grams("1");
 
 fun requireSupportedVersion(version: slice) {
     assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
@@ -549,7 +549,7 @@ fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
         dest: receiver,
         body: createEmptyCell(),
     });
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     returnExcesses.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 

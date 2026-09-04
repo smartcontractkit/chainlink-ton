@@ -31,34 +31,34 @@ struct SendExecutor_Costs {}
 // Minimum value for deploying SendExecutor
 @inline
 fun SendExecutor_Costs.Deploy(): int {
-    return ton("0.01");
+    return grams("0.01");
 }
 
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
     return
-        ton("0.002") // computeFee
-        + ton("0.019") // GetValidatedFee fwdFee
+        grams("0.002") // computeFee
+        + grams("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
         //TODO: estimate correct gas needed here
-        + ton("0.2"); // overhead for token transfers
+        + grams("0.2"); // overhead for token transfers
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidated(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // ExecutorFinishedSuccessfully fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // ExecutorFinishedSuccessfully fwdFee
         + OnRamp_Costs.ExecutorFinishedSuccessfully();
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidationFailed(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // ExecutorFinishedWithError fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // ExecutorFinishedWithError fwdFee
         + OnRamp_Costs.ExecutorFinishedWithError();
 }
 

@@ -46,7 +46,7 @@
     "@ton/crypto": "3.3.0",
     "@ton/sandbox": "0.42.0",
     "@ton/test-utils": "0.12.0",
-    "@ton/tolk-js": "1.4.1",
+    "@ton/tolk-js": "1.4.2",
     "@ton/ton": "16.2.4",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",

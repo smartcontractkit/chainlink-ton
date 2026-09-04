@@ -64,7 +64,7 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
 
 // TODO real numbers
 fun OnRamp_ExecutorRequestsLockOrBurn.cost(): int {
-    return ton("1");
+    return grams("1");
 }
 
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
@@ -145,8 +145,8 @@ struct OnRamp_Costs {}
 @inline
 fun OnRamp_Costs.GetValidatedFee(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // GetValidatedFee fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(
             OnRamp_Costs.FeeQuoter_MessageValidated(),
@@ -159,8 +159,8 @@ fun OnRamp_Costs.GetValidatedFee(): int {
 @inline
 fun OnRamp_Costs.FeeQuoter_MessageValidated(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MessageValidated fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // MessageValidated fwdFee
         ;
 }
 
@@ -168,8 +168,8 @@ fun OnRamp_Costs.FeeQuoter_MessageValidated(): int {
 @inline
 fun OnRamp_Costs.FeeQuoter_MessageValidationFailed(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MessageValidationFailed fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // MessageValidationFailed fwdFee
         ;
 }
 
@@ -177,9 +177,9 @@ fun OnRamp_Costs.FeeQuoter_MessageValidationFailed(): int {
 @inline
 fun OnRamp_Costs.Send(): int {
     return
-        + ton("0.002") // computeFee
+        + grams("0.002") // computeFee
         + SendExecutor_Costs.Deploy()
-        + ton("0.019") // Execute fwdFee
+        + grams("0.019") // Execute fwdFee
         + SendExecutor_Costs.Execute()
         ;
 }
@@ -188,9 +188,9 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // emit CCIPMessageSent event
-        + ton("0.019") // MessageSent fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // emit CCIPMessageSent event
+        + grams("0.019") // MessageSent fwdFee
         + Router_Costs.MessageSent() 
         ;
 }
@@ -199,8 +199,8 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MessageRejected fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // MessageRejected fwdFee
         + Router_Costs.MessageRejected()
         ;
 }
@@ -209,8 +209,8 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
 @inline
 fun OnRamp_Costs.WithdrawFeeTokens(): int {
     return
-        + ton("0.02") // computeFee
-        + ton("0.019") // feeTokens fwdFee
-        + ton("0.05") // feeCollector computeFee
+        + grams("0.02") // computeFee
+        + grams("0.019") // feeTokens fwdFee
+        + grams("0.05") // feeCollector computeFee
         ;
 }

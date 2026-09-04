@@ -189,8 +189,8 @@ struct Router_Costs {}
 // Minimum value for calling Router_CCIPSend
 fun Router_Costs.CCIPSend(): int {
     return
-        + ton("0.001") // computeFee
-        + ton("0.019") // CCIPSend fwdFee
+        + grams("0.001") // computeFee
+        + grams("0.019") // CCIPSend fwdFee
         + OnRamp_Costs.Send()
         ;
 }
@@ -198,8 +198,8 @@ fun Router_Costs.CCIPSend(): int {
 // Minimum value for calling Router_MessageSent
 fun Router_Costs.MessageSent(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // CCIPSendACK fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // CCIPSendACK fwdFee
         ;
 
 }
@@ -207,16 +207,16 @@ fun Router_Costs.MessageSent(): int {
 // Minimum value for calling Router_MessageRejected
 fun Router_Costs.MessageRejected(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // CCIPSendNACK fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // CCIPSendNACK fwdFee
         ;
 }
 
 // Minimum value for calling Router_GetValidatedFee
 fun Router_Costs.GetValidatedFee(): int {
     return
-        ton("0.002") // computeFee
-        + ton("0.019") // GetValidatedFee fwdFee
+        grams("0.002") // computeFee
+        + grams("0.019") // GetValidatedFee fwdFee
         + OnRamp_Costs.GetValidatedFee()
         + max(
             Router_Costs.MessageValidated(),
@@ -227,21 +227,21 @@ fun Router_Costs.GetValidatedFee(): int {
 
 fun Router_Costs.MessageValidated(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MessageValidated fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // MessageValidated fwdFee
         ;
 }
 
 fun Router_Costs.MessageValidationFailed(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MessageValidationFailed fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // MessageValidationFailed fwdFee
         ;
 }
 
 // Minimum value for calling Router_RouteMessage
 fun Router_Costs.routeMessage(): int {
-    val baseFee = ton("0.004");
+    val baseFee = grams("0.004");
     return baseFee + Router_Costs.receiveConfirm();
 }
 
@@ -251,4 +251,4 @@ fun Router_Costs.receiveConfirm(): int {
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
-const ROUTER_RECEIVE_CONFIRM_FEE = ton("0.002");
+const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");

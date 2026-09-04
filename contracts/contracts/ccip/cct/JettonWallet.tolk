@@ -67,7 +67,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (msg.sendExcessesTo != null) {
                 var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
-                reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
+                reserveGramsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
 
                 val excessesMsg = createMessage({
                     bounce: BounceMode.NoBounce,

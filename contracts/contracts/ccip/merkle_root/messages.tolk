@@ -30,6 +30,6 @@ fun MerkleRoot_Costs.markState(): int {
     return MERKLE_ROOT_COSTS_MARK_STATE_FEE;
 }
 
-const MERKLE_ROOT_COSTS_MARK_STATE_FEE = ton("0.005");
-const MERKLE_ROOT_COSTS_VALIDATE_FEE = ton("0.012");
+const MERKLE_ROOT_COSTS_MARK_STATE_FEE = grams("0.005");
+const MERKLE_ROOT_COSTS_VALIDATE_FEE = grams("0.012");
 
