@@ -68,7 +68,7 @@ type ChainSpecificAddressCodec_AddressBytesToString_Call struct {
 
 // AddressBytesToString is a helper method to define mock.On call
 //   - bytes []byte
-func (_e *ChainSpecificAddressCodec_Expecter) AddressBytesToString(bytes interface{}) *ChainSpecificAddressCodec_AddressBytesToString_Call {
+func (_e *ChainSpecificAddressCodec_Expecter) AddressBytesToString(bytes any) *ChainSpecificAddressCodec_AddressBytesToString_Call {
 	return &ChainSpecificAddressCodec_AddressBytesToString_Call{Call: _e.mock.On("AddressBytesToString", bytes)}
 }
 
@@ -130,7 +130,7 @@ type ChainSpecificAddressCodec_AddressStringToBytes_Call struct {
 
 // AddressStringToBytes is a helper method to define mock.On call
 //   - s string
-func (_e *ChainSpecificAddressCodec_Expecter) AddressStringToBytes(s interface{}) *ChainSpecificAddressCodec_AddressStringToBytes_Call {
+func (_e *ChainSpecificAddressCodec_Expecter) AddressStringToBytes(s any) *ChainSpecificAddressCodec_AddressStringToBytes_Call {
 	return &ChainSpecificAddressCodec_AddressStringToBytes_Call{Call: _e.mock.On("AddressStringToBytes", s)}
 }
 
@@ -192,7 +192,7 @@ type ChainSpecificAddressCodec_OracleIDAsAddressBytes_Call struct {
 
 // OracleIDAsAddressBytes is a helper method to define mock.On call
 //   - oracleID uint8
-func (_e *ChainSpecificAddressCodec_Expecter) OracleIDAsAddressBytes(oracleID interface{}) *ChainSpecificAddressCodec_OracleIDAsAddressBytes_Call {
+func (_e *ChainSpecificAddressCodec_Expecter) OracleIDAsAddressBytes(oracleID any) *ChainSpecificAddressCodec_OracleIDAsAddressBytes_Call {
 	return &ChainSpecificAddressCodec_OracleIDAsAddressBytes_Call{Call: _e.mock.On("OracleIDAsAddressBytes", oracleID)}
 }
 
@@ -252,7 +252,7 @@ type ChainSpecificAddressCodec_TransmitterBytesToString_Call struct {
 
 // TransmitterBytesToString is a helper method to define mock.On call
 //   - bytes []byte
-func (_e *ChainSpecificAddressCodec_Expecter) TransmitterBytesToString(bytes interface{}) *ChainSpecificAddressCodec_TransmitterBytesToString_Call {
+func (_e *ChainSpecificAddressCodec_Expecter) TransmitterBytesToString(bytes any) *ChainSpecificAddressCodec_TransmitterBytesToString_Call {
 	return &ChainSpecificAddressCodec_TransmitterBytesToString_Call{Call: _e.mock.On("TransmitterBytesToString", bytes)}
 }
 

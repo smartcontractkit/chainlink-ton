@@ -84,9 +84,9 @@ type Client_BatchProposeJob_Call struct {
 //   - ctx context.Context
 //   - in *job.BatchProposeJobRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) BatchProposeJob(ctx interface{}, in interface{}, opts ...interface{}) *Client_BatchProposeJob_Call {
+func (_e *Client_Expecter) BatchProposeJob(ctx any, in any, opts ...any) *Client_BatchProposeJob_Call {
 	return &Client_BatchProposeJob_Call{Call: _e.mock.On("BatchProposeJob",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_BatchProposeJob_Call) Run(run func(ctx context.Context, in *job.BatchProposeJobRequest, opts ...grpc.CallOption)) *Client_BatchProposeJob_Call {
@@ -167,9 +167,9 @@ type Client_DeleteJob_Call struct {
 //   - ctx context.Context
 //   - in *job.DeleteJobRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) DeleteJob(ctx interface{}, in interface{}, opts ...interface{}) *Client_DeleteJob_Call {
+func (_e *Client_Expecter) DeleteJob(ctx any, in any, opts ...any) *Client_DeleteJob_Call {
 	return &Client_DeleteJob_Call{Call: _e.mock.On("DeleteJob",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_DeleteJob_Call) Run(run func(ctx context.Context, in *job.DeleteJobRequest, opts ...grpc.CallOption)) *Client_DeleteJob_Call {
@@ -250,9 +250,9 @@ type Client_DisableNode_Call struct {
 //   - ctx context.Context
 //   - in *node.DisableNodeRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) DisableNode(ctx interface{}, in interface{}, opts ...interface{}) *Client_DisableNode_Call {
+func (_e *Client_Expecter) DisableNode(ctx any, in any, opts ...any) *Client_DisableNode_Call {
 	return &Client_DisableNode_Call{Call: _e.mock.On("DisableNode",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_DisableNode_Call) Run(run func(ctx context.Context, in *node.DisableNodeRequest, opts ...grpc.CallOption)) *Client_DisableNode_Call {
@@ -333,9 +333,9 @@ type Client_EnableNode_Call struct {
 //   - ctx context.Context
 //   - in *node.EnableNodeRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) EnableNode(ctx interface{}, in interface{}, opts ...interface{}) *Client_EnableNode_Call {
+func (_e *Client_Expecter) EnableNode(ctx any, in any, opts ...any) *Client_EnableNode_Call {
 	return &Client_EnableNode_Call{Call: _e.mock.On("EnableNode",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_EnableNode_Call) Run(run func(ctx context.Context, in *node.EnableNodeRequest, opts ...grpc.CallOption)) *Client_EnableNode_Call {
@@ -416,9 +416,9 @@ type Client_GetJob_Call struct {
 //   - ctx context.Context
 //   - in *job.GetJobRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) GetJob(ctx interface{}, in interface{}, opts ...interface{}) *Client_GetJob_Call {
+func (_e *Client_Expecter) GetJob(ctx any, in any, opts ...any) *Client_GetJob_Call {
 	return &Client_GetJob_Call{Call: _e.mock.On("GetJob",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_GetJob_Call) Run(run func(ctx context.Context, in *job.GetJobRequest, opts ...grpc.CallOption)) *Client_GetJob_Call {
@@ -499,9 +499,9 @@ type Client_GetKeypair_Call struct {
 //   - ctx context.Context
 //   - in *csa.GetKeypairRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) GetKeypair(ctx interface{}, in interface{}, opts ...interface{}) *Client_GetKeypair_Call {
+func (_e *Client_Expecter) GetKeypair(ctx any, in any, opts ...any) *Client_GetKeypair_Call {
 	return &Client_GetKeypair_Call{Call: _e.mock.On("GetKeypair",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_GetKeypair_Call) Run(run func(ctx context.Context, in *csa.GetKeypairRequest, opts ...grpc.CallOption)) *Client_GetKeypair_Call {
@@ -582,9 +582,9 @@ type Client_GetNode_Call struct {
 //   - ctx context.Context
 //   - in *node.GetNodeRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) GetNode(ctx interface{}, in interface{}, opts ...interface{}) *Client_GetNode_Call {
+func (_e *Client_Expecter) GetNode(ctx any, in any, opts ...any) *Client_GetNode_Call {
 	return &Client_GetNode_Call{Call: _e.mock.On("GetNode",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_GetNode_Call) Run(run func(ctx context.Context, in *node.GetNodeRequest, opts ...grpc.CallOption)) *Client_GetNode_Call {
@@ -665,9 +665,9 @@ type Client_GetProposal_Call struct {
 //   - ctx context.Context
 //   - in *job.GetProposalRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) GetProposal(ctx interface{}, in interface{}, opts ...interface{}) *Client_GetProposal_Call {
+func (_e *Client_Expecter) GetProposal(ctx any, in any, opts ...any) *Client_GetProposal_Call {
 	return &Client_GetProposal_Call{Call: _e.mock.On("GetProposal",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_GetProposal_Call) Run(run func(ctx context.Context, in *job.GetProposalRequest, opts ...grpc.CallOption)) *Client_GetProposal_Call {
@@ -748,9 +748,9 @@ type Client_ListJobs_Call struct {
 //   - ctx context.Context
 //   - in *job.ListJobsRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) ListJobs(ctx interface{}, in interface{}, opts ...interface{}) *Client_ListJobs_Call {
+func (_e *Client_Expecter) ListJobs(ctx any, in any, opts ...any) *Client_ListJobs_Call {
 	return &Client_ListJobs_Call{Call: _e.mock.On("ListJobs",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_ListJobs_Call) Run(run func(ctx context.Context, in *job.ListJobsRequest, opts ...grpc.CallOption)) *Client_ListJobs_Call {
@@ -831,9 +831,9 @@ type Client_ListKeypairs_Call struct {
 //   - ctx context.Context
 //   - in *csa.ListKeypairsRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) ListKeypairs(ctx interface{}, in interface{}, opts ...interface{}) *Client_ListKeypairs_Call {
+func (_e *Client_Expecter) ListKeypairs(ctx any, in any, opts ...any) *Client_ListKeypairs_Call {
 	return &Client_ListKeypairs_Call{Call: _e.mock.On("ListKeypairs",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_ListKeypairs_Call) Run(run func(ctx context.Context, in *csa.ListKeypairsRequest, opts ...grpc.CallOption)) *Client_ListKeypairs_Call {
@@ -914,9 +914,9 @@ type Client_ListNodeChainConfigs_Call struct {
 //   - ctx context.Context
 //   - in *node.ListNodeChainConfigsRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) ListNodeChainConfigs(ctx interface{}, in interface{}, opts ...interface{}) *Client_ListNodeChainConfigs_Call {
+func (_e *Client_Expecter) ListNodeChainConfigs(ctx any, in any, opts ...any) *Client_ListNodeChainConfigs_Call {
 	return &Client_ListNodeChainConfigs_Call{Call: _e.mock.On("ListNodeChainConfigs",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_ListNodeChainConfigs_Call) Run(run func(ctx context.Context, in *node.ListNodeChainConfigsRequest, opts ...grpc.CallOption)) *Client_ListNodeChainConfigs_Call {
@@ -997,9 +997,9 @@ type Client_ListNodes_Call struct {
 //   - ctx context.Context
 //   - in *node.ListNodesRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) ListNodes(ctx interface{}, in interface{}, opts ...interface{}) *Client_ListNodes_Call {
+func (_e *Client_Expecter) ListNodes(ctx any, in any, opts ...any) *Client_ListNodes_Call {
 	return &Client_ListNodes_Call{Call: _e.mock.On("ListNodes",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_ListNodes_Call) Run(run func(ctx context.Context, in *node.ListNodesRequest, opts ...grpc.CallOption)) *Client_ListNodes_Call {
@@ -1080,9 +1080,9 @@ type Client_ListProposals_Call struct {
 //   - ctx context.Context
 //   - in *job.ListProposalsRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) ListProposals(ctx interface{}, in interface{}, opts ...interface{}) *Client_ListProposals_Call {
+func (_e *Client_Expecter) ListProposals(ctx any, in any, opts ...any) *Client_ListProposals_Call {
 	return &Client_ListProposals_Call{Call: _e.mock.On("ListProposals",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_ListProposals_Call) Run(run func(ctx context.Context, in *job.ListProposalsRequest, opts ...grpc.CallOption)) *Client_ListProposals_Call {
@@ -1163,9 +1163,9 @@ type Client_ProposeJob_Call struct {
 //   - ctx context.Context
 //   - in *job.ProposeJobRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) ProposeJob(ctx interface{}, in interface{}, opts ...interface{}) *Client_ProposeJob_Call {
+func (_e *Client_Expecter) ProposeJob(ctx any, in any, opts ...any) *Client_ProposeJob_Call {
 	return &Client_ProposeJob_Call{Call: _e.mock.On("ProposeJob",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_ProposeJob_Call) Run(run func(ctx context.Context, in *job.ProposeJobRequest, opts ...grpc.CallOption)) *Client_ProposeJob_Call {
@@ -1246,9 +1246,9 @@ type Client_RegisterNode_Call struct {
 //   - ctx context.Context
 //   - in *node.RegisterNodeRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) RegisterNode(ctx interface{}, in interface{}, opts ...interface{}) *Client_RegisterNode_Call {
+func (_e *Client_Expecter) RegisterNode(ctx any, in any, opts ...any) *Client_RegisterNode_Call {
 	return &Client_RegisterNode_Call{Call: _e.mock.On("RegisterNode",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_RegisterNode_Call) Run(run func(ctx context.Context, in *node.RegisterNodeRequest, opts ...grpc.CallOption)) *Client_RegisterNode_Call {
@@ -1329,9 +1329,9 @@ type Client_RevokeJob_Call struct {
 //   - ctx context.Context
 //   - in *job.RevokeJobRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) RevokeJob(ctx interface{}, in interface{}, opts ...interface{}) *Client_RevokeJob_Call {
+func (_e *Client_Expecter) RevokeJob(ctx any, in any, opts ...any) *Client_RevokeJob_Call {
 	return &Client_RevokeJob_Call{Call: _e.mock.On("RevokeJob",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_RevokeJob_Call) Run(run func(ctx context.Context, in *job.RevokeJobRequest, opts ...grpc.CallOption)) *Client_RevokeJob_Call {
@@ -1412,9 +1412,9 @@ type Client_UpdateJob_Call struct {
 //   - ctx context.Context
 //   - in *job.UpdateJobRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) UpdateJob(ctx interface{}, in interface{}, opts ...interface{}) *Client_UpdateJob_Call {
+func (_e *Client_Expecter) UpdateJob(ctx any, in any, opts ...any) *Client_UpdateJob_Call {
 	return &Client_UpdateJob_Call{Call: _e.mock.On("UpdateJob",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_UpdateJob_Call) Run(run func(ctx context.Context, in *job.UpdateJobRequest, opts ...grpc.CallOption)) *Client_UpdateJob_Call {
@@ -1495,9 +1495,9 @@ type Client_UpdateNode_Call struct {
 //   - ctx context.Context
 //   - in *node.UpdateNodeRequest
 //   - opts ...grpc.CallOption
-func (_e *Client_Expecter) UpdateNode(ctx interface{}, in interface{}, opts ...interface{}) *Client_UpdateNode_Call {
+func (_e *Client_Expecter) UpdateNode(ctx any, in any, opts ...any) *Client_UpdateNode_Call {
 	return &Client_UpdateNode_Call{Call: _e.mock.On("UpdateNode",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *Client_UpdateNode_Call) Run(run func(ctx context.Context, in *node.UpdateNodeRequest, opts ...grpc.CallOption)) *Client_UpdateNode_Call {
