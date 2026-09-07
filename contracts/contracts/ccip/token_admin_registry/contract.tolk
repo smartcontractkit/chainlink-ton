@@ -3,6 +3,8 @@ import "messages"
 import "storage"
 import "types"
 import "errors"
+import "../../lib/utils"
+import "events"
 
 import "../../lib/access/ownable_2step"
 import "../../lib/deployable/types"
@@ -87,15 +89,15 @@ fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: a
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
-    createExternalLogMessage({ dest: createAddressNone(), body: event }).send(SEND_MODE_REGULAR);
+    emit(ADMINISTRATOR_TRANSFER_REQUESTED_TOPIC, event);
 }
 
 fun emitAdministratorTransferred(event: TokenAdminRegistry_AdministratorTransferred) {
-    createExternalLogMessage({ dest: createAddressNone(), body: event }).send(SEND_MODE_REGULAR);
+    emit(ADMINISTRATOR_TRANSFERRED_TOPIC, event);
 }
 
 fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
-    createExternalLogMessage({ dest: createAddressNone(), body: event }).send(SEND_MODE_REGULAR);
+    emit(POOL_SET_TOPIC, event);
 }
 
 /// Deploys a deterministic shard with an unclaimed administrator proposal.
@@ -181,5 +183,5 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.ccip.TokenAdminRegistry".literalSlice(), CONTRACT_VERSION);
+    return (TokenAdminRegistry_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }

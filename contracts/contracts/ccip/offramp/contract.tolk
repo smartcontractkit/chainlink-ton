@@ -913,10 +913,11 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
 
+    val deployables = st.deployables.load();
     val registryAddress = TokenAdminRegistryEntry.deriveAddress(
-        st.deployables.load().deployer,
+        deployables.deployer,
         tokenTransfer.token,
-        st.deployables.load().tokenAdminRegistry,
+        deployables.tokenAdminRegistry,
     ).calculateAddress();
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,

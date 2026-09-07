@@ -108,7 +108,7 @@ describe('TokenAdminRegistry', () => {
           // test registry distinct while reusing the same sandbox accounts.
           id: ++nextRegistryId,
           ownable: tar.Ownable2Step.create({ owner: owner.address }),
-          entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
+          entryDeployment: tar.TokenAdminRegistryEntryDeployment.create({
             deployableCode,
             entryCode,
           }),
@@ -133,7 +133,7 @@ describe('TokenAdminRegistry', () => {
   })
 
   it('allows only the root owner to change entry deployment configuration', async () => {
-    const deployment = tar.TokenAdminRegistry_EntryDeployment.create({
+    const deployment = tar.TokenAdminRegistryEntryDeployment.create({
       deployableCode: Cell.EMPTY,
       entryCode: Cell.EMPTY,
     })
@@ -154,7 +154,7 @@ describe('TokenAdminRegistry', () => {
       owner.getSender(),
       toNano('0.05'),
       {
-        entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
+        entryDeployment: tar.TokenAdminRegistryEntryDeployment.create({
           deployableCode,
           entryCode,
         }),
@@ -197,7 +197,7 @@ describe('TokenAdminRegistry', () => {
       owner.getSender(),
       toNano('0.05'),
       {
-        entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
+        entryDeployment: tar.TokenAdminRegistryEntryDeployment.create({
           deployableCode,
           entryCode,
         }),
@@ -214,7 +214,7 @@ describe('TokenAdminRegistry', () => {
       other.getSender(),
       toNano('0.05'),
       {
-        entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
+        entryDeployment: tar.TokenAdminRegistryEntryDeployment.create({
           deployableCode,
           entryCode,
         }),

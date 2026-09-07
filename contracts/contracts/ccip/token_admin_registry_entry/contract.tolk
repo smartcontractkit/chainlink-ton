@@ -61,7 +61,7 @@ fun onRegistrationInitialized(sender: address) {
     assert(sender == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
     assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
         throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
-    emitAdministratorTransferRequested(st.tokenAddress, null, adminConfig.pendingAdministrator);
+    notifyAdministratorTransferRequested(st.tokenAddress, null, adminConfig.pendingAdministrator);
 }
 
 fun onSetTokenInfo(msg: TokenAdminRegistryEntry_SetTokenInfo, sender: address) {
@@ -81,7 +81,7 @@ fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator, se
     adminConfig.pendingAdministrator = msg.administrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    emitAdministratorTransferRequested(st.tokenAddress, adminConfig.administrator, msg.administrator);
+    notifyAdministratorTransferRequested(st.tokenAddress, adminConfig.administrator, msg.administrator);
 }
 
 fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole, sender: address) {
@@ -92,7 +92,7 @@ fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole, sender: 
     adminConfig.pendingAdministrator = msg.newAdministrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    emitAdministratorTransferRequested(st.tokenAddress, currentAdministrator, msg.newAdministrator);
+    notifyAdministratorTransferRequested(st.tokenAddress, currentAdministrator, msg.newAdministrator);
 }
 
 fun onAcceptAdminRole(sender: address) {
@@ -103,7 +103,7 @@ fun onAcceptAdminRole(sender: address) {
     adminConfig.pendingAdministrator = null;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    emitAdministratorTransferred(st.tokenAddress, sender);
+    notifyAdministratorTransferred(st.tokenAddress, sender);
 }
 
 fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
@@ -118,7 +118,7 @@ fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
     st.store();
 
     if (previousPool != msg.tokenPool || previousEnabled != msg.enabled) {
-        emitPoolSet(st.tokenAddress, previousPool, msg.tokenPool, previousEnabled, msg.enabled);
+        notifyPoolSet(st.tokenAddress, previousPool, msg.tokenPool, previousEnabled, msg.enabled);
     }
 }
 
@@ -141,7 +141,7 @@ fun onGetTokenInfo(sender: address) {
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun emitAdministratorTransferRequested(token: address, currentAdministrator: address?, newAdministrator: address?) {
+fun notifyAdministratorTransferRequested(token: address, currentAdministrator: address?, newAdministrator: address?) {
     notifyRoot(TokenAdminRegistry_AdministratorTransferRequested {
             token,
             currentAdministrator,
@@ -149,14 +149,14 @@ fun emitAdministratorTransferRequested(token: address, currentAdministrator: add
     }.toCell());
 }
 
-fun emitAdministratorTransferred(token: address, newAdministrator: address) {
+fun notifyAdministratorTransferred(token: address, newAdministrator: address) {
     notifyRoot(TokenAdminRegistry_AdministratorTransferred {
             token,
             newAdministrator,
     }.toCell());
 }
 
-fun emitPoolSet(token: address, previousPool: address, newPool: address, previousEnabled: bool, newEnabled: bool) {
+fun notifyPoolSet(token: address, previousPool: address, newPool: address, previousEnabled: bool, newEnabled: bool) {
     notifyRoot(TokenAdminRegistry_PoolSet {
             token,
             previousPool,

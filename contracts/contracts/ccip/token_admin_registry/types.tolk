@@ -1,6 +1,6 @@
 import "../../lib/access/ownable_2step"
 
-struct TokenAdminRegistry_EntryDeployment {
+struct TokenAdminRegistryEntryDeployment {
     deployableCode: cell;
     entryCode: cell;
 }

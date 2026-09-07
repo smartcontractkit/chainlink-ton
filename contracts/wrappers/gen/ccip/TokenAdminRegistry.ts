@@ -163,19 +163,19 @@ export const ContractState = {
 
 /**
  > struct (0x3ec09499) TokenAdminRegistry_SetEntryDeployment {
- >     entryDeployment: TokenAdminRegistry_EntryDeployment
+ >     entryDeployment: TokenAdminRegistryEntryDeployment
  > }
  */
 export interface TokenAdminRegistry_SetEntryDeployment {
     readonly $: 'TokenAdminRegistry_SetEntryDeployment'
-    entryDeployment: TokenAdminRegistry_EntryDeployment
+    entryDeployment: TokenAdminRegistryEntryDeployment
 }
 
 export const TokenAdminRegistry_SetEntryDeployment = {
     PREFIX: 0x3ec09499,
 
     create(args: {
-        entryDeployment: TokenAdminRegistry_EntryDeployment
+        entryDeployment: TokenAdminRegistryEntryDeployment
     }): TokenAdminRegistry_SetEntryDeployment {
         return {
             $: 'TokenAdminRegistry_SetEntryDeployment',
@@ -186,12 +186,12 @@ export const TokenAdminRegistry_SetEntryDeployment = {
         loadAndCheckPrefix32(s, 0x3ec09499, 'TokenAdminRegistry_SetEntryDeployment');
         return {
             $: 'TokenAdminRegistry_SetEntryDeployment',
-            entryDeployment: TokenAdminRegistry_EntryDeployment.fromSlice(s),
+            entryDeployment: TokenAdminRegistryEntryDeployment.fromSlice(s),
         }
     },
     store(self: TokenAdminRegistry_SetEntryDeployment, b: c.Builder): void {
         b.storeUint(0x3ec09499, 32);
-        TokenAdminRegistry_EntryDeployment.store(self.entryDeployment, b);
+        TokenAdminRegistryEntryDeployment.store(self.entryDeployment, b);
     },
     toCell(self: TokenAdminRegistry_SetEntryDeployment): c.Cell {
         return makeCellFrom<TokenAdminRegistry_SetEntryDeployment>(self, TokenAdminRegistry_SetEntryDeployment.store);
@@ -437,21 +437,21 @@ export const TokenAdminRegistry_PoolSet = {
  > struct TokenAdminRegistry_Storage {
  >     id: uint32
  >     ownable: Ownable2Step
- >     entryDeployment: TokenAdminRegistry_EntryDeployment
+ >     entryDeployment: TokenAdminRegistryEntryDeployment
  > }
  */
 export interface TokenAdminRegistry_Storage {
     readonly $: 'TokenAdminRegistry_Storage'
     id: uint32
     ownable: Ownable2Step
-    entryDeployment: TokenAdminRegistry_EntryDeployment
+    entryDeployment: TokenAdminRegistryEntryDeployment
 }
 
 export const TokenAdminRegistry_Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        entryDeployment: TokenAdminRegistry_EntryDeployment
+        entryDeployment: TokenAdminRegistryEntryDeployment
     }): TokenAdminRegistry_Storage {
         return {
             $: 'TokenAdminRegistry_Storage',
@@ -463,13 +463,13 @@ export const TokenAdminRegistry_Storage = {
             $: 'TokenAdminRegistry_Storage',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
-            entryDeployment: TokenAdminRegistry_EntryDeployment.fromSlice(s),
+            entryDeployment: TokenAdminRegistryEntryDeployment.fromSlice(s),
         }
     },
     store(self: TokenAdminRegistry_Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
-        TokenAdminRegistry_EntryDeployment.store(self.entryDeployment, b);
+        TokenAdminRegistryEntryDeployment.store(self.entryDeployment, b);
     },
     toCell(self: TokenAdminRegistry_Storage): c.Cell {
         return makeCellFrom<TokenAdminRegistry_Storage>(self, TokenAdminRegistry_Storage.store);
@@ -477,50 +477,51 @@ export const TokenAdminRegistry_Storage = {
 }
 
 /**
- > struct TokenAdminRegistry_EntryDeployment {
+ > struct TokenAdminRegistryEntryDeployment {
  >     deployableCode: cell
  >     entryCode: cell
  > }
  */
-export interface TokenAdminRegistry_EntryDeployment {
-    readonly $: 'TokenAdminRegistry_EntryDeployment'
+export interface TokenAdminRegistryEntryDeployment {
+    readonly $: 'TokenAdminRegistryEntryDeployment'
     deployableCode: c.Cell
     entryCode: c.Cell
 }
 
-export const TokenAdminRegistry_EntryDeployment = {
+export const TokenAdminRegistryEntryDeployment = {
     create(args: {
         deployableCode: c.Cell
         entryCode: c.Cell
-    }): TokenAdminRegistry_EntryDeployment {
+    }): TokenAdminRegistryEntryDeployment {
         return {
-            $: 'TokenAdminRegistry_EntryDeployment',
+            $: 'TokenAdminRegistryEntryDeployment',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenAdminRegistry_EntryDeployment {
+    fromSlice(s: c.Slice): TokenAdminRegistryEntryDeployment {
         return {
-            $: 'TokenAdminRegistry_EntryDeployment',
+            $: 'TokenAdminRegistryEntryDeployment',
             deployableCode: s.loadRef(),
             entryCode: s.loadRef(),
         }
     },
-    store(self: TokenAdminRegistry_EntryDeployment, b: c.Builder): void {
+    store(self: TokenAdminRegistryEntryDeployment, b: c.Builder): void {
         b.storeRef(self.deployableCode);
         b.storeRef(self.entryCode);
     },
-    toCell(self: TokenAdminRegistry_EntryDeployment): c.Cell {
-        return makeCellFrom<TokenAdminRegistry_EntryDeployment>(self, TokenAdminRegistry_EntryDeployment.store);
+    toCell(self: TokenAdminRegistryEntryDeployment): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntryDeployment>(self, TokenAdminRegistryEntryDeployment.store);
     }
 }
 
 /**
- > enum TokenAdminRegistry_Error { 1 variants }
+ > enum TokenAdminRegistry_Error { 2 variants }
  */
 export type TokenAdminRegistry_Error = bigint
 
 export const TokenAdminRegistry_Error = {
     UnauthorizedEntry: 50800n,
+    UnknownMessage: 50801n,
 
     fromSlice(s: c.Slice): TokenAdminRegistry_Error {
         return s.loadUintBig(16);
@@ -962,13 +963,14 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEwEABAwAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgPEAS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsIKBY9IzjAtcsJxY6baSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gDgL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AvpI1PpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOUjD6UsmCCvrwgAPQ+kj6SNIA0x/R+ChtAcj6UvpUFvpUyQfI+lIT+lL6UsoAEssfE8zJggjk4cDIz5DFYAmmyciJzxYWzAoLANYx7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AH6SPpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOEvpSyYII5OHAyM+JCAFTJMjPhNDMzPkWzwv/AfoCgQCMzwtwE8wSzM+Qx0rtuvpSyXD7AADUMe1E0NMfMfpIMfpQMdTUMdEB+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAFyM+E0MzM+RbIz4oAQMv/z1AEggDGcAXHBRTy9IsCyM+QUCx6RhP6UvpUEvpUycjPhyASznHPC2HMyXD7AAL8jmYx7UTQ0x8x+kgx+lAx1NQx0QH6SPpIMPiS+CjI+lLPkAAAAA5SMPpSyVAEyM+E0MzM+RbIz4oAQMv/z1ADggDGcATHBRPy9IsCyM+Tix020hL6UhL6UsnIz4cgEs5xzwthzMlw+wDg1ywmd4DUPOMCMO1E0NYf+kj6UPiSDA0ACLDsUVcAWhLMAfoCE8zJyM+JCAFTJMjPhNDMzPkWzwv/UAP6AoEAjc8LcBPMEszMyXD7AADmMe1E0NMfMfpIMfpQMdTUMdEB+kj6SPpI0gDXCgD4kvgoyPpSz5AAAAAOUmD6UslQB8jPhNDMzPkWyM+KAEDL/89QBoIAxnAHxwUW8vSLAsjPkzvAah4V+lIT+lL6UsoAEsoAycjPhyASznHPC2HMyXD7AAA8QzAl8AGeNALIzhL6UhL6VM7J7VTgXwSEDwHHAPL0AGZsEtM/+kgwggDCiFE0xwUT8vSCAMKJUyPHBbPy9CGLAsjPhyDOcM8LYRLLPxL6Uslw+wAAZbkV+NCZsaW5rLmNoYWluLnRvbi5jY2lwLlRva2VuQWRtaW5SZWdpc3RyeYItTEuNi4wiAIBIBESABe0o72omhpj5j9JBhAAHbddfaiaGmPmP0kGP0oGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEwEABB8AART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgPEAS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsIKBY9IzjAtcsJxY6baSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gDgL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AvpI1PpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOUjD6UsmCCvrwgAPQ+kj6SNIA0x/R+ChtAcj6UvpUFvpUyQfI+lIT+lL6UsoAEssfE8zJggjk4cDIz5DFYAmmyciJzxYWzAoLANYx7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AH6SPpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOEvpSyYII5OHAyM+JCAFTJMjPhNDMzPkWzwv/AfoCgQCMzwtwE8wSzM+Qx0rtuvpSyXD7AADgMe1E0NMfMfpIMfpQMdTUMdEB+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAFyM+E0MzM+RbIz4oAQMv/z1AEggDGcAXHBRTy9MjPkFAsekYS+lL6VPpUycjPjxgABIIQBE3nac8L93HPC2HMyXD7AAL+jmsx7UTQ0x8x+kgx+lAx1NQx0QH6SPpIMPiS+CjI+lLPkAAAAA5SMPpSyVAEyM+E0MzM+RbIz4oAQMv/z1ADggDGcATHBRPy9MjPk4sdNtL6UvpSycjPjxgABIIQTkm3hc8L93HPC2HMyXD7AODXLCZ3gNQ84wIw7UTQ1h/6SAwNAAiw7FFXAFoSzAH6AhPMycjPiQgBUyTIz4TQzMz5Fs8L/1AD+gKBAI3PC3ATzBLMzMlw+wAA8jHtRNDTHzH6SDH6UDHU1DHRAfpI+kj6SNIA1woA+JL4KMj6Us+QAAAADlJg+lLJUAfIz4TQzMz5FsjPigBAy//PUAaCAMZwB8cFFvL0yM+TO8BqHhT6UhL6UvpSygDKAMnIz48YAASCEAyRmU/PC/dxzwthzMlw+wAASPpQ+JJDMCXwAZ40AsjOEvpSEvpUzsntVOBfBIIAxnEBxwDy9ABmbBLTP/pIMIIAwohRNMcFE/L0ggDCiVMjxwWz8vQhiwLIz4cgznDPC2ESyz8S+lLJcPsAAGW5FfjQmbGluay5jaGFpbi50b24uY2NpcC5Ub2tlbkFkbWluUmVnaXN0cnmCLUxLjYuMIgCASAREgAXtKO9qJoaY+Y/SQYQAB23XX2omhpj5j9JBj9KBhA=');
 
     static Errors = {
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
         'TokenAdminRegistry_Error.UnauthorizedEntry': 50800,
+        'TokenAdminRegistry_Error.UnknownMessage': 50801,
     }
 
     readonly address: c.Address
@@ -986,7 +988,7 @@ export class TokenAdminRegistry implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        entryDeployment: TokenAdminRegistry_EntryDeployment
+        entryDeployment: TokenAdminRegistryEntryDeployment
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenAdminRegistry.CodeCell,
@@ -997,7 +999,7 @@ export class TokenAdminRegistry implements c.Contract {
     }
 
     static createCellOfTokenAdminRegistrySetEntryDeployment(body: {
-        entryDeployment: TokenAdminRegistry_EntryDeployment
+        entryDeployment: TokenAdminRegistryEntryDeployment
     }) {
         return TokenAdminRegistry_SetEntryDeployment.toCell(TokenAdminRegistry_SetEntryDeployment.create(body));
     }
@@ -1072,7 +1074,7 @@ export class TokenAdminRegistry implements c.Contract {
     }
 
     async sendTokenAdminRegistrySetEntryDeployment(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        entryDeployment: TokenAdminRegistry_EntryDeployment
+        entryDeployment: TokenAdminRegistryEntryDeployment
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

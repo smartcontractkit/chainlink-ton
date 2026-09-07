@@ -4,7 +4,7 @@ import "types"
 struct TokenAdminRegistry_Storage {
     id: uint32;
     ownable: Ownable2Step;
-    entryDeployment: TokenAdminRegistry_EntryDeployment;
+    entryDeployment: TokenAdminRegistryEntryDeployment;
 }
 
 fun TokenAdminRegistry_Storage.load(): TokenAdminRegistry_Storage {

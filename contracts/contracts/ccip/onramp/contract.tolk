@@ -272,8 +272,6 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     var tokenRegistry: address? = null;
     val tokenAmounts = payload.msg.load().tokenAmounts;
     if (!tokenAmounts.empty()) {
-        // The Router deliberately does not supply this address. The OnRamp
-        // derives the entry from its configured standalone registry root.
         val token = tokenAmounts.iter().next().token;
         tokenRegistry = TokenAdminRegistryEntry.deriveAddress(
             deployables.getExecutorDeployment().deployableCode,
