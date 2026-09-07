@@ -25,7 +25,7 @@ graph LR
     OFR -->|3. InitExecute| RE
     RE -->|4. DispatchValidated| OFR
     OFR -->|5. RouteMessage| R
-    R -->|6. CCIPReceive| RCV
+    R -->|6. Receiver_CCIPReceiveV2| RCV
     RCV -->|7. CCIPReceiveConfirm| R
     R -->|8. CCIPReceiveConfirm| OFR
 ```
@@ -99,7 +99,7 @@ sequenceDiagram
     Note over RE: [...]
     else
 
-    OR ->> R: RouteMessage { dest: receiver,<br>message: CCIPReceive { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    OR ->> R: RouteMessage { dest: receiver,<br>message: Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
     deactivate OR
 
 
@@ -124,7 +124,7 @@ graph LR
     OFR["OffRamp"]
     RE["ReceiveExecutor"]
 
-    R -->|1. CCIPReceive| RCV
+    R -->|1. Receiver_CCIPReceiveV2| RCV
     RCV -->|2. CCIPReceiveConfirm| R
     R -->|3. CCIPReceiveConfirm| OFR
     OFR -->|4. Confirm| RE
@@ -176,8 +176,8 @@ graph LR
     OFR["OffRamp"]
     RE["ReceiveExecutor"]
 
-    R -->|1. CCIPReceive| RCV
-    RCV -->|2. Bounced CCIPReceive| R
+    R -->|1. Receiver_CCIPReceiveV2| RCV
+    RCV -->|2. Bounced Receiver_CCIPReceiveV2| R
     R -->|3. CCIPReceiveBounced| OFR
     OFR -->|4. Bounced| RE
     RE -->|5. NotifyFailure| OFR
@@ -191,7 +191,7 @@ sequenceDiagram
 
 
     activate R
-    Note over R: RECEIVES Bounced<br>CCIPReceive { execId }
+    Note over R: RECEIVES Bounced<br>Receiver_CCIPReceiveV2 { execId }
     R ->> OR: CCIPReceiveBounced { sender }
     deactivate R
 

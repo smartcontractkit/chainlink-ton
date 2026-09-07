@@ -47,11 +47,8 @@ export function opMapFunc(): OpMapFunc {
     'OffRamp::In::updateSourceChainConfigs',
   )
   opcodeMap.set(offRamp.OCR3Base_SetOCR3Config.PREFIX, 'OffRamp::In::setOCR3Config')
-  // Object.entries(testReceiver.opcodes.in).forEach(([name, code]) => {
-  //   opcodeMap.set(code, `TestReceiver::In::${name}`)
-  // })
   const testReceiverOpcodes: Array<[string, number]> = [
-    ['CCIPReceive', testReceiver.CCIPReceive.PREFIX],
+    ['Receiver_CCIPReceiveV2', testReceiver.Receiver_CCIPReceiveV2.PREFIX],
     ['TestReceiver_UpdateBehavior', testReceiver.TestReceiver_UpdateBehavior.PREFIX],
     [
       'TestReceiver_UpdateAuthorizedCaller',

@@ -262,7 +262,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
       // We are lazy matching and only accessing the first element of the struct.
       // The rest of the data is not a part of the bounced body so it cannot be accessed
-      CCIPReceive => { onCCIPReceiveBounced(msg.execId, in.senderAddress) }
+      Receiver_CCIPReceiveV2 => { onCCIPReceiveBounced(msg.execId, in.senderAddress) }
       // We cannot take any action if the OffRamp is bouncing the Router messages other than to emit an event for visibility
       OffRamp_CCIPReceiveConfirm => {
         emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
@@ -289,9 +289,9 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage (process)
-//     Router          ->> Receiver: CCIPReceive
+//     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
-    val ccipReceive: CCIPReceive = {
+    val ccipReceive: Receiver_CCIPReceiveV2 = {
         execId: msg.execId,
         message,
     };
@@ -408,7 +408,7 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
 
 //     ReceiveExecutor ->> OffRamp:         OffRamp_DispatchValidated
 //     OffRamp         ->> Router:          Router_RouteMessage
-//     Router          ->> Receiver:        CCIPReceive
+//     Router          ->> Receiver:        Receiver_CCIPReceiveV2
 //     Receiver        ->> Router:          Router_CCIPReceiveConfirm (process)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveConfirm
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
@@ -443,8 +443,8 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 
 //     ReceiveExecutor ->> OffRamp:         OffRamp_DispatchValidated
 //     OffRamp         ->> Router:          Router_RouteMessage
-//     Router          ->> Receiver:        CCIPReceive
-//     Receiver        ->> Router:          CCIPReceive (bounce, process)
+//     Router          ->> Receiver:        Receiver_CCIPReceiveV2
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2 (bounce, process)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
 fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {

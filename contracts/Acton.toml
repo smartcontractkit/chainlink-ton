@@ -68,7 +68,7 @@ depends = []
 
 [contracts.Receiver]
 display-name = "link.chain.ton.ccip.lib.Receiver"
-src = "contracts/lib/receiver/wrapper.tolk"
+src = "contracts/lib/receiver/CCIPReceiver.tolk"
 domain = "ccip"
 depends = []
 

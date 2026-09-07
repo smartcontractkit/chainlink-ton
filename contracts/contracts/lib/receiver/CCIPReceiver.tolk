@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 // NOTE: This is a stub contract for tooling to generate bindings.
-// TODO exclude from published release artifacts
 
 import "messages";
 
@@ -19,7 +18,7 @@ contract CCIPReceiver {
 
 struct MockCCIPReceiver_Storage {}
 
-type CCIPReceiver_InMessage = CCIPReceive
+type CCIPReceiver_InMessage = Receiver_CCIPReceiveV2
 
 fun onInternalMessage(_: InMessage) {
     throw 0xFFFF; // template for bindings, should not be deployed

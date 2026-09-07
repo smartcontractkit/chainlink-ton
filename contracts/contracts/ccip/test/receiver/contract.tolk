@@ -39,14 +39,14 @@ struct CCIPMessageReceived {
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TestReceiver_InMessage.fromSlice(in.body);
     match (msg) {
-        CCIPReceive => {
+        Receiver_CCIPReceiveV2 => {
             var st = lazy Storage.load();
             // Standard way for a receiver to be implemented:
 
             // 1. Check that enough value is received to process this message (you should benchmark accordingly)
             assert( in.valueCoins >= ton("0.03") ) throw (Receiver_Error.LowValue);
 
-            // 2. Check CCIPReceive only comes from router
+            // 2. Check Receiver_CCIPReceiveV2 only comes from router
             assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized);
 
             // 3. Process the message according to your product logic
@@ -99,7 +99,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun processAccept(msg: CCIPReceive, senderAddress: address) {
+fun processAccept(msg: Receiver_CCIPReceiveV2, senderAddress: address) {
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message.load(),
     });

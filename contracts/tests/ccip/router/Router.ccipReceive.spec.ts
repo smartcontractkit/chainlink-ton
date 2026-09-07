@@ -75,7 +75,7 @@ describe('Router', () => {
       to: receiver.address,
       success: true,
       value: toNano('0.5'),
-      op: rec.CCIPReceive.PREFIX,
+      op: rec.Receiver_CCIPReceiveV2.PREFIX,
     })
   })
 

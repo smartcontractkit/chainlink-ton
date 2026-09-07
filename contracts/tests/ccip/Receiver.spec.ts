@@ -40,7 +40,7 @@ async function deployReceiverContract(
   return contract
 }
 
-const ccipReceiveSampleMessage = r.CCIPReceive.create({
+const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
   execId: 1n,
   message: rt.Any2TVMMessage.create({
     messageId: 1n,
@@ -152,7 +152,7 @@ describe('Receiver', () => {
   })
 
   it('should emit an event when calling with the right sender', async () => {
-    const result = await receiver.sendCCIPReceive(
+    const result = await receiver.sendReceiverCCIPReceiveV2(
       deployer.getSender(),
       toNano('1'),
       ccipReceiveSampleMessage,
@@ -163,7 +163,7 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: r.CCIPReceive.toCell(ccipReceiveSampleMessage),
+      body: r.Receiver_CCIPReceiveV2.toCell(ccipReceiveSampleMessage),
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -187,7 +187,7 @@ describe('Receiver', () => {
   })
 
   it('should failed with unauthorized when calling ccipReceive with a different sender as the router address', async () => {
-    const result = await receiver.sendCCIPReceive(
+    const result = await receiver.sendReceiverCCIPReceiveV2(
       unauthorized.getSender(),
       toNano('1'),
       ccipReceiveSampleMessage,
@@ -262,7 +262,7 @@ describe('Receiver', () => {
     expect(newBehavior).toEqual(tr.TestReceiver_Behavior.RejectAll)
 
     // Send new ccipReceive expecting to bounce
-    const result = await receiver.sendCCIPReceive(
+    const result = await receiver.sendReceiverCCIPReceiveV2(
       deployer.getSender(),
       toNano('1'),
       ccipReceiveSampleMessage,
@@ -300,7 +300,7 @@ describe('Receiver', () => {
     expect(newBehavior).toEqual(tr.TestReceiver_Behavior.ConsumeAllGas)
 
     // Send new ccipReceive expecting to run out of gas
-    const result = await receiver.sendCCIPReceive(
+    const result = await receiver.sendReceiverCCIPReceiveV2(
       deployer.getSender(),
       toNano('1'),
       ccipReceiveSampleMessage,
@@ -319,7 +319,7 @@ describe('Receiver', () => {
     const contract = await blockchain.getContract(receiver.address)
     const initialBalance = contract.balance
 
-    const result = await receiver.sendCCIPReceive(
+    const result = await receiver.sendReceiverCCIPReceiveV2(
       deployer.getSender(),
       toNano('1'),
       ccipReceiveSampleMessage,
@@ -329,7 +329,7 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: r.CCIPReceive.toCell(ccipReceiveSampleMessage),
+      body: r.Receiver_CCIPReceiveV2.toCell(ccipReceiveSampleMessage),
     })
 
     const tx = result.transactions.find(

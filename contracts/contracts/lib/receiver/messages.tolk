@@ -3,7 +3,7 @@ import "types"
 import "errors"
 import "../../ccip/router/messages"
 
-struct (0x4b15e3e8) CCIPReceive {
+struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
     execId: uint192; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
     message: Cell<Any2TVMMessage>;
 }
@@ -31,10 +31,10 @@ struct Receiver_ConfirmOpts {
     sendMode: uint8 = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE;
 }
 
-fun CCIPReceive.validateAndConfirm(self, opts: Receiver_ValidateOptions) {
+fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptions) {
     // Standard for every receiver to implement:
 
-    // 1. Check CCIPReceive only comes from router
+    // 1. Check Receiver_CCIPReceiveV2 only comes from router
     assert( opts.inMsg.senderAddress == opts.router) throw (Receiver_Error.Unauthorized);
 
     // 2. Check that enough value is sent
