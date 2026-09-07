@@ -22,7 +22,7 @@ const (
 
 	// Opcode (crc32("JettonWithdrawableWithdraw")) of the WithdrawContext stored
 	// in the ForwardPayloadWrap
-	WithdrawContextOpcode = 0x943e281e
+	WithdrawContextOpcode = 0x0196a077
 
 	// Opcode (crc32("Jetton_ForwardPayloadWrap")) of the generic Jetton_ForwardPayloadWrap
 	// cell carried in a relayed AskToTransfer.forwardPayload.

@@ -55,7 +55,7 @@ struct JettonWithdrawable_FeeTokenWithdrawn {
 /// Tag on a relayed fee-withdrawal `AskToTransfer` so a bounce knows it is a fee withdrawal.
 /// Stored as the `context` of a `Jetton_ForwardPayloadWrap`; the wrap's `initiator` is the
 /// recipient of the failure report.
-struct (0x943e281e) JettonWithdrawable_WithdrawContext {}
+struct (0x0196a077) JettonWithdrawable_WithdrawContext {}
 
 /// Failure reported to a withdrawal initiator when their fee-withdraw `AskToTransfer` bounced.
 struct JettonWithdrawable_WithdrawFailed {
