@@ -410,7 +410,7 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
           amount,
           {
             queryId: BigInt(Math.floor(Math.random() * 10000)),
-            code: beginCell().endCell(), // Dummy code
+            code: Cell.EMPTY, // Dummy code
           },
         )
 

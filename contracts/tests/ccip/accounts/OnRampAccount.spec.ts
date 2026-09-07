@@ -8,7 +8,7 @@ import {
   DepositAccount_WithdrawFailed,
 } from '../../../wrappers/gen/ccip/OnRampAccount'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import * as jetton from '../../../wrappers/jetton/JettonCode'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   let blockchain: Blockchain
@@ -81,8 +81,8 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     router = await blockchain.treasury('router')
     attacker = await blockchain.treasury('attacker')
 
-    jettonWalletCode = await jetton.JettonWalletCode()
-    const jettonMinterCode = await jetton.JettonMinterCode()
+    jettonWalletCode = await contractCode.jetton('JettonWallet')
+    const jettonMinterCode = await contractCode.jetton('JettonMinter')
 
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
@@ -123,7 +123,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload: ForwardPayloadRemainder.fromSlice(beginCell().endCell().beginParse()),
+      forwardPayload: ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
     })
 
   it('deploys with owner and proxy (Router) and is not yet initialized', async () => {
