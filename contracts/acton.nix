@@ -7,10 +7,6 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: let
         target = "aarch64-apple-darwin";
         hash = "sha256-RLD82Sjxlq6bp+sIjorFGxVek/4lBIhFO1lCfD1jwhY=";
       };
-      x86_64-darwin = {
-        target = "x86_64-apple-darwin";
-        hash = "sha256-HxpJyiHYYMbqKWUZNuLd3lIBRO31Kyo8pyLeHWNH82Q=";
-      };
       aarch64-linux = {
         target = "aarch64-unknown-linux-gnu";
         hash = "sha256-kJ7tT5Bv/FntBih+lBECwEyzkiodfoRBR4pUYws5tXM=";
@@ -46,6 +42,6 @@ in {
     homepage = "https://ton-blockchain.github.io/acton";
     license = with licenses; [mit asl20];
     mainProgram = "acton";
-    platforms = ["aarch64-darwin" "x86_64-darwin" "aarch64-linux" "x86_64-linux"];
+    platforms = ["aarch64-darwin" "aarch64-linux" "x86_64-linux"];
   };
 })
