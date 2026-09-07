@@ -11,12 +11,13 @@ import (
 	"time"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+
+	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
@@ -191,7 +192,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 		return fmt.Errorf("failed to parse receiver address: %w", err)
 	}
 
-	lggr.Infow("Waiting for CCIPReceive event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
+	lggr.Infow("Waiting for Receiver_CCIPReceiveV2 event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
 
 	// Setup logpoller service
 	eventName := "Receiver_CCIPMessageReceived"
@@ -243,7 +244,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 			return ctx.Err()
 
 		case <-progressTicker.C:
-			lggr.Infow("Still waiting for CCIPReceive",
+			lggr.Infow("Still waiting for Receiver_CCIPReceiveV2",
 				"receiver", lib.RedactAddress(receiver),
 				"elapsed", time.Since(startTime).Round(time.Second).String())
 
