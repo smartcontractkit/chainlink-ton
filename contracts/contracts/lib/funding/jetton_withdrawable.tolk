@@ -52,15 +52,10 @@ struct JettonWithdrawable_FeeTokenWithdrawn {
     amount: coins;
 }
 
-/// Opcode identifying a `JettonWithdrawable_WithdrawContext` inside a
-/// `Jetton_ForwardPayloadWrap.context` cell, distinguishing fee withdrawals from other asks.
-const JettonWithdrawable_WITHDRAW_OPCODE = "JettonWithdrawableWithdraw".crc32();
-
 /// Tag on a relayed fee-withdrawal `AskToTransfer` so a bounce knows it is a fee withdrawal.
-/// Stored as the `context` of a `Jetton_ForwardPayloadWrap`;
-struct JettonWithdrawable_WithdrawContext {
-    opcode: uint32;
-}
+/// Stored as the `context` of a `Jetton_ForwardPayloadWrap`; the wrap's `initiator` is the
+/// recipient of the failure report.
+struct (0x943e281e) JettonWithdrawable_WithdrawContext {}
 
 /// Failure reported to a withdrawal initiator when their fee-withdraw `AskToTransfer` bounced.
 struct JettonWithdrawable_WithdrawFailed {
@@ -78,12 +73,11 @@ fun JettonWithdrawable.parseWithdrawWrap(ask: AskToTransfer): Jetton_ForwardPayl
         return null;
     }
 
-    val opcode = wrap!.context!.beginParse().loadUint(32);
-    if (opcode != JettonWithdrawable_WITHDRAW_OPCODE) {
-        return null;
+    val ctx = lazy JettonWithdrawable_WithdrawContext.fromCell(wrap!.context!);
+    match (ctx) {
+        JettonWithdrawable_WithdrawContext => { return wrap; }
+        else => { return null; }
     }
-
-    return wrap;
 }
 
 /// Withdraws accrued fee jettons by relaying the provided transfers to the given wallets.
@@ -151,9 +145,7 @@ fun JettonWithdrawable.onWithdraw(
         // Tag the withdrawal context in the `forwardPayload` wrap
         val wrap = Jetton_ForwardPayloadWrap {
             initiator: sender,
-            context: JettonWithdrawable_WithdrawContext {
-                opcode: JettonWithdrawable_WITHDRAW_OPCODE,
-            }.toCell(),
+            context: JettonWithdrawable_WithdrawContext {}.toCell(),
             forwardPayload: ask.forwardPayload,
         };
 
