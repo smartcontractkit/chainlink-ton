@@ -103,8 +103,8 @@ type ConfigInfo struct {
 
 // Methods
 
-// Receiver_CCIPReceiveV2 represents the CCIP message received on TON
-type Receiver_CCIPReceiveV2 struct {
+// CCIPReceiveV2 represents the CCIP message received on TON
+type CCIPReceiveV2 struct {
 	_       tlb.Magic      `tlb:"#5b4bc7a6" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
 	Message Any2TVMMessage `tlb:"^"`
@@ -181,7 +181,7 @@ type UpdateDeployables struct {
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
-	Receiver_CCIPReceiveV2{},
+	CCIPReceiveV2{},
 	SetOCR3Config{},
 	UpdateSourceChainConfigs{},
 	Commit{},
@@ -191,7 +191,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 }).MustWithStorageType(Storage{})
 
 var (
-	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeFor[Receiver_CCIPReceiveV2]())
+	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveV2]())
 )
 
 // Config types that implements getter fetching interface with rpc client
