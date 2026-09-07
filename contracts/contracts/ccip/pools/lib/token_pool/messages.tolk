@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../../lib/jetton/messages"
+import "../../../../lib/funding/jetton_withdrawable"
 import "../../../../lib/utils"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
@@ -194,7 +195,8 @@ type TokenPool_InMessage =
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
     | TokenPool_SetRMNProxy
-    | TokenPool_SetCursedSubjects;
+    | TokenPool_SetCursedSubjects
+    | JettonWithdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;

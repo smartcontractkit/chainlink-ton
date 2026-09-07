@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
@@ -32,10 +33,11 @@ const (
 	// Contract types
 
 	// Libs and traits
-	TypeOwnable      tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
-	TypeRBAC         tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
-	TypeWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
-	TypeUpgradeable  tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
+	TypeOwnable            tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
+	TypeRBAC               tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
+	TypeWithdrawable       tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
+	TypeJettonWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.JettonWithdrawable"
+	TypeUpgradeable        tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
 
 	// MCMS
 	TypeMCMS     tvm.FullyQualifiedName = PkgMCMS + ".MCMS"
@@ -85,10 +87,11 @@ const (
 	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
-	ShortOwnable      = "Ownable"
-	ShortRBAC         = "RBAC" // ShortType for Role-Based Access Control trait
-	ShortWithdrawable = "Withdrawable"
-	ShortUpgradeable  = "Upgradeable"
+	ShortOwnable            = "Ownable"
+	ShortRBAC               = "RBAC" // ShortType for Role-Based Access Control trait
+	ShortWithdrawable       = "Withdrawable"
+	ShortJettonWithdrawable = "JettonWithdrawable"
+	ShortUpgradeable        = "Upgradeable"
 
 	// Jetton short names
 	ShortJettonWallet = "JettonWallet"
@@ -120,10 +123,11 @@ var AllContractTypes = []struct {
 var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 	m := map[string]tvm.FullyQualifiedName{
 		// Traits (not in AllContractTypes)
-		ShortOwnable:      TypeOwnable,
-		ShortRBAC:         TypeRBAC,
-		ShortWithdrawable: TypeWithdrawable,
-		ShortUpgradeable:  TypeUpgradeable,
+		ShortOwnable:            TypeOwnable,
+		ShortRBAC:               TypeRBAC,
+		ShortWithdrawable:       TypeWithdrawable,
+		ShortJettonWithdrawable: TypeJettonWithdrawable,
+		ShortUpgradeable:        TypeUpgradeable,
 		// Jetton
 		ShortJettonWallet: TypeJettonWallet,
 		ShortJettonMinter: TypeJettonMinter,
@@ -137,10 +141,11 @@ var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 // Map of TLBs keyed by contract type
 var Registry = tvm.ContractTLBRegistry{
 	// Libs and traits
-	TypeOwnable:      ownable2step.TLBs,
-	TypeRBAC:         rbac.TLBs,
-	TypeWithdrawable: withdrawable.TLBs,
-	TypeUpgradeable:  upgradeable.TLBs,
+	TypeOwnable:            ownable2step.TLBs,
+	TypeRBAC:               rbac.TLBs,
+	TypeWithdrawable:       withdrawable.TLBs,
+	TypeJettonWithdrawable: jetton_withdrawable.TLBs,
+	TypeUpgradeable:        upgradeable.TLBs,
 
 	// MCMS contract types
 	TypeMCMS:     mcms.TLBs,

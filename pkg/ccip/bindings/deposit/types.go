@@ -22,9 +22,6 @@ const (
 // --- Data types (storage) ---
 
 // Data represents the DepositAccount_Data contract storage.
-//
-//	Matches Tolk: struct DepositAccount_Data {
-//	    owner: address; proxy: address; beneficiaries: map<address, ()> }
 type Data struct {
 	Owner         *address.Address                         `tlb:"addr"`
 	Proxy         *address.Address                         `tlb:"addr"`
@@ -34,7 +31,6 @@ type Data struct {
 // --- Messages (incoming) ---
 
 // Init activates the account. Only the owner may send it.
-// Opcode: 0x6890a205
 type Init struct {
 	_              tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
@@ -42,7 +38,6 @@ type Init struct {
 }
 
 // Withdraw lets a beneficiary transfer jettons from this account's wallet.
-// Opcode: 0x1936d112
 type Withdraw struct {
 	_             tlb.Magic        `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
@@ -53,16 +48,13 @@ type Withdraw struct {
 // --- Messages (outgoing) ---
 
 // Reply is sent to the initiator on successful initialization.
-// Opcode: 0xda04630c
 type Reply struct {
 	_              tlb.Magic  `tlb:"#da04630c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
 }
 
-// InMessageForward holds the metadata of an original incoming message forwarded by the
-// account to its proxy, so the proxy (e.g. a token pool) can verify the source wallet and
-// the full original body.
+// InMessageForward holds the metadata of an original incoming message forwarded
 type InMessageForward struct {
 	SenderAddress      *address.Address `tlb:"addr"`
 	ValueCoins         tlb.Coins        `tlb:"."`
@@ -74,14 +66,12 @@ type InMessageForward struct {
 }
 
 // ForwardNotification is sent to the proxy when a message is forwarded.
-// Opcode: 0xb4fe5c0c
 type ForwardNotification struct {
 	_       tlb.Magic  `tlb:"#b4fe5c0c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	Message *cell.Cell `tlb:"^"`                  // Cell<InMessageForward>
 }
 
 // WithdrawFailed notifies the withdraw requester that the AskToTransfer bounced.
-// Opcode: 0xa51b6cba
 type WithdrawFailed struct {
 	_             tlb.Magic        `tlb:"#a51b6cba" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
@@ -89,8 +79,7 @@ type WithdrawFailed struct {
 	Ask           *cell.Cell       `tlb:"^"` // Cell<AskToTransfer>
 }
 
-// AskToTransfer is the standard jetton transfer request used to withdraw jettons. Reused from
-// the jetton wallet binding (opcode 0x0f8a7ea5) to avoid duplicating the type.
+// AskToTransfer is the standard jetton transfer request used to withdraw jettons.
 type AskToTransfer = wallet.AskToTransfer
 
 var TLBs = tvm.MustNewTLBMap([]any{
