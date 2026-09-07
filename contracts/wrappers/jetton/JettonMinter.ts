@@ -12,7 +12,7 @@ import {
   toNano,
 } from '@ton/core'
 import { JettonOpcodes } from './constants'
-import { JettonMinterCode } from './JettonCode'
+import { contractCode } from '../codeLoader'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { CellCodec } from '../utils'
 
@@ -372,7 +372,7 @@ export class JettonMinter implements Contract {
   }
 
   static async code(): Promise<Cell> {
-    return await JettonMinterCode()
+    return await contractCode.jetton('JettonMinter')
   }
 
   async sendMint(

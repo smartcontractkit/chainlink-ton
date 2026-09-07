@@ -152,8 +152,8 @@ describe('OnRamp - executor exit', () => {
           sourcePoolAddress: senderAddress,
           amount: 0n,
           destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: beginCell().endCell(),
-          destExecData: beginCell().endCell(),
+          extraData: Cell.EMPTY,
+          destExecData: Cell.EMPTY,
         }),
       },
     )
@@ -234,8 +234,8 @@ describe('OnRamp - executor exit', () => {
           sourcePoolAddress: senderAddress,
           amount: 0n,
           destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: beginCell().endCell(),
-          destExecData: beginCell().endCell(),
+          extraData: Cell.EMPTY,
+          destExecData: Cell.EMPTY,
         }),
       },
     )

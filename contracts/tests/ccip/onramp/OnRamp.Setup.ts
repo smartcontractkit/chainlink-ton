@@ -49,8 +49,8 @@ export async function deployOnRampContractW(
     destChainConfigs: new Map(),
     deployablesConfig: or.OnRamp_DeployablesConfig.create({
       executor: or.ExecutorDeployment.create({
-        deployableCode: beginCell().endCell(),
-        executorCode: beginCell().endCell(),
+        deployableCode: Cell.EMPTY,
+        executorCode: Cell.EMPTY,
       }),
       tokenAdminRegistry: randomAddress(),
     }),

@@ -30,7 +30,7 @@ import { setupTestFeeQuoter } from '../helpers/SetUp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
-import * as tr from '../../../wrappers/examples/Receiver'
+import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
 import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
@@ -137,7 +137,7 @@ export class OffRampTestSetup {
 
   public offRamp: SandboxContract<of.OffRamp> = null as any
   public router: SandboxContract<rt.Router> = null as any
-  public receiver: SandboxContract<tr.Receiver> = null as any
+  public receiver: SandboxContract<tr.TestReceiver> = null as any
   // Isolated fixtures use a unique root so their deterministic entry addresses do not collide.
   public tokenAdminRegistry: Address = generateMockTonAddress()
 
@@ -277,14 +277,14 @@ export class OffRampTestSetup {
     {
       let code = await contractCode.ccip.local('ccip.test.receiver')
       this.receiver = this.blockchain.openContract(
-        tr.Receiver.createFromConfig(
+        tr.TestReceiver.fromStorage(
           {
             id: generateRandomContractId(),
-            ownable: { owner: this.deployer.address, pendingOwner: null },
+            ownable: tr.Ownable2Step.create({ owner: this.deployer.address }),
             authorizedCaller: this.router.address,
-            behavior: tr.ReceiverBehavior.Accept,
+            behavior: tr.TestReceiver_Behavior.Accept,
           },
-          code,
+          { overrideContractCode: code },
         ),
       )
       const result = await this.receiver.sendDeploy(this.deployer.getSender(), toNano('0.05'))

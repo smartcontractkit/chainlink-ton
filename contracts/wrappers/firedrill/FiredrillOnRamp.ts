@@ -69,7 +69,7 @@ export class FiredrillOnRamp implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().endCell(),
+      body: Cell.EMPTY,
     })
   }
 
