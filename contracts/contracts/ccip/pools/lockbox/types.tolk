@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
+/// JettonLockBox types, error codes, and storage.
 
 import "../../../lib/access/access_control"
 
 /// Facility ID used for error code derivation.
 const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pool.JettonLockBox";
 const JettonLockBox_FACILITY_ID = JettonLockBox_FACILITY_NAME.crc32() % 640 + 10;
+const JettonLockBox_CONTRACT_VERSION = "0.1.0";
 
 /// Role granted to pool contracts that can deposit and withdraw from the lockbox.
 const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();

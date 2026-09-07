@@ -52,7 +52,7 @@ fun SimpleJettonReceiver.handleJettonTransferNotification(
 
     // Handle the jetton transfer - simple implementation just updates trackers
     self.amountChecker += msg.jettonAmount;
-    self.payloadChecker = loadMaybeForwardPayloadAsCell(msg.forwardPayload);
+    self.payloadChecker = loadForwardPayloadAsCell(msg.forwardPayload);
     self.store();
 }
 

@@ -179,6 +179,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
+          accruedFees: 0n,
         },
         { overrideContractCode: lockReleaseTokenPoolCode },
       ),
