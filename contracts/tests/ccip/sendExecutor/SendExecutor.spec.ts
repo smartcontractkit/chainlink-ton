@@ -172,12 +172,12 @@ describe('SendExecutor - Unit tests', () => {
       body: sx.CCIPSendExecutor_Execute.toCell(
         sx.CCIPSendExecutor_Execute.create({
           onrampSend: send,
-          tokenRegistry: opts?.tokenRegistry ?? null,
           config: sx.CCIPSendExecutor_Config.create({
             router: routerMock.address,
             feeQuoter: opts?.feeQuoterBouncer
               ? opts.feeQuoterBouncer.address
               : feeQuoterMock.address,
+            tokenRegistry: opts?.tokenRegistry ?? null,
           }),
         }),
       ),
@@ -216,10 +216,10 @@ describe('SendExecutor - Unit tests', () => {
       toNano('1'),
       {
         onrampSend,
-        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
+          tokenRegistry: null,
         }),
       },
     )
@@ -240,10 +240,10 @@ describe('SendExecutor - Unit tests', () => {
       toNano('1'),
       {
         onrampSend,
-        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
+          tokenRegistry: null,
         }),
       },
     )
@@ -264,10 +264,10 @@ describe('SendExecutor - Unit tests', () => {
       toNano('1'),
       {
         onrampSend,
-        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
+          tokenRegistry: null,
         }),
       },
     )
@@ -288,10 +288,10 @@ describe('SendExecutor - Unit tests', () => {
       toNano('1'),
       {
         onrampSend,
-        tokenRegistry: null,
         config: sx.CCIPSendExecutor_Config.create({
           router: routerMock.address,
           feeQuoter: feeQuoterMock.address,
+          tokenRegistry: null,
         }),
       },
     )
@@ -303,7 +303,7 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should handle execute from self with a tokenRegistry in the payload', async () => {
+  it('should handle execute from self with a tokenRegistry in the config', async () => {
     const { sendExecutor, result } = await afterExecute({
       tokenRegistry: tokenRegistryMock.address,
     })
@@ -316,7 +316,7 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should handle execute from self without a tokenRegistry in the payload', async () => {
+  it('should handle execute from self without a tokenRegistry in the config', async () => {
     const { sendExecutor, result } = await afterExecute()
 
     expect(result.transactions).toHaveTransaction({
@@ -327,8 +327,8 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should query the tokenRegistry from the payload on validated fee for a token transfer', async () => {
-    // The message carries a token transfer and the executor payload carries tokenRegistry:
+  it('should query the tokenRegistry from the config on validated fee for a token transfer', async () => {
+    // The executor config carries tokenRegistry:
     // on a successful fee validation the executor must query that tokenRegistry.
     const { sendExecutor } = await afterExecute({
       send: tokenOnrampSend,
@@ -345,7 +345,7 @@ describe('SendExecutor - Unit tests', () => {
       }),
     )
 
-    // The query must be addressed to the tokenRegistry from the payload.
+    // The query must be addressed to the tokenRegistry from the config.
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
       to: tokenRegistryMock.address,
@@ -360,7 +360,7 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should exit successfully on validated fee without a token transfer or tokenRegistry', async () => {
-    // A payload without a tokenRegistry and a message without token transfers behaves like the
+    // A config without a tokenRegistry and a message without token transfers behaves like the
     // plain messaging flow: it finishes successfully without touching any registry.
     const { sendExecutor } = await afterExecute()
 

@@ -296,10 +296,10 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 value: SendExecutor_Costs.Execute() + ton("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
-                    tokenRegistry,
                     config: CCIPSendExecutor_Config {
                         router: destChainConfig.router,
                         feeQuoter: config.feeQuoter,
+                        tokenRegistry,
                     }.toCell(),
                 }.toCell(),
             },
