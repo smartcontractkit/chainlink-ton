@@ -33,6 +33,40 @@ function parseScalar(raw: string): unknown {
   return trimmed
 }
 
+/** Splits a table header path like `contracts."examples.Counter"` on top-level dots. */
+function splitTableHeader(text: string): string[] {
+  const parts: string[] = []
+  let inString: string | null = null
+  let current = ''
+  for (const ch of text) {
+    if (inString) {
+      current += ch
+      if (ch === inString) inString = null
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      inString = ch
+      current += ch
+    } else if (ch === '.') {
+      parts.push(current)
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  parts.push(current)
+  return parts.map((part) => {
+    const trimmed = part.trim()
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      return trimmed.slice(1, -1)
+    }
+    return trimmed
+  })
+}
+
 function parseValue(raw: string): unknown {
   const trimmed = raw.trim()
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
@@ -86,7 +120,7 @@ export function parseToml(text: string): Record<string, any> {
     const tableMatch = line.match(/^\[([^\]]+)\]$/)
     if (tableMatch) {
       current = root
-      for (const key of tableMatch[1].split('.').map((s) => s.trim())) {
+      for (const key of splitTableHeader(tableMatch[1])) {
         if (!(key in current)) current[key] = {}
         current = current[key]
       }

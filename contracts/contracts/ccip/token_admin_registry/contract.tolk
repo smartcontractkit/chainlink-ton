@@ -33,6 +33,7 @@ const CONTRACT_VERSION = "1.6.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
+    debug.print(1);
     match (msg) {
         TokenAdminRegistry_SetEntryDeployment => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -127,7 +128,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         dest: entryAddress,
         body: Deployable_InitializeAndSend {
             stateInit: {
-                code: deployment.entryCode,
+                code: entryCode(),
                 data: TokenRegistry_Storage {
                     tokenAddress: msg.tokenAddress,
                     tokenInfo: msg.tokenInfo.load(),
@@ -168,6 +169,12 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
         },
     });
     proposeMsg.send(SEND_MODE_REGULAR);
+}
+
+import "../../../gen/TokenAdminRegistryEntry.code"
+
+fun entryCode(): cell {
+    return tokenAdminRegistryEntryCompiledCode();
 }
 
 /// Gets the current owner of the registry root.

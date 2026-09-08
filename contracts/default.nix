@@ -118,6 +118,7 @@
         yarnInstallHook
         # Needed for executing package.json scripts
         nodejs_24
+        acton
       ];
 
       buildInputs = [
@@ -125,6 +126,9 @@
       ];
 
       PATH_CONTRACTS_JETTON = "${contracts-jetton-func}/lib/node_modules/jetton/build/";
+      # The nix build sandbox has no network access; skip acton's automatic
+      # bundled-stdlib refresh so `acton build` doesn't try to reach the network.
+      ACTON_DISABLE_AUTO_STDLIB = "1";
 
       meta = with pkgs.lib; {
         inherit (package-info) description;
