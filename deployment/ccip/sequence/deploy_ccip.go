@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -133,10 +132,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			Ownable: ownable2step.Storage{
 				Owner: chain.WalletAddress, PendingOwner: address.NewAddressNone(),
 			},
-			EntryDeployment: tokenadminregistry.EntryDeployment{
-				DeployableCode: tonCompiledContracts[bindings.TypeDeployable].Code,
-				EntryCode:      tonCompiledContracts[bindings.TypeTokenAdminRegistryEntry].Code,
-			},
 		}
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTokenAdminRegistry], registryStorage, nil, in.CCIPConfig.TokenAdminRegistryParams.Coin)
 		if err != nil {
@@ -219,11 +214,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 			DestChainConfigs: nil,
 			DeployablesConfig: onramp.DeployablesConfig{
-				Executor: onramp.ExecutorDeployment{
-					DeployableCode: tonCompiledContracts[bindings.TypeDeployable].Code,
-					ExecutorCode:   tonCompiledContracts[bindings.TypeSendExecutor].Code,
-					CurrentID:      big.NewInt(0),
-				},
 				TokenAdminRegistry: &tokenAdminRegistryAddress,
 			},
 		}
@@ -247,11 +237,8 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				PendingOwner: address.NewAddressNone(),
 			},
 			Deployables: offramp.Deployables{
-				RMNRouter:           &routerAddress,
-				TokenAdminRegistry:  &tokenAdminRegistryAddress,
-				Deployer:            tonCompiledContracts[bindings.TypeDeployable].Code,
-				MerkleRootCode:      tonCompiledContracts[bindings.TypeMerkleRoot].Code,
-				ReceiveExecutorCode: tonCompiledContracts[bindings.TypeReceiveExecutor].Code,
+				RMNRouter:          &routerAddress,
+				TokenAdminRegistry: &tokenAdminRegistryAddress,
 			},
 			FeeQuoter: &feeQuoterAddress,
 			// empty OCR3Base

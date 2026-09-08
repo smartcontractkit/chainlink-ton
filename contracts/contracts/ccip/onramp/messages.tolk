@@ -20,7 +20,6 @@ type OnRamp_InMessage =
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
-    | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
     | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
@@ -100,10 +99,6 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
 
 struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
-}
-
-struct (0x82901c45) OnRamp_UpdateSendExecutor {
-    code: cell;
 }
 
 struct (0x9dc06185) OnRamp_UpdateAllowlists {

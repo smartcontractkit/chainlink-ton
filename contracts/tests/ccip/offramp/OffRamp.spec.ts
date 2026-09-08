@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
@@ -99,9 +99,6 @@ describe('OffRamp - Ownable Tests', () => {
       deployer,
       await contractCode.ccip.local('OffRamp'),
       {
-        deployerCode: Cell.EMPTY, //await contractCode.ccip.local('Deployable'),
-        merkleRootCode: Cell.EMPTY, //await contractCode.ccip.local('MerkleRoot'),
-        receiveExecutorCode: Cell.EMPTY, //await contractCode.ccip.local('ReceiveExecutor'),
         feeQuoter: generateMockTonAddress(),
       },
     )

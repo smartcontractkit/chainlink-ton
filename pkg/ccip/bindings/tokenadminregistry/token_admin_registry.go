@@ -7,7 +7,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
@@ -15,26 +14,13 @@ import (
 )
 
 var (
-	OpcodeSetEntryDeployment           = tvm.MustExtractMagic(reflect.TypeFor[SetEntryDeployment]())
 	OpcodeRegisterToken                = tvm.MustExtractMagic(reflect.TypeFor[RegisterToken]())
 	OpcodeOverridePendingAdministrator = tvm.MustExtractMagic(reflect.TypeFor[OverridePendingAdministrator]())
 )
 
 type Storage struct {
-	ID              uint32               `tlb:"## 32"`
-	Ownable         ownable2step.Storage `tlb:"."`
-	EntryDeployment EntryDeployment      `tlb:"."`
-}
-
-type EntryDeployment struct {
-	DeployableCode *cell.Cell `tlb:"^"`
-	EntryCode      *cell.Cell `tlb:"^"`
-}
-
-// crc32('TokenAdminRegistry_SetEntryDeployment')
-type SetEntryDeployment struct {
-	_               tlb.Magic       `tlb:"#3ec09499" json:"-"` //nolint:revive
-	EntryDeployment EntryDeployment `tlb:"."`
+	ID      uint32               `tlb:"## 32"`
+	Ownable ownable2step.Storage `tlb:"."`
 }
 
 // crc32('TokenAdminRegistry_RegisterToken')
@@ -80,7 +66,6 @@ type PoolSet struct {
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
-	SetEntryDeployment{},
 	RegisterToken{},
 	OverridePendingAdministrator{},
 	AdministratorTransferRequested{},

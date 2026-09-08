@@ -1,4 +1,4 @@
-import { beginCell, Cell, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
@@ -8,7 +8,6 @@ import { errorCode, facilityId } from '../../../wrappers/utils'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import {
   FACILITY_NAME,
@@ -113,7 +112,6 @@ describe('OnRamp - Opcodes', () => {
     )
     expect(or.OnRamp_SetDynamicConfig.PREFIX).toBe(crc32('OnRamp_SetDynamicConfig'))
     expect(or.OnRamp_UpdateDestChainConfigs.PREFIX).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
-    expect(or.OnRamp_UpdateSendExecutor.PREFIX).toBe(crc32('OnRamp_UpdateSendExecutor'))
     expect(or.OnRamp_UpdateAllowlists.PREFIX).toBe(crc32('OnRamp_UpdateAllowlists'))
     expect(or.OnRamp_WithdrawFeeTokens.PREFIX).toBe(crc32('OnRamp_WithdrawFeeTokens'))
   })
@@ -166,40 +164,11 @@ describe('OnRamp - Unit Tests', () => {
     expect(result).toBe(ChainSelectors.testnet.ton)
   })
 
-  it('should allow owner to updateSendExecutor', async () => {
-    const newExecutor = beginCell().storeUint(12345678, 32).endCell()
-    const result = await onramp.sendOnRampUpdateSendExecutor(deployer.getSender(), toNano('0.05'), {
-      code: newExecutor,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      to: onramp.address,
-      success: true,
-    })
-
+  it('reports the inlined send executor code and hash', async () => {
     const executorCode = await onramp.getSendExecutorCode()
-    expect(executorCode).toEqual(newExecutor)
+    expect(executorCode).toEqual(await contractCode.ccip.local('CCIPSendExecutor'))
     const executorCodeHash = await onramp.getSendExecutorCodeHash()
-    expect(executorCodeHash).toBe(BigInt('0x' + newExecutor.hash().toString('hex')))
-  })
-
-  it('should not allow non-owner to updateSendExecutor', async () => {
-    const other = await blockchain.treasury('other')
-    const newExecutor = beginCell().storeUint(12345678, 32).endCell()
-    const result = await onramp.sendOnRampUpdateSendExecutor(other.getSender(), toNano('0.05'), {
-      code: newExecutor,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      to: onramp.address,
-      success: false,
-      exitCode: ownable2step.Errors.OnlyCallableByOwner,
-    })
-
-    const executorCode = await onramp.getSendExecutorCode()
-    expect(executorCode).toEqual(Cell.EMPTY)
-    const executorCodeHash = await onramp.getSendExecutorCodeHash()
-    expect(executorCodeHash).toBe(BigInt('0x' + Cell.EMPTY.hash().toString('hex')))
+    expect(executorCodeHash).toBe(BigInt('0x' + executorCode.hash().toString('hex')))
   })
 
   afterAll(async () => {

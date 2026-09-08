@@ -290,10 +290,6 @@ async function deployOnRampInstance(
     }),
     destChainConfigs: new Map(),
     deployablesConfig: or.OnRamp_DeployablesConfig.create({
-      executor: or.ExecutorDeployment.create({
-        deployableCode: await contractCode.ccip.local('Deployable'),
-        executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-      }),
       tokenAdminRegistry,
     }),
   })
@@ -367,9 +363,6 @@ async function deployOffRampInstance(
     }),
     chainSelector: ChainSelectors.testnet.ton,
     deployables: of.OffRamp_Deployables.create({
-      deployer: await contractCode.ccip.local('Deployable'),
-      merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
-      receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
       rmnRouter: router,
       tokenAdminRegistry,
     }),

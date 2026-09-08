@@ -9,7 +9,6 @@ import { ChainSelectors } from '../../utils/Selectors'
 
 type OnRampOverrides = Partial<Omit<or.OnRamp_Storage, '$' | 'config' | 'deployablesConfig' | 'ownable'>> & {
   config?: Partial<Omit<or.OnRamp_DynamicConfig, '$'>>
-  executor?: Partial<Omit<or.ExecutorDeployment, '$'>>
   tokenAdminRegistry?: Address
   ownable?: Partial<Omit<or.Ownable2Step, '$'>>
 }
@@ -48,10 +47,6 @@ export async function deployOnRampContractW(
     }),
     destChainConfigs: new Map(),
     deployablesConfig: or.OnRamp_DeployablesConfig.create({
-      executor: or.ExecutorDeployment.create({
-        deployableCode: Cell.EMPTY,
-        executorCode: Cell.EMPTY,
-      }),
       tokenAdminRegistry: randomAddress(),
     }),
   }
@@ -73,10 +68,6 @@ export async function deployOnRampContractW(
       ...defaults.deployablesConfig,
       tokenAdminRegistry:
         opt.overrides?.tokenAdminRegistry ?? defaults.deployablesConfig.tokenAdminRegistry,
-      executor: or.ExecutorDeployment.create({
-        ...defaults.deployablesConfig.executor,
-        ...(opt.overrides?.executor ?? {}),
-      }),
     }),
   })
   const onramp = blockchain.openContract(

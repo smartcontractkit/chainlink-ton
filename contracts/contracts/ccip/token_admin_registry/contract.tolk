@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "messages"
 import "storage"
-import "types"
 import "errors"
 import "../../lib/utils"
 import "events"
@@ -35,12 +34,6 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
     debug.print(1);
     match (msg) {
-        TokenAdminRegistry_SetEntryDeployment => {
-            var st = lazy TokenAdminRegistry_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            st.entryDeployment = msg.entryDeployment;
-            st.store();
-        }
         TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -82,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
 /// sufficient to recompute the only entry address that may send that event.
 fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
     val expectedEntry = TokenAdminRegistryEntry.deriveAddress(
-        st.entryDeployment.deployableCode,
+        deployableCode(),
         token,
         contract.getAddress(),
     ).calculateAddress();
@@ -112,9 +105,8 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
     // Until then, the root owner is the trusted registration module.
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
 
-    val deployment = st.entryDeployment;
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployment.deployableCode,
+        deployableCode(),
         msg.tokenAddress,
         contract.getAddress(),
     );
@@ -154,9 +146,8 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 /// active administrator exists, so this cannot reclaim a configured token.
 fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_OverridePendingAdministrator) {
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
-    val deployment = st.entryDeployment;
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployment.deployableCode,
+        deployableCode(),
         msg.tokenAddress,
         contract.getAddress(),
     );
@@ -172,9 +163,14 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
 }
 
 import "../../../gen/TokenAdminRegistryEntry.code"
+import "../../../gen/Deployable.code"
 
 fun entryCode(): cell {
     return tokenAdminRegistryEntryCompiledCode();
+}
+
+fun deployableCode(): cell {
+    return deployableCompiledCode();
 }
 
 /// Gets the current owner of the registry root.

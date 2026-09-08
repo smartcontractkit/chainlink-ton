@@ -65,16 +65,13 @@ describe('OnRamp - Send', () => {
 
   beforeEach(async () => {
     deployableCode = await contractCode.ccip.local('Deployable')
+    executorCode = await contractCode.ccip.local('CCIPSendExecutor')
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
-    executorCode = Cell.EMPTY
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
-      },
-      executor: {
-        executorCode,
       },
     }))
 

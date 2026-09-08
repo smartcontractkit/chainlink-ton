@@ -52,9 +52,6 @@ export async function deployOffRampContract(
   owner: SandboxContract<TreasuryContract>,
   code?: Cell,
   opts?: {
-    deployerCode?: Cell
-    merkleRootCode?: Cell
-    receiveExecutorCode?: Cell
     feeQuoter?: Address
     tokenAdminRegistry?: Address
   },
@@ -67,9 +64,6 @@ export async function deployOffRampContract(
     deployables: of.OffRamp_Deployables.create({
       rmnRouter: owner.address, // used to determine who can send RMN updates
       tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
-      deployer: opts?.deployerCode ?? Cell.EMPTY,
-      merkleRootCode: opts?.merkleRootCode ?? Cell.EMPTY,
-      receiveExecutorCode: opts?.receiveExecutorCode ?? Cell.EMPTY,
     }),
     feeQuoter: opts?.feeQuoter ?? owner.address, // placeholder
     ocr3Base: of.OCR3Base.create({
@@ -204,9 +198,6 @@ export class OffRampTestSetup {
         this.deployer,
         this.code.offRamp,
         {
-          deployerCode: this.code.deployable,
-          merkleRootCode: this.code.merkleRoot,
-          receiveExecutorCode: this.code.receiveExecutor,
           feeQuoter: this.feeQuoter.address,
           tokenAdminRegistry: this.tokenAdminRegistry,
         },

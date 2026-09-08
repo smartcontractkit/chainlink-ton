@@ -32,10 +32,7 @@ type OffRampStorage struct {
 }
 
 type Deployables struct {
-	RMNRouter           *address.Address `json:"rmnRouter"`
-	Deployer            string           `json:"deployerHex"`
-	MerkleRootCode      string           `json:"MerkleRootCodeHex"`
-	ReceiveExecutorCode string           `json:"ReceiveExecutorCodeHex"`
+	RMNRouter *address.Address `json:"rmnRouter"`
 }
 
 type OCR3Base struct {
@@ -110,30 +107,6 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 		return b
 	}
 	b.storage.Deployables.RMNRouter = router
-	return b
-}
-
-func (b *OffRampStorageBuilder) WithDeployerCode(deployerCodeHex string) *OffRampStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.Deployables.Deployer = deployerCodeHex
-	return b
-}
-
-func (b *OffRampStorageBuilder) WithMerkleRootCode(merkleRootCode string) *OffRampStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.Deployables.MerkleRootCode = merkleRootCode
-	return b
-}
-
-func (b *OffRampStorageBuilder) WithReceiveExecutorCode(receiveExecutorCode string) *OffRampStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.Deployables.ReceiveExecutorCode = receiveExecutorCode
 	return b
 }
 
@@ -225,10 +198,7 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
 
 	// Deployables
-	b = b.WithRMNRouter(raw.Deployables.RMNRouter).
-		WithDeployerCode(hex.EncodeToString(raw.Deployables.Deployer.ToBOC())).
-		WithMerkleRootCode(hex.EncodeToString(raw.Deployables.MerkleRootCode.ToBOC())).
-		WithReceiveExecutorCode(hex.EncodeToString(raw.Deployables.ReceiveExecutorCode.ToBOC()))
+	b = b.WithRMNRouter(raw.Deployables.RMNRouter)
 
 	// OCR3Base
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
@@ -412,21 +382,6 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 }
 
 func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
-	deployerCode, err := loadCell(s.Deployables.Deployer)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading deployer code: %w", err)
-	}
-
-	merkleRootCode, err := loadCell(s.Deployables.MerkleRootCode)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading merkle root code: %w", err)
-	}
-
-	receiveExecutorCode, err := loadCell(s.Deployables.ReceiveExecutorCode)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading receive executor code: %w", err)
-	}
-
 	commitOCR3Config, err := ocr3ConfigToBinding(s.OCR3Base.Commit)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading commit OCR3 config: %w", err)
@@ -498,10 +453,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 		PermissionlessExecutionThresholdSeconds: s.PermissionlessExecutionThresholdSeconds,
 		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
 		Deployables: offramp.Deployables{
-			RMNRouter:           s.Deployables.RMNRouter,
-			Deployer:            deployerCode,
-			MerkleRootCode:      merkleRootCode,
-			ReceiveExecutorCode: receiveExecutorCode,
+			RMNRouter: s.Deployables.RMNRouter,
 		},
 		OCR3Base: offramp.OCR3Base{
 			ChainID: chainIDU8,

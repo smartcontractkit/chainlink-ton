@@ -18,7 +18,6 @@ describe('TokenAdminRegistry', () => {
   let pool: Address
   let replacementPool: Address
   let deployableCode: Cell
-  let entryCode: Cell
   let registry: SandboxContract<tar.TokenAdminRegistry>
   let nextRegistryId = 0n
 
@@ -89,7 +88,6 @@ describe('TokenAdminRegistry', () => {
   beforeAll(async () => {
     blockchain = await Blockchain.create()
     deployableCode = await contractCode.ccip.local('Deployable')
-    entryCode = await contractCode.ccip.local('TokenAdminRegistryEntry')
   })
 
   beforeEach(async () => {
@@ -108,10 +106,6 @@ describe('TokenAdminRegistry', () => {
           // test registry distinct while reusing the same sandbox accounts.
           id: ++nextRegistryId,
           ownable: tar.Ownable2Step.create({ owner: owner.address }),
-          entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
-            deployableCode,
-            entryCode,
-          }),
         },
         { overrideContractCode: await contractCode.ccip.local('TokenAdminRegistry') },
       ),
@@ -130,42 +124,6 @@ describe('TokenAdminRegistry', () => {
     const [type, version] = await registry.getTypeAndVersion()
     expect(type.loadStringTail()).toBe('link.chain.ton.ccip.TokenAdminRegistry')
     expect(version.loadStringTail()).toBe('1.6.0')
-  })
-
-  it('allows only the root owner to change entry deployment configuration', async () => {
-    const deployment = tar.TokenAdminRegistry_EntryDeployment.create({
-      deployableCode: Cell.EMPTY,
-      entryCode: Cell.EMPTY,
-    })
-    const result = await registry.sendTokenAdminRegistrySetEntryDeployment(
-      other.getSender(),
-      toNano('0.05'),
-      { entryDeployment: deployment },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: other.address,
-      to: registry.address,
-      success: false,
-      exitCode: ownable2step.Errors.OnlyCallableByOwner,
-    })
-
-    const ownerResult = await registry.sendTokenAdminRegistrySetEntryDeployment(
-      owner.getSender(),
-      toNano('0.05'),
-      {
-        entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
-          deployableCode,
-          entryCode,
-        }),
-      },
-    )
-    expect(ownerResult.transactions).toHaveTransaction({
-      from: owner.address,
-      to: registry.address,
-      success: true,
-      op: tar.TokenAdminRegistry_SetEntryDeployment.PREFIX,
-    })
   })
 
   it('transfers root ownership in two steps before changing owner permissions', async () => {
@@ -193,15 +151,10 @@ describe('TokenAdminRegistry', () => {
       success: true,
     })
 
-    const oldOwnerUpdate = await registry.sendTokenAdminRegistrySetEntryDeployment(
+    const oldOwnerUpdate = await registry.sendTokenAdminRegistryRegisterToken(
       owner.getSender(),
-      toNano('0.05'),
-      {
-        entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
-          deployableCode,
-          entryCode,
-        }),
-      },
+      toNano('0.1'),
+      { tokenAddress: token, tokenInfo: tokenInfo(), administrator: administrator.address },
     )
     expect(oldOwnerUpdate.transactions).toHaveTransaction({
       from: owner.address,
@@ -210,15 +163,10 @@ describe('TokenAdminRegistry', () => {
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
 
-    const newOwnerUpdate = await registry.sendTokenAdminRegistrySetEntryDeployment(
+    const newOwnerUpdate = await registry.sendTokenAdminRegistryRegisterToken(
       other.getSender(),
-      toNano('0.05'),
-      {
-        entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
-          deployableCode,
-          entryCode,
-        }),
-      },
+      toNano('0.1'),
+      { tokenAddress: token, tokenInfo: tokenInfo(), administrator: administrator.address },
     )
     expect(newOwnerUpdate.transactions).toHaveTransaction({
       from: other.address,
