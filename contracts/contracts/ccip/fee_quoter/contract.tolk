@@ -243,12 +243,6 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
     return validatedFee(msg.load());
 }
 
-// NOTE: this get-method (struct params flattened into individual raw stack args by Tolk) currently
-// throws a spurious cell-underflow (exit code 9) as soon as the contract's compiled call graph
-// contains any Iterator<TokenAmount>.next() call, independent of the actual tokenAmounts content
-// or of how calculateValidatedFee is structured — this looks like a Tolk compiler bug in get-method
-// ABI codegen, not a logic bug here (confirmed via bisection: see FeeQuoter.getters.spec.ts). The
-// production message-based flow and validatedFeeCell (single cell arg) are unaffected and correct.
 get fun validatedFee(msg: Router_CCIPSend): coins {
     return calculateValidatedFee(msg).feeTokenAmount;
 }

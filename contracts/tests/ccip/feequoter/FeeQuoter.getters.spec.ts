@@ -157,16 +157,7 @@ describe('FeeQuoter Getters', () => {
       expect(fee).toBeGreaterThan(0n)
     })
 
-    // KNOWN ISSUE: the `validatedFee` get-method (Tolk flattens its Router_CCIPSend parameter into
-    // individual raw stack args, as opposed to validatedFeeCell's single serialized-cell arg or the
-    // internal-message flow's msg.load()) throws a spurious cell-underflow (exit code 9) as soon as
-    // the contract's compiled call graph contains any Iterator<TokenAmount>.next() call - which the
-    // token-transfer fee logic in calculateValidatedFee now does - regardless of whether the message
-    // actually carries tokens. Confirmed via bisection to be independent of calculateValidatedFee's
-    // control flow/structure; this looks like a Tolk compiler bug in get-method ABI codegen for
-    // struct params containing a SnakedCell<T> field, not a logic bug in the contract. The
-    // message-based flow and validatedFeeCell above are unaffected and remain the source of truth.
-    it.skip('should match the non-cell (stack-args) validatedFee get-method - blocked on a Tolk compiler bug', async () => {
+    it('should match the non-cell (stack-args) validatedFee get-method', async () => {
       const message = setup.generateEmptyMessage({
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
       })
