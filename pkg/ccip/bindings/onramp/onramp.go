@@ -21,6 +21,7 @@ type Account256 = cciplibonramp.Account256
 type CCIPMessageSent = cciplibonramp.CCIPMessageSent
 type DestChainConfig = cciplibonramp.DestChainConfig
 type DynamicConfig = cciplibonramp.DynamicConfig
+type DeployablesConfig = cciplibonramp.DeployablesConfig
 type ExecutorDeployment = cciplibonramp.ExecutorDeployment
 type GenericExtraArgsV2 = cciplibonramp.GenericExtraArgsV2
 type Storage = cciplibonramp.Storage

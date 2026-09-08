@@ -265,10 +265,13 @@ func TestStorage(t *testing.T) {
 			Reserve:        tlb.MustFromTON("0.05"),
 		},
 		DestChainConfigs: destConfigMap,
-		Executor: ExecutorDeployment{
-			DeployableCode: DeployableCode,
-			ExecutorCode:   ExecutorCode,
-			CurrentID:      big.NewInt(123),
+		DeployablesConfig: DeployablesConfig{
+			Executor: ExecutorDeployment{
+				DeployableCode: DeployableCode,
+				ExecutorCode:   ExecutorCode,
+				CurrentID:      big.NewInt(123),
+			},
+			TokenAdminRegistry: dummyAddr,
 		},
 	}
 
@@ -281,9 +284,10 @@ func TestStorage(t *testing.T) {
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
-	require.Equal(t, DeployableCode, decoded.Executor.DeployableCode)
-	require.Equal(t, ExecutorCode, decoded.Executor.ExecutorCode)
-	require.Equal(t, big.NewInt(123), decoded.Executor.CurrentID) // zero value
+	require.Equal(t, DeployableCode, decoded.DeployablesConfig.Executor.DeployableCode)
+	require.Equal(t, ExecutorCode, decoded.DeployablesConfig.Executor.ExecutorCode)
+	require.Equal(t, big.NewInt(123), decoded.DeployablesConfig.Executor.CurrentID) // zero value
+	require.Equal(t, dummyAddr, decoded.DeployablesConfig.TokenAdminRegistry)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)

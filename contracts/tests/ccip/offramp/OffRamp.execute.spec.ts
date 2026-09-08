@@ -18,7 +18,7 @@ import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
-import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
@@ -1808,13 +1808,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: registryAddress,
-        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: registryAddress,
         to: executorAddress,
-        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
         success: true,
       })
 
@@ -2102,13 +2102,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: registryAddress,
-        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: registryAddress,
         to: executorAddress,
-        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
         success: true,
       })
 

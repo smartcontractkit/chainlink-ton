@@ -4,7 +4,7 @@ import "@stdlib/gas-payments"
 import "../../lib/utils"
 import "../offramp/types"
 import "../offramp/messages"
-import "../token_registry/messages"
+import "../token_admin_registry_entry/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../common/types"
@@ -47,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the TokenAdminRegistry
-        TokenRegistry_ReturnTokenInfo => {
+        TokenAdminRegistryEntry_ReturnTokenInfo => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
@@ -148,13 +148,13 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
             bounce: true,
             value: 0,
             dest: ttInfo.tokenAdminRegistry,
-            body: TokenRegistry_GetTokenInfo {
+            body: TokenAdminRegistryEntry_GetTokenInfo {
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistryEntry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     if (msg.tokenPool == null) {
         val rampMsg = lazy st.message.load();
         ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
