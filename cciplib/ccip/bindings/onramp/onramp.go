@@ -23,7 +23,6 @@ const (
 	OpcodeSetDynamicConfig                   = 0xa178c62e
 	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
-	OpcodeUpdateSendExecutor                 = 0x82901c45
 	OpcodeWithdrawFeeTokens                  = 0x7052dc75
 )
 
@@ -105,14 +104,7 @@ type Storage struct {
 }
 
 type DeployablesConfig struct {
-	Executor           ExecutorDeployment `tlb:"."`
-	TokenAdminRegistry *address.Address   `tlb:"addr"`
-}
-
-type ExecutorDeployment struct {
-	DeployableCode *cell.Cell `tlb:"^"`
-	ExecutorCode   *cell.Cell `tlb:"^"`
-	CurrentID      *big.Int   `tlb:"## 224"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
 }
 
 // Methods
@@ -192,11 +184,6 @@ type SetDynamicConfigMessage struct {
 	Config DynamicConfig `tlb:"."`
 }
 
-type UpdateSendExecutorMessage struct {
-	_    tlb.Magic  `tlb:"#82901c45" json:"-"` //nolint:revive // Ignore opcode tag
-	Code *cell.Cell `tlb:"^"`                  // New executor code
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateAllowlists{},
 	Send{},
@@ -204,7 +191,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	ExecutorFinishedWithError{},
 	SetDynamicConfigMessage{},
 	UpdateDestChainConfigsMessage{},
-	UpdateSendExecutorMessage{},
 	WithdrawFeeTokens{},
 }).MustWithStorageType(Storage{})
 

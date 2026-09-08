@@ -240,18 +240,6 @@ func TestStorage(t *testing.T) {
 	err = destConfigMap.Set(k.EndCell(), c)
 	require.NoError(t, err)
 
-	ExecutorCode := func() *cell.Cell {
-		b := cell.BeginCell()
-		require.NoError(t, b.StoreUInt(42, 32))
-		return b.EndCell()
-	}()
-
-	DeployableCode := func() *cell.Cell {
-		b := cell.BeginCell()
-		require.NoError(t, b.StoreUInt(52, 32))
-		return b.EndCell()
-	}()
-
 	s := Storage{
 		ID: 43,
 		Ownable: ownable2step.Storage{
@@ -266,11 +254,6 @@ func TestStorage(t *testing.T) {
 		},
 		DestChainConfigs: destConfigMap,
 		DeployablesConfig: DeployablesConfig{
-			Executor: ExecutorDeployment{
-				DeployableCode: DeployableCode,
-				ExecutorCode:   ExecutorCode,
-				CurrentID:      big.NewInt(123),
-			},
 			TokenAdminRegistry: dummyAddr,
 		},
 	}
@@ -284,9 +267,6 @@ func TestStorage(t *testing.T) {
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
-	require.Equal(t, DeployableCode, decoded.DeployablesConfig.Executor.DeployableCode)
-	require.Equal(t, ExecutorCode, decoded.DeployablesConfig.Executor.ExecutorCode)
-	require.Equal(t, big.NewInt(123), decoded.DeployablesConfig.Executor.CurrentID) // zero value
 	require.Equal(t, dummyAddr, decoded.DeployablesConfig.TokenAdminRegistry)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()

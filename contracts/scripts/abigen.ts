@@ -51,11 +51,13 @@ function readManifest(manifestPath: string): {
     throw new Error(`Manifest ${manifestPath} is missing [wrappers.typescript] output-dir`)
   }
 
-  const contractsTable: Record<string, { domain: string }> = manifest.contracts ?? {}
-  const contracts = Object.entries(contractsTable).map(([name, contract]) => ({
-    name,
-    domain: contract.domain,
-  }))
+  const contractsTable: Record<string, { domain?: string }> = manifest.contracts ?? {}
+  const contracts = Object.entries(contractsTable)
+    .filter(([, contract]) => !!contract.domain)
+    .map(([name, contract]) => ({
+      name,
+      domain: contract.domain as string,
+    }))
 
   return { projectRoot, outputDir, contracts }
 }

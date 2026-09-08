@@ -19,13 +19,13 @@ depends = []
 display-name = "link.chain.ton.ccip.OnRamp"
 src = "contracts/ccip/onramp/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "CCIPSendExecutor"]
 
 [contracts.OffRamp]
 display-name = "link.chain.ton.ccip.OffRamp"
 src = "contracts/ccip/offramp/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "MerkleRoot", "ReceiveExecutor"]
 
 [contracts.FeeQuoter]
 display-name = "link.chain.ton.ccip.FeeQuoter"
@@ -65,6 +65,16 @@ domain = "ccip"
 depends = []
 
 # CCIP Libraries
+
+# Deployable's bytecode is pinned and must never change (see contracts/lib/deployable/README.md):
+# src points directly at the precompiled .boc so acton never recompiles it from
+# contract.tolk. Runtime code-hash checks (wrappers/codeLoader.ts,
+# deployment/utils/compiled_contracts.go) still verify it against DEPLOYABLE_HASH
+# on every load.
+[contracts.Deployable]
+display-name = "link.chain.ton.ccip.Deployable"
+src = "contracts/lib/deployable/Deployable.boc"
+depends = []
 
 [contracts.Receiver]
 display-name = "link.chain.ton.ccip.lib.Receiver"
@@ -135,7 +145,7 @@ depends = []
 display-name = "link.chain.ton.ccip.TokenAdminRegistry"
 src = "contracts/ccip/token_admin_registry/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["TokenAdminRegistryEntry", "Deployable"]
 
 [contracts.TokenAdminRegistryEntry]
 display-name = "link.chain.ton.ccip.TokenAdminRegistryEntry"
@@ -174,6 +184,101 @@ depends = []
 display-name = "link.chain.ton.test.lib.MsgHasher"
 src = "contracts/test/lib/msg_hasher.tolk"
 domain = "test"
+depends = []
+
+# Example contracts (built for parity with the old `blueprint build --all`, not
+# wired up for TypeScript wrapper generation via nix run .#abigen -- see the
+# `domain` field note on [contracts.TokenPool] above)
+
+[contracts."examples.Counter"]
+display-name = "examples.Counter"
+src = "contracts/examples/counter.tolk"
+depends = []
+
+[contracts."examples.jetton.OnrampMock"]
+display-name = "examples.jetton.OnrampMock"
+src = "contracts/examples/jetton/onramp_mock.tolk"
+depends = []
+
+[contracts."examples.jetton.JettonSender"]
+display-name = "examples.jetton.JettonSender"
+src = "contracts/examples/jetton/sender.tolk"
+depends = []
+
+[contracts."examples.jetton.SimpleJettonReceiver"]
+display-name = "examples.jetton.SimpleJettonReceiver"
+src = "contracts/examples/jetton/simple_receiver.tolk"
+depends = []
+
+[contracts."examples.funding.WithdrawableWallet"]
+display-name = "examples.funding.WithdrawableWallet"
+src = "contracts/test/examples/funding/withdrawable_wallet.tolk"
+depends = []
+
+[contracts."examples.MerkleProof"]
+display-name = "examples.MerkleProof"
+src = "contracts/test/examples/merkle_multi_proof_calculator.tolk"
+depends = []
+
+[contracts."examples.OCR3Base"]
+display-name = "examples.OCR3Base"
+src = "contracts/test/examples/ocr3_base.tolk"
+depends = []
+
+[contracts."examples.versioning.upgrades.UpgradeableCounterV1"]
+display-name = "examples.versioning.upgrades.UpgradeableCounterV1"
+src = "contracts/test/examples/versioning/upgrades/upgradeable_counter/v1/contract.tolk"
+depends = []
+
+[contracts."examples.versioning.upgrades.UpgradeableCounterV2"]
+display-name = "examples.versioning.upgrades.UpgradeableCounterV2"
+src = "contracts/test/examples/versioning/upgrades/upgradeable_counter/v2/contract.tolk"
+depends = []
+
+[contracts."examples.versioning.upgrades.WrongVersion"]
+display-name = "examples.versioning.upgrades.WrongVersion"
+src = "contracts/test/examples/versioning/upgrades/wrong_version.tolk"
+depends = []
+
+# Firedrill contracts
+
+[contracts."firedrill.entrypoint"]
+display-name = "firedrill.entrypoint"
+src = "contracts/firedrill/firedrill_entrypoint.tolk"
+depends = []
+
+[contracts."firedrill.offramp"]
+display-name = "firedrill.offramp"
+src = "contracts/firedrill/firedrill_offramp.tolk"
+depends = []
+
+[contracts."firedrill.onramp"]
+display-name = "firedrill.onramp"
+src = "contracts/firedrill/firedrill_onramp.tolk"
+depends = []
+
+# wgram contracts
+
+[contracts."wgram.JettonMinter"]
+display-name = "wgram.JettonMinter"
+src = "contracts/wgram/JettonMinter.tolk"
+depends = []
+
+[contracts."wgram.JettonWallet"]
+display-name = "wgram.JettonWallet"
+src = "contracts/wgram/JettonWallet.tolk"
+depends = []
+
+# More testing wrappers
+
+[contracts."tests.lib.secp256k1_verifier"]
+display-name = "tests.lib.secp256k1_verifier"
+src = "contracts/test/lib/secp256k1_verifier.tolk"
+depends = []
+
+[contracts."tests.mock.Bouncer"]
+display-name = "tests.mock.Bouncer"
+src = "contracts/test/mock/bouncer.tolk"
 depends = []
 
 # fmt is not very mature yet

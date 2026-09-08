@@ -1,4 +1,4 @@
-import { toNano, beginCell } from '@ton/core'
+import { toNano } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 import {
   generateMockTonAddress,
@@ -71,49 +71,12 @@ describe('OffRamp - Dynamic Config', () => {
     })
   })
 
-  it('updateDeployables', async () => {
-    // owner can update deployables
-    const mockMerkleRootCode = beginCell().storeUint(0x12345678, 32).endCell()
-    const mockReceiveExecutorCode = beginCell().storeUint(0x87654321, 32).endCell()
-
-    const result = await setup.offRamp.sendOffRampUpdateDeployables(
-      setup.deployer.getSender(),
-      toNano('0.1'),
-      {
-        receiveExecutorCode: mockReceiveExecutorCode,
-        merkleRootCode: mockMerkleRootCode,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: setup.deployer.address,
-      to: setup.offRamp.address,
-      success: true,
-    })
-
-    // verify changes
+  it('reports the inlined deployable code hashes', async () => {
     const deployables = await setup.offRamp.getDeployableHashes()
 
-    expect(deployables.merkleRoot).toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
-
-    expect(deployables.receiveExecutor).toBe(uint8ArrayToBigInt(mockReceiveExecutorCode.hash()))
-
+    expect(deployables.merkleRoot).toBe(uint8ArrayToBigInt(setup.code.merkleRoot.hash()))
+    expect(deployables.receiveExecutor).toBe(uint8ArrayToBigInt(setup.code.receiveExecutor.hash()))
     expect(deployables.deployer).toBe(uint8ArrayToBigInt(setup.code.deployable.hash()))
-
-    // non-owner cannot update deployables
-    const other = await blockchain.treasury('other')
-    const result2 = await setup.offRamp.sendOffRampUpdateDeployables(
-      other.getSender(),
-      toNano('0.1'),
-      {
-        receiveExecutorCode: mockReceiveExecutorCode,
-        merkleRootCode: mockMerkleRootCode,
-      },
-    )
-    expect(result2.transactions).toHaveTransaction({
-      from: other.address,
-      to: setup.offRamp.address,
-      success: false,
-    })
   })
 
   it('getAllSourceChainConfigs', async () => {

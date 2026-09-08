@@ -1,4 +1,4 @@
-import { toNano, beginCell, Address } from '@ton/core'
+import { toNano, Address } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 
 import { generateMockTonAddress } from '../../../src/utils'
@@ -151,66 +151,11 @@ describe('OffRamp - Commit and Execute', () => {
       )
     })
 
-    it('should handle ReceiveExecutor_InitExecute bounce and emit events', async () => {
-      // First, commit report with a valid message
-      const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
-      await setup.setupAndCommitMessage(message1)
-
-      // Update receiveExecutorCode to bad code that will cause InitExecute to bounce
-      const badReceiveExecutorCode = beginCell().storeUint(0x88888888, 32).endCell()
-      await setup.offRamp.sendOffRampUpdateDeployables(setup.deployer.getSender(), toNano('0.1'), {
-        receiveExecutorCode: badReceiveExecutorCode,
-        merkleRootCode: setup.code.merkleRoot,
-      })
-
-      const report = setup.createExecuteReport([message1])
-      // Execute the second message
-      const result = await setup.executeReport(report)
-
-      // Should emit IN_PROGRESS
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.InProgress,
-        },
-      )
-
-      // InitExecute should fail
-      expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
-        success: false,
-      })
-
-      // Should emit ReceiveExecutorInitExecuteBounced
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced,
-        {
-          receiveExecutor: expect.any(Address),
-          root: expect.any(Address),
-          sequenceNumber: 1n,
-        },
-      )
-
-      // Should emit ExecutionStateChanged: FAILURE
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
-      )
-    })
+    // The ReceiveExecutor_InitExecute-bounce scenario previously exercised here relied on
+    // updating OffRamp's stored receiveExecutorCode to deliberately bad bytecode via
+    // OffRamp_UpdateDeployables. That message no longer exists: receiveExecutorCode is now
+    // the real, inlined ReceiveExecutor bytecode, fixed at compile time (see gen/ReceiveExecutor.code.tolk),
+    // so there's no runtime way to make the deployed executor's own code bounce anymore.
   })
 
   afterAll(async () => {

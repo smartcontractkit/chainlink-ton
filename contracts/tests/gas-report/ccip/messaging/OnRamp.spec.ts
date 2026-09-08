@@ -129,10 +129,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
       }),
       destChainConfigs: new Map(),
       deployablesConfig: or.OnRamp_DeployablesConfig.create({
-        executor: or.ExecutorDeployment.create({
-          executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-          deployableCode: await contractCode.ccip.local('Deployable'),
-        }),
         tokenAdminRegistry: deployer.address,
       }),
     })

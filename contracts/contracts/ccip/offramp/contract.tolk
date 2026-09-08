@@ -92,12 +92,6 @@ fun onInternalMessage(in:InMessage) {
             onSetOCR3Config(msg)
         }
         // Sender must be owner
-        OffRamp_UpdateDeployables => {
-            val st = lazy Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            onUpdateDeployables(st, msg)
-        }
-        // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
             val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -509,22 +503,6 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     st.store();
 }
 
-// Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
-fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
-    var deployables = st.deployables.load();
-
-    if (msg.receiveExecutorCode != null) {
-        deployables.receiveExecutorCode = msg.receiveExecutorCode!;
-    }
-
-    if (msg.merkleRootCode != null) {
-        deployables.merkleRootCode = msg.merkleRootCode!;
-    }
-
-    st.deployables = deployables.toCell();
-    st.store();
-}
-
 // Processes commit reports: refreshes prices if the OCR sequence is newer,
 // initializes/updates MerkleRoot contract, validates OCR3 signatures, and
 // emits CommitReportAccepted when everything is valid.
@@ -591,7 +569,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             dest: getMerkleRootDeployAddress(st, root.merkleRoot),
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().merkleRootCode,
+                    code: merkleRootCode(),
                     data: MerkleRoot_Storage {
                         root: root.merkleRoot,
                         owner: contract.getAddress(),
@@ -857,7 +835,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
             dest: executorAddress,
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().receiveExecutorCode,
+                    code: receiveExecutorCode(),
                     data: ReceiveExecutor_Storage {
                         owner: contract.getAddress(),
                         message: message.toCell(),
@@ -915,7 +893,7 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
 
     val deployables = st.deployables.load();
     val registryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployables.deployer,
+        deployerCode(),
         tokenTransfer.token,
         deployables.tokenAdminRegistry,
     ).calculateAddress();
@@ -957,7 +935,7 @@ Derives the receiver executor contract address from the execId
 fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
@@ -981,7 +959,7 @@ Derives the merkle root contract address from the merkleRootId
 fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_MerkleRoot,
                 owner: contract.getAddress(),
@@ -997,6 +975,22 @@ Verifies that the caller corresponds to a merkle root contract
 fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
     val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
     assert(expectedAddress.calculateAddress() == sender) throw OffRamp_Error.MessageNotFromOwnedContract;
+}
+
+import "../../../gen/Deployable.code"
+import "../../../gen/MerkleRoot.code"
+import "../../../gen/ReceiveExecutor.code"
+
+fun deployerCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun merkleRootCode(): cell {
+    return merkleRootCompiledCode();
+}
+
+fun receiveExecutorCode(): cell {
+    return receiveExecutorCompiledCode();
 }
 
 /*
@@ -1074,12 +1068,10 @@ get fun cursedSubjects(): lisp_list<uint128> {
 }
 
 get fun deployableHashes() : DeployableHashes {
-    val st = lazy Storage.load();
-    val deployables = st.deployables.load();
     return DeployableHashes {
-        merkleRoot: deployables.merkleRootCode.hash(),
-        receiveExecutor: deployables.receiveExecutorCode.hash(),
-        deployer: deployables.deployer.hash(),
+        merkleRoot: merkleRootCode().hash(),
+        receiveExecutor: receiveExecutorCode().hash(),
+        deployer: deployerCode().hash(),
     }
 }
 
