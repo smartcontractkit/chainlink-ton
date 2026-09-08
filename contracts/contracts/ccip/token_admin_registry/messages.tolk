@@ -11,7 +11,7 @@ type TokenAdminRegistry_InMessage =
 
 // crc32('TokenAdminRegistry_SetEntryDeployment')
 struct (0x3ec09499) TokenAdminRegistry_SetEntryDeployment {
-    entryDeployment: TokenAdminRegistryEntryDeployment;
+    entryDeployment: TokenAdminRegistry_EntryDeployment;
 }
 
 // crc32('TokenAdminRegistry_RegisterToken')

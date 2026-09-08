@@ -120,7 +120,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
         {
           id: 0n,
           ownable: tar.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-          entryDeployment: tar.TokenAdminRegistryEntryDeployment.create({
+          entryDeployment: tar.TokenAdminRegistry_EntryDeployment.create({
             deployableCode: await contractCode.ccip.local('Deployable'),
             entryCode: await contractCode.ccip.local('TokenAdminRegistryEntry'),
           }),
