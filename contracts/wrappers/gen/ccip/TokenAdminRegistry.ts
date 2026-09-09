@@ -288,6 +288,85 @@ export const TokenAdminRegistry_OverridePendingAdministrator = {
 }
 
 /**
+ > struct (0xdc67ebd0) TokenAdminRegistry_TransferAdminRole {
+ >     tokenAddress: address
+ >     newAdministrator: address?
+ > }
+ */
+export interface TokenAdminRegistry_TransferAdminRole {
+    readonly $: 'TokenAdminRegistry_TransferAdminRole'
+    tokenAddress: c.Address
+    newAdministrator: c.Address | null
+}
+
+export const TokenAdminRegistry_TransferAdminRole = {
+    PREFIX: 0xdc67ebd0,
+
+    create(args: {
+        tokenAddress: c.Address
+        newAdministrator: c.Address | null
+    }): TokenAdminRegistry_TransferAdminRole {
+        return {
+            $: 'TokenAdminRegistry_TransferAdminRole',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_TransferAdminRole {
+        loadAndCheckPrefix32(s, 0xdc67ebd0, 'TokenAdminRegistry_TransferAdminRole');
+        return {
+            $: 'TokenAdminRegistry_TransferAdminRole',
+            tokenAddress: s.loadAddress(),
+            newAdministrator: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenAdminRegistry_TransferAdminRole, b: c.Builder): void {
+        b.storeUint(0xdc67ebd0, 32);
+        b.storeAddress(self.tokenAddress);
+        b.storeAddress(self.newAdministrator);
+    },
+    toCell(self: TokenAdminRegistry_TransferAdminRole): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_TransferAdminRole>(self, TokenAdminRegistry_TransferAdminRole.store);
+    }
+}
+
+/**
+ > struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
+ >     tokenAddress: address
+ > }
+ */
+export interface TokenAdminRegistry_AcceptAdminRole {
+    readonly $: 'TokenAdminRegistry_AcceptAdminRole'
+    tokenAddress: c.Address
+}
+
+export const TokenAdminRegistry_AcceptAdminRole = {
+    PREFIX: 0xbe28e166,
+
+    create(args: {
+        tokenAddress: c.Address
+    }): TokenAdminRegistry_AcceptAdminRole {
+        return {
+            $: 'TokenAdminRegistry_AcceptAdminRole',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_AcceptAdminRole {
+        loadAndCheckPrefix32(s, 0xbe28e166, 'TokenAdminRegistry_AcceptAdminRole');
+        return {
+            $: 'TokenAdminRegistry_AcceptAdminRole',
+            tokenAddress: s.loadAddress(),
+        }
+    },
+    store(self: TokenAdminRegistry_AcceptAdminRole, b: c.Builder): void {
+        b.storeUint(0xbe28e166, 32);
+        b.storeAddress(self.tokenAddress);
+    },
+    toCell(self: TokenAdminRegistry_AcceptAdminRole): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_AcceptAdminRole>(self, TokenAdminRegistry_AcceptAdminRole.store);
+    }
+}
+
+/**
  > struct (0x140b1e91) TokenAdminRegistry_AdministratorTransferRequested {
  >     token: address
  >     currentAdministrator: address?
@@ -875,6 +954,85 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
 }
 
 /**
+ > struct (0x5f7f84e1) TokenAdminRegistryEntry_TransferAdminRole {
+ >     actor: address
+ >     newAdministrator: address?
+ > }
+ */
+export interface TokenAdminRegistryEntry_TransferAdminRole {
+    readonly $: 'TokenAdminRegistryEntry_TransferAdminRole'
+    actor: c.Address
+    newAdministrator: c.Address | null
+}
+
+export const TokenAdminRegistryEntry_TransferAdminRole = {
+    PREFIX: 0x5f7f84e1,
+
+    create(args: {
+        actor: c.Address
+        newAdministrator: c.Address | null
+    }): TokenAdminRegistryEntry_TransferAdminRole {
+        return {
+            $: 'TokenAdminRegistryEntry_TransferAdminRole',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_TransferAdminRole {
+        loadAndCheckPrefix32(s, 0x5f7f84e1, 'TokenAdminRegistryEntry_TransferAdminRole');
+        return {
+            $: 'TokenAdminRegistryEntry_TransferAdminRole',
+            actor: s.loadAddress(),
+            newAdministrator: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenAdminRegistryEntry_TransferAdminRole, b: c.Builder): void {
+        b.storeUint(0x5f7f84e1, 32);
+        b.storeAddress(self.actor);
+        b.storeAddress(self.newAdministrator);
+    },
+    toCell(self: TokenAdminRegistryEntry_TransferAdminRole): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_TransferAdminRole>(self, TokenAdminRegistryEntry_TransferAdminRole.store);
+    }
+}
+
+/**
+ > struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {
+ >     actor: address
+ > }
+ */
+export interface TokenAdminRegistryEntry_AcceptAdminRole {
+    readonly $: 'TokenAdminRegistryEntry_AcceptAdminRole'
+    actor: c.Address
+}
+
+export const TokenAdminRegistryEntry_AcceptAdminRole = {
+    PREFIX: 0xd1fbd97c,
+
+    create(args: {
+        actor: c.Address
+    }): TokenAdminRegistryEntry_AcceptAdminRole {
+        return {
+            $: 'TokenAdminRegistryEntry_AcceptAdminRole',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_AcceptAdminRole {
+        loadAndCheckPrefix32(s, 0xd1fbd97c, 'TokenAdminRegistryEntry_AcceptAdminRole');
+        return {
+            $: 'TokenAdminRegistryEntry_AcceptAdminRole',
+            actor: s.loadAddress(),
+        }
+    },
+    store(self: TokenAdminRegistryEntry_AcceptAdminRole, b: c.Builder): void {
+        b.storeUint(0xd1fbd97c, 32);
+        b.storeAddress(self.actor);
+    },
+    toCell(self: TokenAdminRegistryEntry_AcceptAdminRole): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_AcceptAdminRole>(self, TokenAdminRegistryEntry_AcceptAdminRole.store);
+    }
+}
+
+/**
  > struct TokenRegistry_TokenInfo {
  >     tokenPool: address
  >     minterAddress: address
@@ -962,7 +1120,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEwEABB0AART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgPEAS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsIKBY9IzjAtcsJxY6baSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gDgL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AvpI1PpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOUjD6UsmCCvrwgAPQ+kj6SNIA0x/R+ChtAcj6UvpUFvpUyQfI+lIT+lL6UsoAEssfE8zJggjk4cDIz5DFYAmmyciJzxYWzAoLANYx7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AH6SPpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOEvpSyYII5OHAyM+JCAFTJMjPhNDMzPkWzwv/AfoCgQCMzwtwE8wSzM+Qx0rtuvpSyXD7AADgMe1E0NMfMfpIMfpQMdTUMdEB+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAFyM+E0MzM+RbIz4oAQMv/z1AEggDGcAXHBRTy9MjPkFAsekYS+lL6VPpUycjPjxgABIIQBE3nac8L93HPC2HMyXD7AAL+jmsx7UTQ0x8x+kgx+lAx1NQx0QH6SPpIMPiS+CjI+lLPkAAAAA5SMPpSyVAEyM+E0MzM+RbIz4oAQMv/z1ADggDGcATHBRPy9MjPk4sdNtL6UvpSycjPjxgABIIQTkm3hc8L93HPC2HMyXD7AODXLCZ3gNQ84wIw7UTQ1h/6SAwNAAiw7FFXAFoSzAH6AhPMycjPiQgBUyTIz4TQzMz5Fs8L/1AD+gKBAI3PC3ATzBLMzMlw+wAA8jHtRNDTHzH6SDH6UDHU1DHRAfpI+kj6SNIA1woA+JL4KMj6Us+QAAAADlJg+lLJUAfIz4TQzMz5FsjPigBAy//PUAaCAMZwB8cFFvL0yM+TO8BqHhT6UhL6UvpSygDKAMnIz48YAASCEAyRmU/PC/dxzwthzMlw+wAARPpQ+JJDMCXwAZ40AsjOEvpSEvpUzsntVOBfBIQPAccA8vQAZmwS0z/6SDCCAMKIUTTHBRPy9IIAwolTI8cFs/L0IYsCyM+HIM5wzwthEss/EvpSyXD7AABluRX40JmxpbmsuY2hhaW4udG9uLmNjaXAuVG9rZW5BZG1pblJlZ2lzdHJ5gi1MS42LjCIAgEgERIAF7SjvaiaGmPmP0kGEAAdt119qJoaY+Y/SQY/SgYQ');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFQEABPAAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgREgS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsJuM/XoTjAtcsJfFHCzSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gEAL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AvpI1PpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOUjD6UsmCCvrwgAPQ+kj6SNIA0x/R+ChtAcj6UvpUFvpUyQfI+lIT+lL6UsoAEssfE8zJggjk4cDIz5DFYAmmyciJzxYWzAoLANYx7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AH6SPpIMIIAwoiLAiLHBbPy9PgoyPpSz5AAAAAOEvpSyYII5OHAyM+JCAFTJMjPhNDMzPkWzwv/AfoCgQCMzwtwE8wSzM+Qx0rtuvpSyXD7AADAMe1E0NMfMfpIMfpQMdTUMdEB+kj6UDD4kvgoyPpSz5AAAAAOE/pSyYII5OHAyM+Rff4ThhT6UhL6VMnIz4kIAVMkyM+E0MzM+RbPC/9QA/oCgQCNzwtwE8wSzMzJcPsABP6OWzHtRNDTHzH6SDH6UDHU1DHRAfpIMPiS+CjI+lLPkAAAAA4S+lLJggjk4cDIz5NH72XyE/pSycjPiQgBUyTIz4TQzMz5Fs8L/1AD+gKBAI3PC3ATzBLMzMlw+wDg1ywgoFj0jOMC1ywnFjptpOMC1ywmd4DUPOMCMO1E0NYfDA0ODwAIsOxRVwBaEswB+gITzMnIz4kIAVMkyM+E0MzM+RbPC/9QA/oCgQCNzwtwE8wSzMzJcPsAAOAx7UTQ0x8x+kgx+lAx1NQx0QH6SPpQ+lAw+JL4KMj6Us+QAAAADlJA+lLJUAXIz4TQzMz5FsjPigBAy//PUASCAMZwBccFFPL0yM+QUCx6RhL6UvpU+lTJyM+PGAAEghAETedpzwv3cc8LYczJcPsAANYx7UTQ0x8x+kgx+lAx1NQx0QH6SPpIMPiS+CjI+lLPkAAAAA5SMPpSyVAEyM+E0MzM+RbIz4oAQMv/z1ADggDGcATHBRPy9MjPk4sdNtL6UvpSycjPjxgABIIQTkm3hc8L93HPC2HMyXD7AADyMe1E0NMfMfpIMfpQMdTUMdEB+kj6SPpI0gDXCgD4kvgoyPpSz5AAAAAOUmD6UslQB8jPhNDMzPkWyM+KAEDL/89QBoIAxnAHxwUW8vTIz5M7wGoeFPpSEvpS+lLKAMoAycjPjxgABIIQDJGZT88L93HPC2HMyXD7AABI+kj6UPiSQzAl8AGeNALIzhL6UhL6VM7J7VTgXwSEDwHHAPL0AGZsEtM/+kgwggDCiFE0xwUT8vSCAMKJUyPHBbPy9CGLAsjPhyDOcM8LYRLLPxL6Uslw+wAAZbkV+NCZsaW5rLmNoYWluLnRvbi5jY2lwLlRva2VuQWRtaW5SZWdpc3RyeYItTEuNi4wiAIBIBMUABe0o72omhpj5j9JBhAAHbddfaiaGmPmP0kGP0oGEA==');
 
     static Errors = {
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
@@ -1015,6 +1173,19 @@ export class TokenAdminRegistry implements c.Contract {
         administrator: c.Address
     }) {
         return TokenAdminRegistry_OverridePendingAdministrator.toCell(TokenAdminRegistry_OverridePendingAdministrator.create(body));
+    }
+
+    static createCellOfTokenAdminRegistryTransferAdminRole(body: {
+        tokenAddress: c.Address
+        newAdministrator: c.Address | null
+    }) {
+        return TokenAdminRegistry_TransferAdminRole.toCell(TokenAdminRegistry_TransferAdminRole.create(body));
+    }
+
+    static createCellOfTokenAdminRegistryAcceptAdminRole(body: {
+        tokenAddress: c.Address
+    }) {
+        return TokenAdminRegistry_AcceptAdminRole.toCell(TokenAdminRegistry_AcceptAdminRole.create(body));
     }
 
     static createCellOfTokenAdminRegistryAdministratorTransferRequested(body: {
@@ -1100,6 +1271,27 @@ export class TokenAdminRegistry implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenAdminRegistry_OverridePendingAdministrator.toCell(TokenAdminRegistry_OverridePendingAdministrator.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenAdminRegistryTransferAdminRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        tokenAddress: c.Address
+        newAdministrator: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenAdminRegistry_TransferAdminRole.toCell(TokenAdminRegistry_TransferAdminRole.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenAdminRegistryAcceptAdminRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        tokenAddress: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenAdminRegistry_AcceptAdminRole.toCell(TokenAdminRegistry_AcceptAdminRole.create(body)),
             ...extraOptions
         });
     }

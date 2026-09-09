@@ -50,6 +50,14 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             overridePendingAdministrator(st, msg);
         }
+        TokenAdminRegistry_TransferAdminRole => {
+            val st = TokenAdminRegistry_Storage.load();
+            transferAdminRole(st, msg, in.senderAddress);
+        }
+        TokenAdminRegistry_AcceptAdminRole => {
+            val st = TokenAdminRegistry_Storage.load();
+            acceptAdminRole(st, msg, in.senderAddress);
+        }
         TokenAdminRegistry_AdministratorTransferRequested => {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
@@ -168,6 +176,40 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
         },
     });
     proposeMsg.send(SEND_MODE_REGULAR);
+}
+
+/// The root is the only public ingress for administrator lifecycle changes.
+/// It derives the shard and forwards the original caller as `actor`; the entry
+/// remains responsible for checking its own active/pending administrator state.
+fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_TransferAdminRole, actor: address) {
+    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
+        st.entryDeployment.deployableCode,
+        msg.tokenAddress,
+        contract.getAddress(),
+    );
+    createMessage({
+        bounce: false,
+        value: ton("0.015"),
+        dest: entryAddress,
+        body: TokenAdminRegistryEntry_TransferAdminRole {
+            actor,
+            newAdministrator: msg.newAdministrator,
+        }.toCell(),
+    }).send(SEND_MODE_REGULAR);
+}
+
+fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_AcceptAdminRole, actor: address) {
+    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
+        st.entryDeployment.deployableCode,
+        msg.tokenAddress,
+        contract.getAddress(),
+    );
+    createMessage({
+        bounce: false,
+        value: ton("0.015"),
+        dest: entryAddress,
+        body: TokenAdminRegistryEntry_AcceptAdminRole { actor }.toCell(),
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// Gets the current owner of the registry root.

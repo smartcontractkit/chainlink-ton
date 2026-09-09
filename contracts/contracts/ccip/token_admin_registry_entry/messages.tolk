@@ -33,10 +33,16 @@ struct (0x31d2bb6e) TokenAdminRegistryEntry_ProposeAdministrator {
 }
 
 struct (0x5f7f84e1) TokenAdminRegistryEntry_TransferAdminRole {
+    /// Original sender of the root request. It is trusted only after the
+    /// entry has verified that the immediate sender is the registry root.
+    actor: address;
     newAdministrator: address?
 }
 
-struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {}
+struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {
+    /// Original sender of the root request. See TransferAdminRole.actor.
+    actor: address;
+}
 
 struct (0xa7c4c16c) TokenAdminRegistryEntry_SetPool {
     tokenPool: address

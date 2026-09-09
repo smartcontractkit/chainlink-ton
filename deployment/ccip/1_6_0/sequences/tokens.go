@@ -461,8 +461,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 }
 
 // ConfigureTokenForTransfersSequence registers a jetton and its pool with the
-// standalone TokenAdminRegistry. The chain deployer is proposed as administrator;
-// it may later accept or transfer that role without changing the token config.
+// standalone TokenAdminRegistry. The chain deployer is proposed as administrator
+// and accepts through the registry, which forwards the authenticated caller to its
+// deterministic entry.
 func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequence[tokensapi.ConfigureTokenForTransfersInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/configure-token-for-transfers",
@@ -572,18 +573,20 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			if err := waitForTokenAdminRegistryEntryDeployment(chain.Client, entryAddr, compiledContracts[bindings.TypeTokenAdminRegistryEntry].Code); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("wait for TokenAdminRegistry entry deployment at %s: %w", entryAddr.String(), err)
 			}
-			acceptBody := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistryEntry, tokenadminregistryentry.AcceptAdminRole{})
+			acceptBody := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.AcceptAdminRole{
+				TokenAddress: tokenAddr,
+			})
 			if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
 						Bounce:  true,
-						DstAddr: entryAddr,
+						DstAddr: registryAddr,
 						Amount:  tlb.MustFromTON("0.05"),
 						Body:    acceptBody,
 					},
 				},
 			}); err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to accept TokenAdminRegistry administrator role at %s: %w", entryAddr.String(), err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to accept TokenAdminRegistry administrator role for token %s: %w", tokenAddr.String(), err)
 			}
 
 			// Configure the pool's remote-chain token addresses.

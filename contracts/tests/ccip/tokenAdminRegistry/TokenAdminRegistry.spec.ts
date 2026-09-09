@@ -86,6 +86,17 @@ describe('TokenAdminRegistry', () => {
     return result
   }
 
+  const transferAdminRole = (actor: SandboxContract<TreasuryContract>, newAdministrator: Address | null) =>
+    registry.sendTokenAdminRegistryTransferAdminRole(actor.getSender(), toNano('0.05'), {
+      tokenAddress: token,
+      newAdministrator,
+    })
+
+  const acceptAdminRole = (actor: SandboxContract<TreasuryContract>) =>
+    registry.sendTokenAdminRegistryAcceptAdminRole(actor.getSender(), toNano('0.05'), {
+      tokenAddress: token,
+    })
+
   beforeAll(async () => {
     blockchain = await Blockchain.create()
     deployableCode = await contractCode.ccip.local('Deployable')
@@ -308,13 +319,9 @@ describe('TokenAdminRegistry', () => {
     await register()
     const entry = entryFor()
 
-    const invalidAcceptance = await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      other.getSender(),
-      toNano('0.05'),
-      {},
-    )
+    const invalidAcceptance = await acceptAdminRole(other)
     expect(invalidAcceptance.transactions).toHaveTransaction({
-      from: other.address,
+      from: registry.address,
       to: entry.address,
       success: false,
       exitCode:
@@ -323,11 +330,7 @@ describe('TokenAdminRegistry', () => {
         ],
     })
 
-    const acceptance = await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
+    const acceptance = await acceptAdminRole(administrator)
     expect(
       tar.TokenAdminRegistry_AdministratorTransferred.fromSlice(externalEvent(acceptance)),
     ).toEqual(
@@ -337,34 +340,22 @@ describe('TokenAdminRegistry', () => {
       }),
     )
 
-    const unauthorizedTransfer = await entry.sendTokenAdminRegistryEntryTransferAdminRole(
-      other.getSender(),
-      toNano('0.05'),
-      { newAdministrator: replacementAdministrator.address },
-    )
+    const unauthorizedTransfer = await transferAdminRole(other, replacementAdministrator.address)
     expect(unauthorizedTransfer.transactions).toHaveTransaction({
-      from: other.address,
+      from: registry.address,
       to: entry.address,
       success: false,
       exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
     })
 
-    const transfer = await entry.sendTokenAdminRegistryEntryTransferAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      { newAdministrator: replacementAdministrator.address },
-    )
+    const transfer = await transferAdminRole(administrator, replacementAdministrator.address)
     const transferEvent = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
       externalEvent(transfer),
     )
     expect(transferEvent.currentAdministrator).toEqual(administrator.address)
     expect(transferEvent.newAdministrator).toEqual(replacementAdministrator.address)
 
-    await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      replacementAdministrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
+    await acceptAdminRole(replacementAdministrator)
     const config = await entry.getTokenAdminRegistryConfig()
     expect(config.administrator).toEqual(replacementAdministrator.address)
     expect(config.pendingAdministrator).toBeNull()
@@ -384,21 +375,35 @@ describe('TokenAdminRegistry', () => {
     })
   })
 
+  it('rejects direct entry lifecycle calls even when they claim a valid actor', async () => {
+    await register()
+    const entry = entryFor()
+
+    const directAcceptance = await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
+      administrator.getSender(),
+      toNano('0.05'),
+      { actor: administrator.address },
+    )
+    expect(directAcceptance.transactions).toHaveTransaction({
+      from: administrator.address,
+      to: entry.address,
+      success: false,
+      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
+    })
+
+    const accepted = await acceptAdminRole(administrator)
+    expect(accepted.transactions).toHaveTransaction({
+      from: registry.address,
+      to: entry.address,
+      success: true,
+    })
+  })
+
   it('keeps permissions with the active administrator until a transfer is accepted', async () => {
     await register()
     const entry = entryFor()
-    await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
-    await entry.sendTokenAdminRegistryEntryTransferAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {
-        newAdministrator: replacementAdministrator.address,
-      },
-    )
+    await acceptAdminRole(administrator)
+    await transferAdminRole(administrator, replacementAdministrator.address)
 
     const pendingAdminUpdate = await entry.sendTokenAdminRegistryEntrySetPool(
       replacementAdministrator.getSender(),
@@ -423,11 +428,7 @@ describe('TokenAdminRegistry', () => {
       success: true,
     })
 
-    await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      replacementAdministrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
+    await acceptAdminRole(replacementAdministrator)
     const formerAdminUpdate = await entry.sendTokenAdminRegistryEntrySetPool(
       administrator.getSender(),
       toNano('0.05'),
@@ -444,24 +445,10 @@ describe('TokenAdminRegistry', () => {
   it('allows the active administrator to cancel a pending transfer', async () => {
     await register()
     const entry = entryFor()
-    await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
-    await entry.sendTokenAdminRegistryEntryTransferAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {
-        newAdministrator: replacementAdministrator.address,
-      },
-    )
+    await acceptAdminRole(administrator)
+    await transferAdminRole(administrator, replacementAdministrator.address)
 
-    const cancellation = await entry.sendTokenAdminRegistryEntryTransferAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      { newAdministrator: null },
-    )
+    const cancellation = await transferAdminRole(administrator, null)
     const event = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
       externalEvent(cancellation),
     )
@@ -476,11 +463,7 @@ describe('TokenAdminRegistry', () => {
   it('updates pools only through the active administrator and emits changes from the root', async () => {
     await register()
     const entry = entryFor()
-    await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
+    await acceptAdminRole(administrator)
 
     const unauthorized = await entry.sendTokenAdminRegistryEntrySetPool(
       other.getSender(),
@@ -528,11 +511,7 @@ describe('TokenAdminRegistry', () => {
   it('returns no pool for disabled entries while preserving token metadata', async () => {
     await register()
     const entry = entryFor()
-    await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
-      administrator.getSender(),
-      toNano('0.05'),
-      {},
-    )
+    await acceptAdminRole(administrator)
     await entry.sendTokenAdminRegistryEntrySetPool(administrator.getSender(), toNano('0.05'), {
       tokenPool: pool,
       enabled: false,

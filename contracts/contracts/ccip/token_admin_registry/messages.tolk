@@ -5,6 +5,8 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_SetEntryDeployment
     | TokenAdminRegistry_RegisterToken
     | TokenAdminRegistry_OverridePendingAdministrator
+    | TokenAdminRegistry_TransferAdminRole
+    | TokenAdminRegistry_AcceptAdminRole
     | TokenAdminRegistry_AdministratorTransferRequested
     | TokenAdminRegistry_AdministratorTransferred
     | TokenAdminRegistry_PoolSet;
@@ -26,6 +28,22 @@ struct (0x9ab89f26) TokenAdminRegistry_RegisterToken {
 struct (0x6e6f71ef) TokenAdminRegistry_OverridePendingAdministrator {
     tokenAddress: address;
     administrator: address;
+}
+
+/// Requests a transfer for the entry derived from `tokenAddress`. The root
+/// forwards its sender as the trusted `actor`; it intentionally stores no
+/// per-token administrator state.
+// crc32('TokenAdminRegistry_TransferAdminRole')
+struct (0xdc67ebd0) TokenAdminRegistry_TransferAdminRole {
+    tokenAddress: address;
+    newAdministrator: address?;
+}
+
+/// Accepts the pending administrator role for the derived entry. The root
+/// forwards its sender as the trusted `actor` to the entry.
+// crc32('TokenAdminRegistry_AcceptAdminRole')
+struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
+    tokenAddress: address;
 }
 
 /// Sent by a deterministic entry to the root and emitted by the root after the

@@ -18,6 +18,8 @@ var (
 	OpcodeSetEntryDeployment           = tvm.MustExtractMagic(reflect.TypeFor[SetEntryDeployment]())
 	OpcodeRegisterToken                = tvm.MustExtractMagic(reflect.TypeFor[RegisterToken]())
 	OpcodeOverridePendingAdministrator = tvm.MustExtractMagic(reflect.TypeFor[OverridePendingAdministrator]())
+	OpcodeTransferAdminRole            = tvm.MustExtractMagic(reflect.TypeFor[TransferAdminRole]())
+	OpcodeAcceptAdminRole              = tvm.MustExtractMagic(reflect.TypeFor[AcceptAdminRole]())
 )
 
 type Storage struct {
@@ -52,6 +54,21 @@ type OverridePendingAdministrator struct {
 	Administrator *address.Address `tlb:"addr"`
 }
 
+// crc32('TokenAdminRegistry_TransferAdminRole')
+// The root derives the token entry and forwards the sender as its actor.
+type TransferAdminRole struct {
+	_                tlb.Magic        `tlb:"#dc67ebd0" json:"-"` //nolint:revive
+	TokenAddress     *address.Address `tlb:"addr"`
+	NewAdministrator *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_AcceptAdminRole')
+// The root derives the token entry and forwards the sender as its actor.
+type AcceptAdminRole struct {
+	_            tlb.Magic        `tlb:"#be28e166" json:"-"` //nolint:revive
+	TokenAddress *address.Address `tlb:"addr"`
+}
+
 // The following messages are sent by a deterministic entry to this root and
 // emitted externally after the root validates the entry address.
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
@@ -83,6 +100,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetEntryDeployment{},
 	RegisterToken{},
 	OverridePendingAdministrator{},
+	TransferAdminRole{},
+	AcceptAdminRole{},
 	AdministratorTransferRequested{},
 	AdministratorTransferred{},
 	PoolSet{},

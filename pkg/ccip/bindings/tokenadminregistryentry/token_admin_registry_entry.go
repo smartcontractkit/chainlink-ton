@@ -60,12 +60,14 @@ type ProposeAdministrator struct {
 // crc32('TokenAdminRegistryEntry_TransferAdminRole')
 type TransferAdminRole struct {
 	_                tlb.Magic        `tlb:"#5f7f84e1" json:"-"` //nolint:revive
+	Actor            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_AcceptAdminRole')
 type AcceptAdminRole struct {
-	_ tlb.Magic `tlb:"#d1fbd97c" json:"-"` //nolint:revive
+	_     tlb.Magic        `tlb:"#d1fbd97c" json:"-"` //nolint:revive
+	Actor *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_SetPool')

@@ -389,7 +389,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
       body(x) {
         if (!x) return false
-        return exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).tokenRegistry?.equals(tokenRegistry.address) ?? false
+        return exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).config.tokenRegistry?.equals(tokenRegistry.address) ?? false
       },
     })
     // executor -> feeQuoter and back

@@ -42,7 +42,7 @@ fun onInternalMessage(in: InMessage) {
             onTransferAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_AcceptAdminRole => {
-            onAcceptAdminRole(in.senderAddress);
+            onAcceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_SetPool => {
             onSetPool(msg, in.senderAddress);
@@ -87,7 +87,8 @@ fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator, se
 fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.administrator != null && sender == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
     val currentAdministrator = adminConfig.administrator;
     adminConfig.pendingAdministrator = msg.newAdministrator;
     st.adminConfig = adminConfig.toCell();
@@ -95,15 +96,16 @@ fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole, sender: 
     notifyAdministratorTransferRequested(st.tokenAddress, currentAdministrator, msg.newAdministrator);
 }
 
-fun onAcceptAdminRole(sender: address) {
+fun onAcceptAdminRole(msg: TokenAdminRegistryEntry_AcceptAdminRole, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.pendingAdministrator != null && sender == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
-    adminConfig.administrator = sender;
+    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.pendingAdministrator != null && msg.actor == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
+    adminConfig.administrator = msg.actor;
     adminConfig.pendingAdministrator = null;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferred(st.tokenAddress, sender);
+    notifyAdministratorTransferred(st.tokenAddress, msg.actor);
 }
 
 fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
