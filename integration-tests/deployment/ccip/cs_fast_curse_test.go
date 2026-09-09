@@ -97,7 +97,8 @@ func TestFastCurseTON(t *testing.T) {
 
 	tonDefinition := lanes.ChainDefinition{
 		Selector: tonChain.Selector,
-		GasPrice: big.NewInt(1e17),
+		// See TonLaneAdapter.GetDefaultGasPrice().
+		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},

@@ -85,7 +85,7 @@ func TestDeployCCIP(t *testing.T) {
 			AllowListEnabled:        false,
 		},
 		Selector: tonChain.Selector,
-		GasPrice: big.NewInt(1e17),
+		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 			linkAddr.String():         big.NewInt(20),
