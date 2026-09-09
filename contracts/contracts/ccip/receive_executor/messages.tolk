@@ -3,6 +3,7 @@ import "../offramp/messages"
 import "../offramp/types"
 import "../token_registry/messages"
 import "../pools/lib/token_pool/messages"
+import "types"
 
 
 type ReceiveExecutor_InMessage =
@@ -16,12 +17,12 @@ type ReceiveExecutor_InMessage =
     ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
-    gasOverride: GasOverride? = null;
+    effectiveGasLimit: coins;
     root: address;
     sequenceNumber: uint64;
     sourceChainSelector: uint64;
     messageId: uint256;
-    tokenTransfers: array<ReceiveExecutor_TokenTransfer>? = null;
+    tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>? = null;
 }
 
 struct ReceiveExecutor_TokenTransfer {

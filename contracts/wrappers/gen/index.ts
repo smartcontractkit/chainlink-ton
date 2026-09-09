@@ -8,96 +8,54 @@ import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
 import { MerkleRoot } from './ccip/MerkleRoot';
 
+import { CCIPReceiver } from './ccip/Receiver';
+
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
 import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
 
-import { MockTokenPool } from './ccip/MockTokenPool';
-
 import { TestMsgHasher } from './test/TestMsgHasher'
+import { TestReceiver } from './ccip/TestReceiver';
 
 import * as CrossChainAddressCodec from '../ccip/common/CrossChainAddressCodec'
 
+// Setup custom pack/unpack for CrossChainAddress
 export function setupGenBindings() {
-    // Setup custom pack/unpack for CrossChainAddress
-    TokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
+    const CCIPContracts = [
+      CCIPSendExecutor,
+      ReceiveExecutor,
+      OffRamp,
+      OnRamp,
+      FeeQuoter,
+      Router,
+      MerkleRoot,
+      CCIPReceiver
+    ]
 
-    BurnMintTokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
+    const TokenPools = [
+      TokenPool,
+      BurnMintTokenPool,
+      LockReleaseTokenPool,
+      LockReleaseLockboxTokenPool,
+    ]
 
-    LockReleaseTokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
+    const TestContracts = [
+      TestMsgHasher,
+      TestReceiver,
+    ]
 
-    Router.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    CCIPSendExecutor.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    ReceiveExecutor.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    OffRamp.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    OnRamp.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    FeeQuoter.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    MockTokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    LockReleaseLockboxTokenPool.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    TestMsgHasher.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
-
-    MerkleRoot.registerCustomPackUnpack(
-      'CrossChainAddress',
-      CrossChainAddressCodec.packToBuilder,
-      CrossChainAddressCodec.unpackFromSlice,
-    )
+    for (const wrapper of [
+      ...CCIPContracts,
+      ...TokenPools,
+      ...TestContracts,
+    ]) {
+        wrapper.registerCustomPackUnpack(
+        'CrossChainAddress',
+        CrossChainAddressCodec.packToBuilder,
+        CrossChainAddressCodec.unpackFromSlice,
+      )
+    }
 }
 
 export interface CellCodec<T> {

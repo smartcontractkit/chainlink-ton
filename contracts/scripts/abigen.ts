@@ -4,7 +4,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { Project } from 'ts-morph'
 
-import { parseToml } from './abigen/toml'
+import { parseToml } from './acton/toml'
 import transformCellRef from './abigen/transforms/cellRefs'
 import addSend from './abigen/transforms/addSend'
 import sortErrorsBlocks from './abigen/transforms/sortErrorsBlocks'

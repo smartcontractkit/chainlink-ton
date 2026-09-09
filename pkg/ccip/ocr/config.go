@@ -13,12 +13,14 @@ type Config struct {
 	CommitPriceUpdateOnlyCostTON float64 // Cost in TON for commit price update only (no merkle roots)
 	CommitPriceAndRootCostTON    float64 // Cost in TON for commit price update with merkle roots
 	ExecuteCostTON               float64 // Cost in TON for execute
+	ExecuteCostTONTokenTransfer  float64 // Cost in TON for each token transfer in execute
 }
 
 var DefaultConfigSet = Config{
 	CommitPriceUpdateOnlyCostTON: 0.03,
 	CommitPriceAndRootCostTON:    0.05,
 	ExecuteCostTON:               0.085,
+	ExecuteCostTONTokenTransfer:  0.10, // TODO
 }
 
 func (c *Config) ApplyDefaults() {
@@ -31,6 +33,9 @@ func (c *Config) ApplyDefaults() {
 	if c.ExecuteCostTON == 0 {
 		c.ExecuteCostTON = DefaultConfigSet.ExecuteCostTON
 	}
+	if c.ExecuteCostTONTokenTransfer == 0 {
+		c.ExecuteCostTONTokenTransfer = DefaultConfigSet.ExecuteCostTONTokenTransfer
+	}
 }
 
 func (c *Config) ValidateConfig() (err error) {
@@ -42,6 +47,9 @@ func (c *Config) ValidateConfig() (err error) {
 	}
 	if c.ExecuteCostTON <= 0 {
 		err = errors.Join(err, config.ErrInvalid{Name: "ExecuteCostTON", Msg: "must be greater than 0"})
+	}
+	if c.ExecuteCostTONTokenTransfer <= 0 {
+		err = errors.Join(err, config.ErrInvalid{Name: "ExecuteCostTONTokenTransfer", Msg: "must be greater than 0"})
 	}
 	return err
 }

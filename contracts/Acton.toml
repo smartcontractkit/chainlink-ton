@@ -7,6 +7,8 @@ license = "see LICENSE in LICENSE"
 [wrappers.typescript]
 output-dir = "wrappers/gen"
 
+# CCIP contracts
+
 [contracts.Router]
 display-name = "link.chain.ton.ccip.Router"
 src = "contracts/ccip/router/contract.tolk"
@@ -38,9 +40,15 @@ src = "contracts/ccip/ccipsend_executor/contract.tolk"
 domain = "ccip"
 depends = []
 
-[contracts.ContextExecutor]
-display-name = "link.chain.ton.ccip.ContextExecutor"
-src = "contracts/ccip/executors/context_executor/contract.tolk"
+[contracts.DepositAccount]
+display-name = "link.chain.ton.ccip.account.DepositAccount"
+src = "contracts/ccip/accounts/deposit/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.OnRampAccount]
+display-name = "link.chain.ton.ccip.account.OnRampAccount"
+src = "contracts/ccip/accounts/on_ramp_account/contract.tolk"
 domain = "ccip"
 depends = []
 
@@ -56,6 +64,25 @@ src = "contracts/ccip/merkle_root/contract.tolk"
 domain = "ccip"
 depends = []
 
+# CCIP Libraries
+
+[contracts.Receiver]
+display-name = "link.chain.ton.ccip.lib.Receiver"
+src = "contracts/lib/receiver/CCIPReceiver.tolk"
+domain = "ccip"
+depends = []
+
+
+# CCIP Test contracts
+
+[contracts.TestReceiver]
+display-name = "link.chain.ton.ccip.test.Receiver"
+src = "contracts/ccip/test/receiver/contract.tolk"
+domain = "ccip"
+depends = []
+
+# TokenTransfer contracts
+
 [contracts.JettonMinter]
 display-name = "link.chain.ton.ccip.cct.JettonMinter"
 src = "contracts/ccip/cct/JettonMinter.tolk"
@@ -69,38 +96,34 @@ domain = "ccip/cct"
 depends = []
 
 [contracts.TokenPool]
-display-name = "link.chain.ton.ccip.TokenPool"
-src = "contracts/ccip/pools/token_pool_contract.tolk"
+display-name = "link.chain.ton.ccip.pool.TokenPool"
+src = "contracts/ccip/pools/TokenPool.tolk"
 domain = "ccip/pools"
 depends = []
 
 [contracts.JettonLockBox]
-display-name = "link.chain.ton.ccip.JettonLockBox"
+display-name = "link.chain.ton.ccip.pool.JettonLockBox"
 src = "contracts/ccip/pools/lockbox/JettonLockBox.tolk"
 domain = "ccip/pools"
 depends = []
 
 [contracts.LockReleaseTokenPool]
-display-name = "link.chain.ton.ccip.LockReleaseTokenPool"
+display-name = "link.chain.ton.ccip.pool.LockReleaseTokenPool"
 src = "contracts/ccip/pools/lock_release/contract.tolk"
 domain = "ccip/pools"
 depends = []
 
 [contracts.BurnMintTokenPool]
-display-name = "link.chain.ton.ccip.BurnMintTokenPool"
+display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"
-domain = "ccip/pools"
-
-[contracts.LockReleaseLockboxTokenPool]
-display-name = "link.chain.ton.ccip.LockReleaseLockboxTokenPool"
-src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
 domain = "ccip/pools"
 depends = []
 
-[contracts.MockTokenPool]
-display-name = "link.chain.ton.ccip.test.TokenPool"
-src = "contracts/ccip/test/tokenPool/contract.tolk"
-domain = "ccip"
+[contracts.LockReleaseLockboxTokenPool]
+display-name = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
+src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
+domain = "ccip/pools"
+depends = []
 
 [contracts.MockAdvancedPoolHooks]
 display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"

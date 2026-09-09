@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
@@ -16,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 )
 
@@ -31,10 +33,11 @@ const (
 	// Contract types
 
 	// Libs and traits
-	TypeOwnable      tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
-	TypeRBAC         tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
-	TypeWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
-	TypeUpgradeable  tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
+	TypeOwnable            tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
+	TypeRBAC               tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
+	TypeWithdrawable       tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
+	TypeJettonWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.JettonWithdrawable"
+	TypeUpgradeable        tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
 
 	// MCMS
 	TypeMCMS     tvm.FullyQualifiedName = PkgMCMS + ".MCMS"
@@ -50,8 +53,14 @@ const (
 	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
 	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
 	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
-	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
-	TypeMockTokenPool   tvm.FullyQualifiedName = PkgCCIP + ".test.MockTokenPool"
+	TypeDepositAccount  tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
+
+	// Test contract types
+	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
+
+	// Token Pools
+	TypeLockReleaseTokenPool        tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseTokenPool"
+	TypeLockReleaseLockboxTokenPool tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseLockboxTokenPool"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -62,25 +71,27 @@ const (
 // These are used in types.Transaction.ContractType and the CLD datastore.
 // They must match the ds.ContractType values defined in deployment/state/.
 const (
-	ShortRouter          = "Router"
-	ShortFeeQuoter       = "FeeQuoter"
-	ShortOnRamp          = "OnRamp"
-	ShortOffRamp         = "OffRamp"
-	ShortSendExecutor    = "SendExecutor"
-	ShortDeployer        = "Deployer"
-	ShortMerkleRoot      = "MerkleRoot"
-	ShortReceiveExecutor = "ReceiveExecutor"
-	ShortReceiver        = "Receiver"
-	ShortTimelock        = "RBACTimelock"
-	ShortMCMS            = "MCMS"
-	ShortTokenRegistry   = "TokenAdminRegistry"
-	ShortMockTokenPool   = "MockTokenPool"
+	ShortRouter                      = "Router"
+	ShortFeeQuoter                   = "FeeQuoter"
+	ShortOnRamp                      = "OnRamp"
+	ShortOffRamp                     = "OffRamp"
+	ShortSendExecutor                = "SendExecutor"
+	ShortDeployer                    = "Deployer"
+	ShortMerkleRoot                  = "MerkleRoot"
+	ShortReceiveExecutor             = "ReceiveExecutor"
+	ShortReceiver                    = "Receiver"
+	ShortTimelock                    = "RBACTimelock"
+	ShortMCMS                        = "MCMS"
+	ShortTokenRegistry               = "TokenAdminRegistry"
+	ShortLockReleaseTokenPool        = "LockReleaseTokenPool"
+	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
-	ShortOwnable      = "Ownable"
-	ShortRBAC         = "RBAC" // ShortType for Role-Based Access Control trait
-	ShortWithdrawable = "Withdrawable"
-	ShortUpgradeable  = "Upgradeable"
+	ShortOwnable            = "Ownable"
+	ShortRBAC               = "RBAC" // ShortType for Role-Based Access Control trait
+	ShortWithdrawable       = "Withdrawable"
+	ShortJettonWithdrawable = "JettonWithdrawable"
+	ShortUpgradeable        = "Upgradeable"
 
 	// Jetton short names
 	ShortJettonWallet = "JettonWallet"
@@ -101,7 +112,8 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
-	{ShortMockTokenPool, TypeMockTokenPool},
+	{ShortLockReleaseTokenPool, TypeLockReleaseTokenPool},
+	{ShortLockReleaseLockboxTokenPool, TypeLockReleaseLockboxTokenPool},
 	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
@@ -111,10 +123,11 @@ var AllContractTypes = []struct {
 var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 	m := map[string]tvm.FullyQualifiedName{
 		// Traits (not in AllContractTypes)
-		ShortOwnable:      TypeOwnable,
-		ShortRBAC:         TypeRBAC,
-		ShortWithdrawable: TypeWithdrawable,
-		ShortUpgradeable:  TypeUpgradeable,
+		ShortOwnable:            TypeOwnable,
+		ShortRBAC:               TypeRBAC,
+		ShortWithdrawable:       TypeWithdrawable,
+		ShortJettonWithdrawable: TypeJettonWithdrawable,
+		ShortUpgradeable:        TypeUpgradeable,
 		// Jetton
 		ShortJettonWallet: TypeJettonWallet,
 		ShortJettonMinter: TypeJettonMinter,
@@ -128,10 +141,11 @@ var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 // Map of TLBs keyed by contract type
 var Registry = tvm.ContractTLBRegistry{
 	// Libs and traits
-	TypeOwnable:      ownable2step.TLBs,
-	TypeRBAC:         rbac.TLBs,
-	TypeWithdrawable: withdrawable.TLBs,
-	TypeUpgradeable:  upgradeable.TLBs,
+	TypeOwnable:            ownable2step.TLBs,
+	TypeRBAC:               rbac.TLBs,
+	TypeWithdrawable:       withdrawable.TLBs,
+	TypeJettonWithdrawable: jetton_withdrawable.TLBs,
+	TypeUpgradeable:        upgradeable.TLBs,
 
 	// MCMS contract types
 	TypeMCMS:     mcms.TLBs,
@@ -144,6 +158,9 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeFeeQuoter:     feequoter.TLBs,
 	TypeSendExecutor:  ccipsendexecutor.TLBs,
 	TypeTokenRegistry: tokenregistry.TLBs,
+
+	// Token pool contract types
+	TypeLockReleaseTokenPool: lockrelease.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

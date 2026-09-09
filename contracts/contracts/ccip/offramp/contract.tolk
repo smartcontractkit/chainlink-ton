@@ -48,7 +48,8 @@ const RESERVE = ton("5");
 
 // TBD: These two fields should be configurable
 const MIN_GASLIMIT = ton("0.025");
-const MIN_TT_GASLIMIT = ton("0.025"); 
+// LockRelase_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
+const MIN_TT_GASLIMIT = ton("0.15"); 
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -290,7 +291,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2 (bounce)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
@@ -378,7 +379,7 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2
 //     Router          ->> OffRamp:         Router_CCIPReceiveConfirm
 //     OffRamp         ->> ReceiveExecutor: OffRamp_CCIPReceiveConfirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
@@ -408,7 +409,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
 
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage
-//     Router          ->> Receiver: Receiver_CCIPReceive
+//     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
@@ -870,7 +871,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
-        gasOverride: msg.gasOverride,
+        effectiveGasLimit: msg.gasOverride.getEffectiveGasLimit(message.gasLimit),
         root: sender,
         sequenceNumber: message.header.sequenceNumber,
         sourceChainSelector: message.header.sourceChainSelector,
@@ -879,7 +880,8 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
     try {
-        initExecuteMsg.tokenTransfers = getTokenAdminRegistry(st, message.tokenAmounts, message.header.sourceChainSelector);
+        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride);
+        // TODO this hides the error
     } catch {
         return messageExecutionFailed(initExecuteMsg);
     }
@@ -897,21 +899,27 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     initExecMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun getTokenAdminRegistry(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64): array<ReceiveExecutor_TokenTransfer>? {
+// getTokenTransfer returns the information needed to perform a token transfer for a given message
+//
+// @note: We currently only support a single token transfer
+//
+// @throws OffRamp_Error.UnsupportedNumberOfTokens if tokenAmounts is not null and its len != 1.
+// @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch the number of gasOverride.tokenGasOverrides does not match the number of tokenAmounts.
+fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
+        assert(gasOverride == null || gasOverride.tokenGasOverrides == null, OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         return null;
     }
-    val tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
-    
+    var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
+    tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+
     // TODO probably the tokenRegistryMaster
     val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
     val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
-    return [
-        ReceiveExecutor_TokenTransfer {
-            tokenAdminRegistry: registryAddress,
-            transfer: tokenTransfer,
-        }
-    ];
+    return ReceiveExecutor_TokenTransfer {
+        tokenAdminRegistry: registryAddress,
+        transfer: tokenTransfer,
+    }.toCell();
 }
 
 /*

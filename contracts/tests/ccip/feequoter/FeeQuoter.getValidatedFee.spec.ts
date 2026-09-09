@@ -175,7 +175,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: beginCell().endCell(),
+      data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -194,7 +194,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: beginCell().endCell(),
+      data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -214,7 +214,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: invalidChainSelector,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: beginCell().endCell(),
+      data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -327,7 +327,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: beginCell().endCell(),
+      data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -374,7 +374,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: beginCell().endCell(),
+      data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: notAFeeToken,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -813,7 +813,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: validEVMExtraArgs,
@@ -838,7 +838,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: validSVMExtraArgs,
@@ -853,10 +853,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FeeQuoterSetup.DEST_ADDRESS,
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
-          extraArgs: beginCell().endCell(),
+          extraArgs: Cell.EMPTY,
         },
       })
       const result = await setup.assertGetFeeValidationError(
@@ -869,7 +869,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: validEVMExtraArgs,
@@ -884,7 +884,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: {
@@ -911,7 +911,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.sui,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: validSVMExtraArgs,
@@ -926,10 +926,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FeeQuoterSetup.DEST_ADDRESS,
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
-          extraArgs: beginCell().endCell(),
+          extraArgs: Cell.EMPTY,
         },
       })
       const result = await setup.assertGetFeeValidationError(
@@ -942,7 +942,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.sui,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: validEVMExtraArgs,
@@ -957,7 +957,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.sui,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({
@@ -998,7 +998,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('should throw InvalidMsgData error for snake data over 128 cells', async () => {
       // create a cell chain longer than 128 cells
-      let invalidSnakeCell: Cell = beginCell().endCell()
+      let invalidSnakeCell: Cell = Cell.EMPTY
       for (let i = 0; i <= 129; i++) {
         const newCell = beginCell().storeUint(i, 8).endCell()
         if (i === 0) {
@@ -1056,7 +1056,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: 88888n,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: beginCell().endCell(),
+        data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({
@@ -1086,7 +1086,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.evm,
           receiver: FromBuffer(validEvmAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
@@ -1107,7 +1107,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.evm,
           receiver: FromBuffer(precompileAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
@@ -1130,7 +1130,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.evm,
           receiver: FromBuffer(oversizedAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
@@ -1153,7 +1153,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.evm,
           receiver: FromBuffer(boundaryAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
@@ -1174,7 +1174,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FromBuffer(validSvmAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SVMExtraArgsV1.create({
@@ -1196,7 +1196,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FromBuffer(zeroAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SVMExtraArgsV1.create({
@@ -1218,7 +1218,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FromBuffer(zeroAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SVMExtraArgsV1.create({
@@ -1245,7 +1245,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.aptos,
           receiver: FromBuffer(validAptosAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
@@ -1265,7 +1265,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.aptos,
           receiver: FromBuffer(precompileAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.GenericExtraArgsV2.create({
@@ -1292,7 +1292,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.sui,
           receiver: FromBuffer(validSuiAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
@@ -1313,7 +1313,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.sui,
           receiver: FromBuffer(zeroAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
@@ -1334,7 +1334,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.sui,
           receiver: FromBuffer(precompileAddress),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
@@ -1357,7 +1357,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.sui,
           receiver: FromBuffer(zeroReceiver),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
@@ -1380,7 +1380,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.sui,
           receiver: FromBuffer(zeroReceiver),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({
@@ -1401,7 +1401,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         const message = rt.Router_CCIPSend.create({
           destChainSelector: ChainSelectors.testnet.sui,
           receiver: FromBuffer(zeroReceiver),
-          data: beginCell().endCell(),
+          data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: FeeQuoterSetup.NATIVE_TON.token,
           extraArgs: rt.SuiExtraArgsV1.create({

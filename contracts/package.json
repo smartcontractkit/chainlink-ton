@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
     "wgram-gas-report": "blueprint test --gas-report -- --config wgram-gas-report.config.ts",
-    "get-key-pair": "ts-node scripts/getKeyPair.ts"
+    "get-key-pair": "ts-node scripts/getKeyPair.ts",
+    "check-overflows": "ts-node scripts/overflowCheck.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",
@@ -43,7 +44,7 @@
     "@ton/blueprint": "0.44.2",
     "@ton/core": "0.63.1",
     "@ton/crypto": "3.3.0",
-    "@ton/sandbox": "0.42.0",
+    "@ton/sandbox": "0.44.0",
     "@ton/test-utils": "0.12.0",
     "@ton/tolk-js": "1.4.1",
     "@ton/ton": "16.2.4",
@@ -59,11 +60,15 @@
     "zlib": "^1.0.5"
   },
   "resolutions": {
-    "axios": "v1.16.1"
+    "axios": "v1.16.1",
+    "lodash": "^4.18.1",
+    "protobufjs": "^7.5.5"
   },
   "pnpm": {
     "overrides": {
-      "axios": "v1.16.1"
+      "axios": "v1.16.1",
+      "lodash": "^4.18.1",
+      "protobufjs": "^7.5.5"
     }
   }
 }

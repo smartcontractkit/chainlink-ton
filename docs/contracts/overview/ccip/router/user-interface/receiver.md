@@ -8,7 +8,7 @@ sidebar_position: 3
 
 # Receiver User Interface
 
-For arbitrary messages, the receiver must handle incoming `CCIPReceive` messages. On receiving such a message, the receiver should:
+For arbitrary messages, the receiver must handle incoming `Receiver_CCIPReceiveV2` messages. On receiving such a message, the receiver should:
 
 - Verify received TON is enough to cover gas costs.
 - Verify the sender is the Router contract to ensure authenticity.
@@ -23,8 +23,8 @@ sequenceDiagram
     participant U as User
 
     activate R
-    Note over R: RECEIVES CCIPReceive { execId,<br>message: { messageId,<br>sourceChain, sender, data }
-    R ->> U: CCIPReceive { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    R ->> U: Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
     deactivate R
 
 
@@ -44,8 +44,8 @@ sequenceDiagram
     participant U as User
 
     activate R
-    Note over R: RECEIVES CCIPReceive { execId,<br>message: { messageId,<br>sourceChain, sender, data }
-    R ->> U: CCIPReceive { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    R ->> U: Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
     deactivate R
 
 
@@ -54,7 +54,7 @@ sequenceDiagram
     Note over U: Verifies sender is Router
     U -x R: CCIPReceiveConfirm<br>{ execId }
     Note over U: Fails on processing message data [...]
-    U ->> R: Bounced CCIPReceive { execId }
+    U ->> R: Bounced Receiver_CCIPReceiveV2 { execId }
     deactivate U
 ```
 

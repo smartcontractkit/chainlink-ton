@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/utils"
 import "../common/types"
 import "../fee_quoter/types"
-import "../../lib/utils"
+import "errors"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
 const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
@@ -18,6 +19,32 @@ struct ExecutionReport {
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;
     tokenGasOverrides: SnakedCell<coins>? = null
+}
+
+// getEffectiveTotalDestGasAmount returns the total gas amount to use for token transfer
+//
+// @note: We currently only support a single token transfer
+//
+// If the gasOverride is null, it returns the sum of destGasAmount from all token transfers in the message.
+// If the gasOverride is not null, it returns the sum of max(destGasAmount, tokenGasOverride) for each
+// token transfer in the message.
+fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTransfer): coins? {
+    if (self == null || self.tokenGasOverrides == null) {
+        return tokenTransfer.destGasAmount;
+    }
+    return max(tokenTransfer.destGasAmount, self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch));
+}
+
+// getEffectiveGasLimit returns the total gas amount to use for message execution
+//
+// If the gasOverride is not null and its receiverExecutionGasLimit is greater
+// than the gasLimit from the message, it returns its receiverExecutionGasLimit.
+// Otherwise, it returns gasLimit from the message, passed as an argument.
+fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
+    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
+        return self.receiverExecutionGasLimit;
+    }
+    return gasLimit;
 }
 
 // Matches the EVM struct

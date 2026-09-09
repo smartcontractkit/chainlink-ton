@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -95,9 +96,12 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
 
-			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-			if err != nil {
-				return nil, fmt.Errorf("pack extra data: %w", err)
+			var extraData *cell.Cell
+			if len(tokenAmount.ExtraData) > 0 {
+				extraData, err = tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
+				if err != nil {
+					return nil, fmt.Errorf("pack extra data: %w", err)
+				}
 			}
 
 			destPoolTonAddr := AddressBytesToTONAddressWithBurning(tokenAmount.DestTokenAddress)
@@ -218,9 +222,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		var tokenAmounts []ccipocr3.RampTokenAmount
 		for _, tokenAmount := range msg.TokenAmounts {
 			var extraData common.SnakeBytes
-			err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
-			if err != nil {
-				return executeReport, fmt.Errorf("unpack extra data: %w", err)
+			if tokenAmount.ExtraData != nil {
+				err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
+				if err != nil {
+					return executeReport, fmt.Errorf("unpack extra data: %w", err)
+				}
 			}
 
 			destTokenRaw, err := ToRawAddr(tokenAmount.DestPoolAddress)
@@ -304,12 +310,19 @@ func extractDestGasAmountFromMap(input map[string]any) (*tlb.Coins, error) {
 		lowercase := strings.ToLower(fieldName)
 		switch lowercase {
 		case "destgasamount":
-			// Expect uint32
-			if val, ok := fieldValue.(uint32); ok {
+			switch val := fieldValue.(type) {
+			case uint32:
 				coins := tlb.FromNanoTONU(uint64(val))
 				return &coins, nil
+			case int64: // LOOP converts expected uint32 to int64
+				if val < 0 || val > math.MaxUint32 {
+					return nil, fmt.Errorf("destgasamount out of uint32 range: %d", val)
+				}
+				coins := tlb.FromNanoTONU(uint64(val))
+				return &coins, nil
+			default:
+				return nil, fmt.Errorf("invalid type for destgasamount, expected uint32 or int64, got %T", fieldValue)
 			}
-			return nil, errors.New("invalid type for destgasamount, expected uint32")
 		default:
 		}
 	}
