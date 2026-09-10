@@ -33,6 +33,7 @@ type OffRampStorage struct {
 
 type Deployables struct {
 	RMNRouter           *address.Address `json:"rmnRouter"`
+	TokenAdminRegistry  *address.Address `json:"tokenAdminRegistry"`
 	Deployer            string           `json:"deployerHex"`
 	MerkleRootCode      string           `json:"MerkleRootCodeHex"`
 	ReceiveExecutorCode string           `json:"ReceiveExecutorCodeHex"`
@@ -110,6 +111,14 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 		return b
 	}
 	b.storage.Deployables.RMNRouter = router
+	return b
+}
+
+func (b *OffRampStorageBuilder) WithTokenAdminRegistry(tokenAdminRegistry *address.Address) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.Deployables.TokenAdminRegistry = tokenAdminRegistry
 	return b
 }
 
@@ -226,6 +235,7 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 
 	// Deployables
 	b = b.WithRMNRouter(raw.Deployables.RMNRouter).
+		WithTokenAdminRegistry(raw.Deployables.TokenAdminRegistry).
 		WithDeployerCode(hex.EncodeToString(raw.Deployables.Deployer.ToBOC())).
 		WithMerkleRootCode(hex.EncodeToString(raw.Deployables.MerkleRootCode.ToBOC())).
 		WithReceiveExecutorCode(hex.EncodeToString(raw.Deployables.ReceiveExecutorCode.ToBOC()))
@@ -499,6 +509,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
 		Deployables: offramp.Deployables{
 			RMNRouter:           s.Deployables.RMNRouter,
+			TokenAdminRegistry:  s.Deployables.TokenAdminRegistry,
 			Deployer:            deployerCode,
 			MerkleRootCode:      merkleRootCode,
 			ReceiveExecutorCode: receiveExecutorCode,
