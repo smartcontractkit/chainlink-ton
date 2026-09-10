@@ -7,7 +7,9 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import { randomAddress } from '@ton/test-utils'
 import { ChainSelectors } from '../../utils/Selectors'
 
-type OnRampOverrides = Partial<Omit<or.OnRamp_Storage, '$' | 'config' | 'deployablesConfig' | 'ownable'>> & {
+type OnRampOverrides = Partial<
+  Omit<or.OnRamp_Storage, '$' | 'config' | 'deployablesConfig' | 'ownable'>
+> & {
   config?: Partial<Omit<or.OnRamp_DynamicConfig, '$'>>
   executor?: Partial<Omit<or.ExecutorDeployment, '$'>>
   tokenAdminRegistry?: Address

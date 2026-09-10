@@ -83,11 +83,23 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   const tokenAdminRegistry = opts.tokenAdminRegistry ?? deployer.address
   const onRamp =
     opts.onRamp ??
-    (await deployOnRampInstance(blockchain, deployer, router.address, feeQuoter.address, tokenAdminRegistry))
+    (await deployOnRampInstance(
+      blockchain,
+      deployer,
+      router.address,
+      feeQuoter.address,
+      tokenAdminRegistry,
+    ))
 
   const offRamp =
     opts.offRamp ??
-    (await deployOffRampInstance(blockchain, deployer, router.address, feeQuoter.address, tokenAdminRegistry))
+    (await deployOffRampInstance(
+      blockchain,
+      deployer,
+      router.address,
+      feeQuoter.address,
+      tokenAdminRegistry,
+    ))
 
   if (!opts.skipRouterOnRampConfig) {
     await configureRouterWithOnRamp(router, deployer, onRamp.address, offRamp.address)
