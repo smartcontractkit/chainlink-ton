@@ -1072,23 +1072,26 @@ describe('OffRamp - Execute', () => {
 
       const result4 = await setup.manualExecuteReport(report, gasOverride, true)
 
-      expect(result4.transactions).toHaveTransaction({
-        to: setup.offRamp.address,
-        op: of.OffRamp_ExecuteValidated.PREFIX,
-        exitCode: of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
-        success: false,
-      })
+      assertLog(
+        result4.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
     })
 
-    it('should get merkle root stuck in InProgress when gasOverride is lower than original gasLimit (bug)', async () => {
+    it('should mark message as Failure when gasOverride is lower than original gasLimit, allowing retry', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
 
       // 1. First DON execution: make the receiver reject so the message
-      //    ends in Failure. This is necessary so that the subsequent manual
-      //    execute skips the ReceiveExecutor deploy step and reaches
-      //    getEffectiveGasLimit directly.
+      //    ends in Failure.
       await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
@@ -1102,44 +1105,51 @@ describe('OffRamp - Execute', () => {
       warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
 
       // 2. Manual execute with a receiverExecutionGasLimit lower than the
-      //    message gasLimit. getEffectiveGasLimit throws
-      //    InvalidManualExecutionGasLimit *outside* the try/catch in
-      //    onExecuteValidated, so the ExecuteValidated transaction fails and
-      //    bounces back to the MerkleRoot. The MerkleRoot has no bounce
-      //    handler, so the message state — already set to InProgress by
-      //    onInitExecute — is never updated to Failure.
+      //    message gasLimit.
       const badGasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
       const badResult = await setup.manualExecuteReport(report, badGasOverride, true)
 
-      // The ExecuteValidated transaction fails (getEffectiveGasLimit throws
-      // outside the try/catch). No Failure state is emitted because the throw
-      // discards all emits, and the bounce back to MerkleRoot is silently
-      // ignored (no bounce handler).
-      expect(badResult.transactions).not.toHaveTransaction({
-        from: setup.offRamp.address,
-        op: of.OffRamp_NotifyFailure.PREFIX,
-      })
+      assertLog(
+        badResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
 
-      // 3. Retry manual execute with a *valid* gasOverride (higher than
-      //    gasLimit). This should succeed, but because the MerkleRoot is stuck
-      //    in InProgress, the MerkleRoot rejects the retry with
-      //    SkippedAlreadyExecutedMessage.
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.Accept,
+        },
+      )
+
       const goodGasOverride = { receiverExecutionGasLimit: message.gasLimit + toNano('0.01') }
       const retryResult = await setup.manualExecuteReport(report, goodGasOverride, true)
 
-      // The OffRamp forwards to the MerkleRoot, which rejects because the
-      // message is in InProgress (not Untouched or Failure).
       expect(retryResult.transactions).toHaveTransaction({
-        exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
-        success: false,
-      })
-
-      // The message never reaches the receiver.
-      expect(retryResult.transactions).not.toHaveTransaction({
         from: setup.router.address,
         to: setup.receiver.address,
+        value: goodGasOverride.receiverExecutionGasLimit,
         success: true,
       })
+
+      assertLog(
+        retryResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
     })
 
     it('should ignore gasOverride when 0', async () => {
