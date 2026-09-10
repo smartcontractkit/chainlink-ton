@@ -21,13 +21,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	mocks "github.com/smartcontractkit/chainlink-ton/cciplib/mocks/ccipocr3"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.ExecutePluginReport {
 	const numChainReports = 1 // currently TON supports single report only
 	const msgsPerReport = 1
-	const numTokensPerMsg = 2
+	const numTokensPerMsg = 1 // TON supports a single token transfer per message
 
 	chainReports := make([]ccipocr3.ExecutePluginReportSingleChain, numChainReports)
 	for i := range numChainReports {
@@ -73,7 +72,7 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 		chainReports[i] = ccipocr3.ExecutePluginReportSingleChain{
 			SourceChainSelector: ccipocr3.ChainSelector(sourceChainSelector),
 			Messages:            reportMessages,
-			OffchainTokenData:   [][][]byte{{{0x1}, {0x2, 0x3}}},
+			OffchainTokenData:   [][][]byte{{{0x1, 0x2, 0x3}}}, // one blob for one token
 			Proofs:              []ccipocr3.Bytes32{},
 			ProofFlagBits:       ccipocr3.BigInt{Int: big.NewInt(1)},
 		}
@@ -106,6 +105,9 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, report.ChainReports[0].SourceChainSelector, decoded.ChainReports[0].SourceChainSelector)
 		assert.Equal(t, report.ChainReports[0].Messages[0].TokenAmounts[0].Amount, decoded.ChainReports[0].Messages[0].TokenAmounts[0].Amount)
+		// Verify offchainTokenData roundtrips correctly
+		require.Len(t, decoded.ChainReports[0].OffchainTokenData, 1, "should have one message's worth of offchain data")
+		assert.Equal(t, report.ChainReports[0].OffchainTokenData[0], decoded.ChainReports[0].OffchainTokenData[0])
 	})
 
 	t.Run("empty report", func(t *testing.T) {
@@ -198,7 +200,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		executeReport := ocr.ExecuteReport{
 			SourceChainSelector: 5009297550715157269,
 			Message:             rampMessage,
-			OffChainTokenData:   tvm.EmptyCell,
+			OffChainTokenData:   common.LispList[common.SnakeBytes]{},
 			Proofs:              common.SnakedCell[common.Proof]{},
 			ProofFlagBits:       big.NewInt(0),
 		}

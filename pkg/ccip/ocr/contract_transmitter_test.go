@@ -11,7 +11,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 func TestGetReportTxInfo(t *testing.T) {
@@ -42,7 +41,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				GasLimit:     gasLimit,
 				TokenAmounts: nil,
 			},
-			OffChainTokenData: tvm.EmptyCell,
+			OffChainTokenData: common.LispList[common.SnakeBytes]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -90,7 +89,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				GasLimit:     gasLimit,
 				TokenAmounts: nil,
 			},
-			OffChainTokenData: tvm.EmptyCell,
+			OffChainTokenData: common.LispList[common.SnakeBytes]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -147,7 +146,7 @@ func TestGetReportTxInfo(t *testing.T) {
 					},
 				},
 			},
-			OffChainTokenData: tvm.EmptyCell,
+			OffChainTokenData: common.LispList[common.SnakeBytes]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -208,7 +207,7 @@ func TestGetReportTxInfo(t *testing.T) {
 					},
 				},
 			},
-			OffChainTokenData: tvm.EmptyCell,
+			OffChainTokenData: common.LispList[common.SnakeBytes]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}

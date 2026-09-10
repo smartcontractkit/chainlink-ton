@@ -120,7 +120,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	report := ExecuteReport{
 		SourceChainSelector: 1,
 		Message:             rampMessageSlice,
-		OffChainTokenData:   tvm.EmptyCell,
+		OffChainTokenData:   common.LispList[common.SnakeBytes]{},
 		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
 	}

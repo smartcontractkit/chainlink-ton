@@ -17,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
@@ -157,7 +156,29 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		TokenAmounts: tokenAmounts,
 	}
 
-	// Handle chainReport.OffchainTokenData here as needed in the future
+	// Encode offchainTokenData: one blob per token transfer.
+	// TON supports a single message with a single token transfer, so we expect
+	// either no offchain data (no tokens) or exactly one blob (one token).
+	// The on-chain representation is a required ref to a lisp_list<cell>.
+	// When there are no tokens, we send an empty list (single empty cell).
+	offchainTokenData := make(common.LispList[common.SnakeBytes], 0)
+	if len(chainReport.OffchainTokenData) > 0 {
+		// OffchainTokenData is [][]byte indexed per-message then per-token.
+		// TON supports a single message, so we take the first (and only) message's entry.
+		if len(chainReport.OffchainTokenData) != 1 {
+			return nil, fmt.Errorf("TON supports single message only, got %d offchainTokenData message entries", len(chainReport.OffchainTokenData))
+		}
+		msgTokenData := chainReport.OffchainTokenData[0]
+		// The number of per-token blobs must match the number of token transfers.
+		if len(msgTokenData) != len(tokenAmounts) {
+			return nil, fmt.Errorf("offchainTokenData count %d does not match tokenAmounts count %d", len(msgTokenData), len(tokenAmounts))
+		}
+		offchainTokenData = make(common.LispList[common.SnakeBytes], 0, len(msgTokenData))
+		for _, blob := range msgTokenData {
+			sb := common.SnakeBytes(blob)
+			offchainTokenData = append(offchainTokenData, &sb)
+		}
+	}
 
 	proofs := make(common.SnakedCell[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
@@ -170,7 +191,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
 		Message:             rampMessage,
-		OffChainTokenData:   tvm.EmptyCell, // default empty cell as on-chain, will be removed after token transfer is supported
+		OffChainTokenData:   offchainTokenData,
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
 	}
@@ -289,7 +310,14 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		})
 
 		offchainTokenData := make([][][]byte, 0)
-		// Currently offchain token data is not supported in TON execute reports, so we leave it empty
+
+		if len(tonReport.OffChainTokenData) > 0 {
+			msgTokenData := make([][]byte, 0, len(tonReport.OffChainTokenData))
+			for _, blob := range tonReport.OffChainTokenData {
+				msgTokenData = append(msgTokenData, []byte(*blob))
+			}
+			offchainTokenData = append(offchainTokenData, msgTokenData)
+		}
 
 		executeReport.ChainReports = append(executeReport.ChainReports, ccipocr3.ExecutePluginReportSingleChain{
 			SourceChainSelector: ccipocr3.ChainSelector(tonReport.SourceChainSelector),

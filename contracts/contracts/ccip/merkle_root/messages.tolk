@@ -11,6 +11,7 @@ struct (0x038ede91) MerkleRoot_Validate {
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
     gasOverride: GasOverride?,
+    offchainTokenData: lisp_list<cell>,
 }
 
 //crc32('MerkleRoot_MarkState')

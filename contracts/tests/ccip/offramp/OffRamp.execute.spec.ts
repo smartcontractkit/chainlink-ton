@@ -81,7 +81,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -148,7 +148,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -212,7 +212,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -1296,7 +1296,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1365,7 +1365,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1432,7 +1432,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1477,7 +1477,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1544,7 +1544,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1625,7 +1625,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1701,7 +1701,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1780,7 +1780,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [],
           proofs: proof.hashes,
           proofFlagBits,
         })

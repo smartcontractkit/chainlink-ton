@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
@@ -566,4 +567,107 @@ func NewDummyCell() (*cell.Cell, error) {
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+// LispList is a generic Go binding for Tolk's lisp_list<T> (from @stdlib/lisp-lists).
+// It serializes as reversed snake refs: each chain cell stores ref[0]=next-chain
+// and ref[1]=element-cell. The terminator is a completely empty cell (0 bits, 0 refs).
+// An empty list serializes as a single empty cell.
+//
+// Unlike SnakedCell<cell>, this format is unambiguous for ref-only elements (cell),
+// because the chain ref is always at position 0 and loaded first, while the element
+// ref is at position 1 — there is no reliance on "bits == 0" to distinguish chain
+// links from elements.
+//
+// T must implement tlb.Marshaller (ToCell) and tlb.Unmarshaler (LoadFromCell).
+// Each element is serialized to its own cell ref and stored as ref[1] in the chain.
+//
+// Wire format for [A, B]:
+//
+//	root ref → cell(0 bits, 2 refs)
+//	           ├── ref[0] → cell(0 bits, 2 refs)
+//	           │            ├── ref[0] → empty cell (terminator)
+//	           │            └── ref[1] → A (element)
+//	           └── ref[1] → B (element)
+type LispList[T tlb.Marshaller] []*T
+
+// ToCell packs the LispList into a cell matching Tolk's lisp_list.packToBuilder format.
+// The returned cell is the root of the reversed snake chain (to be stored as a ^ ref
+// by the parent struct). An empty list produces a single empty cell.
+func (l LispList[T]) ToCell() (*cell.Cell, error) {
+	tail := tvm.EmptyCell
+	for i, v := range slices.Backward(l) {
+		if v == nil {
+			return nil, fmt.Errorf("element at index %d is nil", i)
+		}
+		elemCell, err := (*v).ToCell()
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize element %d: %w", i, err)
+		}
+		b := cell.BeginCell()
+		if err := b.StoreRef(tail); err != nil {
+			return nil, fmt.Errorf("failed to store chain ref at index %d: %w", i, err)
+		}
+		if err := b.StoreRef(elemCell); err != nil {
+			return nil, fmt.Errorf("failed to store element ref at index %d: %w", i, err)
+		}
+		tail = b.EndCell()
+	}
+	return tail, nil
+}
+
+// LoadFromCell unpacks a LispList from a cell slice matching Tolk's
+// lisp_list format. The slice is the root cell's content (the ^ ref is already
+// consumed by the parent struct's tlb:"^" tag). An empty slice (0 bits, 0 refs)
+// represents an empty list. A non-empty cell has 2 refs: ref[0]=chain, ref[1]=element.
+func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
+	var result LispList[T]
+	curr := s
+	cellCount := 0
+
+	for {
+		if curr.BitsLeft() == 0 && curr.RefsNum() == 0 {
+			// terminator — empty cell
+			break
+		}
+
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return fmt.Errorf("lisp_list chain depth %d exceeds maximum of %d", cellCount, MaxCellChainDepth)
+		}
+
+		// Each non-terminator cell has exactly 2 refs: ref[0]=chain, ref[1]=element
+		if curr.RefsNum() != 2 {
+			return fmt.Errorf("invalid lisp_list cell: expected 2 refs, got %d", curr.RefsNum())
+		}
+
+		next, err := curr.LoadRefCell()
+		if err != nil {
+			return fmt.Errorf("failed to load lisp_list chain ref: %w", err)
+		}
+		elemCell, err := curr.LoadRefCell()
+		if err != nil {
+			return fmt.Errorf("failed to load lisp_list element ref: %w", err)
+		}
+
+		var elem T
+		// T must implement tlb.Unmarshaler; use tlb.LoadFromCell which checks for the interface
+		if err := tlb.LoadFromCell(&elem, elemCell.BeginParse()); err != nil {
+			return fmt.Errorf("failed to decode lisp_list element: %w", err)
+		}
+		result = append(result, &elem)
+		if len(result) > MaxArrayLength {
+			return fmt.Errorf("lisp_list length %d exceeds maximum of %d", len(result), MaxArrayLength)
+		}
+
+		curr = next.BeginParse()
+	}
+
+	// Elements were collected in reverse order (deepest first); reverse to restore original order.
+	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+		result[i], result[j] = result[j], result[i]
+	}
+
+	*l = result
+	return nil
 }

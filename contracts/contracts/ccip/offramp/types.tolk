@@ -11,7 +11,11 @@ const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
 struct ExecutionReport {
     sourceChainSelector: uint64;
     messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
-    offchainTokenData: cell; // vec<vec<u8>>, one per token, we don't support token transfers right now, so this is ignored
+    // Offchain token data, one entry per token transfer in the message (vec<vec<u8>>).
+    // An empty lisp_list when the message carries no token transfers; otherwise
+    // each entry is the offchain data blob (as a cell) for the corresponding token.
+    // WARNING: offchainTokenData is untrusted data.
+    offchainTokenData: lisp_list<cell>;
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
 }

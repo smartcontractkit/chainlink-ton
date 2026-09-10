@@ -114,6 +114,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             metadataHash: msg.metadataHash,
             gasOverride: msg.gasOverride,
             executionState: state,
+            offchainTokenData: msg.offchainTokenData,
         }
     });
     executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
