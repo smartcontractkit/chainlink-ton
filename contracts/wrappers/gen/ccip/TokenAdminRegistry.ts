@@ -205,7 +205,7 @@ export const TokenAdminRegistry_SetEntryDeployment = {
 }
 
 /**
- > struct (0x9ab89f26) TokenAdminRegistry_RegisterToken {
+ > struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
  >     queryId: uint64
  >     tokenAddress: address
  >     tokenInfo: Cell<TokenRegistry_TokenInfo>
@@ -221,7 +221,7 @@ export interface TokenAdminRegistry_RegisterToken {
 }
 
 export const TokenAdminRegistry_RegisterToken = {
-    PREFIX: 0x9ab89f26,
+    PREFIX: 0xbe8621a2,
 
     create(args: {
         queryId?: uint64
@@ -236,7 +236,7 @@ export const TokenAdminRegistry_RegisterToken = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_RegisterToken {
-        loadAndCheckPrefix32(s, 0x9ab89f26, 'TokenAdminRegistry_RegisterToken');
+        loadAndCheckPrefix32(s, 0xbe8621a2, 'TokenAdminRegistry_RegisterToken');
         return {
             $: 'TokenAdminRegistry_RegisterToken',
             queryId: s.loadUintBig(64),
@@ -246,7 +246,7 @@ export const TokenAdminRegistry_RegisterToken = {
         }
     },
     store(self: TokenAdminRegistry_RegisterToken, b: c.Builder): void {
-        b.storeUint(0x9ab89f26, 32);
+        b.storeUint(0xbe8621a2, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenAddress);
         storeCellRef<TokenRegistry_TokenInfo>(self.tokenInfo, b, TokenRegistry_TokenInfo.store);
@@ -258,7 +258,7 @@ export const TokenAdminRegistry_RegisterToken = {
 }
 
 /**
- > struct (0x6e6f71ef) TokenAdminRegistry_OverridePendingAdministrator {
+ > struct (0xfddaa034) TokenAdminRegistry_OverridePendingAdministrator {
  >     queryId: uint64
  >     tokenAddress: address
  >     administrator: address
@@ -272,7 +272,7 @@ export interface TokenAdminRegistry_OverridePendingAdministrator {
 }
 
 export const TokenAdminRegistry_OverridePendingAdministrator = {
-    PREFIX: 0x6e6f71ef,
+    PREFIX: 0xfddaa034,
 
     create(args: {
         queryId?: uint64
@@ -286,7 +286,7 @@ export const TokenAdminRegistry_OverridePendingAdministrator = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_OverridePendingAdministrator {
-        loadAndCheckPrefix32(s, 0x6e6f71ef, 'TokenAdminRegistry_OverridePendingAdministrator');
+        loadAndCheckPrefix32(s, 0xfddaa034, 'TokenAdminRegistry_OverridePendingAdministrator');
         return {
             $: 'TokenAdminRegistry_OverridePendingAdministrator',
             queryId: s.loadUintBig(64),
@@ -295,7 +295,7 @@ export const TokenAdminRegistry_OverridePendingAdministrator = {
         }
     },
     store(self: TokenAdminRegistry_OverridePendingAdministrator, b: c.Builder): void {
-        b.storeUint(0x6e6f71ef, 32);
+        b.storeUint(0xfddaa034, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenAddress);
         b.storeAddress(self.administrator);
@@ -955,7 +955,7 @@ export const Deployable_Message = {
 }
 
 /**
- > struct (0x31d2bb6e) TokenAdminRegistryEntry_ProposeAdministrator {
+ > struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
  >     queryId: uint64
  >     administrator: address
  > }
@@ -967,7 +967,7 @@ export interface TokenAdminRegistryEntry_ProposeAdministrator {
 }
 
 export const TokenAdminRegistryEntry_ProposeAdministrator = {
-    PREFIX: 0x31d2bb6e,
+    PREFIX: 0x6dcbe573,
 
     create(args: {
         queryId?: uint64
@@ -980,7 +980,7 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_ProposeAdministrator {
-        loadAndCheckPrefix32(s, 0x31d2bb6e, 'TokenAdminRegistryEntry_ProposeAdministrator');
+        loadAndCheckPrefix32(s, 0x6dcbe573, 'TokenAdminRegistryEntry_ProposeAdministrator');
         return {
             $: 'TokenAdminRegistryEntry_ProposeAdministrator',
             queryId: s.loadUintBig(64),
@@ -988,7 +988,7 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
         }
     },
     store(self: TokenAdminRegistryEntry_ProposeAdministrator, b: c.Builder): void {
-        b.storeUint(0x31d2bb6e, 32);
+        b.storeUint(0x6dcbe573, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.administrator);
     },
@@ -998,7 +998,7 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
 }
 
 /**
- > struct (0x5f7f84e1) TokenAdminRegistryEntry_TransferAdminRole {
+ > struct (0x8b1503cf) TokenAdminRegistryEntry_TransferAdminRole {
  >     queryId: uint64
  >     actor: address
  >     newAdministrator: address?
@@ -1012,7 +1012,7 @@ export interface TokenAdminRegistryEntry_TransferAdminRole {
 }
 
 export const TokenAdminRegistryEntry_TransferAdminRole = {
-    PREFIX: 0x5f7f84e1,
+    PREFIX: 0x8b1503cf,
 
     create(args: {
         queryId?: uint64
@@ -1026,7 +1026,7 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_TransferAdminRole {
-        loadAndCheckPrefix32(s, 0x5f7f84e1, 'TokenAdminRegistryEntry_TransferAdminRole');
+        loadAndCheckPrefix32(s, 0x8b1503cf, 'TokenAdminRegistryEntry_TransferAdminRole');
         return {
             $: 'TokenAdminRegistryEntry_TransferAdminRole',
             queryId: s.loadUintBig(64),
@@ -1035,7 +1035,7 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
         }
     },
     store(self: TokenAdminRegistryEntry_TransferAdminRole, b: c.Builder): void {
-        b.storeUint(0x5f7f84e1, 32);
+        b.storeUint(0x8b1503cf, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.actor);
         b.storeAddress(self.newAdministrator);
@@ -1046,7 +1046,7 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
 }
 
 /**
- > struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {
+ > struct (0x39c6e872) TokenAdminRegistryEntry_AcceptAdminRole {
  >     queryId: uint64
  >     actor: address
  > }
@@ -1058,7 +1058,7 @@ export interface TokenAdminRegistryEntry_AcceptAdminRole {
 }
 
 export const TokenAdminRegistryEntry_AcceptAdminRole = {
-    PREFIX: 0xd1fbd97c,
+    PREFIX: 0x39c6e872,
 
     create(args: {
         queryId?: uint64
@@ -1071,7 +1071,7 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_AcceptAdminRole {
-        loadAndCheckPrefix32(s, 0xd1fbd97c, 'TokenAdminRegistryEntry_AcceptAdminRole');
+        loadAndCheckPrefix32(s, 0x39c6e872, 'TokenAdminRegistryEntry_AcceptAdminRole');
         return {
             $: 'TokenAdminRegistryEntry_AcceptAdminRole',
             queryId: s.loadUintBig(64),
@@ -1079,7 +1079,7 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
         }
     },
     store(self: TokenAdminRegistryEntry_AcceptAdminRole, b: c.Builder): void {
-        b.storeUint(0xd1fbd97c, 32);
+        b.storeUint(0x39c6e872, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.actor);
     },
@@ -1171,7 +1171,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFQEABQAAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgREgS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJNXE+TTjAtcsI3N7j3zjAtcsJuM/XoTjAtcsJfFHCzSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gEAL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AtM/+kjU+kgwggDCiIsCIscFs/L0+CjI+lLPkAAAAA5SMPpSyYIK+vCAA9D6UPpI0x/R+ChtAcj6UvpUFfpUyQbI+lIS+lT6UhLLHxPMyYII5OHAyM+QxWAJphXLP8nIic8WFgoLAN4x7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AHTP/pI+kgwggDCiIsCIscFs/L0+CjI+lLPkAAAAA4S+lLJggjk4cDIz4kIAVMlyM+E0MzM+RbPC/8B+gKBAIzPC3AUzBPMz5DHSu26yz/6Uslw+wAAyDHtRNDTHzH6SDH6UDHU1DHRAdM/+kj6UDD4kvgoyPpSz5AAAAAOE/pSyYII5OHAyM+Rff4ThhXLPxP6UvpUycjPiQgBUyTIz4TQzMz5Fs8L/1AD+gKBAI3PC3ATzBLMzMlw+wAE/o5gMe1E0NMfMfpIMfpQMdTUMdEB0z/6SDD4kvgoyPpSz5AAAAAOEvpSyYII5OHAyM+TR+9l8hTLPxL6UsnIz4kIAVMkyM+E0MzM+RbPC/9QA/oCgQCNzwtwE8wSzMzJcPsA4NcsIKBY9IzjAtcsJxY6baTjAtcsJneA1DzjAjAMDQ4PAAiw7FFXAFjMzFAD+gITzMnIz4kIAVM0yM+E0MzM+RbPC/9Y+gKBAI3PC3ATzMzMyXD7AADoMe1E0NMfMfpIMfpQMdTUMdEB0z/6SPpQ+lAw+JL4KMj6Us+QAAAADlJA+lLJUAbIz4TQzMz5FsjPigBAy//PUAWCAMZwBscFFfL0yM+QUCx6RhPLP/pS+lT6VMnIz48YAASCEARN52nPC/dxzwthzMlw+wAA4DHtRNDTHzH6SDH6UDHU1DHRAdM/+kj6SDD4kvgoyPpSz5AAAAAOUjD6UslQBcjPhNDMzPkWyM+KAEDL/89QBIIAxnAFxwUU8vTIz5OLHTbSEss/+lL6UsnIz48YAASCEE5Jt4XPC/dxzwthzMlw+wAA6DHtRNDTHzH6SDH6UDHU1DHRAdM/+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAGyM+E0MzM+RbIz4oAQMv/z1AFggDGcAbHBRXy9MjPkzvAah4Tyz/6UvpU+lTJyM+PGAAEghAMkZlPzwv3cc8LYczJcPsAAFLtRNDWH/pI+lD4kkMwJfABnjQCyM4S+lIS+lTOye1U4F8EhA8BxwDy9ABmbBLTP/pIMIIAwohRNMcFE/L0ggDCiVMjxwWz8vQhiwLIz4cgznDPC2ESyz8S+lLJcPsAAGW5FfjQmbGluay5jaGFpbi50b24uY2NpcC5Ub2tlbkFkbWluUmVnaXN0cnmCLUxLjYuMIgCASATFAAXtKO9qJoaY+Y/SQYQAB23XX2omhpj5j9JBj9KBhA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFQEABQAAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgREgS3PiR8kAg1ywh9gSkzI4qMe1E0NYf+kj6UDD4koIAwohRE8cF8vQD1NdMA8jOEvpSE/pUEszMye1U4NcsJfQxDRTjAtcsJ+7VAaTjAtcsJuM/XoTjAtcsJfFHCzSAGBwgJAak7aLt+9csJ5Db7QyORNcsJ88U8lSUW3DbMeGCAMKKI26z8vQhggDCigTHBRPy9CBtA9cLP4sCAcjLPxX6UhL6UsnIz4cgFM5xzwthE8zJcPsA4w1/gEAL+Me1E0NMfMfpI+lAx1NdM+JKCAMKIBMcFE/L0AtM/+kjU+kgwggDCiIsCIscFs/L0+CjI+lLPkAAAAA5SMPpSyYIK+vCAA9D6UPpI0x/R+ChtAcj6UvpUFfpUyQbI+lIS+lT6UhLLHxPMyYII5OHAyM+QxWAJphXLP8nIic8WFgoLAN4x7UTQ0x8x+kj6UDHXTPiSggDCiAPHBRLy9AHTP/pI+kgwggDCiIsCIscFs/L0+CjI+lLPkAAAAA4S+lLJggjk4cDIz4kIAVMlyM+E0MzM+RbPC/8B+gKBAIzPC3AUzBPMz5G3L5XOyz/6Uslw+wAAyDHtRNDTHzH6SDH6UDHU1DHRAdM/+kj6UDD4kvgoyPpSz5AAAAAOE/pSyYII5OHAyM+SLFQPPhXLPxP6UvpUycjPiQgBUyTIz4TQzMz5Fs8L/1AD+gKBAI3PC3ATzBLMzMlw+wAE/o5gMe1E0NMfMfpIMfpQMdTUMdEB0z/6SDD4kvgoyPpSz5AAAAAOEvpSyYII5OHAyM+Q5xuhyhTLPxL6UsnIz4kIAVMkyM+E0MzM+RbPC/9QA/oCgQCNzwtwE8wSzMzJcPsA4NcsIKBY9IzjAtcsJxY6baTjAtcsJneA1DzjAjAMDQ4PAAiw7FFXAFjMzFAD+gITzMnIz4kIAVM0yM+E0MzM+RbPC/9Y+gKBAI3PC3ATzMzMyXD7AADoMe1E0NMfMfpIMfpQMdTUMdEB0z/6SPpQ+lAw+JL4KMj6Us+QAAAADlJA+lLJUAbIz4TQzMz5FsjPigBAy//PUAWCAMZwBscFFfL0yM+QUCx6RhPLP/pS+lT6VMnIz48YAASCEARN52nPC/dxzwthzMlw+wAA4DHtRNDTHzH6SDH6UDHU1DHRAdM/+kj6SDD4kvgoyPpSz5AAAAAOUjD6UslQBcjPhNDMzPkWyM+KAEDL/89QBIIAxnAFxwUU8vTIz5OLHTbSEss/+lL6UsnIz48YAASCEE5Jt4XPC/dxzwthzMlw+wAA6DHtRNDTHzH6SDH6UDHU1DHRAdM/+kj6UPpQMPiS+CjI+lLPkAAAAA5SQPpSyVAGyM+E0MzM+RbIz4oAQMv/z1AFggDGcAbHBRXy9MjPkzvAah4Tyz/6UvpU+lTJyM+PGAAEghAMkZlPzwv3cc8LYczJcPsAAFLtRNDWH/pI+lD4kkMwJfABnjQCyM4S+lIS+lTOye1U4F8EhA8BxwDy9ABmbBLTP/pIMIIAwohRNMcFE/L0ggDCiVMjxwWz8vQhiwLIz4cgznDPC2ESyz8S+lLJcPsAAGW5FfjQmbGluay5jaGFpbi50b24uY2NpcC5Ub2tlbkFkbWluUmVnaXN0cnmCLUxLjYuMIgCASATFAAXtKO9qJoaY+Y/SQYQAB23XX2omhpj5j9JBj9KBhA=');
 
     static Errors = {
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,

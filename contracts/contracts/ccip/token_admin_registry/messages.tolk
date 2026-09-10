@@ -18,7 +18,7 @@ struct (0x3ec09499) TokenAdminRegistry_SetEntryDeployment {
 }
 
 // crc32('TokenAdminRegistry_RegisterToken')
-struct (0x9ab89f26) TokenAdminRegistry_RegisterToken {
+struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
     queryId: uint64;
     tokenAddress: address;
     tokenInfo: Cell<TokenRegistry_TokenInfo>;
@@ -27,7 +27,7 @@ struct (0x9ab89f26) TokenAdminRegistry_RegisterToken {
 
 // Replaces a proposal only while the entry has no active administrator.
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
-struct (0x6e6f71ef) TokenAdminRegistry_OverridePendingAdministrator {
+struct (0xfddaa034) TokenAdminRegistry_OverridePendingAdministrator {
     queryId: uint64;
     tokenAddress: address;
     administrator: address;

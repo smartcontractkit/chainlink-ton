@@ -26,12 +26,12 @@ struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
     queryId: uint64;
 }
 
-struct (0x31d2bb6e) TokenAdminRegistryEntry_ProposeAdministrator {
+struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
     queryId: uint64;
     administrator: address
 }
 
-struct (0x5f7f84e1) TokenAdminRegistryEntry_TransferAdminRole {
+struct (0x8b1503cf) TokenAdminRegistryEntry_TransferAdminRole {
     queryId: uint64;
     /// Original sender of the root request. It is trusted only after the
     /// entry has verified that the immediate sender is the registry root.
@@ -39,13 +39,13 @@ struct (0x5f7f84e1) TokenAdminRegistryEntry_TransferAdminRole {
     newAdministrator: address?
 }
 
-struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {
+struct (0x39c6e872) TokenAdminRegistryEntry_AcceptAdminRole {
     queryId: uint64;
     /// Original sender of the root request. See TransferAdminRole.actor.
     actor: address;
 }
 
-struct (0xa7c4c16c) TokenAdminRegistryEntry_SetPool {
+struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     queryId: uint64;
     /// A null pool delists the token from CCIP.
     tokenPool: address?

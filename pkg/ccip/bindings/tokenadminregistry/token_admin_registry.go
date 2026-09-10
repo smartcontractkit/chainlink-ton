@@ -42,7 +42,7 @@ type SetEntryDeployment struct {
 
 // crc32('TokenAdminRegistry_RegisterToken')
 type RegisterToken struct {
-	_             tlb.Magic                         `tlb:"#9ab89f26" json:"-"` //nolint:revive
+	_             tlb.Magic                         `tlb:"#be8621a2" json:"-"` //nolint:revive
 	QueryID       uint64                            `tlb:"## 64"`
 	TokenAddress  *address.Address                  `tlb:"addr"`
 	TokenInfo     tokenadminregistryentry.TokenInfo `tlb:"^"`
@@ -51,7 +51,7 @@ type RegisterToken struct {
 
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 type OverridePendingAdministrator struct {
-	_             tlb.Magic        `tlb:"#6e6f71ef" json:"-"` //nolint:revive
+	_             tlb.Magic        `tlb:"#fddaa034" json:"-"` //nolint:revive
 	QueryID       uint64           `tlb:"## 64"`
 	TokenAddress  *address.Address `tlb:"addr"`
 	Administrator *address.Address `tlb:"addr"`

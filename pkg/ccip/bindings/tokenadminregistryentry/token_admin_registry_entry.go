@@ -47,14 +47,14 @@ type RegistrationInitialized struct {
 
 // crc32('TokenAdminRegistryEntry_ProposeAdministrator')
 type ProposeAdministrator struct {
-	_             tlb.Magic        `tlb:"#31d2bb6e" json:"-"` //nolint:revive
+	_             tlb.Magic        `tlb:"#6dcbe573" json:"-"` //nolint:revive
 	QueryID       uint64           `tlb:"## 64"`
 	Administrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_TransferAdminRole')
 type TransferAdminRole struct {
-	_                tlb.Magic        `tlb:"#5f7f84e1" json:"-"` //nolint:revive
+	_                tlb.Magic        `tlb:"#8b1503cf" json:"-"` //nolint:revive
 	QueryID          uint64           `tlb:"## 64"`
 	Actor            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
@@ -62,14 +62,14 @@ type TransferAdminRole struct {
 
 // crc32('TokenAdminRegistryEntry_AcceptAdminRole')
 type AcceptAdminRole struct {
-	_       tlb.Magic        `tlb:"#d1fbd97c" json:"-"` //nolint:revive
+	_       tlb.Magic        `tlb:"#39c6e872" json:"-"` //nolint:revive
 	QueryID uint64           `tlb:"## 64"`
 	Actor   *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_SetPool')
 type SetPool struct {
-	_         tlb.Magic        `tlb:"#a7c4c16c" json:"-"` //nolint:revive
+	_         tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive
 	QueryID   uint64           `tlb:"## 64"`
 	TokenPool *address.Address `tlb:"addr"`
 }

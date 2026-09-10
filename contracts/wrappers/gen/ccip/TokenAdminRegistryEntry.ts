@@ -200,7 +200,7 @@ export const TokenAdminRegistryEntry_RegistrationInitialized = {
 }
 
 /**
- > struct (0x31d2bb6e) TokenAdminRegistryEntry_ProposeAdministrator {
+ > struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
  >     queryId: uint64
  >     administrator: address
  > }
@@ -212,7 +212,7 @@ export interface TokenAdminRegistryEntry_ProposeAdministrator {
 }
 
 export const TokenAdminRegistryEntry_ProposeAdministrator = {
-    PREFIX: 0x31d2bb6e,
+    PREFIX: 0x6dcbe573,
 
     create(args: {
         queryId?: uint64
@@ -225,7 +225,7 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_ProposeAdministrator {
-        loadAndCheckPrefix32(s, 0x31d2bb6e, 'TokenAdminRegistryEntry_ProposeAdministrator');
+        loadAndCheckPrefix32(s, 0x6dcbe573, 'TokenAdminRegistryEntry_ProposeAdministrator');
         return {
             $: 'TokenAdminRegistryEntry_ProposeAdministrator',
             queryId: s.loadUintBig(64),
@@ -233,7 +233,7 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
         }
     },
     store(self: TokenAdminRegistryEntry_ProposeAdministrator, b: c.Builder): void {
-        b.storeUint(0x31d2bb6e, 32);
+        b.storeUint(0x6dcbe573, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.administrator);
     },
@@ -243,7 +243,7 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
 }
 
 /**
- > struct (0x5f7f84e1) TokenAdminRegistryEntry_TransferAdminRole {
+ > struct (0x8b1503cf) TokenAdminRegistryEntry_TransferAdminRole {
  >     queryId: uint64
  >     actor: address
  >     newAdministrator: address?
@@ -257,7 +257,7 @@ export interface TokenAdminRegistryEntry_TransferAdminRole {
 }
 
 export const TokenAdminRegistryEntry_TransferAdminRole = {
-    PREFIX: 0x5f7f84e1,
+    PREFIX: 0x8b1503cf,
 
     create(args: {
         queryId?: uint64
@@ -271,7 +271,7 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_TransferAdminRole {
-        loadAndCheckPrefix32(s, 0x5f7f84e1, 'TokenAdminRegistryEntry_TransferAdminRole');
+        loadAndCheckPrefix32(s, 0x8b1503cf, 'TokenAdminRegistryEntry_TransferAdminRole');
         return {
             $: 'TokenAdminRegistryEntry_TransferAdminRole',
             queryId: s.loadUintBig(64),
@@ -280,7 +280,7 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
         }
     },
     store(self: TokenAdminRegistryEntry_TransferAdminRole, b: c.Builder): void {
-        b.storeUint(0x5f7f84e1, 32);
+        b.storeUint(0x8b1503cf, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.actor);
         b.storeAddress(self.newAdministrator);
@@ -291,7 +291,7 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
 }
 
 /**
- > struct (0xd1fbd97c) TokenAdminRegistryEntry_AcceptAdminRole {
+ > struct (0x39c6e872) TokenAdminRegistryEntry_AcceptAdminRole {
  >     queryId: uint64
  >     actor: address
  > }
@@ -303,7 +303,7 @@ export interface TokenAdminRegistryEntry_AcceptAdminRole {
 }
 
 export const TokenAdminRegistryEntry_AcceptAdminRole = {
-    PREFIX: 0xd1fbd97c,
+    PREFIX: 0x39c6e872,
 
     create(args: {
         queryId?: uint64
@@ -316,7 +316,7 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_AcceptAdminRole {
-        loadAndCheckPrefix32(s, 0xd1fbd97c, 'TokenAdminRegistryEntry_AcceptAdminRole');
+        loadAndCheckPrefix32(s, 0x39c6e872, 'TokenAdminRegistryEntry_AcceptAdminRole');
         return {
             $: 'TokenAdminRegistryEntry_AcceptAdminRole',
             queryId: s.loadUintBig(64),
@@ -324,7 +324,7 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
         }
     },
     store(self: TokenAdminRegistryEntry_AcceptAdminRole, b: c.Builder): void {
-        b.storeUint(0xd1fbd97c, 32);
+        b.storeUint(0x39c6e872, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.actor);
     },
@@ -334,7 +334,7 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
 }
 
 /**
- > struct (0xa7c4c16c) TokenAdminRegistryEntry_SetPool {
+ > struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
  >     queryId: uint64
  >     tokenPool: address?
  > }
@@ -346,7 +346,7 @@ export interface TokenAdminRegistryEntry_SetPool {
 }
 
 export const TokenAdminRegistryEntry_SetPool = {
-    PREFIX: 0xa7c4c16c,
+    PREFIX: 0xa64e05c9,
 
     create(args: {
         queryId?: uint64
@@ -359,7 +359,7 @@ export const TokenAdminRegistryEntry_SetPool = {
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_SetPool {
-        loadAndCheckPrefix32(s, 0xa7c4c16c, 'TokenAdminRegistryEntry_SetPool');
+        loadAndCheckPrefix32(s, 0xa64e05c9, 'TokenAdminRegistryEntry_SetPool');
         return {
             $: 'TokenAdminRegistryEntry_SetPool',
             queryId: s.loadUintBig(64),
@@ -367,7 +367,7 @@ export const TokenAdminRegistryEntry_SetPool = {
         }
     },
     store(self: TokenAdminRegistryEntry_SetPool, b: c.Builder): void {
-        b.storeUint(0xa7c4c16c, 32);
+        b.storeUint(0xa64e05c9, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenPool);
     },
@@ -620,7 +620,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEgEAA9UAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgQEQTTPiR8kAg1ywj13phbI44MdcLP/iS7UTQ+kgx+lD6SNMf1DHRyM+QKWOZ4hXLP/pS+lQSyx/JyM+FCBL6UnHPC27MyYBA+wDg1ywhisATTOMC1ywhjpXbdOMC1ywi+/wnDOMC1ywmj97L5IAYHCAkAHQhbpIxbuAgbpJbcODHBYAH+MdcLP/iS7UTQ+kj6UDH6SDHTHzHU0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyQoB+jHTP/pIMPiS7UTQ+kj6UPpI0x/XTND6SPpQ+lAx0YIAr8hRcscFF/L0ggCvyiZu8vSCAK/LiwIoxwWz8vRSYMj6UlJg+lT6VMkkyPpSFPpUEvpSyx/Mye1UyM+QUCx6RhTLPxP6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRDAH+MdM/+kj6UDD4ku1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/IUXLHBRfy9IIAr8gmbrOWUYbHBcMAkjhw4hjy9FNFCMj6Uhb6VBf6VMkjyPpSE/pU+lIVyx8UzMntVMjPkFAsekYUyz8S+lIS+lT6VMntRND6SDH6UDH6SDHTHwsC/o78MdM/+kgw+JLtRND6SPpQ+kjTH9dM0PpI+lAx+lDRggCvyFFyxwUX8vSCAK/JJm6zllJ3xwXDAJI2cOIW8vQlbQbI+lL6VBX6VMkjyPpSE/pU+lITyx8SzMntVMjPk4sdNtITyz8S+lL6UsntRND6SDH6UDH6SDHTHzHU0eAMDQAGcPsAAEox1NGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAESCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAArqJ1yeOzzHTP/pQMPiS7UTQ+kj6UPpI0x/XTCDQ+kgx+lD6UDHRggCvyCFus5UHxwXDAJMxNnDiFvL0U1PI+lL6VBL6UssfE8zJ7VRTEvABkl8E4w7gMIQPAccA8vQODwAIp8TBbACMyM+TO8BqHhTLPxP6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXD7AAA3uulu1E0PpIMfpQMfpIMdMfMdTR0PpI+lD6UNGAAjuwUu1E0PpIMfpQ+kjTH9Qx0Y');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEgEAA9UAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgQEQTTPiR8kAg1ywj13phbI44MdcLP/iS7UTQ+kgx+lD6SNMf1DHRyM+QKWOZ4hXLP/pS+lQSyx/JyM+FCBL6UnHPC27MyYBA+wDg1ywhisATTOMC1ywjbl8rnOMC1ywkWKgefOMC1ywhzjdDlIAYHCAkAHQhbpIxbuAgbpJbcODHBYAH+MdcLP/iS7UTQ+kj6UDH6SDHTHzHU0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyQoB+jHTP/pIMPiS7UTQ+kj6UPpI0x/XTND6SPpQ+lAx0YIAr8hRcscFF/L0ggCvyiZu8vSCAK/LiwIoxwWz8vRSYMj6UlJg+lT6VMkkyPpSFPpUEvpSyx/Mye1UyM+QUCx6RhTLPxP6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRDAH+MdM/+kj6UDD4ku1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/IUXLHBRfy9IIAr8gmbrOWUYbHBcMAkjhw4hjy9FNFCMj6Uhb6VBf6VMkjyPpSE/pU+lIVyx8UzMntVMjPkFAsekYUyz8S+lIS+lT6VMntRND6SDH6UDH6SDHTHwsC/o78MdM/+kgw+JLtRND6SPpQ+kjTH9dM0PpI+lAx+lDRggCvyFFyxwUX8vSCAK/JJm6zllJ3xwXDAJI2cOIW8vQlbQbI+lL6VBX6VMkjyPpSE/pU+lITyx8SzMntVMjPk4sdNtITyz8S+lL6UsntRND6SDH6UDH6SDHTHzHU0eAMDQAGcPsAAEox1NGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAESCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAArqJ1yeOzzHTP/pQMPiS7UTQ+kj6UPpI0x/XTCDQ+kgx+lD6UDHRggCvyCFus5UHxwXDAJMxNnDiFvL0U1PI+lL6VBL6UssfE8zJ7VRTEvABkl8E4w7gMIQPAccA8vQODwAIpk4FyQCMyM+TO8BqHhTLPxP6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXD7AAA3uulu1E0PpIMfpQMfpIMdMfMdTR0PpI+lD6UNGAAjuwUu1E0PpIMfpQ+kjTH9Qx0Y');
 
     static Errors = {
         'TokenAdminRegistryEntry_Error.Unauthorized': 45000,
