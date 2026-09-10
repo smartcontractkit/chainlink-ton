@@ -13,7 +13,6 @@ import (
 
 var (
 	OpcodeGetTokenInfo = tvm.MustExtractMagic(reflect.TypeFor[GetTokenInfo]())
-	OpcodeSetTokenInfo = tvm.MustExtractMagic(reflect.TypeFor[SetTokenInfo]())
 )
 
 type Storage struct {
@@ -38,12 +37,6 @@ type AdminConfig struct {
 // crc32('TokenAdminRegistryEntry_GetTokenInfo')
 type GetTokenInfo struct {
 	_ tlb.Magic `tlb:"#7aef4c2d" json:"-"` //nolint:revive
-}
-
-// crc32('TokenAdminRegistryEntry_SetTokenInfo')
-type SetTokenInfo struct {
-	_    tlb.Magic `tlb:"#75f19aae" json:"-"` //nolint:revive
-	Info TokenInfo `tlb:"."`
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
@@ -87,7 +80,6 @@ type ReturnTokenInfo struct {
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	GetTokenInfo{},
-	SetTokenInfo{},
 	RegistrationInitialized{},
 	ProposeAdministrator{},
 	TransferAdminRole{},

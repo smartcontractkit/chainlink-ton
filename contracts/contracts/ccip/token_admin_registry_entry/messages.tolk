@@ -1,7 +1,6 @@
 import "types"
 
 type TokenAdminRegistryEntry_InMessage =
-    | TokenAdminRegistryEntry_SetTokenInfo
     | TokenAdminRegistryEntry_GetTokenInfo
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_ProposeAdministrator
@@ -17,11 +16,6 @@ fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins
         + ton("0.002")
         + ton("0.019")
         + responseHandlerCost;
-}
-
-// crc32('TokenAdminRegistryEntry_SetTokenInfo')
-struct (0x75f19aae) TokenAdminRegistryEntry_SetTokenInfo {
-    info: TokenRegistry_TokenInfo
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')

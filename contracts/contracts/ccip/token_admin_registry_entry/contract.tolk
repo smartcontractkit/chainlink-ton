@@ -29,9 +29,6 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistryEntry_GetTokenInfo => {
             onGetTokenInfo(in.senderAddress);
         }
-        TokenAdminRegistryEntry_SetTokenInfo => {
-            onSetTokenInfo(msg, in.senderAddress);
-        }
         TokenAdminRegistryEntry_RegistrationInitialized => {
             onRegistrationInitialized(in.senderAddress);
         }
@@ -62,14 +59,6 @@ fun onRegistrationInitialized(sender: address) {
     assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
         throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
     notifyAdministratorTransferRequested(st.tokenAddress, null, adminConfig.pendingAdministrator);
-}
-
-fun onSetTokenInfo(msg: TokenAdminRegistryEntry_SetTokenInfo, sender: address) {
-    var st = lazy TokenRegistry_Storage.load();
-    val adminConfig = st.adminConfig.load();
-    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
-    st.tokenInfo = msg.info;
-    st.store();
 }
 
 fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator, sender: address) {
