@@ -21,7 +21,7 @@ struct GasOverride {
     tokenGasOverrides: SnakedCell<coins>? = null
 }
 
-// getEffectiveTotalDestGasAmount returns the gas amount to use for token transfer
+// getEffectiveDestGasAmount returns the gas amount to use for token transfer
 //
 // @note: We currently only support a single token transfer
 //

@@ -878,6 +878,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         messageId: message.header.messageId,
     };
 
+    // TODO: this hides the validation error that caused the message to fail.
     try {
         initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
         initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride);
