@@ -150,7 +150,9 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
                 value: ton("0.015"),
-                body: TokenAdminRegistryEntry_RegistrationInitialized {}.toCell(),
+                body: TokenAdminRegistryEntry_RegistrationInitialized {
+                    queryId: msg.queryId,
+                }.toCell(),
             },
         },
     });
@@ -172,6 +174,7 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
         value: ton("0.015"),
         dest: entryAddress,
         body: TokenAdminRegistryEntry_ProposeAdministrator {
+            queryId: msg.queryId,
             administrator: msg.administrator,
         },
     });
@@ -192,6 +195,7 @@ fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Tr
         value: ton("0.015"),
         dest: entryAddress,
         body: TokenAdminRegistryEntry_TransferAdminRole {
+            queryId: msg.queryId,
             actor,
             newAdministrator: msg.newAdministrator,
         }.toCell(),
@@ -208,7 +212,10 @@ fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Acce
         bounce: false,
         value: ton("0.015"),
         dest: entryAddress,
-        body: TokenAdminRegistryEntry_AcceptAdminRole { actor }.toCell(),
+        body: TokenAdminRegistryEntry_AcceptAdminRole {
+            queryId: msg.queryId,
+            actor,
+        }.toCell(),
     }).send(SEND_MODE_REGULAR);
 }
 

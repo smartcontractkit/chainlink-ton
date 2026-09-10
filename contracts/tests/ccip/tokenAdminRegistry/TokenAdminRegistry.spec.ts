@@ -22,11 +22,10 @@ describe('TokenAdminRegistry', () => {
   let registry: SandboxContract<tar.TokenAdminRegistry>
   let nextRegistryId = 0n
 
-  const tokenInfo = (tokenPool = pool, enabled = true) =>
+  const tokenInfo = (tokenPool: Address | null = pool) =>
     tar.TokenRegistry_TokenInfo.create({
       tokenPool,
       minterAddress: token,
-      enabled,
       version: 1n,
     })
 
@@ -62,11 +61,12 @@ describe('TokenAdminRegistry', () => {
     return event.body.beginParse()
   }
 
-  const register = async (proposedAdministrator = administrator.address) => {
+  const register = async (proposedAdministrator = administrator.address, queryId = 0n) => {
     const result = await registry.sendTokenAdminRegistryRegisterToken(
       owner.getSender(),
       toNano('0.1'),
       {
+        queryId,
         tokenAddress: token,
         tokenInfo: tokenInfo(),
         administrator: proposedAdministrator,
@@ -86,14 +86,20 @@ describe('TokenAdminRegistry', () => {
     return result
   }
 
-  const transferAdminRole = (actor: SandboxContract<TreasuryContract>, newAdministrator: Address | null) =>
+  const transferAdminRole = (
+    actor: SandboxContract<TreasuryContract>,
+    newAdministrator: Address | null,
+    queryId = 0n,
+  ) =>
     registry.sendTokenAdminRegistryTransferAdminRole(actor.getSender(), toNano('0.05'), {
+      queryId,
       tokenAddress: token,
       newAdministrator,
     })
 
-  const acceptAdminRole = (actor: SandboxContract<TreasuryContract>) =>
+  const acceptAdminRole = (actor: SandboxContract<TreasuryContract>, queryId = 0n) =>
     registry.sendTokenAdminRegistryAcceptAdminRole(actor.getSender(), toNano('0.05'), {
+      queryId,
       tokenAddress: token,
     })
 
@@ -239,7 +245,7 @@ describe('TokenAdminRegistry', () => {
   })
 
   it('registers a token at its deterministic entry address and relays the proposal event', async () => {
-    const result = await register()
+    const result = await register(administrator.address, 101n)
     const entry = entryFor()
 
     const config = await entry.getTokenAdminRegistryConfig()
@@ -252,6 +258,7 @@ describe('TokenAdminRegistry', () => {
       externalEvent(result),
     )
     expect(event.token).toEqual(token)
+    expect(event.queryId).toEqual(101n)
     expect(event.currentAdministrator).toBeNull()
     expect(event.newAdministrator).toEqual(administrator.address)
   })
@@ -280,7 +287,7 @@ describe('TokenAdminRegistry', () => {
       toNano('0.1'),
       {
         tokenAddress: token,
-        tokenInfo: tokenInfo(replacementPool, false),
+        tokenInfo: tokenInfo(replacementPool),
         administrator: replacementAdministrator.address,
       },
     )
@@ -330,11 +337,12 @@ describe('TokenAdminRegistry', () => {
         ],
     })
 
-    const acceptance = await acceptAdminRole(administrator)
+    const acceptance = await acceptAdminRole(administrator, 102n)
     expect(
       tar.TokenAdminRegistry_AdministratorTransferred.fromSlice(externalEvent(acceptance)),
     ).toEqual(
       tar.TokenAdminRegistry_AdministratorTransferred.create({
+        queryId: 102n,
         token,
         newAdministrator: administrator.address,
       }),
@@ -348,10 +356,11 @@ describe('TokenAdminRegistry', () => {
       exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
     })
 
-    const transfer = await transferAdminRole(administrator, replacementAdministrator.address)
+    const transfer = await transferAdminRole(administrator, replacementAdministrator.address, 103n)
     const transferEvent = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
       externalEvent(transfer),
     )
+    expect(transferEvent.queryId).toEqual(103n)
     expect(transferEvent.currentAdministrator).toEqual(administrator.address)
     expect(transferEvent.newAdministrator).toEqual(replacementAdministrator.address)
 
@@ -408,7 +417,7 @@ describe('TokenAdminRegistry', () => {
     const pendingAdminUpdate = await entry.sendTokenAdminRegistryEntrySetPool(
       replacementAdministrator.getSender(),
       toNano('0.05'),
-      { tokenPool: replacementPool, enabled: true },
+      { tokenPool: replacementPool },
     )
     expect(pendingAdminUpdate.transactions).toHaveTransaction({
       from: replacementAdministrator.address,
@@ -420,7 +429,7 @@ describe('TokenAdminRegistry', () => {
     const currentAdminUpdate = await entry.sendTokenAdminRegistryEntrySetPool(
       administrator.getSender(),
       toNano('0.05'),
-      { tokenPool: replacementPool, enabled: true },
+      { tokenPool: replacementPool },
     )
     expect(currentAdminUpdate.transactions).toHaveTransaction({
       from: administrator.address,
@@ -432,7 +441,7 @@ describe('TokenAdminRegistry', () => {
     const formerAdminUpdate = await entry.sendTokenAdminRegistryEntrySetPool(
       administrator.getSender(),
       toNano('0.05'),
-      { tokenPool: pool, enabled: true },
+      { tokenPool: pool },
     )
     expect(formerAdminUpdate.transactions).toHaveTransaction({
       from: administrator.address,
@@ -468,10 +477,7 @@ describe('TokenAdminRegistry', () => {
     const unauthorized = await entry.sendTokenAdminRegistryEntrySetPool(
       other.getSender(),
       toNano('0.05'),
-      {
-        tokenPool: replacementPool,
-        enabled: false,
-      },
+      { tokenPool: replacementPool },
     )
     expect(unauthorized.transactions).toHaveTransaction({
       from: other.address,
@@ -483,44 +489,39 @@ describe('TokenAdminRegistry', () => {
     const update = await entry.sendTokenAdminRegistryEntrySetPool(
       administrator.getSender(),
       toNano('0.05'),
-      {
-        tokenPool: replacementPool,
-        enabled: false,
-      },
+      { queryId: 104n, tokenPool: replacementPool },
     )
-    expect(await entry.getTokenInfo()).toEqual(tokenInfo(replacementPool, false))
+    expect(await entry.getTokenInfo()).toEqual(tokenInfo(replacementPool))
     const event = tar.TokenAdminRegistry_PoolSet.fromSlice(externalEvent(update))
     expect(event).toEqual(
       tar.TokenAdminRegistry_PoolSet.create({
+        queryId: 104n,
         token,
         previousPool: pool,
         newPool: replacementPool,
-        previousEnabled: true,
-        newEnabled: false,
       }),
     )
 
     const noOp = await entry.sendTokenAdminRegistryEntrySetPool(
       administrator.getSender(),
       toNano('0.05'),
-      { tokenPool: replacementPool, enabled: false },
+      { tokenPool: replacementPool },
     )
     expect(noOp.transactions).not.toHaveTransaction({ from: entry.address, to: registry.address })
   })
 
-  it('returns no pool for disabled entries while preserving token metadata', async () => {
+  it('returns no pool for delisted entries while preserving token metadata', async () => {
     await register()
     const entry = entryFor()
     await acceptAdminRole(administrator)
     await entry.sendTokenAdminRegistryEntrySetPool(administrator.getSender(), toNano('0.05'), {
-      tokenPool: pool,
-      enabled: false,
+      tokenPool: null,
     })
 
     const query = await entry.sendTokenAdminRegistryEntryGetTokenInfo(
       other.getSender(),
       toNano('0.05'),
-      {},
+      { queryId: 105n },
     )
     expect(query.transactions).toHaveTransaction({
       from: entry.address,
@@ -542,6 +543,7 @@ describe('TokenAdminRegistry', () => {
     )
     expect(response).toEqual(
       tare.TokenAdminRegistryEntry_ReturnTokenInfo.create({
+        queryId: 105n,
         minterAddress: token,
         tokenPool: null,
         version: 1n,

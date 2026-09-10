@@ -13,11 +13,13 @@ type TokenAdminRegistry_InMessage =
 
 // crc32('TokenAdminRegistry_SetEntryDeployment')
 struct (0x3ec09499) TokenAdminRegistry_SetEntryDeployment {
+    queryId: uint64;
     entryDeployment: TokenAdminRegistry_EntryDeployment;
 }
 
 // crc32('TokenAdminRegistry_RegisterToken')
 struct (0x9ab89f26) TokenAdminRegistry_RegisterToken {
+    queryId: uint64;
     tokenAddress: address;
     tokenInfo: Cell<TokenRegistry_TokenInfo>;
     administrator: address;
@@ -26,6 +28,7 @@ struct (0x9ab89f26) TokenAdminRegistry_RegisterToken {
 // Replaces a proposal only while the entry has no active administrator.
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 struct (0x6e6f71ef) TokenAdminRegistry_OverridePendingAdministrator {
+    queryId: uint64;
     tokenAddress: address;
     administrator: address;
 }
@@ -35,6 +38,7 @@ struct (0x6e6f71ef) TokenAdminRegistry_OverridePendingAdministrator {
 /// per-token administrator state.
 // crc32('TokenAdminRegistry_TransferAdminRole')
 struct (0xdc67ebd0) TokenAdminRegistry_TransferAdminRole {
+    queryId: uint64;
     tokenAddress: address;
     newAdministrator: address?;
 }
@@ -43,6 +47,7 @@ struct (0xdc67ebd0) TokenAdminRegistry_TransferAdminRole {
 /// forwards its sender as the trusted `actor` to the entry.
 // crc32('TokenAdminRegistry_AcceptAdminRole')
 struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
+    queryId: uint64;
     tokenAddress: address;
 }
 
@@ -50,6 +55,7 @@ struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
 /// entry address has been validated. This is also the external event ABI.
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
 struct (0x140b1e91) TokenAdminRegistry_AdministratorTransferRequested {
+    queryId: uint64;
     token: address;
     currentAdministrator: address?;
     newAdministrator: address?;
@@ -57,17 +63,16 @@ struct (0x140b1e91) TokenAdminRegistry_AdministratorTransferRequested {
 
 // crc32('TokenAdminRegistry_AdministratorTransferred')
 struct (0xe2c74db4) TokenAdminRegistry_AdministratorTransferred {
+    queryId: uint64;
     token: address;
     newAdministrator: address;
 }
 
-/// Records both the selected pool and whether it is enabled. `enabled = false`
-/// is TON's equivalent of delisting a token from CCIP.
+/// Records a pool update. A null pool delists the token from CCIP.
 // crc32('TokenAdminRegistry_PoolSet')
 struct (0xcef01a87) TokenAdminRegistry_PoolSet {
+    queryId: uint64;
     token: address;
-    previousPool: address;
-    newPool: address;
-    previousEnabled: bool;
-    newEnabled: bool;
+    previousPool: address?;
+    newPool: address?;
 }

@@ -829,7 +829,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   async setupTokenRegistry(
     token: Address,
     tokenPool: Address,
-    enabled = true,
   ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     const registry = await deployable.Deploy(
       this.blockchain,
@@ -846,7 +845,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         tokenInfo: trg.TokenRegistry_TokenInfo.create({
           tokenPool,
           minterAddress: token,
-          enabled,
           version: 1n,
         }),
         adminConfig: trg.TokenRegistry_AdminConfig.create({
@@ -1081,8 +1079,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       this.blockchain.sender(this.tokenAdminRegistry),
       toNano('0.1'),
       {
-        tokenPool: this.tokenPool.address,
-        enabled: false,
+        tokenPool: null,
       },
     )
 

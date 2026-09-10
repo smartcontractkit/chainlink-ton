@@ -257,7 +257,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool: tokenPool.address,
           minterAddress: minter.address,
-          enabled: true,
           version: 1n,
         }),
         administrator: deployer.address,

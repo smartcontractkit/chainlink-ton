@@ -149,6 +149,7 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
             value: 0,
             dest: ttInfo.tokenAdminRegistry,
             body: TokenAdminRegistryEntry_GetTokenInfo {
+                queryId: 0,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

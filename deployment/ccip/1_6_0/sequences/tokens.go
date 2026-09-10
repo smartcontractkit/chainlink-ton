@@ -542,7 +542,6 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				TokenInfo: tokenadminregistryentry.TokenInfo{
 					TokenPool:     poolAddr,
 					MinterAddress: tokenAddr,
-					Enabled:       true,
 					Version:       1,
 				},
 				Administrator: chain.Wallet.Address(),
