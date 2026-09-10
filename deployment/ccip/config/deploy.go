@@ -76,6 +76,8 @@ type OffRampParams struct {
 	Coin                             string
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
+	MinGasLimit                      string
+	MinTTGasLimit                    string
 }
 
 func (o OffRampParams) Validate() error {
@@ -84,6 +86,12 @@ func (o OffRampParams) Validate() error {
 	}
 	if o.PermissionlessExecutionThreshold == 0 {
 		return errors.New("PermissionlessExecutionThreshold can't be 0")
+	}
+	if o.MinGasLimit == "" {
+		return errors.New("MinGasLimit can't be empty")
+	}
+	if o.MinTTGasLimit == "" {
+		return errors.New("MinTTGasLimit can't be empty")
 	}
 	return nil
 }

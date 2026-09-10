@@ -45,7 +45,11 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
-import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
+import {
+  EXECUTE_COST,
+  DEFAULT_MIN_GASLIMIT,
+  DEFAULT_MIN_TT_GASLIMIT,
+} from '../../../wrappers/ccip/OffRamp'
 
 export async function deployOffRampContract(
   blockchain: Blockchain,
@@ -63,13 +67,20 @@ export async function deployOffRampContract(
     ownable: of.Ownable2Step.create({
       owner: owner.address,
     }),
-    deployables: of.OffRamp_Deployables.create({
-      rmnRouter: owner.address, // used to determine who can send RMN updates
-      deployer: opts?.deployerCode ?? Cell.EMPTY,
-      merkleRootCode: opts?.merkleRootCode ?? Cell.EMPTY,
-      receiveExecutorCode: opts?.receiveExecutorCode ?? Cell.EMPTY,
+    config: of.OffRamp_Config.create({
+      deployables: of.OffRamp_Deployables.create({
+        rmnRouter: owner.address, // used to determine who can send RMN updates
+        deployer: opts?.deployerCode ?? Cell.EMPTY,
+        merkleRootCode: opts?.merkleRootCode ?? Cell.EMPTY,
+        receiveExecutorCode: opts?.receiveExecutorCode ?? Cell.EMPTY,
+      }),
+      dynamicConfig: of.OffRamp_DynamicConfig.create({
+        feeQuoter: opts?.feeQuoter ?? owner.address, // placeholder
+        permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
+        minGasLimit: DEFAULT_MIN_GASLIMIT,
+        minTTGasLimit: DEFAULT_MIN_TT_GASLIMIT,
+      }),
     }),
-    feeQuoter: opts?.feeQuoter ?? owner.address, // placeholder
     ocr3Base: of.OCR3Base.create({
       chainId: 1n,
       commit: null,
@@ -79,7 +90,6 @@ export async function deployOffRampContract(
       data: new Set(),
     }),
     chainSelector: ChainSelectors.testnet.ton,
-    permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
     sourceChainConfigs: new Map(),
     latestPriceSequenceNumber: 0n,
   })
@@ -1003,7 +1013,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         sourcePoolAddress:
           opts.sourcePoolAddress ?? CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool')),
         token: opts.token ?? this.token,
-        destGasAmount: opts.destGasAmount ?? MIN_TT_GASLIMIT,
+        destGasAmount: opts.destGasAmount ?? DEFAULT_MIN_TT_GASLIMIT,
         extraData: opts.extraData ?? null,
         amount: opts.amount ?? this.DEFAULT_TOKEN_AMOUNT,
       }),

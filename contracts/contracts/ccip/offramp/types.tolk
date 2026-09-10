@@ -66,6 +66,20 @@ struct DeployableHashes {
     deployer: uint256;
 }
 
+struct OffRamp_DynamicConfig {
+    feeQuoter: address
+    permissionlessExecutionThresholdSeconds: uint32
+    minGasLimit: coins
+    minTTGasLimit: coins
+}
+
+// Combines deployables and dynamic config into a single cell to stay within
+// the TVM 4-ref serialization limit for the root Storage struct.
+struct OffRamp_Config {
+    deployables: OffRamp_Deployables;
+    dynamicConfig: OffRamp_DynamicConfig;
+}
+
 struct Config {
     // -- Static config
     chainSelector: uint64
@@ -74,8 +88,7 @@ struct Config {
     // nonceManager
     // tokenAdminRegistry
     // -- Dynamic config
-    feeQuoter: address
-    permissionlessExecutionThresholdSeconds: uint32
+    dynamicConfig: OffRamp_DynamicConfig
     // isRMNVerificationDisabled
     // messageInterceptor
 }

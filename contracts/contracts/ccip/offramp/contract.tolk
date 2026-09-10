@@ -46,11 +46,6 @@ contract OffRamp {
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = ton("5");
 
-// TBD: These two fields should be configurable
-const MIN_GASLIMIT = ton("0.025");
-// LockRelase_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
-const MIN_TT_GASLIMIT = ton("0.15"); 
-
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     
@@ -106,7 +101,7 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
-            assert(in.senderAddress == st.deployables.load().rmnRouter, OffRamp_Error.Unauthorized);
+            assert(in.senderAddress == st.config.load().deployables.rmnRouter, OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
@@ -267,10 +262,45 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version }.upgrade(msg);
 }
 
+// Old 1.6.2 storage layout, used only by migrate to parse the previous format.
+struct OffRamp_OldStorage_v1_6_2 {
+    id: uint32;
+    ownable: Ownable2Step;
+    deployables: Cell<OffRamp_Deployables>;
+    feeQuoter: address;
+    ocr3Base: Cell<OCR3Base>;
+    cursedSubjects: CursedSubjects;
+    chainSelector: uint64;
+    permissionlessExecutionThresholdSeconds: uint32;
+    sourceChainConfigs: map<uint64, SourceChainConfig>;
+    latestPriceSequenceNumber: uint64;
+}
+
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    // Parse the old 1.6.2 storage layout where feeQuoter and
+    // permissionlessExecutionThresholdSeconds were inline fields.
+    var old = OffRamp_OldStorage_v1_6_2.fromCell(storage);
+    var st = Storage {
+        id: old.id,
+        ownable: old.ownable,
+        config: OffRamp_Config {
+            deployables: old.deployables.load(),
+            dynamicConfig: OffRamp_DynamicConfig {
+                feeQuoter: old.feeQuoter,
+                permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
+                minGasLimit: ton("0.025"),
+                minTTGasLimit: ton("0.15"),
+            },
+        }.toCell(),
+        ocr3Base: old.ocr3Base,
+        cursedSubjects: old.cursedSubjects,
+        chainSelector: old.chainSelector,
+        sourceChainConfigs: old.sourceChainConfigs,
+        latestPriceSequenceNumber: old.latestPriceSequenceNumber,
+    };
+    return st.toCell();
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -413,8 +443,9 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
+    val dynamicConfig = st.config.load().dynamicConfig;
 
-    if (msg.effectiveGasLimit < MIN_GASLIMIT) {
+    if (msg.effectiveGasLimit < dynamicConfig.minGasLimit) {
         return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
@@ -466,7 +497,8 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: Relea
 }
 
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
-    if (msg.destGasAmount < MIN_TT_GASLIMIT) {
+    val dynamicConfig = st.config.load().dynamicConfig;
+    if (msg.destGasAmount < dynamicConfig.minTTGasLimit) {
         return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
@@ -511,17 +543,17 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
 
 // Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
 fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
-    var deployables = st.deployables.load();
+    var config = st.config.load();
 
     if (msg.receiveExecutorCode != null) {
-        deployables.receiveExecutorCode = msg.receiveExecutorCode!;
+        config.deployables.receiveExecutorCode = msg.receiveExecutorCode!;
     }
 
     if (msg.merkleRootCode != null) {
-        deployables.merkleRootCode = msg.merkleRootCode!;
+        config.deployables.merkleRootCode = msg.merkleRootCode!;
     }
 
-    st.deployables = deployables.toCell();
+    st.config = config.toCell();
     st.store();
 }
 
@@ -591,7 +623,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             dest: getMerkleRootDeployAddress(st, root.merkleRoot),
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().merkleRootCode,
+                    code: st.config.load().deployables.merkleRootCode,
                     data: MerkleRoot_Storage {
                         root: root.merkleRoot,
                         owner: contract.getAddress(),
@@ -624,10 +656,11 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 
                 // and update the prices in the fee quoter
 
+                val dynamicConfig = st.config.load().dynamicConfig;
                 val updatePricesMsg = createMessage({
                     bounce: true,
                     value: FeeQuoter_Costs.updatePrices(),
-                    dest: st.feeQuoter,
+                    dest: dynamicConfig.feeQuoter,
                     body: FeeQuoter_UpdatePrices {
                         updates: report.priceUpdates!.load(),
                         sendExcessesTo: sender,
@@ -759,7 +792,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
         body: MerkleRoot_Validate {
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash,
-            permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+            permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.permissionlessExecutionThresholdSeconds,
             gasOverride,
         },
     });
@@ -857,7 +890,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
             dest: executorAddress,
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().receiveExecutorCode,
+                    code: st.config.load().deployables.receiveExecutorCode,
                     data: ReceiveExecutor_Storage {
                         owner: contract.getAddress(),
                         message: message.toCell(),
@@ -915,7 +948,7 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
 
     // TODO probably the tokenRegistryMaster
     val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
-    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
+    val registryAddress = TokenRegistry.deriveAddress(st.config.load().deployables.deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
         transfer: tokenTransfer,
@@ -954,7 +987,7 @@ Derives the receiver executor contract address from the execId
 fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: st.config.load().deployables.deployer,
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
@@ -978,7 +1011,7 @@ Derives the merkle root contract address from the merkleRootId
 fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: st.config.load().deployables.deployer,
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_MerkleRoot,
                 owner: contract.getAddress(),
@@ -1014,13 +1047,13 @@ fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
 
     // NOTE: address now is guaranteed to be non-zero, address? allows zero
 
-    st.feeQuoter = msg.feeQuoter;
-    st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;
+    var config = st.config.load();
+    config.dynamicConfig = msg.config;
+    st.config = config.toCell();
     st.store();
 
     emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
-        feeQuoter: msg.feeQuoter,
-        permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds,
+        config: msg.config,
     });
 }
 
@@ -1044,8 +1077,7 @@ get fun config(): Config {
     val st = lazy Storage.load();
     return {
         chainSelector: st.chainSelector,
-        feeQuoter: st.feeQuoter,
-        permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+        dynamicConfig: st.config.load().dynamicConfig,
     }
 }
 
@@ -1071,7 +1103,7 @@ get fun cursedSubjects(): lisp_list<uint128> {
 
 get fun deployableHashes() : DeployableHashes {
     val st = lazy Storage.load();
-    val deployables = st.deployables.load();
+    val deployables = st.config.load().deployables;
     return DeployableHashes {
         merkleRoot: deployables.merkleRootCode.hash(),
         receiveExecutor: deployables.receiveExecutorCode.hash(),
@@ -1081,7 +1113,7 @@ get fun deployableHashes() : DeployableHashes {
 
 get fun rmnRouter(): address {
     val st = lazy Storage.load();
-    val deployables = st.deployables.load();
+    val deployables = st.config.load().deployables;
     return deployables.rmnRouter;
 }
 

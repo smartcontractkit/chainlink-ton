@@ -223,17 +223,24 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			Deployables: offramp.Deployables{
-				RMNRouter:           &routerAddress,
-				Deployer:            tonCompiledContracts[bindings.TypeDeployable].Code,
-				MerkleRootCode:      tonCompiledContracts[bindings.TypeMerkleRoot].Code,
-				ReceiveExecutorCode: tonCompiledContracts[bindings.TypeReceiveExecutor].Code,
+			Config: offramp.OffRampConfig{
+				Deployables: offramp.Deployables{
+					RMNRouter:           &routerAddress,
+					Deployer:            tonCompiledContracts[bindings.TypeDeployable].Code,
+					MerkleRootCode:      tonCompiledContracts[bindings.TypeMerkleRoot].Code,
+					ReceiveExecutorCode: tonCompiledContracts[bindings.TypeReceiveExecutor].Code,
+				},
+				DynamicConfig: offramp.DynamicConfig{
+					FeeQuoter:                               &feeQuoterAddress,
+					PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
+					MinGasLimit:                             tlb.MustFromTON(in.CCIPConfig.OffRampParams.MinGasLimit),
+					MinTTGasLimit:                           tlb.MustFromTON(in.CCIPConfig.OffRampParams.MinTTGasLimit),
+				},
 			},
-			FeeQuoter: &feeQuoterAddress,
 			// empty OCR3Base
-			OCR3Base:                                offramp.OCR3Base{},
-			ChainSelector:                           in.ChainSelector,
-			PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
+			OCR3Base:                  offramp.OCR3Base{},
+			ChainSelector:             in.ChainSelector,
+			SourceChainConfigs:        nil,
 			LatestPriceSequenceNumber: 0,
 		}
 

@@ -2570,15 +2570,13 @@ export const OffRamp_UpdateCursedSubjects = {
 /**
  > struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
  >     queryId: uint64
- >     feeQuoter: address
- >     permissionlessExecutionThresholdSeconds: uint32
+ >     config: OffRamp_DynamicConfig
  > }
  */
 export interface OffRamp_SetDynamicConfig {
     readonly $: 'OffRamp_SetDynamicConfig'
     queryId: uint64
-    feeQuoter: c.Address
-    permissionlessExecutionThresholdSeconds: uint32
+    config: OffRamp_DynamicConfig
 }
 
 export const OffRamp_SetDynamicConfig = {
@@ -2586,8 +2584,7 @@ export const OffRamp_SetDynamicConfig = {
 
     create(args: {
         queryId?: uint64
-        feeQuoter: c.Address
-        permissionlessExecutionThresholdSeconds: uint32
+        config: OffRamp_DynamicConfig
     }): OffRamp_SetDynamicConfig {
         return {
             $: 'OffRamp_SetDynamicConfig',
@@ -2600,15 +2597,13 @@ export const OffRamp_SetDynamicConfig = {
         return {
             $: 'OffRamp_SetDynamicConfig',
             queryId: s.loadUintBig(64),
-            feeQuoter: s.loadAddress(),
-            permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+            config: OffRamp_DynamicConfig.fromSlice(s),
         }
     },
     store(self: OffRamp_SetDynamicConfig, b: c.Builder): void {
         b.storeUint(0x95bc5a5c, 32);
         b.storeUint(self.queryId, 64);
-        b.storeAddress(self.feeQuoter);
-        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        OffRamp_DynamicConfig.store(self.config, b);
     },
     toCell(self: OffRamp_SetDynamicConfig): c.Cell {
         return makeCellFrom<OffRamp_SetDynamicConfig>(self, OffRamp_SetDynamicConfig.store);
@@ -2997,24 +2992,107 @@ export const DeployableHashes = {
 }
 
 /**
- > struct Config {
- >     chainSelector: uint64
+ > struct OffRamp_DynamicConfig {
  >     feeQuoter: address
  >     permissionlessExecutionThresholdSeconds: uint32
+ >     minGasLimit: coins
+ >     minTTGasLimit: coins
+ > }
+ */
+export interface OffRamp_DynamicConfig {
+    readonly $: 'OffRamp_DynamicConfig'
+    feeQuoter: c.Address
+    permissionlessExecutionThresholdSeconds: uint32
+    minGasLimit: coins
+    minTTGasLimit: coins
+}
+
+export const OffRamp_DynamicConfig = {
+    create(args: {
+        feeQuoter: c.Address
+        permissionlessExecutionThresholdSeconds: uint32
+        minGasLimit: coins
+        minTTGasLimit: coins
+    }): OffRamp_DynamicConfig {
+        return {
+            $: 'OffRamp_DynamicConfig',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_DynamicConfig {
+        return {
+            $: 'OffRamp_DynamicConfig',
+            feeQuoter: s.loadAddress(),
+            permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+            minGasLimit: s.loadCoins(),
+            minTTGasLimit: s.loadCoins(),
+        }
+    },
+    store(self: OffRamp_DynamicConfig, b: c.Builder): void {
+        b.storeAddress(self.feeQuoter);
+        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        b.storeCoins(self.minGasLimit);
+        b.storeCoins(self.minTTGasLimit);
+    },
+    toCell(self: OffRamp_DynamicConfig): c.Cell {
+        return makeCellFrom<OffRamp_DynamicConfig>(self, OffRamp_DynamicConfig.store);
+    }
+}
+
+/**
+ > struct OffRamp_Config {
+ >     deployables: OffRamp_Deployables
+ >     dynamicConfig: OffRamp_DynamicConfig
+ > }
+ */
+export interface OffRamp_Config {
+    readonly $: 'OffRamp_Config'
+    deployables: OffRamp_Deployables
+    dynamicConfig: OffRamp_DynamicConfig
+}
+
+export const OffRamp_Config = {
+    create(args: {
+        deployables: OffRamp_Deployables
+        dynamicConfig: OffRamp_DynamicConfig
+    }): OffRamp_Config {
+        return {
+            $: 'OffRamp_Config',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_Config {
+        return {
+            $: 'OffRamp_Config',
+            deployables: OffRamp_Deployables.fromSlice(s),
+            dynamicConfig: OffRamp_DynamicConfig.fromSlice(s),
+        }
+    },
+    store(self: OffRamp_Config, b: c.Builder): void {
+        OffRamp_Deployables.store(self.deployables, b);
+        OffRamp_DynamicConfig.store(self.dynamicConfig, b);
+    },
+    toCell(self: OffRamp_Config): c.Cell {
+        return makeCellFrom<OffRamp_Config>(self, OffRamp_Config.store);
+    }
+}
+
+/**
+ > struct Config {
+ >     chainSelector: uint64
+ >     dynamicConfig: OffRamp_DynamicConfig
  > }
  */
 export interface Config {
     readonly $: 'Config'
     chainSelector: uint64
-    feeQuoter: c.Address
-    permissionlessExecutionThresholdSeconds: uint32
+    dynamicConfig: OffRamp_DynamicConfig
 }
 
 export const Config = {
     create(args: {
         chainSelector: uint64
-        feeQuoter: c.Address
-        permissionlessExecutionThresholdSeconds: uint32
+        dynamicConfig: OffRamp_DynamicConfig
     }): Config {
         return {
             $: 'Config',
@@ -3025,14 +3103,12 @@ export const Config = {
         return {
             $: 'Config',
             chainSelector: s.loadUintBig(64),
-            feeQuoter: s.loadAddress(),
-            permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+            dynamicConfig: OffRamp_DynamicConfig.fromSlice(s),
         }
     },
     store(self: Config, b: c.Builder): void {
         b.storeUint(self.chainSelector, 64);
-        b.storeAddress(self.feeQuoter);
-        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        OffRamp_DynamicConfig.store(self.dynamicConfig, b);
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
@@ -3478,12 +3554,10 @@ export const ExecutionState = {
  > struct Storage {
  >     id: uint32
  >     ownable: Ownable2Step
- >     deployables: Cell<OffRamp_Deployables>
- >     feeQuoter: address
+ >     config: Cell<OffRamp_Config>
  >     ocr3Base: Cell<OCR3Base>
  >     cursedSubjects: CursedSubjects
  >     chainSelector: uint64
- >     permissionlessExecutionThresholdSeconds: uint32
  >     sourceChainConfigs: map<uint64, SourceChainConfig>
  >     latestPriceSequenceNumber: uint64
  > }
@@ -3492,12 +3566,10 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    deployables: OffRamp_Deployables
-    feeQuoter: c.Address
+    config: OffRamp_Config
     ocr3Base: OCR3Base
     cursedSubjects: CursedSubjects
     chainSelector: uint64
-    permissionlessExecutionThresholdSeconds: uint32
     sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
     latestPriceSequenceNumber: uint64 /* = 0 */
 }
@@ -3506,12 +3578,10 @@ export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        deployables: OffRamp_Deployables
-        feeQuoter: c.Address
+        config: OffRamp_Config
         ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
         chainSelector: uint64
-        permissionlessExecutionThresholdSeconds: uint32
         sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
         latestPriceSequenceNumber?: uint64 /* = 0 */
     }): Storage {
@@ -3526,12 +3596,10 @@ export const Storage = {
             $: 'Storage',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
-            deployables: loadCellRef<OffRamp_Deployables>(s, OffRamp_Deployables.fromSlice),
-            feeQuoter: s.loadAddress(),
+            config: loadCellRef<OffRamp_Config>(s, OffRamp_Config.fromSlice),
             ocr3Base: loadCellRef<OCR3Base>(s, OCR3Base.fromSlice),
             cursedSubjects: CursedSubjects.fromSlice(s),
             chainSelector: s.loadUintBig(64),
-            permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
             latestPriceSequenceNumber: s.loadUintBig(64),
         }
@@ -3539,12 +3607,10 @@ export const Storage = {
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
-        storeCellRef<OffRamp_Deployables>(self.deployables, b, OffRamp_Deployables.store);
-        b.storeAddress(self.feeQuoter);
+        storeCellRef<OffRamp_Config>(self.config, b, OffRamp_Config.store);
         storeCellRef<OCR3Base>(self.ocr3Base, b, OCR3Base.store);
         CursedSubjects.store(self.cursedSubjects, b);
         b.storeUint(self.chainSelector, 64);
-        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
     },
@@ -3714,20 +3780,17 @@ export const SourceChainConfigUpdated = {
 
 /**
  > struct OffRamp_DynamicConfigSet {
- >     feeQuoter: address
- >     permissionlessExecutionThresholdSeconds: uint32
+ >     config: OffRamp_DynamicConfig
  > }
  */
 export interface OffRamp_DynamicConfigSet {
     readonly $: 'OffRamp_DynamicConfigSet'
-    feeQuoter: c.Address
-    permissionlessExecutionThresholdSeconds: uint32
+    config: OffRamp_DynamicConfig
 }
 
 export const OffRamp_DynamicConfigSet = {
     create(args: {
-        feeQuoter: c.Address
-        permissionlessExecutionThresholdSeconds: uint32
+        config: OffRamp_DynamicConfig
     }): OffRamp_DynamicConfigSet {
         return {
             $: 'OffRamp_DynamicConfigSet',
@@ -3737,13 +3800,11 @@ export const OffRamp_DynamicConfigSet = {
     fromSlice(s: c.Slice): OffRamp_DynamicConfigSet {
         return {
             $: 'OffRamp_DynamicConfigSet',
-            feeQuoter: s.loadAddress(),
-            permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+            config: OffRamp_DynamicConfig.fromSlice(s),
         }
     },
     store(self: OffRamp_DynamicConfigSet, b: c.Builder): void {
-        b.storeAddress(self.feeQuoter);
-        b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        OffRamp_DynamicConfig.store(self.config, b);
     },
     toCell(self: OffRamp_DynamicConfigSet): c.Cell {
         return makeCellFrom<OffRamp_DynamicConfigSet>(self, OffRamp_DynamicConfigSet.store);
@@ -4206,7 +4267,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OffRamp implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty': 12000,
@@ -4287,12 +4348,10 @@ export class OffRamp implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        deployables: OffRamp_Deployables
-        feeQuoter: c.Address
+        config: OffRamp_Config
         ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
         chainSelector: uint64
-        permissionlessExecutionThresholdSeconds: uint32
         sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
         latestPriceSequenceNumber?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
@@ -4403,8 +4462,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampSetDynamicConfig(body: {
         queryId?: uint64
-        feeQuoter: c.Address
-        permissionlessExecutionThresholdSeconds: uint32
+        config: OffRamp_DynamicConfig
     }) {
         return OffRamp_SetDynamicConfig.toCell(OffRamp_SetDynamicConfig.create(body));
     }
@@ -4622,8 +4680,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        feeQuoter: c.Address
-        permissionlessExecutionThresholdSeconds: uint32
+        config: OffRamp_DynamicConfig
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4733,12 +4790,17 @@ export class OffRamp implements c.Contract {
     }
 
     async getConfig(provider: ContractProvider): Promise<Config> {
-        const r = StackReader.fromGetMethod(3, await provider.get('config', []));
+        const r = StackReader.fromGetMethod(5, await provider.get('config', []));
         return ({
             $: 'Config',
             chainSelector: r.readBigInt(),
-            feeQuoter: r.readSlice().loadAddress(),
-            permissionlessExecutionThresholdSeconds: r.readBigInt(),
+            dynamicConfig: ({
+                $: 'OffRamp_DynamicConfig',
+                feeQuoter: r.readSlice().loadAddress(),
+                permissionlessExecutionThresholdSeconds: r.readBigInt(),
+                minGasLimit: r.readBigInt(),
+                minTTGasLimit: r.readBigInt(),
+            }),
         });
     }
 

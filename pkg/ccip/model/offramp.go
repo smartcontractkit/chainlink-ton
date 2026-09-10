@@ -19,16 +19,26 @@ import (
 // ---------- OffRamp Model Struct Definitions ----------
 
 type OffRampStorage struct {
-	ID                                      uint32                       `json:"id"`
-	Ownable                                 Ownable2Step                 `json:"ownable"`
-	Deployables                             Deployables                  `json:"deployables"`
-	FeeQuoter                               *address.Address             `json:"feeQuoter"`
-	OCR3Base                                OCR3Base                     `json:"ocr3Base"`
-	CursedSubjects                          []*big.Int                   `json:"cursedSubjects"`
-	ChainSelector                           uint64                       `json:"chainSelector"`
-	PermissionlessExecutionThresholdSeconds uint32                       `json:"PermissionlessExecutionThresholdSeconds"`
-	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
-	LatestPriceSequenceNumber               uint64                       `json:"LatestPriceSequenceNumber"`
+	ID                        uint32                       `json:"id"`
+	Ownable                   Ownable2Step                 `json:"ownable"`
+	Config                    OffRampConfig                `json:"config"`
+	OCR3Base                  OCR3Base                     `json:"ocr3Base"`
+	CursedSubjects            []*big.Int                   `json:"cursedSubjects"`
+	ChainSelector             uint64                       `json:"chainSelector"`
+	SourceChainConfigs        map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
+	LatestPriceSequenceNumber uint64                       `json:"LatestPriceSequenceNumber"`
+}
+
+type OffRampConfig struct {
+	Deployables   Deployables   `json:"deployables"`
+	DynamicConfig DynamicConfig `json:"dynamicConfig"`
+}
+
+type DynamicConfig struct {
+	FeeQuoter                               *address.Address `json:"feeQuoter"`
+	PermissionlessExecutionThresholdSeconds uint32           `json:"PermissionlessExecutionThresholdSeconds"`
+	MinGasLimit                             tlb.Coins        `json:"minGasLimit"`
+	MinTTGasLimit                           tlb.Coins        `json:"minTTGasLimit"`
 }
 
 type Deployables struct {
@@ -101,7 +111,7 @@ func (b *OffRampStorageBuilder) WithFeeQuoter(fq *address.Address) *OffRampStora
 	if b.err != nil {
 		return b
 	}
-	b.storage.FeeQuoter = fq
+	b.storage.Config.DynamicConfig.FeeQuoter = fq
 	return b
 }
 
@@ -109,7 +119,7 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.RMNRouter = router
+	b.storage.Config.Deployables.RMNRouter = router
 	return b
 }
 
@@ -117,7 +127,7 @@ func (b *OffRampStorageBuilder) WithDeployerCode(deployerCodeHex string) *OffRam
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.Deployer = deployerCodeHex
+	b.storage.Config.Deployables.Deployer = deployerCodeHex
 	return b
 }
 
@@ -125,7 +135,7 @@ func (b *OffRampStorageBuilder) WithMerkleRootCode(merkleRootCode string) *OffRa
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.MerkleRootCode = merkleRootCode
+	b.storage.Config.Deployables.MerkleRootCode = merkleRootCode
 	return b
 }
 
@@ -133,7 +143,23 @@ func (b *OffRampStorageBuilder) WithReceiveExecutorCode(receiveExecutorCode stri
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.ReceiveExecutorCode = receiveExecutorCode
+	b.storage.Config.Deployables.ReceiveExecutorCode = receiveExecutorCode
+	return b
+}
+
+func (b *OffRampStorageBuilder) WithMinGasLimit(minGasLimit tlb.Coins) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.Config.DynamicConfig.MinGasLimit = minGasLimit
+	return b
+}
+
+func (b *OffRampStorageBuilder) WithMinTTGasLimit(minTTGasLimit tlb.Coins) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.Config.DynamicConfig.MinTTGasLimit = minTTGasLimit
 	return b
 }
 
@@ -182,7 +208,7 @@ func (b *OffRampStorageBuilder) WithPermissionlessExecutionThresholdSeconds(v ui
 	if b.err != nil {
 		return b
 	}
-	b.storage.PermissionlessExecutionThresholdSeconds = v
+	b.storage.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds = v
 	return b
 }
 
@@ -219,16 +245,18 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 			raw.Ownable.Owner,
 			raw.Ownable.PendingOwner,
 		).
-		WithFeeQuoter(raw.FeeQuoter).
+		WithFeeQuoter(raw.Config.DynamicConfig.FeeQuoter).
 		WithChainSelector(raw.ChainSelector).
-		WithPermissionlessExecutionThresholdSeconds(raw.PermissionlessExecutionThresholdSeconds).
+		WithPermissionlessExecutionThresholdSeconds(raw.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds).
+		WithMinGasLimit(raw.Config.DynamicConfig.MinGasLimit).
+		WithMinTTGasLimit(raw.Config.DynamicConfig.MinTTGasLimit).
 		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
 
 	// Deployables
-	b = b.WithRMNRouter(raw.Deployables.RMNRouter).
-		WithDeployerCode(hex.EncodeToString(raw.Deployables.Deployer.ToBOC())).
-		WithMerkleRootCode(hex.EncodeToString(raw.Deployables.MerkleRootCode.ToBOC())).
-		WithReceiveExecutorCode(hex.EncodeToString(raw.Deployables.ReceiveExecutorCode.ToBOC()))
+	b = b.WithRMNRouter(raw.Config.Deployables.RMNRouter).
+		WithDeployerCode(hex.EncodeToString(raw.Config.Deployables.Deployer.ToBOC())).
+		WithMerkleRootCode(hex.EncodeToString(raw.Config.Deployables.MerkleRootCode.ToBOC())).
+		WithReceiveExecutorCode(hex.EncodeToString(raw.Config.Deployables.ReceiveExecutorCode.ToBOC()))
 
 	// OCR3Base
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
@@ -249,7 +277,7 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 		WithOCR3ExecuteConfig(execute)
 
 	// CursedSubjects
-	cursedSubjects, err := raw.CursedSubjects.LoadAll()
+	cursedSubjects, err := raw.CursedSubjects.Data.LoadAll()
 	if err != nil {
 		return fmt.Errorf("error while loading CursedSubjects: %w", err)
 	}
@@ -412,17 +440,17 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 }
 
 func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
-	deployerCode, err := loadCell(s.Deployables.Deployer)
+	deployerCode, err := loadCell(s.Config.Deployables.Deployer)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading deployer code: %w", err)
 	}
 
-	merkleRootCode, err := loadCell(s.Deployables.MerkleRootCode)
+	merkleRootCode, err := loadCell(s.Config.Deployables.MerkleRootCode)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading merkle root code: %w", err)
 	}
 
-	receiveExecutorCode, err := loadCell(s.Deployables.ReceiveExecutorCode)
+	receiveExecutorCode, err := loadCell(s.Config.Deployables.ReceiveExecutorCode)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading receive executor code: %w", err)
 	}
@@ -493,22 +521,28 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
-		FeeQuoter:                               s.FeeQuoter,
-		ChainSelector:                           s.ChainSelector,
-		PermissionlessExecutionThresholdSeconds: s.PermissionlessExecutionThresholdSeconds,
-		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
-		Deployables: offramp.Deployables{
-			RMNRouter:           s.Deployables.RMNRouter,
-			Deployer:            deployerCode,
-			MerkleRootCode:      merkleRootCode,
-			ReceiveExecutorCode: receiveExecutorCode,
+		Config: offramp.OffRampConfig{
+			Deployables: offramp.Deployables{
+				RMNRouter:           s.Config.Deployables.RMNRouter,
+				Deployer:            deployerCode,
+				MerkleRootCode:      merkleRootCode,
+				ReceiveExecutorCode: receiveExecutorCode,
+			},
+			DynamicConfig: offramp.DynamicConfig{
+				FeeQuoter:                               s.Config.DynamicConfig.FeeQuoter,
+				PermissionlessExecutionThresholdSeconds: s.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds,
+				MinGasLimit:                             s.Config.DynamicConfig.MinGasLimit,
+				MinTTGasLimit:                           s.Config.DynamicConfig.MinTTGasLimit,
+			},
 		},
+		ChainSelector:             s.ChainSelector,
+		LatestPriceSequenceNumber: s.LatestPriceSequenceNumber,
 		OCR3Base: offramp.OCR3Base{
 			ChainID: chainIDU8,
 			Commit:  commitOCR3Config,
 			Execute: executeOCR3Config,
 		},
-		CursedSubjects:     cursedSubjects,
+		CursedSubjects:     offramp.CursedSubjects{Data: cursedSubjects},
 		SourceChainConfigs: sourceChainConfigs,
 	}
 

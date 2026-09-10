@@ -38,6 +38,13 @@ const defaultCCIPContractCoin = "0.05"
 // This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
+// defaultOffRampMinGasLimit is the default minimum gas limit for message execution on the OffRamp.
+const defaultOffRampMinGasLimit = "0.025"
+
+// defaultOffRampMinTTGasLimit is the default minimum gas limit for token transfers on the OffRamp.
+// LockRelease_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE.
+const defaultOffRampMinTTGasLimit = "0.15"
+
 // TonDeployAdapter implements the deploy.Deployer interface for TON chains.
 type TonDeployAdapter struct{}
 
@@ -243,6 +250,8 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				Coin:                             defaultCCIPContractCoin,
 				ChainSelector:                    cfg.ChainSelector,
 				PermissionlessExecutionThreshold: cfg.PermissionLessExecutionThresholdSeconds,
+				MinGasLimit:                      defaultOffRampMinGasLimit,
+				MinTTGasLimit:                    defaultOffRampMinTTGasLimit,
 			},
 			OnRampParams: ccipConfig.OnRampParams{
 				ID:            contractID,
