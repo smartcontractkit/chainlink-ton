@@ -1080,6 +1080,68 @@ describe('OffRamp - Execute', () => {
       })
     })
 
+    it('should get merkle root stuck in InProgress when gasOverride is lower than original gasLimit (bug)', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. First DON execution: make the receiver reject so the message
+      //    ends in Failure. This is necessary so that the subsequent manual
+      //    execute skips the ReceiveExecutor deploy step and reaches
+      //    getEffectiveGasLimit directly.
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.RejectAll,
+        },
+      )
+      await setup.executeReport(report)
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // 2. Manual execute with a receiverExecutionGasLimit lower than the
+      //    message gasLimit. getEffectiveGasLimit throws
+      //    InvalidManualExecutionGasLimit *outside* the try/catch in
+      //    onExecuteValidated, so the ExecuteValidated transaction fails and
+      //    bounces back to the MerkleRoot. The MerkleRoot has no bounce
+      //    handler, so the message state — already set to InProgress by
+      //    onInitExecute — is never updated to Failure.
+      const badGasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
+      const badResult = await setup.manualExecuteReport(report, badGasOverride, true)
+
+      // The ExecuteValidated transaction fails (getEffectiveGasLimit throws
+      // outside the try/catch). No Failure state is emitted because the throw
+      // discards all emits, and the bounce back to MerkleRoot is silently
+      // ignored (no bounce handler).
+      expect(badResult.transactions).not.toHaveTransaction({
+        from: setup.offRamp.address,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+      })
+
+      // 3. Retry manual execute with a *valid* gasOverride (higher than
+      //    gasLimit). This should succeed, but because the MerkleRoot is stuck
+      //    in InProgress, the MerkleRoot rejects the retry with
+      //    SkippedAlreadyExecutedMessage.
+      const goodGasOverride = { receiverExecutionGasLimit: message.gasLimit + toNano('0.01') }
+      const retryResult = await setup.manualExecuteReport(report, goodGasOverride, true)
+
+      // The OffRamp forwards to the MerkleRoot, which rejects because the
+      // message is in InProgress (not Untouched or Failure).
+      expect(retryResult.transactions).toHaveTransaction({
+        exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
+        success: false,
+      })
+
+      // The message never reaches the receiver.
+      expect(retryResult.transactions).not.toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+    })
+
     it('should ignore gasOverride when 0', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
