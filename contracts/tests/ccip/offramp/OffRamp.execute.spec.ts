@@ -1019,7 +1019,7 @@ describe('OffRamp - Execute', () => {
       )
     })
 
-    it('should ignore gasOverride lower than original gasLimit', async () => {
+    it('should fail manual execute when gasOverride is lower than original gasLimit', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
@@ -1073,50 +1073,11 @@ describe('OffRamp - Execute', () => {
       const result4 = await setup.manualExecuteReport(report, gasOverride, true)
 
       expect(result4.transactions).toHaveTransaction({
-        from: setup.router.address,
-        to: setup.receiver.address,
-        value: message.gasLimit,
-        success: true,
+        to: setup.offRamp.address,
+        op: of.OffRamp_ExecuteValidated.PREFIX,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
+        success: false,
       })
-
-      assertLog(
-        result4.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.InProgress,
-        },
-      )
-
-      assertLog(
-        result4.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Success,
-        },
-      )
-
-      assertLog(
-        result4.transactions,
-        setup.receiver.address,
-        CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
-        {
-          message: of.Any2TVMMessage.create({
-            messageId: message.header.messageId,
-            sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-            sender: message.sender,
-            data: message.data,
-            tokenAmounts: null,
-          }),
-        },
-      )
     })
 
     it('should ignore gasOverride when 0', async () => {
@@ -2401,6 +2362,59 @@ describe('OffRamp - Execute', () => {
       const gasOverride = of.GasOverride.create({
         receiverExecutionGasLimit: toNano('0.05'),
         tokenGasOverrides: [toNano('0.01')], // mismatch: message has 0 token transfers
+      })
+      const result = await setup.offRamp.sendOffRampManuallyExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.5'),
+        {
+          report,
+          gasOverride,
+        },
+      )
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails manual execute when token gas override is non-zero but lower than destGasAmount', async () => {
+      // Create a message with a destGasAmount below MIN_TT_GASLIMIT so that the
+      // first DON execution fails (token transfer gas too low).
+      const destGasAmount = MIN_TT_GASLIMIT - 1n
+      const message = setup.createTestMessageWithToken({ destGasAmount })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. Regular execution: destGasAmount (0.001) is below MIN_TT_GASLIMIT,
+      //    so the message should fail.
+      const firstResult = await setup.executeReport(report)
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      const gasOverride = of.GasOverride.create({
+        receiverExecutionGasLimit: toNano('0.05'),
+        tokenGasOverrides: [destGasAmount - 1n], // non-zero but lower than destGasAmount
       })
       const result = await setup.offRamp.sendOffRampManuallyExecute(
         setup.transmitters[0].getSender(),
