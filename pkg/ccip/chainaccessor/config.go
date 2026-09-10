@@ -128,7 +128,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		return ccipocr3.OfframpConfig{}, err
 	}
 
-	feeQuoterBytes, err := addrToBytes(config.FeeQuoterAddress)
+	feeQuoterBytes, err := addrToBytes(config.DynamicConfig.FeeQuoter)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, fmt.Errorf("convert fee quoter address: %w", err)
 	}
@@ -145,7 +145,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		},
 		DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
 			FeeQuoter:                               feeQuoterBytes,
-			PermissionLessExecutionThresholdSeconds: config.PermissionlessExecutionThresholdSeconds,
+			PermissionLessExecutionThresholdSeconds: config.DynamicConfig.PermissionlessExecutionThresholdSeconds,
 			IsRMNVerificationDisabled:               true,
 			MessageInterceptor:                      nil,
 		},

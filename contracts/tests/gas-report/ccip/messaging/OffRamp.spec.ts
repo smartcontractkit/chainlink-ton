@@ -42,6 +42,7 @@ import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../../src/offramp/generateMessageID'
 import { createSignatures } from '../../../ccip/offramp/OffRamp.Setup'
+import { DEFAULT_MIN_GASLIMIT, DEFAULT_MIN_TT_GASLIMIT } from '../../../../wrappers/ccip/OffRamp'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 
@@ -230,13 +231,20 @@ describe('CCIP OffRamp Gas Estimation', () => {
         ownable: of.Ownable2Step.create({
           owner: deployer.address,
         }),
-        deployables: of.OffRamp_Deployables.create({
-          rmnRouter: deployer.address,
-          deployer: deployerCode,
-          merkleRootCode,
-          receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
+        config: of.OffRamp_Config.create({
+          deployables: of.OffRamp_Deployables.create({
+            rmnRouter: deployer.address,
+            deployer: deployerCode,
+            merkleRootCode,
+            receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
+          }),
+          dynamicConfig: of.OffRamp_DynamicConfig.create({
+            feeQuoter: feeQuoter.address,
+            permissionlessExecutionThresholdSeconds: 60n,
+            minGasLimit: DEFAULT_MIN_GASLIMIT,
+            minTTGasLimit: DEFAULT_MIN_TT_GASLIMIT,
+          }),
         }),
-        feeQuoter: feeQuoter.address,
         ocr3Base: of.OCR3Base.create({
           chainId: 1n,
           commit: null,
@@ -246,7 +254,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
           data: new Set(),
         }),
         chainSelector: ChainSelectors.testnet.ton,
-        permissionlessExecutionThresholdSeconds: 60n,
         sourceChainConfigs: new Map(),
         latestPriceSequenceNumber: 0n,
       })

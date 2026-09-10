@@ -49,8 +49,7 @@ type SourceChainSelectorAdded struct {
 
 // DynamicConfigSet represents the DynamicConfigSet event data
 type DynamicConfigSet struct {
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	Config DynamicConfig `tlb:"."`
 }
 
 // ReceiveExecutorInitExecuteBounced represents the ReceiveExecutorInitExecuteBounced event data
@@ -73,16 +72,14 @@ type RouteMessageBounced struct {
 
 // Storage represents the offRamp contract storage state
 type Storage struct {
-	ID                                      uint32               `tlb:"## 32"`
-	Ownable                                 ownable2step.Storage `tlb:"."`
-	Deployables                             Deployables          `tlb:"^"`
-	FeeQuoter                               *address.Address     `tlb:"addr"`
-	OCR3Base                                OCR3Base             `tlb:"^"`
-	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
-	ChainSelector                           uint64               `tlb:"## 64"`
-	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
-	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
-	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
+	ID                        uint32               `tlb:"## 32"`
+	Ownable                   ownable2step.Storage `tlb:"."`
+	Config                    OffRampConfig        `tlb:"^"`
+	OCR3Base                  OCR3Base             `tlb:"^"`
+	CursedSubjects            CursedSubjects       `tlb:"."`
+	ChainSelector             uint64               `tlb:"## 64"`
+	SourceChainConfigs        *cell.Dictionary     `tlb:"dict 64"`
+	LatestPriceSequenceNumber uint64               `tlb:"## 64"`
 }
 
 // Deployables holds the deployable code cells for the offRamp contract
@@ -167,10 +164,9 @@ type Execute struct {
 }
 
 type SetDynamicConfig struct {
-	_                                       tlb.Magic        `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID                                 uint64           `tlb:"## 64"`
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	_       tlb.Magic     `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64        `tlb:"## 64"`
+	Config  DynamicConfig `tlb:"."`
 }
 
 type UpdateDeployables struct {
@@ -218,11 +214,30 @@ func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
 
-// Config represents the offRamp contract configuration
-type Config struct {
-	ChainSelector                           uint64           `tlb:"## 64"`
-	FeeQuoterAddress                        *address.Address `tlb:"addr"`
+// DynamicConfig holds the dynamic configuration for the OffRamp contract.
+type DynamicConfig struct {
+	FeeQuoter                               *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	MinGasLimit                             tlb.Coins        `tlb:"."`
+	MinTTGasLimit                           tlb.Coins        `tlb:"."`
+}
+
+// OffRampConfig combines deployables and dynamic config into a single cell to
+// stay within the TVM 4-ref serialization limit for the root Storage struct.
+type OffRampConfig struct {
+	Deployables   Deployables   `tlb:"."`
+	DynamicConfig DynamicConfig `tlb:"."`
+}
+
+// CursedSubjects represents the set of cursed subjects (uint128 keys with empty values).
+type CursedSubjects struct {
+	Data *cell.Dictionary `tlb:"dict 128"`
+}
+
+// Config represents the offRamp contract configuration returned by the config getter.
+type Config struct {
+	ChainSelector uint64        `tlb:"## 64"`
+	DynamicConfig DynamicConfig `tlb:"."`
 }
 
 // Deprecated: Use GetConfig getter instead.

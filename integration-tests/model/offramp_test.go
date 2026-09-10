@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/model"
@@ -69,6 +70,8 @@ func TestDecodeOffRampData(t *testing.T) {
 		WithCursedSubject(new(big.Int).SetUint64(chainSelector2)).
 		WithChainSelector(tonChainSelector).
 		WithPermissionlessExecutionThresholdSeconds(uint32(120)).
+		WithMinGasLimit(tlb.FromNanoTON(big.NewInt(25000000))).
+		WithMinTTGasLimit(tlb.FromNanoTON(big.NewInt(150000000))).
 		WithLatestPriceSequenceNumber(uint64(1000)).
 		WithSourceChainConfig(chainSelector1, model.SourceChainConfig{
 			Router:                    rmnRouter,
@@ -98,15 +101,15 @@ func TestDecodeOffRampData(t *testing.T) {
 		require.Equal(t, pendingOwnerAddress, storage.Ownable.PendingOwner)
 
 		// RMN Router
-		require.Equal(t, rmnRouter, storage.Deployables.RMNRouter)
+		require.Equal(t, rmnRouter, storage.Config.Deployables.RMNRouter)
 
 		// Code cells / code hashes
-		require.Equal(t, deployerCode, storage.Deployables.Deployer)
-		require.Equal(t, merkleRootCode, storage.Deployables.MerkleRootCode)
-		require.Equal(t, receiveExecutorCode, storage.Deployables.ReceiveExecutorCode)
+		require.Equal(t, deployerCode, storage.Config.Deployables.Deployer)
+		require.Equal(t, merkleRootCode, storage.Config.Deployables.MerkleRootCode)
+		require.Equal(t, receiveExecutorCode, storage.Config.Deployables.ReceiveExecutorCode)
 
 		// FeeQuoter
-		require.Equal(t, feeQuoter, storage.FeeQuoter)
+		require.Equal(t, feeQuoter, storage.Config.DynamicConfig.FeeQuoter)
 
 		// OCR3 base chain ID
 		require.Equal(t, 1, storage.OCR3Base.ChainID)
@@ -140,8 +143,11 @@ func TestDecodeOffRampData(t *testing.T) {
 		require.Equal(t, tonChainSelector, storage.ChainSelector)
 
 		// Permissionless execution threshold
-		require.Equal(t, uint32(120), storage.PermissionlessExecutionThresholdSeconds)
+		require.Equal(t, uint32(120), storage.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds)
 
+		// MinGasLimit / MinTTGasLimit
+	require.Equal(t, big.NewInt(25000000), storage.Config.DynamicConfig.MinGasLimit.NanoTON())
+	require.Equal(t, big.NewInt(150000000), storage.Config.DynamicConfig.MinTTGasLimit.NanoTON())
 		// Latest price sequence number
 		require.Equal(t, uint64(1000), storage.LatestPriceSequenceNumber)
 

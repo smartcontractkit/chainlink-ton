@@ -438,7 +438,7 @@ func TestDeployCCIP(t *testing.T) {
 		require.True(t, exit, "offRamp view not found")
 		require.Equal(t, offRampAddr, *offRampView.Address)
 		require.Equal(t, chainSelector, offRampView.Config.ChainSelector)
-		require.Equal(t, feeQuoterAddr.String(), offRampView.Config.FeeQuoterAddress.String())
+		require.Equal(t, feeQuoterAddr.String(), offRampView.Config.DynamicConfig.FeeQuoter.String())
 		data, err := json.MarshalIndent(generatedView, "", "  ")
 		require.NoError(t, err)
 		fmt.Print("JSON encoded TON state view:\n" + string(data))

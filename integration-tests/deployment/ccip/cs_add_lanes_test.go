@@ -195,7 +195,7 @@ func TestAddLanes(t *testing.T) {
 		require.True(t, exit, "offRamp view not found")
 		require.Equal(t, offRampAddr, *offRampView.Address)
 		require.Equal(t, tonChainSelector, offRampView.Config.ChainSelector)
-		require.Equal(t, feeQuoterAddr, *offRampView.Config.FeeQuoterAddress)
+		require.Equal(t, feeQuoterAddr, *offRampView.Config.DynamicConfig.FeeQuoter)
 		require.Equal(t, routerAddr, *offRampView.SourceChainConfigs[evmSelector].Router)
 		require.True(t, offRampView.SourceChainConfigs[evmSelector].IsEnabled)
 		require.Equal(t, uint64(1), offRampView.SourceChainConfigs[evmSelector].MinSeqNr) // This starts with 1 as it's the minimum expected from the remote chain

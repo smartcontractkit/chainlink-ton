@@ -12,6 +12,7 @@ import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
+import { DEFAULT_MIN_GASLIMIT, DEFAULT_MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 
@@ -363,14 +364,20 @@ async function deployOffRampInstance(
       pendingOwner: null,
     }),
     chainSelector: ChainSelectors.testnet.ton,
-    deployables: of.OffRamp_Deployables.create({
-      deployer: await contractCode.ccip.local('Deployable'),
-      merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
-      receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
-      rmnRouter: router,
+    config: of.OffRamp_Config.create({
+      deployables: of.OffRamp_Deployables.create({
+        deployer: await contractCode.ccip.local('Deployable'),
+        merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
+        receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
+        rmnRouter: router,
+      }),
+      dynamicConfig: of.OffRamp_DynamicConfig.create({
+        feeQuoter,
+        permissionlessExecutionThresholdSeconds: 0n,
+        minGasLimit: DEFAULT_MIN_GASLIMIT,
+        minTTGasLimit: DEFAULT_MIN_TT_GASLIMIT,
+      }),
     }),
-    feeQuoter,
-    permissionlessExecutionThresholdSeconds: 0n,
     latestPriceSequenceNumber: 0n,
     ocr3Base: of.OCR3Base.create({
       chainId: 1n,
