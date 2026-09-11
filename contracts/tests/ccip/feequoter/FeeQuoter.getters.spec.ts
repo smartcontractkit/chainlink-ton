@@ -155,8 +155,14 @@ describe('FeeQuoter Getters', () => {
       const fee = await setup.bind.feeQuoter.getValidatedFeeCell(message)
 
       expect(fee).toBeGreaterThan(0n)
+    })
 
-      // Verify it matches the non-cell version
+    it('should match the non-cell (stack-args) validatedFee get-method', async () => {
+      const message = setup.generateEmptyMessage({
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+      })
+
+      const fee = await setup.bind.feeQuoter.getValidatedFeeCell(message)
       const feeFromMessage = await setup.bind.feeQuoter.getValidatedFee(message)
       expect(fee).toBe(feeFromMessage)
     })
@@ -320,16 +326,24 @@ describe('FeeQuoter Getters', () => {
       ).rejects.toThrow()
     })
 
-    it('should throw error when token transfers provided (not supported)', async () => {
-      await expect(
-        setup.bind.feeQuoter.getDataAvailabilityCost(
-          ChainSelectors.testnet.evm,
-          FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-          1000n,
-          1n, // tokenCount > 0
-          32n,
-        ),
-      ).rejects.toThrow()
+    it('should increase the cost when token transfers are included', async () => {
+      const withoutTokens = await setup.bind.feeQuoter.getDataAvailabilityCost(
+        ChainSelectors.testnet.evm,
+        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
+        1000n,
+        0n,
+        0n,
+      )
+
+      const withTokens = await setup.bind.feeQuoter.getDataAvailabilityCost(
+        ChainSelectors.testnet.evm,
+        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
+        1000n,
+        1n, // tokenCount
+        32n, // tokenTransferBytesOverhead
+      )
+
+      expect(withTokens).toBeGreaterThan(withoutTokens)
     })
   })
 
