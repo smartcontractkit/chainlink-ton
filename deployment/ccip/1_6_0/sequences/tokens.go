@@ -552,19 +552,17 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			{
-				if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
-					Messages: []opston.InternalMessage[any]{
-						{
-							Bounce:  true,
-							DstAddr: registryAddr,
-							Amount:  tlb.MustFromTON("0.1"),
-							Body:    body,
-						},
+			if _, execErr := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: registryAddr,
+						Amount:  tlb.MustFromTON("0.1"),
+						Body:    body,
 					},
-				}); err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to register token at TokenAdminRegistry %s: %w", registryAddr.String(), err)
-				}
+				},
+			}); execErr != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to register token at TokenAdminRegistry %s: %w", registryAddr.String(), execErr)
 			}
 
 			entryAddr, err := deriveTokenAdminRegistryEntryAddress(registryAddr, tokenAddr, compiledContracts[bindings.TypeDeployable].Code)
