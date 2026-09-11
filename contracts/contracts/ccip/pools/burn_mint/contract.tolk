@@ -596,7 +596,7 @@ get fun getCCVAmount(
     remoteChainSelector: uint64,
     sourceDenominatedAmount: coins,
     requestedFinalityConfig: uint32,
-    direction: uint8,
+    direction: TokenPool_MessageDirection,
     extraData: cell?,
 ): coins {
     val pool = loadPool(Storage.load());

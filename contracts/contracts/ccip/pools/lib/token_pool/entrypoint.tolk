@@ -583,7 +583,7 @@ fun TokenPool<T>.applyChainUpdates(
     while (!addIter.empty()) {
         val newChain = addIter.next();
         val remoteTokenAddress = newChain.remoteTokenAddress;
-        assert(!TokenPool_isEmptyCrossChainAddress(remoteTokenAddress), TokenPool_Error.ZeroAddressInvalid);
+        assert(!TokenPool<T>.isEmptyCrossChainAddress(remoteTokenAddress), TokenPool_Error.ZeroAddressInvalid);
 
         val remoteChainSelector = newChain.remoteChainSelector;
         assert(!self.data.remoteChainConfigs.get(remoteChainSelector).isFound, TokenPool_Error.ChainAlreadyExists);
@@ -1089,7 +1089,7 @@ fun TokenPool<T>.getFee(
     requestedFinalityConfig: uint32,
     _tokenArgs: cell?,
 ): (coins, uint32, uint32, uint16, bool) {
-    TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+    TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
 
     val entry = self.data.tokenTransferFeeConfigs.get(destChainSelector);
     if (!entry.isFound) {
@@ -1133,19 +1133,14 @@ fun TokenPool<T>.getFeeAmount(
 ): coins {
     // TODO: register as an available hook
     val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy transfer.details.load();
-    val entry = self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector);
-    if (!entry.isFound) {
+    val feeConfig = TokenPool<T>.enabledFeeConfig(self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector));
+    if (feeConfig == null) {
         return 0;
     }
 
-    val feeConfig = entry.loadValue();
-    if (!feeConfig.isEnabled) {
-        return 0;
-    }
-
-    var transferFeeBps = feeConfig.finalityTransferFeeBps;
+    var transferFeeBps = feeConfig!.finalityTransferFeeBps;
     if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        transferFeeBps = feeConfig.fastFinalityTransferFeeBps;
+        transferFeeBps = feeConfig!.fastFinalityTransferFeeBps;
     }
 
     assert(transferFeeBps < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps); // Unexpected since it is validated in config update
@@ -1157,21 +1152,32 @@ fun TokenPool<T>.getFeeAmount(
     return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO test case with max amount and max BPS to prove
 }
 
+/// Resolves a fee-config lookup to `TokenPool_TokenTransferFeeConfig?`: null unless the entry
+/// exists and is enabled. Loads the dict value exactly once.
+fun TokenPool<T>.enabledFeeConfig(entry: MapLookupResult<TokenPool_TokenTransferFeeConfig>): TokenPool_TokenTransferFeeConfig? {
+    if (!entry.isFound) {
+        return null;
+    }
+
+    val feeConfig = entry.loadValue();
+    return feeConfig.isEnabled ? feeConfig : null;
+}
+
 /// Computes the pool's applicable fee config + the fee-adjusted (post-fee) amount for a
 /// `TokenPool_GetCCVs` query, mirroring EVM's `getFee` + the outbound fee-subtraction in
 /// `getRequiredCCVs`.
-/// @return (feeConfig, amountPostFee, feesProvided). `feesProvided=false` when no enabled
-///         config exists (callers fall back to FeeQuoter defaults); the inbound amount is
-///         already post-fee, so only outbound subtracts the bps fee.
+/// @return FeeContext with `feesProvided=false` when no enabled config exists (callers fall
+///         back to FeeQuoter defaults); the inbound amount is already post-fee, so only
+///         outbound subtracts the bps fee.
 fun TokenPool<T>.getFeeParamsAndPostFeeAmount(
     self,
     remoteChainSelector: uint64,
     sourceDenominatedAmount: coins,
     requestedFinalityConfig: uint32,
-    direction: uint8,
-): (TokenPool_TokenTransferFeeConfig, coins, bool) {
-    val entry = self.data.tokenTransferFeeConfigs.get(remoteChainSelector);
-    if (!entry.isFound || !entry.loadValue().isEnabled) {
+    direction: TokenPool_MessageDirection,
+): TokenPool_FeeContext {
+    val feeConfig = TokenPool<T>.enabledFeeConfig(self.data.tokenTransferFeeConfigs.get(remoteChainSelector));
+    if (feeConfig == null) {
         // Mirrors EVM getFee: absent/disabled configs return a zero config with the disabled flag
         // (disabled entries cannot exist — updates reject isEnabled=false, disable deletes).
         val zeroConfig = TokenPool_TokenTransferFeeConfig {
@@ -1183,26 +1189,32 @@ fun TokenPool<T>.getFeeParamsAndPostFeeAmount(
             fastFinalityTransferFeeBps: 0,
             isEnabled: false,
         };
-        return (zeroConfig, sourceDenominatedAmount, false);
+        return TokenPool_FeeContext {
+            feeConfig: zeroConfig,
+            amountPostFee: sourceDenominatedAmount,
+            feesProvided: false,
+        };
     }
 
-    val feeConfig = entry.loadValue();
     var amountPostFee = sourceDenominatedAmount;
 
     // The source fee amount is not classified as transferred value: subtract it for outbound.
-    if (direction == TokenPool_MessageDirection.Outbound as uint8) {
-        var transferFeeBps = feeConfig.finalityTransferFeeBps;
+    if (direction == TokenPool_MessageDirection.Outbound) {
+        var transferFeeBps = feeConfig!.finalityTransferFeeBps;
         if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-            transferFeeBps = feeConfig.fastFinalityTransferFeeBps;
+            transferFeeBps = feeConfig!.fastFinalityTransferFeeBps;
         }
         assert(transferFeeBps < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps);
-        amountPostFee = mustCastToCoin(
-            sourceDenominatedAmount as int - (sourceDenominatedAmount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER,
-            TokenPool_Error.OverflowDetected
-        );
+        // SAFETY: `transferFeeBps` < TOKEN_POOL_BPS_DIVIDER (asserted), so the fee fraction is
+        // < 1 and the subtraction is neither negative nor overflowing: still `coins`.
+        amountPostFee = sourceDenominatedAmount - (sourceDenominatedAmount * transferFeeBps) / TOKEN_POOL_BPS_DIVIDER;
     }
 
-    return (feeConfig, amountPostFee, true);
+    return TokenPool_FeeContext {
+        feeConfig: feeConfig!,
+        amountPostFee,
+        feesProvided: true,
+    };
 }
 
 /// Amount to pass to the CCV hooks for a transfer, mirroring EVM `getRequiredCCVs`:
@@ -1213,12 +1225,12 @@ fun TokenPool<T>.getCCVAmount(
     remoteChainSelector: uint64,
     sourceDenominatedAmount: coins,
     requestedFinalityConfig: uint32,
-    direction: uint8,
+    direction: TokenPool_MessageDirection,
     extraData: cell?,
 ): coins {
-    if (direction == TokenPool_MessageDirection.Outbound as uint8) {
-        val (_, amountPostFee, _) = self.getFeeParamsAndPostFeeAmount(remoteChainSelector, sourceDenominatedAmount, requestedFinalityConfig, direction);
-        return amountPostFee;
+    if (direction == TokenPool_MessageDirection.Outbound) {
+        val fees = self.getFeeParamsAndPostFeeAmount(remoteChainSelector, sourceDenominatedAmount, requestedFinalityConfig, direction);
+        return fees.amountPostFee;
     }
 
     val remoteDecimals = self.parseRemoteDecimals(extraData);
@@ -1232,7 +1244,7 @@ fun TokenPool<T>.validateGetCCVsRequest(
     remoteChainSelector: uint64,
     requestedFinalityConfig: uint32,
 ): void {
-    TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+    TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
     assert(self.isSupportedToken(localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(remoteChainSelector);
 }
@@ -1292,14 +1304,9 @@ fun TokenPool<T>.onGetCCVsAndFees(
 ): void {
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
 
-    val (feeConfig, amountPostFee, feesProvided) = self.getFeeParamsAndPostFeeAmount(
+    val fees = self.getFeeParamsAndPostFeeAmount(
         msg.remoteChainSelector, msg.amount, msg.requestedFinalityConfig, msg.direction
-    );
-    val fees = TokenPool_FeeContext {
-        feeConfig,
-        amountPostFee,
-        feesProvided,
-    }.toCell();
+    ).toCell();
 
     self.onGetCCVs(sender, TokenPool_GetCCVs {
         queryId: msg.queryId,
@@ -1441,7 +1448,7 @@ fun TokenPool<T>.validateLockOrBurn(
     // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
     // designed to bounce to the original sender, not to the hooks contract.
     if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        TokenPool_ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+        TokenPool<T>.ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
         self.consumeFastFinalityOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     } else {
         self.consumeOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
@@ -1829,7 +1836,7 @@ fun TokenPool<T>.validateReleaseOrMint(
     // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
     // designed to bounce to the original sender, not to the hooks contract.
     if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        TokenPool_ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+        TokenPool<T>.ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
         self.consumeFastFinalityInboundRateLimit(details.remoteChainSelector, localAmount);
     } else {
         self.consumeInboundRateLimit(details.remoteChainSelector, localAmount);
@@ -2389,7 +2396,7 @@ fun TokenPool<T>._setRemotePool(
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>
 ) {
-    assert(!TokenPool_isEmptyCrossChainAddress(remotePoolAddress), TokenPool_Error.ZeroAddressInvalid);
+    assert(!TokenPool<T>.isEmptyCrossChainAddress(remotePoolAddress), TokenPool_Error.ZeroAddressInvalid);
     // Check if the pool already exists.
     val poolHash = remotePoolAddress.hash();
     assert(!config.remotePools.get(poolHash).isFound, TokenPool_Error.PoolAlreadyAdded);
@@ -2452,21 +2459,22 @@ fun TokenPool<T>.onlyOwnerOrFeeAdmin(self, sender: address): bool {
     return sender == ownable.owner || senderIsFeeAdmin();
 }
 
-fun TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32, allowedFinalityConfig: uint32) {
+/// Ensures a requested finality config is allowed by the pool's allowed finality (see `FinalityCodec`).
+fun TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32, allowedFinalityConfig: uint32): void {
     if (requestedFinalityConfig == TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
         return;
     }
     assert(allowedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG && requestedFinalityConfig == allowedFinalityConfig, TokenPool_Error.InvalidRequestedFinality);
 }
 
-fun TokenPool_isEmptyCrossChainAddress(value: Cell<CrossChainAddress>): bool {
+fun TokenPool<T>.isEmptyCrossChainAddress(value: Cell<CrossChainAddress>): bool {
     var cs = value.beginParse();
     val addressBytes = CrossChainAddress.unpackFromSlice(mutate cs);
     cs.assertEnd();
     return addressBytes.remainingBitsCount() == 0;
 }
 
-fun TokenPool_boxCrossChainAddress(addressBytes: CrossChainAddress): Cell<CrossChainAddress> {
+fun TokenPool<T>.boxCrossChainAddress(addressBytes: CrossChainAddress): Cell<CrossChainAddress> {
     var addressSlice = addressBytes;
     val bits = addressSlice.remainingBitsCount();
     assert(bits % 8 == 0, TokenPool_Error.OverflowDetected);

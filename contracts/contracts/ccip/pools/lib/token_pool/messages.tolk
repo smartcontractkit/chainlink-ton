@@ -196,7 +196,7 @@ struct (0xc5476d2b) TokenPool_GetCCVs {
     remoteChainSelector: uint64;                    // The remote lane for this transfer.
     amount: coins;                                  // Source-denominated amount (post-fee/local on the hooks hop).
     requestedFinalityConfig: uint32;                // Finality encoding (see `FinalityCodec`).
-    direction: uint8;                               // TokenPool_MessageDirection (0 outbound, 1 inbound).
+    direction: TokenPool_MessageDirection;          // 0 outbound, 1 inbound.
     extraData: cell?;                               // tokenArgs outbound, sourcePoolData inbound.
     replyTo: address;                               // Hooks reply destination on the pool→hooks hop (the pool).
     forwardPayload: cell?;                          // Caller context; pool→hooks: Cell<TokenPool_GetCCVsContext>.
@@ -211,7 +211,7 @@ struct (0xd22944d5) TokenPool_GetCCVsAndFees {
     remoteChainSelector: uint64;
     amount: coins;
     requestedFinalityConfig: uint32;
-    direction: uint8;
+    direction: TokenPool_MessageDirection;
     extraData: cell?;
     forwardPayload: cell?;                          // Per-request context echoed back in the reply.
 }

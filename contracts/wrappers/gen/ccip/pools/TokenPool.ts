@@ -914,6 +914,26 @@ export const TokenPool_TokenTransferFeeConfig = {
 }
 
 /**
+ > enum TokenPool_MessageDirection { 2 variants }
+ */
+export type TokenPool_MessageDirection = bigint
+
+export const TokenPool_MessageDirection = {
+    Outbound: 0n,
+    Inbound: 1n,
+
+    fromSlice(s: c.Slice): TokenPool_MessageDirection {
+        return s.loadUintBig(8);
+    },
+    store(self: TokenPool_MessageDirection, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: TokenPool_MessageDirection): c.Cell {
+        return makeCellFrom<TokenPool_MessageDirection>(self, TokenPool_MessageDirection.store);
+    }
+}
+
+/**
  > struct TokenPool_Transfer<S, R, C> {
  >     id: uint256
  >     details: Cell<TokenPool_TransferDetails<S, R, C>>
@@ -2427,7 +2447,7 @@ export const TokenPool_FeeContext = {
  >     remoteChainSelector: uint64
  >     amount: coins
  >     requestedFinalityConfig: uint32
- >     direction: uint8
+ >     direction: TokenPool_MessageDirection
  >     extraData: cell?
  >     replyTo: address
  >     forwardPayload: cell?
@@ -2440,7 +2460,7 @@ export interface TokenPool_GetCCVs {
     remoteChainSelector: uint64
     amount: coins
     requestedFinalityConfig: uint32
-    direction: uint8
+    direction: TokenPool_MessageDirection
     extraData: c.Cell | null
     replyTo: c.Address
     forwardPayload: c.Cell | null
@@ -2455,7 +2475,7 @@ export const TokenPool_GetCCVs = {
         remoteChainSelector: uint64
         amount: coins
         requestedFinalityConfig: uint32
-        direction: uint8
+        direction: TokenPool_MessageDirection
         extraData: c.Cell | null
         replyTo: c.Address
         forwardPayload: c.Cell | null
@@ -2475,7 +2495,7 @@ export const TokenPool_GetCCVs = {
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
             requestedFinalityConfig: s.loadUintBig(32),
-            direction: s.loadUintBig(8),
+            direction: TokenPool_MessageDirection.fromSlice(s),
             extraData: s.loadBoolean() ? s.loadRef() : null,
             replyTo: s.loadAddress(),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
@@ -2488,7 +2508,7 @@ export const TokenPool_GetCCVs = {
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
         b.storeUint(self.requestedFinalityConfig, 32);
-        b.storeUint(self.direction, 8);
+        TokenPool_MessageDirection.store(self.direction, b);
         storeTolkNullable<c.Cell>(self.extraData, b,
             (v,b) => b.storeRef(v)
         );
@@ -2509,7 +2529,7 @@ export const TokenPool_GetCCVs = {
  >     remoteChainSelector: uint64
  >     amount: coins
  >     requestedFinalityConfig: uint32
- >     direction: uint8
+ >     direction: TokenPool_MessageDirection
  >     extraData: cell?
  >     forwardPayload: cell?
  > }
@@ -2521,7 +2541,7 @@ export interface TokenPool_GetCCVsAndFees {
     remoteChainSelector: uint64
     amount: coins
     requestedFinalityConfig: uint32
-    direction: uint8
+    direction: TokenPool_MessageDirection
     extraData: c.Cell | null
     forwardPayload: c.Cell | null
 }
@@ -2535,7 +2555,7 @@ export const TokenPool_GetCCVsAndFees = {
         remoteChainSelector: uint64
         amount: coins
         requestedFinalityConfig: uint32
-        direction: uint8
+        direction: TokenPool_MessageDirection
         extraData: c.Cell | null
         forwardPayload: c.Cell | null
     }): TokenPool_GetCCVsAndFees {
@@ -2554,7 +2574,7 @@ export const TokenPool_GetCCVsAndFees = {
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
             requestedFinalityConfig: s.loadUintBig(32),
-            direction: s.loadUintBig(8),
+            direction: TokenPool_MessageDirection.fromSlice(s),
             extraData: s.loadBoolean() ? s.loadRef() : null,
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
@@ -2566,7 +2586,7 @@ export const TokenPool_GetCCVsAndFees = {
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
         b.storeUint(self.requestedFinalityConfig, 32);
-        b.storeUint(self.direction, 8);
+        TokenPool_MessageDirection.store(self.direction, b);
         storeTolkNullable<c.Cell>(self.extraData, b,
             (v,b) => b.storeRef(v)
         );
@@ -4556,7 +4576,7 @@ export class TokenPool implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         requestedFinalityConfig: uint32
-        direction: uint8
+        direction: TokenPool_MessageDirection
         extraData: c.Cell | null
         replyTo: c.Address
         forwardPayload: c.Cell | null
@@ -4570,7 +4590,7 @@ export class TokenPool implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         requestedFinalityConfig: uint32
-        direction: uint8
+        direction: TokenPool_MessageDirection
         extraData: c.Cell | null
         forwardPayload: c.Cell | null
     }) {
@@ -4795,7 +4815,7 @@ export class TokenPool implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         requestedFinalityConfig: uint32
-        direction: uint8
+        direction: TokenPool_MessageDirection
         extraData: c.Cell | null
         replyTo: c.Address
         forwardPayload: c.Cell | null
@@ -4813,7 +4833,7 @@ export class TokenPool implements c.Contract {
         remoteChainSelector: uint64
         amount: coins
         requestedFinalityConfig: uint32
-        direction: uint8
+        direction: TokenPool_MessageDirection
         extraData: c.Cell | null
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
@@ -5263,7 +5283,7 @@ export class TokenPool implements c.Contract {
         ];
     }
 
-    async getCCVAmount(provider: ContractProvider, remoteChainSelector: uint64, sourceDenominatedAmount: coins, requestedFinalityConfig: uint32, direction: uint8, extraData: c.Cell | null): Promise<coins> {
+    async getCCVAmount(provider: ContractProvider, remoteChainSelector: uint64, sourceDenominatedAmount: coins, requestedFinalityConfig: uint32, direction: TokenPool_MessageDirection, extraData: c.Cell | null): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('getCCVAmount', [
             { type: 'int', value: remoteChainSelector },
             { type: 'int', value: sourceDenominatedAmount },
