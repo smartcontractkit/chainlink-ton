@@ -1,0 +1,187 @@
+name: TON - Dependabot lock.nix fixup
+
+# Dependabot bumps go stale in lock.nix; PR CI then dies with "hash
+# mismatch in fixed-output derivation". This workflow self-heals:
+#
+#   watched workflow fails on a Dependabot PR -> workflow_run -> this job
+#   runs `nix run .#lock-nix-tidy` on the PR head and pushes the hash fix
+#   as a GitHub App -> the same checks re-run -> green.
+#
+# GATI is not cosmetic: on any run triggered by a Dependabot PR, GITHUB_TOKEN
+# is demoted read-only (fork-context rules cover workflow_run too) — and only
+# an App-token push re-triggers the checks that turn the PR green.
+#
+# Ops: the watch fails silently — a red Dependabot PR untouched for hours
+# means a look at this workflow's runs; escape hatch: workflow_dispatch.
+# Label "nix-hash-skip" = fixup ran but the red has another cause; remove it
+# and dispatch with the number to retry.
+
+on:
+  workflow_run:
+    workflows:
+      - "TON - Build Relayer Package"
+      - "TON - Contracts"
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Fix up a single Dependabot PR by number (skips the failure trigger; author/state guards still apply)"
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  # One fixup per PR head; serializes when both watched workflows fail.
+  # cancel-in-progress false: a half-pushed fixup is worse than a queued one.
+  group: dependabot-lock-nix-fixup-${{ github.event.workflow_run.head_sha || github.event.inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  fixup:
+    name: Fix lock.nix hashes on a red Dependabot PR
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Check out base branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Resolve the PR and apply guards
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          # The PR to act on: dispatch supplies the number; workflow_run only
+          # carries the failed head SHA, so resolve commit -> PR.
+          NUM="${PR_NUMBER}"
+          if [[ -z ${NUM} ]]; then
+            NUM=$(gh api "repos/${REPO}/commits/${EVENT_SHA}/pull-requests" \
+              --jq '.[0].number // empty') || true
+            [[ -n ${NUM} ]] || { echo "::error::no PR associated with ${EVENT_SHA}"; exit 1; }
+          fi
+
+          gh pr view "${NUM}" --repo "${REPO}" --json state,author,labels,headRefName,headRefOid,isCrossRepository,headRepositoryOwner,headRepository,commits > pr.json
+
+          STATE=$(jq -r .state pr.json)
+          [[ ${STATE} == open ]] || { echo "::error::PR ${NUM} is ${STATE}"; exit 1; }
+
+          # Dependabot-only: never push onto a human-authored branch.
+          AUTHOR=$(jq -r .author.login pr.json)
+          if [[ ${AUTHOR} != "dependabot[bot]" && ${AUTHOR} != "app/dependabot" ]]; then
+            echo "::error::PR ${NUM} is authored by ${AUTHOR}; refusing to push"
+            exit 1
+          fi
+
+          # Reactive-trigger-only guards: a workflow_run is pinned to one
+          # failed head SHA; a dispatch targets the current head on purpose.
+          if [[ ${GITHUB_EVENT_NAME} != "workflow_dispatch" ]]; then
+            # Never act on a head older than the PR's: the newer run fires
+            # its own event.
+            LIVE_SHA=$(jq -r .headRefOid pr.json)
+            if [[ ${EVENT_SHA} != "${LIVE_SHA}" ]]; then
+              echo "::notice::PR ${NUM} moved since the failure; not acting"
+              exit 1
+            fi
+
+            # Loop guard: our push re-triggers CI. Red on our own commit
+            # means stale hashes are not the (remaining) problem — stop.
+            HEAD_MSG=$(jq -r '.commits[-1].messageHeadline' pr.json)
+            if [[ ${HEAD_MSG} == *"[dependabot skip]"* && ${HEAD_MSG} == *"lock.nix"* ]]; then
+              # Label is best-effort bookkeeping (token may be read-only
+              # here); the exit 1 is what stops the ping-pong.
+              gh pr edit "${NUM}" --repo "${REPO}" --add-label nix-hash-skip || true
+              echo "::error::PR ${NUM} still red on our own fixup commit (labeled nix-hash-skip if permitted)"
+              exit 1
+            fi
+
+            if jq -e '.labels[]? | select(.name == "nix-hash-skip")' pr.json >/dev/null; then
+              echo "::notice::PR ${NUM} is labeled nix-hash-skip; dispatch to retry"
+              exit 1
+            fi
+          fi
+
+          # Dependabot PRs may be fork-based: push targets the head repo.
+          PUSH_REPO=$(jq -r --arg r "${REPO}" \
+            'if .isCrossRepository then .headRepositoryOwner.login + "/" + .headRepository.name else $r end' \
+            pr.json)
+          {
+            echo "number=${NUM}"
+            echo "push-repo=${PUSH_REPO}"
+            echo "head-ref=$(jq -r .headRefName pr.json)"
+          } >>"${GITHUB_OUTPUT}"
+
+      - name: Mint GitHub App token (GATI)
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-duration-seconds: "1800"
+
+      - name: Check out the PR head
+        env:
+          GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+        run: |
+          set -euo pipefail
+          # checkout ran unauthenticated: let gh sign git requests. The base
+          # repo's pull refs work even for forks this token can't see.
+          gh auth setup-git
+          gh pr checkout "${{ steps.pr.outputs.number }}" \
+            --repo "${{ github.repository }}"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Re-verify fetchers and rewrite stale hashes
+        run: |
+          set -euo pipefail
+          timeout 15m nix run .#lock-nix-tidy
+
+      - name: Commit and push the fixup
+        env:
+          GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+          REPO: ${{ github.repository }}
+          NUM: ${{ steps.pr.outputs.number }}
+          PUSH_REPO: ${{ steps.pr.outputs.push-repo }}
+          HEAD_REF: ${{ steps.pr.outputs.head-ref }}
+        run: |
+          set -euo pipefail
+
+          # No diff means nothing was stale and this PR's red has another cause.
+          if git diff --quiet -- '*lock.nix'; then
+            gh label create nix-hash-skip --repo "${REPO}" \
+              --color "ededed" --description "lock.nix fixup tried; red has another cause" || true
+            gh pr edit "${NUM}" --repo "${REPO}" --add-label nix-hash-skip
+            echo "::notice::PR ${NUM}: no hash was stale; labeled nix-hash-skip"
+            exit 0
+          fi
+
+          BOT_LOGIN=$(gh api user --jq .login)
+          BOT_ID=$(gh api user --jq .id)
+          git config user.name "${BOT_LOGIN}"
+          git config user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+          git add --all -- '*lock.nix'
+
+          # [dependabot skip] keeps Dependabot auto-updating; the same
+          # marker is the loop guard above.
+          git commit -m "chore(nix): update lock.nix hashes for dependency bumps [dependabot skip]"
+          git push "https://github.com/${PUSH_REPO}.git" "HEAD:refs/heads/${HEAD_REF}"
+          echo "::notice::pushed lock.nix fixup to ${PUSH_REPO}@${HEAD_REF}"

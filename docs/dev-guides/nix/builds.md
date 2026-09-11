@@ -9,7 +9,7 @@ sidebar_position: 2
 
 ## Building packages
 
-This repository defines a set of outputs we call packages for which build derivations are expressed using Nix.
+Every buildable artifact in this repo is exposed as a Nix package.
 
 List all packages:
 
@@ -26,15 +26,15 @@ nix build .#<pkg> --print-out-paths # labeled pkg
 
 ## Deterministic builds, vendor hashes, and lock files
 
-Nix aims for deterministic (reproducible) builds. A key part of this is **fixed-output derivations (FODs)** such as `fetchurl`, `buildGoModule`’s vendor step, `fetchgit`, etc. For any FOD, Nix requires a **content hash** up front. After the build/fetch runs, Nix verifies that the resulting output’s hash exactly matches what was declared; if it doesn’t, the build fails with a “hash mismatch in fixed-output derivation” error. This protects you from drifting dependencies and ensures that CI and local builds use the exact same inputs.
+Nix aims for deterministic builds, which rests on **fixed-output derivations (FODs)** — `fetchurl`, `buildGoModule`’s vendor step, `fetchgit`, etc. Each declares its **content hash** up front, and the build fails with “hash mismatch in fixed-output derivation” unless the fetched content hashes to exactly that. This keeps CI and local builds on identical inputs.
 
 ### Why vendor hashes need to be pinned
 
-Language ecosystems resolve and download a lot of upstream content (Go modules, npm/yarn, cargo crates, vendored tarballs…). To make those fetches deterministic, Nix needs the **expected content hash**. For example, with `buildGoModule`, you must set `vendorHash` so Nix knows what the fully-resolved module tree should hash to. If you bump a version or change dependencies, the **content changes** and the old hash becomes invalid—Nix will (correctly) refuse the build until you update the pinned hash.
+Everything fetched from upstream (Go modules, npm/yarn, tarballs…) is pinned by its **expected content hash** — e.g. `vendorHash` for `buildGoModule`. Bump a dependency, the fetched content changes, the pinned hash goes stale, and Nix refuses the build until it is updated.
 
 ### Organizing hashes in `lock.nix`
 
-To make hash maintenance easy and reviewable, we keep all pinned hashes in small `lock.nix` files (one per package directory or per group of packages). Packages then **import** from these files rather than inlining hashes in the derivation:
+Pinned hashes live in small `lock.nix` files (one per package or group) that derivations **import** instead of inlining:
 
 ```nix
 # <path>/my-module/lock.nix
@@ -66,40 +66,25 @@ Benefits:
 
 ### Automating updates with `lock-nix-tidy`
 
-We provide a small utility **lock-nix-tidy** that builds packages and automatically updates `lock.nix` when it encounters a fixed-output hash mismatch:
+**lock-nix-tidy** re-verifies dependency fetchers and updates `lock.nix` for you when a hash goes stale:
 
-#### What it does
+```bash
+error: hash mismatch in fixed-output derivation
+          specified: sha256-OLD...
+            got:    sha256-NEW...
+```
 
-* Recursively finds `./**/lock.nix`.
-* Builds your package(s) and streams live Nix logs.
-* On an error like:
+it replaces `OLD` with `NEW` in the appropriate `lock.nix`, and retries the build.
 
-  ```bash
-  error: hash mismatch in fixed-output derivation
-           specified: sha256-OLD...
-              got:    sha256-NEW...
-  ```
+```bash
+nix run .#lock-nix-tidy              # every package
+nix run .#lock-nix-tidy -- <attr>    # just one
+```
 
-  it replaces `OLD` with `NEW` in the appropriate `lock.nix`, and retries the build.
+It discovers each package's fetchers, re-fetches them with `nix build --rebuild` — the only check a stale hash can't fake — and rewrites `specified:` → `got:` into every `lock.nix` carrying the stale hash. Hashes are only ever written from real build failures, so a no-diff run means everything is current. Only fetchers build (~10–14 s each, ≈ 1 min full sweep).
 
-#### How to use it
+Caveats:
 
-* Build & tidy **all** packages for the current system:
-
-  ```bash
-  nix run .#lock-nix-tidy
-  ```
-
-* Build & tidy **one** package:
-
-  ```bash
-  nix run .#lock-nix-tidy -- <pkg-attr>
-  ```
-
-#### Requirements & caveats
-
-* Your derivations must read hashes **from** `lock.nix` (as shown above). If a mismatched hash isn’t found in any `lock.nix`, the tool will say so and leave the error intact.
-* The tool does not commit changes. After a successful run, review diffs and commit
-* If you introduce new fixed-output fetchers, remember to add their hashes to the relevant `lock.nix` and reference them from the derivation.
-
-With this setup, your builds remain deterministic, and routine “hash mismatch” churn is handled by a single, repeatable command.
+* Always run it as `nix run .#lock-nix-tidy` — the wrapper pins vanilla Nix (≥ 2.28). Determinate answers `flake show --json` with a different schema and breaks enumeration (the tool says so).
+* Coverage needs no registration: derivations must read hashes **from** `lock.nix`, and every fetcher to cover must be a **direct** input of an exposed package.
+* Nothing is committed; review the diffs and commit yourself.

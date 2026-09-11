@@ -871,15 +871,16 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
-        effectiveGasLimit: msg.gasOverride.getEffectiveGasLimit(message.gasLimit),
+        effectiveGasLimit: message.gasLimit,
         root: sender,
         sequenceNumber: message.header.sequenceNumber,
         sourceChainSelector: message.header.sourceChainSelector,
         messageId: message.header.messageId,
     };
 
-    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
+    // TODO: this hides the validation error that caused the message to fail.
     try {
+        initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
         initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride);
         // TODO this hides the error
     } catch {
