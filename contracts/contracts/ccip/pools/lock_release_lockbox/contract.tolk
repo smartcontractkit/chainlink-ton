@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.1
+tolk 1.4.2
 
 import "@stdlib/lisp-lists"
 
@@ -147,7 +147,7 @@ fun onDepositAccountReply(
     val withdrawExtra = JettonLockBox_WithdrawExtra {
         sendExcessesTo: poolAddr,
         failureContext: null,
-        forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
+        forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
         forwardPayload: contextCell,
     };
 
@@ -270,7 +270,7 @@ fun onLockOrBurnTransferContinue(
             sendExcessesTo: contract.getAddress(),
             customPayload: context.toCell(),
             // TODO: should be calculated as the leftover value after some fixed cost
-            forwardTonAmount: ton("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
+            forwardTonAmount: grams("0.01"), // TODO: make dynamic, required for TransferNotificationForRecipient
             forwardPayload: beginCell()
                 .storeMaybeRef(depositMsg.toCell())
                 .endCell()

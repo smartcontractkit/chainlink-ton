@@ -11,8 +11,8 @@ struct (0xDD5D5127) TokenRegistry_GetTokenInfo {
 // TODO real values
 fun TokenRegistry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // GetTokenInfo fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // GetTokenInfo fwdFee
         + responseHandlerCost
         ;
 }

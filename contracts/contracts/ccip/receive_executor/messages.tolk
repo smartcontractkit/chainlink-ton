@@ -61,8 +61,8 @@ enum ReceiveExecutor_FailedReason: uint8 {
     BouncedFromRouter,
 } 
 
-const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = ton("0.005");
-const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = ton("0.004");
+const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.005");
+const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.004");
 
 struct ReceiveExecutor_Costs{}
 
@@ -77,5 +77,5 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
 }
 
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
-    return ton("0.02"); // TODO
+    return grams("0.02"); // TODO
 }
