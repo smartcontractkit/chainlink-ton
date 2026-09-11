@@ -25,7 +25,7 @@ type Storage struct {
 
 // crc32('TokenAdminRegistry_RegisterToken')
 type RegisterToken struct {
-	_             tlb.Magic                         `tlb:"#9ab89f26" json:"-"` //nolint:revive
+	_             tlb.Magic                         `tlb:"#9ab89f26" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	TokenAddress  *address.Address                  `tlb:"addr"`
 	TokenInfo     tokenadminregistryentry.TokenInfo `tlb:"^"`
 	Administrator *address.Address                  `tlb:"addr"`
@@ -33,7 +33,7 @@ type RegisterToken struct {
 
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 type OverridePendingAdministrator struct {
-	_             tlb.Magic        `tlb:"#6e6f71ef" json:"-"` //nolint:revive
+	_             tlb.Magic        `tlb:"#6e6f71ef" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	TokenAddress  *address.Address `tlb:"addr"`
 	Administrator *address.Address `tlb:"addr"`
 }
@@ -42,7 +42,7 @@ type OverridePendingAdministrator struct {
 // emitted externally after the root validates the entry address.
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
 type AdministratorTransferRequested struct {
-	_                    tlb.Magic        `tlb:"#140b1e91" json:"-"` //nolint:revive
+	_                    tlb.Magic        `tlb:"#140b1e91" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	Token                *address.Address `tlb:"addr"`
 	CurrentAdministrator *address.Address `tlb:"addr"`
 	NewAdministrator     *address.Address `tlb:"addr"`
@@ -50,14 +50,14 @@ type AdministratorTransferRequested struct {
 
 // crc32('TokenAdminRegistry_AdministratorTransferred')
 type AdministratorTransferred struct {
-	_                tlb.Magic        `tlb:"#e2c74db4" json:"-"` //nolint:revive
+	_                tlb.Magic        `tlb:"#e2c74db4" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	Token            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistry_PoolSet')
 type PoolSet struct {
-	_               tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive
+	_               tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	Token           *address.Address `tlb:"addr"`
 	PreviousPool    *address.Address `tlb:"addr"`
 	NewPool         *address.Address `tlb:"addr"`
