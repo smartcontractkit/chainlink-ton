@@ -12,14 +12,17 @@ import (
 
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
 // Message: single message as cell reference
-// OffChainTokenData: vec<vec<u8>> - currently unused cell reference as on-chain representation
+// OffChainTokenData: vec<vec<u8>> - one offchain data blob per token transfer.
+// Stored as a required cell reference (lisp_list<cell>). When the message carries
+// no token transfers, this is an empty list (single empty cell); when it carries a
+// single token transfer, it is a lisp_list with one entry (the blob as SnakeBytes).
 // Proofs: vec<bytes32> - inline 256-bit proofs using SnakedCell with Proof wrapper (matches TypeScript asSnakeData)
 type ExecuteReport struct {
-	SourceChainSelector uint64                          `tlb:"## 64"`
-	Message             Any2TVMRampMessage              `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
-	OffChainTokenData   *cell.Cell                      `tlb:"^"` // vec<vec<u8>>
-	Proofs              common.SnakedCell[common.Proof] `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
-	ProofFlagBits       *big.Int                        `tlb:"## 256"`
+	SourceChainSelector uint64                             `tlb:"## 64"`
+	Message             Any2TVMRampMessage                 `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
+	OffChainTokenData   common.LispList[common.SnakeBytes] `tlb:"^"` // vec<vec<u8>> - lisp_list<cell>
+	Proofs              common.SnakedCell[common.Proof]    `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
+	ProofFlagBits       *big.Int                           `tlb:"## 256"`
 }
 
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.

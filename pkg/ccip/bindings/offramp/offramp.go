@@ -272,7 +272,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorMerkleRootCannotBeZero)
+		ecMax = int32(ErrorUnexpectedTokenData)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -296,6 +296,10 @@ const (
 	ErrorOnRampAddressMismatch
 	ErrorEmptyCommitReport
 	ErrorMerkleRootCannotBeZero
+	ErrorUnsupportedNumberOfTokens
+	ErrorManualExecutionGasAmountCountMismatch
+	ErrorInvalidManualExecutionGasLimit
+	ErrorUnexpectedTokenData
 )
 
 // Getter method names for binding fetchers

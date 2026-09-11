@@ -28,6 +28,9 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
 struct ReceiveExecutor_TokenTransfer {
     tokenAdminRegistry: address;
     transfer: Any2TVMTokenTransfer;
+    // Offchain token data for this token transfer (untrusted).
+    // Null when there is no offchain data for this token.
+    offchainTokenData: cell? = null;
 }
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.

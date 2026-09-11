@@ -500,7 +500,15 @@ export class OffRampTestSetup {
   createExecuteReport(
     messages: of.Any2TVMRampMessage[],
     sourceChainSelector = this.SOURCE_CHAIN_SELECTOR,
+    offchainTokenData?: Cell[],
   ): of.ExecutionReport {
+    // If not explicitly provided, auto-detect: messages with token transfers
+    // require a non-empty offchainTokenData (one entry per token transfer).
+    let tokenData = offchainTokenData
+    if (tokenData === undefined) {
+      const hasTokens = messages.some((msg) => msg.tokenAmounts && msg.tokenAmounts.length > 0)
+      tokenData = hasTokens ? [Cell.EMPTY] : []
+    }
     return of.ExecutionReport.create({
       sourceChainSelector,
       // TODO tolk type should should be snakedCell
@@ -511,7 +519,7 @@ export class OffRampTestSetup {
           return b
         })(),
       ),
-      offchainTokenData: Cell.EMPTY, // TODO tolk type should be snakedCell
+      offchainTokenData: tokenData,
       proofs: [],
       proofFlagBits: 0n,
     })

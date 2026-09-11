@@ -1094,21 +1094,25 @@ export const ReceiveExecutor_InitExecute = {
  > struct ReceiveExecutor_TokenTransfer {
  >     tokenAdminRegistry: address
  >     transfer: Any2TVMTokenTransfer
+ >     offchainTokenData: cell?
  > }
  */
 export interface ReceiveExecutor_TokenTransfer {
     readonly $: 'ReceiveExecutor_TokenTransfer'
     tokenAdminRegistry: c.Address
     transfer: Any2TVMTokenTransfer
+    offchainTokenData: c.Cell | null /* = null */
 }
 
 export const ReceiveExecutor_TokenTransfer = {
     create(args: {
         tokenAdminRegistry: c.Address
         transfer: Any2TVMTokenTransfer
+        offchainTokenData?: c.Cell | null /* = null */
     }): ReceiveExecutor_TokenTransfer {
         return {
             $: 'ReceiveExecutor_TokenTransfer',
+            offchainTokenData: null,
             ...args
         }
     },
@@ -1117,11 +1121,15 @@ export const ReceiveExecutor_TokenTransfer = {
             $: 'ReceiveExecutor_TokenTransfer',
             tokenAdminRegistry: s.loadAddress(),
             transfer: Any2TVMTokenTransfer.fromSlice(s),
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: ReceiveExecutor_TokenTransfer, b: c.Builder): void {
         b.storeAddress(self.tokenAdminRegistry);
         Any2TVMTokenTransfer.store(self.transfer, b);
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: ReceiveExecutor_TokenTransfer): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransfer>(self, ReceiveExecutor_TokenTransfer.store);
@@ -1415,6 +1423,7 @@ export const ReceiveExecutor_State = {
  > struct ReceiveExecutor_TokenTransferInfo {
  >     transfer: Cell<Any2TVMTokenTransfer>
  >     tokenAdminRegistry: address
+ >     offchainTokenData: cell?
  >     state: ReceiveExecutor_TokenTransferState
  > }
  */
@@ -1422,6 +1431,7 @@ export interface ReceiveExecutor_TokenTransferInfo {
     readonly $: 'ReceiveExecutor_TokenTransferInfo'
     transfer: Any2TVMTokenTransfer
     tokenAdminRegistry: c.Address
+    offchainTokenData: c.Cell | null /* = null */
     state: ReceiveExecutor_TokenTransferState /* = ReceiveExecutor_TokenTransferState_Untouched {  } */
 }
 
@@ -1429,10 +1439,12 @@ export const ReceiveExecutor_TokenTransferInfo = {
     create(args: {
         transfer: Any2TVMTokenTransfer
         tokenAdminRegistry: c.Address
+        offchainTokenData?: c.Cell | null /* = null */
         state?: ReceiveExecutor_TokenTransferState /* = ReceiveExecutor_TokenTransferState_Untouched {  } */
     }): ReceiveExecutor_TokenTransferInfo {
         return {
             $: 'ReceiveExecutor_TokenTransferInfo',
+            offchainTokenData: null,
             state: { $: 'ReceiveExecutor_TokenTransferState_Untouched',  },
             ...args
         }
@@ -1442,12 +1454,16 @@ export const ReceiveExecutor_TokenTransferInfo = {
             $: 'ReceiveExecutor_TokenTransferInfo',
             transfer: loadCellRef<Any2TVMTokenTransfer>(s, Any2TVMTokenTransfer.fromSlice),
             tokenAdminRegistry: s.loadAddress(),
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
             state: ReceiveExecutor_TokenTransferState.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_TokenTransferInfo, b: c.Builder): void {
         storeCellRef<Any2TVMTokenTransfer>(self.transfer, b, Any2TVMTokenTransfer.store);
         b.storeAddress(self.tokenAdminRegistry);
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
         ReceiveExecutor_TokenTransferState.store(self.state, b);
     },
     toCell(self: ReceiveExecutor_TokenTransferInfo): c.Cell {
@@ -1767,7 +1783,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,

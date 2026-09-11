@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "@stdlib/lisp-lists"
+
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
@@ -718,6 +720,16 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
+    // Validate offchainTokenData shape: it must be non-empty iff the message carries token transfers.
+    // TON supports a single token transfer, so offchainTokenData is either empty (no tokens)
+    // or a lisp_list<cell> with exactly one entry (one token).
+    val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
+    if (hasTokens) {
+        assert(!report.offchainTokenData.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+    } else {
+        assert(report.offchainTokenData.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+    }
+
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);
 
@@ -761,6 +773,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             metadataHash,
             permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
             gasOverride,
+            offchainTokenData: report.offchainTokenData,
         },
     });
     // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the emits
@@ -881,7 +894,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     // TODO: this hides the validation error that caused the message to fail.
     try {
         initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
-        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride);
+        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride, msg.offchainTokenData);
         // TODO this hides the error
     } catch {
         return messageExecutionFailed(initExecuteMsg);
@@ -906,7 +919,8 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 //
 // @throws OffRamp_Error.UnsupportedNumberOfTokens if tokenAmounts is not null and its len != 1.
 // @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch the number of gasOverride.tokenGasOverrides does not match the number of tokenAmounts.
-fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?): Cell<ReceiveExecutor_TokenTransfer>? {
+// @throws OffRamp_Error.UnexpectedTokenData if offchainTokenData is not empty but does not contain exactly one entry for a single token transfer.
+fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
         assert(gasOverride == null || gasOverride.tokenGasOverrides == null, OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         return null;
@@ -914,12 +928,21 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
 
+    // Extract the single offchain token data blob for this token transfer.
+    // offchainTokenData is a lisp_list<cell> with one entry per token; we support a single token.
+    var tokenData: cell? = null;
+    if (!offchainTokenData.isEmpty()) {
+        tokenData = offchainTokenData.getHead();
+        assert(offchainTokenData.getTail().isEmpty(), OffRamp_Error.UnexpectedTokenData);
+    }
+
     // TODO probably the tokenRegistryMaster
     val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
     val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
         transfer: tokenTransfer,
+        offchainTokenData: tokenData,
     }.toCell();
 }
 

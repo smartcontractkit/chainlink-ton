@@ -61,6 +61,7 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     metadataHash: uint256;
     gasOverride: GasOverride? = null;
     executionState: ExecutionState;
+    offchainTokenData: lisp_list<cell>;
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
