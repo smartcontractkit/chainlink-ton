@@ -19,9 +19,7 @@ struct Storage {
     onRamps: map<uint64, address> = []; // destChainSelector -> onRamp address
     offRamps: map<uint64, address> = []; // sourceChainSelector -> offRamp address
 
-    rmnRemote: Cell<RMNRemote>,
-
-    tokenRegistryDeployment: Cell<Router_TokenRegistryDeployment>;
+    rmnRemote: Cell<RMNRemote>;
 }
 
 fun Storage.load(): Storage {

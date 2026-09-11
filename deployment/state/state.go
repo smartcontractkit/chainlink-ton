@@ -32,11 +32,11 @@ var (
 	OffRamp   ds.ContractType = bindings.ShortOffRamp
 	FeeQuoter ds.ContractType = bindings.ShortFeeQuoter
 	// Internal contracts
-	Deployer        ds.ContractType = bindings.ShortDeployer
-	MerkleRoot      ds.ContractType = bindings.ShortMerkleRoot
-	SendExecutor    ds.ContractType = bindings.ShortSendExecutor
-	ReceiveExecutor ds.ContractType = bindings.ShortReceiveExecutor
-	TokenRegistry   ds.ContractType = bindings.ShortTokenRegistry
+	Deployer           ds.ContractType = bindings.ShortDeployer
+	MerkleRoot         ds.ContractType = bindings.ShortMerkleRoot
+	SendExecutor       ds.ContractType = bindings.ShortSendExecutor
+	ReceiveExecutor    ds.ContractType = bindings.ShortReceiveExecutor
+	TokenAdminRegistry ds.ContractType = bindings.ShortTokenAdminRegistry
 	// Utilities
 	TonReceiver ds.ContractType = bindings.ShortReceiver
 	Counter     ds.ContractType = "Counter"
@@ -56,14 +56,14 @@ var LongToShortContractType = func() map[tvm.FullyQualifiedName]ds.ContractType 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
 // on a chain. If a binding is nil, it means there is no such contract on the chain.
 type CCIPChainState struct {
-	LinkTokenAddress address.Address
-	TONNativeAddress address.Address
-	OffRamp          address.Address
-	Router           address.Address
-	OnRamp           address.Address
-	FeeQuoter        address.Address
-	ReceiverAddress  address.Address
-	TokenRegistry    address.Address // TODO remove when TokenRegistry is sharded
+	LinkTokenAddress   address.Address
+	TONNativeAddress   address.Address
+	OffRamp            address.Address
+	Router             address.Address
+	OnRamp             address.Address
+	FeeQuoter          address.Address
+	ReceiverAddress    address.Address
+	TokenAdminRegistry address.Address
 }
 
 type TONChainView struct {
@@ -219,8 +219,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 			state.OnRamp = *contractAddress
 		case FeeQuoter:
 			state.FeeQuoter = *contractAddress
-		case TokenRegistry:
-			state.TokenRegistry = *contractAddress
+		case TokenAdminRegistry:
+			state.TokenAdminRegistry = *contractAddress
 		default:
 			continue
 		}

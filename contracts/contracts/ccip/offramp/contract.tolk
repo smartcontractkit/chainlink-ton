@@ -19,7 +19,7 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
-import "../token_registry/types"
+import "../token_admin_registry_entry/types"
 
 import "messages"
 import "errors"
@@ -914,9 +914,12 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
 
-    // TODO probably the tokenRegistryMaster
-    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
-    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
+    val deployables = st.deployables.load();
+    val registryAddress = TokenAdminRegistryEntry.deriveAddress(
+        deployables.deployer,
+        tokenTransfer.token,
+        deployables.tokenAdminRegistry,
+    ).calculateAddress();
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
         transfer: tokenTransfer,
@@ -1045,6 +1048,7 @@ get fun config(): Config {
     val st = lazy Storage.load();
     return {
         chainSelector: st.chainSelector,
+        tokenAdminRegistry: st.deployables.load().tokenAdminRegistry,
         feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
     }

@@ -169,8 +169,8 @@ func updateCCIPChainStateWithDeployedAddresses(selector uint64, existingAddr sta
 			existingAddr.FeeQuoter = *tonAddr
 		case state.TonReceiver:
 			existingAddr.ReceiverAddress = *tonAddr
-		case state.TokenRegistry:
-			existingAddr.TokenRegistry = *tonAddr
+		case state.TokenAdminRegistry:
+			existingAddr.TokenAdminRegistry = *tonAddr
 		default:
 			// ignore unknown types
 		}
@@ -182,11 +182,11 @@ func updateCCIPChainStateWithDeployedAddresses(selector uint64, existingAddr sta
 func extractCCIPChainStateFromContractDeploymentInput(existing []datastore.AddressRef) (state.CCIPChainState, error) {
 	noneAddr := address.NewAddressNone()
 	init := state.CCIPChainState{
-		OnRamp:        *noneAddr,
-		OffRamp:       *noneAddr,
-		Router:        *noneAddr,
-		FeeQuoter:     *noneAddr,
-		TokenRegistry: *noneAddr,
+		OnRamp:             *noneAddr,
+		OffRamp:            *noneAddr,
+		Router:             *noneAddr,
+		FeeQuoter:          *noneAddr,
+		TokenAdminRegistry: *noneAddr,
 	}
 
 	// fill in existing addresses
@@ -206,8 +206,8 @@ func extractCCIPChainStateFromContractDeploymentInput(existing []datastore.Addre
 			init.FeeQuoter = *tonAddr
 		case state.TonReceiver:
 			init.ReceiverAddress = *tonAddr
-		case state.TokenRegistry:
-			init.TokenRegistry = *tonAddr
+		case state.TokenAdminRegistry:
+			init.TokenAdminRegistry = *tonAddr
 		default:
 			// ignore unknown types
 		}
@@ -259,7 +259,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ID:   contractID,
 				Coin: defaultCCIPContractCoin,
 			},
-			TokenRegistryParams: ccipConfig.TokenRegistryParams{
+			TokenAdminRegistryParams: ccipConfig.TokenAdminRegistryParams{
 				ID:   contractID,
 				Coin: defaultCCIPContractCoin,
 			},
