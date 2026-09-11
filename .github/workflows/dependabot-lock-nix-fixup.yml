@@ -78,7 +78,7 @@ jobs:
           gh pr view "${NUM}" --repo "${REPO}" --json state,author,labels,headRefName,headRefOid,isCrossRepository,headRepositoryOwner,headRepository,commits > pr.json
 
           STATE=$(jq -r .state pr.json)
-          [[ ${STATE} == open ]] || { echo "::error::PR ${NUM} is ${STATE}"; exit 1; }
+          [[ ${STATE} == OPEN ]] || { echo "::error::PR ${NUM} is ${STATE}"; exit 1; }
 
           # Dependabot-only: never push onto a human-authored branch.
           AUTHOR=$(jq -r .author.login pr.json)
