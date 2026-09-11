@@ -12,21 +12,18 @@ fi
 #   nix run .#lock-nix-tidy               # every package
 #   nix run .#lock-nix-tidy -- <attr>     # just one package
 #
-# For each package, for each of its dependency fetchers — the fixed-output
-# derivations it directly needs, i.e. whatever pins fetched content:
+# Per package, per dependency fetcher — the fixed-output derivations it
+# directly needs, the only ones that can raise "hash mismatch":
 #
-#   1. discover_fetchers: ask Nix which of the package's direct input
-#      derivations are fixed-output. Only those can raise "hash mismatch".
-#   2. build_fetcher: force a real re-fetch with --rebuild, the only honest
-#      check: a fixed-output's output path is keyed by its DECLARED hash, so
-#      on stale state even a full build finds the old output and reports OK
-#      in milliseconds without fetching (measured: 0.05s on a changed
-#      manifest). ~10-14s per fetcher; packages are never compiled.
+#   1. discover_fetchers: ask Nix which direct inputs are fixed-output.
+#   2. build_fetcher: re-fetch with --rebuild — the only honest check. A
+#      fixed-output's output path is keyed by its DECLARED hash, so on
+#      stale state a plain build "succeeds" in ~0.05s without fetching.
+#      ~10-14s per fetcher; packages are never compiled.
 #   3. On "specified: X / got: Y", rewrite X -> Y in every lock.nix
-#      mentioning X, then start over: the fix changed the fetcher's inputs,
-#      so its drv path — and the worklist — moved with it.
+#      mentioning X and start over: the fix moved the fetcher's drv path,
+#      the worklist with it.
 #   4. Repeat until green (at most MAX_RETRIES times).
-#
 # -----------------------------------------------------------------------------
 
 MAX_RETRIES="${LOCK_NIX_TIDY_MAX_RETRIES:-5}"
@@ -40,18 +37,14 @@ nix_filter() { sed -E '/^(warning|error): unknown setting /d'; }
 
 human_fetcher() { basename "${1%.drv}" | sed -E 's|^[0-9a-z]{32}-||'; }
 
-# Drvs honestly verified by this run: each builds at most once. Keyed by drv
-# path, never by declared hash — the path hashes inputs and build procedure,
-# the declared hash is only the hypothesis under test, and attrs sharing one
-# can still build differently. True hits are the common case: several attrs
-# sharing one fetcher drv.
+# Drvs honestly verified this run, so each builds at most once. Keyed by drv
+# path, never declared hash: the path covers inputs AND procedure, the hash
+# is only the hypothesis under test. Hits are common — attrs share fetchers.
 declare -A VERIFIED=()
 
-# Positional args = package attrs to tidy; default = everything the flake
-# exposes for this system (flake-show JSON keys .packages by system).
-# NOTE: Determinate's nix prints .packages=null for `flake show --json`
-# (it serves an "inventory" schema instead), so run the tool through
-# `nix run .#lock-nix-tidy` — the wrapper always uses vanilla nix.
+# Positional args = package attrs; default = the flake's packages for this
+# system. NOTE: Determinate's `flake show --json` serves an "inventory"
+# schema (.packages=null) — run through `nix run .#lock-nix-tidy`.
 PKGS=("$@")
 if [[ ${#PKGS[@]} -eq 0 ]]; then
   system=$(nix eval --impure --expr builtins.currentSystem --raw)
@@ -66,17 +59,15 @@ fi
 mapfile -t LOCK_FILES < <(find . -type f -name lock.nix | sort)
 [[ ${#LOCK_FILES[@]} -gt 0 ]] || die "No lock.nix files found."
 
-# Print one fetcher drv path per line for a package attr: its direct inputs
-# carrying the fixed-output marker (.outputs.out.hash in the v4 `nix
-# derivation show` schema; covers structured-attr fetchers too; vanilla
-# >= 2.28 guaranteed by the `nix run` wrapper, as for the flake-show
-# enumeration). Direct inputs only is the adoption contract: a fetcher this
-# tool manages must be a direct input of an exposed package.
+# One fetcher drv path per line for a package attr: direct inputs carrying
+# the fixed-output marker (.outputs.out.hash in the v4 schema, which covers
+# structured-attr fetchers; vanilla Nix >= 2.28 via the wrapper). Direct
+# inputs only is the adoption contract: a managed fetcher is a direct input
+# of an exposed package.
 #
-# Sentinel lines instead of a silently short list:
-#   NO_DRV  attr is not a derivation (typo) — caller reports and skips
-#   FAIL    a read failed or the schema drifted — must never look like
-#           "no fetchers", or a stale lock would stay stale with CI green
+# Sentinel lines, so a silent read failure never looks like "no fetchers":
+#   NO_DRV  attr is not a derivation (typo) — caller skips
+#   FAIL    read failed / schema drifted — caller fails, never shrugs
 discover_fetchers() {
   local attr=$1 json d out ins rc
   json=$(nix derivation show ".#${attr}" 2>/dev/null) || { echo NO_DRV; return 0; }
@@ -130,9 +121,8 @@ build_fetcher() {
     return 0
   fi
   err=$(mktemp)
-  # --rebuild per header step 2. Nix refuses it for never-built outputs
-  # ("not valid, so checking is not possible"); there a plain build is
-  # equivalent — with no valid output the fetcher has to run anyway.
+  # --rebuild per header step 2; Nix refuses it for never-built outputs
+  # ("not valid...") — there a plain build is equivalent, so retry flagless.
   local flags=(--rebuild)
   for attempt in 1 2; do
     : > "$err"
@@ -180,8 +170,8 @@ tidy_attr() {
       log "[$attr] no pinned-hash inputs; nothing to check."
       return 0
     fi
-    # FAIL can trail valid paths (discovery died mid-list), so scan the whole
-    # list — and only now, when it is non-empty, is "nothing found" ruled out.
+    # FAIL can trail valid paths (discovery died mid-list); scan the whole
+    # list, after the empty branch — or it reads as "no fetchers".
     if printf '%s\n' "${fetchers[@]}" | grep -qx FAIL; then
       log "[$attr] fetcher discovery failed; refusing to guess (see messages above)."
       return 1

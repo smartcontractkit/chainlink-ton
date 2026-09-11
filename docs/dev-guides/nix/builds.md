@@ -9,7 +9,7 @@ sidebar_position: 2
 
 ## Building packages
 
-This repository defines a set of outputs we call packages for which build derivations are expressed using Nix.
+Every buildable artifact in this repo is exposed as a Nix package.
 
 List all packages:
 
@@ -26,15 +26,15 @@ nix build .#<pkg> --print-out-paths # labeled pkg
 
 ## Deterministic builds, vendor hashes, and lock files
 
-Nix aims for deterministic (reproducible) builds. A key part of this is **fixed-output derivations (FODs)** such as `fetchurl`, `buildGoModule`’s vendor step, `fetchgit`, etc. For any FOD, Nix requires a **content hash** up front. After the build/fetch runs, Nix verifies that the resulting output’s hash exactly matches what was declared; if it doesn’t, the build fails with a “hash mismatch in fixed-output derivation” error. This protects you from drifting dependencies and ensures that CI and local builds use the exact same inputs.
+Nix aims for deterministic builds, which rests on **fixed-output derivations (FODs)** — `fetchurl`, `buildGoModule`’s vendor step, `fetchgit`, etc. Each declares its **content hash** up front, and the build fails with “hash mismatch in fixed-output derivation” unless the fetched content hashes to exactly that. This keeps CI and local builds on identical inputs.
 
 ### Why vendor hashes need to be pinned
 
-Language ecosystems resolve and download a lot of upstream content (Go modules, npm/yarn, cargo crates, vendored tarballs…). To make those fetches deterministic, Nix needs the **expected content hash**. For example, with `buildGoModule`, you must set `vendorHash` so Nix knows what the fully-resolved module tree should hash to. If you bump a version or change dependencies, the **content changes** and the old hash becomes invalid—Nix will (correctly) refuse the build until you update the pinned hash.
+Everything fetched from upstream (Go modules, npm/yarn, tarballs…) is pinned by its **expected content hash** — e.g. `vendorHash` for `buildGoModule`. Bump a dependency, the fetched content changes, the pinned hash goes stale, and Nix refuses the build until it is updated.
 
 ### Organizing hashes in `lock.nix`
 
-To make hash maintenance easy and reviewable, we keep all pinned hashes in small `lock.nix` files (one per package directory or per group of packages). Packages then **import** from these files rather than inlining hashes in the derivation:
+Pinned hashes live in small `lock.nix` files (one per package or group) that derivations **import** instead of inlining:
 
 ```nix
 # <path>/my-module/lock.nix
@@ -81,10 +81,10 @@ nix run .#lock-nix-tidy              # every package
 nix run .#lock-nix-tidy -- <attr>    # just one
 ```
 
-For each package it discovers the fetchers (the fixed-output derivations the package directly needs), re-fetches each with `nix build --rebuild` — the only check a stale hash can't fake — and on a mismatch rewrites `specified:` → `got:` into every `lock.nix` carrying it. Hashes are only ever written from a real build failure, so a run that changes nothing means every pinned hash is current. Only fetchers build; packages are never compiled (~10–14 s each, ≈ 1 minute full sweep).
+It discovers each package's fetchers, re-fetches them with `nix build --rebuild` — the only check a stale hash can't fake — and rewrites `specified:` → `got:` into every `lock.nix` carrying the stale hash. Hashes are only ever written from real build failures, so a no-diff run means everything is current. Only fetchers build (~10–14 s each, ≈ 1 min full sweep).
 
 Caveats:
 
-* Always run it as `nix run .#lock-nix-tidy` — the wrapper pins vanilla Nix (≥ 2.28). Determinate Nix answers `flake show --json` with a different schema and breaks enumeration (the tool says so when it sees that).
-* Derivations must read hashes **from** `lock.nix` (as above), and every fetcher you want covered must be a **direct** input of an exposed package. A new fetcher is covered automatically once referenced — no registration step.
+* Always run it as `nix run .#lock-nix-tidy` — the wrapper pins vanilla Nix (≥ 2.28). Determinate answers `flake show --json` with a different schema and breaks enumeration (the tool says so).
+* Coverage needs no registration: derivations must read hashes **from** `lock.nix`, and every fetcher to cover must be a **direct** input of an exposed package.
 * Nothing is committed; review the diffs and commit yourself.
