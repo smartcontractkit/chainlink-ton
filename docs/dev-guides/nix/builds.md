@@ -66,40 +66,25 @@ Benefits:
 
 ### Automating updates with `lock-nix-tidy`
 
-We provide a small utility **lock-nix-tidy** that builds packages and automatically updates `lock.nix` when it encounters a fixed-output hash mismatch:
+**lock-nix-tidy** re-verifies dependency fetchers and updates `lock.nix` for you when a hash goes stale:
 
-#### What it does
+```bash
+error: hash mismatch in fixed-output derivation
+          specified: sha256-OLD...
+            got:    sha256-NEW...
+```
 
-* Recursively finds `./**/lock.nix`.
-* Builds your package(s) and streams live Nix logs.
-* On an error like:
+it replaces `OLD` with `NEW` in the appropriate `lock.nix`, and retries the build.
 
-  ```bash
-  error: hash mismatch in fixed-output derivation
-           specified: sha256-OLD...
-              got:    sha256-NEW...
-  ```
+```bash
+nix run .#lock-nix-tidy              # every package
+nix run .#lock-nix-tidy -- <attr>    # just one
+```
 
-  it replaces `OLD` with `NEW` in the appropriate `lock.nix`, and retries the build.
+For each package it discovers the fetchers (the fixed-output derivations the package directly needs), re-fetches each with `nix build --rebuild` — the only check a stale hash can't fake — and on a mismatch rewrites `specified:` → `got:` into every `lock.nix` carrying it. Hashes are only ever written from a real build failure, so a run that changes nothing means every pinned hash is current. Only fetchers build; packages are never compiled (~10–14 s each, ≈ 1 minute full sweep).
 
-#### How to use it
+Caveats:
 
-* Build & tidy **all** packages for the current system:
-
-  ```bash
-  nix run .#lock-nix-tidy
-  ```
-
-* Build & tidy **one** package:
-
-  ```bash
-  nix run .#lock-nix-tidy -- <pkg-attr>
-  ```
-
-#### Requirements & caveats
-
-* Your derivations must read hashes **from** `lock.nix` (as shown above). If a mismatched hash isn’t found in any `lock.nix`, the tool will say so and leave the error intact.
-* The tool does not commit changes. After a successful run, review diffs and commit
-* If you introduce new fixed-output fetchers, remember to add their hashes to the relevant `lock.nix` and reference them from the derivation.
-
-With this setup, your builds remain deterministic, and routine “hash mismatch” churn is handled by a single, repeatable command.
+* Always run it as `nix run .#lock-nix-tidy` — the wrapper pins vanilla Nix (≥ 2.28). Determinate Nix answers `flake show --json` with a different schema and breaks enumeration (the tool says so when it sees that).
+* Derivations must read hashes **from** `lock.nix` (as above), and every fetcher you want covered must be a **direct** input of an exposed package. A new fetcher is covered automatically once referenced — no registration step.
+* Nothing is committed; review the diffs and commit yourself.

@@ -1,0 +1,206 @@
+name: TON - Dependabot lock.nix fixup
+
+# Dependabot bumps manifests; PR CI then fails with "hash mismatch in
+# fixed-output derivation" until lock.nix catches up. This workflow
+# self-heals those PRs:
+#
+#   watched workflow fails on a Dependabot PR -> workflow_run -> this job
+#   checks the PR out at its head, runs `nix run .#lock-nix-tidy` (re-runs
+#   only the fetchers, rewrites stale hashes in place), pushes the fix as a
+#   GitHub App -> the same checks re-run -> green.
+#
+# The watched workflows know nothing about this (workflow_run just observes
+# their completion), and the job runs the BASE branch's copy of this file —
+# a PR can never define its own fixup. Failing those runs is free discovery:
+# the PR is already red.
+#
+# GATI (GitHub App token) is mandatory, not cosmetic: any run triggered
+# transitively by a Dependabot PR gets a read-only GITHUB_TOKEN regardless
+# of `permissions` — fork-context demotion covers workflow_run too — and the
+# push needs a write credential that still re-triggers checks.
+#
+# Ops notes:
+#   * A broken watch fails silently (no cron cadence to paper over it): a
+#     red Dependabot PR untouched for hours => check this workflow's runs.
+#     Escape hatch: workflow_dispatch below.
+#   * Label "nix-hash-skip" = fixup ran but hashes weren't the problem (or
+#     weren't stale). Remove it + dispatch with the PR number to retry.
+
+on:
+  workflow_run:
+    workflows:
+      - "TON - Build Relayer Package"
+      - "TON - Contracts"
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Fix up a single Dependabot PR by number (skips the failure trigger; author/state guards still apply)"
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  # One fixup per PR head SHA; serializes the two watched workflows when the
+  # same PR fails both. cancel-in-progress false: a half-pushed fixup is
+  # worse than a queued one.
+  group: dependabot-lock-nix-fixup-${{ github.event.workflow_run.head_sha || github.event.inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  fixup:
+    name: Fix lock.nix hashes on a red Dependabot PR
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Check out base branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Resolve the PR and apply guards
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          # NUM = the PR we act on. Dispatch supplies it directly; workflow_run
+          # only carries the failed head SHA, so resolve commit->PR (works for
+          # fork-based PRs on private repos).
+          NUM="${PR_NUMBER}"
+          if [[ -z ${NUM} ]]; then
+            NUM=$(gh api "repos/${REPO}/commits/${EVENT_SHA}/pull-requests" \
+              --jq '.[0].number // empty') || true
+            [[ -n ${NUM} ]] || { echo "::error::no PR associated with ${EVENT_SHA}"; exit 1; }
+          fi
+
+          gh pr view "${NUM}" --repo "${REPO}" --json state,author,labels,headRefName,headRefOid,isCrossRepository,headRepositoryOwner,headRepository,commits > pr.json
+
+          STATE=$(jq -r .state pr.json)
+          [[ ${STATE} == open ]] || { echo "::error::PR ${NUM} is ${STATE}"; exit 1; }
+
+          # Self-healing is a Dependabot-only privilege: never push onto a
+          # human-authored branch.
+          AUTHOR=$(jq -r .author.login pr.json)
+          if [[ ${AUTHOR} != "dependabot[bot]" && ${AUTHOR} != "app/dependabot" ]]; then
+            echo "::error::PR ${NUM} is authored by ${AUTHOR}; refusing to push"
+            exit 1
+          fi
+
+          # The guards below are reactive-trigger-only: a workflow_run is tied
+          # to one specific failed head SHA, while a dispatch acts on the PR's
+          # current head on purpose.
+          if [[ ${GITHUB_EVENT_NAME} != "workflow_dispatch" ]]; then
+            # The failing run may be for an older head than the PR has now:
+            # never act on stale state — the newer run fires its own event.
+            LIVE_SHA=$(jq -r .headRefOid pr.json)
+            if [[ ${EVENT_SHA} != "${LIVE_SHA}" ]]; then
+              echo "::notice::PR ${NUM} moved since the failure; not acting"
+              exit 1
+            fi
+
+            # Loop guard: our fixup push re-triggers CI. Red *on our own
+            # commit* means a stale hash is not the (remaining) problem —
+            # label it and stop instead of ping-ponging.
+            HEAD_MSG=$(jq -r '.commits[-1].messageHeadline' pr.json)
+            if [[ ${HEAD_MSG} == *"[dependabot skip]"* && ${HEAD_MSG} == *"lock.nix"* ]]; then
+              # Best-effort: on Dependabot-triggered runs GITHUB_TOKEN is
+              # demoted read-only, so the label may not stick. The exit 1 is
+              # what actually stops the ping-pong; the label is bookkeeping.
+              gh pr edit "${NUM}" --repo "${REPO}" --add-label nix-hash-skip || true
+              echo "::error::PR ${NUM} still red on our own fixup commit (labeled nix-hash-skip if permitted)"
+              exit 1
+            fi
+
+            if jq -e '.labels[]? | select(.name == "nix-hash-skip")' pr.json >/dev/null; then
+              echo "::notice::PR ${NUM} is labeled nix-hash-skip; dispatch to retry"
+              exit 1
+            fi
+          fi
+
+          # Dependabot PRs on private repos are fork-based: push targets the
+          # PR head repo, which is not necessarily this one.
+          PUSH_REPO=$(jq -r --arg r "${REPO}" \
+            'if .isCrossRepository then .headRepositoryOwner.login + "/" + .headRepository.name else $r end' \
+            pr.json)
+          {
+            echo "number=${NUM}"
+            echo "push-repo=${PUSH_REPO}"
+            echo "head-ref=$(jq -r .headRefName pr.json)"
+          } >>"${GITHUB_OUTPUT}"
+
+      - name: Mint GitHub App token (GATI)
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-duration-seconds: "1800"
+
+      - name: Check out the PR head
+        env:
+          GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+        run: |
+          set -euo pipefail
+          # checkout ran unauthenticated (private repo, fork-based PR): wire
+          # git's credential helper to gh so the fetch below can auth.
+          gh auth setup-git
+          # Checkout via the base repo's pull refs: works for fork-based PRs
+          # even when the fork itself is not visible to this token.
+          gh pr checkout "${{ steps.pr.outputs.number }}" \
+            --repo "${{ github.repository }}"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Re-verify fetchers and rewrite stale hashes
+        run: |
+          set -euo pipefail
+          timeout 15m nix run .#lock-nix-tidy
+
+      - name: Commit and push the fixup
+        env:
+          GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+          REPO: ${{ github.repository }}
+          NUM: ${{ steps.pr.outputs.number }}
+          PUSH_REPO: ${{ steps.pr.outputs.push-repo }}
+          HEAD_REF: ${{ steps.pr.outputs.head-ref }}
+        run: |
+          set -euo pipefail
+
+          # No diff means nothing was stale and this PR's red has another cause.
+          if git diff --quiet -- '*lock.nix'; then
+            gh label create nix-hash-skip --repo "${REPO}" \
+              --color "ededed" --description "lock.nix fixup tried; red has another cause" || true
+            gh pr edit "${NUM}" --repo "${REPO}" --add-label nix-hash-skip
+            echo "::notice::PR ${NUM}: no hash was stale; labeled nix-hash-skip"
+            exit 0
+          fi
+
+          BOT_LOGIN=$(gh api user --jq .login)
+          BOT_ID=$(gh api user --jq .id)
+          git config user.name "${BOT_LOGIN}"
+          git config user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+          git add --all -- '*lock.nix'
+
+          # "[dependabot skip]" keeps Dependabot auto-updating the PR after
+          # a third-party commit; the same marker is the loop guard above.
+          git commit -m "chore(nix): update lock.nix hashes for dependency bumps [dependabot skip]"
+          git push "https://github.com/${PUSH_REPO}.git" "HEAD:refs/heads/${HEAD_REF}"
+          echo "::notice::pushed lock.nix fixup to ${PUSH_REPO}@${HEAD_REF}"
