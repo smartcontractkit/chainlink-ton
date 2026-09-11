@@ -24,14 +24,16 @@ import { TokenPoolBehaviorContext } from './TokenPool.behavior'
 export type TokenPoolCcvFeesBehaviorContext = TokenPoolBehaviorContext & {
   blockchain: Blockchain
   // Deploys mock hooks with the given storage `id` (0 = empty CCVs, !=0 = single CCV,
-  // 255 = bounce) and registers them on the pool. Optional; a shared default is used when omitted.
+  // 254 = out-of-gas, 255 = bounce) and registers them on the pool. Optional; a shared
+  // default is used when omitted.
   deployHooks?: (id: number) => Promise<SandboxContract<MockAdvancedPoolHooks>>
 }
 
 // Behavior ids understood by MockAdvancedPoolHooks.
 export const MOCK_HOOKS_DEFAULT_ID = 0n // empty CCVs = lane defaults
 export const MOCK_HOOKS_NONEMPTY_ID = 1n // single CCV
-export const MOCK_HOOKS_BOUNCE_ID = 255n // bounce → GetCCVsFailed
+export const MOCK_HOOKS_OOG_ID = 254n // real TVM out-of-gas → bounce with exit code -14
+export const MOCK_HOOKS_BOUNCE_ID = 255n // throw 0xFFFF → GetCCVsFailed
 
 // Deploy a mock-hooks contract with the given storage `id` and register it on the pool.
 function createSharedDeployHooks(ctx: TokenPoolCcvFeesBehaviorContext) {
@@ -400,7 +402,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
       // The hooks throw → the pool receives a bounce → finalizes with GetCCVsFailed to the
       // original requester, echoing their fwdPayload so they can resume/abort. The failure
-      // carries the TVM exit code from the bounce (the mock throws 0xFFFF).
+      // carries the TVM exit code from the bounce verbatim (the mock throws 0xFFFF).
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
@@ -412,6 +414,43 @@ export function runTokenPoolCcvFeesBehaviorTests(
           return (
             reply.queryId === 22n &&
             reply.errorCode === 0xffffn &&
+            reply.fwdPayload !== null &&
+            reply.fwdPayload!.hash().equals(fwd.hash())
+          )
+        },
+      })
+    })
+
+    it('GetCCVs bounce with real out-of-gas propagates the raw negative exit code (-14)', async () => {
+      // TVM reports out-of-gas as -14 (~13, negated so user contracts cannot fake it).
+      // `errorCode` is a signed int32 on the wire, so the code must survive the
+      // bounce → pool → GetCCVsFailed hop unmodified — no clamping to uint16.
+      await deployHooks(Number(MOCK_HOOKS_OOG_ID))
+
+      const fwd = beginCell().storeUint(0x4321, 16).endCell()
+      const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.5'), {
+        queryId: 23n,
+        localToken: ctx.localToken,
+        remoteChainSelector: ctx.remoteChainSelector,
+        amount: toNano('1'),
+        requestedFinalityConfig: 0n,
+        direction: 0n,
+        extraData: null,
+        replyTo: ctx.deployer.address,
+        forwardPayload: fwd,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        success: true,
+        op: TokenPool_GetCCVsFailed.PREFIX,
+        body(body) {
+          if (!body) return false
+          const reply = TokenPool_GetCCVsFailed.fromSlice(body.beginParse())
+          return (
+            reply.queryId === 23n &&
+            reply.errorCode === -14n && // ExitCodeOutOfGasErrorVariant, not a clamped 0xFFFF
             reply.fwdPayload !== null &&
             reply.fwdPayload!.hash().equals(fwd.hash())
           )

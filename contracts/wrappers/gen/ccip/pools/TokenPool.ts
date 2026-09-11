@@ -317,6 +317,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -2715,14 +2717,14 @@ export const TokenPool_CCVsAndFees = {
 /**
  > struct (0x0449d467) TokenPool_GetCCVsFailed {
  >     queryId: uint64
- >     errorCode: uint16
+ >     errorCode: int32
  >     fwdPayload: cell?
  > }
  */
 export interface TokenPool_GetCCVsFailed {
     readonly $: 'TokenPool_GetCCVsFailed'
     queryId: uint64
-    errorCode: uint16
+    errorCode: int32
     fwdPayload: c.Cell | null
 }
 
@@ -2731,7 +2733,7 @@ export const TokenPool_GetCCVsFailed = {
 
     create(args: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
         fwdPayload: c.Cell | null
     }): TokenPool_GetCCVsFailed {
         return {
@@ -2745,14 +2747,14 @@ export const TokenPool_GetCCVsFailed = {
         return {
             $: 'TokenPool_GetCCVsFailed',
             queryId: s.loadUintBig(64),
-            errorCode: s.loadUintBig(16),
+            errorCode: s.loadIntBig(32),
             fwdPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_GetCCVsFailed, b: c.Builder): void {
         b.storeUint(0x0449d467, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.errorCode, 16);
+        b.storeInt(self.errorCode, 32);
         storeTolkNullable<c.Cell>(self.fwdPayload, b,
             (v,b) => b.storeRef(v)
         );

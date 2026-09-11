@@ -1362,7 +1362,7 @@ fun TokenPool<T>.sendCCVsFailed(
     replyTo: address,
     queryId: uint64,
     fwdPayload: cell?,
-    errorCode: uint16,
+    errorCode: int32,
 ): void {
     val failure = createMessage({
         bounce: BounceMode.NoBounce,
@@ -1404,12 +1404,7 @@ fun TokenPool<T>.onGetCCVsBounced(
         return; // no requester to notify
     }
     val context = lazy (msg.forwardPayload! as Cell<TokenPool_GetCCVsContext>).load();
-    // TVM exit codes fit uint16; clamp anything outside the range so the failure is always observable.
-    var clamped: int32 = exitCode;
-    if (clamped < 0 || clamped > 0xFFFF) {
-        clamped = 0xFFFF;
-    }
-    self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, clamped as uint16);
+    self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, exitCode);
 }
 
 /// Validates the lock or burn input for correctness on

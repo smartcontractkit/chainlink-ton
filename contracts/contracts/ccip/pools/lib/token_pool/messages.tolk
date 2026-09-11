@@ -235,7 +235,7 @@ struct (0x158dd7d5) TokenPool_CCVsAndFees {
 /// so the caller can abort/resume using the echoed `fwdPayload`.
 struct (0x0449d467) TokenPool_GetCCVsFailed {
     queryId: uint64;
-    errorCode: uint16;
+    errorCode: int32;                               // Raw TVM exit code; signed, can be negative (OOG is -14).
     fwdPayload: cell?;
 }
 

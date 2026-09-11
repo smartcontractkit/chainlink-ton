@@ -520,12 +520,14 @@ type CCVsAndFees struct {
 
 // GetCCVsFailed finalizes a `GetCCVs`/`GetCCVsAndFees` that could not complete (e.g. the hooks
 // contract bounced), echoing the caller's context so it can resume/abort.
+// `ErrorCode` is the raw TVM exit code: signed int32, since real failures can carry negative
+// codes (out-of-gas surfaces as -14). Cast to tvm.ExitCode for a human-readable description.
 //
 // On-chain: struct (0x0449d467) TokenPool_GetCCVsFailed
 type GetCCVsFailed struct {
 	_          tlb.Magic  `tlb:"#0449d467" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID    uint64     `tlb:"## 64"`
-	ErrorCode  uint16     `tlb:"## 16"`
+	ErrorCode  int32      `tlb:"## 32"`
 	FwdPayload *cell.Cell `tlb:"maybe ^"`
 }
 

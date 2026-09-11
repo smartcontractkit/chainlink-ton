@@ -4,9 +4,10 @@
 //   queryId % 2 == 0  → Finished  (success)
 //   queryId % 2 == 1  → Failed    (failure)
 
-import "../pools/lib/token_pool/messages"
-import "../pools/lib/token_pool/types"
+import "@stdlib/gas-payments"
+
 import "../../lib/utils"
+import "../pools/lib/token_pool/messages"
 
 contract MockAdvancedPoolHooks {
     author: "SmartContract Chainlink Limited SEZC"
@@ -54,17 +55,24 @@ fun onInternalMessage(in: InMessage) {
 /// context in `replyPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
 /// The CCV set is driven by the mock's storage `id`:
 ///   - `id == 0` (default): empty CCV set, signaling "use lane defaults".
-///   - `id != 0` and `id != 255`: returns a single hard-coded CCV (the pool itself) so a
-///     NON-empty set flows through the pool → hooks → pool → requester round-trip and is
+///   - `id != 0`, `id != 254` and `id != 255`: returns a single hard-coded CCV (the pool itself)
+///     so a NON-empty set flows through the pool → hooks → pool → requester round-trip and is
 ///     observable in replies.
-///   - `id == 255`: bounces (throws), finalizing the query with `TokenPool_GetCCVsFailed` on
-///     the pool side via its `onBouncedMessage` handler. Used to test hook-bounce finalization.
+///   - `id == 255`: bounces (throws 0xFFFF), finalizing the query with `TokenPool_GetCCVsFailed`
+///     on the pool side via its `onBouncedMessage` handler. Used to test hook-bounce finalization.
+///   - `id == 254`: genuine out-of-gas — TVM reverts with exit code -14 (`~13`, negative so
+///     user contracts cannot fake it) and the pool must propagate that raw code unmodified.
 const MOCK_HOOKS_BOUNCE_ID = 255;
+const MOCK_HOOKS_OOG_ID = 254;
 
 fun replyGetCCVs(msg: TokenPool_GetCCVs) {
     val data = MockAdvancedPoolHooks_Data.load();
     if (data.id == MOCK_HOOKS_BOUNCE_ID) {
         throw 0xFFFF; // bounce the pool's forwarded GetCCVs
+    }
+    if (data.id == MOCK_HOOKS_OOG_ID) {
+        // Cap gas below what is already used → genuine TVM out-of-gas, bounce exit code -14.
+        setGasLimit(100);
     }
 
     var requiredCCVs: array<address> = [];
