@@ -44,7 +44,10 @@ func ParseInternalMsg(msg *tlb.InternalMessage) (sig uint32, body *cell.Cell, er
 // extractOpcodeAndBody safely extracts the opcode and remaining body without mutating the original cell
 func extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cell.Cell, err error) {
 	// create a slice for reading without mutating the original
-	payloadSlice := payload.BeginParse()
+	payloadSlice, err := payload.BeginParse()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to begin parsing payload: %w", err)
+	}
 
 	// validate we have enough bits for opcode
 	if payloadSlice.BitsLeft() < 32 {

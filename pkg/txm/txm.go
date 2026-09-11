@@ -181,7 +181,7 @@ func (t *Txm) Enqueue(request Request) error {
 		if !transmitterAccount.IsActive || transmitterAccount.State == nil {
 			return fmt.Errorf("failed to get account status: account.IsActive: %v, account.State == nil: %v", transmitterAccount.IsActive, transmitterAccount.State == nil)
 		}
-		maxAmount, err := request.Amount.Add(walletGas(request))
+		maxAmount, err := request.Amount.Add(*walletGas(request))
 		if err != nil {
 			return fmt.Errorf("failed to add wallet gas: %w", err)
 		}
@@ -234,7 +234,7 @@ func (t *Txm) broadcastLoop() {
 
 			var st tlb.StateInit
 			if tx.StateInit != nil {
-				err := tlb.LoadFromCell(&st, tx.StateInit.BeginParse())
+				err := tlb.Parse(&st, tx.StateInit)
 				if err != nil {
 					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
 					continue

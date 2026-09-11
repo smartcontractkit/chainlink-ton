@@ -191,7 +191,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 
 	// TON supports single chain only, decode single ExecuteReport (not array)
 	var tonReport ocr.ExecuteReport
-	err = tlb.LoadFromCell(&tonReport, c.BeginParse())
+	err = tlb.Parse(&tonReport, c)
 	if err != nil {
 		return ccipocr3.ExecutePluginReport{}, fmt.Errorf("unpack execute report: %w", err)
 	}
@@ -223,7 +223,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		for _, tokenAmount := range msg.TokenAmounts {
 			var extraData common.SnakeBytes
 			if tokenAmount.ExtraData != nil {
-				err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
+				err = tlb.Parse(&extraData, tokenAmount.ExtraData)
 				if err != nil {
 					return executeReport, fmt.Errorf("unpack extra data: %w", err)
 				}

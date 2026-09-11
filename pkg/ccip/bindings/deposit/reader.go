@@ -54,7 +54,10 @@ var GetBeneficiaries = tvm.NewNoArgsGetter(tvm.NoArgsOpts[map[*address.Address]s
 			return nil, fmt.Errorf("error getting Cell(0) - getBeneficiaries: %w", err)
 		}
 
-		cs := beneficiariesCell.BeginParse()
+		cs, err := beneficiariesCell.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parsing cell - getBeneficiaries: %w", err)
+		}
 		dict, err := cs.LoadDict(267) // address keys use 267 bits
 		if err != nil {
 			return nil, fmt.Errorf("error loading dict - getBeneficiaries: %w", err)

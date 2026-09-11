@@ -200,7 +200,11 @@ func DecodedLogs[T any](logs []models.Log) ([]models.TypedLog[T], error) {
 		var event T
 		// Always skip magic (opcode in msg) when parsing log cells, we only store message body
 		const skipMagic = true
-		if parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), skipMagic); parseErr != nil {
+		s, err := log.Data.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parse log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), err)
+		}
+		if parseErr := tlb.LoadFromCell(&event, s, skipMagic); parseErr != nil {
 			// Return error when parsing fails - clients can decide how to handle
 			return nil, fmt.Errorf("failed to decode log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), parseErr)
 		}

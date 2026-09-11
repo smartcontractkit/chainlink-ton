@@ -592,7 +592,10 @@ func successfullJettonTransfer(minterAuthority, jettonMinter, receiverWallet *ad
 			if !current.InternalMsg.SrcAddr.Equals(msg.Src) || !current.InternalMsg.DstAddr.Equals(msg.Dst) {
 				return false
 			}
-			s := current.InternalMsg.Body.BeginParse()
+			s, err := current.InternalMsg.Body.BeginParse()
+			if err != nil {
+				return false
+			}
 			op, err := s.LoadUInt(32)
 			if err != nil {
 				return false
@@ -1068,7 +1071,12 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 
 			// Add this message to the queue for further processing
 			messagesToProcess = append(messagesToProcess, outMsg)
-			opcode, err := outMsg.InternalMsg.Body.BeginParse().LoadUInt(32)
+			s, err := outMsg.InternalMsg.Body.BeginParse()
+			if err != nil {
+				l.Errorf("failed to begin parse: %v", err)
+				continue
+			}
+			opcode, err := s.LoadUInt(32)
 			if err == nil && opcode == onramp.OpcodeOnRampExecutorFinishedSuccessfully {
 				commitMessage = outMsg
 			}
@@ -1089,7 +1097,7 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 		return nil, 0, fmt.Errorf("unexpected event topic %#x for CCIPMessageSent", topic)
 	}
 	var event onramp.CCIPMessageSent
-	if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
+	if err := tlb.Parse(&event, extMsg.Body); err != nil {
 		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
 		return nil, 0, err
 	}

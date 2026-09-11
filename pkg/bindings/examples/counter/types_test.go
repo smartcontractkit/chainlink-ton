@@ -21,7 +21,7 @@ func TestSetCount_TlbEncodingDecoding(t *testing.T) {
 
 	// Decode from cell
 	var decoded SetCount
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.Parse(&decoded, c)
 	require.NoError(t, err, "tlb.LoadFromCell decoding failed")
 
 	require.Equal(t, original.QueryID, decoded.QueryID, "QueryID mismatch after decoding")
@@ -40,7 +40,7 @@ func TestIncreaseCount_TlbEncodingDecoding(t *testing.T) {
 
 	// Decode from cell
 	var decoded IncreaseCount
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.Parse(&decoded, c)
 	require.NoError(t, err, "tlb.LoadFromCell decoding failed")
 
 	require.Equal(t, original.QueryID, decoded.QueryID, "QueryID mismatch after decoding")

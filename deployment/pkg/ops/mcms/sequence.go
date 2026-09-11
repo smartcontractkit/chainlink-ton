@@ -129,7 +129,11 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		}
 
 		value := msg.Amount.Nano()
-		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.ContractVersion, m.ContractTypeFull, m.Tags)
+		s, err := body.BeginParse()
+		if err != nil {
+			return types.BatchOperation{}, fmt.Errorf("failed to begin parse body for plan %d: %w", i, err)
+		}
+		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, s, value, m.ContractType, m.ContractVersion, m.ContractTypeFull, m.Tags)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
 		}

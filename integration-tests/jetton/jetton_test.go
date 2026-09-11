@@ -710,7 +710,7 @@ func TestJettonAll(t *testing.T) {
 		require.NotNil(t, insufficientFeeEventMessage, "Insufficient fee event message should not be nil")
 
 		insufficientFeeEvent := &jetton_testing_wrappers.InsufficientFeeEvent{}
-		err = tlb.LoadFromCell(insufficientFeeEvent, insufficientFeeEventMessage.Body.BeginParse())
+		err = tlb.Parse(insufficientFeeEvent, insufficientFeeEventMessage.Body)
 		require.NoError(t, err, "failed to load InsufficientFeeEvent: ", err)
 		assert.True(t, setup.Sender.Contract.Address.Equals(insufficientFeeEvent.Sender), "Sender address should match")
 		assert.Equal(t, queryID, insufficientFeeEvent.QueryID, "Query ID should match")
@@ -725,17 +725,17 @@ func TestJettonAll(t *testing.T) {
 		require.NotNil(t, acceptedRequestEventMessage, "Accepted request event message should not be nil")
 
 		acceptedRequestEvent := &jetton_testing_wrappers.AcceptedRequestEvent{}
-		err = tlb.LoadFromCell(acceptedRequestEvent, acceptedRequestEventMessage.Body.BeginParse())
+		err = tlb.Parse(acceptedRequestEvent, acceptedRequestEventMessage.Body)
 		require.NoError(t, err, "failed to parse accepted request event")
 
 		assert.True(t, setup.Sender.Contract.Address.Equals(acceptedRequestEvent.Sender), "Sender address should match")
 		assert.Equal(t, queryID, acceptedRequestEvent.QueryID, "Query ID should match")
-		_, payloadBuf, err := acceptedRequestEvent.Payload.BeginParse().RestBits()
+		_, payloadBuf, err := acceptedRequestEvent.Payload.MustBeginParse().RestBits()
 		require.NoError(t, err, "failed to parse payload")
 		assert.Equal(t, buf, payloadBuf, "Payload should match")
 		jettonReceiverDataAfter2, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance after accepted request")
-		expectedJettonAmount, err := insufficientJettonTransferAmount.Add(&sufficientJettonTransferAmount)
+		expectedJettonAmount, err := insufficientJettonTransferAmount.Add(sufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to calculate expected jetton amount")
 		assert.Equal(t, expectedJettonAmount.Nano().Uint64(), jettonReceiverDataAfter2.Uint64(), "Receiver wallet balance should match the sum of insufficient and sufficient jetton transfer amounts")
 	})

@@ -82,7 +82,7 @@ type AcceptedRequestEvent struct {
 // Note: This would typically be used when parsing transaction events/logs
 func ParseAcceptedRequestEvent(cell *cell.Cell) (*AcceptedRequestEvent, error) {
 	event := &AcceptedRequestEvent{}
-	err := tlb.LoadFromCell(event, cell.BeginParse())
+	err := tlb.Parse(event, cell)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AcceptedRequestEvent: %w", err)
 	}

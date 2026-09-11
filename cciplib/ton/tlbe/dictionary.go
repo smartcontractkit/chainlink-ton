@@ -269,6 +269,9 @@ func (d Dict[K, V]) ToCell() (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
+// LoadFromCell implements the tlb.Unmarshaler interface: it loads the dict
+// from a ref at the current slice position. The signature must stay
+// (*cell.Slice) so tlb reflection can parse structs holding Dict fields.
 func (d *Dict[K, V]) LoadFromCell(slice *cell.Slice) error {
 	if d == nil {
 		return errors.New("invalid nil receiver")

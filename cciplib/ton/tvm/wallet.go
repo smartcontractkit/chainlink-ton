@@ -26,7 +26,7 @@ func NewRandomTestWallet(client ton.APIClientWrapped, version wallet.VersionConf
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
 	}
-	pw, perr := wallet.FromPrivateKeyWithOptions(client, rw.PrivateKey(), version, option)
+	pw, perr := wallet.FromPrivateKeyWithOptions(rw.PrivateKey(), version, wallet.WithAPI(client), option)
 	if perr != nil {
 		return nil, fmt.Errorf("failed to generate random wallet: %w", perr)
 	}
@@ -84,7 +84,7 @@ func MyLocalTONWalletDefault(client ton.APIClientWrapped) (*wallet.Wallet, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
 	}
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(int8(address.MasterchainID)))
+	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(rawHlWallet.PrivateKey(), walletVersion, wallet.WithAPI(client), wallet.WithWorkchain(int8(address.MasterchainID)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
 	}
@@ -127,7 +127,7 @@ func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.
 				IHRDisabled: true,
 				Bounce:      false,
 				DstAddr:     w.WalletAddress(),
-				Amount:      *amount.MustDiv(big.NewInt(2)), // Send some non-zero amount to self to trigger wallet initialization
+				Amount:      amount.MustDiv(big.NewInt(2)), // Send some non-zero amount to self to trigger wallet initialization
 				Body:        nil,
 			},
 		})
