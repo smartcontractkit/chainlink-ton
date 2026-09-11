@@ -15,7 +15,7 @@ import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 
 import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
-import * as tr from '../../../wrappers/examples/Receiver'
+import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
@@ -26,6 +26,7 @@ import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 import * as s from './OffRamp.Setup'
 import { OffRampWithTokenPoolTestSetup } from './OffRamp.Setup'
 import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
+import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Execute', () => {
@@ -480,6 +481,60 @@ describe('OffRamp - Execute', () => {
       )
     })
 
+    it('should succeed with big source CrossChainAddress', async () => {
+      const bigSourceAddress = codec
+        .encode(Buffer.from('a'.repeat(64), 'hex'))
+        .asCell()
+        .asSlice() // 64 bytes address
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      message.sender = bigSourceAddress // Set the sender to the big address
+
+      await setup.setupAndCommitMessage(message)
+
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      // Message should be successfully processed to the receiver
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      assertLog(
+        result.transactions,
+        setup.receiver.address,
+        CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+        {
+          message: of.Any2TVMMessage.create({
+            messageId: message.header.messageId,
+            sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            sender: message.sender,
+            data: message.data,
+            tokenAmounts: null,
+          }),
+        },
+      )
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          messageId: message.header.messageId,
+          state: of.ExecutionState.InProgress,
+        },
+      )
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          messageId: message.header.messageId,
+          state: of.ExecutionState.Success,
+        },
+      )
+    })
+
     it('should fail when valid message matches proof but gaslimit is low', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
       message.gasLimit = toNano('0.0001') // Set very low gas limit to force failure
@@ -634,11 +689,11 @@ describe('OffRamp - Execute', () => {
         // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
         let code = await contractCode.ccip.local('ccip.test.receiver')
 
-        const result = await setup.receiver.sendUpdateBehavior(
+        const result = await setup.receiver.sendTestReceiverUpdateBehavior(
           setup.deployer.getSender(),
           toNano('0.1'),
           {
-            behavior: tr.ReceiverBehavior.RejectAll,
+            behavior: tr.TestReceiver_Behavior.RejectAll,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -868,11 +923,11 @@ describe('OffRamp - Execute', () => {
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
 
-      const result = await setup.receiver.sendUpdateBehavior(
+      const result = await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
         {
-          behavior: tr.ReceiverBehavior.RejectAll,
+          behavior: tr.TestReceiver_Behavior.RejectAll,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -900,11 +955,11 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      const result3 = await setup.receiver.sendUpdateBehavior(
+      const result3 = await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
         {
-          behavior: tr.ReceiverBehavior.Accept,
+          behavior: tr.TestReceiver_Behavior.Accept,
         },
       )
       expect(result3.transactions).toHaveTransaction({
@@ -964,15 +1019,15 @@ describe('OffRamp - Execute', () => {
       )
     })
 
-    it('should ignore gasOverride lower than original gasLimit', async () => {
+    it('should fail manual execute when gasOverride is lower than original gasLimit', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
-      const result = await setup.receiver.sendUpdateBehavior(
+      const result = await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
         {
-          behavior: tr.ReceiverBehavior.RejectAll,
+          behavior: tr.TestReceiver_Behavior.RejectAll,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -1000,11 +1055,11 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      const result3 = await setup.receiver.sendUpdateBehavior(
+      const result3 = await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
         {
-          behavior: tr.ReceiverBehavior.Accept,
+          behavior: tr.TestReceiver_Behavior.Accept,
         },
       )
       expect(result3.transactions).toHaveTransaction({
@@ -1017,13 +1072,6 @@ describe('OffRamp - Execute', () => {
 
       const result4 = await setup.manualExecuteReport(report, gasOverride, true)
 
-      expect(result4.transactions).toHaveTransaction({
-        from: setup.router.address,
-        to: setup.receiver.address,
-        value: message.gasLimit,
-        success: true,
-      })
-
       assertLog(
         result4.transactions,
         setup.offRamp.address,
@@ -1032,12 +1080,67 @@ describe('OffRamp - Execute', () => {
           sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           sequenceNumber: 1n,
           messageId: 1n,
-          state: of.ExecutionState.InProgress,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('should mark message as Failure when gasOverride is lower than original gasLimit, allowing retry', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. First DON execution: make the receiver reject so the message
+      //    ends in Failure.
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.RejectAll,
+        },
+      )
+      await setup.executeReport(report)
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // 2. Manual execute with a receiverExecutionGasLimit lower than the
+      //    message gasLimit.
+      const badGasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
+      const badResult = await setup.manualExecuteReport(report, badGasOverride, true)
+
+      assertLog(
+        badResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
         },
       )
 
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.Accept,
+        },
+      )
+
+      const goodGasOverride = { receiverExecutionGasLimit: message.gasLimit + toNano('0.01') }
+      const retryResult = await setup.manualExecuteReport(report, goodGasOverride, true)
+
+      expect(retryResult.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        value: goodGasOverride.receiverExecutionGasLimit,
+        success: true,
+      })
+
       assertLog(
-        result4.transactions,
+        retryResult.transactions,
         setup.offRamp.address,
         CCIPLogs.LogTypes.ExecutionStateChanged,
         {
@@ -1047,32 +1150,17 @@ describe('OffRamp - Execute', () => {
           state: of.ExecutionState.Success,
         },
       )
-
-      assertLog(
-        result4.transactions,
-        setup.receiver.address,
-        CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
-        {
-          message: of.Any2TVMMessage.create({
-            messageId: message.header.messageId,
-            sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-            sender: message.sender,
-            data: message.data,
-            tokenAmounts: null,
-          }),
-        },
-      )
     })
 
     it('should ignore gasOverride when 0', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
-      const result = await setup.receiver.sendUpdateBehavior(
+      const result = await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
         {
-          behavior: tr.ReceiverBehavior.RejectAll,
+          behavior: tr.TestReceiver_Behavior.RejectAll,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -1100,11 +1188,11 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      const result3 = await setup.receiver.sendUpdateBehavior(
+      const result3 = await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
         toNano('0.1'),
         {
-          behavior: tr.ReceiverBehavior.Accept,
+          behavior: tr.TestReceiver_Behavior.Accept,
         },
       )
       expect(result3.transactions).toHaveTransaction({
@@ -2280,9 +2368,13 @@ describe('OffRamp - Execute', () => {
       const report = setup.createExecuteReport([message])
 
       // First execution: make the receiver reject so the message ends in Failure.
-      await setup.receiver.sendUpdateBehavior(setup.deployer.getSender(), toNano('0.1'), {
-        behavior: tr.ReceiverBehavior.RejectAll,
-      })
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.RejectAll,
+        },
+      )
       await setup.executeReport(report)
 
       // Warp time past the permissionless execution threshold so manual exec is allowed.
@@ -2325,9 +2417,13 @@ describe('OffRamp - Execute', () => {
       const report = setup.createExecuteReport([message])
 
       // First execution: make the receiver reject so the message ends in Failure.
-      await setup.receiver.sendUpdateBehavior(setup.deployer.getSender(), toNano('0.1'), {
-        behavior: tr.ReceiverBehavior.RejectAll,
-      })
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.RejectAll,
+        },
+      )
       await setup.executeReport(report)
 
       // Warp time past the permissionless execution threshold so manual exec is allowed.
@@ -2338,6 +2434,59 @@ describe('OffRamp - Execute', () => {
       const gasOverride = of.GasOverride.create({
         receiverExecutionGasLimit: toNano('0.05'),
         tokenGasOverrides: [toNano('0.01')], // mismatch: message has 0 token transfers
+      })
+      const result = await setup.offRamp.sendOffRampManuallyExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.5'),
+        {
+          report,
+          gasOverride,
+        },
+      )
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails manual execute when token gas override is non-zero but lower than destGasAmount', async () => {
+      // Create a message with a destGasAmount below MIN_TT_GASLIMIT so that the
+      // first DON execution fails (token transfer gas too low).
+      const destGasAmount = MIN_TT_GASLIMIT - 1n
+      const message = setup.createTestMessageWithToken({ destGasAmount })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. Regular execution: destGasAmount (0.001) is below MIN_TT_GASLIMIT,
+      //    so the message should fail.
+      const firstResult = await setup.executeReport(report)
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      const gasOverride = of.GasOverride.create({
+        receiverExecutionGasLimit: toNano('0.05'),
+        tokenGasOverrides: [destGasAmount - 1n], // non-zero but lower than destGasAmount
       })
       const result = await setup.offRamp.sendOffRampManuallyExecute(
         setup.transmitters[0].getSender(),

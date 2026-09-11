@@ -21,27 +21,40 @@ struct GasOverride {
     tokenGasOverrides: SnakedCell<coins>? = null
 }
 
-// getEffectiveTotalDestGasAmount returns the total gas amount to use for token transfer
+// getEffectiveDestGasAmount returns the gas amount to use for token transfer
 //
 // @note: We currently only support a single token transfer
 //
-// If the gasOverride is null, it returns the sum of destGasAmount from all token transfers in the message.
-// If the gasOverride is not null, it returns the sum of max(destGasAmount, tokenGasOverride) for each
-// token transfer in the message.
+// If the gasOverride is null or its tokenGasOverrides is null, or its tokenGasOverrides is zero,
+// it returns the sum of destGasAmount from all token transfers in the message.
+// Otherwise, it returns the tokenGasOverride
+//
+// @note from evm: 
+//
+// The gas limit can not be lowered as that could cause the message to fail. If manual execution is done
+// from an UNTOUCHED state and we would allow lower gas limit, anyone could grief by executing the message with
+// lower gas limit than the DON would have used. This results in the message being marked FAILURE and the DON
+// would not attempt it with the correct gas limit.
 fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTransfer): coins? {
-    if (self == null || self.tokenGasOverrides == null) {
-        return tokenTransfer.destGasAmount;
+    if (self != null && self.tokenGasOverrides != null) {
+        val tokenGasOverride = self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+        if (tokenGasOverride != 0) {
+            assert (tokenGasOverride >= tokenTransfer.destGasAmount) throw OffRamp_Error.InvalidManualExecutionGasLimit;
+            return tokenGasOverride;
+        }
     }
-    return max(tokenTransfer.destGasAmount, self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch));
+    return tokenTransfer.destGasAmount;
 }
 
 // getEffectiveGasLimit returns the total gas amount to use for message execution
 //
-// If the gasOverride is not null and its receiverExecutionGasLimit is greater
-// than the gasLimit from the message, it returns its receiverExecutionGasLimit.
+// If the gasOverride is not null and its receiverExecutionGasLimit is not null or zero,
+// it returns its receiverExecutionGasLimit.
 // Otherwise, it returns gasLimit from the message, passed as an argument.
+// It throws if receiverExecutionGasLimit is less than the gasLimit from the message
 fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
-    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
+    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit != 0) {
+        assert (self.receiverExecutionGasLimit >= gasLimit) throw OffRamp_Error.InvalidManualExecutionGasLimit;
         return self.receiverExecutionGasLimit;
     }
     return gasLimit;

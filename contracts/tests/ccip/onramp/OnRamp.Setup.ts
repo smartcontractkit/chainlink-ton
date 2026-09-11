@@ -47,8 +47,8 @@ export async function deployOnRampContractW(
     }),
     destChainConfigs: new Map(),
     executor: or.ExecutorDeployment.create({
-      deployableCode: beginCell().endCell(),
-      executorCode: beginCell().endCell(),
+      deployableCode: Cell.EMPTY,
+      executorCode: Cell.EMPTY,
     }),
   }
 

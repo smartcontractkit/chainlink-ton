@@ -291,7 +291,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2 (bounce)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
@@ -379,7 +379,7 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2
 //     Router          ->> OffRamp:         Router_CCIPReceiveConfirm
 //     OffRamp         ->> ReceiveExecutor: OffRamp_CCIPReceiveConfirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
@@ -409,7 +409,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
 
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage
-//     Router          ->> Receiver: Receiver_CCIPReceive
+//     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
@@ -871,15 +871,16 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
-        effectiveGasLimit: msg.gasOverride.getEffectiveGasLimit(message.gasLimit),
+        effectiveGasLimit: message.gasLimit,
         root: sender,
         sequenceNumber: message.header.sequenceNumber,
         sourceChainSelector: message.header.sourceChainSelector,
         messageId: message.header.messageId,
     };
 
-    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
+    // TODO: this hides the validation error that caused the message to fail.
     try {
+        initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
         initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride);
         // TODO this hides the error
     } catch {
