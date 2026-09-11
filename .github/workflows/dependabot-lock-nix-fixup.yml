@@ -4,7 +4,7 @@ name: TON - Dependabot lock.nix fixup
 # mismatch in fixed-output derivation". This workflow self-heals:
 #
 #   watched workflow fails on a Dependabot PR -> workflow_run -> this job
-#   runs `nix run .#lock-nix-tidy` on the PR head and pushes the hash fix
+#   runs main's `lock-nix-tidy` on the PR head and pushes the hash fix
 #   as a GitHub App -> the same checks re-run -> green.
 #
 # GATI is not cosmetic: on any run triggered by a Dependabot PR, GITHUB_TOKEN
@@ -95,7 +95,7 @@ jobs:
             LIVE_SHA=$(jq -r .headRefOid pr.json)
             if [[ ${EVENT_SHA} != "${LIVE_SHA}" ]]; then
               echo "::notice::PR ${NUM} moved since the failure; not acting"
-              exit 1
+              exit 0
             fi
 
             # Loop guard: our push re-triggers CI. Red on our own commit
@@ -111,7 +111,7 @@ jobs:
 
             if jq -e '.labels[]? | select(.name == "nix-hash-skip")' pr.json >/dev/null; then
               echo "::notice::PR ${NUM} is labeled nix-hash-skip; dispatch to retry"
-              exit 1
+              exit 0
             fi
           fi
 
@@ -153,7 +153,9 @@ jobs:
       - name: Re-verify fetchers and rewrite stale hashes
         run: |
           set -euo pipefail
-          timeout 15m nix run .#lock-nix-tidy
+          # The tool comes from main (branches can predate current revisions);
+          # nix run keeps CWD, so it audits and rewrites this checkout.
+          timeout 15m nix run github:smartcontractkit/chainlink-ton/main#lock-nix-tidy
 
       - name: Commit and push the fixup
         env:
