@@ -49,6 +49,7 @@ in
 
     # pin the vendor hash (update using 'pkgs.lib.fakeHash')
     vendorHash = lock.chainlink-ton-extras;
+    proxyVendor = true;
 
     # postInstall script to write version and rev to share folder
     postInstall = ''
