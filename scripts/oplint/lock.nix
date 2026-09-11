@@ -1,3 +1,3 @@
 {pkgs}: {
-  oplint = "sha256-5gru6XdydiwDY72OH+P8bwjwPPQNKiyuhHbfrlwP8FU=";
+  oplint = "sha256-dcCxR54KlzC+b2C6yNUzVBBnlQa1oMjp7LABPYc8/dA=";
 }
