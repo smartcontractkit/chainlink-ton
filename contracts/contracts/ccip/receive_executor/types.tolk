@@ -12,6 +12,8 @@ struct ReceiveExecutor_State {
     messageExecution: ReceiveExecutor_MessageExecutionState
     /// TON to use for message execution. Updated by the latest execute call. Depends on the gasOverride in the message
     effectiveGasLimit: coins
+    /// queryId propagated from the OffRamp execution flow, used in outgoing messages
+    queryId: uint64 = 0
 }
 
 struct ReceiveExecutor_TokenTransferInfo {
