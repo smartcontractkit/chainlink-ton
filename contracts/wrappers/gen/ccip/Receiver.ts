@@ -187,12 +187,14 @@ export const CCIPReceiver_InMessage = {
 /**
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
  >     execId: uint192
+ >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
  > }
  */
 export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
     execId: uint192
+    queryId: uint64
     message: Any2TVMMessage
 }
 
@@ -201,11 +203,13 @@ export const Receiver_CCIPReceiveV2 = {
 
     create(args: {
         execId: uint192
+        queryId?: uint64
         message: Any2TVMMessage
     }): Receiver_CCIPReceiveV2 {
         return {
             $: 'Receiver_CCIPReceiveV2',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Receiver_CCIPReceiveV2 {
@@ -213,12 +217,14 @@ export const Receiver_CCIPReceiveV2 = {
         return {
             $: 'Receiver_CCIPReceiveV2',
             execId: s.loadUintBig(192),
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
     },
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
         b.storeUint(0x5b4bc7a6, 32);
         b.storeUint(self.execId, 192);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {

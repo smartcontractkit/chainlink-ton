@@ -107,6 +107,7 @@ type ConfigInfo struct {
 type CCIPReceiveV2 struct {
 	_       tlb.Magic      `tlb:"#5b4bc7a6" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
+	QueryID uint64         `tlb:"## 64"`
 	Message Any2TVMMessage `tlb:"^"`
 }
 

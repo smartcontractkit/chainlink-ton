@@ -13,6 +13,8 @@ struct ReceiveExecutor_Storage {
         messageExecution: ReceiveExecutor_MessageExecutionState.Untouched,
         // effectiveGasLimit is initialized it in `onInitExecute`.
         effectiveGasLimit: 0,
+        // queryId is initialized it in `onInitExecute`.
+        queryId: 0,
     };
     lastExecutionTimestamp: uint64 = 0;
 }
