@@ -1161,7 +1161,7 @@ fun TokenPool<T>.getFeeAmount(
 /// `TokenPool_GetCCVs` query, mirroring EVM's `getFee` + the outbound fee-subtraction in
 /// `getRequiredCCVs`.
 /// @return (feeConfig, amountPostFee, feesProvided). `feesProvided=false` when no enabled
-///         config exists (callers fall back to FeeQuoter defaults). The inbound amount is
+///         config exists (callers fall back to FeeQuoter defaults); the inbound amount is
 ///         already post-fee, so only outbound subtracts the bps fee.
 fun TokenPool<T>.getFeeParamsAndPostFeeAmount(
     self,
@@ -1172,7 +1172,18 @@ fun TokenPool<T>.getFeeParamsAndPostFeeAmount(
 ): (TokenPool_TokenTransferFeeConfig, coins, bool) {
     val entry = self.data.tokenTransferFeeConfigs.get(remoteChainSelector);
     if (!entry.isFound || !entry.loadValue().isEnabled) {
-        return (entry.isFound ? entry.loadValue() : TokenPool_TokenTransferFeeConfig { destGasOverhead: 0, destBytesOverhead: 0, finalityFeeUSDCents: 0, fastFinalityFeeUSDCents: 0, finalityTransferFeeBps: 0, fastFinalityTransferFeeBps: 0, isEnabled: false }, sourceDenominatedAmount, false);
+        // Mirrors EVM getFee: absent/disabled configs return a zero config with the disabled flag
+        // (disabled entries cannot exist — updates reject isEnabled=false, disable deletes).
+        val zeroConfig = TokenPool_TokenTransferFeeConfig {
+            destGasOverhead: 0,
+            destBytesOverhead: 0,
+            finalityFeeUSDCents: 0,
+            fastFinalityFeeUSDCents: 0,
+            finalityTransferFeeBps: 0,
+            fastFinalityTransferFeeBps: 0,
+            isEnabled: false,
+        };
+        return (zeroConfig, sourceDenominatedAmount, false);
     }
 
     val feeConfig = entry.loadValue();
@@ -1214,21 +1225,28 @@ fun TokenPool<T>.getCCVAmount(
     return self.calculateLocalAmount(sourceDenominatedAmount as uint256, remoteDecimals);
 }
 
-/// Handles an on-chain `TokenPool_GetCCVs` query. Replies with `TokenPool_CCVs`, or with
-/// `TokenPool_CCVsAndFees` when `fees` is set (the `AndFees` flow). When async
-/// `advancedPoolHooks` are configured it forwards a `TokenPool_GetCCVs` to them for the CCV set
-/// and assembles the reply on the `TokenPool_QueryCCVsReply` callback.
-/// @param sender The msg.sender requesting the query (the reply destination).
-/// @param fees Optional pre-computed fee params (`Cell<TokenPool_FeeContext>`); null for CCVs-only.
+/// Validate a CCV query's finality/token/chain, shared by `onGetCCVs`/`onGetCCVsAndFees`.
+fun TokenPool<T>.validateGetCCVsRequest(
+    self,
+    localToken: address,
+    remoteChainSelector: uint64,
+    requestedFinalityConfig: uint32,
+): void {
+    TokenPool_ensureRequestedFinalityAllowed(requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
+    assert(self.isSupportedToken(localToken), TokenPool_Error.InvalidToken);
+    self.requireSupportedChain(remoteChainSelector);
+}
+
+/// Handles an on-chain `TokenPool_GetCCVs` query: validates, then replies directly with an empty
+/// CCV set (no hooks) or forwards to `advancedPoolHooks` and assembles the reply on the
+/// `TokenPool_QueryCCVsReply` callback. `fees` selects the reply variant (null → CCVs, else CCVsAndFees).
 fun TokenPool<T>.onGetCCVs(
     mutate self,
     sender: address,
     msg: TokenPool_GetCCVs,
     fees: cell?,
 ): void {
-    TokenPool_ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, self.data.adminConfig.load().allowedFinalityConfig);
-    assert(self.isSupportedToken(msg.localToken), TokenPool_Error.InvalidToken);
-    self.requireSupportedChain(msg.remoteChainSelector);
+    self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
 
     val context = TokenPool_GetCCVsContext {
         replyTo: sender,
@@ -1256,20 +1274,24 @@ fun TokenPool<T>.onGetCCVs(
             },
         });
         hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
         return; // reply is assembled on the async callback.
     }
 
     // No hooks -> empty CCV set (callers fall back to lane defaults).
-    self.sendCCVsReply(sender, msg.queryId, createEmptyCell() as SnakedCell<address>, context);
+    var emptyCCVs: array<address> = [];
+    self.sendCCVsReply(sender, msg.queryId, emptyCCVs, context);
 }
 
-/// Handles an on-chain `TokenPool_GetCCVsAndFees` query: validates, computes the fee params and
-/// forwards through the shared `onGetCCVs` flow with the fees set.
+/// Handles an on-chain `TokenPool_GetCCVsAndFees` query: validates, then computes the fee
+/// params and forwards through the shared `onGetCCVs` flow with the fees set.
 fun TokenPool<T>.onGetCCVsAndFees(
     mutate self,
     sender: address,
     msg: TokenPool_GetCCVsAndFees,
 ): void {
+    self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
+
     val (feeConfig, amountPostFee, feesProvided) = self.getFeeParamsAndPostFeeAmount(
         msg.remoteChainSelector, msg.amount, msg.requestedFinalityConfig, msg.direction
     );
@@ -1298,7 +1320,7 @@ fun TokenPool<T>.sendCCVsReply(
     self,
     replyTo: address,
     queryId: uint64,
-    requiredCCVs: SnakedCell<address>,
+    requiredCCVs: array<address>,
     context: TokenPool_GetCCVsContext,
 ): void {
     var body: cell;
@@ -1364,17 +1386,23 @@ fun TokenPool<T>.onQueryCCVsReply(
 }
 
 /// Handles a bounced `TokenPool_GetCCVs` forwarded to the hooks contract, finalizing the
-/// query by sending `TokenPool_GetCCVsFailed` to the original requester (via the echoed
-/// context). Called from each concrete pool's `onBouncedMessage`.
+/// query by sending `TokenPool_GetCCVsFailed` (carrying the TVM `exitCode`) to the original
+/// requester via the echoed context. Called from each concrete pool's `onBouncedMessage`.
 fun TokenPool<T>.onGetCCVsBounced(
     self,
     msg: TokenPool_GetCCVs,
+    exitCode: int32,
 ): void {
     if (msg.forwardPayload == null) {
         return; // no requester to notify
     }
     val context = lazy (msg.forwardPayload! as Cell<TokenPool_GetCCVsContext>).load();
-    self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, TokenPool_Error.UnsupportedOperation as uint16);
+    // TVM exit codes fit uint16; clamp anything outside the range so the failure is always observable.
+    var clamped: int32 = exitCode;
+    if (clamped < 0 || clamped > 0xFFFF) {
+        clamped = 0xFFFF;
+    }
+    self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, clamped as uint16);
 }
 
 /// Validates the lock or burn input for correctness on

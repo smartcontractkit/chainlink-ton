@@ -67,12 +67,11 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs) {
         throw 0xFFFF; // bounce the pool's forwarded GetCCVs
     }
 
-    var requiredCCVs = createEmptyCell() as SnakedCell<address>;
+    var requiredCCVs: array<address> = [];
     if (data.id != 0) {
         // A single CCV (the pool that queried us) — meaningful enough for a mock and lets tests
         // assert that the non-empty set is echoed back through the pool unchanged.
-        val ccv: address = msg.replyTo;
-        requiredCCVs = beginCell().storeAddress(ccv).endCell() as SnakedCell<address>;
+        requiredCCVs.push(msg.replyTo);
     }
 
     val reply = createMessage({

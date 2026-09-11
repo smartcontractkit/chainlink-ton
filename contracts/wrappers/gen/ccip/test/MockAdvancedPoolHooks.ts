@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type array<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -52,6 +54,35 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeArrayOf<T>(v: array<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    // the compiler stores array<T> in chunks; in TypeScript, for simplicity, store "1 elem = 1 ref"
+    let tail = null as c.Cell | null;
+    for (let i = 0; i < v.length; ++i) {
+        let chunkB = beginCell().storeMaybeRef(tail);
+        storeFn_T(v[v.length - 1 - i], chunkB);
+        tail = chunkB.endCell();
+    }
+    b.storeUint(v.length, 8);
+    b.storeMaybeRef(tail);
+}
+
+function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
+    let len = s.loadUint(8);
+    let head = s.loadMaybeRef();
+    let outArr = [] as array<T>;
+    while (head != null) {
+        let s = head.beginParse();
+        head = s.loadMaybeRef();
+        while (s.remainingBits || s.remainingRefs) {
+            outArr.push(loadFn_T(s));
+        }
+    }
+    if (len !== outArr.length) {
+        throw new Error(`mismatch array binary data: expected ${len} elements, got ${outArr.length}`);
+    }
+    return outArr;
 }
 
 // ————————————————————————————————————————————
@@ -151,14 +182,14 @@ export const MockAdvancedPoolHooks_Data = {
 /**
  > struct (0x30612b17) TokenPool_QueryCCVsReply {
  >     queryId: uint64
- >     requiredCCVs: SnakedCell<address>
+ >     requiredCCVs: array<address>
  >     replyPayload: cell?
  > }
  */
 export interface TokenPool_QueryCCVsReply {
     readonly $: 'TokenPool_QueryCCVsReply'
     queryId: uint64
-    requiredCCVs: SnakedCell<c.Address>
+    requiredCCVs: array<c.Address>
     replyPayload: c.Cell | null
 }
 
@@ -167,7 +198,7 @@ export const TokenPool_QueryCCVsReply = {
 
     create(args: {
         queryId?: uint64
-        requiredCCVs: SnakedCell<c.Address>
+        requiredCCVs: array<c.Address>
         replyPayload: c.Cell | null
     }): TokenPool_QueryCCVsReply {
         return {
@@ -181,14 +212,18 @@ export const TokenPool_QueryCCVsReply = {
         return {
             $: 'TokenPool_QueryCCVsReply',
             queryId: s.loadUintBig(64),
-            requiredCCVs: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
             replyPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
         b.storeUint(0x30612b17, 32);
         b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.requiredCCVs, b, (v, b) => b.storeAddress(v));
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
         storeTolkNullable<c.Cell>(self.replyPayload, b,
             (v,b) => b.storeRef(v)
         );
@@ -197,53 +232,6 @@ export const TokenPool_QueryCCVsReply = {
         return makeCellFrom<TokenPool_QueryCCVsReply>(self, TokenPool_QueryCCVsReply.store);
     }
 }
-
-/**
- > type SnakedCell<T> = cell
- */
-export type SnakedCell<T> = T[]
-
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    if (v.length === 0) {
-        b.storeRef(c.Cell.EMPTY);
-        return;
-    }
-    const cells: c.Builder[] = [];
-    let builder = c.beginCell();
-    for (const value of v) {
-        let itemB = c.beginCell();
-        storeFn_T(value, itemB);
-        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
-            cells.push(builder);
-            builder = c.beginCell();
-        }
-        builder.storeBuilder(itemB);
-    }
-    cells.push(builder);
-    let current = cells[cells.length - 1].endCell();
-    for (let i = cells.length - 2; i >= 0; i--) {
-        cells[i].storeRef(current);
-        current = cells[i].endCell();
-    }
-    b.storeRef(current);
-}
-
-function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
-    let outArr = [] as T[];
-    let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
-            outArr.push(loadFn_T(head));
-        }
-        if (head.remainingRefs > 0) {
-            head = head.loadRef().beginParse();
-        } else {
-            break;
-        }
-    }
-    return outArr;
-}
-
 
 // ————————————————————————————————————————————
 //    class MockAdvancedPoolHooks
@@ -284,7 +272,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockAdvancedPoolHooks implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECBQEAARsAART/APSkE/S88sgLAQLc0/iR8kAg1ywiCU6ITI5EMdM/1DHTHzH0BDH6ADH6SPQFIqk4AJ3Iz5KbfpiOE8s/EszJncjPkCPL/t4Tyz8SzMniyM+FCBL6UnHPC27MyYBA+wDg1ywjgeFaxOMC1ywmKjtpXOMCMIQPAccA8vQCAwCCMdM/1DH6ADHTHzH6SPQFIqk4AJ3Iz5CHnHYeE8s/EszJncjPkniprZoTyz8SzMniyM+FCBL6UnHPC27MyYBA+wABqDHTP/pIMdM/MfoAMdMfMdMHMfQEMfpI9AXtRNDTB9EghAe6lIQP8vDgiAGWMCHI+lLJ3sjPkMGErF4Uyz8TzBL0AMnIz4UIEvpScc8LbszJgED7AAQAAA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECBQEAAUgAART/APSkE/S88sgLAQLc0/iR8kAg1ywiCU6ITI5EMdM/1DHTHzH0BDH6ADH6SPQFIqk4AJ3Iz5KbfpiOE8s/EszJncjPkCPL/t4Tyz8SzMniyM+FCBL6UnHPC27MyYBA+wDg1ywjgeFaxOMC1ywmKjtpXOMCMIQPAccA8vQCAwCCMdM/1DH6ADHTHzH6SPQFIqk4AJ3Iz5CHnHYeE8s/EszJncjPkniprZoTyz8SzMniyM+FCBL6UnHPC27MyYBA+wAB/jHTP/pIMdM/MfoAMdMfMdMHMfQEMfpI9AXtRNDTB9EghAe6lIQP8vDgbwABkyJvjN7Iz5DBhKxeFMs/I2+Ic21UciGpBo4bAcj0AFMhtghRIqEimVOAb4FY+lIBpOQByQKh5DAxNc8LBxP0ABL0AMnIz4UIEvpScc8LbszJgEAEAAT7AA==');
 
     static Errors = {
     }

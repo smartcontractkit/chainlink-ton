@@ -15,25 +15,16 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import { contractCode } from '../../../wrappers/codeLoader'
 import { TokenPoolBehaviorContext } from './TokenPool.behavior'
 
-// CCV & Fees behavior tests (TON-TP: getCCVs / getCCVsAndFees parity with EVM IPoolV2).
-// ———————————————————————————————————————————————————————————————————————————————
-// Covers the TON-native async req/res replacement for EVM `getRequiredCCVs` + `getFee`:
-//   - TokenPool_GetCCVs        → TokenPool_CCVs         (CCVs only ; OffRamp)
-//   - TokenPool_GetCCVsAndFees → TokenPool_CCVsAndFees  (CCVs + fee context ; OnRamp)
-// When async hooks are configured both flows forward a `TokenPool_GetCCVs` to the hooks,
-// the pool reassembles the correct reply from the echoed context on the callback, and a
-// hooks bounce finalizes with `TokenPool_GetCCVsFailed`.
+// CCV & Fees behavior: TON-native async req/res replacement for EVM `getRequiredCCVs` + `getFee`.
+//   TokenPool_GetCCVs → TokenPool_CCVs (CCVs only; OffRamp)
+//   TokenPool_GetCCVsAndFees → TokenPool_CCVsAndFees (CCVs + fee context; OnRamp)
+// With async hooks configured, both flows forward a GetCCVs to the hooks, reassemble the reply
+// from the echoed context on the callback, and finalize a hooks bounce with GetCCVsFailed.
 
 export type TokenPoolCcvFeesBehaviorContext = TokenPoolBehaviorContext & {
-  // Sandbox blockchain handle, used to drive raw messages (e.g. a QueryCCVsReply sent from
-  // the hooks address directly).
   blockchain: Blockchain
-  // Deploys a mock-hooks contract with the given storage `id` and registers it on the pool.
-  // The mock's id drives the CCV behavior it echoes back:
-  //   0   → empty CCV set (lane defaults)
-  //   !=0 → a single hard-coded CCV (the pool address)
-  //   255 → bounces the forwarded GetCCVs, finalizing via TokenPool_GetCCVsFailed
-  // Optional — when omitted a shared default impl (deploy-by-id + SetAdvancedPoolHooks) is used.
+  // Deploys mock hooks with the given storage `id` (0 = empty CCVs, !=0 = single CCV,
+  // 255 = bounce) and registers them on the pool. Optional; a shared default is used when omitted.
   deployHooks?: (id: number) => Promise<SandboxContract<MockAdvancedPoolHooks>>
 }
 
@@ -42,9 +33,7 @@ export const MOCK_HOOKS_DEFAULT_ID = 0n // empty CCVs = lane defaults
 export const MOCK_HOOKS_NONEMPTY_ID = 1n // single CCV
 export const MOCK_HOOKS_BOUNCE_ID = 255n // bounce → GetCCVsFailed
 
-// Default hook deployment: identical across all pools — deploy a mock-hooks contract with the
-// given storage `id` and register it on the pool. Specs can override `ctx.deployHooks` if they
-// ever need different behavior.
+// Deploy a mock-hooks contract with the given storage `id` and register it on the pool.
 function createSharedDeployHooks(ctx: TokenPoolCcvFeesBehaviorContext) {
   return async (id: number): Promise<SandboxContract<MockAdvancedPoolHooks>> => {
     const hooks = ctx.blockchain.openContract(
@@ -410,7 +399,8 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
 
       // The hooks throw → the pool receives a bounce → finalizes with GetCCVsFailed to the
-      // original requester, echoing their fwdPayload so they can resume/abort.
+      // original requester, echoing their fwdPayload so they can resume/abort. The failure
+      // carries the TVM exit code from the bounce (the mock throws 0xFFFF).
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
@@ -421,7 +411,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           const reply = TokenPool_GetCCVsFailed.fromSlice(body.beginParse())
           return (
             reply.queryId === 22n &&
-            reply.errorCode !== 0n &&
+            reply.errorCode === 0xffffn &&
             reply.fwdPayload !== null &&
             reply.fwdPayload!.hash().equals(fwd.hash())
           )

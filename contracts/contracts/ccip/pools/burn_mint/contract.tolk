@@ -154,7 +154,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
         TokenPool_GetCCVs => {
             var pool = loadPool(st);
-            pool.onGetCCVsBounced(msg);
+            pool.onGetCCVsBounced(msg, rich.exitCode);
             st.poolData = pool.data.toCell();
             st.store();
         }

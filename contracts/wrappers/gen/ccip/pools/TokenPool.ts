@@ -2582,14 +2582,14 @@ export const TokenPool_GetCCVsAndFees = {
 /**
  > struct (0x6c70b2dd) TokenPool_CCVs {
  >     queryId: uint64
- >     requiredCCVs: SnakedCell<address>
+ >     requiredCCVs: array<address>
  >     fwdPayload: cell?
  > }
  */
 export interface TokenPool_CCVs {
     readonly $: 'TokenPool_CCVs'
     queryId: uint64
-    requiredCCVs: SnakedCell<c.Address>
+    requiredCCVs: array<c.Address>
     fwdPayload: c.Cell | null
 }
 
@@ -2598,7 +2598,7 @@ export const TokenPool_CCVs = {
 
     create(args: {
         queryId?: uint64
-        requiredCCVs: SnakedCell<c.Address>
+        requiredCCVs: array<c.Address>
         fwdPayload: c.Cell | null
     }): TokenPool_CCVs {
         return {
@@ -2612,14 +2612,18 @@ export const TokenPool_CCVs = {
         return {
             $: 'TokenPool_CCVs',
             queryId: s.loadUintBig(64),
-            requiredCCVs: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
             fwdPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_CCVs, b: c.Builder): void {
         b.storeUint(0x6c70b2dd, 32);
         b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.requiredCCVs, b, (v, b) => b.storeAddress(v));
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
         storeTolkNullable<c.Cell>(self.fwdPayload, b,
             (v,b) => b.storeRef(v)
         );
@@ -2632,7 +2636,7 @@ export const TokenPool_CCVs = {
 /**
  > struct (0x158dd7d5) TokenPool_CCVsAndFees {
  >     queryId: uint64
- >     requiredCCVs: SnakedCell<address>
+ >     requiredCCVs: array<address>
  >     fees: Cell<TokenPool_FeeContext>
  >     fwdPayload: cell?
  > }
@@ -2640,7 +2644,7 @@ export const TokenPool_CCVs = {
 export interface TokenPool_CCVsAndFees {
     readonly $: 'TokenPool_CCVsAndFees'
     queryId: uint64
-    requiredCCVs: SnakedCell<c.Address>
+    requiredCCVs: array<c.Address>
     fees: TokenPool_FeeContext
     fwdPayload: c.Cell | null
 }
@@ -2650,7 +2654,7 @@ export const TokenPool_CCVsAndFees = {
 
     create(args: {
         queryId?: uint64
-        requiredCCVs: SnakedCell<c.Address>
+        requiredCCVs: array<c.Address>
         fees: TokenPool_FeeContext
         fwdPayload: c.Cell | null
     }): TokenPool_CCVsAndFees {
@@ -2665,7 +2669,9 @@ export const TokenPool_CCVsAndFees = {
         return {
             $: 'TokenPool_CCVsAndFees',
             queryId: s.loadUintBig(64),
-            requiredCCVs: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
             fees: loadCellRef<TokenPool_FeeContext>(s, TokenPool_FeeContext.fromSlice),
             fwdPayload: s.loadBoolean() ? s.loadRef() : null,
         }
@@ -2673,7 +2679,9 @@ export const TokenPool_CCVsAndFees = {
     store(self: TokenPool_CCVsAndFees, b: c.Builder): void {
         b.storeUint(0x158dd7d5, 32);
         b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.requiredCCVs, b, (v, b) => b.storeAddress(v));
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
         storeCellRef<TokenPool_FeeContext>(self.fees, b, TokenPool_FeeContext.store);
         storeTolkNullable<c.Cell>(self.fwdPayload, b,
             (v,b) => b.storeRef(v)
@@ -2737,14 +2745,14 @@ export const TokenPool_GetCCVsFailed = {
 /**
  > struct (0x30612b17) TokenPool_QueryCCVsReply {
  >     queryId: uint64
- >     requiredCCVs: SnakedCell<address>
+ >     requiredCCVs: array<address>
  >     replyPayload: cell?
  > }
  */
 export interface TokenPool_QueryCCVsReply {
     readonly $: 'TokenPool_QueryCCVsReply'
     queryId: uint64
-    requiredCCVs: SnakedCell<c.Address>
+    requiredCCVs: array<c.Address>
     replyPayload: c.Cell | null
 }
 
@@ -2753,7 +2761,7 @@ export const TokenPool_QueryCCVsReply = {
 
     create(args: {
         queryId?: uint64
-        requiredCCVs: SnakedCell<c.Address>
+        requiredCCVs: array<c.Address>
         replyPayload: c.Cell | null
     }): TokenPool_QueryCCVsReply {
         return {
@@ -2767,14 +2775,18 @@ export const TokenPool_QueryCCVsReply = {
         return {
             $: 'TokenPool_QueryCCVsReply',
             queryId: s.loadUintBig(64),
-            requiredCCVs: loadSnakedCellOf(s, (s) => s.loadAddress()),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
             replyPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
         b.storeUint(0x30612b17, 32);
         b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.requiredCCVs, b, (v, b) => b.storeAddress(v));
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
         storeTolkNullable<c.Cell>(self.replyPayload, b,
             (v,b) => b.storeRef(v)
         );
@@ -4567,7 +4579,7 @@ export class TokenPool implements c.Contract {
 
     static createCellOfTokenPoolQueryCCVsReply(body: {
         queryId?: uint64
-        requiredCCVs: SnakedCell<c.Address>
+        requiredCCVs: array<c.Address>
         replyPayload: c.Cell | null
     }) {
         return TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body));
@@ -4814,7 +4826,7 @@ export class TokenPool implements c.Contract {
 
     async sendTokenPoolQueryCCVsReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        requiredCCVs: SnakedCell<c.Address>
+        requiredCCVs: array<c.Address>
         replyPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
+	pkgtlbe "github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 // --- Primitives / Wrappers ---
@@ -499,10 +500,10 @@ type GetCCVsContext struct {
 //
 // On-chain: struct (0x6c70b2dd) TokenPool_CCVs
 type CCVs struct {
-	_            tlb.Magic                             `tlb:"#6c70b2dd" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID      uint64                                `tlb:"## 64"`
-	RequiredCCVs common.SnakedCell[common.AddressWrap] `tlb:"^"`
-	FwdPayload   *cell.Cell                            `tlb:"maybe ^"`
+	_            tlb.Magic                         `tlb:"#6c70b2dd" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID      uint64                            `tlb:"## 64"`
+	RequiredCCVs pkgtlbe.Array[common.AddressWrap] `tlb:"."`
+	FwdPayload   *cell.Cell                        `tlb:"maybe ^"`
 }
 
 // CCVsAndFees is the reply to a `GetCCVsAndFees` request, carrying the required CCVs plus the
@@ -510,11 +511,11 @@ type CCVs struct {
 //
 // On-chain: struct (0x158dd7d5) TokenPool_CCVsAndFees
 type CCVsAndFees struct {
-	_            tlb.Magic                             `tlb:"#158dd7d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID      uint64                                `tlb:"## 64"`
-	RequiredCCVs common.SnakedCell[common.AddressWrap] `tlb:"^"`
-	Fees         *cell.Cell                            `tlb:"^"` // Cell<FeeContext>
-	FwdPayload   *cell.Cell                            `tlb:"maybe ^"`
+	_            tlb.Magic                         `tlb:"#158dd7d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID      uint64                            `tlb:"## 64"`
+	RequiredCCVs pkgtlbe.Array[common.AddressWrap] `tlb:"."`
+	Fees         *cell.Cell                        `tlb:"^"` // Cell<FeeContext>
+	FwdPayload   *cell.Cell                        `tlb:"maybe ^"`
 }
 
 // GetCCVsFailed finalizes a `GetCCVs`/`GetCCVsAndFees` that could not complete (e.g. the hooks
@@ -533,10 +534,10 @@ type GetCCVsFailed struct {
 //
 // On-chain: struct (0x30612b17) TokenPool_QueryCCVsReply
 type QueryCCVsReply struct {
-	_            tlb.Magic                             `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID      uint64                                `tlb:"## 64"`
-	RequiredCCVs common.SnakedCell[common.AddressWrap] `tlb:"^"`
-	ReplyPayload *cell.Cell                            `tlb:"maybe ^"`
+	_            tlb.Magic                         `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID      uint64                            `tlb:"## 64"`
+	RequiredCCVs pkgtlbe.Array[common.AddressWrap] `tlb:"."`
+	ReplyPayload *cell.Cell                        `tlb:"maybe ^"`
 }
 
 // --- Messages - outgoing ---
