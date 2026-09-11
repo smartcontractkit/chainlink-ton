@@ -35,14 +35,14 @@ type EntryDeployment struct {
 
 // crc32('TokenAdminRegistry_SetEntryDeployment')
 type SetEntryDeployment struct {
-	_               tlb.Magic       `tlb:"#3ec09499" json:"-"` //nolint:revive
+	_               tlb.Magic       `tlb:"#3ec09499" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID         uint64          `tlb:"## 64"`
 	EntryDeployment EntryDeployment `tlb:"."`
 }
 
 // crc32('TokenAdminRegistry_RegisterToken')
 type RegisterToken struct {
-	_             tlb.Magic                         `tlb:"#be8621a2" json:"-"` //nolint:revive
+	_             tlb.Magic                         `tlb:"#be8621a2" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID       uint64                            `tlb:"## 64"`
 	TokenAddress  *address.Address                  `tlb:"addr"`
 	TokenInfo     tokenadminregistryentry.TokenInfo `tlb:"^"`
@@ -51,7 +51,7 @@ type RegisterToken struct {
 
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 type OverridePendingAdministrator struct {
-	_             tlb.Magic        `tlb:"#fddaa034" json:"-"` //nolint:revive
+	_             tlb.Magic        `tlb:"#fddaa034" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID       uint64           `tlb:"## 64"`
 	TokenAddress  *address.Address `tlb:"addr"`
 	Administrator *address.Address `tlb:"addr"`
@@ -60,7 +60,7 @@ type OverridePendingAdministrator struct {
 // crc32('TokenAdminRegistry_TransferAdminRole')
 // The root derives the token entry and forwards the sender as its actor.
 type TransferAdminRole struct {
-	_                tlb.Magic        `tlb:"#dc67ebd0" json:"-"` //nolint:revive
+	_                tlb.Magic        `tlb:"#dc67ebd0" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID          uint64           `tlb:"## 64"`
 	TokenAddress     *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
@@ -69,7 +69,7 @@ type TransferAdminRole struct {
 // crc32('TokenAdminRegistry_AcceptAdminRole')
 // The root derives the token entry and forwards the sender as its actor.
 type AcceptAdminRole struct {
-	_            tlb.Magic        `tlb:"#be28e166" json:"-"` //nolint:revive
+	_            tlb.Magic        `tlb:"#be28e166" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID      uint64           `tlb:"## 64"`
 	TokenAddress *address.Address `tlb:"addr"`
 }
@@ -78,7 +78,7 @@ type AcceptAdminRole struct {
 // emitted externally after the root validates the entry address.
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
 type AdministratorTransferRequested struct {
-	_                    tlb.Magic        `tlb:"#140b1e91" json:"-"` //nolint:revive
+	_                    tlb.Magic        `tlb:"#140b1e91" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID              uint64           `tlb:"## 64"`
 	Token                *address.Address `tlb:"addr"`
 	CurrentAdministrator *address.Address `tlb:"addr"`
@@ -87,7 +87,7 @@ type AdministratorTransferRequested struct {
 
 // crc32('TokenAdminRegistry_AdministratorTransferred')
 type AdministratorTransferred struct {
-	_                tlb.Magic        `tlb:"#e2c74db4" json:"-"` //nolint:revive
+	_                tlb.Magic        `tlb:"#e2c74db4" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID          uint64           `tlb:"## 64"`
 	Token            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
@@ -95,7 +95,7 @@ type AdministratorTransferred struct {
 
 // crc32('TokenAdminRegistry_PoolSet')
 type PoolSet struct {
-	_            tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive
+	_            tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID      uint64           `tlb:"## 64"`
 	Token        *address.Address `tlb:"addr"`
 	PreviousPool *address.Address `tlb:"addr"`
