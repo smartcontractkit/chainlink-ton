@@ -88,7 +88,7 @@ func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainC
 }
 
 func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
-	// 1 TON ~2.13 USD -> 1 nanoTON = 2.13e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.13e9
+	// 1 TON ~2.12 USD -> 1 nanoTON = 2.12e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.12e9
 	return big.NewInt(2.12e9)
 }
 
