@@ -317,6 +317,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -910,6 +912,26 @@ export const TokenPool_TokenTransferFeeConfig = {
     },
     toCell(self: TokenPool_TokenTransferFeeConfig): c.Cell {
         return makeCellFrom<TokenPool_TokenTransferFeeConfig>(self, TokenPool_TokenTransferFeeConfig.store);
+    }
+}
+
+/**
+ > enum TokenPool_MessageDirection { 2 variants }
+ */
+export type TokenPool_MessageDirection = bigint
+
+export const TokenPool_MessageDirection = {
+    Outbound: 0n,
+    Inbound: 1n,
+
+    fromSlice(s: c.Slice): TokenPool_MessageDirection {
+        return s.loadUintBig(8);
+    },
+    store(self: TokenPool_MessageDirection, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: TokenPool_MessageDirection): c.Cell {
+        return makeCellFrom<TokenPool_MessageDirection>(self, TokenPool_MessageDirection.store);
     }
 }
 
@@ -2374,6 +2396,425 @@ export const TokenPool_PostflightCheckFailed = {
     },
     toCell(self: TokenPool_PostflightCheckFailed): c.Cell {
         return makeCellFrom<TokenPool_PostflightCheckFailed>(self, TokenPool_PostflightCheckFailed.store);
+    }
+}
+
+/**
+ > struct TokenPool_FeeContext {
+ >     feeConfig: TokenPool_TokenTransferFeeConfig
+ >     amountPostFee: coins
+ >     feesProvided: bool
+ > }
+ */
+export interface TokenPool_FeeContext {
+    readonly $: 'TokenPool_FeeContext'
+    feeConfig: TokenPool_TokenTransferFeeConfig
+    amountPostFee: coins
+    feesProvided: boolean
+}
+
+export const TokenPool_FeeContext = {
+    create(args: {
+        feeConfig: TokenPool_TokenTransferFeeConfig
+        amountPostFee: coins
+        feesProvided: boolean
+    }): TokenPool_FeeContext {
+        return {
+            $: 'TokenPool_FeeContext',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FeeContext {
+        return {
+            $: 'TokenPool_FeeContext',
+            feeConfig: TokenPool_TokenTransferFeeConfig.fromSlice(s),
+            amountPostFee: s.loadCoins(),
+            feesProvided: s.loadBoolean(),
+        }
+    },
+    store(self: TokenPool_FeeContext, b: c.Builder): void {
+        TokenPool_TokenTransferFeeConfig.store(self.feeConfig, b);
+        b.storeCoins(self.amountPostFee);
+        b.storeBit(self.feesProvided);
+    },
+    toCell(self: TokenPool_FeeContext): c.Cell {
+        return makeCellFrom<TokenPool_FeeContext>(self, TokenPool_FeeContext.store);
+    }
+}
+
+/**
+ > struct (0xc5476d2b) TokenPool_GetCCVs {
+ >     queryId: uint64
+ >     localToken: address
+ >     remoteChainSelector: uint64
+ >     amount: coins
+ >     requestedFinalityConfig: uint32
+ >     direction: TokenPool_MessageDirection
+ >     extraData: cell?
+ >     replyTo: address
+ >     forwardPayload: cell?
+ > }
+ */
+export interface TokenPool_GetCCVs {
+    readonly $: 'TokenPool_GetCCVs'
+    queryId: uint64
+    localToken: c.Address
+    remoteChainSelector: uint64
+    amount: coins
+    requestedFinalityConfig: uint32
+    direction: TokenPool_MessageDirection
+    extraData: c.Cell | null
+    replyTo: c.Address
+    forwardPayload: c.Cell | null
+}
+
+export const TokenPool_GetCCVs = {
+    PREFIX: 0xc5476d2b,
+
+    create(args: {
+        queryId?: uint64
+        localToken: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        requestedFinalityConfig: uint32
+        direction: TokenPool_MessageDirection
+        extraData: c.Cell | null
+        replyTo: c.Address
+        forwardPayload: c.Cell | null
+    }): TokenPool_GetCCVs {
+        return {
+            $: 'TokenPool_GetCCVs',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_GetCCVs {
+        loadAndCheckPrefix32(s, 0xc5476d2b, 'TokenPool_GetCCVs');
+        return {
+            $: 'TokenPool_GetCCVs',
+            queryId: s.loadUintBig(64),
+            localToken: s.loadAddress(),
+            remoteChainSelector: s.loadUintBig(64),
+            amount: s.loadCoins(),
+            requestedFinalityConfig: s.loadUintBig(32),
+            direction: TokenPool_MessageDirection.fromSlice(s),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
+            replyTo: s.loadAddress(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_GetCCVs, b: c.Builder): void {
+        b.storeUint(0xc5476d2b, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.localToken);
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeCoins(self.amount);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        TokenPool_MessageDirection.store(self.direction, b);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeAddress(self.replyTo);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_GetCCVs): c.Cell {
+        return makeCellFrom<TokenPool_GetCCVs>(self, TokenPool_GetCCVs.store);
+    }
+}
+
+/**
+ > struct (0xd22944d5) TokenPool_GetCCVsAndFees {
+ >     queryId: uint64
+ >     localToken: address
+ >     remoteChainSelector: uint64
+ >     amount: coins
+ >     requestedFinalityConfig: uint32
+ >     direction: TokenPool_MessageDirection
+ >     extraData: cell?
+ >     forwardPayload: cell?
+ > }
+ */
+export interface TokenPool_GetCCVsAndFees {
+    readonly $: 'TokenPool_GetCCVsAndFees'
+    queryId: uint64
+    localToken: c.Address
+    remoteChainSelector: uint64
+    amount: coins
+    requestedFinalityConfig: uint32
+    direction: TokenPool_MessageDirection
+    extraData: c.Cell | null
+    forwardPayload: c.Cell | null
+}
+
+export const TokenPool_GetCCVsAndFees = {
+    PREFIX: 0xd22944d5,
+
+    create(args: {
+        queryId?: uint64
+        localToken: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        requestedFinalityConfig: uint32
+        direction: TokenPool_MessageDirection
+        extraData: c.Cell | null
+        forwardPayload: c.Cell | null
+    }): TokenPool_GetCCVsAndFees {
+        return {
+            $: 'TokenPool_GetCCVsAndFees',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_GetCCVsAndFees {
+        loadAndCheckPrefix32(s, 0xd22944d5, 'TokenPool_GetCCVsAndFees');
+        return {
+            $: 'TokenPool_GetCCVsAndFees',
+            queryId: s.loadUintBig(64),
+            localToken: s.loadAddress(),
+            remoteChainSelector: s.loadUintBig(64),
+            amount: s.loadCoins(),
+            requestedFinalityConfig: s.loadUintBig(32),
+            direction: TokenPool_MessageDirection.fromSlice(s),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_GetCCVsAndFees, b: c.Builder): void {
+        b.storeUint(0xd22944d5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.localToken);
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeCoins(self.amount);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        TokenPool_MessageDirection.store(self.direction, b);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_GetCCVsAndFees): c.Cell {
+        return makeCellFrom<TokenPool_GetCCVsAndFees>(self, TokenPool_GetCCVsAndFees.store);
+    }
+}
+
+/**
+ > struct (0x6c70b2dd) TokenPool_CCVs {
+ >     queryId: uint64
+ >     requiredCCVs: array<address>
+ >     fwdPayload: cell?
+ > }
+ */
+export interface TokenPool_CCVs {
+    readonly $: 'TokenPool_CCVs'
+    queryId: uint64
+    requiredCCVs: array<c.Address>
+    fwdPayload: c.Cell | null
+}
+
+export const TokenPool_CCVs = {
+    PREFIX: 0x6c70b2dd,
+
+    create(args: {
+        queryId?: uint64
+        requiredCCVs: array<c.Address>
+        fwdPayload: c.Cell | null
+    }): TokenPool_CCVs {
+        return {
+            $: 'TokenPool_CCVs',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_CCVs {
+        loadAndCheckPrefix32(s, 0x6c70b2dd, 'TokenPool_CCVs');
+        return {
+            $: 'TokenPool_CCVs',
+            queryId: s.loadUintBig(64),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
+            fwdPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_CCVs, b: c.Builder): void {
+        b.storeUint(0x6c70b2dd, 32);
+        b.storeUint(self.queryId, 64);
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
+        storeTolkNullable<c.Cell>(self.fwdPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_CCVs): c.Cell {
+        return makeCellFrom<TokenPool_CCVs>(self, TokenPool_CCVs.store);
+    }
+}
+
+/**
+ > struct (0x158dd7d5) TokenPool_CCVsAndFees {
+ >     queryId: uint64
+ >     requiredCCVs: array<address>
+ >     fees: Cell<TokenPool_FeeContext>
+ >     fwdPayload: cell?
+ > }
+ */
+export interface TokenPool_CCVsAndFees {
+    readonly $: 'TokenPool_CCVsAndFees'
+    queryId: uint64
+    requiredCCVs: array<c.Address>
+    fees: TokenPool_FeeContext
+    fwdPayload: c.Cell | null
+}
+
+export const TokenPool_CCVsAndFees = {
+    PREFIX: 0x158dd7d5,
+
+    create(args: {
+        queryId?: uint64
+        requiredCCVs: array<c.Address>
+        fees: TokenPool_FeeContext
+        fwdPayload: c.Cell | null
+    }): TokenPool_CCVsAndFees {
+        return {
+            $: 'TokenPool_CCVsAndFees',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_CCVsAndFees {
+        loadAndCheckPrefix32(s, 0x158dd7d5, 'TokenPool_CCVsAndFees');
+        return {
+            $: 'TokenPool_CCVsAndFees',
+            queryId: s.loadUintBig(64),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
+            fees: loadCellRef<TokenPool_FeeContext>(s, TokenPool_FeeContext.fromSlice),
+            fwdPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_CCVsAndFees, b: c.Builder): void {
+        b.storeUint(0x158dd7d5, 32);
+        b.storeUint(self.queryId, 64);
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
+        storeCellRef<TokenPool_FeeContext>(self.fees, b, TokenPool_FeeContext.store);
+        storeTolkNullable<c.Cell>(self.fwdPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_CCVsAndFees): c.Cell {
+        return makeCellFrom<TokenPool_CCVsAndFees>(self, TokenPool_CCVsAndFees.store);
+    }
+}
+
+/**
+ > struct (0x0449d467) TokenPool_GetCCVsFailed {
+ >     queryId: uint64
+ >     errorCode: int32
+ >     fwdPayload: cell?
+ > }
+ */
+export interface TokenPool_GetCCVsFailed {
+    readonly $: 'TokenPool_GetCCVsFailed'
+    queryId: uint64
+    errorCode: int32
+    fwdPayload: c.Cell | null
+}
+
+export const TokenPool_GetCCVsFailed = {
+    PREFIX: 0x0449d467,
+
+    create(args: {
+        queryId?: uint64
+        errorCode: int32
+        fwdPayload: c.Cell | null
+    }): TokenPool_GetCCVsFailed {
+        return {
+            $: 'TokenPool_GetCCVsFailed',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_GetCCVsFailed {
+        loadAndCheckPrefix32(s, 0x0449d467, 'TokenPool_GetCCVsFailed');
+        return {
+            $: 'TokenPool_GetCCVsFailed',
+            queryId: s.loadUintBig(64),
+            errorCode: s.loadIntBig(32),
+            fwdPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_GetCCVsFailed, b: c.Builder): void {
+        b.storeUint(0x0449d467, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeInt(self.errorCode, 32);
+        storeTolkNullable<c.Cell>(self.fwdPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_GetCCVsFailed): c.Cell {
+        return makeCellFrom<TokenPool_GetCCVsFailed>(self, TokenPool_GetCCVsFailed.store);
+    }
+}
+
+/**
+ > struct (0x30612b17) TokenPool_QueryCCVsReply {
+ >     queryId: uint64
+ >     requiredCCVs: array<address>
+ >     replyPayload: cell?
+ > }
+ */
+export interface TokenPool_QueryCCVsReply {
+    readonly $: 'TokenPool_QueryCCVsReply'
+    queryId: uint64
+    requiredCCVs: array<c.Address>
+    replyPayload: c.Cell | null
+}
+
+export const TokenPool_QueryCCVsReply = {
+    PREFIX: 0x30612b17,
+
+    create(args: {
+        queryId?: uint64
+        requiredCCVs: array<c.Address>
+        replyPayload: c.Cell | null
+    }): TokenPool_QueryCCVsReply {
+        return {
+            $: 'TokenPool_QueryCCVsReply',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
+        loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
+        return {
+            $: 'TokenPool_QueryCCVsReply',
+            queryId: s.loadUintBig(64),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
+            replyPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
+        b.storeUint(0x30612b17, 32);
+        b.storeUint(self.queryId, 64);
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
+        storeTolkNullable<c.Cell>(self.replyPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_QueryCCVsReply): c.Cell {
+        return makeCellFrom<TokenPool_QueryCCVsReply>(self, TokenPool_QueryCCVsReply.store);
     }
 }
 
@@ -4032,7 +4473,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECOAEAAYIAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgEhMCASAMDQANsFfhA/y8IAIBZg4PAgFIEBEAC6BeED/LwgALocYQP8vCAAuldQgf5eEAC6cjCB/l4QIBbhQVAgEgFhcAC6dRCB/l4QALpFEIH+XhAA2sPkIH+XhAAA2sgMIH+XhAAgEgGhsCASAmJwIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYKCkCAnUqKwAMqXqED/LwAAyqtoQP8vAAC6OuED/LwgALohoQP8vCAgEgLi8CASAwMQANtH2wgf5eEAANt9zwgf5eEAANtI2wgf5eEAIBIDIzAgFqNDUCASA2NwALpV8IH+XhAAunAwgf5eEADaxrwgf5eEAADaw4wgf5eEA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECOgEAAY4AART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBIC4vAgEgCAkCASAaGwIBIAoLAgEgFBUCASAMDQIBSBITAgFmDg8CAUgQEQALoF4QP8vCAAuhxhA/y8IAC6V1CB/l4QALpyMIH+XhAAypX4QP8vAADKrQhA/y8AIBbhYXAgEgGBkAC6dRCB/l4QALpFEIH+XhAA2sPkIH+XhAAA2sgMIH+XhAAgEgHB0CASAoKQIBIB4fAgEgJicCASAgIQIBYiQlAAyqh4QP8vACASAiIwALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYKisCAnUsLQAMqXqED/LwAAyqtoQP8vAAC6OuED/LwgALohoQP8vCAgEgMDECASAyMwANtH2wgf5eEAANt9zwgf5eEAANtI2wgf5eEAIBIDQ1AgFqNjcCASA4OQALpV8IH+XhAAunAwgf5eEADaxrwgf5eEAADaw4wgf5eEA=');
 
     static Errors = {
     }
@@ -4129,6 +4570,41 @@ export class TokenPool implements c.Contract {
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body));
+    }
+
+    static createCellOfTokenPoolGetCCVs(body: {
+        queryId?: uint64
+        localToken: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        requestedFinalityConfig: uint32
+        direction: TokenPool_MessageDirection
+        extraData: c.Cell | null
+        replyTo: c.Address
+        forwardPayload: c.Cell | null
+    }) {
+        return TokenPool_GetCCVs.toCell(TokenPool_GetCCVs.create(body));
+    }
+
+    static createCellOfTokenPoolGetCCVsAndFees(body: {
+        queryId?: uint64
+        localToken: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        requestedFinalityConfig: uint32
+        direction: TokenPool_MessageDirection
+        extraData: c.Cell | null
+        forwardPayload: c.Cell | null
+    }) {
+        return TokenPool_GetCCVsAndFees.toCell(TokenPool_GetCCVsAndFees.create(body));
+    }
+
+    static createCellOfTokenPoolQueryCCVsReply(body: {
+        queryId?: uint64
+        requiredCCVs: array<c.Address>
+        replyPayload: c.Cell | null
+    }) {
+        return TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body));
     }
 
     static createCellOfTokenPoolApplyChainUpdates(body: {
@@ -4331,6 +4807,53 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolGetCCVs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        localToken: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        requestedFinalityConfig: uint32
+        direction: TokenPool_MessageDirection
+        extraData: c.Cell | null
+        replyTo: c.Address
+        forwardPayload: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_GetCCVs.toCell(TokenPool_GetCCVs.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolGetCCVsAndFees(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        localToken: c.Address
+        remoteChainSelector: uint64
+        amount: coins
+        requestedFinalityConfig: uint32
+        direction: TokenPool_MessageDirection
+        extraData: c.Cell | null
+        forwardPayload: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_GetCCVsAndFees.toCell(TokenPool_GetCCVsAndFees.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolQueryCCVsReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        requiredCCVs: array<c.Address>
+        replyPayload: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body)),
             ...extraOptions
         });
     }
@@ -4760,6 +5283,17 @@ export class TokenPool implements c.Contract {
             r.readBigInt(),
             r.readBoolean(),
         ];
+    }
+
+    async getCCVAmount(provider: ContractProvider, remoteChainSelector: uint64, sourceDenominatedAmount: coins, requestedFinalityConfig: uint32, direction: TokenPool_MessageDirection, extraData: c.Cell | null): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getCCVAmount', [
+            { type: 'int', value: remoteChainSelector },
+            { type: 'int', value: sourceDenominatedAmount },
+            { type: 'int', value: requestedFinalityConfig },
+            { type: 'int', value: direction },
+            extraData === null ? { type: 'null' } : { type: 'cell', cell: extraData },
+        ]));
+        return r.readBigInt();
     }
 
     async getIsSupportedToken(provider: ContractProvider, token: c.Address): Promise<boolean> {

@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type array<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -52,6 +54,35 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeArrayOf<T>(v: array<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    // the compiler stores array<T> in chunks; in TypeScript, for simplicity, store "1 elem = 1 ref"
+    let tail = null as c.Cell | null;
+    for (let i = 0; i < v.length; ++i) {
+        let chunkB = beginCell().storeMaybeRef(tail);
+        storeFn_T(v[v.length - 1 - i], chunkB);
+        tail = chunkB.endCell();
+    }
+    b.storeUint(v.length, 8);
+    b.storeMaybeRef(tail);
+}
+
+function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
+    let len = s.loadUint(8);
+    let head = s.loadMaybeRef();
+    let outArr = [] as array<T>;
+    while (head != null) {
+        let s = head.beginParse();
+        head = s.loadMaybeRef();
+        while (s.remainingBits || s.remainingRefs) {
+            outArr.push(loadFn_T(s));
+        }
+    }
+    if (len !== outArr.length) {
+        throw new Error(`mismatch array binary data: expected ${len} elements, got ${outArr.length}`);
+    }
+    return outArr;
 }
 
 // ————————————————————————————————————————————
@@ -113,6 +144,7 @@ class StackReader {
 type coins = bigint
 
 type uint8 = bigint
+type uint64 = bigint
 
 /**
  > struct MockAdvancedPoolHooks_Data {
@@ -144,6 +176,60 @@ export const MockAdvancedPoolHooks_Data = {
     },
     toCell(self: MockAdvancedPoolHooks_Data): c.Cell {
         return makeCellFrom<MockAdvancedPoolHooks_Data>(self, MockAdvancedPoolHooks_Data.store);
+    }
+}
+
+/**
+ > struct (0x30612b17) TokenPool_QueryCCVsReply {
+ >     queryId: uint64
+ >     requiredCCVs: array<address>
+ >     replyPayload: cell?
+ > }
+ */
+export interface TokenPool_QueryCCVsReply {
+    readonly $: 'TokenPool_QueryCCVsReply'
+    queryId: uint64
+    requiredCCVs: array<c.Address>
+    replyPayload: c.Cell | null
+}
+
+export const TokenPool_QueryCCVsReply = {
+    PREFIX: 0x30612b17,
+
+    create(args: {
+        queryId?: uint64
+        requiredCCVs: array<c.Address>
+        replyPayload: c.Cell | null
+    }): TokenPool_QueryCCVsReply {
+        return {
+            $: 'TokenPool_QueryCCVsReply',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
+        loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
+        return {
+            $: 'TokenPool_QueryCCVsReply',
+            queryId: s.loadUintBig(64),
+            requiredCCVs: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
+            replyPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
+        b.storeUint(0x30612b17, 32);
+        b.storeUint(self.queryId, 64);
+        storeArrayOf<c.Address>(self.requiredCCVs, b,
+            (v,b) => b.storeAddress(v)
+        );
+        storeTolkNullable<c.Cell>(self.replyPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_QueryCCVsReply): c.Cell {
+        return makeCellFrom<TokenPool_QueryCCVsReply>(self, TokenPool_QueryCCVsReply.store);
     }
 }
 
@@ -186,7 +272,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockAdvancedPoolHooks implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAwEAuAABFP8A9KQT9LzyyAsBAcrT+JHyQCDXLCIJTohMjkQx0z/UMdMfMfQEMfoAMfpI9AUiqTgAncjPkpt+mI4Tyz8SzMmdyM+QI8v+3hPLPxLMyeLIz4UIEvpScc8LbszJgED7AODXLCOB4VrE4wIwhA8BxwDy9AIAgjHTP9Qx+gAx0x8x+kj0BSKpOACdyM+Qh5x2HhPLPxLMyZ3Iz5J4qa2aE8s/EszJ4sjPhQgS+lJxzwtuzMmAQPsA');
+    static CodeCell = c.Cell.fromBase64('te6ccgECBQEAAVkAART/APSkE/S88sgLAQLc0/iR8kAg1ywiCU6ITI5EMdM/1DHTHzH0BDH6ADH6SPQFIqk4AJ3Iz5KbfpiOE8s/EszJncjPkCPL/t4Tyz8SzMniyM+FCBL6UnHPC27MyYBA+wDg1ywjgeFaxOMC1ywmKjtpXOMCMIQPAccA8vQCAwCCMdM/1DH6ADHTHzH6SPQFIqk4AJ3Iz5CHnHYeE8s/EszJncjPkniprZoTyz8SzMniyM+FCBL6UnHPC27MyYBA+wAB/DHTP/pIMdM/MfoAMdMfMdMHIcIBbBLyRfQEMfpI9AXtRNDTB9EghAe6lIQP8vDgIIEA/rqUgGT4Ad5vAAGTIm+M3sjPkMGErF4Uyz8jb4hzbVRyIakGjhsByPQAUyG2CFEioSKZU4BvgVj6UgGk5AHJAqHkMDE1zwsHE/QAEgQAKPQAycjPhQgS+lJxzwtuzMmAQPsA');
 
     static Errors = {
     }
