@@ -16,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreply"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/sendmodedestroy"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/twomsgchain"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/twophasecommit"
 
@@ -43,7 +44,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	var accountCount uint = 13
+	var accountCount uint = 14
 	accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, accountCount)
 	var lastUsedAccountIndex uint
 	var accountsLock sync.Mutex
@@ -620,5 +621,19 @@ func TestIntegration(t *testing.T) {
 		assert.Equal(t, valueForCounterB, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
 		t.Logf("Test completed successfully\n")
+	})
+
+	t.Run("TestSelfDestructContract", func(t *testing.T) {
+		t.Parallel()
+		alice := getAccount()
+		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
+		t.Logf("Deploying SelfDestructable contract\n")
+		selfDestructableContract, err := sendmodedestroy.NewSelfDestructableProvider(alice).Deploy(sendmodedestroy.SelfDestroyInitData{})
+		require.NoError(t, err, "failed to deploy SelfDestruct contract: %w", err)
+		t.Logf("SelfDestruct contract deployed at %s\n", selfDestructableContract.Contract.Address.String())
+
+		t.Logf("Calling selfdestruct\n")
+		_, err = selfDestructableContract.SendSelfDestruct()
+		require.NoError(t, err, "failed to call selfdestruct: %w", err)
 	})
 }
