@@ -100,6 +100,9 @@ export const contractCode = {
     release_1_6_1: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_1'),
     release_1_6_2: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_2'),
   },
+  dataStreams: {
+    local: createContractCodeLoader({ buildDirectory: BUILD_ROOT, compileIfMissing: true }),
+  },
 }
 
 async function getCode(
