@@ -625,12 +625,7 @@ func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
 	curr := s
 	cellCount := 0
 
-	for {
-		if curr.BitsLeft() == 0 && curr.RefsNum() == 0 {
-			// terminator — empty cell
-			break
-		}
-
+	for curr.BitsLeft() != 0 || curr.RefsNum() != 0 {
 		cellCount++
 		if cellCount > MaxCellChainDepth {
 			return fmt.Errorf("lisp_list chain depth %d exceeds maximum of %d", cellCount, MaxCellChainDepth)
