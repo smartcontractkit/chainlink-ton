@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"slices"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
@@ -596,7 +595,7 @@ type LispList[T tlb.Marshaller] []*T
 // by the parent struct). An empty list produces a single empty cell.
 func (l LispList[T]) ToCell() (*cell.Cell, error) {
 	tail := tvm.EmptyCell
-	for i, v := range slices.Backward(l) {
+	for i, v := range l {
 		if v == nil {
 			return nil, fmt.Errorf("element at index %d is nil", i)
 		}
