@@ -505,14 +505,15 @@ export class OffRampTestSetup {
   createExecuteReport(
     messages: of.Any2TVMRampMessage[],
     sourceChainSelector = this.SOURCE_CHAIN_SELECTOR,
-    offchainTokenData?: Cell[],
+    offchainTokenData?: Cell[][],
   ): of.ExecutionReport {
     // If not explicitly provided, auto-detect: messages with token transfers
-    // require a non-empty offchainTokenData (one entry per token transfer).
+    // require a non-empty per-message list (one entry per token transfer).
     let tokenData = offchainTokenData
     if (tokenData === undefined) {
-      const hasTokens = messages.some((msg) => msg.tokenAmounts && msg.tokenAmounts.length > 0)
-      tokenData = hasTokens ? [Cell.EMPTY] : []
+      tokenData = messages.map((msg) =>
+        msg.tokenAmounts ? msg.tokenAmounts.map(() => Cell.EMPTY) : [],
+      )
     }
     return of.ExecutionReport.create({
       sourceChainSelector,

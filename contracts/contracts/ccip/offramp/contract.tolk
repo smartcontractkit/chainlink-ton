@@ -720,14 +720,15 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    // Validate offchainTokenData shape: it must be non-empty iff the message carries token transfers.
-    // TON supports a single token transfer, so offchainTokenData is either empty (no tokens)
-    // or a lisp_list<cell> with exactly one entry (one token).
+    // Validate offchainTokenData shape: it must have one entry per message.
+    // TON currently supports one message with at most one token transfer.
+    var offchainTokenData = report.offchainTokenData;
+    val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
     val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
     if (hasTokens) {
-        assert(!report.offchainTokenData.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+        assert(!offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
     } else {
-        assert(report.offchainTokenData.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+        assert(offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
     }
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
@@ -893,9 +894,9 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     // TODO: this hides the validation error that caused the message to fail.
     try {
+        val offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
         initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
-        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride, msg.offchainTokenData);
-        // TODO this hides the error
+        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride, offchainTokenDataForTTOfMessage);
     } catch {
         return messageExecutionFailed(initExecuteMsg);
     }
@@ -919,7 +920,8 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 //
 // @throws OffRamp_Error.UnsupportedNumberOfTokens if tokenAmounts is not null and its len != 1.
 // @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch the number of gasOverride.tokenGasOverrides does not match the number of tokenAmounts.
-// @throws OffRamp_Error.UnexpectedTokenData if offchainTokenData is not empty but does not contain exactly one entry for a single token transfer.
+// @throws OffRamp_Error.UnexpectedTokenData if offchainTokenData does not contain exactly one
+// per-message list with exactly one entry for the single token transfer.
 fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
         assert(gasOverride == null || gasOverride.tokenGasOverrides == null, OffRamp_Error.ManualExecutionGasAmountCountMismatch);
@@ -928,12 +930,11 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
 
-    // Extract the single offchain token data blob for this token transfer.
-    // offchainTokenData is a lisp_list<cell> with one entry per token; we support a single token.
+    // Extract the single per-message list and its single token-data blob.
     var tokenData: cell? = null;
-    if (!offchainTokenData.isEmpty()) {
-        tokenData = offchainTokenData.getHead();
-        assert(offchainTokenData.getTail().isEmpty(), OffRamp_Error.UnexpectedTokenData);
+    val userTokenData = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+    if (userTokenData != createEmptyCell()) {
+        tokenData = userTokenData;
     }
 
     val deployables = st.deployables.load();

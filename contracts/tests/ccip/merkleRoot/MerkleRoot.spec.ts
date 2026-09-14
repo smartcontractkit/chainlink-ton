@@ -171,7 +171,7 @@ describe('MerkleRoot - Message Handling', () => {
         message,
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: null,
       })
 
@@ -214,7 +214,7 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: null,
       })
 
@@ -238,7 +238,7 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: null,
       })
 
@@ -262,7 +262,7 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: null,
       })
 
@@ -285,7 +285,7 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
       })
 
@@ -310,7 +310,7 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
       })
 
@@ -348,7 +348,7 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [],
+        offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
       })
 

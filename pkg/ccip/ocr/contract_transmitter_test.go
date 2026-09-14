@@ -41,7 +41,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				GasLimit:     gasLimit,
 				TokenAmounts: nil,
 			},
-			OffChainTokenData: common.LispList[common.SnakeBytes]{},
+			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -89,7 +89,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				GasLimit:     gasLimit,
 				TokenAmounts: nil,
 			},
-			OffChainTokenData: common.LispList[common.SnakeBytes]{},
+			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -146,7 +146,7 @@ func TestGetReportTxInfo(t *testing.T) {
 					},
 				},
 			},
-			OffChainTokenData: common.LispList[common.SnakeBytes]{},
+			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -207,7 +207,7 @@ func TestGetReportTxInfo(t *testing.T) {
 					},
 				},
 			},
-			OffChainTokenData: common.LispList[common.SnakeBytes]{},
+			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}

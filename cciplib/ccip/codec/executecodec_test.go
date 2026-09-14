@@ -200,7 +200,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		executeReport := ocr.ExecuteReport{
 			SourceChainSelector: 5009297550715157269,
 			Message:             rampMessage,
-			OffChainTokenData:   common.LispList[common.SnakeBytes]{},
+			OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:              common.SnakedCell[common.Proof]{},
 			ProofFlagBits:       big.NewInt(0),
 		}

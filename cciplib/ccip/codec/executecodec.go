@@ -156,12 +156,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		TokenAmounts: tokenAmounts,
 	}
 
-	// Encode offchainTokenData: one blob per token transfer.
-	// TON supports a single message with a single token transfer, so we expect
-	// either no offchain data (no tokens) or exactly one blob (one token).
-	// The on-chain representation is a required ref to a lisp_list<cell>.
-	// When there are no tokens, we send an empty list (single empty cell).
-	offchainTokenData := make(common.LispList[common.SnakeBytes], 0)
+	// Encode offchainTokenData as per-message lists of per-token data blobs.
+	// TON supports a single message with a single token transfer, but retains
+	// the external report ABI's two-dimensional shape.
+	offchainTokenData := make(common.LispList[common.LispList[common.SnakeBytes]], 0)
 	if len(chainReport.OffchainTokenData) > 0 {
 		// OffchainTokenData is [][]byte indexed per-message then per-token.
 		// TON supports a single message, so we take the first (and only) message's entry.
@@ -173,11 +171,12 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		if len(msgTokenData) != len(tokenAmounts) {
 			return nil, fmt.Errorf("offchainTokenData count %d does not match tokenAmounts count %d", len(msgTokenData), len(tokenAmounts))
 		}
-		offchainTokenData = make(common.LispList[common.SnakeBytes], 0, len(msgTokenData))
+		perMessageTokenData := make(common.LispList[common.SnakeBytes], 0, len(msgTokenData))
 		for _, blob := range msgTokenData {
 			sb := common.SnakeBytes(blob)
-			offchainTokenData = append(offchainTokenData, &sb)
+			perMessageTokenData = append(perMessageTokenData, &sb)
 		}
+		offchainTokenData = append(offchainTokenData, &perMessageTokenData)
 	}
 
 	proofs := make(common.SnakedCell[common.Proof], 0, len(chainReport.Proofs))
@@ -312,11 +311,14 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		offchainTokenData := make([][][]byte, 0)
 
 		if len(tonReport.OffChainTokenData) > 0 {
-			msgTokenData := make([][]byte, 0, len(tonReport.OffChainTokenData))
-			for _, blob := range tonReport.OffChainTokenData {
-				msgTokenData = append(msgTokenData, []byte(*blob))
+			offchainTokenData = make([][][]byte, 0, len(tonReport.OffChainTokenData))
+			for _, perMessageTokenData := range tonReport.OffChainTokenData {
+				msgTokenData := make([][]byte, 0, len(*perMessageTokenData))
+				for _, blob := range *perMessageTokenData {
+					msgTokenData = append(msgTokenData, []byte(*blob))
+				}
+				offchainTokenData = append(offchainTokenData, msgTokenData)
 			}
-			offchainTokenData = append(offchainTokenData, msgTokenData)
 		}
 
 		executeReport.ChainReports = append(executeReport.ChainReports, ccipocr3.ExecutePluginReportSingleChain{
