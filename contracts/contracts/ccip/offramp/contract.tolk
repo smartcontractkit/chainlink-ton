@@ -121,6 +121,12 @@ fun onInternalMessage(in:InMessage) {
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onBouncedCCIPReceive(msg);
         }
+        // Sender must be router
+        Router_TokenPoolReleaseOrMintFailed => {
+            val st = lazy Storage.load();
+            assertSenderIsTheRouter(st, msg.sourceChainSelector, in.senderAddress);
+            onTokenPoolReleaseOrMintFailed(msg);
+        }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
             val st = lazy Storage.load();
@@ -181,8 +187,8 @@ fun onBouncedMessage(in: InMessageBounced) {
         Router_RouteMessage => {
             onBouncedRouterRouteMessage(originalMessage, in.senderAddress)
         },
-        TokenPool_ReleaseOrMint => {
-            onBouncedTokenPoolReleaseOrMint(originalMessage, rich.exitCode)
+        Router_RelayReleaseOrMint => {
+            onBouncedRouterRelayReleaseOrMint(originalMessage, rich.exitCode)
         },
     }
 }
@@ -240,11 +246,14 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
     });
 }
 
-// Handles bounced TokenPool_ReleaseOrMint messages.
-// This can be the result of the rate limit being exceeded or the pool being misconfigured.
-// Sends a OffRamp_ReleaseOrMintBounced message to the ReceiveExecutor to mark the execution as failed.
-fun onBouncedTokenPoolReleaseOrMint(msg: TokenPool_ReleaseOrMint, exitCode: int32) {
-    mintOrReleaseFailed(msg.replyTo!, msg.queryId, ReleaseOrMintBounced { exitCode });
+// Handles bounced Router_RelayReleaseOrMint messages: the Router rejected the
+// relay (e.g. this OffRamp is no longer registered, or the Router reverted).
+// Sends a OffRamp_ReleaseOrMintBounced message to the ReceiveExecutor to mark
+// the execution as failed. Pool bounces never reach the OffRamp: the Router
+// holds the bounce and proxies failures to the executor as
+// Router_TokenPoolReleaseOrMintFailed.
+fun onBouncedRouterRelayReleaseOrMint(msg: Router_RelayReleaseOrMint, exitCode: int32) {
+    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { exitCode });
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
@@ -465,23 +474,42 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: Relea
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+// Handles a Router-reported release/mint failure (lane cursed, or the token
+// pool bounced the relay). The Router is the pool's only authority, so it
+// reports back to us and we fail the executor through the usual rail.
+fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
+    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { exitCode: msg.exitCode });
+}
+
+// Relays a release/mint request to the token pool through the Router, which is
+// the single access point of every token pool (mirrors EVM `_onlyOffRamp`,
+// where the pool validates the caller against the Router). The Router
+// authorizes this OffRamp for the source chain and enforces its RMN policy
+// before dispatching `TokenPool_ReleaseOrMint` to the pool.
+//
+// The pool replies (`ReleaseOrMintFinished`/`ReleaseOrMintFailure`) directly to
+// `sendExecutor` (carried as `replyTo`). Relay rejections and pool bounces are
+// proxied by the Router as `Router_TokenPoolReleaseOrMintFailed` to the same
+// address, so the executor sees a canonical failure either way.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < MIN_TT_GASLIMIT) {
         return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
-    val releaseOrMintMsg = createMessage({
+    val relayMsg = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: msg.tokenPool,
-        body: TokenPool_ReleaseOrMint {
-            queryId: msg.queryId,
+        dest: getRouterFromSelector(st, msg.execId.getSourceChainSelector()),
+        body: Router_RelayReleaseOrMint {
+            queryID: msg.queryId,
+            sourceChainSelector: msg.execId.getSourceChainSelector(),
+            tokenPool: msg.tokenPool,
             request: msg.request,
             requestedFinalityConfig: msg.requestedFinalityConfig,
             replyTo: sendExecutor,
         }
     });
-    releaseOrMintMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    relayMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.

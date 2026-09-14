@@ -95,7 +95,7 @@ export function runTokenPoolBehaviorTests(
         from: ctx.unauthorized.address,
         to: ctx.pool.address,
         success: false,
-        exitCode: 14910, // TokenPool_Error.Unauthorized
+        exitCode: 51710, // TokenPool_Error.Unauthorized
       })
     })
 
@@ -117,7 +117,7 @@ export function runTokenPoolBehaviorTests(
         from: ctx.offRamp.address,
         to: ctx.pool.address,
         success: false,
-        exitCode: 14910, // TokenPool_Error.Unauthorized
+        exitCode: 51710, // TokenPool_Error.Unauthorized
       })
     })
 

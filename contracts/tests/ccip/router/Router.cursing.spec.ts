@@ -170,7 +170,7 @@ describe('Router.cursing', () => {
     })
   })
 
-  it('rejects ReleaseOrMint through replyTo while the source lane is cursed', async () => {
+  it('rejects ReleaseOrMint back to the OffRamp while the source lane is cursed', async () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
     await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
       queryId: 20n,
@@ -207,7 +207,7 @@ describe('Router.cursing', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: router.address,
-      to: sender.address,
+      to: offRamp.address,
       success: true,
       op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
     })

@@ -196,6 +196,8 @@ fun onInternalMessage(in: InMessage) {
             assert(details.remoteChainSelector == msg.sourceChainSelector, Router_Error.SourceChainSelectorMismatch);
             if (isCursed(st, msg.sourceChainSelector)) {
                 return sendReleaseOrMintRelayFailure(
+                    expectedOffRamp,
+                    msg.sourceChainSelector,
                     msg.replyTo,
                     msg.queryID,
                     msg.tokenPool,
@@ -267,7 +269,15 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
             TokenPool_ReleaseOrMint => {
                 if (richMsg.replyTo != null) {
+                    // Recover the lane from the request the pool was asked to
+                    // process, then route the failure back through its OffRamp.
+                    val request = lazy richMsg.request.load();
+                    val details = lazy request.transfer.details.load();
+                    val st = lazy Storage.load();
+                    val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
                     sendReleaseOrMintRelayFailure(
+                        offRamp,
+                        details.remoteChainSelector,
                         richMsg.replyTo!,
                         richMsg.queryId,
                         in.senderAddress,
@@ -829,8 +839,14 @@ fun sendLockOrBurnRelayFailure(
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Reports an inbound release/mint failure to the OffRamp that owns the source
+/// lane. The OffRamp is the ReceiveExecutor's sole authority, so the Router
+/// never talks to the executor directly (mirrors EVM, where the failure rail
+/// lives on the OffRamp). `replyTo` is the executor the OffRamp must fail.
 fun sendReleaseOrMintRelayFailure(
-    executor: address,
+    offRamp: address,
+    sourceChainSelector: uint64,
+    replyTo: address,
     queryID: uint64,
     tokenPool: address,
     exitCode: int32,
@@ -838,8 +854,14 @@ fun sendReleaseOrMintRelayFailure(
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: executor,
-        body: Router_TokenPoolReleaseOrMintFailed { queryID, tokenPool, exitCode },
+        dest: offRamp,
+        body: Router_TokenPoolReleaseOrMintFailed {
+            queryID,
+            sourceChainSelector,
+            replyTo,
+            tokenPool,
+            exitCode,
+        },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

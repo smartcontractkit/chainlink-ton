@@ -200,10 +200,16 @@ struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
     exitCode: int32;
 }
 
-/// Canonical Router failure returned when a ReleaseOrMint request bounced
-/// before the token pool admitted it.
+/// Canonical Router failure for an inbound release/mint that the Router could
+/// not complete (lane cursed, or the pool bounced the relay).
+///
+/// It is sent to the OffRamp that owns the source lane, which is the only
+/// authority allowed to fail a ReceiveExecutor. The OffRamp authenticates the
+/// Router by `sourceChainSelector` and forwards the failure to `replyTo`.
 struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
     queryID: uint64;
+    sourceChainSelector: uint64;
+    replyTo: address;
     tokenPool: address;
     exitCode: int32;
 }
