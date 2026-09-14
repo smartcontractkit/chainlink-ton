@@ -1919,6 +1919,29 @@ describe('OffRamp - Execute', () => {
       // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
+    it('rejects a Router_TokenPoolReleaseOrMintFailed from a non-router sender', async () => {
+      await setup.setupSourceChainConfig()
+
+      const result = await setup.offRamp.sendRouterTokenPoolReleaseOrMintFailed(
+        setup.deployer.getSender(),
+        toNano('0.5'),
+        {
+          queryID: 1n,
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          replyTo: setup.deployer.address,
+          tokenPool: setup.tokenPool.address,
+          exitCode: 0n,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.deployer.address,
+        to: setup.offRamp.address,
+        success: false,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.Unauthorized'],
+      })
+    })
+
     it('executes a token transfer to a non-contract receiver', async () => {
       const stranger = await blockchain.treasury('stranger')
       const message = setup.createTestMessageWithToken({ receiverAddress: stranger.address })

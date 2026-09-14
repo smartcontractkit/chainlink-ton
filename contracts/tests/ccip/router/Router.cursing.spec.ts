@@ -217,6 +217,75 @@ describe('Router.cursing', () => {
     })
   })
 
+  it('rejects a ReleaseOrMint relay from an unregistered OffRamp', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+
+    const result = await router.sendRouterRelayReleaseOrMint(sender.getSender(), toNano('1'), {
+      queryID: 30n,
+      sourceChainSelector,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_ReleaseOrMintInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 30n,
+          details: rt.TokenPool_TransferDetails.create({
+            originalSender: EVM_ADDRESS,
+            remoteChainSelector: sourceChainSelector,
+            receiver: sender.address,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+        sourcePoolAddress: EVM_ADDRESS,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOffRamp'],
+    })
+  })
+
+  it('rejects a ReleaseOrMint relay whose request selector mismatches the source chain', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+
+    const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
+      queryID: 31n,
+      sourceChainSelector,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_ReleaseOrMintInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 31n,
+          details: rt.TokenPool_TransferDetails.create({
+            // Mismatched remote chain selector.
+            originalSender: EVM_ADDRESS,
+            remoteChainSelector: sourceChainSelector + 1n,
+            receiver: sender.address,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+        sourcePoolAddress: EVM_ADDRESS,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SourceChainSelectorMismatch'],
+    })
+  })
+
   it('router respect global cursing', async () => {
     // Curse all lanes
     {

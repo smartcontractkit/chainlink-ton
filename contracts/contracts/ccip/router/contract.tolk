@@ -269,8 +269,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
             TokenPool_ReleaseOrMint => {
                 if (richMsg.replyTo != null) {
-                    // Recover the lane from the request the pool was asked to
-                    // process, then route the failure back through its OffRamp.
+                    // Recover the lane from the request and route the failure
+                    // back through its OffRamp.
                     val request = lazy richMsg.request.load();
                     val details = lazy request.transfer.details.load();
                     val st = lazy Storage.load();
@@ -839,10 +839,9 @@ fun sendLockOrBurnRelayFailure(
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Reports an inbound release/mint failure to the OffRamp that owns the source
-/// lane. The OffRamp is the ReceiveExecutor's sole authority, so the Router
-/// never talks to the executor directly (mirrors EVM, where the failure rail
-/// lives on the OffRamp). `replyTo` is the executor the OffRamp must fail.
+/// Reports an inbound release/mint failure to the OffRamp that owns the lane.
+/// The OffRamp is the executor's sole authority (mirrors EVM), so the Router
+/// never talks to the executor directly. `replyTo` is the executor to fail.
 fun sendReleaseOrMintRelayFailure(
     offRamp: address,
     sourceChainSelector: uint64,

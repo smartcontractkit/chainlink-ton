@@ -246,12 +246,9 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
     });
 }
 
-// Handles bounced Router_RelayReleaseOrMint messages: the Router rejected the
-// relay (e.g. this OffRamp is no longer registered, or the Router reverted).
-// Sends a OffRamp_ReleaseOrMintBounced message to the ReceiveExecutor to mark
-// the execution as failed. Pool bounces never reach the OffRamp: the Router
-// holds the bounce and proxies failures to the executor as
-// Router_TokenPoolReleaseOrMintFailed.
+// Handles a bounced Router_RelayReleaseOrMint: the Router rejected the relay
+// (e.g. this OffRamp is no longer registered, or it reverted). Fails the
+// executor through the usual rail.
 fun onBouncedRouterRelayReleaseOrMint(msg: Router_RelayReleaseOrMint, exitCode: int32) {
     mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { exitCode });
 }
@@ -474,23 +471,16 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: Relea
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-// Handles a Router-reported release/mint failure (lane cursed, or the token
-// pool bounced the relay). The Router is the pool's only authority, so it
-// reports back to us and we fail the executor through the usual rail.
+// Fails the executor after the Router reported a release/mint failure (lane
+// cursed, or the pool bounced the relay).
 fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
     mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { exitCode: msg.exitCode });
 }
 
-// Relays a release/mint request to the token pool through the Router, which is
-// the single access point of every token pool (mirrors EVM `_onlyOffRamp`,
-// where the pool validates the caller against the Router). The Router
-// authorizes this OffRamp for the source chain and enforces its RMN policy
-// before dispatching `TokenPool_ReleaseOrMint` to the pool.
-//
-// The pool replies (`ReleaseOrMintFinished`/`ReleaseOrMintFailure`) directly to
-// `sendExecutor` (carried as `replyTo`). Relay rejections and pool bounces are
-// proxied by the Router as `Router_TokenPoolReleaseOrMintFailed` to the same
-// address, so the executor sees a canonical failure either way.
+// Relays a release/mint request through the Router, the single access point of
+// every pool (mirrors EVM `_onlyOffRamp`). Pool replies go straight to
+// `sendExecutor`; relay rejections and pool bounces come back to us as
+// Router_TokenPoolReleaseOrMintFailed.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < MIN_TT_GASLIMIT) {
         return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
