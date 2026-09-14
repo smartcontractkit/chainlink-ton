@@ -245,7 +245,10 @@ func TestStorage(t *testing.T) {
 		Ownable: ownable2step.Storage{
 			Owner: dummyAddr,
 		},
-		ChainSelector: 42,
+		StaticConfig: StaticConfig{
+			ChainSelector:      42,
+			TokenAdminRegistry: dummyAddr,
+		},
 		Config: DynamicConfig{
 			FeeAggregator:  dummyAddr,
 			FeeQuoter:      dummyAddr,
@@ -253,9 +256,6 @@ func TestStorage(t *testing.T) {
 			Reserve:        tlb.MustFromTON("0.05"),
 		},
 		DestChainConfigs: destConfigMap,
-		DeployablesConfig: DeployablesConfig{
-			TokenAdminRegistry: dummyAddr,
-		},
 	}
 
 	c, err = tlb.ToCell(s)
@@ -265,9 +265,9 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s.ID, decoded.ID)
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
-	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
+	require.Equal(t, s.StaticConfig.ChainSelector, decoded.StaticConfig.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
-	require.Equal(t, dummyAddr, decoded.DeployablesConfig.TokenAdminRegistry)
+	require.Equal(t, dummyAddr, decoded.StaticConfig.TokenAdminRegistry)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)

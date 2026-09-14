@@ -93,6 +93,14 @@ struct Config {
     // messageInterceptor
 }
 
+// Kept in a reference because three full-width values would overflow the
+// OffRamp root data cell alongside ownership and mutable state.
+struct OffRamp_StaticConfig {
+    rmnRouter: address;
+    tokenAdminRegistry: address;
+    chainSelector: uint64;
+}
+
 struct SourceChainConfig {
     router: address;
     isEnabled: bool;
@@ -184,11 +192,6 @@ struct Any2TVMTokenTransfer {
     amount: uint256;
 }
 
-struct OffRamp_Deployables {
-    rmnRouter: address;
-    // Separate TokenAdminRegistry root used to derive deterministic entries.
-    tokenAdminRegistry: address;
-}
 
 
 const MERKLE_ROOT_ID_SIZE = 256;

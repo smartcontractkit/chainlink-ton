@@ -75,19 +75,19 @@ type RouteMessageBounced struct {
 type Storage struct {
 	ID                                      uint32               `tlb:"## 32"`
 	Ownable                                 ownable2step.Storage `tlb:"."`
-	Deployables                             Deployables          `tlb:"^"`
+	StaticConfig                            StaticConfig         `tlb:"^"`
 	FeeQuoter                               *address.Address     `tlb:"addr"`
 	OCR3Base                                OCR3Base             `tlb:"^"`
 	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
-	ChainSelector                           uint64               `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
 	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
 	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
 }
 
-type Deployables struct {
+type StaticConfig struct {
 	RMNRouter          *address.Address `tlb:"addr"`
 	TokenAdminRegistry *address.Address `tlb:"addr"`
+	ChainSelector      uint64           `tlb:"## 64"`
 }
 
 // ConfigInfo represents the configuration information for OCR3

@@ -61,9 +61,10 @@ export async function deployOffRampContract(
     ownable: of.Ownable2Step.create({
       owner: owner.address,
     }),
-    deployables: of.OffRamp_Deployables.create({
+    staticConfig: of.OffRamp_StaticConfig.create({
       rmnRouter: owner.address, // used to determine who can send RMN updates
       tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
+      chainSelector: ChainSelectors.testnet.ton,
     }),
     feeQuoter: opts?.feeQuoter ?? owner.address, // placeholder
     ocr3Base: of.OCR3Base.create({
@@ -74,7 +75,6 @@ export async function deployOffRampContract(
     cursedSubjects: of.CursedSubjects.create({
       data: new Set(),
     }),
-    chainSelector: ChainSelectors.testnet.ton,
     permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
     sourceChainConfigs: new Map(),
     latestPriceSequenceNumber: 0n,

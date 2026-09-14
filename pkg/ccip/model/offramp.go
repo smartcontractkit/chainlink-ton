@@ -21,19 +21,19 @@ import (
 type OffRampStorage struct {
 	ID                                      uint32                       `json:"id"`
 	Ownable                                 Ownable2Step                 `json:"ownable"`
-	Deployables                             Deployables                  `json:"deployables"`
+	StaticConfig                            StaticConfig                 `json:"staticConfig"`
 	FeeQuoter                               *address.Address             `json:"feeQuoter"`
 	OCR3Base                                OCR3Base                     `json:"ocr3Base"`
 	CursedSubjects                          []*big.Int                   `json:"cursedSubjects"`
-	ChainSelector                           uint64                       `json:"chainSelector"`
 	PermissionlessExecutionThresholdSeconds uint32                       `json:"PermissionlessExecutionThresholdSeconds"`
 	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
 	LatestPriceSequenceNumber               uint64                       `json:"LatestPriceSequenceNumber"`
 }
 
-type Deployables struct {
+type StaticConfig struct {
 	RMNRouter          *address.Address `json:"rmnRouter"`
 	TokenAdminRegistry *address.Address `json:"tokenAdminRegistry"`
+	ChainSelector      uint64           `json:"chainSelector"`
 }
 
 type OCR3Base struct {
@@ -107,7 +107,7 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.RMNRouter = router
+	b.storage.StaticConfig.RMNRouter = router
 	return b
 }
 
@@ -115,7 +115,7 @@ func (b *OffRampStorageBuilder) WithTokenAdminRegistry(tokenAdminRegistry *addre
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.TokenAdminRegistry = tokenAdminRegistry
+	b.storage.StaticConfig.TokenAdminRegistry = tokenAdminRegistry
 	return b
 }
 
@@ -156,7 +156,7 @@ func (b *OffRampStorageBuilder) WithChainSelector(selector uint64) *OffRampStora
 	if b.err != nil {
 		return b
 	}
-	b.storage.ChainSelector = selector
+	b.storage.StaticConfig.ChainSelector = selector
 	return b
 }
 
@@ -202,13 +202,12 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 			raw.Ownable.PendingOwner,
 		).
 		WithFeeQuoter(raw.FeeQuoter).
-		WithChainSelector(raw.ChainSelector).
+		WithChainSelector(raw.StaticConfig.ChainSelector).
 		WithPermissionlessExecutionThresholdSeconds(raw.PermissionlessExecutionThresholdSeconds).
 		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
 
-	// Deployables
-	b = b.WithRMNRouter(raw.Deployables.RMNRouter).
-		WithTokenAdminRegistry(raw.Deployables.TokenAdminRegistry)
+	b = b.WithRMNRouter(raw.StaticConfig.RMNRouter).
+		WithTokenAdminRegistry(raw.StaticConfig.TokenAdminRegistry)
 
 	// OCR3Base
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
@@ -459,12 +458,12 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			PendingOwner: s.Ownable.PendingOwner,
 		},
 		FeeQuoter:                               s.FeeQuoter,
-		ChainSelector:                           s.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: s.PermissionlessExecutionThresholdSeconds,
 		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
-		Deployables: offramp.Deployables{
-			RMNRouter:          s.Deployables.RMNRouter,
-			TokenAdminRegistry: s.Deployables.TokenAdminRegistry,
+		StaticConfig: offramp.StaticConfig{
+			RMNRouter:          s.StaticConfig.RMNRouter,
+			TokenAdminRegistry: s.StaticConfig.TokenAdminRegistry,
+			ChainSelector:      s.StaticConfig.ChainSelector,
 		},
 		OCR3Base: offramp.OCR3Base{
 			ChainID: chainIDU8,

@@ -284,7 +284,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         }
     }
     val config = st.config.load();
-    val deployables = st.deployablesConfig.load();
+    val staticConfig = st.staticConfig.load();
     var tokenRegistry: address? = null;
     val tokenAmounts = payload.msg.load().tokenAmounts;
     if (!tokenAmounts.empty()) {
@@ -292,7 +292,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         tokenRegistry = TokenAdminRegistryEntry.deriveAddress(
             deployableCode(),
             token,
-            deployables.getTokenAdminRegistry(),
+            staticConfig.tokenAdminRegistry,
         ).calculateAddress();
     }
     val executorId = generateRandomSendExecutorId();
@@ -390,7 +390,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     var rampMessage = TVM2AnyRampMessage {
         header: RampMessageHeader {
             messageId: 0, // populated after hashing
-            sourceChainSelector: st.chainSelector,
+            sourceChainSelector: st.staticConfig.load().chainSelector,
             destChainSelector: ccipsend.destChainSelector,
             sequenceNumber: destChainConfig.sequenceNumber,
             // Only bump nonce for messages that specify allowOutOfOrderExecution == false. Otherwise, we may block ordered
@@ -415,7 +415,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = TVM2AnyRampMessageV1Metadata {
-        sourceChainSelector: st.chainSelector,
+        sourceChainSelector: st.staticConfig.load().chainSelector,
         destChainSelector: ccipsend.destChainSelector,
         onRamp: contract.getAddress(),
     }.toCell().hash();
@@ -478,7 +478,7 @@ fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) 
     emit(
         CONFIG_SET_TOPIC,
         ConfigSet {
-            chainSelector: st.chainSelector,
+            chainSelector: st.staticConfig.load().chainSelector,
             dynamicConfig: msg.config,
         }
     )
@@ -589,10 +589,9 @@ get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     return config.sequenceNumber + 1;
 }
 
-// Note: getStaticConfig name is kept to match EVM implementation, but only chain selector is part of that original static config
-get fun staticConfig(): uint64 {
+get fun staticConfig(): OnRamp_StaticConfig {
     val st = lazy OnRamp_Storage.load();
-    return st.chainSelector;
+    return st.staticConfig.load();
 }
 
 get fun dynamicConfig(): OnRamp_DynamicConfig {

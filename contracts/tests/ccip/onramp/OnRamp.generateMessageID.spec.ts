@@ -209,9 +209,13 @@ describe('OnRamp - generate message id', () => {
     // On-chain calculation via the real Tolk implementation
     const onChainMessageId = await msgHasher.getTVM2AnyRampMessageID(
       tmh.TVM2AnyRampMessage.create({
-        header: expectedTVM2AnyRampMessage.header,
+        header: tmh.RampMessageHeader.fromSlice(
+          on.RampMessageHeader.toCell(expectedTVM2AnyRampMessage.header).beginParse(),
+        ),
         sender: expectedTVM2AnyRampMessage.sender,
-        body: expectedTVM2AnyRampMessage.body,
+        body: tmh.TVM2AnyRampMessageBody.fromSlice(
+          on.TVM2AnyRampMessageBody.toCell(expectedTVM2AnyRampMessage.body).beginParse(),
+        ),
         feeValueJuels: expectedTVM2AnyRampMessage.feeValueJuels,
       }),
       metadataHash,

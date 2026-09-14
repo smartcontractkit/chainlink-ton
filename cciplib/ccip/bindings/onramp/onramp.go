@@ -95,16 +95,11 @@ type SuiExtraArgsV1 struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
-	ID                uint32               `tlb:"## 32"`
-	Ownable           ownable2step.Storage `tlb:"."`
-	ChainSelector     uint64               `tlb:"## 64"`
-	Config            DynamicConfig        `tlb:"^"`
-	DestChainConfigs  *cell.Dictionary     `tlb:"dict 64"`
-	DeployablesConfig DeployablesConfig    `tlb:"^"`
-}
-
-type DeployablesConfig struct {
-	TokenAdminRegistry *address.Address `tlb:"addr"`
+	ID               uint32               `tlb:"## 32"`
+	Ownable          ownable2step.Storage `tlb:"."`
+	StaticConfig     StaticConfig         `tlb:"^"`
+	Config           DynamicConfig        `tlb:"^"`
+	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
 }
 
 // Methods
@@ -243,7 +238,8 @@ func (c *DynamicConfig) GetterMethodName() string {
 }
 
 type StaticConfig struct {
-	ChainSelector uint64 `tlb:"## 64"`
+	ChainSelector      uint64           `tlb:"## 64"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
 }
 
 // Deprecated: Use GetStaticConfig getter instead.

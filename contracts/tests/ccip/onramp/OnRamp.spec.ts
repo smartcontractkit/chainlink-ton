@@ -159,9 +159,9 @@ describe('OnRamp - Unit Tests', () => {
     expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
   })
 
-  it('getStaticConfig should return chain selector', async () => {
+  it('getStaticConfig should return static configuration', async () => {
     const result = await onramp.getStaticConfig()
-    expect(result).toBe(ChainSelectors.testnet.ton)
+    expect(result.chainSelector).toBe(ChainSelectors.testnet.ton)
   })
 
   it('reports the inlined send executor code and hash', async () => {

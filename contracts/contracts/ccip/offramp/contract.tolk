@@ -100,7 +100,7 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
-            assert(in.senderAddress == st.deployables.load().rmnRouter, OffRamp_Error.Unauthorized);
+            assert(in.senderAddress == st.staticConfig.load().rmnRouter, OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
@@ -707,14 +707,14 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
     val metadataHash = Any2TVMMessageV1Metadata {
         sourceChainSelector: report.sourceChainSelector,
-        destChainSelector: st.chainSelector,
+        destChainSelector: st.staticConfig.load().chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
     // the st.chainSelector as the destChainSelector.
-    assert(message.header.destChainSelector == st.chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
+    assert(message.header.destChainSelector == st.staticConfig.load().chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
     // been committed for the report source chain selector this will be caught by the root verification.
@@ -892,11 +892,11 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
 
-    val deployables = st.deployables.load();
+    val staticConfig = st.staticConfig.load();
     val registryAddress = TokenAdminRegistryEntry.deriveAddress(
         deployerCode(),
         tokenTransfer.token,
-        deployables.tokenAdminRegistry,
+        staticConfig.tokenAdminRegistry,
     ).calculateAddress();
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
@@ -1041,8 +1041,8 @@ get fun ocr3Config(): OCR3Base {
 get fun config(): Config {
     val st = lazy Storage.load();
     return {
-        chainSelector: st.chainSelector,
-        tokenAdminRegistry: st.deployables.load().tokenAdminRegistry,
+        chainSelector: st.staticConfig.load().chainSelector,
+        tokenAdminRegistry: st.staticConfig.load().tokenAdminRegistry,
         feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
     }
@@ -1078,8 +1078,7 @@ get fun deployableHashes() : DeployableHashes {
 
 get fun rmnRouter(): address {
     val st = lazy Storage.load();
-    val deployables = st.deployables.load();
-    return deployables.rmnRouter;
+    return st.staticConfig.load().rmnRouter;
 }
 
 /// Gets the current owner of the contract.

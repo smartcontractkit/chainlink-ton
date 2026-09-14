@@ -8,9 +8,10 @@ import { randomAddress } from '@ton/test-utils'
 import { ChainSelectors } from '../../utils/Selectors'
 
 type OnRampOverrides = Partial<
-  Omit<or.OnRamp_Storage, '$' | 'config' | 'deployablesConfig' | 'ownable'>
+  Omit<or.OnRamp_Storage, '$' | 'config' | 'staticConfig' | 'ownable'>
 > & {
   config?: Partial<Omit<or.OnRamp_DynamicConfig, '$'>>
+  staticConfig?: Partial<Omit<or.OnRamp_StaticConfig, '$'>>
   tokenAdminRegistry?: Address
   ownable?: Partial<Omit<or.Ownable2Step, '$'>>
 }
@@ -40,7 +41,10 @@ export async function deployOnRampContractW(
       owner: owner.address,
       pendingOwner: null,
     }),
-    chainSelector: ChainSelectors.testnet.ton,
+    staticConfig: or.OnRamp_StaticConfig.create({
+      chainSelector: ChainSelectors.testnet.ton,
+      tokenAdminRegistry: randomAddress(),
+    }),
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter: randomAddress(),
       feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
@@ -48,9 +52,6 @@ export async function deployOnRampContractW(
       reserve: toNano('0.05'),
     }),
     destChainConfigs: new Map(),
-    deployablesConfig: or.OnRamp_DeployablesConfig.create({
-      tokenAdminRegistry: randomAddress(),
-    }),
   }
 
   const config = or.OnRamp_DynamicConfig.create({
@@ -66,10 +67,11 @@ export async function deployOnRampContractW(
       ...(opt.overrides?.ownable ?? {}),
     }),
     config,
-    deployablesConfig: or.OnRamp_DeployablesConfig.create({
-      ...defaults.deployablesConfig,
+    staticConfig: or.OnRamp_StaticConfig.create({
+      ...defaults.staticConfig,
+      ...(opt.overrides?.staticConfig ?? {}),
       tokenAdminRegistry:
-        opt.overrides?.tokenAdminRegistry ?? defaults.deployablesConfig.tokenAdminRegistry,
+        opt.overrides?.tokenAdminRegistry ?? defaults.staticConfig.tokenAdminRegistry,
     }),
   })
   const onramp = blockchain.openContract(

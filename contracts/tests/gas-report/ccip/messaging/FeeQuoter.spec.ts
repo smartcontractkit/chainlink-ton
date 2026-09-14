@@ -124,7 +124,10 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       ownable: or.Ownable2Step.create({
         owner: deployer.address,
       }),
-      chainSelector: ChainSelectors.testnet.ton,
+      staticConfig: or.OnRamp_StaticConfig.create({
+        chainSelector: ChainSelectors.testnet.ton,
+        tokenAdminRegistry: deployer.address,
+      }),
       config: or.OnRamp_DynamicConfig.create({
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
@@ -132,9 +135,6 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         reserve: toNano('1'),
       }),
       destChainConfigs: new Map(),
-      deployablesConfig: or.OnRamp_DeployablesConfig.create({
-        tokenAdminRegistry: deployer.address,
-      }),
     })
     onRamp = blockchain.openContract(
       or.OnRamp.fromStorage(onRampData, {
