@@ -246,8 +246,11 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs) {
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
     val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
 
-    val it = (msg.data as SnakedCell<uint8>).iter();
-    val (msgDataLen, errorCode) = it.countBytesSafe();
+    // Validate that `data` is a canonical byte snake. Aggregate byte counting is
+    // not enough: branched, partially-filled or exotic (library-reference) cells
+    // can pass an alignment check while the offchain verifiers reconstruct
+    // different bytes, permanently blocking commitment for the lane.
+    val (msgDataLen, errorCode) = msg.data.canonicalByteSnakeSafe();
     match (errorCode) {
         0 => { /* continue */ }
         8 => {
@@ -356,8 +359,12 @@ fun _dataAvailabilityCost(
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): (ExtraArgs, int) {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
-    var tokenAmounts = message.tokenAmounts.iter();
-    assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
+    // Token transfers are unsupported at this version: require a plain ordinary
+    // (non-exotic) empty cell. `iter().empty()` would resolve a library reference
+    // and accept it, yet the emitted cell would still be the 264-bit descriptor
+    // (type tag + hash) that offchain decoders cannot read.
+    val (tokenAmountsSlice, tokenAmountsExotic) = message.tokenAmounts.beginParseSpecial();
+    assert (!tokenAmountsExotic && tokenAmountsSlice.isEmpty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
@@ -373,9 +380,14 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
-        // objectIds are 32 bytes long
-        val objectIds = suiExtraArgs.receiverObjectIds.iter();
-        val receiverObjectIdsLength = objectIds.size(SUI_ACCOUNT_BYTE_SIZE);
+        // objectIds are 32 bytes long; require a canonical snake so that every
+        // element is complete within a cell (no element straddles a cell boundary)
+        // and no exotic/branched cells are present. Aggregate counting would let a
+        // truncated element pass and later fail offchain decoding.
+        val receiverObjectIdsLength = validateExtraArgsCollection(
+            suiExtraArgs.receiverObjectIds,
+            SUI_ACCOUNT_BYTE_SIZE,
+        );
         // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
         var suiExpandedDataLength = msgDataLen;
@@ -402,9 +414,14 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         val gasLimit = svmExtraArgs.computeUnits;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
-        // accounts are 32 bytes long
-        val accounts = svmExtraArgs.accounts.iter();
-        val accountsLength = accounts.size(SVM_ACCOUNT_BYTE_SIZE);
+        // accounts are 32 bytes long; require a canonical snake so that every
+        // element is complete within a cell (no element straddles a cell boundary)
+        // and no exotic/branched cells are present. Aggregate counting would let a
+        // truncated element pass and later fail offchain decoding.
+        val accountsLength = validateExtraArgsCollection(
+            svmExtraArgs.accounts,
+            SVM_ACCOUNT_BYTE_SIZE,
+        );
         // The max payload size for SVM is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
         var svmExpandedDataLength = msgDataLen;
@@ -435,7 +452,14 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    return extra;
+    // Resolve the optional gas: a tagged EVMExtraArgsV2 that omits the field must
+    // not be re-encoded with a null value, otherwise offchain verifiers see an
+    // absent (typed-nil) gas and cannot hash the message. Mirror the semantics
+    // used for an empty extra-args cell and charge the default gas.
+    return GenericExtraArgsV2 {
+        gasLimit: extra.gasLimit != null ? extra.gasLimit : defaultTxGasLimit as uint256,
+        allowOutOfOrderExecution: extra.allowOutOfOrderExecution,
+    };
 }
 
 fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
@@ -466,6 +490,23 @@ fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
+}
+
+fun validateExtraArgsCollection(collection: cell, elemBytes: int): int {
+    val (count, errorCode) = collection.canonicalFixedWidthSnakeSafe(elemBytes);
+    match (errorCode) {
+        0 => { /* continue */ }
+        8 => {
+            throw FeeQuoter_Error.MsgDataTooLarge;
+        }
+        Utils_Error.InvalidData as int => {
+            throw FeeQuoter_Error.InvalidExtraArgsData;
+        }
+        else => {
+            throw errorCode;
+        }
+    }
+    return count;
 }
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {

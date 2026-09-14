@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import "@stdlib/lisp-lists"
+import "@stdlib/exotic-cells"
 import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
@@ -162,6 +163,105 @@ fun Iterator<T>.countBytesSafe(self): (int, int) {
 @inline
 fun Iterator<T>.size(self, elemSize: int): int {
     return self.countBytes() / elemSize
+}
+
+/// Maximum number of cells visited when validating a user-supplied snake.
+/// Mirrors the bound used by `Iterator.countBytes` and by the offchain decoders.
+const SNAKE_MAX_CELLS = 128;
+
+/// Maximum number of data bytes a single TON cell can hold (1023 bits).
+const SNAKE_CELL_MAX_BYTES = 127;
+
+/// Validates that `self` is a canonical byte snake, i.e. that reading it with TVM
+/// `ldref`/`cds` semantics (a single continuation chain, whole bytes per cell)
+/// yields exactly the byte string the offchain verifiers reconstruct. Rejects:
+///  - exotic cells, notably library references whose descriptor (8-bit type tag +
+///    256-bit hash) is not user content, and pruned/merkle cells;
+///  - branched non-terminal cells (more than one continuation reference), where
+///    the offchain decoder follows only the first branch;
+///  - non-terminal cells that are not byte-full, because the offchain decoder pads
+///    each cell's partial trailing byte and would reconstruct different bytes.
+/// Returns the total number of bytes in the snake.
+fun cell.assertCanonicalByteSnake(self): int {
+    var curr: cell? = self;
+    var totalBytes = 0;
+    var cells = 0;
+    while (curr != null) {
+        cells += 1;
+        // Exit code 8 matches the `CDATASIZE` cell-overflow signal used by
+        // `Iterator.countBytes`, preserving the caller's error-code mapping.
+        assert (cells <= SNAKE_MAX_CELLS, 8);
+
+        var (s, isExotic) = curr!.beginParseSpecial();
+        assert (!isExotic, Utils_Error.InvalidData);
+
+        val bits = s.remainingBitsCount();
+        val refs = s.remainingRefsCount();
+        if (refs == 0) {
+            assert (bits % 8 == 0, Utils_Error.InvalidData);
+        } else {
+            assert (refs == 1, Utils_Error.InvalidData);
+            assert (bits == SNAKE_CELL_MAX_BYTES * 8, Utils_Error.InvalidData);
+        }
+
+        totalBytes += bits / 8;
+        curr = refs == 1 ? s.loadRef() : null;
+    }
+    return totalBytes;
+}
+
+/// Same invariants as `assertCanonicalByteSnake`, specialised for a snake of
+/// fixed-width elements (e.g. 32-byte accounts): every cell must hold only whole
+/// elements so that none straddles a cell boundary. This matches the offchain
+/// decoder, which loads whole elements from the current cell before following the
+/// continuation. Returns the number of complete elements.
+@inline
+fun cell.assertCanonicalFixedWidthSnake(self, elemBytes: int): int {
+    val elemBits = elemBytes * 8;
+    var curr: cell? = self;
+    var totalElements = 0;
+    var cells = 0;
+    while (curr != null) {
+        cells += 1;
+        assert (cells <= SNAKE_MAX_CELLS, 8);
+
+        var (s, isExotic) = curr!.beginParseSpecial();
+        assert (!isExotic, Utils_Error.InvalidData);
+
+        val bits = s.remainingBitsCount();
+        val refs = s.remainingRefsCount();
+        assert (bits % elemBits == 0, Utils_Error.InvalidData);
+        if (refs != 0) {
+            assert (refs == 1, Utils_Error.InvalidData);
+        }
+
+        totalElements += bits / elemBits;
+        curr = refs == 1 ? s.loadRef() : null;
+    }
+    return totalElements;
+}
+
+/// Same as `Iterator.countBytesSafe`: returns (0, errorCode) instead of throwing.
+///
+/// ExitCodes:
+/// - 0: no error
+/// - 8 (cell overflow): exceeded `SNAKE_MAX_CELLS`
+/// - Utils_Error.InvalidData: not a canonical byte snake
+fun cell.canonicalByteSnakeSafe(self): (int, int) {
+    try {
+        return (self.assertCanonicalByteSnake(), 0);
+    } catch (e) {
+        return (0, e);
+    }
+}
+
+/// Same as `Iterator.countBytesSafe`: returns (0, errorCode) instead of throwing.
+fun cell.canonicalFixedWidthSnakeSafe(self, elemBytes: int): (int, int) {
+    try {
+        return (self.assertCanonicalFixedWidthSnake(elemBytes), 0);
+    } catch (e) {
+        return (0, e);
+    }
 }
 
 // https://github.com/ton-org/ton-core/blob/213fed91d6f63d978c27588509e15ab53c8bafdb/src/dict/Dictionary.ts#L425
