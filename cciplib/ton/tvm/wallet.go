@@ -22,7 +22,7 @@ const DefaultTonHlWalletMnemonic = "twenty unfair stay entry during please water
 
 func NewRandomTestWallet(client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) (*wallet.Wallet, error) {
 	seed := wallet.NewSeed()
-	rw, err := wallet.FromSeed(client, seed, version)
+	rw, err := wallet.FromSeedWithOptions(client, seed, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
 	}
@@ -40,7 +40,7 @@ func NewRandomV5R1TestWallet(api wallet.TonAPI, networkGlobalID int32) (*wallet.
 		Workchain:       0,
 	}
 
-	return wallet.FromSeed(api, wallet.NewSeed(), v5r1Config)
+	return wallet.FromSeedWithOptions(api, wallet.NewSeed(), v5r1Config)
 }
 
 // NewV5R1Wallet creates a new V5R1 wallet by using the provided private key.
@@ -55,7 +55,7 @@ func NewV5R1Wallet(api wallet.TonAPI, networkGlobalID int32, privateKey ed25519.
 
 func NewRandomHighloadV3TestWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	seed := wallet.NewSeed()
-	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
+	w, err := wallet.FromSeedWithOptions(client, seed, wallet.ConfigHighloadV3{
 		MessageTTL: 60 * 5,
 		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
 			// Due to specific of externals emulation on liteserver,
@@ -80,7 +80,7 @@ func NewRandomHighloadV3TestWallet(client ton.APIClientWrapped) (*wallet.Wallet,
 // https://docs.ton.org/v3/documentation/smart-contracts/contracts-specs/highload-wallet#highload-wallet-v2
 func MyLocalTONWalletDefault(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
-	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(DefaultTonHlWalletMnemonic), walletVersion)
+	rawHlWallet, err := wallet.FromSeedWithOptions(client, strings.Fields(DefaultTonHlWalletMnemonic), walletVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
 	}

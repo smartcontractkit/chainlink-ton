@@ -366,7 +366,7 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 		}
 		for s.BitsLeft() > 0 {
 			var v T
-			if err := tlb.LoadFromCell(&v, s); err != nil {
+			if err = tlb.LoadFromCell(&v, s); err != nil {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
@@ -466,7 +466,8 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
 		}
 		for s.BitsLeft() > 0 {
-			part, err := s.LoadSlice(s.BitsLeft())
+			var part []byte
+			part, err = s.LoadSlice(s.BitsLeft())
 			if err != nil {
 				return nil, fmt.Errorf("failed to load bytes: %w", err)
 			}
