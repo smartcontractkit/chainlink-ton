@@ -600,7 +600,56 @@ export class FeeQuoterSetup {
         msg: { msg: message, context: beginCell().asSlice() },
       },
     )
+    this.assertValidationErrorTransaction(result, expectedError)
+  }
 
+  /**
+   * Same as `assertGetFeeValidationError`, but sends a raw (already serialized)
+   * body so malformed on-chain inputs — exotic (library-reference) cells,
+   * branched snakes, etc. — can be exercised. The failure reply is decoded with a
+   * raw body parse because the echoed message may itself contain cells (exotic
+   * token amounts) that the typed body loader cannot parse.
+   */
+  async assertGetFeeValidationErrorRaw(body: Cell, expectedError: number): Promise<void> {
+    const result = await this.bind.feeQuoter.sendGetValidatedFeeRaw(
+      this.acc.externalCaller.getSender(),
+      { value: toNano('1'), body },
+    )
+
+    let actualError: bigint | undefined
+    let sawValidationFailed = false
+    for (const tx of result.transactions) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const info = (tx as any).inMessage
+      if (!info?.body) continue
+      let parsed
+      try {
+        parsed = info.body.beginParse()
+      } catch {
+        continue
+      }
+      if (parsed.remainingBits < 32) continue
+      if (parsed.loadUint(32) === sx.opcodes.in.messageValidationFailed) {
+        sawValidationFailed = true
+        actualError = parsed.loadUintBig(256)
+        break
+      }
+    }
+
+    if (!sawValidationFailed) {
+      throw new Error('Expected messageValidationFailed reply, but none was found')
+    }
+    if (actualError !== BigInt(expectedError)) {
+      throw new Error(
+        `Expected error code ${expectedError} (${printErrorName(expectedError)}), but got ${actualError} (${printErrorName(Number(actualError))})`,
+      )
+    }
+  }
+
+  private assertValidationErrorTransaction(
+    result: Awaited<ReturnType<FeeQuoterFeeSetup['bind']['feeQuoter']['sendGetValidatedFee']>>,
+    expectedError: number,
+  ): void {
     // It should return failure due to overflow
     expect(result.transactions).toHaveTransaction({
       from: this.acc.externalCaller.getSender().address,

@@ -782,6 +782,26 @@ export class FeeQuoter
     })
   }
 
+  /**
+   * Sends a `GetValidatedFee` request with a raw (already serialized) body.
+   * Needed to exercise malformed on-chain inputs — exotic (library-reference)
+   * cells, branched snakes, etc. — that the typed builder cannot express.
+   */
+  async sendGetValidatedFeeRaw(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      body: Cell
+    },
+  ) {
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: opts.body,
+    })
+  }
+
   // Withdrawable methods
   async sendWithdraw(
     provider: ContractProvider,
