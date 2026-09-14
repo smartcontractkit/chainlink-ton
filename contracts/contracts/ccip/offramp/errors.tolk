@@ -22,4 +22,5 @@ enum OffRamp_Error {
     MerkleRootCannotBeZero
     UnsupportedNumberOfTokens
     ManualExecutionGasAmountCountMismatch
+    InvalidManualExecutionGasLimit
 }

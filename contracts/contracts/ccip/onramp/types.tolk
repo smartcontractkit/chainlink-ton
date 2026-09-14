@@ -29,7 +29,7 @@ struct OnRampUpdateDestChainConfig {
     allowlistEnabled: bool;
 }
 
-// Deployment addresses used to derive deterministic child contracts.
+// Deployment code and addresses used to derive deterministic child contracts.
 // This remains in a reference so OnRamp's root data cell has room for
 // ownership state changes such as a pending owner.
 struct OnRamp_DeployablesConfig {

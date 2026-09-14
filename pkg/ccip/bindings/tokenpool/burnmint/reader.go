@@ -37,6 +37,7 @@ var (
 	GetMirroredPolicy          = tokenpool.GetMirroredPolicy
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
+	GetCCVAmount               = tokenpool.GetCCVAmount
 )
 
 // --- Re-export argument types for convenience ---
@@ -49,6 +50,9 @@ type GetCurrentRateLimiterStateArgs = tokenpool.GetCurrentRateLimiterStateArgs
 
 // GetFeeArgs holds the arguments for the getFee getter.
 type GetFeeArgs = tokenpool.GetFeeArgs
+
+// GetCCVAmountArgs holds the arguments for the getCCVAmount getter.
+type GetCCVAmountArgs = tokenpool.GetCCVAmountArgs
 
 // GetTokenTransferFeeConfigResult holds the optional fee config result.
 type GetTokenTransferFeeConfigResult = tokenpool.GetTokenTransferFeeConfigResult

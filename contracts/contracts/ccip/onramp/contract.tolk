@@ -258,7 +258,6 @@ fun executorCode(): cell {
     return ccipSendExecutorCompiledCode();
 }
 
-@inline
 fun executorAutoDeployAddress(executorID: CCIPSendExecutor_ID): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {

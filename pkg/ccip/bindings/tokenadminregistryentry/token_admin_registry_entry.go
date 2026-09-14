@@ -13,7 +13,6 @@ import (
 
 var (
 	OpcodeGetTokenInfo = tvm.MustExtractMagic(reflect.TypeFor[GetTokenInfo]())
-	OpcodeSetTokenInfo = tvm.MustExtractMagic(reflect.TypeFor[SetTokenInfo]())
 )
 
 type Storage struct {
@@ -25,7 +24,6 @@ type Storage struct {
 type TokenInfo struct {
 	TokenPool     *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
-	Enabled       bool             `tlb:"bool"`
 	Version       uint32           `tlb:"## 32"`
 }
 
@@ -37,47 +35,49 @@ type AdminConfig struct {
 
 // crc32('TokenAdminRegistryEntry_GetTokenInfo')
 type GetTokenInfo struct {
-	_ tlb.Magic `tlb:"#7aef4c2d" json:"-"` //nolint:revive // used by tlb reflection for encoding
-}
-
-// crc32('TokenAdminRegistryEntry_SetTokenInfo')
-type SetTokenInfo struct {
-	_    tlb.Magic `tlb:"#75f19aae" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	Info TokenInfo `tlb:"."`
+	_       tlb.Magic `tlb:"#7aef4c2d" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64    `tlb:"## 64"`
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
 type RegistrationInitialized struct {
-	_ tlb.Magic `tlb:"#31580269" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_       tlb.Magic `tlb:"#31580269" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64    `tlb:"## 64"`
 }
 
 // crc32('TokenAdminRegistryEntry_ProposeAdministrator')
 type ProposeAdministrator struct {
-	_             tlb.Magic        `tlb:"#31d2bb6e" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_             tlb.Magic        `tlb:"#6dcbe573" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID       uint64           `tlb:"## 64"`
 	Administrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_TransferAdminRole')
 type TransferAdminRole struct {
-	_                tlb.Magic        `tlb:"#5f7f84e1" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_                tlb.Magic        `tlb:"#8b1503cf" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID          uint64           `tlb:"## 64"`
+	Actor            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_AcceptAdminRole')
 type AcceptAdminRole struct {
-	_ tlb.Magic `tlb:"#d1fbd97c" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_       tlb.Magic        `tlb:"#39c6e872" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64           `tlb:"## 64"`
+	Actor   *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_SetPool')
 type SetPool struct {
-	_         tlb.Magic        `tlb:"#a7c4c16c" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_         tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID   uint64           `tlb:"## 64"`
 	TokenPool *address.Address `tlb:"addr"`
-	Enabled   bool             `tlb:"bool"`
 }
 
 // crc32('TokenAdminRegistryEntry_ReturnTokenInfo')
 type ReturnTokenInfo struct {
 	_             tlb.Magic        `tlb:"#0a58e678" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID       uint64           `tlb:"## 64"`
 	MinterAddress *address.Address `tlb:"addr"`
 	TokenPool     *address.Address `tlb:"addr"`
 	Version       uint32           `tlb:"## 32"`
@@ -85,7 +85,6 @@ type ReturnTokenInfo struct {
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	GetTokenInfo{},
-	SetTokenInfo{},
 	RegistrationInitialized{},
 	ProposeAdministrator{},
 	TransferAdminRole{},

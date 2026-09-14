@@ -32,7 +32,8 @@ type OffRampStorage struct {
 }
 
 type Deployables struct {
-	RMNRouter *address.Address `json:"rmnRouter"`
+	RMNRouter          *address.Address `json:"rmnRouter"`
+	TokenAdminRegistry *address.Address `json:"tokenAdminRegistry"`
 }
 
 type OCR3Base struct {
@@ -107,6 +108,14 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 		return b
 	}
 	b.storage.Deployables.RMNRouter = router
+	return b
+}
+
+func (b *OffRampStorageBuilder) WithTokenAdminRegistry(tokenAdminRegistry *address.Address) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.Deployables.TokenAdminRegistry = tokenAdminRegistry
 	return b
 }
 
@@ -198,7 +207,8 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
 
 	// Deployables
-	b = b.WithRMNRouter(raw.Deployables.RMNRouter)
+	b = b.WithRMNRouter(raw.Deployables.RMNRouter).
+		WithTokenAdminRegistry(raw.Deployables.TokenAdminRegistry)
 
 	// OCR3Base
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
@@ -453,7 +463,8 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 		PermissionlessExecutionThresholdSeconds: s.PermissionlessExecutionThresholdSeconds,
 		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
 		Deployables: offramp.Deployables{
-			RMNRouter: s.Deployables.RMNRouter,
+			RMNRouter:          s.Deployables.RMNRouter,
+			TokenAdminRegistry: s.Deployables.TokenAdminRegistry,
 		},
 		OCR3Base: offramp.OCR3Base{
 			ChainID: chainIDU8,

@@ -814,12 +814,12 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
-   * Deploys an entry at the registry-root-derived address and sets its token info.
+   * Deploys an entry at the registry-root-derived address with the simulated
+   * registry address as its active administrator.
    */
   async setupTokenRegistry(
     token: Address,
     tokenPool: Address,
-    enabled = true,
   ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     const registry = await deployable.Deploy(
       this.blockchain,
@@ -836,12 +836,11 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         tokenInfo: trg.TokenRegistry_TokenInfo.create({
           tokenPool,
           minterAddress: token,
-          enabled,
           version: 1n,
         }),
         adminConfig: trg.TokenRegistry_AdminConfig.create({
           tokenAdminRegistry: this.tokenAdminRegistry,
-          administrator: null,
+          administrator: this.tokenAdminRegistry,
           pendingAdministrator: null,
         }),
       },
@@ -1067,16 +1066,11 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   async disableToken(): Promise<void> {
-    const result = await this.tokenRegistry.sendTokenAdminRegistryEntrySetTokenInfo(
+    const result = await this.tokenRegistry.sendTokenAdminRegistryEntrySetPool(
       this.blockchain.sender(this.tokenAdminRegistry),
       toNano('0.1'),
       {
-        info: trg.TokenRegistry_TokenInfo.create({
-          tokenPool: this.tokenPool.address,
-          minterAddress: this.token,
-          enabled: false, // disabled
-          version: 1n,
-        }),
+        tokenPool: null,
       },
     )
 

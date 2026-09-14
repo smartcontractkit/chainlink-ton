@@ -414,9 +414,9 @@ describe('ReceiveExecutor - Execution', () => {
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: null,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: null,
+            version: 1n,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -439,9 +439,9 @@ describe('ReceiveExecutor - Execution', () => {
           nonOwner.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: tokenPool.address,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: tokenPool.address,
+            version: 1n,
           },
         )
         expectFailedTransaction(
@@ -457,9 +457,9 @@ describe('ReceiveExecutor - Execution', () => {
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: tokenPool.address,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: tokenPool.address,
+            version: 1n,
           },
         )
         expectFailedTransaction(
@@ -657,9 +657,9 @@ describe('ReceiveExecutor - Execution', () => {
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: null,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: null,
+            version: 1n,
           },
         )
 
@@ -736,9 +736,9 @@ describe('ReceiveExecutor - Execution', () => {
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: tokenPool.address,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: tokenPool.address,
+            version: 1n,
           },
         )
         // The ReleaseOrMint message should be sent successfully.
@@ -786,9 +786,9 @@ describe('ReceiveExecutor - Execution', () => {
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: tokenPool.address,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: tokenPool.address,
+            version: 1n,
           },
         )
         // The ReleaseOrMint message should be sent successfully.
@@ -943,9 +943,9 @@ describe('ReceiveExecutor - Execution', () => {
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
-          minterAddress: deployer.address,
-          tokenPool: null,
-          version: 1n,
+            minterAddress: deployer.address,
+            tokenPool: null,
+            version: 1n,
           },
         )
 

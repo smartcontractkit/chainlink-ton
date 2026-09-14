@@ -27,13 +27,10 @@ fun onInternalMessage(in: InMessage) {
 
         // TODO: min value assertion throughout
         TokenAdminRegistryEntry_GetTokenInfo => {
-            onGetTokenInfo(in.senderAddress);
-        }
-        TokenAdminRegistryEntry_SetTokenInfo => {
-            onSetTokenInfo(msg, in.senderAddress);
+            onGetTokenInfo(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_RegistrationInitialized => {
-            onRegistrationInitialized(in.senderAddress);
+            onRegistrationInitialized(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_ProposeAdministrator => {
             onProposeAdministrator(msg, in.senderAddress);
@@ -42,7 +39,7 @@ fun onInternalMessage(in: InMessage) {
             onTransferAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_AcceptAdminRole => {
-            onAcceptAdminRole(in.senderAddress);
+            onAcceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_SetPool => {
             onSetPool(msg, in.senderAddress);
@@ -55,21 +52,13 @@ fun onInternalMessage(in: InMessage) {
 
 /// Emits the initial proposal after Deployable has atomically installed this
 /// shard's state. Only an internal self-message can reach this path.
-fun onRegistrationInitialized(sender: address) {
+fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitialized, sender: address) {
     val st = TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
     assert(sender == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
     assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
         throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
-    notifyAdministratorTransferRequested(st.tokenAddress, null, adminConfig.pendingAdministrator);
-}
-
-fun onSetTokenInfo(msg: TokenAdminRegistryEntry_SetTokenInfo, sender: address) {
-    var st = lazy TokenRegistry_Storage.load();
-    val adminConfig = st.adminConfig.load();
-    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
-    st.tokenInfo = msg.info;
-    st.store();
+    notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, null, adminConfig.pendingAdministrator);
 }
 
 fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator, sender: address) {
@@ -81,29 +70,31 @@ fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator, se
     adminConfig.pendingAdministrator = msg.administrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferRequested(st.tokenAddress, adminConfig.administrator, msg.administrator);
+    notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, adminConfig.administrator, msg.administrator);
 }
 
 fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.administrator != null && sender == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
     val currentAdministrator = adminConfig.administrator;
     adminConfig.pendingAdministrator = msg.newAdministrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferRequested(st.tokenAddress, currentAdministrator, msg.newAdministrator);
+    notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, currentAdministrator, msg.newAdministrator);
 }
 
-fun onAcceptAdminRole(sender: address) {
+fun onAcceptAdminRole(msg: TokenAdminRegistryEntry_AcceptAdminRole, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.pendingAdministrator != null && sender == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
-    adminConfig.administrator = sender;
+    assert(sender == adminConfig.tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.pendingAdministrator != null && msg.actor == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
+    adminConfig.administrator = msg.actor;
     adminConfig.pendingAdministrator = null;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferred(st.tokenAddress, sender);
+    notifyAdministratorTransferred(msg.queryId, st.tokenAddress, msg.actor);
 }
 
 fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
@@ -112,57 +103,63 @@ fun onSetPool(msg: TokenAdminRegistryEntry_SetPool, sender: address) {
     assert(adminConfig.administrator != null && sender == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
 
     val previousPool = st.tokenInfo.tokenPool;
-    val previousEnabled = st.tokenInfo.enabled;
     st.tokenInfo.tokenPool = msg.tokenPool;
-    st.tokenInfo.enabled = msg.enabled;
     st.store();
 
-    if (previousPool != msg.tokenPool || previousEnabled != msg.enabled) {
-        notifyPoolSet(st.tokenAddress, previousPool, msg.tokenPool, previousEnabled, msg.enabled);
+    if (!samePool(previousPool, msg.tokenPool)) {
+        notifyPoolSet(msg.queryId, st.tokenAddress, previousPool, msg.tokenPool);
     }
 }
 
-fun onGetTokenInfo(sender: address) {
-    val st = TokenRegistry_Storage.load();
-    var tokenPool: address? = null;
-    if (st.tokenInfo.enabled) {
-        tokenPool = st.tokenInfo.tokenPool;
+fun samePool(left: address?, right: address?): bool {
+    if (left == null) {
+        return right == null;
     }
+    if (right == null) {
+        return false;
+    }
+    return left! == right!;
+}
+
+fun onGetTokenInfo(msg: TokenAdminRegistryEntry_GetTokenInfo, sender: address) {
+    val st = TokenRegistry_Storage.load();
     val response = createMessage({
         dest: sender,
         value: 0,
         bounce: false,
         body: TokenAdminRegistryEntry_ReturnTokenInfo {
+            queryId: msg.queryId,
             minterAddress: st.tokenInfo.minterAddress,
-            tokenPool,
+            tokenPool: st.tokenInfo.tokenPool,
             version: st.tokenInfo.version,
         }
     });
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun notifyAdministratorTransferRequested(token: address, currentAdministrator: address?, newAdministrator: address?) {
+fun notifyAdministratorTransferRequested(queryId: uint64, token: address, currentAdministrator: address?, newAdministrator: address?) {
     notifyRoot(TokenAdminRegistry_AdministratorTransferRequested {
+            queryId,
             token,
             currentAdministrator,
             newAdministrator,
     }.toCell());
 }
 
-fun notifyAdministratorTransferred(token: address, newAdministrator: address) {
+fun notifyAdministratorTransferred(queryId: uint64, token: address, newAdministrator: address) {
     notifyRoot(TokenAdminRegistry_AdministratorTransferred {
+            queryId,
             token,
             newAdministrator,
     }.toCell());
 }
 
-fun notifyPoolSet(token: address, previousPool: address, newPool: address, previousEnabled: bool, newEnabled: bool) {
+fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPool: address?) {
     notifyRoot(TokenAdminRegistry_PoolSet {
+            queryId,
             token,
             previousPool,
             newPool,
-            previousEnabled,
-            newEnabled,
     }.toCell());
 }
 

@@ -85,7 +85,6 @@ type Storage struct {
 	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
 }
 
-// Deployables holds the deployment-derivation addresses for the offRamp contract
 type Deployables struct {
 	RMNRouter          *address.Address `tlb:"addr"`
 	TokenAdminRegistry *address.Address `tlb:"addr"`

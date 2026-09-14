@@ -163,6 +163,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         value: TokenAdminRegistryEntry_GetTokenInfo.cost(ton("0.5")), // TODO extract to constant and calculate real values
         dest: tokenRegistry.load(),
         body: TokenAdminRegistryEntry_GetTokenInfo {
+            queryId: 0,
         }
     });
     queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);

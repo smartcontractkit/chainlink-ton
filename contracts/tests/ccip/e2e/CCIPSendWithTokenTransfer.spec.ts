@@ -124,7 +124,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
         { overrideContractCode: await contractCode.ccip.local('TokenAdminRegistry') },
       ),
     )
-    const registryDeploymentResult = await tokenAdminRegistry.sendDeploy(deployer.getSender(), toNano('0.1'))
+    const registryDeploymentResult = await tokenAdminRegistry.sendDeploy(
+      deployer.getSender(),
+      toNano('0.1'),
+    )
     expect(registryDeploymentResult.transactions).toHaveTransaction({
       from: deployer.address,
       to: tokenAdminRegistry.address,
@@ -253,7 +256,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool: tokenPool.address,
           minterAddress: minter.address,
-          enabled: true,
           version: 1n,
         }),
         administrator: deployer.address,
@@ -274,7 +276,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
       throw new Error('TokenAdminRegistryEntry address not found')
     })()
 
-    tokenRegistry = blockchain.openContract(tr.TokenAdminRegistryEntry.fromAddress(tokenRegistryAddress))
+    tokenRegistry = blockchain.openContract(
+      tr.TokenAdminRegistryEntry.fromAddress(tokenRegistryAddress),
+    )
     expect(registrationResult.transactions).toHaveTransaction({
       from: tokenAdminRegistry.address,
       to: tokenRegistry.address,
@@ -385,7 +389,11 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
       body(x) {
         if (!x) return false
-        return exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).tokenRegistry?.equals(tokenRegistry.address) ?? false
+        return (
+          exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).config.tokenRegistry?.equals(
+            tokenRegistry.address,
+          ) ?? false
+        )
       },
     })
     // executor -> feeQuoter and back

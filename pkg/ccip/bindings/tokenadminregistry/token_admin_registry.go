@@ -16,6 +16,8 @@ import (
 var (
 	OpcodeRegisterToken                = tvm.MustExtractMagic(reflect.TypeFor[RegisterToken]())
 	OpcodeOverridePendingAdministrator = tvm.MustExtractMagic(reflect.TypeFor[OverridePendingAdministrator]())
+	OpcodeTransferAdminRole            = tvm.MustExtractMagic(reflect.TypeFor[TransferAdminRole]())
+	OpcodeAcceptAdminRole              = tvm.MustExtractMagic(reflect.TypeFor[AcceptAdminRole]())
 )
 
 type Storage struct {
@@ -25,7 +27,8 @@ type Storage struct {
 
 // crc32('TokenAdminRegistry_RegisterToken')
 type RegisterToken struct {
-	_             tlb.Magic                         `tlb:"#9ab89f26" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_             tlb.Magic                         `tlb:"#be8621a2" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID       uint64                            `tlb:"## 64"`
 	TokenAddress  *address.Address                  `tlb:"addr"`
 	TokenInfo     tokenadminregistryentry.TokenInfo `tlb:"^"`
 	Administrator *address.Address                  `tlb:"addr"`
@@ -33,9 +36,27 @@ type RegisterToken struct {
 
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 type OverridePendingAdministrator struct {
-	_             tlb.Magic        `tlb:"#6e6f71ef" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_             tlb.Magic        `tlb:"#fddaa034" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID       uint64           `tlb:"## 64"`
 	TokenAddress  *address.Address `tlb:"addr"`
 	Administrator *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_TransferAdminRole')
+// The root derives the token entry and forwards the sender as its actor.
+type TransferAdminRole struct {
+	_                tlb.Magic        `tlb:"#dc67ebd0" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID          uint64           `tlb:"## 64"`
+	TokenAddress     *address.Address `tlb:"addr"`
+	NewAdministrator *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_AcceptAdminRole')
+// The root derives the token entry and forwards the sender as its actor.
+type AcceptAdminRole struct {
+	_            tlb.Magic        `tlb:"#be28e166" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID      uint64           `tlb:"## 64"`
+	TokenAddress *address.Address `tlb:"addr"`
 }
 
 // The following messages are sent by a deterministic entry to this root and
@@ -43,6 +64,7 @@ type OverridePendingAdministrator struct {
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
 type AdministratorTransferRequested struct {
 	_                    tlb.Magic        `tlb:"#140b1e91" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID              uint64           `tlb:"## 64"`
 	Token                *address.Address `tlb:"addr"`
 	CurrentAdministrator *address.Address `tlb:"addr"`
 	NewAdministrator     *address.Address `tlb:"addr"`
@@ -51,23 +73,25 @@ type AdministratorTransferRequested struct {
 // crc32('TokenAdminRegistry_AdministratorTransferred')
 type AdministratorTransferred struct {
 	_                tlb.Magic        `tlb:"#e2c74db4" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID          uint64           `tlb:"## 64"`
 	Token            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistry_PoolSet')
 type PoolSet struct {
-	_               tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	Token           *address.Address `tlb:"addr"`
-	PreviousPool    *address.Address `tlb:"addr"`
-	NewPool         *address.Address `tlb:"addr"`
-	PreviousEnabled bool             `tlb:"bool"`
-	NewEnabled      bool             `tlb:"bool"`
+	_            tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID      uint64           `tlb:"## 64"`
+	Token        *address.Address `tlb:"addr"`
+	PreviousPool *address.Address `tlb:"addr"`
+	NewPool      *address.Address `tlb:"addr"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	RegisterToken{},
 	OverridePendingAdministrator{},
+	TransferAdminRole{},
+	AcceptAdminRole{},
 	AdministratorTransferRequested{},
 	AdministratorTransferred{},
 	PoolSet{},

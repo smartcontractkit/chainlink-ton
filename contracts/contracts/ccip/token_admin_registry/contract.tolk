@@ -32,7 +32,6 @@ const CONTRACT_VERSION = "1.6.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
-    debug.print(1);
     match (msg) {
         TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -43,6 +42,14 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             overridePendingAdministrator(st, msg);
+        }
+        TokenAdminRegistry_TransferAdminRole => {
+            val st = TokenAdminRegistry_Storage.load();
+            transferAdminRole(st, msg, in.senderAddress);
+        }
+        TokenAdminRegistry_AcceptAdminRole => {
+            val st = TokenAdminRegistry_Storage.load();
+            acceptAdminRole(st, msg, in.senderAddress);
         }
         TokenAdminRegistry_AdministratorTransferRequested => {
             val st = TokenAdminRegistry_Storage.load();
@@ -135,7 +142,9 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
                 value: ton("0.015"),
-                body: TokenAdminRegistryEntry_RegistrationInitialized {}.toCell(),
+                body: TokenAdminRegistryEntry_RegistrationInitialized {
+                    queryId: msg.queryId,
+                }.toCell(),
             },
         },
     });
@@ -156,21 +165,60 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
         value: ton("0.015"),
         dest: entryAddress,
         body: TokenAdminRegistryEntry_ProposeAdministrator {
+            queryId: msg.queryId,
             administrator: msg.administrator,
         },
     });
     proposeMsg.send(SEND_MODE_REGULAR);
 }
 
-import "../../../gen/TokenAdminRegistryEntry.code"
-import "../../../gen/Deployable.code"
-
-fun entryCode(): cell {
-    return tokenAdminRegistryEntryCompiledCode();
+/// The root is the only public ingress for administrator lifecycle changes.
+/// It derives the shard and forwards the original caller as `actor`; the entry
+/// remains responsible for checking its own active/pending administrator state.
+fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_TransferAdminRole, actor: address) {
+    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
+        deployableCode(),
+        msg.tokenAddress,
+        contract.getAddress(),
+    );
+    createMessage({
+        bounce: false,
+        value: ton("0.015"),
+        dest: entryAddress,
+        body: TokenAdminRegistryEntry_TransferAdminRole {
+            queryId: msg.queryId,
+            actor,
+            newAdministrator: msg.newAdministrator,
+        }.toCell(),
+    }).send(SEND_MODE_REGULAR);
 }
+
+fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_AcceptAdminRole, actor: address) {
+    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
+        deployableCode(),
+        msg.tokenAddress,
+        contract.getAddress(),
+    );
+    createMessage({
+        bounce: false,
+        value: ton("0.015"),
+        dest: entryAddress,
+        body: TokenAdminRegistryEntry_AcceptAdminRole {
+            queryId: msg.queryId,
+            actor,
+        }.toCell(),
+    }).send(SEND_MODE_REGULAR);
+}
+
+import "../../../gen/Deployable.code"
+import "../../../gen/TokenAdminRegistryEntry.code"
 
 fun deployableCode(): cell {
     return deployableCompiledCode();
+}
+
+fun entryCode(): cell {
+    return tokenAdminRegistryEntryCompiledCode();
 }
 
 /// Gets the current owner of the registry root.

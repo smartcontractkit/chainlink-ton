@@ -2,8 +2,10 @@ package lockrelease
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
@@ -24,6 +26,21 @@ var GetLockbox = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 			return nil, fmt.Errorf("error getting Slice(0) - lockbox: %w", err)
 		}
 		return addrSlice.LoadAddr()
+	}),
+})
+
+// GetAccruedFees gets the accrued fee balance that withdrawFeeTokens may currently move.
+// This ledger lives only on lock/release (where fees accrue on confirmed lock settle).
+//
+// On-chain: get fun getAccruedFees(): coins
+var GetAccruedFees = tvm.NewNoArgsGetter(tvm.NoArgsOpts[tlb.Coins]{
+	Name: "getAccruedFees",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (tlb.Coins, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return tlb.Coins{}, fmt.Errorf("error getting Int(0) - getAccruedFees: %w", err)
+		}
+		return tlb.FromNanoTON(big.NewInt(0).Set(v)), nil
 	}),
 })
 
@@ -57,6 +74,7 @@ var (
 	GetMirroredPolicy          = tokenpool.GetMirroredPolicy
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
+	GetCCVAmount               = tokenpool.GetCCVAmount
 )
 
 // --- Re-export argument types for convenience ---
@@ -69,6 +87,9 @@ type GetCurrentRateLimiterStateArgs = tokenpool.GetCurrentRateLimiterStateArgs
 
 // GetFeeArgs holds the arguments for the getFee getter.
 type GetFeeArgs = tokenpool.GetFeeArgs
+
+// GetCCVAmountArgs holds the arguments for the getCCVAmount getter.
+type GetCCVAmountArgs = tokenpool.GetCCVAmountArgs
 
 // GetTokenTransferFeeConfigResult holds the optional fee config result.
 type GetTokenTransferFeeConfigResult = tokenpool.GetTokenTransferFeeConfigResult
