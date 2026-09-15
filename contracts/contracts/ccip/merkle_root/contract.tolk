@@ -109,6 +109,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
+            queryId: msg.queryId,
             message: message.toCell(),
             root: st.root,
             metadataHash: msg.metadataHash,

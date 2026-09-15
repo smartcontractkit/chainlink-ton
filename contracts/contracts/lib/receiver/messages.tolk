@@ -4,7 +4,10 @@ import "errors"
 import "../../ccip/router/messages"
 
 struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
-    execId: uint192; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
+    // execId lets us calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
+    // it fits in the body of a bounced message
+    execId: uint192;
+    queryId: uint64;
     message: Cell<Any2TVMMessage>;
 }
 
@@ -46,6 +49,7 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
         value: opts.confirmationMsg.value,
         dest: opts.inMsg.senderAddress,
         body: Router_CCIPReceiveConfirm {
+            queryId: self.queryId,
             execId: self.execId,
         }
     });

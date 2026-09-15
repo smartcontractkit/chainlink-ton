@@ -258,6 +258,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 //     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     val ccipReceive: Receiver_CCIPReceiveV2 = {
+        queryId: msg.queryId,
         execId: msg.execId,
         message,
     };
@@ -389,6 +390,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
         value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
+            queryId: msg.queryId,
             execId: msg.execId,
             receiver: sender,
         },
@@ -418,6 +420,9 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
+    // queryId is not available from the bounced body (only the first 256 bits are returned,
+    // which covers the opcode + execId + part of the queryId), so it is omitted. The ReceiveExecutor
+    // already stores the queryId in its own storage.
     val receiveBounced = createMessage({
         bounce: true,
         value: OffRamp_Costs.receiveConfirmOrDeny(),

@@ -7,6 +7,7 @@ type MerkleRoot_InMessage =
     | MerkleRoot_MarkState;
 
 struct (0x038ede91) MerkleRoot_Validate {
+    queryId: uint64,
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
