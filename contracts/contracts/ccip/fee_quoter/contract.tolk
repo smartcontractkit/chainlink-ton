@@ -382,8 +382,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
 
         // objectIds are 32 bytes long; require a canonical snake so that every
         // element is complete within a cell (no element straddles a cell boundary)
-        // and no exotic/branched cells are present. Aggregate counting would let a
-        // truncated element pass and later fail offchain decoding.
+        // and no exotic/branched cells are present.
         val receiverObjectIdsLength = validateExtraArgsCollection(
             suiExtraArgs.receiverObjectIds,
             SUI_ACCOUNT_BYTE_SIZE,
@@ -416,8 +415,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
 
         // accounts are 32 bytes long; require a canonical snake so that every
         // element is complete within a cell (no element straddles a cell boundary)
-        // and no exotic/branched cells are present. Aggregate counting would let a
-        // truncated element pass and later fail offchain decoding.
+        // and no exotic/branched cells are present.
         val accountsLength = validateExtraArgsCollection(
             svmExtraArgs.accounts,
             SVM_ACCOUNT_BYTE_SIZE,

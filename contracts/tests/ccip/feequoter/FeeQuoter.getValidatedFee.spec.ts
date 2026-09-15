@@ -1060,7 +1060,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         if (i === 0) {
           invalidSnakeCell = newCell
         } else {
-          invalidSnakeCell = beginCell().storeBuffer(Buffer.alloc(127, i)).storeRef(invalidSnakeCell).endCell()
+          invalidSnakeCell = beginCell()
+            .storeBuffer(Buffer.alloc(127, i))
+            .storeRef(invalidSnakeCell)
+            .endCell()
         }
       }
 
@@ -1637,10 +1640,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeRef(ccipSendBody)
         .endCell() // empty context slice
 
-      await setup.assertGetFeeValidationErrorRaw(
-        body,
-        feeQuoter.errors.UnsupportedNumberOfTokens,
-      )
+      await setup.assertGetFeeValidationErrorRaw(body, feeQuoter.errors.UnsupportedNumberOfTokens)
     })
 
     // F3: an SVM accounts snake with an element straddling a cell boundary must

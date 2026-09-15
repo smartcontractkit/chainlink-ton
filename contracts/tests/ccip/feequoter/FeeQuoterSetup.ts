@@ -611,9 +611,10 @@ export class FeeQuoterSetup {
    * token amounts) that the typed body loader cannot parse.
    */
   async assertGetFeeValidationErrorRaw(body: Cell, expectedError: number): Promise<void> {
-    const result = await this.bind.feeQuoter.sendGetValidatedFeeRaw(
+    const result = await this.bind.feeQuoter.sendInternal(
       this.acc.externalCaller.getSender(),
-      { value: toNano('1'), body },
+      toNano('1'),
+      body,
     )
 
     let actualError: bigint | undefined
