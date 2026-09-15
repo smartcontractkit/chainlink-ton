@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -182,14 +183,13 @@ var GetDynamicConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[DynamicConfig]{
 		if err != nil {
 			return cfg, fmt.Errorf("error getting Cell(3) - allowedDepositNamespaces: %w", err)
 		}
-		if dictCell == nil {
-			cfg.AllowedDepositNamespaces = cell.NewDict(32)
-		} else {
-			dict := dictCell.AsDict(32) // uint32 keys
-			if dict == nil {
-				dict = cell.NewDict(32)
-			}
-			cfg.AllowedDepositNamespaces = dict
+		var dict *cell.Dictionary
+		if dictCell != nil {
+			dict = dictCell.AsDict(32) // uint32 keys
+		}
+		cfg.AllowedDepositNamespaces, err = tlbe.NewDictFromDictionary[uint32, struct{}](dict)
+		if err != nil {
+			return cfg, fmt.Errorf("error converting dict to tlbe.Dict - allowedDepositNamespaces: %w", err)
 		}
 
 		return cfg, nil

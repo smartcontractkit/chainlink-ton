@@ -402,8 +402,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 						Router:         &routerAddr,
 						RateLimitAdmin: rateLimitAdmin,
 						FeeAdmin:       feeAdmin,
-						// Unit-value dict (map<uint32,()>); nil serializes as an empty map.
-						AllowedDepositNamespaces: nil,
+						// Unit-value set (map<uint32,()>); an empty dict serializes as an
+						// empty map. Must be non-nil: the tlb:"." tag errors on a nil dict.
+						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
 					},
 					JettonClient: tokenpool.JettonClient{
 						MasterAddress:    tokenAddr,

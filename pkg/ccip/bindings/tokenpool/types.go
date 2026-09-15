@@ -48,13 +48,20 @@ const (
 
 // DynamicConfig holds the router and admin addresses for the pool.
 //
-// AllowedDepositNamespaces is a unit-value set (map<uint32,()> on-chain), so it
-// is modelled as a raw *cell.Dictionary like CursedSubjects below.
+// AllowedDepositNamespaces is a unit-value set (map<uint32,()> on-chain): a key
+// is present iff the corresponding deployable namespace is allowed as a deposit
+// source. It is modelled as *tlbe.Dict[uint32, struct{}] so the "set" semantics
+// are explicit and the value marshals through tlbe's JSON support, while still
+// producing the exact map<uint32,()> wire form (a struct{} value encodes to an
+// empty, 0-bit inline leaf). The field uses the tlb:"." tag rather than
+// "dict 32" because tonutils-go's tlb encoder type-asserts "dict N" fields
+// directly to *cell.Dictionary; the "." tag instead routes through tlbe.Dict's
+// ToCell marshaller.
 type DynamicConfig struct {
-	Router                   *address.Address `tlb:"addr"`
-	RateLimitAdmin           *address.Address `tlb:"addr"`
-	FeeAdmin                 *address.Address `tlb:"addr"`
-	AllowedDepositNamespaces *cell.Dictionary `tlb:"dict 32"`
+	Router                   *address.Address             `tlb:"addr"`
+	RateLimitAdmin           *address.Address             `tlb:"addr"`
+	FeeAdmin                 *address.Address             `tlb:"addr"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // LocalPolicy holds the pool's independently managed RMN policy. It is
@@ -63,9 +70,11 @@ type DynamicConfig struct {
 // addr_none. Ramp access is no longer pool state: the Router is the only entry
 // point of every pool (TokenPool.onlyRouter).
 //
-// Dict fields use *cell.Dictionary rather than *tlbe.Dict: tonutils-go's tlb
-// encoder (used to build init data for contract deploys, see
-// deployment/utils/operation/deploy_ton_contract.go) type-asserts "dict N"
+// CursedSubjects is kept as a raw *cell.Dictionary because its values are not
+// unit (they carry an uint128 timestamp), so tlbe.Dict's value encoding would
+// not apply, and it is serialized through tonutils-go's "dict N" tag path (used
+// to build init data for contract deploys, see
+// deployment/utils/operation/deploy_ton_contract.go), which type-asserts such
 // fields directly to *cell.Dictionary and panics on any other type.
 type LocalPolicy struct {
 	CursedSubjects CursedSubjects `tlb:"."`
@@ -326,9 +335,9 @@ type SetDeployableCode struct {
 
 // SetAllowedDepositNamespaces sets the Deployables namespaces the pool accepts as deposit sources.
 type SetAllowedDepositNamespaces struct {
-	_                        tlb.Magic        `tlb:"#84384142" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                  uint64           `tlb:"## 64"`
-	AllowedDepositNamespaces *cell.Dictionary `tlb:"dict 32"`
+	_                        tlb.Magic                    `tlb:"#84384142" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                  uint64                       `tlb:"## 64"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
