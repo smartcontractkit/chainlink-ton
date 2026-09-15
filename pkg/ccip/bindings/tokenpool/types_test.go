@@ -1,6 +1,7 @@
 package tokenpool
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,52 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 
 	require.Equal(t, rawCell.Hash(), cfgCell.Hash(),
 		"tlbe.Dict struct{} encoding must match the raw dict 32 wire form")
+}
+
+// TestCursedSubjects_WireFormat verifies that modelling CursedSubjects.Data as
+// *tlbe.Dict[tlbe.Uint128, struct{}] (tlb:".") produces the same wire form as a
+// raw *cell.Dictionary serialized through the "dict 128" tag: a map<uint128,()>
+// with 0-bit unit values, inlined into the enclosing cell.
+func TestCursedSubjects_WireFormat(t *testing.T) {
+	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
+		tlbe.NewUint128(big.NewInt(1)):  {},
+		tlbe.NewUint128(big.NewInt(42)): {},
+	})
+
+	got, err := tlb.ToCell(CursedSubjects{Data: subjects})
+	require.NoError(t, err)
+
+	rawDict := cell.NewDict(128)
+	for k := range subjects.AsMap() {
+		keyCell := cell.BeginCell().MustStoreBigInt(k.ToBigInt(), 128).EndCell()
+		unitCell := cell.BeginCell().EndCell() // map<_,()> value: 0 bits, 0 refs
+		require.NoError(t, rawDict.Set(keyCell, unitCell))
+	}
+
+	want, err := tlb.ToCell(struct {
+		Data *cell.Dictionary `tlb:"dict 128"`
+	}{Data: rawDict})
+	require.NoError(t, err)
+
+	require.Equal(t, want.Hash(), got.Hash(),
+		"tlbe.Dict[Uint128, struct{}] encoding must match the raw dict 128 wire form")
+}
+
+// TestCursedSubjects_RoundTrip verifies encode/decode via the tlb:"." marshaller.
+func TestCursedSubjects_RoundTrip(t *testing.T) {
+	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
+		tlbe.NewUint128(big.NewInt(7)): {},
+	})
+
+	c, err := tlb.ToCell(CursedSubjects{Data: subjects})
+	require.NoError(t, err)
+
+	var decoded CursedSubjects
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+
+	_, ok := decoded.Data.Get(tlbe.NewUint128(big.NewInt(7)))
+	require.True(t, ok)
+	require.Equal(t, 1, decoded.Data.Len())
 }
 
 // TestDynamicConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode

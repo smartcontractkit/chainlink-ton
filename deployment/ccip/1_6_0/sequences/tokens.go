@@ -414,9 +414,12 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					AdvancedPoolHooks:     nil,
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
-					// nil dict serializes as an empty map (a single "no entries" bit),
-					// matching the Tolk contract's createEmptyMap() default.
-					CursedSubjects: tokenpool.CursedSubjects{Data: nil},
+					// An empty dict serializes as an empty map (a single "no entries"
+					// bit), matching the Tolk contract's createEmptyMap() default.
+					// Must be non-nil: the tlb:"." tag errors on a nil dict.
+					CursedSubjects: tokenpool.CursedSubjects{
+						Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
+					},
 				},
 				TokenDecimals:           defaultJettonDecimals,
 				RemoteChainConfigs:      nil,
