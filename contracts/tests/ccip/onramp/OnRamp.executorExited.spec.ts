@@ -9,7 +9,6 @@ import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
-import { getStorage } from '../../../wrappers/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
@@ -24,7 +23,6 @@ describe('OnRamp - executor exit', () => {
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let deployableCode: Cell
   let executorID: bigint
 
   const ccipSend = or.Router_CCIPSend.create({
@@ -52,7 +50,6 @@ describe('OnRamp - executor exit', () => {
   })
 
   beforeEach(async () => {
-    deployableCode = await contractCode.ccip.local('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
@@ -60,10 +57,6 @@ describe('OnRamp - executor exit', () => {
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
-      },
-      executor: {
-        deployableCode: deployableCode,
-        executorCode: Cell.EMPTY,
       },
     }))
 
@@ -125,8 +118,19 @@ describe('OnRamp - executor exit', () => {
 
     executorSender = blockchain.sender(executorAddress)
 
-    const executorStorageCell = await getStorage(blockchain, executorAddress)
-    const storage = ex.CCIPSendExecutor_InitialData.fromSlice(executorStorageCell.beginParse())
+    // Read the initial data from the deploy message body itself (not the executor's
+    // live storage): the real CCIPSendExecutor code now runs for real once deployed
+    // and mutates its own storage as part of executing, so it no longer matches the
+    // CCIPSendExecutor_InitialData layout by the time this hook returns.
+    if (!deployTX.inMessage) {
+      throw new Error('Deploy message not found')
+    }
+    const deployMessage = dep.builder.messages.in.initializeAndSend.load(
+      deployTX.inMessage.body.beginParse(),
+    )
+    const storage = ex.CCIPSendExecutor_InitialData.fromSlice(
+      deployMessage.stateInit.data.beginParse(),
+    )
     executorID = storage.id
   })
 

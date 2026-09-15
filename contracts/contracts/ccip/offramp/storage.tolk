@@ -7,13 +7,10 @@ import "../rmn_remote/lib"
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;
-    deployables: Cell<OffRamp_Deployables>;
+    staticConfig: Cell<OffRamp_StaticConfig>;
     feeQuoter: address;
     ocr3Base: Cell<OCR3Base>
     cursedSubjects: CursedSubjects;
-
-    // static config
-    chainSelector: uint64;
 
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,

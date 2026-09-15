@@ -44,7 +44,7 @@ struct GasOverride {
 // it returns the sum of destGasAmount from all token transfers in the message.
 // Otherwise, it returns the tokenGasOverride
 //
-// @note from evm: 
+// @note from evm:
 //
 // The gas limit can not be lowered as that could cause the message to fail. If manual execution is done
 // from an UNTOUCHED state and we would allow lower gas limit, anyone could grief by executing the message with
@@ -106,6 +106,14 @@ struct Config {
     permissionlessExecutionThresholdSeconds: uint32
     // isRMNVerificationDisabled
     // messageInterceptor
+}
+
+// Kept in a reference because three full-width values would overflow the
+// OffRamp root data cell alongside ownership and mutable state.
+struct OffRamp_StaticConfig {
+    rmnRouter: address;
+    tokenAdminRegistry: address;
+    chainSelector: uint64;
 }
 
 struct SourceChainConfig {
@@ -211,14 +219,6 @@ struct Any2TVMTokenTransfer {
     amount: uint256;
 }
 
-struct OffRamp_Deployables {
-    rmnRouter: address;
-    // Separate TokenAdminRegistry root used to derive deterministic entries.
-    tokenAdminRegistry: address;
-    deployer: cell; // Deployable stub contract compiled code
-    merkleRootCode: cell; // MerkleRoot contract compiled code 
-    receiveExecutorCode: cell; // ReceiveExecutor contract compiled code
-}
 
 
 const MERKLE_ROOT_ID_SIZE = 256;

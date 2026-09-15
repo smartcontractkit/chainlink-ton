@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var CounterContractPath = bindings.GetBuildDir("examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
+var CounterContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
 
 type CounterProvider struct {
 	apiClient tracetracking.SignedAPIClient

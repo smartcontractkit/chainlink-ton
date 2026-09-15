@@ -101,8 +101,17 @@ var GetStaticConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[StaticConfig]{
 		if err != nil {
 			return StaticConfig{}, err
 		}
+		tokenAdminRegistrySlice, err := r.Slice(1)
+		if err != nil {
+			return StaticConfig{}, err
+		}
+		tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
+		if err != nil {
+			return StaticConfig{}, err
+		}
 		return StaticConfig{
-			ChainSelector: chainSelector.Uint64(),
+			ChainSelector:      chainSelector.Uint64(),
+			TokenAdminRegistry: tokenAdminRegistry,
 		}, nil
 	}),
 })
