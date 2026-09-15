@@ -24,11 +24,11 @@ import "messages"
 
 tolk 1.4.1
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 
 contract OnRamp {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.OnRamp"
 
     storage: OnRamp_Storage
@@ -667,7 +667,39 @@ get fun reserve(): coins {
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    val old = OnRamp_Storage_V1_6_0.fromCell(storage);
+    val oldDeployables = old.deployablesConfig.load();
+    return OnRamp_Storage {
+        id: old.id,
+        ownable: old.ownable,
+        staticConfig: OnRamp_StaticConfig {
+            chainSelector: old.chainSelector,
+            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+        }.toCell(),
+        config: old.config,
+        destChainConfigs: old.destChainConfigs,
+    }.toCell();
+}
+
+// Persisted layout for the final 1.6.0 release. Keep this local to the
+// migration boundary: executor code is now compiled into OnRamp.
+struct OnRamp_Storage_V1_6_0 {
+    id: uint32;
+    ownable: Ownable2Step;
+    chainSelector: uint64;
+    config: Cell<OnRamp_DynamicConfig>;
+    destChainConfigs: map<uint64, OnRamp_DestChainConfig> = [];
+    deployablesConfig: Cell<OnRamp_DeployablesConfig_V1_6_0>;
+}
+
+struct ExecutorDeployment_V1_6_0 {
+    deployableCode: cell;
+    executorCode: cell;
+}
+
+struct OnRamp_DeployablesConfig_V1_6_0 {
+    executor: ExecutorDeployment_V1_6_0;
+    tokenAdminRegistry: address;
 }
 
 @method_id(1001)

@@ -43,6 +43,11 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
   CurrentVersionConstructor: (address: Address) => TCurrentVersionContract
   /** Amount of TON to use on sendUpgrade */
   upgradeValue?: bigint
+  /** Verifies contract-specific state after the upgrade has completed. */
+  verifyMigration?: (
+    contract: SandboxContract<TCurrentVersionContract>,
+    owner: SandboxContract<TreasuryContract>,
+  ) => Promise<void>
 }
 
 /**
@@ -70,7 +75,9 @@ export type CurrentVersionTestConfig<TCurrentVersionContract> = {
  * Contract interface that must be implemented by upgradeable contracts for testing.
  */
 export interface UpgradeableContract
-  extends upgradeable.Interface, typeAndVersion.Interface, Contract {}
+  extends upgradeable.Interface,
+    typeAndVersion.Interface,
+    Contract {}
 
 interface PrevVersionSetup {
   version: string
@@ -269,6 +276,11 @@ export function newUpgradeSpec<
           expect(upgradedEvent.version).toBe(config.currentVersion)
           expect(upgradedEvent.code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
           expect(upgradedEvent.codeHash).toBe(expectedHash)
+
+          await config.verifyMigration?.(
+            currentVersionContract as SandboxContract<TContractV2>,
+            testSetup.owner,
+          )
 
           currentVersionContracts.push(currentVersionContract)
         }

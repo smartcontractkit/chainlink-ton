@@ -1,4 +1,4 @@
-import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { Address, Cell, beginCell, contractAddress, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'
@@ -80,6 +80,49 @@ export async function deployOnRampContractW(
   const deployer = await blockchain.treasury('deployer')
   await onramp.sendDeploy(deployer.getSender(), toNano('0.1'))
   return { onramp, config }
+}
+
+// This layout matches the deployed 1.6.0 OnRamp. Keep it here rather than in
+// generated bindings so the upgrade test exercises the persisted release data.
+export async function deployLegacyOnRampContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+  code: Cell,
+): Promise<SandboxContract<or.OnRamp>> {
+  const config = or.OnRamp_DynamicConfig.create({
+    feeQuoter: owner.address,
+    feeAggregator: owner.address,
+    allowlistAdmin: owner.address,
+    reserve: toNano('0.05'),
+  })
+  const deployablesConfig = beginCell()
+    .storeRef(beginCell().endCell())
+    .storeRef(beginCell().endCell())
+    .storeAddress(owner.address)
+    .endCell()
+  const data = beginCell()
+  data.storeUint(generateRandomContractId(), 32)
+  or.Ownable2Step.store(or.Ownable2Step.create({ owner: owner.address, pendingOwner: null }), data)
+  data.storeUint(ChainSelectors.testnet.ton, 64)
+  data.storeRef(or.OnRamp_DynamicConfig.toCell(config))
+  data.storeDict(null)
+  data.storeRef(deployablesConfig)
+
+  const init = { code, data: data.endCell() }
+  const onramp = blockchain.openContract(or.OnRamp.fromAddress(contractAddress(0, init)))
+  const result = await owner.send({
+    to: onramp.address,
+    value: toNano('0.1'),
+    init,
+    body: beginCell().endCell(),
+  })
+  expect(result.transactions).toHaveTransaction({
+    from: owner.address,
+    to: onramp.address,
+    deploy: true,
+    success: true,
+  })
+  return onramp
 }
 
 export async function setup(blockchain: Blockchain, overrides: OnRampOverrides = {}) {

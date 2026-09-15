@@ -15,12 +15,14 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import { deployOffRampContract } from './OffRamp.Setup'
+import { deployLegacyOffRampContract, deployOffRampContract } from './OffRamp.Setup'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as ofManual from '../../../wrappers/ccip/OffRamp'
 import { generateMockTonAddress } from '../../../src/utils'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 import { crc32 } from 'zlib'
+import { ChainSelectors } from '../../utils/Selectors'
+import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.spec'
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -58,12 +60,22 @@ describe('OffRamp - Upgrade Tests', () => {
       version,
       getCode,
       deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
-        deployOffRampContract(blockchain, owner, await getCode()),
+        deployLegacyOffRampContract(blockchain, owner, await getCode()),
     })),
     currentVersion: OFFRAMP_CONTRACT_VERSION,
     getCurrentCode: () => contractCode.ccip.local(ARTIFACT_NAME),
     CurrentVersionConstructor: of.OffRamp.fromAddress,
     upgradeValue: toNano('0.05'),
+    verifyMigration: async (offramp, owner) => {
+      const config = await offramp.getConfig()
+      expect(config.chainSelector).toBe(ChainSelectors.testnet.ton)
+      expect(config.tokenAdminRegistry).toEqualAddress(owner.address)
+      expect(config.feeQuoter).toEqualAddress(owner.address)
+      expect(config.permissionlessExecutionThresholdSeconds).toBe(
+        PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
+      )
+      expect(await offramp.getRmnRouter()).toEqualAddress(owner.address)
+    },
   })
   upgradeSpec.run([
     {

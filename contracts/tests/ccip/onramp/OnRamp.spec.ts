@@ -17,7 +17,7 @@ import {
   ERROR_CODE,
 } from '../../../wrappers/ccip/OnRamp'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { deployOnRampContract, setup, deployOnRampContractW } from './OnRamp.Setup'
+import { deployLegacyOnRampContract, deployOnRampContract, setup } from './OnRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
@@ -41,17 +41,24 @@ describe('OnRamp - Upgrade Tests', () => {
     prevVersionConfigs: Object.entries(SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
       version,
       getCode,
-      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) => {
-        const dep = await deployOnRampContractW(blockchain, owner, {
-          code: await getCode(),
-        })
-        return dep.onramp
-      },
+      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+        deployLegacyOnRampContract(blockchain, owner, await getCode()),
     })),
     currentVersion: CONTRACT_VERSION,
     getCurrentCode: () => contractCode.ccip.local('OnRamp'),
     CurrentVersionConstructor: or.OnRamp.fromAddress,
     upgradeValue: toNano('0.05'),
+    verifyMigration: async (onramp, owner) => {
+      const staticConfig = await onramp.getStaticConfig()
+      expect(staticConfig.chainSelector).toBe(ChainSelectors.testnet.ton)
+      expect(staticConfig.tokenAdminRegistry).toEqualAddress(owner.address)
+
+      const dynamicConfig = await onramp.getDynamicConfig()
+      expect(dynamicConfig.feeQuoter).toEqualAddress(owner.address)
+      expect(dynamicConfig.feeAggregator).toEqualAddress(owner.address)
+      expect(dynamicConfig.allowlistAdmin).toEqualAddress(owner.address)
+      expect(dynamicConfig.reserve).toBe(toNano('0.05'))
+    },
   })
   upgradeSpec.run([
     {

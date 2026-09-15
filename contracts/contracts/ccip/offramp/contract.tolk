@@ -264,7 +264,46 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    val old = Storage_V1_6_2.fromCell(storage);
+    val oldDeployables = old.deployables.load();
+    return Storage {
+        id: old.id,
+        ownable: old.ownable,
+        staticConfig: OffRamp_StaticConfig {
+            rmnRouter: oldDeployables.rmnRouter,
+            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+            chainSelector: old.chainSelector,
+        }.toCell(),
+        feeQuoter: old.feeQuoter,
+        ocr3Base: old.ocr3Base,
+        cursedSubjects: old.cursedSubjects,
+        permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
+        sourceChainConfigs: old.sourceChainConfigs,
+        latestPriceSequenceNumber: old.latestPriceSequenceNumber,
+    }.toCell();
+}
+
+// Persisted layout for the final 1.6.2 release. The three code cells are now
+// compile-time dependencies of OffRamp and intentionally do not survive.
+struct Storage_V1_6_2 {
+    id: uint32;
+    ownable: Ownable2Step;
+    deployables: Cell<OffRamp_Deployables_V1_6_2>;
+    feeQuoter: address;
+    ocr3Base: Cell<OCR3Base>;
+    cursedSubjects: CursedSubjects;
+    chainSelector: uint64;
+    permissionlessExecutionThresholdSeconds: uint32;
+    sourceChainConfigs: map<uint64, SourceChainConfig> = [];
+    latestPriceSequenceNumber: uint64 = 0;
+}
+
+struct OffRamp_Deployables_V1_6_2 {
+    rmnRouter: address;
+    tokenAdminRegistry: address;
+    deployer: cell;
+    merkleRootCode: cell;
+    receiveExecutorCode: cell;
 }
 
 fun requireSupportedVersion(version: slice) {

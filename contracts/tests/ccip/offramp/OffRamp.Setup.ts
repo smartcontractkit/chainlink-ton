@@ -95,6 +95,51 @@ export async function deployOffRampContract(
   })
   return offramp
 }
+
+// This layout matches the deployed 1.6.2 OffRamp. The deployable code cells
+// are deliberately retained in the fixture because the migration discards them.
+export async function deployLegacyOffRampContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+  code: Cell,
+): Promise<SandboxContract<of.OffRamp>> {
+  const deployables = beginCell()
+    .storeAddress(owner.address)
+    .storeAddress(owner.address)
+    .storeRef(beginCell().endCell())
+    .storeRef(beginCell().endCell())
+    .storeRef(beginCell().endCell())
+    .endCell()
+  const data = beginCell()
+  data.storeUint(generateRandomContractId(), 32)
+  of.Ownable2Step.store(of.Ownable2Step.create({ owner: owner.address, pendingOwner: null }), data)
+  data.storeRef(deployables)
+  data.storeAddress(owner.address)
+  data.storeRef(
+    of.OCR3Base.toCell(of.OCR3Base.create({ chainId: 1n, commit: null, execute: null })),
+  )
+  of.CursedSubjects.store(of.CursedSubjects.create({ data: new Set() }), data)
+  data.storeUint(ChainSelectors.testnet.ton, 64)
+  data.storeUint(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS, 32)
+  data.storeDict(null)
+  data.storeUint(0n, 64)
+
+  const init = { code, data: data.endCell() }
+  const offramp = blockchain.openContract(of.OffRamp.fromAddress(contractAddress(0, init)))
+  const result = await owner.send({
+    to: offramp.address,
+    value: toNano('0.05'),
+    init,
+    body: beginCell().endCell(),
+  })
+  expect(result.transactions).toHaveTransaction({
+    from: owner.address,
+    to: offramp.address,
+    deploy: true,
+    success: true,
+  })
+  return offramp
+}
 export const createSignatures = (
   signerList: KeyPair[],
   hash: Buffer<ArrayBufferLike>,
