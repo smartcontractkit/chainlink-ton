@@ -33,8 +33,11 @@ in {
 
   # Acton is distributed as a dynamically linked Linux binary. Patch its ELF
   # interpreter and provide the runtime libraries expected in the Nix store.
-  nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.isLinux pkgs.autoPatchelfHook;
-  buildInputs = pkgs.lib.optional pkgs.stdenv.isLinux pkgs.stdenv.cc.cc.lib;
+  nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.autoPatchelfHook;
+  buildInputs = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    pkgs.stdenv.cc.cc.lib
+    pkgs.openssl
+  ];
 
   installPhase = ''
     runHook preInstall
