@@ -15,7 +15,7 @@ import {
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
+import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import { contractCode } from '../../../wrappers/codeLoader'
 
 // Role constants

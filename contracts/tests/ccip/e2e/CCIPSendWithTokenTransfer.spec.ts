@@ -14,13 +14,15 @@ import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import * as tr from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
-import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
+import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import * as jw from '../../../wrappers/jetton/JettonWallet'
+import { JettonLockBox } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup } from '../router/Router.Setup'
+import { buildJettonLockBox, grantLockBoxOperatorRole, initJettonLockBox } from '../helpers/lockbox'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -55,9 +57,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
   let sender: SandboxContract<TreasuryContract>
 
   let minter: SandboxContract<JettonMinter>
+  let jettonLockBox: SandboxContract<JettonLockBox>
   let tokenAdminRegistry: SandboxContract<tar.TokenAdminRegistry>
   let tokenRegistry: SandboxContract<tr.TokenAdminRegistryEntry>
-  let tokenPool: SandboxContract<lrp.LockReleaseTokenPool>
+  let tokenPool: SandboxContract<lrp.LockReleaseLockboxTokenPool>
 
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<fq.FeeQuoter>
@@ -67,7 +70,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
   beforeAll(async () => {
     minterCode = await contractCode.ccip.local('wgram.JettonMinter')
     walletCode = await contractCode.ccip.local('wgram.JettonWallet')
-    lockReleaseTokenPoolCode = await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool')
+    lockReleaseTokenPoolCode = await contractCode.ccip.local(
+      'ccip.pool.LockReleaseLockboxTokenPool',
+    )
   })
 
   beforeEach(async () => {
@@ -142,10 +147,17 @@ describe('CCIPSend with token transfer (e2e)', () => {
       tokenAdminRegistry: tokenAdminRegistry.address,
     }))
 
-    // 5. Deploy the LockReleaseTokenPool that performs the lock/burn.
-    // TODO should be a helper
+    // 5. Deploy the JettonLockBox and the LockReleaseLockboxTokenPool that performs
+    // the lock/burn. The pool stores the lockbox address, so the lockbox must be
+    // constructed first (its address does not depend on the pool), then deployed and
+    // authorized before the pool is deployed.
+    jettonLockBox = await buildJettonLockBox({
+      blockchain,
+      minterAddress: minter.address,
+      id: 1n,
+    })
     tokenPool = blockchain.openContract(
-      lrp.LockReleaseTokenPool.fromStorage(
+      lrp.LockReleaseLockboxTokenPool.fromStorage(
         {
           poolData: tp.TokenPool_Data.create({
             adminConfig: tp.TokenPool_AdminConfig.create({
@@ -175,12 +187,27 @@ describe('CCIPSend with token transfer (e2e)', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
+          lockbox: jettonLockBox.address,
           offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
-          accruedFees: 0n,
         },
         { overrideContractCode: lockReleaseTokenPoolCode },
       ),
     )
+
+    await initJettonLockBox({
+      deployer,
+      lockbox: jettonLockBox,
+      minterAddress: minter.address,
+      operator: tokenPool.address,
+      resolveWalletAddress: (owner) => minter.getWalletAddress(owner),
+    })
+    await grantLockBoxOperatorRole({
+      blockchain,
+      deployer,
+      lockbox: jettonLockBox,
+      operator: tokenPool.address,
+    })
+
     const deploymentResult = await tokenPool.sendDeploy(deployer.getSender(), toNano('0.05'))
     expect(deploymentResult.transactions).toHaveTransaction({
       from: deployer.address,
