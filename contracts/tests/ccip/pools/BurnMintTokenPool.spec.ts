@@ -30,7 +30,7 @@ import {
   TokenPool_TokenTransferFeeConfig,
   TokenPool_TokenTransferFeeConfigArgs,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { 
+import {
   JettonClient,
   BurnMintTokenPool,
   BurnMintTokenPool_BurnContext,

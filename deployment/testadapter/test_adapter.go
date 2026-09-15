@@ -51,6 +51,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockreleaselockbox"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
@@ -429,11 +430,11 @@ func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddre
 	// Real jetton approval (e.g. minting an allowance / notifying the pool) is not
 	// yet implemented; no tokens actually move so there is nothing to approve yet.
 
-	// Fund the LockReleaseTokenPool with liquidity so it can release tokens when
-	// acting as a destination. The pool holds jettons in its own jetton wallet; we
-	// mint tokens directly to that wallet address. This is test-only setup — EVM
-	// and Solana use BurnMintTokenPools that don't need liquidity, but TON uses
-	// LockReleaseTokenPool which custodies real tokens.
+	// Fund the LockReleaseLockboxTokenPool with liquidity so it can release tokens when
+	// acting as a destination. The pool escrows jettons in a shared JettonLockBox; we
+	// mint tokens directly to that lockbox's jetton wallet address. This is test-only
+	// setup — EVM and Solana use BurnMintTokenPools that don't need liquidity, but TON
+	// uses LockReleaseLockboxTokenPool which custodies real tokens.
 	if err := a.fundPoolLiquidity(ctx, tokenAddress); err != nil {
 		return fmt.Errorf("failed to fund pool liquidity: %w", err)
 	}
@@ -458,7 +459,7 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 	}
 
 	// Look up the pool address from the datastore via the state provider.
-	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseLockboxTokenPool))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pool address: %w", err)
 	}
@@ -487,29 +488,37 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 	return balance, nil
 }
 
-// fundPoolLiquidity mints jettons directly to the LockReleaseTokenPool's jetton wallet
-// so the pool has tokens to release when it acts as a destination. This is test-only
-// setup: EVM and Solana use BurnMintTokenPools that mint on release, but TON uses
-// LockReleaseTokenPool which custodies real tokens and must be pre-funded.
+// fundPoolLiquidity mints jettons directly to the JettonLockBox's jetton wallet so the
+// pool has tokens to release when it acts as a destination. This is test-only setup: EVM
+// and Solana use BurnMintTokenPools that mint on release, but TON uses
+// LockReleaseLockboxTokenPool, which escrows real tokens in the lockbox and must be
+// pre-funded there.
 func (a *TONAdapter) fundPoolLiquidity(ctx context.Context, tokenAddress string) error {
 	tokenAddr, err := address.ParseAddr(tokenAddress)
 	if err != nil {
 		return fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
 	}
 
-	// Look up the pool address from the datastore via the state provider.
-	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	// Look up the pool address from the datastore via the state provider, then read the
+	// lockbox it escrows into. Liquidity for a lockbox pool lives in the lockbox, not in
+	// the pool's own jetton wallet.
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseLockboxTokenPool))
 	if err != nil {
 		return fmt.Errorf("failed to look up %s address to fund pool liquidity: %w",
-			bindings.ShortLockReleaseTokenPool, err)
+			bindings.ShortLockReleaseLockboxTokenPool, err)
 	}
 	poolAddr, err := address.ParseAddr(poolAddrStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
 	}
 
-	// Derive the pool's jetton wallet address.
-	poolWalletAddr, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, poolAddr)
+	lockBoxAddr, err := tvm.CallGetterLatest(ctx, a.Client, poolAddr, lockreleaselockbox.GetLockbox)
+	if err != nil {
+		return fmt.Errorf("failed to read lockbox address from pool %q: %w", poolAddrStr, err)
+	}
+
+	// Derive the lockbox's jetton wallet address; that is where escrowed liquidity sits.
+	poolWalletAddr, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, lockBoxAddr)
 	if err != nil {
 		return fmt.Errorf("failed to derive pool jetton wallet address: %w", err)
 	}
@@ -523,7 +532,7 @@ func (a *TONAdapter) fundPoolLiquidity(ctx context.Context, tokenAddress string)
 
 	mintBody, err := tlb.ToCell(minter.MintNewJettons{
 		QueryID:       queryID,
-		MintRecipient: poolAddr,
+		MintRecipient: lockBoxAddr,
 		TonAmount:     tlb.MustFromTON("0.05"),
 		InternalTransferMsg: jettonwallet.InternalTransferStep{
 			QueryID:           queryID,
@@ -637,7 +646,7 @@ func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPe
 			CCIPAdmin:     a.WalletAddress.String(),
 		},
 		DeployTokenPoolInput: &tokensapi.DeployTokenPoolInput{
-			PoolType:           bindings.ShortLockReleaseTokenPool,
+			PoolType:           bindings.ShortLockReleaseLockboxTokenPool,
 			TokenPoolQualifier: "TEST TOKEN POOL " + suffix,
 		},
 		TokenTransferConfig: &tokensapi.TokenTransferConfig{
