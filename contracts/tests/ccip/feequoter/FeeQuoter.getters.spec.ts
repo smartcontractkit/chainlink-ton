@@ -299,54 +299,6 @@ describe('FeeQuoter Getters', () => {
     })
   })
 
-  describe('dataAvailabilityCost', () => {
-    it('should calculate data availability cost', async () => {
-      const cost = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        ChainSelectors.testnet.evm,
-        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        1000n,
-        0n,
-        0n,
-      )
-
-      expect(cost).toBeGreaterThan(0n)
-    })
-
-    it('should throw error for non-existent chain', async () => {
-      const nonExistentChain = 99999n
-
-      await expect(
-        setup.bind.feeQuoter.getDataAvailabilityCost(
-          nonExistentChain,
-          FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-          1000n,
-          0n,
-          0n,
-        ),
-      ).rejects.toThrow()
-    })
-
-    it('should increase the cost when token transfers are included', async () => {
-      const withoutTokens = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        ChainSelectors.testnet.evm,
-        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        1000n,
-        0n,
-        0n,
-      )
-
-      const withTokens = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        ChainSelectors.testnet.evm,
-        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        1000n,
-        1n, // tokenCount
-        32n, // tokenTransferBytesOverhead
-      )
-
-      expect(withTokens).toBeGreaterThan(withoutTokens)
-    })
-  })
-
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_getters_suite'

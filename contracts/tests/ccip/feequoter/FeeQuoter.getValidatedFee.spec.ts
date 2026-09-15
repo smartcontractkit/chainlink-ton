@@ -48,66 +48,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       const messageFeeUSD =
         FeeQuoterSetup.configUSDCentToWei(FeeQuoterSetup.destChainConfig.networkFeeUsdCents) *
         premiumMultiplierWeiPerEth
-      const calldataLen = BigInt(message.data.beginParse().remainingBits / 8)
-      const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        ChainSelectors.testnet.evm,
-        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        calldataLen,
-        BigInt(message.tokenAmounts.length),
-        0n,
-      )
-
-      const totalPriceInFeeToken =
-        (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / token.price
+      const totalPriceInFeeToken = (gasFeeUSD + messageFeeUSD) / token.price
       expect(messageValidated.fee.feeTokenAmount).toEqual(totalPriceInFeeToken)
     }
-  })
-
-  it('should handle zero data availability multiplier', async () => {
-    const destChainConfig = await setup.bind.feeQuoter.getDestChainConfig(
-      ChainSelectors.testnet.evm,
-    )
-    // Update dest chain config to set data availability multiplier to 0
-    {
-      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
-        setup.acc.owner.getSender(),
-        toNano('1'),
-        {
-          updates: [
-            feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
-              destChainSelector: ChainSelectors.testnet.evm,
-              destChainConfig: {
-                ...destChainConfig.config,
-                destDataAvailabilityMultiplierBps: 0n,
-              },
-            }),
-          ],
-        },
-      )
-      expect(result.transactions).toHaveTransaction({
-        to: setup.bind.feeQuoter.address,
-        success: true,
-      })
-    }
-    const message = setup.generateEmptyMessage({
-      feeToken: FeeQuoterSetup.NATIVE_TON.token,
-    })
-    const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-      message.feeToken!,
-    )
-
-    const feeResult = await setup.getValidatedFee(message)
-
-    const gasUsed = FeeQuoterSetup.GAS_LIMIT + FeeQuoterSetup.DEST_GAS_OVERHEAD
-    const gasFeeUSD =
-      gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
-    const messageFeeUSD =
-      FeeQuoterSetup.configUSDCentToWei(FeeQuoterSetup.destChainConfig.networkFeeUsdCents) *
-      premiumMultiplierWeiPerEth
-
-    const totalPriceInFeeToken = (gasFeeUSD + messageFeeUSD) / FeeQuoterSetup.NATIVE_TON.price
-
-    expect(feeResult.fee.feeTokenAmount).toEqual(totalPriceInFeeToken)
   })
 
   it('should handle high gas limit message', async () => {
@@ -156,16 +99,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         FeeQuoterSetup.configUSDCentToWei(FeeQuoterSetup.destChainConfig.networkFeeUsdCents) *
         premiumMultiplierWeiPerEth
 
-      const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        ChainSelectors.testnet.evm,
-        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        calldataLen,
-        BigInt(message.tokenAmounts.length),
-        0n,
-      )
-
-      const totalPriceInFeeToken =
-        (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / token.price
+      const totalPriceInFeeToken = (gasFeeUSD + messageFeeUSD) / token.price
 
       expect(result.fee.feeTokenAmount).toEqual(totalPriceInFeeToken)
     }
@@ -697,38 +631,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    it('should never throw data availability cost overflow', async () => {
+    it('should never throw fee calculation overflow when adding premium and execution costs', async () => {
       const overrides = {
-        dataAvailabilityGasPrice: 2n ** 112n - 1n, // Max uint112
-        destDataAvailabilityOverheadGas: BigInt(2 ** 32 - 1), // Max uint32
-        destGasPerDataAvailabilityByte: BigInt(2 ** 16 - 1), // Max uint16 (65535)
-        destDataAvailabilityMultiplierBps: BigInt(2 ** 16 - 1), // Max uint16 (65535)
-        dataSize: 16000,
-        maxDataBytes: 16001n,
-        linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
-      }
-
-      // Combine max values to try to trigger DA overflow
-      // DA calculation:
-      const daLengthCost =
-        BigInt(overrides.dataSize) * BigInt(overrides.destGasPerDataAvailabilityByte)
-      const dataAvailabilityGas = daLengthCost + BigInt(overrides.destDataAvailabilityOverheadGas)
-      //
-      const daPrice = overrides.dataAvailabilityGasPrice * dataAvailabilityGas
-      const daWithMultiplier = daPrice * BigInt(overrides.destDataAvailabilityMultiplierBps)
-      const VAL_1E14 = 100000000000000n
-      const dataAvailabilityCost = daWithMultiplier * VAL_1E14
-
-      // Sanity check - this can't exceed int257 max (2^256)
-      const int257Max = 2n ** 256n - 1n
-      expect(dataAvailabilityCost).toBeLessThanOrEqual(int257Max)
-
-      await testSuccessScenario('data availability cost overflow', overrides)
-    })
-
-    it('should never throw fee calculation overflow when adding premium + execution + DA costs', async () => {
-      const overrides = {
-        // Create scenario where premiumFee + executionCost + dataAvailabilityCost overflows uint256
+        // Create scenario where premiumFee + executionCost approaches uint256.
         // This is the intermediate calculation before dividing by token price
         executionGasPrice: 2n ** 111n, // Very high execution gas price
         dataAvailabilityGasPrice: 2n ** 111n, // Very high DA gas price
@@ -833,6 +738,54 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.getValidatedFee(message)
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
+    })
+
+    it('counts token payload and pool-return bytes towards maxDataBytes', async () => {
+      const destChainConfig = await setup.bind.feeQuoter.getDestChainConfig(
+        ChainSelectors.testnet.solana,
+      )
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
+        setup.acc.owner.getSender(),
+        toNano('1'),
+        {
+          updates: [
+            feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+              destChainSelector: ChainSelectors.testnet.solana,
+              destChainConfig: {
+                ...destChainConfig.config,
+                // (1 account + 2 messaging accounts) * 32 + 300 SVM token bytes + 32 pool bytes.
+                maxDataBytes: 427n,
+              },
+            }),
+          ],
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [
+          rt.TokenAmount.create({
+            token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+            amount: toNano('1'),
+          }),
+        ],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: {
+          ...validSVMExtraArgs,
+          tokenReceiver: 1n,
+        },
+      })
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge'],
+      )
     })
 
     it('reverts with empty extra args', async () => {

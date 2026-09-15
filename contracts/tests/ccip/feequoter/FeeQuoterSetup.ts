@@ -396,17 +396,6 @@ export class FeeQuoterSetup {
                       destBytesOverhead: 200n,
                     }),
                   ],
-                  [
-                    FeeQuoterSetup.CUSTOM_TOKEN_2.token,
-                    feeQuoter.TokenTransferFeeConfig.create({
-                      isEnabled: false,
-                      minFeeUsdCents: 2_00n,
-                      maxFeeUsdCents: 2000_00n,
-                      deciBps: 10_0n,
-                      destGasOverhead: 1n,
-                      destBytesOverhead: 200n,
-                    }),
-                  ],
                 ]),
                 remove: [],
               }),

@@ -1,12 +1,3 @@
-// ---------------------------------------------------------------------------
-//   SnakedCell<T> ergonomic transform
-//
-//   acton generates `type SnakedCell<T> = c.Cell`, forcing every caller to
-//   manually snake-encode arrays before calling `.create()`. This rewrites
-//   the generated output so that `SnakedCell<T>` is `T[]` and the generated
-//   `store()` / `fromSlice()` methods handle the snake encoding
-//   automatically — the same way `lisp_list<T>` already works.
-// ---------------------------------------------------------------------------
 // Primitive Tolk integer types that appear as SnakedCell<T> type parameters.
 // These don't have generated `.store` / `.fromSlice` methods, so we inline
 

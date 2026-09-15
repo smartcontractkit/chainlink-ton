@@ -12,15 +12,14 @@ import { ChainSelectors } from '../../utils/Selectors'
 // This suite verifies the token-transfer fee math introduced in FeeQuoter.calculateValidatedFee:
 // the per-(destChain, token) TokenTransferFeeConfig override (deciBps of transferred value,
 // clamped to [minFeeUsdCents, maxFeeUsdCents]), its fallback to the dest chain's flat
-// defaultTokenFeeUsdCents/defaultTokenDestGasOverhead when no override exists or it is disabled,
-// and how the resulting premium/gas/bytes-overhead feed into the overall fee (execution gas,
-// data-availability cost, and the USD premium).
+// defaultTokenFeeUsdCents/defaultTokenDestGasOverhead when no override exists, and how the
+// resulting premium/gas/bytes-overhead feed into the overall fee (execution gas and USD premium).
 //
 // Test scenarios and numeric structure are cross-checked against the equivalent EVM
-// (`FeeQuoter.getTokenTransferCost.t.sol`: per-token override, disabled-config-uses-defaults,
+// (`FeeQuoter.getTokenTransferCost.t.sol`: per-token override,
 // explicit-zero-fee-is-still-charged) and Solana (`programs/fee-quoter/.../public.rs` tests:
-// `network_fee_for_a_supported_token_with_bps`, `..._with_disabled_billing`,
-// `..._with_no_fee_token_config`, `network_fee_for_multiple_tokens`) FeeQuoter test suites.
+// `network_fee_for_a_supported_token_with_bps`, `..._with_no_fee_token_config`,
+// `network_fee_for_multiple_tokens`) FeeQuoter test suites.
 describe('FeeQuoter Token Transfer Fee', () => {
   let setup: FeeQuoterFeeSetup
   let blockchain: Blockchain
@@ -70,7 +69,11 @@ describe('FeeQuoter Token Transfer Fee', () => {
       const max = usdCentsToWei(config.maxFeeUsdCents)
       if (premium < min) premium = min
       else if (premium > max) premium = max
-      return { premiumFeeUsdWei: premium, gas: config.destGasOverhead, bytesOverhead: config.destBytesOverhead }
+      return {
+        premiumFeeUsdWei: premium,
+        gas: config.destGasOverhead,
+        bytesOverhead: config.destBytesOverhead,
+      }
     }
     return {
       premiumFeeUsdWei: usdCentsToWei(FeeQuoterSetup.DEFAULT_TOKEN_FEE_USD_CENTS),
@@ -87,14 +90,17 @@ describe('FeeQuoter Token Transfer Fee', () => {
   }
 
   // Mirrors the rest of `calculateValidatedFee`: sums the per-token results, folds them into
-  // execution gas / calldata gas, and combines with the on-chain data-availability cost getter
-  // (which itself encodes the DA byte-length formula) to get the final fee-token amount.
+  // execution gas / calldata gas, and combines them with the USD premium to get the final fee-token amount.
   async function expectedFee(tokens: TokenLeg[], feeTokenAddr: Address, feeTokenPrice: bigint) {
     let totalPremium = 0n
     let totalGas = 0n
     let totalBytesOverhead = 0n
     for (const t of tokens) {
-      const { premiumFeeUsdWei, gas, bytesOverhead } = computeTokenTransferFee(t.config, t.price, t.amount)
+      const { premiumFeeUsdWei, gas, bytesOverhead } = computeTokenTransferFee(
+        t.config,
+        t.price,
+        t.amount,
+      )
       totalPremium += premiumFeeUsdWei
       totalGas += gas
       totalBytesOverhead += bytesOverhead
@@ -109,21 +115,16 @@ describe('FeeQuoter Token Transfer Fee', () => {
           threshold * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
         : calldataLen * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
 
-    const gasUsed = FeeQuoterSetup.GAS_LIMIT + FeeQuoterSetup.DEST_GAS_OVERHEAD + totalGas + calldataGas
-    const gasFeeUSD = gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
+    const gasUsed =
+      FeeQuoterSetup.GAS_LIMIT + FeeQuoterSetup.DEST_GAS_OVERHEAD + totalGas + calldataGas
+    const gasFeeUSD =
+      gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
 
-    const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(feeTokenAddr)
+    const premiumMultiplierWeiPerEth =
+      await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(feeTokenAddr)
     const messageFeeUSD = totalPremium * premiumMultiplierWeiPerEth
 
-    const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-      DEST_CHAIN,
-      FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-      msgDataLen,
-      BigInt(tokens.length),
-      totalBytesOverhead,
-    )
-
-    return (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / feeTokenPrice
+    return (gasFeeUSD + messageFeeUSD) / feeTokenPrice
   }
 
   function messageWithTokens(tokens: TokenLeg[], feeToken: Address): rt.Router_CCIPSend {
@@ -148,7 +149,10 @@ describe('FeeQuoter Token Transfer Fee', () => {
     // Large enough that the deciBps-derived premium lands strictly within [minFeeUsdCents, maxFeeUsdCents].
     const amount = 10_000n * VAL_1E18
 
-    const message = messageWithTokens([{ token: token.token, amount, config, price: token.price }], FEE_TOKEN.token)
+    const message = messageWithTokens(
+      [{ token: token.token, amount, config, price: token.price }],
+      FEE_TOKEN.token,
+    )
     const result = await setup.getValidatedFee(message)
 
     const expected = await expectedFee(
@@ -200,20 +204,28 @@ describe('FeeQuoter Token Transfer Fee', () => {
     expect(result.fee.feeTokenAmount).toEqual(expected)
   })
 
-  it('falls back to the dest chain defaults when the per-token override is disabled', async () => {
-    const token = FeeQuoterSetup.CUSTOM_TOKEN_2 // configured with isEnabled: false
-    const config = await setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, token.token)
-    expect(config.isEnabled).toBe(false)
+  it('falls back to the dest chain defaults when no per-token override exists', async () => {
+    const token = FeeQuoterSetup.CUSTOM_TOKEN_2
+    await expect(
+      setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, token.token),
+    ).rejects.toThrow()
     const amount = 10_000n * VAL_1E18
 
     const message = messageWithTokens([{ token: token.token, amount }], FEE_TOKEN.token)
     const result = await setup.getValidatedFee(message)
 
-    const expected = await expectedFee([{ token: token.token, amount }], FEE_TOKEN.token, FEE_TOKEN.price)
+    const expected = await expectedFee(
+      [{ token: token.token, amount }],
+      FEE_TOKEN.token,
+      FEE_TOKEN.price,
+    )
     expect(result.fee.feeTokenAmount).toEqual(expected)
 
-    // The disabled override's own numbers must not leak into the result.
-    const { premiumFeeUsdWei, gas, bytesOverhead } = computeTokenTransferFee(undefined, undefined, amount)
+    const { premiumFeeUsdWei, gas, bytesOverhead } = computeTokenTransferFee(
+      undefined,
+      undefined,
+      amount,
+    )
     expect(premiumFeeUsdWei).toEqual(usdCentsToWei(FeeQuoterSetup.DEFAULT_TOKEN_FEE_USD_CENTS))
     expect(gas).toEqual(FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD)
     expect(bytesOverhead).toEqual(FeeQuoterSetup.DEFAULT_TOKEN_BYTES_OVERHEAD)
@@ -221,20 +233,28 @@ describe('FeeQuoter Token Transfer Fee', () => {
 
   it('falls back to the dest chain defaults when no per-token override exists at all', async () => {
     const token = FeeQuoterSetup.DEST_LINK // priced, but has no TokenTransferFeeConfig on this dest chain
-    await expect(setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, token.token)).rejects.toThrow()
+    await expect(
+      setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, token.token),
+    ).rejects.toThrow()
 
     const amount = 10_000n * VAL_1E18
     const message = messageWithTokens([{ token: token.token, amount }], FEE_TOKEN.token)
     const result = await setup.getValidatedFee(message)
 
-    const expected = await expectedFee([{ token: token.token, amount }], FEE_TOKEN.token, FEE_TOKEN.price)
+    const expected = await expectedFee(
+      [{ token: token.token, amount }],
+      FEE_TOKEN.token,
+      FEE_TOKEN.price,
+    )
     expect(result.fee.feeTokenAmount).toEqual(expected)
   })
 
   it('treats a zero-deciBps override as a flat fee, independent of amount and without needing a token price', async () => {
     // A fresh token with no usdPerToken entry at all: proves the deciBps==0 branch never looks
     // up a price (matches EVM's flat, amount-independent token-transfer fee model).
-    const token = Address.parse(`0:${Buffer.from('ZERO_BPS_TOKEN').toString('hex').padStart(64, '0')}`)
+    const token = Address.parse(
+      `0:${Buffer.from('ZERO_BPS_TOKEN').toString('hex').padStart(64, '0')}`,
+    )
     const config = feeQuoter.TokenTransferFeeConfig.create({
       isEnabled: true,
       minFeeUsdCents: 300n,
@@ -249,16 +269,29 @@ describe('FeeQuoter Token Transfer Fee', () => {
       toNano('1'),
       {
         updates: new Map([
-          [DEST_CHAIN, feeQuoter.UpdateTokenTransferFeeConfig.create({ add: new Map([[token, config]]), remove: [] })],
+          [
+            DEST_CHAIN,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, config]]),
+              remove: [],
+            }),
+          ],
         ]),
       },
     )
-    expect(configResult.transactions).toHaveTransaction({ to: setup.bind.feeQuoter.address, success: true })
+    expect(configResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
 
     for (const amount of [1n, 1_000_000n * VAL_1E18]) {
       const message = messageWithTokens([{ token, amount }], FEE_TOKEN.token)
       const result = await setup.getValidatedFee(message)
-      const expected = await expectedFee([{ token, amount, config }], FEE_TOKEN.token, FEE_TOKEN.price)
+      const expected = await expectedFee(
+        [{ token, amount, config }],
+        FEE_TOKEN.token,
+        FEE_TOKEN.price,
+      )
       expect(result.fee.feeTokenAmount).toEqual(expected)
 
       const { premiumFeeUsdWei } = computeTokenTransferFee(config, undefined, amount)
@@ -271,7 +304,9 @@ describe('FeeQuoter Token Transfer Fee', () => {
     // Matches Solana's graceful-degradation behavior (network_fee_for_a_supported_token_with_no_fee_token_config):
     // the bps-derived component is treated as 0 rather than reverting, and the result still goes
     // through the min/max clamp.
-    const token = Address.parse(`0:${Buffer.from('NO_PRICE_TOKEN').toString('hex').padStart(64, '0')}`)
+    const token = Address.parse(
+      `0:${Buffer.from('NO_PRICE_TOKEN').toString('hex').padStart(64, '0')}`,
+    )
     const config = feeQuoter.TokenTransferFeeConfig.create({
       isEnabled: true,
       minFeeUsdCents: 150n,
@@ -286,17 +321,30 @@ describe('FeeQuoter Token Transfer Fee', () => {
       toNano('1'),
       {
         updates: new Map([
-          [DEST_CHAIN, feeQuoter.UpdateTokenTransferFeeConfig.create({ add: new Map([[token, config]]), remove: [] })],
+          [
+            DEST_CHAIN,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, config]]),
+              remove: [],
+            }),
+          ],
         ]),
       },
     )
-    expect(configResult.transactions).toHaveTransaction({ to: setup.bind.feeQuoter.address, success: true })
+    expect(configResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
 
     const amount = 15_000_000_000_000_000n
     const message = messageWithTokens([{ token, amount }], FEE_TOKEN.token)
     const result = await setup.getValidatedFee(message)
 
-    const expected = await expectedFee([{ token, amount, config }], FEE_TOKEN.token, FEE_TOKEN.price)
+    const expected = await expectedFee(
+      [{ token, amount, config }],
+      FEE_TOKEN.token,
+      FEE_TOKEN.price,
+    )
     expect(result.fee.feeTokenAmount).toEqual(expected)
 
     const { premiumFeeUsdWei } = computeTokenTransferFee(config, undefined, amount)
@@ -304,7 +352,11 @@ describe('FeeQuoter Token Transfer Fee', () => {
 
     // Changing deciBps has no effect while the price remains unknown.
     const configWithHigherBps = { ...config, deciBps: 20_000n }
-    const { premiumFeeUsdWei: premiumWithHigherBps } = computeTokenTransferFee(configWithHigherBps, undefined, amount)
+    const { premiumFeeUsdWei: premiumWithHigherBps } = computeTokenTransferFee(
+      configWithHigherBps,
+      undefined,
+      amount,
+    )
     expect(premiumWithHigherBps).toEqual(premiumFeeUsdWei)
   })
 
@@ -340,9 +392,7 @@ describe('FeeQuoter Token Transfer Fee', () => {
 
     const tooManyTokens: TokenLeg[] = Array.from({ length: Number(maxTokens) + 1 }, (_, i) => ({
       token:
-        i % 2 === 0
-          ? FeeQuoterSetup.SOURCE_FEE_TOKEN.token
-          : FeeQuoterSetup.CUSTOM_TOKEN.token,
+        i % 2 === 0 ? FeeQuoterSetup.SOURCE_FEE_TOKEN.token : FeeQuoterSetup.CUSTOM_TOKEN.token,
       amount: toNano('100'),
     }))
 
@@ -354,7 +404,9 @@ describe('FeeQuoter Token Transfer Fee', () => {
   })
 
   it('reverts with PremiumFeeOverflow instead of wrapping when the token value overflows', async () => {
-    const token = Address.parse(`0:${Buffer.from('OVERFLOW_TOKEN').toString('hex').padStart(64, '0')}`)
+    const token = Address.parse(
+      `0:${Buffer.from('OVERFLOW_TOKEN').toString('hex').padStart(64, '0')}`,
+    )
     const config = feeQuoter.TokenTransferFeeConfig.create({
       isEnabled: true,
       minFeeUsdCents: 1n,
@@ -369,11 +421,20 @@ describe('FeeQuoter Token Transfer Fee', () => {
       toNano('1'),
       {
         updates: new Map([
-          [DEST_CHAIN, feeQuoter.UpdateTokenTransferFeeConfig.create({ add: new Map([[token, config]]), remove: [] })],
+          [
+            DEST_CHAIN,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([[token, config]]),
+              remove: [],
+            }),
+          ],
         ]),
       },
     )
-    expect(configResult.transactions).toHaveTransaction({ to: setup.bind.feeQuoter.address, success: true })
+    expect(configResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
 
     // Close to uint224 max, so amount * price overflows a 257-bit signed int.
     const hugePrice = 1n << 223n
@@ -382,13 +443,18 @@ describe('FeeQuoter Token Transfer Fee', () => {
       toNano('1'),
       {
         updates: feeQuoter.PriceUpdates.create({
-          tokenPriceUpdates: [feeQuoter.TokenPriceUpdate.create({ sourceToken: token, usdPerToken: hugePrice })],
+          tokenPriceUpdates: [
+            feeQuoter.TokenPriceUpdate.create({ sourceToken: token, usdPerToken: hugePrice }),
+          ],
           gasPriceUpdates: [],
         }),
         sendExcessesTo: setup.acc.owner.address,
       },
     )
-    expect(priceResult.transactions).toHaveTransaction({ to: setup.bind.feeQuoter.address, success: true })
+    expect(priceResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
 
     // Close to the coins max (2^120 - 1).
     const hugeAmount = 1n << 119n
