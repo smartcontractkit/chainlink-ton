@@ -61,12 +61,14 @@
   },
   "resolutions": {
     "axios": "v1.16.1",
+    "form-data": "^4.0.6",
     "lodash": "^4.18.1",
     "protobufjs": "^7.5.5"
   },
   "pnpm": {
     "overrides": {
       "axios": "v1.16.1",
+      "form-data": "^4.0.6",
       "lodash": "^4.18.1",
       "protobufjs": "^7.5.5"
     }
