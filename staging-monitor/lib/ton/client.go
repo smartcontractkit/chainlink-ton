@@ -280,7 +280,11 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 				// Decode and match data if expectedData provided
 				if expectedData != "" && event.TypedData.Message.Data != nil {
-					dataSlice := event.TypedData.Message.Data.BeginParse()
+					dataSlice, err := event.TypedData.Message.Data.BeginParse()
+					if err != nil {
+						lggr.Warnw("Failed to begin parsing data cell", "error", err)
+						continue
+					}
 					if dataSlice.BitsLeft() > 0 {
 						dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
 						if err == nil {

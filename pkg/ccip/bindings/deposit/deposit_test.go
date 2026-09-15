@@ -36,7 +36,7 @@ func TestData_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded Data
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.Parse(&decoded, c)
 	require.NoError(t, err)
 
 	require.Equal(t, data.Owner, decoded.Owner)
@@ -65,7 +65,7 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	c, err := tlb.ToCell(initMsg)
 	require.NoError(t, err)
 	var decodedInit Init
-	require.NoError(t, tlb.LoadFromCell(&decodedInit, c.BeginParse()))
+	require.NoError(t, tlb.Parse(&decodedInit, c))
 	require.Equal(t, initMsg.QueryID, decodedInit.QueryID)
 	require.NotNil(t, decodedInit.ForwardPayload)
 
@@ -88,7 +88,7 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	c, err = tlb.ToCell(withdraw)
 	require.NoError(t, err)
 	var decodedWithdraw Withdraw
-	require.NoError(t, tlb.LoadFromCell(&decodedWithdraw, c.BeginParse()))
+	require.NoError(t, tlb.Parse(&decodedWithdraw, c))
 	require.Equal(t, withdraw.QueryID, decodedWithdraw.QueryID)
 	require.Equal(t, withdraw.WalletAddress, decodedWithdraw.WalletAddress)
 	require.Equal(t, askCell.Hash(), decodedWithdraw.Ask.Hash())
@@ -98,7 +98,7 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	c, err = tlb.ToCell(reply)
 	require.NoError(t, err)
 	var decodedReply Reply
-	require.NoError(t, tlb.LoadFromCell(&decodedReply, c.BeginParse()))
+	require.NoError(t, tlb.Parse(&decodedReply, c))
 	require.Equal(t, reply.QueryID, decodedReply.QueryID)
 	require.Nil(t, decodedReply.ForwardPayload)
 }

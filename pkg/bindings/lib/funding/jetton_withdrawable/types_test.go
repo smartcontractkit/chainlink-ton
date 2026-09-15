@@ -46,7 +46,7 @@ func TestWithdraw_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded Withdraw
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.Parse(&decoded, c))
 
 	require.Equal(t, uint64(42), decoded.QueryID)
 	require.Len(t, decoded.Transfers, 3)
@@ -73,7 +73,7 @@ func TestWithdraw_EmptyTransfers(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded Withdraw
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.Parse(&decoded, c))
 	require.Equal(t, uint64(9), decoded.QueryID)
 	require.Empty(t, decoded.Transfers)
 }
@@ -87,7 +87,7 @@ func TestWithdrawContext_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded WithdrawContext
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.Parse(&decoded, c))
 	require.Equal(t, ctx.Opcode, decoded.Opcode)
 	require.True(t, ctx.WithdrawInitiator.Equals(decoded.WithdrawInitiator))
 }
