@@ -17,6 +17,7 @@ import (
 
 type Cell[T any] = src.Cell[T]
 type Dict[K comparable, V any] = src.Dict[K, V]
+type Uint128 = src.Uint128
 type Uint160 = src.Uint160
 type Uint256 = src.Uint256
 
@@ -49,5 +50,6 @@ func NewEmptyDict[K comparable, V any]() *Dict[K, V] {
 	return src.NewEmptyDict[K, V]()
 }
 
+var NewUint128 = src.NewUint128
 var NewUint160 = src.NewUint160
 var NewUint256 = src.NewUint256

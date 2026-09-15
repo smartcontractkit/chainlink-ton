@@ -114,10 +114,10 @@ type ChainUpdate struct {
 
 // RemoteChainConfig holds the configuration for a remote chain.
 type RemoteChainConfig struct {
-	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress]  `tlb:"^"`
-	RemotePools              *tlbe.Dict[*tlbe.Uint256, *cell.Cell] `tlb:"."`
-	RateLimiters             RateLimiterPair                       `tlb:"^"`
-	FastFinalityRateLimiters RateLimiterPair                       `tlb:"^"`
+	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress] `tlb:"^"`
+	RemotePools              *tlbe.Dict[tlbe.Uint256, *cell.Cell] `tlb:"."`
+	RateLimiters             RateLimiterPair                      `tlb:"^"`
+	FastFinalityRateLimiters RateLimiterPair                      `tlb:"^"`
 }
 
 // RateLimitConfigArgs holds arguments for setting rate limit configs.

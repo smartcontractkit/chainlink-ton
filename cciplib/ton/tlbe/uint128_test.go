@@ -10,15 +10,15 @@ import (
 )
 
 func TestUint128_Values(t *testing.T) {
-	// A value above the 64-bit range exercises the high word.
+	// A value above the 64-bit range exercises multiple bytes.
 	v := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 100), big.NewInt(12345))
 
 	u := NewUint128(v)
-	require.Equal(t, uint64(1<<36), u.Hi) // 2^100 >> 64 == 2^36
-	require.Equal(t, uint64(12345), u.Lo)
 	require.Equal(t, v, u.ToBigInt())
+	require.Equal(t, uint8(0x0), u.F[0])  // high bytes zero
+	require.Equal(t, uint8(0x10), u.F[3]) // 2^100 sets bit 4 of byte 3
 
-	// Zero and max round-trip through the words.
+	// Zero and max round-trip through the bytes.
 	require.Equal(t, big.NewInt(0), NewUint128(big.NewInt(0)).ToBigInt())
 
 	max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))
@@ -35,7 +35,7 @@ func TestUint128_CellRoundTrip(t *testing.T) {
 
 	var decoded Uint128
 	require.NoError(t, decoded.LoadFromCell(c.BeginParse()))
-	require.Equal(t, original, decoded)
+	require.Equal(t, *original, decoded)
 	require.Equal(t, v, decoded.ToBigInt())
 }
 
@@ -43,8 +43,8 @@ func TestUint128_UsableAsDictKey(t *testing.T) {
 	// The whole point: Uint128 is comparable, so it keys a Dict by value and the
 	// key decodes correctly via NewDictFromDictionary (unlike *Uint256 keys).
 	d := NewDict[Uint128, struct{}](map[Uint128]struct{}{
-		NewUint128(big.NewInt(5)):                        {},
-		NewUint128(new(big.Int).Lsh(big.NewInt(1), 127)): {},
+		*NewUint128(big.NewInt(5)):                        {},
+		*NewUint128(new(big.Int).Lsh(big.NewInt(1), 127)): {},
 	})
 
 	c, err := d.ToCell()
@@ -57,9 +57,9 @@ func TestUint128_UsableAsDictKey(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, restored.AsMap(), 2)
 
-	_, ok := restored.Get(NewUint128(big.NewInt(5)))
+	_, ok := restored.Get(*NewUint128(big.NewInt(5)))
 	require.True(t, ok)
-	_, ok = restored.Get(NewUint128(new(big.Int).Lsh(big.NewInt(1), 127)))
+	_, ok = restored.Get(*NewUint128(new(big.Int).Lsh(big.NewInt(1), 127)))
 	require.True(t, ok)
 }
 
@@ -72,7 +72,7 @@ func TestUint128_JSONRoundTrip(t *testing.T) {
 
 	var decoded Uint128
 	require.NoError(t, json.Unmarshal(payload, &decoded))
-	require.Equal(t, u, decoded)
+	require.Equal(t, *u, decoded)
 }
 
 // Guards the generic path used by CursedSubjects: a struct field with a
@@ -84,7 +84,7 @@ type uint128SetHolder struct {
 func TestUint128_DictStructFieldRoundTrip(t *testing.T) {
 	original := uint128SetHolder{
 		Subjects: NewDict[Uint128, struct{}](map[Uint128]struct{}{
-			NewUint128(big.NewInt(3)): {},
+			*NewUint128(big.NewInt(3)): {},
 		}),
 	}
 

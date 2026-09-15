@@ -17,6 +17,13 @@ type legacyValues struct {
 }
 
 type typedValues struct {
+	Address Uint160 `tlb:"."`
+	Root    Uint256 `tlb:"."`
+}
+
+// ptrTypedValues covers the pointer-field form still used by the shared struct
+// definitions (e.g. *tlbe.Uint256), which must keep working unchanged.
+type ptrTypedValues struct {
 	Address *Uint160 `tlb:"."`
 	Root    *Uint256 `tlb:"."`
 }
@@ -59,11 +66,18 @@ func TestUintWrappers_MaskSignBit(t *testing.T) {
 			err = tlb.LoadFromCell(&typed, c.BeginParse())
 			require.NoError(t, err)
 
-			require.NotNil(t, typed.Address.Value(), "address value is nil")
 			require.Equal(t, expectedAddr, typed.Address.Value(), "address mismatch")
-
-			require.NotNil(t, typed.Root.Value(), "root value is nil")
 			require.Equal(t, expectedRoot, typed.Root.Value(), "root mismatch")
+
+			// Pointer fields must decode too.
+			var ptrTyped ptrTypedValues
+			err = tlb.LoadFromCell(&ptrTyped, c.BeginParse())
+			require.NoError(t, err)
+
+			require.NotNil(t, ptrTyped.Address, "pointer address is nil")
+			require.Equal(t, expectedAddr, ptrTyped.Address.Value(), "pointer address mismatch")
+			require.NotNil(t, ptrTyped.Root, "pointer root is nil")
+			require.Equal(t, expectedRoot, ptrTyped.Root.Value(), "pointer root mismatch")
 
 			// Testing legacy big.Int loading - should interpret as signed integers
 			var legacy legacyValues
@@ -81,8 +95,8 @@ func TestUintWrappers_RoundTrip(t *testing.T) {
 	root := leadingBytes(32, 0x7f)
 
 	original := typedValues{
-		Address: NewUint160(new(big.Int).SetBytes(addr)),
-		Root:    NewUint256(new(big.Int).SetBytes(root)),
+		Address: *NewUint160(new(big.Int).SetBytes(addr)),
+		Root:    *NewUint256(new(big.Int).SetBytes(root)),
 	}
 
 	cellValue, err := tlb.ToCell(original)
@@ -92,11 +106,9 @@ func TestUintWrappers_RoundTrip(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, cellValue.BeginParse())
 	require.NoError(t, err)
 
-	require.NotNil(t, decoded.Address.Value(), "address value is nil after roundtrip")
 	require.Equal(t, new(big.Int).SetBytes(addr), decoded.Address.Value(), "address mismatch after roundtrip")
-
-	require.NotNil(t, decoded.Root.Value(), "root value is nil after roundtrip")
 	require.Equal(t, new(big.Int).SetBytes(root), decoded.Root.Value(), "root mismatch after roundtrip")
+	require.Equal(t, original, decoded, "value types must be comparable with ==")
 
 	var legacy legacyValues
 	err = tlb.LoadFromCell(&legacy, cellValue.BeginParse())

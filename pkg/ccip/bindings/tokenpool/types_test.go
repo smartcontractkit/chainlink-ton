@@ -57,8 +57,8 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 // with 0-bit unit values, inlined into the enclosing cell.
 func TestCursedSubjects_WireFormat(t *testing.T) {
 	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
-		tlbe.NewUint128(big.NewInt(1)):  {},
-		tlbe.NewUint128(big.NewInt(42)): {},
+		*tlbe.NewUint128(big.NewInt(1)):  {},
+		*tlbe.NewUint128(big.NewInt(42)): {},
 	})
 
 	got, err := tlb.ToCell(CursedSubjects{Data: subjects})
@@ -83,7 +83,7 @@ func TestCursedSubjects_WireFormat(t *testing.T) {
 // TestCursedSubjects_RoundTrip verifies encode/decode via the tlb:"." marshaller.
 func TestCursedSubjects_RoundTrip(t *testing.T) {
 	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
-		tlbe.NewUint128(big.NewInt(7)): {},
+		*tlbe.NewUint128(big.NewInt(7)): {},
 	})
 
 	c, err := tlb.ToCell(CursedSubjects{Data: subjects})
@@ -92,9 +92,36 @@ func TestCursedSubjects_RoundTrip(t *testing.T) {
 	var decoded CursedSubjects
 	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
 
-	_, ok := decoded.Data.Get(tlbe.NewUint128(big.NewInt(7)))
+	_, ok := decoded.Data.Get(*tlbe.NewUint128(big.NewInt(7)))
 	require.True(t, ok)
 	require.Equal(t, 1, decoded.Data.Len())
+}
+
+// TestRemoteChainConfig_RemotePools_Decode is a regression test: RemotePools keys
+// used to be *tlbe.Uint256, which panics on decode (pointer keys are not
+// tlb.Unmarshaler). Value-typed Uint256 keys must decode, mirroring the
+// RemotePools field shape with a plain payload to isolate key behaviour.
+func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
+	type remotePoolsHolder struct {
+		RemotePools *tlbe.Dict[tlbe.Uint256, uint64] `tlb:"."`
+	}
+
+	cfg := remotePoolsHolder{
+		RemotePools: tlbe.NewDict[tlbe.Uint256, uint64](map[tlbe.Uint256]uint64{
+			*tlbe.NewUint256(big.NewInt(5)): 123,
+		}),
+	}
+
+	c, err := tlb.ToCell(cfg)
+	require.NoError(t, err)
+
+	var decoded remotePoolsHolder
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.Len(t, decoded.RemotePools.AsMap(), 1)
+
+	got, ok := decoded.RemotePools.Get(*tlbe.NewUint256(big.NewInt(5)))
+	require.True(t, ok)
+	require.Equal(t, uint64(123), got)
 }
 
 // TestDynamicConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode

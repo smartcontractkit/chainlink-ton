@@ -83,75 +83,81 @@ func (b BigUint) toCell(bits uint) (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
-// Uint128 is a 128-bit unsigned integer that is safe to use as a dictionary key.
+// --- Fixed-width unsigned integers ---
 //
-// Unlike [Uint160]/[Uint256] (which alias big.Int and are therefore neither
-// comparable nor usable as map keys), Uint128 is a comparable value type, so it
-// can key a tlbe.Dict directly and compares by value rather than pointer
-// identity.
+// Uint128/Uint160/Uint256 are boxed fixed-width unsigned integers used to model
+// Tolk's uint128/uint160/uint256. They are deliberately NOT aliases of big.Int:
+// big.Int is a struct containing a slice, so an alias is neither comparable nor
+// usable as a map/dictionary key, and a pointer to it mis-keys (pointer
+// identity) and panics when decoded through tonutils' reflection path.
 //
-// The bit width is 128, matching Tolk uint128 (e.g. the cursed-subject map keys:
-// map<uint128, ()>).
-type Uint128 struct {
-	Hi uint64
-	Lo uint64
+// Each type stores its value as big-endian 64-bit words in a fixed-size array,
+// which makes it a comparable value type. As a result these can be used directly
+// as tlbe.Dict keys (matching Tolk map<uint128|uint160|uint256, T>) and compare
+// with == rather than via a helper.
+//
+// All three share the same codec (the uintWords* helpers below); each type only
+// declares its width and delegates.
+
+// uintBytesFromBigInt converts v to exactly nbytes big-endian bytes, masking the
+// input to bits bits first (so the sign bit is never misread).
+func uintBytesFromBigInt(v *big.Int, bits uint, nbytes int) []byte {
+	out := make([]byte, nbytes)
+	AsUnsigned(v, bits).FillBytes(out) // big-endian, left-padded with zeros
+
+	return out
 }
 
-// NewUint128 builds a Uint128 from a big.Int, interpreting it as an unsigned
-// 128-bit value (the input is masked to 128 bits).
-func NewUint128(v *big.Int) Uint128 {
-	u := AsUnsigned(v, 128)
-	lo := new(big.Int).And(u, maxUint64) // compute before Rsh mutates u in place
-	hi := new(big.Int).Rsh(u, 64)
-
-	return Uint128{Hi: hi.Uint64(), Lo: lo.Uint64()}
-}
-
-var maxUint64 = new(big.Int).SetUint64(^uint64(0))
-
-func (Uint128) BitsLen() uint {
-	return 128
-}
-
-// ToBigInt returns the value as a new big.Int.
-func (x Uint128) ToBigInt() *big.Int {
-	hi := new(big.Int).SetUint64(x.Hi)
-	hi.Lsh(hi, 64)
-	return hi.Or(hi, new(big.Int).SetUint64(x.Lo))
-}
-
-func (x Uint128) String() string {
-	return x.ToBigInt().String()
-}
-
-// LoadFromCell implements tlb.Unmarshaler.
-func (x *Uint128) LoadFromCell(loader *cell.Slice) error {
-	hi, err := loader.LoadUInt(64)
-	if err != nil {
-		return fmt.Errorf("failed to load Uint128 high word: %w", err)
-	}
-	lo, err := loader.LoadUInt(64)
-	if err != nil {
-		return fmt.Errorf("failed to load Uint128 low word: %w", err)
+// uintBytesToBigInt converts big-endian bytes to an unsigned big.Int.
+func uintBytesToBigInt(b []byte) *big.Int {
+	res := new(big.Int).SetBytes(b)
+	if res.Sign() == 0 {
+		// Return the canonical zero form (abs == nil) so it compares equal to
+		// big.NewInt(0).
+		return new(big.Int)
 	}
 
-	x.Hi, x.Lo = hi, lo
+	return res
+}
+
+// uintBytesToCell stores all bytes sequentially (8 bits each) into a single cell.
+func uintBytesToCell(b []byte) (*cell.Cell, error) {
+	builder := cell.BeginCell()
+	for i, by := range b {
+		if err := builder.StoreUInt(uint64(by), 8); err != nil {
+			return nil, fmt.Errorf("failed to store byte %d: %w", i, err)
+		}
+	}
+
+	return builder.EndCell(), nil
+}
+
+// uintBytesFromCell loads len(dst) sequential bytes into dst.
+func uintBytesFromCell(dst []byte, loader *cell.Slice) error {
+	for i := range dst {
+		by, err := loader.LoadUInt(8)
+		if err != nil {
+			return fmt.Errorf("failed to load byte %d: %w", i, err)
+		}
+		dst[i] = byte(by)
+	}
+
 	return nil
 }
 
-// ToCell implements tlb.Marshaller.
-func (x Uint128) ToCell() (*cell.Cell, error) {
-	return cell.BeginCell().MustStoreUInt(x.Hi, 64).MustStoreUInt(x.Lo, 64).EndCell(), nil
+// uintBytesMarshalJSON emits the canonical hexadecimal string form.
+func uintBytesMarshalJSON(b []byte) ([]byte, error) {
+	return []byte(`"0x` + uintBytesToBigInt(b).Text(16) + `"`), nil
 }
 
-// MarshalJSON implements the [encoding/json.Marshaler] interface, emitting a
-// canonical hexadecimal string (matching Uint160/Uint256).
-func (x Uint128) MarshalJSON() ([]byte, error) {
-	return []byte(`"0x` + x.ToBigInt().Text(16) + `"`), nil
-}
+// parseUintJSON parses a JSON value (hex/decimal string, or number) into an
+// unsigned big.Int that fits in bits bits.
+func parseUintJSON(data []byte, bits uint) (*big.Int, error) {
+	var (
+		b  *big.Int
+		ok bool
+	)
 
-// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
-func (x *Uint128) UnmarshalJSON(data []byte) error {
 	// Try a JSON string first (hex or decimal).
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
@@ -160,211 +166,162 @@ func (x *Uint128) UnmarshalJSON(data []byte) error {
 			base = 16
 			s = s[2:]
 		}
-		b, ok := new(big.Int).SetString(s, base)
+		b, ok = new(big.Int).SetString(s, base)
 		if !ok {
-			return fmt.Errorf("failed to parse Uint128 string %q", s)
+			return nil, fmt.Errorf("failed to parse uint%d string %q", bits, s)
 		}
-		if b.Sign() < 0 || b.BitLen() > 128 {
-			return errors.New("failed to unmarshal Uint128 from JSON: out of range")
+	} else {
+		// Fallback: plain JSON number.
+		b = new(big.Int)
+		if err := b.UnmarshalJSON(data); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal uint%d from JSON: %w", bits, err)
 		}
-		*x = NewUint128(b)
-		return nil
 	}
 
-	// Fallback: plain JSON number.
-	b := new(big.Int)
-	if err := b.UnmarshalJSON(data); err != nil {
-		return fmt.Errorf("failed to unmarshal Uint128 from JSON: %w", err)
+	if b.Sign() < 0 || b.BitLen() > int(bits) {
+		return nil, fmt.Errorf("failed to unmarshal uint%d from JSON: out of range", bits)
 	}
-	if b.Sign() < 0 || b.BitLen() > 128 {
-		return errors.New("failed to unmarshal Uint128 from JSON: out of range")
-	}
-	*x = NewUint128(b)
-	return nil
+
+	return b, nil
 }
 
-// Uint160 is a 160-bit unsigned integer wrapper.
-type Uint160 big.Int
-
-func NewUint160(v *big.Int) *Uint160 {
-	return (*Uint160)(AsUnsigned(v, 160))
+// Uint128 is a 128-bit unsigned integer (Tolk uint128, e.g. cursed-subject map
+// keys: map<uint128, ()>). See the fixed-width section note above.
+type Uint128 struct {
+	F [16]byte
 }
 
-func (*Uint160) BitsLen() uint {
-	return 160
+// NewUint128 builds a Uint128 from a big.Int, masking the input to 128 bits.
+func NewUint128(v *big.Int) *Uint128 {
+	var a [16]byte
+	copy(a[:], uintBytesFromBigInt(v, 128, 16))
+
+	return &Uint128{F: a}
 }
+
+func (Uint128) BitsLen() uint { return 128 }
+
+// ToBigInt returns the value as a new big.Int.
+func (x Uint128) ToBigInt() *big.Int { return uintBytesToBigInt(x.F[:]) }
+
+// Value is an alias for [Uint128.ToBigInt].
+func (x Uint128) Value() *big.Int { return x.ToBigInt() }
+
+func (x Uint128) String() string { return x.ToBigInt().String() }
+
+// Cmp compares x and y and returns -1, 0 or +1.
+func (x Uint128) Cmp(y Uint128) int { return x.ToBigInt().Cmp(y.ToBigInt()) }
 
 // LoadFromCell implements tlb.Unmarshaler.
-func (x *Uint160) LoadFromCell(loader *cell.Slice) error {
-	b := new(BigUint)
-	err := b.loadFromCell(x.BitsLen(), loader)
-	if err != nil {
-		return fmt.Errorf("failed to load Uint160 from cell: %w", err)
-	}
+func (x *Uint128) LoadFromCell(loader *cell.Slice) error { return uintBytesFromCell(x.F[:], loader) }
 
-	*x = Uint160(*b.Value)
+// ToCell implements tlb.Marshaller.
+func (x Uint128) ToCell() (*cell.Cell, error) { return uintBytesToCell(x.F[:]) }
+
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
+func (x Uint128) MarshalJSON() ([]byte, error) { return uintBytesMarshalJSON(x.F[:]) }
+
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
+func (x *Uint128) UnmarshalJSON(data []byte) error {
+	v, err := parseUintJSON(data, 128)
+	if err != nil {
+		return err
+	}
+	copy(x.F[:], uintBytesFromBigInt(v, 128, 16))
+
 	return nil
 }
 
+// Uint160 is a 160-bit unsigned integer (Tolk uint160, e.g. a 20-byte EVM
+// address). See the fixed-width section note above.
+type Uint160 struct {
+	F [20]byte
+}
+
+// NewUint160 builds a Uint160 from a big.Int, masking the input to 160 bits.
+func NewUint160(v *big.Int) *Uint160 {
+	var a [20]byte
+	copy(a[:], uintBytesFromBigInt(v, 160, 20))
+
+	return &Uint160{F: a}
+}
+
+func (Uint160) BitsLen() uint { return 160 }
+
+// ToBigInt returns the value as a new big.Int.
+func (x Uint160) ToBigInt() *big.Int { return uintBytesToBigInt(x.F[:]) }
+
+// Value is an alias for [Uint160.ToBigInt].
+func (x Uint160) Value() *big.Int { return x.ToBigInt() }
+
+func (x Uint160) String() string { return x.ToBigInt().String() }
+
+// Cmp compares x and y and returns -1, 0 or +1.
+func (x Uint160) Cmp(y Uint160) int { return x.ToBigInt().Cmp(y.ToBigInt()) }
+
+// LoadFromCell implements tlb.Unmarshaler.
+func (x *Uint160) LoadFromCell(loader *cell.Slice) error { return uintBytesFromCell(x.F[:], loader) }
+
 // ToCell implements tlb.Marshaller.
-func (x Uint160) ToCell() (*cell.Cell, error) {
-	b := BigUint{
-		Bits:  x.BitsLen(),
-		Value: (*big.Int)(&x),
-	}
-	return b.toCell(x.BitsLen())
-}
+func (x Uint160) ToCell() (*cell.Cell, error) { return uintBytesToCell(x.F[:]) }
 
-func (x *Uint160) MarshalJSON() ([]byte, error) {
-	if x == nil {
-		return []byte("null"), nil
-	}
-
-	// Canonical output: hexadecimal string.
-	// Avoids precision/scientific-notation issues in intermediate tooling.
-	v := x.Value()
-	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) {
-		return nil, errors.New("failed to marshal Uint160: out of range")
-	}
-
-	hex := v.Text(16) // lowercase
-	return []byte(`"0x` + hex + `"`), nil
-}
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
+func (x Uint160) MarshalJSON() ([]byte, error) { return uintBytesMarshalJSON(x.F[:]) }
 
 // UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (x *Uint160) UnmarshalJSON(data []byte) error {
-	// Try JSON string first
-	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
-		base := 10
-		if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
-			base = 16
-			s = s[2:]
-		}
-		b, ok := new(big.Int).SetString(s, base)
-		if !ok {
-			return fmt.Errorf("failed to parse Uint160 string %q", s)
-		}
-
-		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
-			return errors.New("failed to unmarshal Uint160 from JSON: out of range")
-		}
-		*x = Uint160(*b)
-		return nil
+	v, err := parseUintJSON(data, 160)
+	if err != nil {
+		return err
 	}
+	copy(x.F[:], uintBytesFromBigInt(v, 160, 20))
 
-	// Fallback: plain JSON number
-	b := new(big.Int)
-	if err := b.UnmarshalJSON(data); err != nil {
-		return fmt.Errorf("failed to unmarshal Uint160 from JSON: %w", err)
-	}
-
-	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
-		return errors.New("failed to unmarshal Uint160 from JSON: out of range")
-	}
-	*x = Uint160(*b)
 	return nil
 }
 
-func (x Uint160) Value() *big.Int {
-	return (*big.Int)(&x)
+// Uint256 is a 256-bit unsigned integer (Tolk uint256, e.g. a merkle root or
+// operation id). See the fixed-width section note above.
+type Uint256 struct {
+	F [32]byte
 }
 
-func (x Uint160) String() string {
-	return x.Value().String()
-}
-
-// Uint256 is a 256-bit unsigned integer wrapper.
-type Uint256 big.Int
-
+// NewUint256 builds a Uint256 from a big.Int, masking the input to 256 bits.
 func NewUint256(v *big.Int) *Uint256 {
-	return (*Uint256)(AsUnsigned(v, 256))
+	var a [32]byte
+	copy(a[:], uintBytesFromBigInt(v, 256, 32))
+
+	return &Uint256{F: a}
 }
 
-func (*Uint256) BitsLen() uint {
-	return 256
-}
+func (Uint256) BitsLen() uint { return 256 }
 
-func (x *Uint256) Cmp(y *Uint256) (r int) {
-	return x.Value().Cmp(y.Value())
-}
+// ToBigInt returns the value as a new big.Int.
+func (x Uint256) ToBigInt() *big.Int { return uintBytesToBigInt(x.F[:]) }
+
+// Value is an alias for [Uint256.ToBigInt].
+func (x Uint256) Value() *big.Int { return x.ToBigInt() }
+
+func (x Uint256) String() string { return x.ToBigInt().String() }
+
+// Cmp compares x and y and returns -1, 0 or +1.
+func (x Uint256) Cmp(y Uint256) int { return x.ToBigInt().Cmp(y.ToBigInt()) }
 
 // LoadFromCell implements tlb.Unmarshaler.
-func (x *Uint256) LoadFromCell(loader *cell.Slice) error {
-	b := new(BigUint)
-	err := b.loadFromCell(x.BitsLen(), loader)
-	if err != nil {
-		return fmt.Errorf("failed to load Uint256 from cell: %w", err)
-	}
-
-	*x = Uint256(*b.Value)
-	return nil
-}
+func (x *Uint256) LoadFromCell(loader *cell.Slice) error { return uintBytesFromCell(x.F[:], loader) }
 
 // ToCell implements tlb.Marshaller.
-func (x Uint256) ToCell() (*cell.Cell, error) {
-	b := BigUint{
-		Bits:  x.BitsLen(),
-		Value: (*big.Int)(&x),
-	}
-	return b.toCell(x.BitsLen())
-}
+func (x Uint256) ToCell() (*cell.Cell, error) { return uintBytesToCell(x.F[:]) }
 
-func (x *Uint256) MarshalJSON() ([]byte, error) {
-	if x == nil {
-		return []byte("null"), nil
-	}
-
-	// Canonical output: hexadecimal string.
-	// Avoids precision/scientific-notation issues in intermediate tooling.
-	v := x.Value()
-	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) {
-		return nil, errors.New("failed to marshal Uint256: out of range")
-	}
-
-	hex := v.Text(16) // lowercase
-	return []byte(`"0x` + hex + `"`), nil
-}
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
+func (x Uint256) MarshalJSON() ([]byte, error) { return uintBytesMarshalJSON(x.F[:]) }
 
 // UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 func (x *Uint256) UnmarshalJSON(data []byte) error {
-	// Try JSON string first
-	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
-		base := 10
-		if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
-			base = 16
-			s = s[2:]
-		}
-		b, ok := new(big.Int).SetString(s, base)
-		if !ok {
-			return fmt.Errorf("failed to parse Uint256 string %q", s)
-		}
-
-		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
-			return errors.New("failed to unmarshal Uint256 from JSON: out of range")
-		}
-		*x = Uint256(*b)
-		return nil
+	v, err := parseUintJSON(data, 256)
+	if err != nil {
+		return err
 	}
+	copy(x.F[:], uintBytesFromBigInt(v, 256, 32))
 
-	// Fallback: plain JSON number
-	b := new(big.Int)
-	if err := b.UnmarshalJSON(data); err != nil {
-		return fmt.Errorf("failed to unmarshal Uint256 from JSON: %w", err)
-	}
-
-	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
-		return errors.New("failed to unmarshal Uint256 from JSON: out of range")
-	}
-	*x = Uint256(*b)
 	return nil
-}
-
-func (x Uint256) Value() *big.Int {
-	return (*big.Int)(&x)
-}
-
-func (x Uint256) String() string {
-	return x.Value().String()
 }
