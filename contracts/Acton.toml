@@ -107,12 +107,6 @@ src = "contracts/ccip/pools/lockbox/JettonLockBox.tolk"
 domain = "ccip/pools"
 depends = []
 
-[contracts.LockReleaseTokenPool]
-display-name = "link.chain.ton.ccip.pool.LockReleaseTokenPool"
-src = "contracts/ccip/pools/lock_release/contract.tolk"
-domain = "ccip/pools"
-depends = []
-
 [contracts.BurnMintTokenPool]
 display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"

@@ -131,26 +131,11 @@ const CONTRACTS: ContractSource[] = [
     tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
   },
   {
-    contractType: 'link.chain.ton.ccip.pool.LockReleaseTokenPool',
-    compiledFile: 'ccip.pool.LockReleaseTokenPool.compiled.json',
-    tolkSource: 'contracts/ccip/pools/lock_release/contract.tolk',
-  },
-  {
     contractType: 'link.chain.ton.ccip.pool.BurnMintTokenPool',
     compiledFile: 'ccip.pool.BurnMintTokenPool.compiled.json',
     tolkSource: 'contracts/ccip/pools/burn_mint/contract.tolk',
   },
   // MCMS contracts
-  {
-    contractType: 'link.chain.ton.ccip.pool.LockReleaseTokenPool',
-    compiledFile: 'ccip.pool.LockReleaseTokenPool.compiled.json',
-    tolkSource: 'contracts/ccip/pools/lock_release/contract.tolk',
-  },
-  {
-    contractType: 'link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool',
-    compiledFile: 'ccip.pool.LockReleaseLockboxTokenPool.compiled.json',
-    tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
-  },
   {
     contractType: 'link.chain.ton.mcms.Timelock',
     compiledFile: 'mcms.RBACTimelock.compiled.json',

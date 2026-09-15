@@ -26,12 +26,14 @@ import * as deployable from '../../../wrappers/libraries/Deployable'
 import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.spec'
 import { ChainSelectors } from '../../utils/Selectors'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
+import { buildJettonLockBox, grantLockBoxOperatorRole, initJettonLockBox } from '../helpers/lockbox'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
-import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
+import { JettonLockBox } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
+import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
@@ -639,7 +641,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
 
   public token: Address = generateMockTonAddress()
   public jettonMinter: SandboxContract<cct.JettonMinter> = null as any
-  public tokenPool: SandboxContract<lrp.LockReleaseTokenPool> = null as any
+  public jettonLockBox: SandboxContract<JettonLockBox> = null as any
+  public tokenPool: SandboxContract<lrp.LockReleaseLockboxTokenPool> = null as any
   public tokenRegistry: SandboxContract<trg.TokenAdminRegistryEntry> = null as any
   // Register the remote chain config.
   public readonly sourcePoolAddress: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(
@@ -683,7 +686,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
         tokenRegistry: await contractCode.ccip.local('TokenAdminRegistryEntry'),
-        tokenPool: await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool'),
+        tokenPool: await contractCode.ccip.local('ccip.pool.LockReleaseLockboxTokenPool'),
         jettonMinter: await contractCode.ccip.local('ccip.cct.JettonMinter'),
         jettonWallet: await contractCode.ccip.local('ccip.cct.JettonWallet'),
       },
@@ -707,6 +710,17 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     await super.SetupContracts()
     this.jettonMinter = await this.setupJettonMinter()
     this.token = this.jettonMinter.address
+    // The pool stores the lockbox address, so the lockbox has to exist (address-wise)
+    // before the pool address can be derived. The lockbox address does not depend on
+    // the pool, so there is no cycle.
+    // The id is randomized because `SetupContracts` runs before every test on the same
+    // blockchain: a stable address would reuse the already-initialized lockbox
+    // (JettonLockBox_Error.ContractAlreadyInitialized).
+    this.jettonLockBox = await buildJettonLockBox({
+      blockchain: this.blockchain,
+      minterAddress: this.token,
+      id: generateRandomContractId(),
+    })
     this.tokenPool = await this.setupTokenPool()
     this.tokenRegistry = await this.setupTokenRegistry(this.token, this.tokenPool.address)
     // Mint tokens to the pool so it has balance to release.
@@ -778,14 +792,16 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
-   * Mints jettons to the token pool's jetton wallet so the pool has balance to release.
+   * Mints jettons to the JettonLockBox's jetton wallet so the pool has balance to
+   * release. For a lockbox pool the escrowed liquidity lives in the lockbox, not in
+   * the pool's own wallet.
    */
   async mintTokensToPool(amount: bigint): Promise<void> {
     const mintResult = await this.jettonMinter.sendMintNewJettons(
       this.deployer.getSender(),
       toNano('1'),
       {
-        mintRecipient: this.tokenPool.address,
+        mintRecipient: this.jettonLockBox.address,
         tonAmount: toNano('0.3'),
         internalTransferMsg: cct.InternalTransferStep.create({
           jettonAmount: amount,
@@ -861,9 +877,12 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
-   * Deploys a TokenPool configured for the given token and remote chain.
-   * The pool is registered as the offRamp for the remote chain so that
-   * ReleaseOrMint from the OffRamp is authorized.
+   * Deploys a LockReleaseLockboxTokenPool configured for the given token and remote
+   * chain, plus the JettonLockBox it escrows into.
+   *
+   * The lockbox is initialized and granted OPERATOR_ROLE for the pool before the
+   * pool is deployed: the pool only ever *sends* to the lockbox, and the lockbox
+   * authenticates it via `rbac.requireRole(OPERATOR_ROLE, sender)`.
    */
   async setupTokenPool(
     opts: {
@@ -873,7 +892,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       tokenDecimals?: bigint
       rateLimitCapacity?: bigint
     } = {},
-  ): Promise<SandboxContract<lrp.LockReleaseTokenPool>> {
+  ): Promise<SandboxContract<lrp.LockReleaseLockboxTokenPool>> {
     const token = opts.token ?? this.token
     const remoteChainSelector = opts.remoteChainSelector ?? this.SOURCE_CHAIN_SELECTOR
     const jettonWalletCode = opts.jettonWalletCode ?? this.code.jettonWallet
@@ -881,7 +900,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     const rateLimitCapacity = opts.rateLimitCapacity ?? toNano('1000')
 
     const tokenPool = this.blockchain.openContract(
-      lrp.LockReleaseTokenPool.fromStorage(
+      lrp.LockReleaseLockboxTokenPool.fromStorage(
         {
           poolData: tp.TokenPool_Data.create({
             adminConfig: tp.TokenPool_AdminConfig.create({
@@ -908,12 +927,27 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
+          lockbox: this.jettonLockBox.address,
           offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
-          accruedFees: 0n,
         },
         { overrideContractCode: this.code.tokenPool },
       ),
     )
+
+    // Init the lockbox and authorize the pool, then deploy the pool itself.
+    await initJettonLockBox({
+      deployer: this.deployer,
+      lockbox: this.jettonLockBox,
+      minterAddress: token,
+      operator: tokenPool.address,
+      resolveWalletAddress: (owner) => this.jettonMinter.getWalletAddress(owner),
+    })
+    await grantLockBoxOperatorRole({
+      blockchain: this.blockchain,
+      deployer: this.deployer,
+      lockbox: this.jettonLockBox,
+      operator: tokenPool.address,
+    })
 
     const deploymentResult = await tokenPool.sendDeploy(this.deployer.getSender(), toNano('0.05'))
     expect(deploymentResult.transactions).toHaveTransaction({
