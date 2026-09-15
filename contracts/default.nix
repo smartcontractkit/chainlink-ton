@@ -112,14 +112,15 @@
         chmod u+w ./yarn.lock
       '';
 
-      nativeBuildInputs = with pkgs; [
-        yarnConfigHook
-        yarnBuildHook
-        yarnInstallHook
-        # Needed for executing package.json scripts
-        nodejs_24
-        acton
-      ];
+      nativeBuildInputs =
+        with pkgs; [
+          yarnConfigHook
+          yarnBuildHook
+          yarnInstallHook
+          # Needed for executing package.json scripts
+          nodejs_24
+        ]
+        ++ [acton];
 
       buildInputs = [
         contracts-jetton-func
