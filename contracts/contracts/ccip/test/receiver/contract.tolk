@@ -75,6 +75,7 @@ fun onInternalMessage(in: InMessage) {
                 value: 0,
                 dest: in.senderAddress,
                 body: Router_CCIPReceiveConfirm {
+                    queryId: msg.queryId,
                     execId: msg.execId,
                 }
             });

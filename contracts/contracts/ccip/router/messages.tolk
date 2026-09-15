@@ -62,6 +62,7 @@ struct (0x31768d95) Router_CCIPSend {
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
+    queryId: uint64;
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;
     receiver: address;
@@ -83,6 +84,7 @@ struct Router_WithdrawRequest {
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
+    queryId: uint64;
     execId: ReceiveExecutorId;
 }
 

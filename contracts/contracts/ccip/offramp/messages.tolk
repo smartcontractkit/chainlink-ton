@@ -56,6 +56,7 @@ struct (0x27bdac33) OffRamp_Execute {
 }
 
 struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+    queryId: uint64;
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
@@ -82,6 +83,7 @@ struct SourceChainConfigUpdate {
 
 //Must be sent from an owned ReceiveExecutor contract
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
+    queryId: uint64;
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
     // Gas limit to use for the message execution
@@ -89,6 +91,7 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
+    queryId: uint64;
     execId: ReceiveExecutorId;
     receiver: address;
 }
@@ -99,13 +102,15 @@ struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
 }
 
 struct (0x59e56170) OffRamp_NotifySuccess {
-    header: RampMessageHeader;
+    queryId: uint64;
+    header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
 }
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
-    header: RampMessageHeader;
+    queryId: uint64;
+    header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
 }

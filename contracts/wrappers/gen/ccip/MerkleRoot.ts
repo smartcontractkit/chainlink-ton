@@ -192,6 +192,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 /**
  > struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
@@ -201,6 +202,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
+    queryId: uint64
     message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
@@ -212,6 +214,7 @@ export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
@@ -221,13 +224,15 @@ export const OffRamp_ExecuteValidated = {
         return {
             $: 'OffRamp_ExecuteValidated',
             gasOverride: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
         return {
             $: 'OffRamp_ExecuteValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
@@ -237,6 +242,7 @@ export const OffRamp_ExecuteValidated = {
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
@@ -444,6 +450,7 @@ export const ExecutionState = {
 
 /**
  > struct (0x038ede91) MerkleRoot_Validate {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
@@ -452,6 +459,7 @@ export const ExecutionState = {
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
+    queryId: uint64
     message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
@@ -462,6 +470,7 @@ export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
@@ -469,13 +478,15 @@ export const MerkleRoot_Validate = {
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
         return {
             $: 'MerkleRoot_Validate',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
@@ -484,6 +495,7 @@ export const MerkleRoot_Validate = {
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
@@ -709,7 +721,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAo8AART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwC/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABn9MAAZL6AJJtAeL0BYEAipQwbW1w4gXQINP/MdM/MdM/MdcLP4FIrVMavpVTGbvDAJFw4vL0UwmhgUitIcFA8vRzIaoArCmwAaoArYFIqyHAA5F/4w7y9CcGBwH+Me1E0NP/+kjTP9M/0z/Tf9cLD4FIqfiSJ8cF8vQH0z/XCwcgwgPyRYFIrVMlvpVTJLvDAJFw4vL0UxShgUitIcFA8vRzIaoArCSwAaoArYFIrAHDAvL0gUisIcACkX+VIcADwwDi8vSBSK1TJb6VUyS7wwCRcOLy9FEUoYFIrQkACiHAAMMAAf7DAI4W+CMsoVAHvIFIqgGRf5UmwAPDAOLy9Jc2gUioJvLy4oFIrVMavpVTGbvDAJFw4vL0KaGBSK0hwUDy9HMhqgCssxiwB6oArhexBsjOycjPkxz1airMK88L/xPL/wSOFQPPgyNulDMCz4GWz4NQA/oC4hL0AJRbAc+B4ssHCABQycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEAEAApYAART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFIDA0C/DHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1NMf0//TAAGf0wABkvoAkm0B4vQFgQCKlDBtbXDiBdAg0/8x0z8x0z8x1ws/gUitUxu+lVMau8MAkXDi8vRTCqGBSK0hwUDy9HMhqgCsKrABqgCtgUirIcADkX/jDgYHAf4x7UTQ0//6SNM/0z/TP9N/1wsPgUip+JInxwXy9AfTP9cLByDCA/JFgUitUyW+lVMku8MAkXDi8vRTFKGBSK0hwUDy9HMhqgCsJLABqgCtgUisAcMC8vSBSKwhwAKRf5UhwAPDAOLy9IFIrVMlvpVTJLvDAJFw4vL0URShgUitCgAKIcAAwwAC/vL0J8MAjhb4Iy2hUAe8gUiqAZF/lSbAA8MA4vL0lzaBSKgm8vLigUitUxu+lVMau8MAkXDi8vQqoYFIrSHBQPL0cyGqAKyzGbAIqgCuGLEHyM7JyM+THPVqKhfLPxbMK88L/xLL/wOUMDLPgeMNywfJyM+FiFJg+lJxzwtuzMkICQAoAs+DIm6UbBLPgZXPg1j6AuIS9AAAMoBA+wAFyMv/FPpSEss/yz/LP8t/yw/J7VQBnCHBQPL0cyGqAKyzE7ACqgBSEKwSsQHAApMGpAbeUxKhpCe6jpOIyM+FiFJg+lJxzwtuzMmDBvsA3gXIy/8U+lISyz/LP8s/y3/LD8ntVAsAAAIBIA4PAAu4aFgQC6gAVbYr8aDzY0tzWXMbQwtLcXOje3FzGxtLgXJrK5NbYyqTe3ukEWpiXGxcYxAAGbXFECkVFAQQgfd+UJA=');
 
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
@@ -761,6 +773,7 @@ export class MerkleRoot implements c.Contract {
     }
 
     static createCellOfMerkleRootValidate(body: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
@@ -793,6 +806,7 @@ export class MerkleRoot implements c.Contract {
     }
 
     async sendMerkleRootValidate(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
