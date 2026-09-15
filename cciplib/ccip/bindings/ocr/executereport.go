@@ -12,13 +12,13 @@ import (
 
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
 // Message: single message as cell reference
-// OffChainTokenData: vec<vec<u8>> - per-message lists of per-token data blobs.
+// OffChainTokenData: vec<vec<vec<u8>>> - per-message lists of per-token data blobs.
 // Stored as a required cell reference to lisp_list<lisp_list<cell>>.
 // Proofs: vec<bytes32> - inline 256-bit proofs using SnakedCell with Proof wrapper (matches TypeScript asSnakeData)
 type ExecuteReport struct {
 	SourceChainSelector uint64                                              `tlb:"## 64"`
 	Message             Any2TVMRampMessage                                  `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
-	OffChainTokenData   common.LispList[common.LispList[common.SnakeBytes]] `tlb:"^"` // vec<vec<u8>> - lisp_list<lisp_list<cell>>
+	OffChainTokenData   common.LispList[common.LispList[common.SnakeBytes]] `tlb:"^"` // vec<vec<vec<u8>>>
 	Proofs              common.SnakedCell[common.Proof]                     `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
 	ProofFlagBits       *big.Int                                            `tlb:"## 256"`
 }
