@@ -131,9 +131,15 @@ src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
 domain = "ccip/test"
 depends = []
 
-[contracts.TokenRegistry]
-display-name = "link.chain.ton.ccip.TokenRegistry"
-src = "contracts/ccip/token_registry/contract.tolk"
+[contracts.TokenAdminRegistry]
+display-name = "link.chain.ton.ccip.TokenAdminRegistry"
+src = "contracts/ccip/token_admin_registry/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.TokenAdminRegistryEntry]
+display-name = "link.chain.ton.ccip.TokenAdminRegistryEntry"
+src = "contracts/ccip/token_admin_registry_entry/contract.tolk"
 domain = "ccip"
 depends = []
 
@@ -167,6 +173,12 @@ depends = []
 [contracts.TestMsgHasher]
 display-name = "link.chain.ton.test.lib.MsgHasher"
 src = "contracts/test/lib/msg_hasher.tolk"
+domain = "test"
+depends = []
+
+[contracts.TestLispList]
+display-name = "link.chain.ton.test.examples.LispList"
+src = "contracts/test/examples/lisp_list.tolk"
 domain = "test"
 depends = []
 

@@ -17,8 +17,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 )
 
 const (
@@ -44,16 +45,17 @@ const (
 	TypeTimelock tvm.FullyQualifiedName = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter          tvm.FullyQualifiedName = PkgCCIP + ".Router"
-	TypeOnRamp          tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
-	TypeOffRamp         tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter       tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor    tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
-	TypeDeployable      tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
-	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
-	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
-	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
-	TypeDepositAccount  tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
+	TypeRouter                  tvm.FullyQualifiedName = PkgCCIP + ".Router"
+	TypeOnRamp                  tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
+	TypeOffRamp                 tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter               tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor            tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable              tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
+	TypeMerkleRoot              tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor         tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
+	TypeTokenAdminRegistry      tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistry"
+	TypeTokenAdminRegistryEntry tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistryEntry"
+	TypeDepositAccount          tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
 
 	// Test contract types
 	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
@@ -82,7 +84,7 @@ const (
 	ShortReceiver                    = "Receiver"
 	ShortTimelock                    = "RBACTimelock"
 	ShortMCMS                        = "MCMS"
-	ShortTokenRegistry               = "TokenAdminRegistry"
+	ShortTokenAdminRegistry          = "TokenAdminRegistry"
 	ShortLockReleaseTokenPool        = "LockReleaseTokenPool"
 	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
 
@@ -112,9 +114,9 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
+	{ShortTokenAdminRegistry, TypeTokenAdminRegistry},
 	{ShortLockReleaseTokenPool, TypeLockReleaseTokenPool},
 	{ShortLockReleaseLockboxTokenPool, TypeLockReleaseLockboxTokenPool},
-	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
@@ -152,12 +154,13 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeTimelock: timelock.TLBs,
 
 	// CCIP contract types
-	TypeRouter:        router.TLBs,
-	TypeOnRamp:        onramp.TLBs,
-	TypeOffRamp:       offramp.TLBs,
-	TypeFeeQuoter:     feequoter.TLBs,
-	TypeSendExecutor:  ccipsendexecutor.TLBs,
-	TypeTokenRegistry: tokenregistry.TLBs,
+	TypeRouter:                  router.TLBs,
+	TypeOnRamp:                  onramp.TLBs,
+	TypeOffRamp:                 offramp.TLBs,
+	TypeFeeQuoter:               feequoter.TLBs,
+	TypeSendExecutor:            ccipsendexecutor.TLBs,
+	TypeTokenAdminRegistry:      tokenadminregistry.TLBs,
+	TypeTokenAdminRegistryEntry: tokenadminregistryentry.TLBs,
 
 	// Token pool contract types
 	TypeLockReleaseTokenPool: lockrelease.TLBs,

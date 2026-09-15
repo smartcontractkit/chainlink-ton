@@ -30,11 +30,11 @@ import { setupTestFeeQuoter } from '../helpers/SetUp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
-import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
+import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
-import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
 
@@ -56,6 +56,7 @@ export async function deployOffRampContract(
     merkleRootCode?: Cell
     receiveExecutorCode?: Cell
     feeQuoter?: Address
+    tokenAdminRegistry?: Address
   },
 ): Promise<SandboxContract<of.OffRamp>> {
   const storage = of.Storage.create({
@@ -65,6 +66,7 @@ export async function deployOffRampContract(
     }),
     deployables: of.OffRamp_Deployables.create({
       rmnRouter: owner.address, // used to determine who can send RMN updates
+      tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
       deployer: opts?.deployerCode ?? Cell.EMPTY,
       merkleRootCode: opts?.merkleRootCode ?? Cell.EMPTY,
       receiveExecutorCode: opts?.receiveExecutorCode ?? Cell.EMPTY,
@@ -136,6 +138,8 @@ export class OffRampTestSetup {
   public offRamp: SandboxContract<of.OffRamp> = null as any
   public router: SandboxContract<rt.Router> = null as any
   public receiver: SandboxContract<tr.TestReceiver> = null as any
+  // Isolated fixtures use a unique root so their deterministic entry addresses do not collide.
+  public tokenAdminRegistry: Address = generateMockTonAddress()
 
   public readonly DEFAULT_GAS_LIMIT = toNano('0.03')
 
@@ -170,7 +174,7 @@ export class OffRampTestSetup {
         router: await contractCode.ccip.local('Router'),
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
-        tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
+        tokenRegistry: await contractCode.ccip.local('TokenAdminRegistryEntry'),
       },
       await Promise.all([
         blockchain.treasury('transmitter1'),
@@ -189,6 +193,10 @@ export class OffRampTestSetup {
   }
 
   async SetupContracts() {
+    // Setup instances are reused across test cases. Refresh the synthetic root
+    // so deterministic TokenAdminRegistryEntry addresses cannot collide.
+    this.tokenAdminRegistry = generateMockTonAddress()
+
     // setup offramp
     {
       this.offRamp = await deployOffRampContract(
@@ -200,6 +208,7 @@ export class OffRampTestSetup {
           merkleRootCode: this.code.merkleRoot,
           receiveExecutorCode: this.code.receiveExecutor,
           feeQuoter: this.feeQuoter.address,
+          tokenAdminRegistry: this.tokenAdminRegistry,
         },
       )
 
@@ -229,10 +238,6 @@ export class OffRampTestSetup {
           admin: rt.Ownable2Step.create({ owner: this.deployer.address }),
           cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
           forwardUpdates: new Set(),
-        }),
-        tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-          deployableCode: this.code.deployable,
-          tokenRegistryCode: this.code.tokenRegistry,
         }),
       })
 
@@ -635,7 +640,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   public token: Address = generateMockTonAddress()
   public jettonMinter: SandboxContract<cct.JettonMinter> = null as any
   public tokenPool: SandboxContract<lrp.LockReleaseTokenPool> = null as any
-  public tokenRegistry: SandboxContract<trg.TokenRegistry> = null as any
+  public tokenRegistry: SandboxContract<trg.TokenAdminRegistryEntry> = null as any
   // Register the remote chain config.
   public readonly sourcePoolAddress: rt.CrossChainAddress = CrossChainAddressCodec.FromBuffer(
     Buffer.from('source-pool'),
@@ -677,7 +682,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         router: await contractCode.ccip.local('Router'),
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
-        tokenRegistry: await contractCode.ccip.local('TokenRegistry'),
+        tokenRegistry: await contractCode.ccip.local('TokenAdminRegistryEntry'),
         tokenPool: await contractCode.ccip.local('ccip.pool.LockReleaseTokenPool'),
         jettonMinter: await contractCode.ccip.local('ccip.cct.JettonMinter'),
         jettonWallet: await contractCode.ccip.local('ccip.cct.JettonWallet'),
@@ -802,15 +807,15 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   // ---------------------------------------------------------------------------
 
   /**
-   * Derives the TokenRegistry contract address for a given token, matching the
-   * OffRamp's `getTokenAdminRegistry` derivation (Deployable namespace 3).
+   * Derives the entry address for a token, matching the OffRamp's registry-root
+   * derivation (Deployable namespace 3).
    */
   tokenRegistryAddress(token?: Address): Address {
     if (!token) {
       return this.tokenRegistry.address
     }
     return NameSpace.deriveAddress(
-      this.offRamp.address,
+      this.tokenAdminRegistry,
       NameSpace.CCIPNamespace.TokenRegistry,
       beginCell().storeAddress(token),
       this.code.deployable,
@@ -818,34 +823,38 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
-   * Deploys a TokenRegistry contract at the OffRamp-derived address and sets
-   * the token info (tokenPool + minter + enabled). Returns the registry.
+   * Deploys an entry at the registry-root-derived address with the simulated
+   * registry address as its active administrator.
    */
   async setupTokenRegistry(
     token: Address,
     tokenPool: Address,
-    enabled = true,
-  ): Promise<SandboxContract<trg.TokenRegistry>> {
+  ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     const registry = await deployable.Deploy(
       this.blockchain,
       this.deployer.getSender(),
       toNano('1'),
       NameSpace.CCIPNamespace.TokenRegistry,
       {
-        owner: this.router.address,
+        owner: this.tokenAdminRegistry,
         id: beginCell().storeAddress(token),
       },
-      trg.TokenRegistry,
+      trg.TokenAdminRegistryEntry,
       {
         tokenAddress: token,
         tokenInfo: trg.TokenRegistry_TokenInfo.create({
           tokenPool,
           minterAddress: token,
-          enabled,
+          version: 1n,
+        }),
+        adminConfig: trg.TokenRegistry_AdminConfig.create({
+          tokenAdminRegistry: this.tokenAdminRegistry,
+          administrator: this.tokenAdminRegistry,
+          pendingAdministrator: null,
         }),
       },
       trg.TokenRegistry_Storage,
-      await contractCode.ccip.local('TokenRegistry'),
+      await contractCode.ccip.local('TokenAdminRegistryEntry'),
     )
 
     return registry
@@ -1066,20 +1075,16 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   async disableToken(): Promise<void> {
-    const result = await this.tokenRegistry.sendTokenRegistrySetTokenInfo(
-      this.blockchain.sender(this.router.address),
+    const result = await this.tokenRegistry.sendTokenAdminRegistryEntrySetPool(
+      this.blockchain.sender(this.tokenAdminRegistry),
       toNano('0.1'),
       {
-        info: trg.TokenRegistry_TokenInfo.create({
-          tokenPool: this.tokenPool.address,
-          minterAddress: this.token,
-          enabled: false, // disabled
-        }),
+        tokenPool: null,
       },
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: this.router.address,
+      from: this.tokenAdminRegistry,
       to: this.tokenRegistry.address,
       success: true,
     })

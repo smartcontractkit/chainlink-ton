@@ -110,6 +110,7 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	}
 	contracts := []contractEntry{
 		{"Router", &stateCCIPChain.Router},
+		{"TokenAdminRegistry", &stateCCIPChain.TokenAdminRegistry},
 		{"OnRamp", &stateCCIPChain.OnRamp},
 		{"OffRamp", &stateCCIPChain.OffRamp},
 		{"FeeQuoter", &stateCCIPChain.FeeQuoter},
@@ -140,6 +141,7 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	// Step 4: Build contract refs for the contracts to transfer
 	contractRefs := []cldfds.AddressRef{
 		{Address: stateCCIPChain.Router.String(), Type: state.Router, ChainSelector: selector},
+		{Address: stateCCIPChain.TokenAdminRegistry.String(), Type: state.TokenAdminRegistry, ChainSelector: selector},
 		{Address: stateCCIPChain.OnRamp.String(), Type: state.OnRamp, ChainSelector: selector},
 		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector},
 		{Address: stateCCIPChain.FeeQuoter.String(), Type: state.FeeQuoter, ChainSelector: selector},

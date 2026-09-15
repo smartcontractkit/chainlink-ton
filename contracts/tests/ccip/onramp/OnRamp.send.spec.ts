@@ -50,7 +50,6 @@ describe('OnRamp - Send', () => {
       sender: senderAddress,
       value: toNano('42'),
     }),
-    tokenRegistry: null,
   })
 
   beforeAll(async () => {

@@ -9,6 +9,7 @@ import transformCellRef from './abigen/transforms/cellRefs'
 import addSend from './abigen/transforms/addSend'
 import sortErrorsBlocks from './abigen/transforms/sortErrorsBlocks'
 import unwrapSnakedCell from './abigen/transforms/unwrapSnakedCell'
+import transformLispListStore from './abigen/transforms/lispLists'
 import makeQueryIDOptional from './abigen/transforms/makeQueryIDOptional'
 import transformDictionaryMaps from './abigen/transforms/maps'
 
@@ -82,6 +83,7 @@ function main(): void {
     const sourceFile = project.createSourceFile(outputPath, original, { overwrite: true })
 
     sortErrorsBlocks(sourceFile)
+    transformLispListStore(sourceFile)
     unwrapSnakedCell(sourceFile)
     transformCellRef(sourceFile)
     addSend(sourceFile)

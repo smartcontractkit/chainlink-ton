@@ -96,12 +96,17 @@ type SuiExtraArgsV1 struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
-	ID               uint32               `tlb:"## 32"`
-	Ownable          ownable2step.Storage `tlb:"."`
-	ChainSelector    uint64               `tlb:"## 64"`
-	Config           DynamicConfig        `tlb:"^"`
-	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
-	Executor         ExecutorDeployment   `tlb:"."`
+	ID                uint32               `tlb:"## 32"`
+	Ownable           ownable2step.Storage `tlb:"."`
+	ChainSelector     uint64               `tlb:"## 64"`
+	Config            DynamicConfig        `tlb:"^"`
+	DestChainConfigs  *cell.Dictionary     `tlb:"dict 64"`
+	DeployablesConfig DeployablesConfig    `tlb:"^"`
+}
+
+type DeployablesConfig struct {
+	Executor           ExecutorDeployment `tlb:"."`
+	TokenAdminRegistry *address.Address   `tlb:"addr"`
 }
 
 type ExecutorDeployment struct {
@@ -141,10 +146,9 @@ type WithdrawFeeTokens struct {
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_             tlb.Magic        `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
-	Msg           *cell.Cell       `tlb:"^"`                  // Cell containing the CCIPSend message
-	Metadata      Metadata         `tlb:"."`                  // Cell containing metadata
-	TokenRegistry *address.Address `tlb:"addr"`
+	_        tlb.Magic  `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
+	Metadata Metadata   `tlb:"."`
 }
 
 type Metadata struct {
