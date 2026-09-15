@@ -747,7 +747,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
       }
 
-      // Calculate the three components that will be added together
+      // Calculate the two components that will be added together
       // 1. Premium Fee = networkFeeUsdCents * VAL_1E16 * premiumMultiplier
       const premiumFeeUsdWei = BigInt(overrides.networkFeeUsdCents) * BigInt(1e16)
       const premiumFee = premiumFeeUsdWei * overrides.premiumMultiplier
@@ -758,19 +758,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       const executionCost =
         overrides.executionGasPrice * executionGas * overrides.gasMultiplierWeiPerEth
 
-      // 3. Data Availability Cost (similar to other test)
-      const TON_2_EVM_MESSAGE_FIXED_BYTES = 320n // Approximate
-      const dataAvailabilityLengthBytes = TON_2_EVM_MESSAGE_FIXED_BYTES + BigInt(overrides.dataSize)
-      const daLengthCost =
-        dataAvailabilityLengthBytes * BigInt(overrides.destGasPerDataAvailabilityByte)
-      const dataAvailabilityGas = daLengthCost + BigInt(overrides.destDataAvailabilityOverheadGas)
-      const daPrice = overrides.dataAvailabilityGasPrice * dataAvailabilityGas
-      const daWithMultiplier = daPrice * BigInt(overrides.destDataAvailabilityMultiplierBps)
-      const dataAvailabilityCost = daWithMultiplier * BigInt(1e14)
-
       // Check if the sum would overflow uint256
       const uint256Max = 2n ** 256n - 1n
-      const totalCost = premiumFee + executionCost + dataAvailabilityCost
+      const totalCost = premiumFee + executionCost
 
       // If our calculation shows it should overflow, expect the error
       expect(totalCost).toBeLessThanOrEqual(uint256Max)
@@ -783,14 +773,12 @@ describe('FeeQuoter GetValidatedFee', () => {
         feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeOverflow'],
         {
           // Try to create a fee that exceeds uint120 max (2^120 - 1 ≈ 1.3e36)
-          // Final fee = (premiumFee + executionCost + dataAvailabilityCost) / tokenPrice
+          // Final fee = (premiumFee + executionCost) / tokenPrice
           // To exceed uint120: need result > 2^120
           executionGasPrice: 2n ** 111n, // Very high but within uint112
-          dataAvailabilityGasPrice: 2n ** 111n, // Very high but within uint112
           networkFeeUsdCents: BigInt(2 ** 32 - 1), // Max uint32
           premiumMultiplier: 2n ** 50n, // Large premium multiplier
           gasMultiplierWeiPerEth: 2n ** 63n, // Near max uint64
-          destDataAvailabilityMultiplierBps: BigInt(2 ** 16 - 1), // Max uint16
           feeTokenPrice: 1n, // Very small token price to maximize final result
           gasLimit: 2n ** 32n - 1n, // Max gas limit
           destGasOverhead: BigInt(2 ** 32 - 1), // Max overhead
