@@ -27,6 +27,7 @@ type OffRamp_InMessage =
     | OffRamp_UpdateSourceChainConfigs
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced
+    | Router_TokenPoolReleaseOrMintFailed
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
     | OffRamp_UpdateCursedSubjects
@@ -39,7 +40,7 @@ type OffRamp_InMessage =
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
-    | TokenPool_ReleaseOrMint
+    | Router_RelayReleaseOrMint
     | Router_RouteMessage;
 
 struct (0x9d431905) OffRamp_Commit {
