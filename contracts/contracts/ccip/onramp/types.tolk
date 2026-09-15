@@ -29,39 +29,11 @@ struct OnRampUpdateDestChainConfig {
     allowlistEnabled: bool;
 }
 
-struct ExecutorDeployment {
-    deployableCode: cell;
-    executorCode: cell; // code for SendExecutor
-}
-
-// Deployment code and addresses used to derive deterministic child contracts.
-// This remains in a reference so OnRamp's root data cell has room for
-// ownership state changes such as a pending owner.
-struct OnRamp_DeployablesConfig {
-    executor: ExecutorDeployment;
+// Kept in a reference so full addresses do not compete with ownership state in
+// OnRamp's root data cell.
+struct OnRamp_StaticConfig {
+    chainSelector: uint64;
     tokenAdminRegistry: address;
-}
-
-fun OnRamp_DeployablesConfig.getExecutorDeployment(self): ExecutorDeployment {
-    return self.executor;
-}
-
-fun OnRamp_DeployablesConfig.getTokenAdminRegistry(self): address {
-    return self.tokenAdminRegistry;
-}
-
-@inline
-fun ExecutorDeployment.autoDeployAddress(self, executorID: CCIPSendExecutor_ID): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: self.deployableCode,
-            data: NamespacedDeployableData({
-                namespace: DeployableNamespace_CCIPSendExecutor,
-                owner: contract.getAddress(),
-                id: executorID,
-            }),
-        }
-    }
 }
 
 struct UpdateAllowlist {

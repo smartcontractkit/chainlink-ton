@@ -12,7 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var ItemCountContractPath = bindings.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
+var ItemCountContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
 
 type ItemCountProvider struct {
 	apiClient tracetracking.SignedAPIClient

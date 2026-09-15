@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -133,10 +132,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			Ownable: ownable2step.Storage{
 				Owner: chain.WalletAddress, PendingOwner: address.NewAddressNone(),
 			},
-			EntryDeployment: tokenadminregistry.EntryDeployment{
-				DeployableCode: tonCompiledContracts[bindings.TypeDeployable].Code,
-				EntryCode:      tonCompiledContracts[bindings.TypeTokenAdminRegistryEntry].Code,
-			},
 		}
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTokenAdminRegistry], registryStorage, nil, in.CCIPConfig.TokenAdminRegistryParams.Coin)
 		if err != nil {
@@ -210,7 +205,10 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			ChainSelector: in.ChainSelector,
+			StaticConfig: onramp.StaticConfig{
+				ChainSelector:      in.ChainSelector,
+				TokenAdminRegistry: &tokenAdminRegistryAddress,
+			},
 			Config: onramp.DynamicConfig{
 				FeeQuoter:      &feeQuoterAddress,
 				FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
@@ -218,14 +216,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Reserve:        reserve,
 			},
 			DestChainConfigs: nil,
-			DeployablesConfig: onramp.DeployablesConfig{
-				Executor: onramp.ExecutorDeployment{
-					DeployableCode: tonCompiledContracts[bindings.TypeDeployable].Code,
-					ExecutorCode:   tonCompiledContracts[bindings.TypeSendExecutor].Code,
-					CurrentID:      big.NewInt(0),
-				},
-				TokenAdminRegistry: &tokenAdminRegistryAddress,
-			},
 		}
 
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin)
@@ -246,17 +236,14 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			Deployables: offramp.Deployables{
-				RMNRouter:           &routerAddress,
-				TokenAdminRegistry:  &tokenAdminRegistryAddress,
-				Deployer:            tonCompiledContracts[bindings.TypeDeployable].Code,
-				MerkleRootCode:      tonCompiledContracts[bindings.TypeMerkleRoot].Code,
-				ReceiveExecutorCode: tonCompiledContracts[bindings.TypeReceiveExecutor].Code,
+			StaticConfig: offramp.StaticConfig{
+				RMNRouter:          &routerAddress,
+				TokenAdminRegistry: &tokenAdminRegistryAddress,
+				ChainSelector:      in.ChainSelector,
 			},
 			FeeQuoter: &feeQuoterAddress,
 			// empty OCR3Base
 			OCR3Base:                                offramp.OCR3Base{},
-			ChainSelector:                           in.ChainSelector,
 			PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 			LatestPriceSequenceNumber: 0,
 		}

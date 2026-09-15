@@ -75,23 +75,19 @@ type RouteMessageBounced struct {
 type Storage struct {
 	ID                                      uint32               `tlb:"## 32"`
 	Ownable                                 ownable2step.Storage `tlb:"."`
-	Deployables                             Deployables          `tlb:"^"`
+	StaticConfig                            StaticConfig         `tlb:"^"`
 	FeeQuoter                               *address.Address     `tlb:"addr"`
 	OCR3Base                                OCR3Base             `tlb:"^"`
 	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
-	ChainSelector                           uint64               `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
 	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
 	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
 }
 
-// Deployables holds the deployable code cells for the offRamp contract
-type Deployables struct {
-	RMNRouter           *address.Address `tlb:"addr"`
-	TokenAdminRegistry  *address.Address `tlb:"addr"`
-	Deployer            *cell.Cell       `tlb:"^"`
-	MerkleRootCode      *cell.Cell       `tlb:"^"`
-	ReceiveExecutorCode *cell.Cell       `tlb:"^"`
+type StaticConfig struct {
+	RMNRouter          *address.Address `tlb:"addr"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
+	ChainSelector      uint64           `tlb:"## 64"`
 }
 
 // ConfigInfo represents the configuration information for OCR3
@@ -175,13 +171,6 @@ type SetDynamicConfig struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
-type UpdateDeployables struct {
-	_                   tlb.Magic  `tlb:"#a015e0e2" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID             uint64     `tlb:"## 64"`
-	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
-	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPReceiveV2{},
 	SetOCR3Config{},
@@ -189,7 +178,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Commit{},
 	Execute{},
 	SetDynamicConfig{},
-	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
 
 var (

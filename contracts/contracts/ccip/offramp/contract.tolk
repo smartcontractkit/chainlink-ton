@@ -94,12 +94,6 @@ fun onInternalMessage(in:InMessage) {
             onSetOCR3Config(msg)
         }
         // Sender must be owner
-        OffRamp_UpdateDeployables => {
-            val st = lazy Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            onUpdateDeployables(st, msg)
-        }
-        // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
             val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -108,7 +102,7 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
-            assert(in.senderAddress == st.deployables.load().rmnRouter, OffRamp_Error.Unauthorized);
+            assert(in.senderAddress == st.staticConfig.load().rmnRouter, OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
@@ -272,7 +266,46 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    val old = Storage_V1_6_2.fromCell(storage);
+    val oldDeployables = old.deployables.load();
+    return Storage {
+        id: old.id,
+        ownable: old.ownable,
+        staticConfig: OffRamp_StaticConfig {
+            rmnRouter: oldDeployables.rmnRouter,
+            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+            chainSelector: old.chainSelector,
+        }.toCell(),
+        feeQuoter: old.feeQuoter,
+        ocr3Base: old.ocr3Base,
+        cursedSubjects: old.cursedSubjects,
+        permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
+        sourceChainConfigs: old.sourceChainConfigs,
+        latestPriceSequenceNumber: old.latestPriceSequenceNumber,
+    }.toCell();
+}
+
+// Persisted layout for the final 1.6.2 release. The three code cells are now
+// compile-time dependencies of OffRamp and intentionally do not survive.
+struct Storage_V1_6_2 {
+    id: uint32;
+    ownable: Ownable2Step;
+    deployables: Cell<OffRamp_Deployables_V1_6_2>;
+    feeQuoter: address;
+    ocr3Base: Cell<OCR3Base>;
+    cursedSubjects: CursedSubjects;
+    chainSelector: uint64;
+    permissionlessExecutionThresholdSeconds: uint32;
+    sourceChainConfigs: map<uint64, SourceChainConfig> = [];
+    latestPriceSequenceNumber: uint64 = 0;
+}
+
+struct OffRamp_Deployables_V1_6_2 {
+    rmnRouter: address;
+    tokenAdminRegistry: address;
+    deployer: cell;
+    merkleRootCode: cell;
+    receiveExecutorCode: cell;
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -518,22 +551,6 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     st.store();
 }
 
-// Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
-fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
-    var deployables = st.deployables.load();
-
-    if (msg.receiveExecutorCode != null) {
-        deployables.receiveExecutorCode = msg.receiveExecutorCode!;
-    }
-
-    if (msg.merkleRootCode != null) {
-        deployables.merkleRootCode = msg.merkleRootCode!;
-    }
-
-    st.deployables = deployables.toCell();
-    st.store();
-}
-
 // Processes commit reports: refreshes prices if the OCR sequence is newer,
 // initializes/updates MerkleRoot contract, validates OCR3 signatures, and
 // emits CommitReportAccepted when everything is valid.
@@ -600,7 +617,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             dest: getMerkleRootDeployAddress(st, root.merkleRoot),
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().merkleRootCode,
+                    code: merkleRootCode(),
                     data: MerkleRoot_Storage {
                         root: root.merkleRoot,
                         owner: contract.getAddress(),
@@ -749,14 +766,14 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
     val metadataHash = Any2TVMMessageV1Metadata {
         sourceChainSelector: report.sourceChainSelector,
-        destChainSelector: st.chainSelector,
+        destChainSelector: st.staticConfig.load().chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
     // the st.chainSelector as the destChainSelector.
-    assert(message.header.destChainSelector == st.chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
+    assert(message.header.destChainSelector == st.staticConfig.load().chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
     // been committed for the report source chain selector this will be caught by the root verification.
@@ -879,7 +896,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
             dest: executorAddress,
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().receiveExecutorCode,
+                    code: receiveExecutorCode(),
                     data: ReceiveExecutor_Storage {
                         owner: contract.getAddress(),
                         message: message.toCell(),
@@ -946,13 +963,13 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         tokenData = userTokenData;
     }
 
-    val deployables = st.deployables.load();
+    val staticConfig = st.staticConfig.load();
     val registryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployables.deployer,
+        deployerCode(),
         tokenTransfer.token,
-        deployables.tokenAdminRegistry,
+        staticConfig.tokenAdminRegistry,
     ).calculateAddress();
-    
+
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
         transfer: tokenTransfer,
@@ -992,7 +1009,7 @@ Derives the receiver executor contract address from the execId
 fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
@@ -1016,7 +1033,7 @@ Derives the merkle root contract address from the merkleRootId
 fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_MerkleRoot,
                 owner: contract.getAddress(),
@@ -1032,6 +1049,22 @@ Verifies that the caller corresponds to a merkle root contract
 fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
     val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
     assert(expectedAddress.calculateAddress() == sender) throw OffRamp_Error.MessageNotFromOwnedContract;
+}
+
+import "../../../gen/Deployable.code"
+import "../../../gen/MerkleRoot.code"
+import "../../../gen/ReceiveExecutor.code"
+
+fun deployerCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun merkleRootCode(): cell {
+    return merkleRootCompiledCode();
+}
+
+fun receiveExecutorCode(): cell {
+    return receiveExecutorCompiledCode();
 }
 
 /*
@@ -1081,8 +1114,8 @@ get fun ocr3Config(): OCR3Base {
 get fun config(): Config {
     val st = lazy Storage.load();
     return {
-        chainSelector: st.chainSelector,
-        tokenAdminRegistry: st.deployables.load().tokenAdminRegistry,
+        chainSelector: st.staticConfig.load().chainSelector,
+        tokenAdminRegistry: st.staticConfig.load().tokenAdminRegistry,
         feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
     }
@@ -1109,19 +1142,16 @@ get fun cursedSubjects(): lisp_list<uint128> {
 }
 
 get fun deployableHashes() : DeployableHashes {
-    val st = lazy Storage.load();
-    val deployables = st.deployables.load();
     return DeployableHashes {
-        merkleRoot: deployables.merkleRootCode.hash(),
-        receiveExecutor: deployables.receiveExecutorCode.hash(),
-        deployer: deployables.deployer.hash(),
+        merkleRoot: merkleRootCode().hash(),
+        receiveExecutor: receiveExecutorCode().hash(),
+        deployer: deployerCode().hash(),
     }
 }
 
 get fun rmnRouter(): address {
     val st = lazy Storage.load();
-    val deployables = st.deployables.load();
-    return deployables.rmnRouter;
+    return st.staticConfig.load().rmnRouter;
 }
 
 /// Gets the current owner of the contract.
