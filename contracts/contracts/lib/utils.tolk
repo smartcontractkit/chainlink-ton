@@ -211,13 +211,17 @@ fun cell.assertCanonicalByteSnake(self): int {
 }
 
 /// Same invariants as `assertCanonicalByteSnake`, specialised for a snake of
-/// fixed-width elements (e.g. 32-byte accounts): every cell must hold only whole
-/// elements so that none straddles a cell boundary. This matches the offchain
-/// decoder, which loads whole elements from the current cell before following the
-/// continuation. Returns the number of complete elements.
+/// fixed-width elements (e.g. 256-bit accounts): every cell must hold only whole
+/// elements so that none straddles a cell boundary. Unlike the byte snake, an
+/// intermediate cell need not be full — it just has to end on an element
+/// boundary, which is what the offchain decoder (`unpackArrayFromCell`) produces
+/// and consumes: it loads whole elements from the current cell before following
+/// the continuation. `elemBits` is the element width in bits, matching TON's
+/// bit-native cell model; it must divide a cell's 1023-bit budget
+/// Returns the number of complete elements.
 @inline
-fun cell.assertCanonicalFixedWidthSnake(self, elemBytes: int): int {
-    val elemBits = elemBytes * 8;
+fun cell.assertCanonicalFixedWidthSnake(self, elemBits: int): int {
+    assert (elemBits > 0 && elemBits <= 1023, Utils_Error.InvalidData);
     var curr: cell? = self;
     var totalElements = 0;
     var cells = 0;
@@ -256,9 +260,9 @@ fun cell.canonicalByteSnakeSafe(self): (int, int) {
 }
 
 /// Same as `Iterator.countBytesSafe`: returns (0, errorCode) instead of throwing.
-fun cell.canonicalFixedWidthSnakeSafe(self, elemBytes: int): (int, int) {
+fun cell.canonicalFixedWidthSnakeSafe(self, elemBits: int): (int, int) {
     try {
-        return (self.assertCanonicalFixedWidthSnake(elemBytes), 0);
+        return (self.assertCanonicalFixedWidthSnake(elemBits), 0);
     } catch (e) {
         return (0, e);
     }

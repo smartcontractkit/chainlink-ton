@@ -385,7 +385,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         // and no exotic/branched cells are present.
         val receiverObjectIdsLength = validateExtraArgsCollection(
             suiExtraArgs.receiverObjectIds,
-            SUI_ACCOUNT_BYTE_SIZE,
+            SUI_ACCOUNT_BYTE_SIZE * 8,
         );
         // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
@@ -418,7 +418,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         // and no exotic/branched cells are present.
         val accountsLength = validateExtraArgsCollection(
             svmExtraArgs.accounts,
-            SVM_ACCOUNT_BYTE_SIZE,
+            SVM_ACCOUNT_BYTE_SIZE * 8,
         );
         // The max payload size for SVM is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
@@ -450,10 +450,7 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    // Resolve the optional gas: a tagged EVMExtraArgsV2 that omits the field must
-    // not be re-encoded with a null value, otherwise offchain verifiers see an
-    // absent (typed-nil) gas and cannot hash the message. Mirror the semantics
-    // used for an empty extra-args cell and charge the default gas.
+    // Set defaultTxGasLimit when user-provided extraArgs have a null gasLimit value.
     return GenericExtraArgsV2 {
         gasLimit: extra.gasLimit != null ? extra.gasLimit : defaultTxGasLimit as uint256,
         allowOutOfOrderExecution: extra.allowOutOfOrderExecution,
@@ -490,8 +487,8 @@ fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV
     return extra;
 }
 
-fun validateExtraArgsCollection(collection: cell, elemBytes: int): int {
-    val (count, errorCode) = collection.canonicalFixedWidthSnakeSafe(elemBytes);
+fun validateExtraArgsCollection(collection: cell, elemBits: int): int {
+    val (count, errorCode) = collection.canonicalFixedWidthSnakeSafe(elemBits);
     match (errorCode) {
         0 => { /* continue */ }
         8 => {

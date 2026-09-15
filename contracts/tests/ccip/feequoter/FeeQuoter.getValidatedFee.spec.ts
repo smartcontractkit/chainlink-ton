@@ -1534,10 +1534,13 @@ describe('FeeQuoter GetValidatedFee', () => {
     // F1: a tagged GenericExtraArgsV2 that omits the optional gasLimit must be
     // resolved to the default before being echoed, never re-encoded as null.
     it('F1: resolves an absent EVMExtraArgsV2 gasLimit to the default (no null in reply)', async () => {
-      const noGasArgs = beginCell()
-        .storeUint(0x181dcf10, 32) // GenericExtraArgsV2 tag
-        .storeBit(false) // gasLimit: maybe = absent
-        .storeBit(true) // allowOutOfOrderExecution
+      // Encode via the binding with gasLimit omitted: the codec stores the
+      // maybe-bit as absent, which is exactly the malformed input under test.
+      const noGasArgs = rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          allowOutOfOrderExecution: true,
+        })
         .endCell()
 
       const message: rt.CCIPSend = {
@@ -1550,13 +1553,17 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
 
       const validated = await setup.getValidatedFee(message)
-      // The echoed extra args must contain a present 256-bit gas limit.
-      const echoed = validated.msg.extraArgs.beginParse()
-      expect(echoed.loadUint(32)).toBe(0x181dcf10)
-      expect(echoed.loadBit()).toBe(true) // gasLimit is present
-      const gasLimit = echoed.loadUintBig(256)
-      expect(gasLimit).toBe(BigInt(FeeQuoterSetup.GAS_LIMIT))
-      expect(echoed.loadBit()).toBe(true) // allowOutOfOrderExecution preserved
+      // The echoed extra args must decode via the binding and carry a
+      // present 256-bit gas limit (the default), never an absent maybe.
+      const echoed = rt.builder.data.extraArgs.load(validated.msg.extraArgs.beginParse())
+      if (echoed.kind !== 'generic-v2') {
+        throw new Error(
+          `Expected echoed extraArgs to be of kind "generic-v2", but got "${echoed.kind}"`,
+        )
+      }
+      expect(echoed.gasLimit).toBeDefined() // gasLimit is present, not null
+      expect(echoed.gasLimit).toBe(BigInt(FeeQuoterSetup.GAS_LIMIT))
+      expect(echoed.allowOutOfOrderExecution).toBe(true) // allowOutOfOrderExecution preserved
     })
 
     // F2: branched `data` must be rejected (aggregate counting would accept it).
@@ -1622,13 +1629,13 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell({ exotic: true })
 
       // Build the fee-quoter request body manually so we can inject the exotic
-      // tokenAmounts cell that the typed builder would never emit.
+      // tokenAmounts cell that the typed builder would never emit; every other
+      // field uses the typed bindings and exported opcodes.
       const ccipSendBody = beginCell()
-        .storeUint(0x31768d95, 32) // Router_CCIPSend opcode
+        .storeUint(rt.opcodes.in.ccipSend, 32)
         .storeUint(0, 64) // queryID
         .storeUint(FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM, 64)
-        .storeUint(FeeQuoterSetup.DEST_ADDRESS.length, 8)
-        .storeBuffer(FeeQuoterSetup.DEST_ADDRESS, FeeQuoterSetup.DEST_ADDRESS.length)
+        .storeBuilder(rt.builder.data.crossChainAddress.encode(FeeQuoterSetup.DEST_ADDRESS))
         .storeRef(Cell.EMPTY) // data
         .storeRef(libRef) // tokenAmounts (exotic!)
         .storeAddress(FeeQuoterSetup.NATIVE_TON.token)
@@ -1636,7 +1643,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell()
 
       const body = beginCell()
-        .storeUint(0x7496ff56, 32) // FeeQuoter_GetValidatedFee opcode
+        .storeUint(feeQuoter.opcodes.in.getValidatedFee, 32)
         .storeRef(ccipSendBody)
         .endCell() // empty context slice
 
@@ -1653,7 +1660,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell()
 
       const extraArgs = beginCell()
-        .storeUint(0x1f3b3aba, 32) // SVMExtraArgsV1 tag
+        .storeUint(rt.ExtraArgsOpcodes.svmV1, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 32) // computeUnits
         .storeUint(0, 64) // accountIsWritableBitmap
         .storeBit(true) // allowOutOfOrderExecution
@@ -1683,7 +1690,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell()
 
       const extraArgs = beginCell()
-        .storeUint(0x1f3b3aba, 32)
+        .storeUint(rt.ExtraArgsOpcodes.svmV1, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 32)
         .storeUint(0, 64)
         .storeBit(true)
@@ -1711,7 +1718,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell({ exotic: true })
 
       const extraArgs = beginCell()
-        .storeUint(0x1f3b3aba, 32)
+        .storeUint(rt.ExtraArgsOpcodes.svmV1, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 32)
         .storeUint(0, 64)
         .storeBit(true)
@@ -1732,6 +1739,10 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     // Control: a well-formed multi-cell SVM accounts snake is still accepted.
+    // Four accounts (4 x 256 bits) exceed the 1023-bit cell budget, so the
+    // codec splits the accounts snake into an intermediate cell holding three
+    // accounts plus a continuation ref, and a tail cell holding the fourth —
+    // exercising the continuation traversal for a valid fixed-width snake.
     it('F3: accepts a canonical multi-cell SVM accounts snake', async () => {
       const extraArgs = rt.builder.data.extraArgs
         .encode({
@@ -1740,7 +1751,12 @@ describe('FeeQuoter GetValidatedFee', () => {
           accountIsWritableBitMap: 0n,
           allowOutOfOrderExecution: true,
           tokenReceiver: Buffer.alloc(32),
-          accounts: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
+          accounts: [
+            Buffer.alloc(32, 1),
+            Buffer.alloc(32, 2),
+            Buffer.alloc(32, 3),
+            Buffer.alloc(32, 4),
+          ],
         })
         .endCell()
 
