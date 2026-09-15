@@ -10,7 +10,6 @@ import "../common/types"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
-import "../token_registry/types"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 
@@ -32,7 +31,6 @@ type Router_InMsg =
     | Router_MessageRejected
     | Router_LockOrBurn
     | Router_RMNOwnableMessage
-    | Router_TokenRegistrySetTokenInfo
     | TransferNotificationForRecipient;
 
 type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
@@ -64,6 +62,7 @@ struct (0x31768d95) Router_CCIPSend {
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
+    queryId: uint64;
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;
     receiver: address;
@@ -85,6 +84,7 @@ struct Router_WithdrawRequest {
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
+    queryId: uint64;
     execId: ReceiveExecutorId;
 }
 
@@ -150,12 +150,6 @@ struct (0x6f2d00df) Router_LockOrBurn {
     executorAddress: address,
 }
 
-struct (0xfed7cfba) Router_TokenRegistrySetTokenInfo {
-    tokenAddress: address,
-    tokenInfo: TokenRegistry_TokenInfo,
-    isNewEntry: bool,
-}
- 
 struct Router_GetValidatedFeeContext {
     routerContext: address; // sender
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,

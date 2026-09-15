@@ -4,7 +4,6 @@ import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
-import "../../lib/deployable/types"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
@@ -17,9 +16,6 @@ import "../onramp/types"
 import "../offramp/messages"
 import "../offramp/types"
 import "../rmn_remote/lib"
-import "../token_registry/storage"
-import "../token_registry/messages"
-import "../token_registry/types"
 import "../pools/lib/token_pool/messages"
 
 import "types"
@@ -212,36 +208,6 @@ fun onInternalMessage(in: InMessage) {
 
             onCCIPSend(sendMsg, msg.transferInitiator!, in.valueCoins);
         }
-        Router_TokenRegistrySetTokenInfo => {
-            val st = Storage.load();
-            val registryAddress = TokenRegistry.deriveAddress(st.tokenRegistryDeployment.load().deployableCode, msg.tokenAddress, contract.getAddress());
-            if (msg.isNewEntry) {
-                val deployMsg = createMessage({
-                    bounce: false,
-                    value: ton("0.015"),
-                    dest: registryAddress,
-                    body: Deployable_Initialize {
-                        stateInit: {
-                            code: st.tokenRegistryDeployment.load().tokenRegistryCode,
-                            data: TokenRegistry_Storage {
-                                tokenAddress: msg.tokenAddress,
-                                tokenInfo: msg.tokenInfo
-                            }.toCell(),
-                        }
-                    },
-                });
-                deployMsg.send(SEND_MODE_REGULAR);
-            }
-            val setTokenInfoMsg = createMessage({
-                bounce: false,
-                value: ton("0.015"),
-                dest: registryAddress,
-                body: TokenRegistry_SetTokenInfo {
-                    info: msg.tokenInfo
-                }
-            });
-            setTokenInfoMsg.send(SEND_MODE_REGULAR); //TODO check send_mode
-        }
         else => {
             // attempt to handle Ownable messages
             var st = lazy Storage.load();
@@ -292,6 +258,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 //     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     val ccipReceive: Receiver_CCIPReceiveV2 = {
+        queryId: msg.queryId,
         execId: msg.execId,
         message,
     };
@@ -423,6 +390,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
         value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
+            queryId: msg.queryId,
             execId: msg.execId,
             receiver: sender,
         },
@@ -452,6 +420,9 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
+    // queryId is not available from the bounced body (only the first 256 bits are returned,
+    // which covers the opcode + execId + part of the queryId), so it is omitted. The ReceiveExecutor
+    // already stores the queryId in its own storage.
     val receiveBounced = createMessage({
         bounce: true,
         value: OffRamp_Costs.receiveConfirmOrDeny(),
@@ -588,15 +559,6 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         msg.feeToken = st.wrappedNative
     }
 
-    // Calculate the token registry address if there is a token amount.
-    // If the token does not exist then the call to get token info will bounce from the ramps.
-    var tokenRegistry: address? = null;
-    if (!msg.tokenAmounts.empty()) {
-        val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
-        //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
-        tokenRegistry = TokenRegistry.deriveAddress(st.tokenRegistryDeployment.load().deployableCode, tokenAmount.token, contract.getAddress()).calculateAddress();
-    }
-
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
@@ -605,7 +567,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         bounce: true,
         value: 0,
         dest: onRampResult.loadValue(),
-        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }, tokenRegistry},
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }},
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

@@ -92,7 +92,6 @@ describe('OnRamp - executor exit', () => {
         sender: senderAddress,
         value: toNano('42'),
       }),
-      tokenRegistry: null,
     })
 
     expect(result.transactions).toHaveTransaction({

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
 import "../offramp/types"
-import "../token_registry/messages"
+import "../token_admin_registry_entry/messages"
 import "../pools/lib/token_pool/messages"
 import "types"
 
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
-    | TokenRegistry_ReturnTokenInfo
+    | TokenAdminRegistryEntry_ReturnTokenInfo
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
     | ReceiveExecutor_ReleaseOrMintFailed
@@ -17,6 +17,7 @@ type ReceiveExecutor_InMessage =
     ;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
+    queryId: uint64;
     effectiveGasLimit: coins;
     root: address;
     sequenceNumber: uint64;
@@ -28,11 +29,14 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
 struct ReceiveExecutor_TokenTransfer {
     tokenAdminRegistry: address;
     transfer: Any2TVMTokenTransfer;
+    // Offchain token data for this token transfer (untrusted).
+    // Null when there is no offchain data for this token.
+    offchainTokenData: cell? = null;
 }
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
 struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
-    queryID: uint64;
+    queryId: uint64;
     reason: ReleaseOrMint_ReleaseOrMintFailedReason;
 }
 
@@ -47,10 +51,12 @@ struct (0xb70c2a9a) ReleaseOrMintBounced {
 struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
 
 struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
+    queryId: uint64;
     receiver: address
 }
 
 struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
+    queryId: uint64;
     receiver: address
     reason: ReceiveExecutor_FailedReason;
 }

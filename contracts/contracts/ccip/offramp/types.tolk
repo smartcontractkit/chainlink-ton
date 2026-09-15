@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../common/types"
 import "../fee_quoter/types"
@@ -11,37 +12,64 @@ const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
 struct ExecutionReport {
     sourceChainSelector: uint64;
     messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
-    offchainTokenData: cell; // vec<vec<u8>>, one per token, we don't support token transfers right now, so this is ignored
+    // Offchain token data for every message and token transfer in the report.
+    // An empty list when the report carries no token transfers; otherwise each
+    // outer entry is a message and each inner entry is that message's token-data blob.
+    // WARNING: offchainTokenData is untrusted data.
+    offchainTokenData: lisp_list<lisp_list<cell>>;
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
 }
+
+// /// OffChainTokenData represents the offchain token data for all token transfers of all messages in an ExecutionReport.
+// type OffChainTokenData = lisp_list<OffChainTokenDataPerMessage>
+
+// /// OffChainTokenDataPerMessage represents the offchain token data of every token transfer of a single message.
+// type OffChainTokenDataPerMessage = lisp_list<SnakeBytes>
+
+// /// SnakeBytes is a byte array
+// /// TODO: implement serialization/deserialization
+// type SnakeBytes = cell
 
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;
     tokenGasOverrides: SnakedCell<coins>? = null
 }
 
-// getEffectiveTotalDestGasAmount returns the total gas amount to use for token transfer
+// getEffectiveDestGasAmount returns the gas amount to use for token transfer
 //
 // @note: We currently only support a single token transfer
 //
-// If the gasOverride is null, it returns the sum of destGasAmount from all token transfers in the message.
-// If the gasOverride is not null, it returns the sum of max(destGasAmount, tokenGasOverride) for each
-// token transfer in the message.
+// If the gasOverride is null or its tokenGasOverrides is null, or its tokenGasOverrides is zero,
+// it returns the sum of destGasAmount from all token transfers in the message.
+// Otherwise, it returns the tokenGasOverride
+//
+// @note from evm: 
+//
+// The gas limit can not be lowered as that could cause the message to fail. If manual execution is done
+// from an UNTOUCHED state and we would allow lower gas limit, anyone could grief by executing the message with
+// lower gas limit than the DON would have used. This results in the message being marked FAILURE and the DON
+// would not attempt it with the correct gas limit.
 fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTransfer): coins? {
-    if (self == null || self.tokenGasOverrides == null) {
-        return tokenTransfer.destGasAmount;
+    if (self != null && self.tokenGasOverrides != null) {
+        val tokenGasOverride = self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+        if (tokenGasOverride != 0) {
+            assert (tokenGasOverride >= tokenTransfer.destGasAmount) throw OffRamp_Error.InvalidManualExecutionGasLimit;
+            return tokenGasOverride;
+        }
     }
-    return max(tokenTransfer.destGasAmount, self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch));
+    return tokenTransfer.destGasAmount;
 }
 
 // getEffectiveGasLimit returns the total gas amount to use for message execution
 //
-// If the gasOverride is not null and its receiverExecutionGasLimit is greater
-// than the gasLimit from the message, it returns its receiverExecutionGasLimit.
+// If the gasOverride is not null and its receiverExecutionGasLimit is not null or zero,
+// it returns its receiverExecutionGasLimit.
 // Otherwise, it returns gasLimit from the message, passed as an argument.
+// It throws if receiverExecutionGasLimit is less than the gasLimit from the message
 fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
-    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit >= gasLimit) {
+    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit != 0) {
+        assert (self.receiverExecutionGasLimit >= gasLimit) throw OffRamp_Error.InvalidManualExecutionGasLimit;
         return self.receiverExecutionGasLimit;
     }
     return gasLimit;
@@ -72,7 +100,7 @@ struct Config {
     // gasForCallExactCheck
     // rmnRemote
     // nonceManager
-    // tokenAdminRegistry
+    tokenAdminRegistry: address
     // -- Dynamic config
     feeQuoter: address
     permissionlessExecutionThresholdSeconds: uint32
@@ -109,6 +137,18 @@ fun SnakedCell<T>.asSingle(self): T? {
         return null;
     }
     return token
+}
+
+// Helper to extract the single item from a lisp_list<T>, and assert that there is only one
+fun lisp_list<T>.asSingle(mutate self): T? {
+    if (self.isEmpty()) {
+        return null;
+    }
+    val item = self.popHead();
+    if (!self.isEmpty()) {
+        return null
+    }
+    return item;
 }
 
 fun T?.unwrap(self, error: int): T {
@@ -173,6 +213,8 @@ struct Any2TVMTokenTransfer {
 
 struct OffRamp_Deployables {
     rmnRouter: address;
+    // Separate TokenAdminRegistry root used to derive deterministic entries.
+    tokenAdminRegistry: address;
     deployer: cell; // Deployable stub contract compiled code
     merkleRootCode: cell; // MerkleRoot contract compiled code 
     receiveExecutorCode: cell; // ReceiveExecutor contract compiled code

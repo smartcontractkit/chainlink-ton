@@ -1,15 +1,19 @@
 package sequences
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -33,10 +37,10 @@ import (
 	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -456,14 +460,15 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 	)
 }
 
-// ConfigureTokenForTransfersSequence registers a jetton and its pool with the on-chain
-// TokenRegistry by sending Router_TokenRegistrySetTokenInfo to the Router. The Router
-// deploys the per-token registry entry (when IsNewEntry) and forwards TokenRegistry_SetTokenInfo.
+// ConfigureTokenForTransfersSequence registers a jetton and its pool with the
+// standalone TokenAdminRegistry. The chain deployer is proposed as administrator
+// and accepts through the registry, which forwards the authenticated caller to its
+// deterministic entry.
 func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequence[tokensapi.ConfigureTokenForTransfersInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/configure-token-for-transfers",
 		semver.MustParse("1.6.0"),
-		"Registers a jetton with the TON TokenRegistry via the Router",
+		"Registers a jetton with the TON TokenAdminRegistry",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.ConfigureTokenForTransfersInput) (sequences.OnChainOutput, error) {
 			chain, ok := chains.TonChains()[input.ChainSelector]
 			if !ok {
@@ -490,6 +495,20 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse token pool address %q: %w", poolAddrStr, err)
 			}
+			contractsPackage := a.Package
+			if contractsPackage == "" {
+				contractsPackage = utils.ContractsVersionLocal
+			}
+			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
+				Package: contractsPackage,
+				Contracts: []ton_tvm.FullyQualifiedName{
+					bindings.TypeDeployable,
+					bindings.TypeTokenAdminRegistryEntry,
+				},
+			})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("retrieve Deployable code for TokenAdminRegistry entry: %w", err)
+			}
 
 			// The OffRamp always comes from the datastore: it is the contract that sends
 			// TokenPool_ReleaseOrMint to the pool, so it must be registered as the pool's
@@ -499,15 +518,15 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, loadErr)
 			}
 
-			var routerAddr *address.Address
+			var registryAddr *address.Address
 			if input.RegistryAddress != "" {
-				routerAddr, err = address.ParseAddr(input.RegistryAddress)
+				registryAddr, err = address.ParseAddr(input.RegistryAddress)
 				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse registry (router) address %q: %w", input.RegistryAddress, err)
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse TokenAdminRegistry address %q: %w", input.RegistryAddress, err)
 				}
 			} else {
-				r := stateCCIP.Router
-				routerAddr = &r
+				r := stateCCIP.TokenAdminRegistry
+				registryAddr = &r
 			}
 
 			var offRampAddr *address.Address
@@ -518,14 +537,14 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("no OffRamp address found in the datastore for chain %d: the token pool would reject inbound ReleaseOrMint with TokenPool_Error.Unauthorized", input.ChainSelector)
 			}
 
-			body := codec.MustWrapMessage[any](bindings.TypeRouter, router.TokenRegistrySetTokenInfo{
+			body := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.RegisterToken{
 				TokenAddress: tokenAddr,
-				TokenInfo: tokenregistry.TokenInfo{
+				TokenInfo: tokenadminregistryentry.TokenInfo{
 					TokenPool:     poolAddr,
 					MinterAddress: tokenAddr,
-					Enabled:       true,
+					Version:       1,
 				},
-				IsNewEntry: true,
+				Administrator: chain.Wallet.Address(),
 			})
 
 			dp, err := dep.NewDependencyProvider(dep.Provide(chain))
@@ -533,17 +552,40 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+			if _, execErr := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
 						Bounce:  true,
-						DstAddr: routerAddr,
+						DstAddr: registryAddr,
 						Amount:  tlb.MustFromTON("0.1"),
 						Body:    body,
 					},
 				},
+			}); execErr != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to register token at TokenAdminRegistry %s: %w", registryAddr.String(), execErr)
+			}
+
+			entryAddr, err := deriveTokenAdminRegistryEntryAddress(registryAddr, tokenAddr, compiledContracts[bindings.TypeDeployable].Code)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("derive TokenAdminRegistry entry address: %w", err)
+			}
+			if err := waitForTokenAdminRegistryEntryDeployment(chain.Client, entryAddr, compiledContracts[bindings.TypeTokenAdminRegistryEntry].Code); err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("wait for TokenAdminRegistry entry deployment at %s: %w", entryAddr.String(), err)
+			}
+			acceptBody := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.AcceptAdminRole{
+				TokenAddress: tokenAddr,
+			})
+			if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: registryAddr,
+						Amount:  tlb.MustFromTON("0.05"),
+						Body:    acceptBody,
+					},
+				},
 			}); err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to send TokenRegistrySetTokenInfo to router at %s: %w", routerAddr.String(), err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to accept TokenAdminRegistry administrator role for token %s: %w", tokenAddr.String(), err)
 			}
 
 			// Configure the pool's remote-chain token addresses.
@@ -554,13 +596,56 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			// Register the Router as the pool's trusted onRamp and the OffRamp as its trusted
 			// offRamp for every remote chain being wired up.
 			// TODO This should be changed in the contracts flow so that the onramp is the one calling instead of the Router
-			if err := applyRampAccessUpdates(b, dp, poolAddr, routerAddr, offRampAddr, input.RemoteChains); err != nil {
+			routerAddr := stateCCIP.Router
+			if err := applyRampAccessUpdates(b, dp, poolAddr, &routerAddr, offRampAddr, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure ramp access on token pool at %s: %w", poolAddr.String(), err)
 			}
 
 			return sequences.OnChainOutput{}, nil
 		},
 	)
+}
+
+// deriveTokenAdminRegistryEntryAddress mirrors TokenAdminRegistryEntry.deriveAddress
+// in contracts/contracts/ccip/token_admin_registry_entry/types.tolk. The entry is a
+// Deployable whose data is (root, TokenRegistry namespace, token address).
+func deriveTokenAdminRegistryEntryAddress(registryAddr, tokenAddr *address.Address, deployableCode *cell.Cell) (*address.Address, error) {
+	if registryAddr == nil || tokenAddr == nil || deployableCode == nil {
+		return nil, errors.New("registry address, token address, and deployable code are required")
+	}
+	data := cell.BeginCell().MustStoreAddr(registryAddr).MustStoreUInt(3, 32).MustStoreAddr(tokenAddr).EndCell()
+	return tlb.StateInit{Code: deployableCode, Data: data}.CalcAddress(0), nil
+}
+
+// waitForTokenAdminRegistryEntryDeployment waits until the entry address no
+// longer runs the Deployable initializer code. RegisterToken deploys the entry
+// asynchronously through the registry root, so accepting administration before
+// this transition would be rejected with Deployable_Error.NotOwner (9200).
+func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entryAddr *address.Address, entryCode *cell.Cell) error {
+	if client == nil || entryAddr == nil || entryCode == nil {
+		return errors.New("client, entry address, and entry code are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		block, err := client.CurrentMasterchainInfo(ctx)
+		if err == nil {
+			account, accountErr := client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, entryAddr)
+			if accountErr == nil && account.IsActive && account.Code != nil && bytes.Equal(account.Code.Hash(), entryCode.Hash()) {
+				return nil
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("entry did not become active with its expected code within 30s: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 // applyRemoteChainUpdates builds a TokenPool_ApplyChainUpdates message from the

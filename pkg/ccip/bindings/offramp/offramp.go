@@ -88,6 +88,7 @@ type Storage struct {
 // Deployables holds the deployable code cells for the offRamp contract
 type Deployables struct {
 	RMNRouter           *address.Address `tlb:"addr"`
+	TokenAdminRegistry  *address.Address `tlb:"addr"`
 	Deployer            *cell.Cell       `tlb:"^"`
 	MerkleRootCode      *cell.Cell       `tlb:"^"`
 	ReceiveExecutorCode *cell.Cell       `tlb:"^"`
@@ -107,6 +108,7 @@ type ConfigInfo struct {
 type CCIPReceiveV2 struct {
 	_       tlb.Magic      `tlb:"#5b4bc7a6" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
+	QueryID uint64         `tlb:"## 64"`
 	Message Any2TVMMessage `tlb:"^"`
 }
 
@@ -221,6 +223,7 @@ func (c *OCR3Base) GetterMethodName() string {
 // Config represents the offRamp contract configuration
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
+	TokenAdminRegistry                      *address.Address `tlb:"addr"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
@@ -272,7 +275,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorMerkleRootCannotBeZero)
+		ecMax = int32(ErrorUnexpectedTokenData)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -296,6 +299,10 @@ const (
 	ErrorOnRampAddressMismatch
 	ErrorEmptyCommitReport
 	ErrorMerkleRootCannotBeZero
+	ErrorUnsupportedNumberOfTokens
+	ErrorManualExecutionGasAmountCountMismatch
+	ErrorInvalidManualExecutionGasLimit
+	ErrorUnexpectedTokenData
 )
 
 // Getter method names for binding fetchers

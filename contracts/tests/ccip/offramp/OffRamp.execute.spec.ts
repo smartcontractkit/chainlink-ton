@@ -18,7 +18,7 @@ import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
-import * as trg from '../../../wrappers/gen/ccip/TokenRegistry'
+import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
@@ -81,7 +81,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -148,7 +148,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -212,7 +212,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -1019,7 +1019,7 @@ describe('OffRamp - Execute', () => {
       )
     })
 
-    it('should ignore gasOverride lower than original gasLimit', async () => {
+    it('should fail manual execute when gasOverride is lower than original gasLimit', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
@@ -1072,13 +1072,6 @@ describe('OffRamp - Execute', () => {
 
       const result4 = await setup.manualExecuteReport(report, gasOverride, true)
 
-      expect(result4.transactions).toHaveTransaction({
-        from: setup.router.address,
-        to: setup.receiver.address,
-        value: message.gasLimit,
-        success: true,
-      })
-
       assertLog(
         result4.transactions,
         setup.offRamp.address,
@@ -1087,12 +1080,67 @@ describe('OffRamp - Execute', () => {
           sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
           sequenceNumber: 1n,
           messageId: 1n,
-          state: of.ExecutionState.InProgress,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('should mark message as Failure when gasOverride is lower than original gasLimit, allowing retry', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. First DON execution: make the receiver reject so the message
+      //    ends in Failure.
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.RejectAll,
+        },
+      )
+      await setup.executeReport(report)
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // 2. Manual execute with a receiverExecutionGasLimit lower than the
+      //    message gasLimit.
+      const badGasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
+      const badResult = await setup.manualExecuteReport(report, badGasOverride, true)
+
+      assertLog(
+        badResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
         },
       )
 
+      await setup.receiver.sendTestReceiverUpdateBehavior(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        {
+          behavior: tr.TestReceiver_Behavior.Accept,
+        },
+      )
+
+      const goodGasOverride = { receiverExecutionGasLimit: message.gasLimit + toNano('0.01') }
+      const retryResult = await setup.manualExecuteReport(report, goodGasOverride, true)
+
+      expect(retryResult.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        value: goodGasOverride.receiverExecutionGasLimit,
+        success: true,
+      })
+
       assertLog(
-        result4.transactions,
+        retryResult.transactions,
         setup.offRamp.address,
         CCIPLogs.LogTypes.ExecutionStateChanged,
         {
@@ -1100,21 +1148,6 @@ describe('OffRamp - Execute', () => {
           sequenceNumber: 1n,
           messageId: 1n,
           state: of.ExecutionState.Success,
-        },
-      )
-
-      assertLog(
-        result4.transactions,
-        setup.receiver.address,
-        CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
-        {
-          message: of.Any2TVMMessage.create({
-            messageId: message.header.messageId,
-            sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-            sender: message.sender,
-            data: message.data,
-            tokenAmounts: null,
-          }),
         },
       )
     })
@@ -1263,7 +1296,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1332,7 +1365,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1399,7 +1432,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1444,7 +1477,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1511,7 +1544,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1592,7 +1625,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1668,7 +1701,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1747,7 +1780,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1808,13 +1841,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: registryAddress,
-        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: registryAddress,
         to: executorAddress,
-        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
         success: true,
       })
 
@@ -1877,6 +1910,49 @@ describe('OffRamp - Execute', () => {
       // TODO: when escrow account is integrated
       // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
       // 2. verify the receiver can withdraw the tokens from the escrow account.
+    })
+
+    it('forwards a non-empty offchainTokenData cell to the token pool', async () => {
+      const message = setup.createTestMessageWithToken()
+      // Non-empty per-token offchain data blob. The OffRamp must forward it
+      // verbatim instead of collapsing it to null.
+      const offchainTokenData = beginCell().storeUint(0xdeadbeef, 32).endCell()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
+        [offchainTokenData],
+      ])
+      const result = await setup.executeReport(report)
+
+      // The transfer still completes end to end.
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+
+      // OffRamp -> TokenPool: the offchain data must survive the whole
+      // OffRamp -> ReceiveExecutor -> OffRamp -> TokenPool hop.
+      const releaseOrMintTx = findTransaction(result.transactions, {
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
+
+      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
+        releaseOrMintTx.inMessage!.body!.beginParse(),
+      )
+      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
+      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
     })
 
     it('executes a token transfer to a non-contract receiver', async () => {
@@ -2102,13 +2178,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: registryAddress,
-        op: trg.TokenRegistry_GetTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: registryAddress,
         to: executorAddress,
-        op: trg.TokenRegistry_ReturnTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
         success: true,
       })
 
@@ -2401,6 +2477,59 @@ describe('OffRamp - Execute', () => {
       const gasOverride = of.GasOverride.create({
         receiverExecutionGasLimit: toNano('0.05'),
         tokenGasOverrides: [toNano('0.01')], // mismatch: message has 0 token transfers
+      })
+      const result = await setup.offRamp.sendOffRampManuallyExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.5'),
+        {
+          report,
+          gasOverride,
+        },
+      )
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails manual execute when token gas override is non-zero but lower than destGasAmount', async () => {
+      // Create a message with a destGasAmount below MIN_TT_GASLIMIT so that the
+      // first DON execution fails (token transfer gas too low).
+      const destGasAmount = MIN_TT_GASLIMIT - 1n
+      const message = setup.createTestMessageWithToken({ destGasAmount })
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // 1. Regular execution: destGasAmount (0.001) is below MIN_TT_GASLIMIT,
+      //    so the message should fail.
+      const firstResult = await setup.executeReport(report)
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // Warp time past the permissionless execution threshold so manual exec is allowed.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      const gasOverride = of.GasOverride.create({
+        receiverExecutionGasLimit: toNano('0.05'),
+        tokenGasOverrides: [destGasAmount - 1n], // non-zero but lower than destGasAmount
       })
       const result = await setup.offRamp.sendOffRampManuallyExecute(
         setup.transmitters[0].getSender(),
