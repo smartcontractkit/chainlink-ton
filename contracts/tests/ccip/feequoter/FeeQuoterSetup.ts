@@ -770,6 +770,10 @@ function printErrorName(error: number): string {
       return 'FeeOverflow'
     case feeQuoter.errors.MessageFeeTooHigh:
       return 'MessageFeeTooHigh'
+    case feeQuoter.errors.TooManySVMExtraArgsAccounts:
+      return 'TooManySVMExtraArgsAccounts'
+    case feeQuoter.errors.InvalidSVMExtraArgsWritableBitmap:
+      return 'InvalidSVMExtraArgsWritableBitmap'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

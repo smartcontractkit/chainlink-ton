@@ -435,7 +435,13 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
         }
 
-        assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
+        assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySVMExtraArgsAccounts;
+
+        // Bits above the account count would address accounts the message does not
+        // carry, so the destination cannot execute it in the requested way. Mirrors
+        // EVM FeeQuoter (`InvalidSVMExtraArgsWritableBitmap`). The shift is safe
+        // because `accountsLength` is bounded by SVM_EXTRA_ARGS_MAX_ACCOUNTS above.
+        assert (svmExtraArgs.accountIsWritableBitmap >> accountsLength == 0) throw FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap;
 
         assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 

@@ -66,6 +66,8 @@ export enum errors {
   TokenPriceTooLow,
   FeeOverflow,
   MessageFeeTooHigh,
+  TooManySVMExtraArgsAccounts,
+  InvalidSVMExtraArgsWritableBitmap,
 }
 
 export type FeeQuoterStorage = {

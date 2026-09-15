@@ -1772,6 +1772,189 @@ describe('FeeQuoter GetValidatedFee', () => {
       const result = await setup.getValidatedFee(message)
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
+
+    // F2: a byte snake whose terminal cell carries a partial byte. The
+    // `bits % 8 != 0` branch is unreachable through the typed message builder
+    // (it writes whole bytes), so the data cell is built by hand.
+    it('F2: rejects a byte snake with a non-byte-aligned terminal cell', async () => {
+      // A canonical linear chain (one continuation ref per non-terminal cell)
+      // whose terminal cell holds 4 bits, i.e. a partial byte.
+      const partialTail = beginCell().storeUint(3, 4).endCell()
+      const data = beginCell()
+        .storeBuffer(Buffer.alloc(127, 1)) // byte-full non-terminal cell
+        .storeRef(partialTail)
+        .endCell()
+
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: evmGenericArgs(),
+      }
+
+      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
+    })
+
+    // F3: the SVM accounts-count error must name the SVM failure, not the Sui
+    // one. Previously this threw TooManySuiExtraArgsReceiverObjectIds.
+    it('F3: reports TooManySVMExtraArgsAccounts (not the Sui error) for too many accounts', async () => {
+      const extraArgs = rt.builder.data.extraArgs
+        .encode({
+          kind: 'svm-v1',
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          accountIsWritableBitMap: 0n,
+          allowOutOfOrderExecution: true,
+          tokenReceiver: Buffer.alloc(32),
+          // SVM_EXTRA_ARGS_MAX_ACCOUNTS is 64; the accounts count is checked
+          // before the expanded-data budget.
+          accounts: Array.from({ length: 65 }, (_, i) => Buffer.alloc(32, i + 1)),
+        })
+        .endCell()
+
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs,
+      }
+
+      await setup.assertGetFeeValidationError(message, feeQuoter.errors.TooManySVMExtraArgsAccounts)
+    })
+
+    // SVM `accountIsWritableBitmap` must not address accounts the message does
+    // not carry, otherwise the destination cannot execute the message as
+    // requested. Mirrors EVM FeeQuoter's InvalidSVMExtraArgsWritableBitmap.
+    it('F3: rejects an SVM writable bitmap addressing accounts beyond the list', async () => {
+      const extraArgs = rt.builder.data.extraArgs
+        .encode({
+          kind: 'svm-v1',
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          // bit 3 set while only 3 accounts (bits 0..2) are carried
+          accountIsWritableBitMap: 1n << 3n,
+          allowOutOfOrderExecution: true,
+          tokenReceiver: Buffer.alloc(32),
+          accounts: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
+        })
+        .endCell()
+
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs,
+      }
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.errors.InvalidSVMExtraArgsWritableBitmap,
+      )
+    })
+
+    // Control: a bitmap that addresses exactly the carried accounts is valid.
+    it('F3: accepts an SVM writable bitmap within the account count', async () => {
+      const extraArgs = rt.builder.data.extraArgs
+        .encode({
+          kind: 'svm-v1',
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          accountIsWritableBitMap: 0b101n, // bits 0..2, all within 3 accounts
+          allowOutOfOrderExecution: true,
+          tokenReceiver: Buffer.alloc(32),
+          accounts: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
+        })
+        .endCell()
+
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs,
+      }
+
+      const result = await setup.getValidatedFee(message)
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
+    })
+
+    // Sui mirrors the SVM collection validation through a different call site
+    // and a different field name, so it needs its own coverage.
+    const suiExtraArgsWithObjectIds = (objectIds: Cell): Cell =>
+      beginCell()
+        .storeUint(rt.ExtraArgsOpcodes.suiV1, 32)
+        .storeUint(FeeQuoterSetup.GAS_LIMIT, 256) // gasLimit (mandatory for Sui)
+        .storeBit(true) // allowOutOfOrderExecution
+        .storeBuffer(Buffer.alloc(32), 32) // tokenReceiver
+        .storeRef(objectIds)
+        .endCell()
+
+    const suiMessage = (extraArgs: Cell): rt.CCIPSend => ({
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+      receiver: FeeQuoterSetup.DEST_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: FeeQuoterSetup.NATIVE_TON.token,
+      extraArgs,
+    })
+
+    it('F3: rejects Sui receiverObjectIds split across a cell boundary', async () => {
+      const objectIdsSplit = beginCell()
+        .storeBuffer(Buffer.alloc(16, 1), 16) // first half of object id 0
+        .storeRef(beginCell().storeBuffer(Buffer.alloc(16, 2), 16).endCell())
+        .endCell()
+
+      await setup.assertGetFeeValidationError(
+        suiMessage(suiExtraArgsWithObjectIds(objectIdsSplit)),
+        feeQuoter.errors.InvalidExtraArgsData,
+      )
+    })
+
+    it('F3: rejects Sui receiverObjectIds with a truncated element', async () => {
+      const objectIdsTruncated = beginCell()
+        .storeBuffer(Buffer.alloc(32, 1), 32)
+        .storeBuffer(Buffer.alloc(16, 2), 16)
+        .endCell()
+
+      await setup.assertGetFeeValidationError(
+        suiMessage(suiExtraArgsWithObjectIds(objectIdsTruncated)),
+        feeQuoter.errors.InvalidExtraArgsData,
+      )
+    })
+
+    // F4 variant B on the Sui call site: the FeeQuoter would resolve the library
+    // reference while validating, then re-emit the descriptor.
+    it('F3: rejects a library-reference Sui receiverObjectIds cell', async () => {
+      const libRef = beginCell()
+        .storeUint(2, 8)
+        .storeBuffer(Buffer.alloc(32, 0xef))
+        .endCell({ exotic: true })
+
+      await setup.assertGetFeeValidationError(
+        suiMessage(suiExtraArgsWithObjectIds(libRef)),
+        feeQuoter.errors.InvalidExtraArgsData,
+      )
+    })
+
+    // Control: a canonical Sui receiverObjectIds snake is still accepted.
+    it('F3: accepts a canonical Sui receiverObjectIds snake', async () => {
+      const extraArgs = rt.builder.data.extraArgs
+        .encode({
+          kind: 'sui-v1',
+          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          allowOutOfOrderExecution: true,
+          tokenReceiver: Buffer.alloc(32),
+          receiverObjectIds: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
+        })
+        .endCell()
+
+      const result = await setup.getValidatedFee(suiMessage(extraArgs))
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
+    })
   })
 
   afterAll(async () => {
