@@ -81,7 +81,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -148,7 +148,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -212,7 +212,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -1296,7 +1296,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1365,7 +1365,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1432,7 +1432,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1477,7 +1477,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1544,7 +1544,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1625,7 +1625,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1701,7 +1701,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1780,7 +1780,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1910,6 +1910,49 @@ describe('OffRamp - Execute', () => {
       // TODO: when escrow account is integrated
       // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
       // 2. verify the receiver can withdraw the tokens from the escrow account.
+    })
+
+    it('forwards a non-empty offchainTokenData cell to the token pool', async () => {
+      const message = setup.createTestMessageWithToken()
+      // Non-empty per-token offchain data blob. The OffRamp must forward it
+      // verbatim instead of collapsing it to null.
+      const offchainTokenData = beginCell().storeUint(0xdeadbeef, 32).endCell()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
+        [offchainTokenData],
+      ])
+      const result = await setup.executeReport(report)
+
+      // The transfer still completes end to end.
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+
+      // OffRamp -> TokenPool: the offchain data must survive the whole
+      // OffRamp -> ReceiveExecutor -> OffRamp -> TokenPool hop.
+      const releaseOrMintTx = findTransaction(result.transactions, {
+        from: setup.offRamp.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
+
+      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
+        releaseOrMintTx.inMessage!.body!.beginParse(),
+      )
+      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
+      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
     })
 
     it('executes a token transfer to a non-contract receiver', async () => {

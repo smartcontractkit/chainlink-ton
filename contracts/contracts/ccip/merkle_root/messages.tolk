@@ -12,6 +12,7 @@ struct (0x038ede91) MerkleRoot_Validate {
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
     gasOverride: GasOverride?,
+    offchainTokenData: lisp_list<lisp_list<cell>>,
 }
 
 //crc32('MerkleRoot_MarkState')
@@ -33,4 +34,3 @@ fun MerkleRoot_Costs.markState(): int {
 
 const MERKLE_ROOT_COSTS_MARK_STATE_FEE = ton("0.005");
 const MERKLE_ROOT_COSTS_VALIDATE_FEE = ton("0.012");
-
