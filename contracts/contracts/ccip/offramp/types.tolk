@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../common/types"
 import "../fee_quoter/types"
@@ -11,10 +12,24 @@ const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
 struct ExecutionReport {
     sourceChainSelector: uint64;
     messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
-    offchainTokenData: cell; // vec<vec<u8>>, one per token, we don't support token transfers right now, so this is ignored
+    // Offchain token data for every message and token transfer in the report.
+    // An empty list when the report carries no token transfers; otherwise each
+    // outer entry is a message and each inner entry is that message's token-data blob.
+    // WARNING: offchainTokenData is untrusted data.
+    offchainTokenData: lisp_list<lisp_list<cell>>;
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
 }
+
+// /// OffChainTokenData represents the offchain token data for all token transfers of all messages in an ExecutionReport.
+// type OffChainTokenData = lisp_list<OffChainTokenDataPerMessage>
+
+// /// OffChainTokenDataPerMessage represents the offchain token data of every token transfer of a single message.
+// type OffChainTokenDataPerMessage = lisp_list<SnakeBytes>
+
+// /// SnakeBytes is a byte array
+// /// TODO: implement serialization/deserialization
+// type SnakeBytes = cell
 
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;
@@ -130,6 +145,18 @@ fun SnakedCell<T>.asSingle(self): T? {
         return null;
     }
     return token
+}
+
+// Helper to extract the single item from a lisp_list<T>, and assert that there is only one
+fun lisp_list<T>.asSingle(mutate self): T? {
+    if (self.isEmpty()) {
+        return null;
+    }
+    val item = self.popHead();
+    if (!self.isEmpty()) {
+        return null
+    }
+    return item;
 }
 
 fun T?.unwrap(self, error: int): T {

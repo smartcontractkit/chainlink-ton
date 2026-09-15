@@ -104,6 +104,7 @@ type ConfigInfo struct {
 type CCIPReceiveV2 struct {
 	_       tlb.Magic      `tlb:"#5b4bc7a6" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
+	QueryID uint64         `tlb:"## 64"`
 	Message Any2TVMMessage `tlb:"^"`
 }
 
@@ -262,7 +263,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorMerkleRootCannotBeZero)
+		ecMax = int32(ErrorUnexpectedTokenData)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -286,6 +287,10 @@ const (
 	ErrorOnRampAddressMismatch
 	ErrorEmptyCommitReport
 	ErrorMerkleRootCannotBeZero
+	ErrorUnsupportedNumberOfTokens
+	ErrorManualExecutionGasAmountCountMismatch
+	ErrorInvalidManualExecutionGasLimit
+	ErrorUnexpectedTokenData
 )
 
 // Getter method names for binding fetchers

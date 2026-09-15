@@ -460,7 +460,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         of.Any2TVMRampMessage.store(msg, b)
         return b
       }),
-      offchainTokenData: Cell.EMPTY,
+      offchainTokenData: [[]],
       proofs: proof.hashes,
       proofFlagBits,
     })

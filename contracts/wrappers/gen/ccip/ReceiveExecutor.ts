@@ -352,6 +352,7 @@ export const ReceiveExecutorId = {
 
 /**
  > struct (0x58cfcb02) OffRamp_DispatchValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     execId: uint192
  >     effectiveGasLimit: coins
@@ -359,6 +360,7 @@ export const ReceiveExecutorId = {
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
+    queryId: uint64
     message: Any2TVMRampMessage
     execId: uint192
     effectiveGasLimit: coins
@@ -368,19 +370,22 @@ export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         execId: uint192
         effectiveGasLimit: coins
     }): OffRamp_DispatchValidated {
         return {
             $: 'OffRamp_DispatchValidated',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_DispatchValidated {
         loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');
         return {
             $: 'OffRamp_DispatchValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             execId: s.loadUintBig(192),
             effectiveGasLimit: s.loadCoins(),
@@ -388,6 +393,7 @@ export const OffRamp_DispatchValidated = {
     },
     store(self: OffRamp_DispatchValidated, b: c.Builder): void {
         b.storeUint(0x58cfcb02, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.execId, 192);
         b.storeCoins(self.effectiveGasLimit);
@@ -399,13 +405,15 @@ export const OffRamp_DispatchValidated = {
 
 /**
  > struct (0x59e56170) OffRamp_NotifySuccess {
- >     header: RampMessageHeader
+ >     queryId: uint64
+ >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
  > }
  */
 export interface OffRamp_NotifySuccess {
     readonly $: 'OffRamp_NotifySuccess'
+    queryId: uint64
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
@@ -415,27 +423,31 @@ export const OffRamp_NotifySuccess = {
     PREFIX: 0x59e56170,
 
     create(args: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
     }): OffRamp_NotifySuccess {
         return {
             $: 'OffRamp_NotifySuccess',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_NotifySuccess {
         loadAndCheckPrefix32(s, 0x59e56170, 'OffRamp_NotifySuccess');
         return {
             $: 'OffRamp_NotifySuccess',
-            header: RampMessageHeader.fromSlice(s),
+            queryId: s.loadUintBig(64),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
         }
     },
     store(self: OffRamp_NotifySuccess, b: c.Builder): void {
         b.storeUint(0x59e56170, 32);
-        RampMessageHeader.store(self.header, b);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
     },
@@ -446,13 +458,15 @@ export const OffRamp_NotifySuccess = {
 
 /**
  > struct (0x177ebd03) OffRamp_NotifyFailure {
- >     header: RampMessageHeader
+ >     queryId: uint64
+ >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
  > }
  */
 export interface OffRamp_NotifyFailure {
     readonly $: 'OffRamp_NotifyFailure'
+    queryId: uint64
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
@@ -462,27 +476,31 @@ export const OffRamp_NotifyFailure = {
     PREFIX: 0x177ebd03,
 
     create(args: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
     }): OffRamp_NotifyFailure {
         return {
             $: 'OffRamp_NotifyFailure',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_NotifyFailure {
         loadAndCheckPrefix32(s, 0x177ebd03, 'OffRamp_NotifyFailure');
         return {
             $: 'OffRamp_NotifyFailure',
-            header: RampMessageHeader.fromSlice(s),
+            queryId: s.loadUintBig(64),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
         }
     },
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
         b.storeUint(0x177ebd03, 32);
-        RampMessageHeader.store(self.header, b);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
     },
@@ -1000,7 +1018,7 @@ export interface ReceiveExecutor_Storage {
     message: Any2TVMRampMessage
     root: c.Address
     execId: uint192
-    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins } */
+    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64 } */
     lastExecutionTimestamp: uint64 /* = 0 */
 }
 
@@ -1010,12 +1028,12 @@ export const ReceiveExecutor_Storage = {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64 } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }): ReceiveExecutor_Storage {
         return {
             $: 'ReceiveExecutor_Storage',
-            state: { $: 'ReceiveExecutor_State', tokenTransfer: null, messageExecution: 0n, effectiveGasLimit: 0n },
+            state: { $: 'ReceiveExecutor_State', tokenTransfer: null, messageExecution: 0n, effectiveGasLimit: 0n, queryId: 0n },
             lastExecutionTimestamp: 0n,
             ...args
         }
@@ -1046,6 +1064,7 @@ export const ReceiveExecutor_Storage = {
 
 /**
  > struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
+ >     queryId: uint64
  >     effectiveGasLimit: coins
  >     root: address
  >     sequenceNumber: uint64
@@ -1056,6 +1075,7 @@ export const ReceiveExecutor_Storage = {
  */
 export interface ReceiveExecutor_InitExecute {
     readonly $: 'ReceiveExecutor_InitExecute'
+    queryId: uint64
     effectiveGasLimit: coins
     root: c.Address
     sequenceNumber: uint64
@@ -1068,6 +1088,7 @@ export const ReceiveExecutor_InitExecute = {
     PREFIX: 0x64cd2fd2,
 
     create(args: {
+        queryId?: uint64
         effectiveGasLimit: coins
         root: c.Address
         sequenceNumber: uint64
@@ -1078,13 +1099,15 @@ export const ReceiveExecutor_InitExecute = {
         return {
             $: 'ReceiveExecutor_InitExecute',
             tokenTransfer: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_InitExecute {
         loadAndCheckPrefix32(s, 0x64cd2fd2, 'ReceiveExecutor_InitExecute');
         return {
             $: 'ReceiveExecutor_InitExecute',
+            queryId: s.loadUintBig(64),
             effectiveGasLimit: s.loadCoins(),
             root: s.loadAddress(),
             sequenceNumber: s.loadUintBig(64),
@@ -1095,6 +1118,7 @@ export const ReceiveExecutor_InitExecute = {
     },
     store(self: ReceiveExecutor_InitExecute, b: c.Builder): void {
         b.storeUint(0x64cd2fd2, 32);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.effectiveGasLimit);
         b.storeAddress(self.root);
         b.storeUint(self.sequenceNumber, 64);
@@ -1113,21 +1137,25 @@ export const ReceiveExecutor_InitExecute = {
  > struct ReceiveExecutor_TokenTransfer {
  >     tokenAdminRegistry: address
  >     transfer: Any2TVMTokenTransfer
+ >     offchainTokenData: cell?
  > }
  */
 export interface ReceiveExecutor_TokenTransfer {
     readonly $: 'ReceiveExecutor_TokenTransfer'
     tokenAdminRegistry: c.Address
     transfer: Any2TVMTokenTransfer
+    offchainTokenData: c.Cell | null /* = null */
 }
 
 export const ReceiveExecutor_TokenTransfer = {
     create(args: {
         tokenAdminRegistry: c.Address
         transfer: Any2TVMTokenTransfer
+        offchainTokenData?: c.Cell | null /* = null */
     }): ReceiveExecutor_TokenTransfer {
         return {
             $: 'ReceiveExecutor_TokenTransfer',
+            offchainTokenData: null,
             ...args
         }
     },
@@ -1136,11 +1164,15 @@ export const ReceiveExecutor_TokenTransfer = {
             $: 'ReceiveExecutor_TokenTransfer',
             tokenAdminRegistry: s.loadAddress(),
             transfer: Any2TVMTokenTransfer.fromSlice(s),
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: ReceiveExecutor_TokenTransfer, b: c.Builder): void {
         b.storeAddress(self.tokenAdminRegistry);
         Any2TVMTokenTransfer.store(self.transfer, b);
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: ReceiveExecutor_TokenTransfer): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransfer>(self, ReceiveExecutor_TokenTransfer.store);
@@ -1149,13 +1181,13 @@ export const ReceiveExecutor_TokenTransfer = {
 
 /**
  > struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     reason: ReleaseOrMint_ReleaseOrMintFailedReason
  > }
  */
 export interface ReceiveExecutor_ReleaseOrMintFailed {
     readonly $: 'ReceiveExecutor_ReleaseOrMintFailed'
-    queryID: uint64
+    queryId: uint64
     reason: ReleaseOrMint_ReleaseOrMintFailedReason
 }
 
@@ -1163,26 +1195,26 @@ export const ReceiveExecutor_ReleaseOrMintFailed = {
     PREFIX: 0xdf58530e,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         reason: ReleaseOrMint_ReleaseOrMintFailedReason
     }): ReceiveExecutor_ReleaseOrMintFailed {
         return {
             $: 'ReceiveExecutor_ReleaseOrMintFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_ReleaseOrMintFailed {
         loadAndCheckPrefix32(s, 0xdf58530e, 'ReceiveExecutor_ReleaseOrMintFailed');
         return {
             $: 'ReceiveExecutor_ReleaseOrMintFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             reason: ReleaseOrMint_ReleaseOrMintFailedReason.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_ReleaseOrMintFailed, b: c.Builder): void {
         b.storeUint(0xdf58530e, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         ReleaseOrMint_ReleaseOrMintFailedReason.store(self.reason, b);
     },
     toCell(self: ReceiveExecutor_ReleaseOrMintFailed): c.Cell {
@@ -1287,11 +1319,13 @@ export const NotEnoughDestGasAmountForTokenTransfer = {
 
 /**
  > struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
+ >     queryId: uint64
  >     receiver: address
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveConfirm {
     readonly $: 'ReceiveExecutor_CCIPReceiveConfirm'
+    queryId: uint64
     receiver: c.Address
 }
 
@@ -1299,22 +1333,26 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
     PREFIX: 0xf0af71c5,
 
     create(args: {
+        queryId?: uint64
         receiver: c.Address
     }): ReceiveExecutor_CCIPReceiveConfirm {
         return {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_CCIPReceiveConfirm {
         loadAndCheckPrefix32(s, 0xf0af71c5, 'ReceiveExecutor_CCIPReceiveConfirm');
         return {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
+            queryId: s.loadUintBig(64),
             receiver: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0xf0af71c5, 32);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.receiver);
     },
     toCell(self: ReceiveExecutor_CCIPReceiveConfirm): c.Cell {
@@ -1324,12 +1362,14 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
 
 /**
  > struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
+ >     queryId: uint64
  >     receiver: address
  >     reason: ReceiveExecutor_FailedReason
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveFailed {
     readonly $: 'ReceiveExecutor_CCIPReceiveFailed'
+    queryId: uint64
     receiver: c.Address
     reason: ReceiveExecutor_FailedReason
 }
@@ -1338,24 +1378,28 @@ export const ReceiveExecutor_CCIPReceiveFailed = {
     PREFIX: 0x8854993b,
 
     create(args: {
+        queryId?: uint64
         receiver: c.Address
         reason: ReceiveExecutor_FailedReason
     }): ReceiveExecutor_CCIPReceiveFailed {
         return {
             $: 'ReceiveExecutor_CCIPReceiveFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_CCIPReceiveFailed {
         loadAndCheckPrefix32(s, 0x8854993b, 'ReceiveExecutor_CCIPReceiveFailed');
         return {
             $: 'ReceiveExecutor_CCIPReceiveFailed',
+            queryId: s.loadUintBig(64),
             receiver: s.loadAddress(),
             reason: ReceiveExecutor_FailedReason.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveFailed, b: c.Builder): void {
         b.storeUint(0x8854993b, 32);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.receiver);
         ReceiveExecutor_FailedReason.store(self.reason, b);
     },
@@ -1390,6 +1434,7 @@ export const ReceiveExecutor_FailedReason = {
  >     tokenTransfer: Cell<ReceiveExecutor_TokenTransferInfo>?
  >     messageExecution: ReceiveExecutor_MessageExecutionState
  >     effectiveGasLimit: coins
+ >     queryId: uint64
  > }
  */
 export interface ReceiveExecutor_State {
@@ -1397,6 +1442,7 @@ export interface ReceiveExecutor_State {
     tokenTransfer: ReceiveExecutor_TokenTransferInfo | null
     messageExecution: ReceiveExecutor_MessageExecutionState
     effectiveGasLimit: coins
+    queryId: uint64 /* = 0 */
 }
 
 export const ReceiveExecutor_State = {
@@ -1404,9 +1450,11 @@ export const ReceiveExecutor_State = {
         tokenTransfer: ReceiveExecutor_TokenTransferInfo | null
         messageExecution: ReceiveExecutor_MessageExecutionState
         effectiveGasLimit: coins
+        queryId?: uint64 /* = 0 */
     }): ReceiveExecutor_State {
         return {
             $: 'ReceiveExecutor_State',
+            queryId: 0n,
             ...args
         }
     },
@@ -1416,6 +1464,7 @@ export const ReceiveExecutor_State = {
             tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransferInfo>(s, ReceiveExecutor_TokenTransferInfo.fromSlice) : null,
             messageExecution: ReceiveExecutor_MessageExecutionState.fromSlice(s),
             effectiveGasLimit: s.loadCoins(),
+            queryId: s.loadUintBig(64),
         }
     },
     store(self: ReceiveExecutor_State, b: c.Builder): void {
@@ -1424,6 +1473,7 @@ export const ReceiveExecutor_State = {
         );
         ReceiveExecutor_MessageExecutionState.store(self.messageExecution, b);
         b.storeCoins(self.effectiveGasLimit);
+        b.storeUint(self.queryId, 64);
     },
     toCell(self: ReceiveExecutor_State): c.Cell {
         return makeCellFrom<ReceiveExecutor_State>(self, ReceiveExecutor_State.store);
@@ -1434,6 +1484,7 @@ export const ReceiveExecutor_State = {
  > struct ReceiveExecutor_TokenTransferInfo {
  >     transfer: Cell<Any2TVMTokenTransfer>
  >     tokenAdminRegistry: address
+ >     offchainTokenData: cell?
  >     state: ReceiveExecutor_TokenTransferState
  > }
  */
@@ -1441,6 +1492,7 @@ export interface ReceiveExecutor_TokenTransferInfo {
     readonly $: 'ReceiveExecutor_TokenTransferInfo'
     transfer: Any2TVMTokenTransfer
     tokenAdminRegistry: c.Address
+    offchainTokenData: c.Cell | null /* = null */
     state: ReceiveExecutor_TokenTransferState /* = ReceiveExecutor_TokenTransferState_Untouched {  } */
 }
 
@@ -1448,10 +1500,12 @@ export const ReceiveExecutor_TokenTransferInfo = {
     create(args: {
         transfer: Any2TVMTokenTransfer
         tokenAdminRegistry: c.Address
+        offchainTokenData?: c.Cell | null /* = null */
         state?: ReceiveExecutor_TokenTransferState /* = ReceiveExecutor_TokenTransferState_Untouched {  } */
     }): ReceiveExecutor_TokenTransferInfo {
         return {
             $: 'ReceiveExecutor_TokenTransferInfo',
+            offchainTokenData: null,
             state: { $: 'ReceiveExecutor_TokenTransferState_Untouched',  },
             ...args
         }
@@ -1461,12 +1515,16 @@ export const ReceiveExecutor_TokenTransferInfo = {
             $: 'ReceiveExecutor_TokenTransferInfo',
             transfer: loadCellRef<Any2TVMTokenTransfer>(s, Any2TVMTokenTransfer.fromSlice),
             tokenAdminRegistry: s.loadAddress(),
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
             state: ReceiveExecutor_TokenTransferState.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_TokenTransferInfo, b: c.Builder): void {
         storeCellRef<Any2TVMTokenTransfer>(self.transfer, b, Any2TVMTokenTransfer.store);
         b.storeAddress(self.tokenAdminRegistry);
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
         ReceiveExecutor_TokenTransferState.store(self.state, b);
     },
     toCell(self: ReceiveExecutor_TokenTransferInfo): c.Cell {
@@ -1786,7 +1844,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECKgEACSQAART/APSkE/S88sgLAQIBYgIDAgLNBAUCAUgmJwIBIAYHAgFIIyQCASAICQIBIBgZBPU+JHyQCDXLCMmaX6UjlYx7UTQ+kjU+kjTv/QE0wH6ANM/0YIAkuT4kinHBfL0CPoA+kjTP9M/0//0BfiXEN4QzRC8EKsQmhCJEHjwAgfI+lIWzBT6UhLLv/QAywEB+gLLP8ntVODXLCeFe44s4wLXLCBSxzPE4wKJ1yeAKCwwNAFsJo4WMDkDyMwS+lIB+gL0ABXL/8lUNENTQ+AFyMwU+lJY+gL0AMv/yQFtgQCJgAfwx7UTQ+kjU+kjTv/QE0wH6ANM/0YIAkuT4kinHBfL0ggCS4CPAATRQA/L0B/pIMCXQ0//TP9M/0z/TP/pIMAaCAJLjB8cFFvL0yM+RZ5WFwhTL/xLLP8s/yz/LPyPPC79SQPpSycjPhYhScPpScc8LbszJgwb7AAXI+lIUzBIOANwx7UTQ+kjU+kjTv/QE0wH6ANM/0SPwBYIAkuYBwwCXgQCKIrrDAJFw4vL0ggCS5PiSJMcF8vQM0z/6SPpQ1wsfEO8Q3hDNELwQqxCaEIkQeBA3VTLwAwfI+lIWzBT6UhLLv/QAywEB+gLLP8ntVAAI4OiC9QT8jm0x7UTQ+kjU+kjTv/QE0wH6ANM/0SPwBYIAkucBwwCXgQCLIrrDAJFw4vL0ggCS5PiSI8cF8vT4AAzTP9dMEM0QvBCrEJoQiRB4EGcQVhBFEDQQI/AEB8j6UhbMFPpSEsu/9ADLAQH6Ass/ye1U4NcsJ3hlm3TjAonXJ+MCDxAREgAi+lLLv/QAz4eAWPoCyz/J7VQB/FvtRND6SNT6SNO/9ATTAfoA0z/RI/AFggCS5znDAJiBAIshujHDAJIwcOIX8vSCAJLk+JInxwXy9PgAAcjM+lLPhsAU+lLJJtDT/9M/0z/TP9cLP8jPkF369A4Vy/8Tyz/LP8s/yz8lzwu/UmD6UsnIz4WIUpD6UnHPC27MyRMACN9YUw4B/FvtRND6SNT6SNO/9ATTAfoA0z/RggCS5PiSKccF8vQj8AWCAJLnOcMAmIEAiyG6McMAkjBw4hfy9AHIzPpSz4bAFPpSySbQ0//TP9M/0z/XCz/Iz5Bd+vQOFcv/E8s/yz/LP8s/Jc8Lv1Jg+lLJyM+FiFKQ+lJxzwtuzMmAQBQCGonXJ+MCMIQPAccA8vQVFgA6gED7AAfI+lIWzBT6UhLLvxT0AMsBAfoCyz/J7VQANvsAB8j6UhbMFPpSEsu/FPQAywEB+gLLP8ntVAAIiFSZOwH+Me1E0PpI1PpI07/0BNMB+gDTP9GCAJLk+JIpxwXy9IIAkuAjwAE0UAPy9Af6SNcLByDCAjHyRSXQ0//TP9M/0z/TP/pIMAaCAJLjB8cFFvL0yM+QXfr0DhTL/xLLP8s/yz/LPyPPC79SQPpSycjPhYhScPpScc8LbszJgED7ABcAMAXI+lIUzBL6Usu/9ADPhoBY+gLLP8ntVAO/O2i7ftQWF8FKNDT/9M/0z/TP9cLPyaCCfeKQKApvI4xNTfIz5Bd+vQOE8v/yz/LPxTLPxPLPyXPC79SYPpSycjPhYhSkPpScc8LbszJgED7AOAlbpQQaF8I4w4h4w9ZgGhscAfcWzIzMzYlbo5GNSfQBcjM+lLPhcDJBNP/0z/TP9M/1ws/yM+QXfr0DhXL/xPLP8s/yz/LPyXPC79SYPpSycjPhYhSkPpScc8LbszJgED7AOBTUMjME/pSz4ZAEvpSyQHQKNAB1PpI+gD0BNcL/wXT/9M/0z8x0z8x0z8xgIgH6BdAq8AUF+kjU+kj6APQE1wv/VhCCCfeKQKAjoIIJMS0AoAEREwG5jjRfCjfIz5Bd+vQOE8v/yz/LPxTLPxPLPyXPC79SYPpSycjPhYhSkPpScc8LbszJgED7ANsx4Do6Ojo6EDpJFwQGA1DMCEUV8AFsRDSBAI0kuuMDXwUdAJghwAGWggCS4fLw4CHAAp8WXwbAA5aCAJLi8vDg8gXhMfgjcYIJuoFAI6DIz4WIUpD6UgH6AoIQWM/LAs8LiifPFCXPC78j+gLJIfsAAFox+CNxggm6gUAjoMjPhYhSkPpSAfoCghBYz8sCzwuKJ88UJc8LvyP6Askh+wACmDeBAIkjuo7AgQCOI7qONzYxyMxSQPpSz4VAycjPhYgV+lKNBoAAAAAAAAAAAAAAAAAAPXemFoAAAAAAAAAAQM8WyYBA+wDjDuMN2zEeHwL+gQCMI7qOFxApXwmBAIoyupaCAJLh8vDgggCS4fLw4TJTUMjME/pSz4ZAEvpSyQHQKNAB1PpI+gD0BNcL/wXT/9M/0z8x0z8x0z8x1PpIMCWCCTEtAKAByPpSE8s/zBfL/xT6UsltBMjL/8wUzBP0APQAyciJzxYpzwu/GPpSASAhAG42McjMUkD6Us+FQMnIz4WIFfpSjQaAAAAAAAAAAAAAAAAAAD13phaAAAAAAAAAAEDPFsmAQPsAABh96vB2AAAAAAAAAAAAQvoCz5AAAAACFszJyM+FiFKg+lJQBvoCcc8LahXMyXH7AADE1PpIMCWCCTEtAKAByPpSE8s/zBfL/xT6UsltBMjL/8wUzBP0APQAyciLx96vB2AAAAAAAAAACM8WKc8Lvxj6UgH6As+QAAAAAhbMycjPhYhSoPpSUAb6AnHPC2oVzMlx+wAB9xfBDQ0A8jMEvpSz4RAySXQ0//TP9M/0z/TP9Qx10zQxwCOMnPIz5FnlYXCFsv/FMs/Ess/yz/LPyXPC79SYPpSycjPhYhSkPpScc8LbszJgwb7AEAD4F8FMvgjcYIJuoFAI6DIz4WIUpD6UgH6AoIQWM/LAs8LiifPFCWAlAL0IG6WMG1tbW1w4NDU+kjXLAiAlG2BAI2OPtcsCYCUbYEAiY4y1ywKgJRtgQCKjibXLAuAlG2BAI6OGtcsDICV+kiBAIud1ywNgJLyP+H6SIEAjOIS4uLi4gLRAYEAj4AAWzwu/I/oCySH7AFkCASAoKQALuGhYEBeIAF+2K/GhG2NLc1lzG0MLS3Fzo3txcxsbS4FykysbK0uzKivDKxuro3uUEWpiXG5cYRAAG7XFEEASXBQEEIH3flCQ');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -1830,7 +1888,7 @@ export class ReceiveExecutor implements c.Contract {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64 } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -1842,6 +1900,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     static createCellOfReceiveExecutorInitExecute(body: {
+        queryId?: uint64
         effectiveGasLimit: coins
         root: c.Address
         sequenceNumber: uint64
@@ -1876,13 +1935,14 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     static createCellOfReceiveExecutorReleaseOrMintFailed(body: {
-        queryID?: uint64
+        queryId?: uint64
         reason: ReleaseOrMint_ReleaseOrMintFailedReason
     }) {
         return ReceiveExecutor_ReleaseOrMintFailed.toCell(ReceiveExecutor_ReleaseOrMintFailed.create(body));
     }
 
     static createCellOfReceiveExecutorCCIPReceiveFailed(body: {
+        queryId?: uint64
         receiver: c.Address
         reason: ReceiveExecutor_FailedReason
     }) {
@@ -1890,6 +1950,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     static createCellOfReceiveExecutorCCIPReceiveConfirm(body: {
+        queryId?: uint64
         receiver: c.Address
     }) {
         return ReceiveExecutor_CCIPReceiveConfirm.toCell(ReceiveExecutor_CCIPReceiveConfirm.create(body));
@@ -1912,6 +1973,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     async sendReceiveExecutorInitExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         effectiveGasLimit: coins
         root: c.Address
         sequenceNumber: uint64
@@ -1962,7 +2024,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     async sendReceiveExecutorReleaseOrMintFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         reason: ReleaseOrMint_ReleaseOrMintFailedReason
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1973,6 +2035,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     async sendReceiveExecutorCCIPReceiveFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         receiver: c.Address
         reason: ReceiveExecutor_FailedReason
     }, extraOptions?: ExtraSendOptions) {
@@ -1984,6 +2047,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     async sendReceiveExecutorCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         receiver: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
