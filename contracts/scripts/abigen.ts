@@ -71,9 +71,20 @@ function generateWrapper(projectRoot: string, name: string, outputPath: string):
   })
 }
 
+function buildContracts(projectRoot: string): void {
+  // Wrapper compilation resolves Acton's precompiled-BOC imports from gen/.
+  // Those files are build outputs, so create them first for fresh CI checkouts.
+  execFileSync('acton', ['build'], {
+    cwd: projectRoot,
+    stdio: 'inherit',
+  })
+}
+
 function main(): void {
   const manifestPath = findManifest(process.argv.slice(2))
   const { projectRoot, outputDir, contracts } = readManifest(manifestPath)
+
+  buildContracts(projectRoot)
 
   const project = new Project({ useInMemoryFileSystem: true })
 
