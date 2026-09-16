@@ -106,7 +106,9 @@ jobs:
       - name: Push dirty tag
         run: |
           set -euo pipefail
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
+          # No git identity here: this creates a LIGHTWEIGHT tag, which records
+          # no tagger at all, so `git config user.*` was dead code. Attribution
+          # comes from the GATI token doing the push. Switch to `git tag -a`
+          # (plus a signing key) if an attributed tag is ever wanted.
           git tag "${{ steps.version.outputs.tag_name }}" "${{ steps.get_sha.outputs.full_sha }}"
           git push origin "${{ steps.version.outputs.tag_name }}"
