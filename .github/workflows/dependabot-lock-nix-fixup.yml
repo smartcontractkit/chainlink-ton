@@ -16,6 +16,8 @@ name: TON - Dependabot lock.nix fixup
 #   workflow_dispatch on demand, any PR. Unlike the label this keeps secrets,
 #                     so it is the route for Dependabot PRs and retries.
 #
+# Setup, once per repo: the `nix-tidy` and `nix-tidy-skip` labels must exist.
+#
 # Ops: the watch fails silently — a long-red Dependabot PR means a look at this
 # workflow's runs. Label "nix-tidy-skip" = the fixup ran but the red has another
 # cause; retry via dispatch.
@@ -54,11 +56,6 @@ concurrency:
 jobs:
   fixup:
     name: Fix lock.nix hashes on a red Dependabot PR
-    # Two layers, deliberately:
-    #   here      a cheap pre-filter on Dependabot's branch naming convention,
-    #             so a red human-authored PR never starts a runner at all.
-    #   in-shell  the authoritative author check, which also catches a branch
-    #             that merely LOOKS like a Dependabot one.
     if: >-
       (github.event_name == 'pull_request' && github.event.label.name == 'nix-tidy')
       || github.event_name == 'workflow_dispatch'
@@ -108,11 +105,6 @@ jobs:
             [[ -n ${NUM} ]] || { echo "::error::no PR associated with ${EVENT_SHA}"; exit 1; }
           fi
 
-          # Every label-side API call here is best-effort: a `pull_request` run
-          # gets a read-only token when the head is a fork or a Dependabot
-          # branch, and a missing scope must not drown out the notices below.
-          # Consuming the label stops it lingering as stale state, so a retry is
-          # simply re-applying it.
           if [[ ${GITHUB_EVENT_NAME} == "pull_request" ]]; then
             gh pr edit "${NUM}" --repo "${REPO}" --remove-label nix-tidy \
               || echo "::warning::could not remove the nix-tidy label (needs issues: write)"
@@ -238,12 +230,9 @@ jobs:
 
           # No diff means nothing was stale and this PR's red has another cause.
           if git diff --quiet -- '*lock.nix'; then
-            gh label create nix-tidy-skip --repo "${REPO}" \
-              --color "ededed" --description "lock.nix fixup tried; red has another cause" || true
-            # Best-effort for the same reason as the guard step's label calls.
             gh pr edit "${NUM}" --repo "${REPO}" --add-label nix-tidy-skip \
-              || echo "::warning::could not label PR ${NUM} nix-tidy-skip (needs issues: write)"
-            echo "::notice::PR ${NUM}: no hash was stale; labeled nix-tidy-skip"
+              || echo "::warning::could not add the nix-tidy-skip label (missing scope, or the label does not exist in this repo)"
+            echo "::notice::PR ${NUM}: no hash was stale, so the red has another cause"
             echo "changed=false" >>"${GITHUB_OUTPUT}"
           else
             echo "changed=true" >>"${GITHUB_OUTPUT}"
