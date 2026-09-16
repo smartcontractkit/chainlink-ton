@@ -53,17 +53,26 @@ struct (0x7bdd97de) BurnNotificationForMinter {
     sendExcessesTo: address?
 }
 
+/// Request to get address of Jetton Wallet of the ownerAddress
+/// 
+/// Responds with `ResponseWalletAddress` message
+//
 // nolint:opcode
 struct (0x2c76b973) RequestWalletAddress {
     queryId: uint64
+    /// Owner whose Jetton Wallet address is requested
     ownerAddress: address
+    /// If true, the response message will include the sent `ownerAddress`
     includeOwnerAddress: bool
 }
 
+/// Response to `RequestWalletAddress` message
 // nolint:opcode
 struct (0xd1735400) ResponseWalletAddress {
     queryId: uint64
+    /// Address of the Jetton Wallet owned by `RequestWalletAddress.ownerAddress`. Can be null if current workchain is not supported by the Minter
     jettonWalletAddress: address?
+    /// Address of the owner of the Jetton Wallet. Can be null if `RequestWalletAddress.includeOwnerAddress` was false
     ownerAddress: Cell<address>?
 }
 

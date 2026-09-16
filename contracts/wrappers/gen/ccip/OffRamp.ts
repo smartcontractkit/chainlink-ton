@@ -15,9 +15,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -40,16 +37,50 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
 
 function storeTolkBitsN(v: c.Slice, nBits: number, b: c.Builder): void {
     if (v.remainingBits !== nBits) { throw new Error(`expected ${nBits} bits, got ${v.remainingBits}`); }
@@ -71,13 +102,16 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
 }
 
 function storeLispListOf<T>(v: lisp_list<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    let tail = c.Cell.EMPTY;
-    for (let i = 0; i < v.length; ++i) {
-        let itemB = beginCell();
-        storeFn_T(v[i], itemB);
-        tail = itemB.storeRef(tail).endCell();
-    }
-    b.storeRef(tail);
+
+        let tail = c.Cell.EMPTY;
+        for (let i = 0; i < v.length; ++i) {
+            let itemB = beginCell();
+            itemB.storeRef(tail);
+            storeFn_T(v[i], itemB);
+            tail = itemB.endCell();
+        }
+        b.storeRef(tail);
+      
 }
 
 function loadLispListOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): lisp_list<T> {
@@ -192,8 +226,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 
     readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
@@ -236,6 +270,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -247,6 +283,7 @@ type uint224 = bigint
 type uint256 = bigint
 
 type bits192 = c.Slice
+type bits256 = c.Slice
 
 /**
  > struct ContractState {
@@ -308,6 +345,25 @@ export const UnsafeBodyNoRef = {
 }
 
 /**
+ > enum Upgradeable_Error { 1 variants }
+ */
+export type Upgradeable_Error = bigint
+
+export const Upgradeable_Error = {
+    VersionMismatch: 19900n,
+
+    fromSlice(s: c.Slice): Upgradeable_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: Upgradeable_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: Upgradeable_Error): c.Cell {
+        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
+    }
+}
+
+/**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
  >     queryId: uint64
  >     code: cell
@@ -323,12 +379,13 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
@@ -425,6 +482,27 @@ export const Deployable_Initialize = {
 }
 
 /**
+ > enum Ownable2Step_Error { 3 variants }
+ */
+export type Ownable2Step_Error = bigint
+
+export const Ownable2Step_Error = {
+    OnlyCallableByOwner: 49800n,
+    CannotTransferToSelf: 49801n,
+    MustBeProposedOwner: 49802n,
+
+    fromSlice(s: c.Slice): Ownable2Step_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Ownable2Step_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Ownable2Step_Error): c.Cell {
+        return makeCellFrom<Ownable2Step_Error>(self, Ownable2Step_Error.store);
+    }
+}
+
+/**
  > struct Ownable2Step {
  >     owner: address
  >     pendingOwner: address?
@@ -433,16 +511,17 @@ export const Deployable_Initialize = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -463,6 +542,87 @@ export const Ownable2Step = {
 }
 
 /**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct Ownable2Step_OwnershipTransferRequested {
  >     queryId: uint64
  >     newOwner: address
@@ -476,12 +636,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -516,13 +677,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -540,6 +702,27 @@ export const Ownable2Step_OwnershipTransferred = {
     },
     toCell(self: Ownable2Step_OwnershipTransferred): c.Cell {
         return makeCellFrom<Ownable2Step_OwnershipTransferred>(self, Ownable2Step_OwnershipTransferred.store);
+    }
+}
+
+/**
+ > enum Withdrawable_Error { 3 variants }
+ */
+export type Withdrawable_Error = bigint
+
+export const Withdrawable_Error = {
+    InsufficientBalance: 57100n,
+    HitReserve: 57101n,
+    InvalidRequest: 57102n,
+
+    fromSlice(s: c.Slice): Withdrawable_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Withdrawable_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Withdrawable_Error): c.Cell {
+        return makeCellFrom<Withdrawable_Error>(self, Withdrawable_Error.store);
     }
 }
 
@@ -565,7 +748,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -573,7 +756,8 @@ export const Withdrawable_Withdraw = {
     }): Withdrawable_Withdraw {
         return {
             $: 'Withdrawable_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
@@ -599,6 +783,29 @@ export const Withdrawable_Withdraw = {
     },
     toCell(self: Withdrawable_Withdraw): c.Cell {
         return makeCellFrom<Withdrawable_Withdraw>(self, Withdrawable_Withdraw.store);
+    }
+}
+
+/**
+ > enum MerkleMultiProof_Error { 5 variants }
+ */
+export type MerkleMultiProof_Error = bigint
+
+export const MerkleMultiProof_Error = {
+    InvalidProofLeavesCannotBeEmpty: 12000n,
+    InvalidProofLeavesTooLarge: 12001n,
+    InvalidProofProofsTooLarge: 12002n,
+    InvalidProofTotalHashesExceededMax: 12003n,
+    InvalidProofDataSizeMismatch: 12004n,
+
+    fromSlice(s: c.Slice): MerkleMultiProof_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: MerkleMultiProof_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: MerkleMultiProof_Error): c.Cell {
+        return makeCellFrom<MerkleMultiProof_Error>(self, MerkleMultiProof_Error.store);
     }
 }
 
@@ -638,16 +845,16 @@ export const OCR3Base_ConfigSet = {
             $: 'OCR3Base_ConfigSet',
             ocrPluginType: s.loadUintBig(16),
             configDigest: s.loadUintBig(256),
-            signers: s.loadRef(),
-            transmitters: s.loadRef(),
+            signers: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            transmitters: loadSnakedCellOf(s, (s) => s.loadAddress()),
             bigF: s.loadUintBig(8),
         }
     },
     store(self: OCR3Base_ConfigSet, b: c.Builder): void {
         b.storeUint(self.ocrPluginType, 16);
         b.storeUint(self.configDigest, 256);
-        b.storeRef(self.signers);
-        b.storeRef(self.transmitters);
+        storeSnakedCellOf(self.signers, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.transmitters, b, (v, b) => b.storeAddress(v));
         b.storeUint(self.bigF, 8);
     },
     toCell(self: OCR3Base_ConfigSet): c.Cell {
@@ -724,7 +931,7 @@ export const OCR3Base_SetOCR3Config = {
     PREFIX: 0x2b78359f,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -734,7 +941,8 @@ export const OCR3Base_SetOCR3Config = {
     }): OCR3Base_SetOCR3Config {
         return {
             $: 'OCR3Base_SetOCR3Config',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OCR3Base_SetOCR3Config {
@@ -746,8 +954,8 @@ export const OCR3Base_SetOCR3Config = {
             ocrPluginType: s.loadUintBig(16),
             bigF: s.loadUintBig(8),
             isSignatureVerificationEnabled: s.loadBoolean(),
-            signers: s.loadRef(),
-            transmitters: s.loadRef(),
+            signers: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            transmitters: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: OCR3Base_SetOCR3Config, b: c.Builder): void {
@@ -757,8 +965,8 @@ export const OCR3Base_SetOCR3Config = {
         b.storeUint(self.ocrPluginType, 16);
         b.storeUint(self.bigF, 8);
         b.storeBit(self.isSignatureVerificationEnabled);
-        b.storeRef(self.signers);
-        b.storeRef(self.transmitters);
+        storeSnakedCellOf(self.signers, b, (v, b) => b.storeUint(v, 256));
+        storeSnakedCellOf(self.transmitters, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: OCR3Base_SetOCR3Config): c.Cell {
         return makeCellFrom<OCR3Base_SetOCR3Config>(self, OCR3Base_SetOCR3Config.store);
@@ -775,15 +983,15 @@ export const OCR3Base_SetOCR3Config = {
 export interface OCR3Base {
     readonly $: 'OCR3Base'
     chainId: uint8
-    commit: CellRef<OCRConfig> | null
-    execute: CellRef<OCRConfig> | null
+    commit: OCRConfig | null
+    execute: OCRConfig | null
 }
 
 export const OCR3Base = {
     create(args: {
         chainId: uint8
-        commit: CellRef<OCRConfig> | null
-        execute: CellRef<OCRConfig> | null
+        commit: OCRConfig | null
+        execute: OCRConfig | null
     }): OCR3Base {
         return {
             $: 'OCR3Base',
@@ -800,10 +1008,10 @@ export const OCR3Base = {
     },
     store(self: OCR3Base, b: c.Builder): void {
         b.storeUint(self.chainId, 8);
-        storeTolkNullable<CellRef<OCRConfig>>(self.commit, b,
+        storeTolkNullable<OCRConfig>(self.commit, b,
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
-        storeTolkNullable<CellRef<OCRConfig>>(self.execute, b,
+        storeTolkNullable<OCRConfig>(self.execute, b,
             (v,b) => storeCellRef<OCRConfig>(v, b, OCRConfig.store)
         );
     },
@@ -822,15 +1030,15 @@ export const OCR3Base = {
 export interface OCRConfig {
     readonly $: 'OCRConfig'
     configInfo: ConfigInfo
-    signers: c.Dictionary<uint256, uint8>
-    transmitters: c.Dictionary<c.Address, uint8>
+    signers: Map<uint256, uint8> /* = [] as map<uint256, uint8> */
+    transmitters: Map<c.Address, uint8> /* = [] as map<address, uint8> */
 }
 
 export const OCRConfig = {
     create(args: {
         configInfo: ConfigInfo
-        signers: c.Dictionary<uint256, uint8>
-        transmitters: c.Dictionary<c.Address, uint8>
+        signers: Map<uint256, uint8> /* = [] as map<uint256, uint8> */
+        transmitters: Map<c.Address, uint8> /* = [] as map<address, uint8> */
     }): OCRConfig {
         return {
             $: 'OCRConfig',
@@ -841,14 +1049,14 @@ export const OCRConfig = {
         return {
             $: 'OCRConfig',
             configInfo: ConfigInfo.fromSlice(s),
-            signers: c.Dictionary.load<uint256, uint8>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8), s),
-            transmitters: c.Dictionary.load<c.Address, uint8>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8), s),
+            signers: dictToMap(c.Dictionary.load<uint256, uint8>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8), s)),
+            transmitters: dictToMap(c.Dictionary.load<c.Address, uint8>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8), s)),
         }
     },
     store(self: OCRConfig, b: c.Builder): void {
         ConfigInfo.store(self.configInfo, b);
-        b.storeDict<uint256, uint8>(self.signers, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8));
-        b.storeDict<c.Address, uint8>(self.transmitters, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint256, uint8>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(8));
+        b.storeDict<c.Address, uint8>(mapToDict(self.transmitters, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(8));
     },
     toCell(self: OCRConfig): c.Cell {
         return makeCellFrom<OCRConfig>(self, OCRConfig.store);
@@ -960,18 +1168,19 @@ export const SignatureEd25519 = {
 export interface ReportContext {
     readonly $: 'ReportContext'
     configDigest: uint256
-    _padding: bits192
+    _padding: bits192 /* = hex('000000000000000000000000000000000000000000000000') as slice as bits192 */
     sequenceBytes: uint64
 }
 
 export const ReportContext = {
     create(args: {
         configDigest: uint256
-        _padding: bits192
+        _padding?: bits192 /* = hex('000000000000000000000000000000000000000000000000') as slice as bits192 */
         sequenceBytes: uint64
     }): ReportContext {
         return {
             $: 'ReportContext',
+            _padding: new c.Slice(new c.BitReader(new c.BitString(Buffer.from('000000000000000000000000000000000000000000000000', 'hex'), 0, 192)), []),
             ...args
         }
     },
@@ -994,9 +1203,71 @@ export const ReportContext = {
 }
 
 /**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
+    }
+}
+
+/**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct Any2TVMMessage {
@@ -1050,6 +1321,60 @@ export const Any2TVMMessage = {
     },
     toCell(self: Any2TVMMessage): c.Cell {
         return makeCellFrom<Any2TVMMessage>(self, Any2TVMMessage.store);
+    }
+}
+
+/**
+ > struct (0x351f77e3) TokenPool_ReleaseOrMint {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_ReleaseOrMintInV1>
+ >     requestedFinalityConfig: uint32
+ >     replyTo: address?
+ > }
+ */
+export interface TokenPool_ReleaseOrMint {
+    readonly $: 'TokenPool_ReleaseOrMint'
+    queryId: uint64
+    request: TokenPool_ReleaseOrMintInV1
+    requestedFinalityConfig: uint32
+    replyTo: c.Address | null /* = null */
+}
+
+export const TokenPool_ReleaseOrMint = {
+    PREFIX: 0x351f77e3,
+
+    create(args: {
+        queryId?: uint64
+        request: TokenPool_ReleaseOrMintInV1
+        requestedFinalityConfig: uint32
+        replyTo?: c.Address | null /* = null */
+    }): TokenPool_ReleaseOrMint {
+        return {
+            $: 'TokenPool_ReleaseOrMint',
+            replyTo: null,
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMint {
+        loadAndCheckPrefix32(s, 0x351f77e3, 'TokenPool_ReleaseOrMint');
+        return {
+            $: 'TokenPool_ReleaseOrMint',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
+            requestedFinalityConfig: s.loadUintBig(32),
+            replyTo: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
+        b.storeUint(0x351f77e3, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        b.storeAddress(self.replyTo);
+    },
+    toCell(self: TokenPool_ReleaseOrMint): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMint>(self, TokenPool_ReleaseOrMint.store);
     }
 }
 
@@ -1124,45 +1449,6 @@ export const RampMessageHeader = {
 }
 
 /**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
- > }
- */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: c.Dictionary<uint128, []>
-}
-
-export const CursedSubjects = {
-    create(args: {
-        data: c.Dictionary<uint128, []>
-    }): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            data: c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
-        }
-    },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
-    }
-}
-
-/**
  > struct (0xde852b1b) FeeQuoter_UpdatePrices {
  >     updates: PriceUpdates
  >     sendExcessesTo: address?
@@ -1171,7 +1457,7 @@ export const CursedSubjects = {
 export interface FeeQuoter_UpdatePrices {
     readonly $: 'FeeQuoter_UpdatePrices'
     updates: PriceUpdates
-    sendExcessesTo: c.Address | null
+    sendExcessesTo: c.Address | null /* = null */
 }
 
 export const FeeQuoter_UpdatePrices = {
@@ -1179,10 +1465,11 @@ export const FeeQuoter_UpdatePrices = {
 
     create(args: {
         updates: PriceUpdates
-        sendExcessesTo: c.Address | null
+        sendExcessesTo?: c.Address | null /* = null */
     }): FeeQuoter_UpdatePrices {
         return {
             $: 'FeeQuoter_UpdatePrices',
+            sendExcessesTo: null,
             ...args
         }
     },
@@ -1206,51 +1493,68 @@ export const FeeQuoter_UpdatePrices = {
 
 /**
  > struct (0x038ede91) MerkleRoot_Validate {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  > }
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
-    message: CellRef<Any2TVMRampMessage>
+    queryId: uint64
+    message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
-    gasOverride: coins | null
+    gasOverride: GasOverride | null
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
 }
 
 export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
         return {
             $: 'MerkleRoot_Validate',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
         );
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
@@ -1302,58 +1606,69 @@ export const MerkleRoot_MarkState = {
 
 /**
  > struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
- >     gasOverride: coins?
+ >     queryId: uint64
+ >     effectiveGasLimit: coins
  >     root: address
  >     sequenceNumber: uint64
  >     sourceChainSelector: uint64
  >     messageId: uint256
+ >     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>?
  > }
  */
 export interface ReceiveExecutor_InitExecute {
     readonly $: 'ReceiveExecutor_InitExecute'
-    gasOverride: coins | null /* = null */
+    queryId: uint64
+    effectiveGasLimit: coins
     root: c.Address
     sequenceNumber: uint64
     sourceChainSelector: uint64
     messageId: uint256
+    tokenTransfer: ReceiveExecutor_TokenTransfer | null /* = null */
 }
 
 export const ReceiveExecutor_InitExecute = {
     PREFIX: 0x64cd2fd2,
 
     create(args: {
-        gasOverride?: coins | null /* = null */
+        queryId?: uint64
+        effectiveGasLimit: coins
         root: c.Address
         sequenceNumber: uint64
         sourceChainSelector: uint64
         messageId: uint256
+        tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
     }): ReceiveExecutor_InitExecute {
         return {
             $: 'ReceiveExecutor_InitExecute',
-            gasOverride: null,
-            ...args
+            tokenTransfer: null,
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_InitExecute {
         loadAndCheckPrefix32(s, 0x64cd2fd2, 'ReceiveExecutor_InitExecute');
         return {
             $: 'ReceiveExecutor_InitExecute',
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            queryId: s.loadUintBig(64),
+            effectiveGasLimit: s.loadCoins(),
             root: s.loadAddress(),
             sequenceNumber: s.loadUintBig(64),
             sourceChainSelector: s.loadUintBig(64),
             messageId: s.loadUintBig(256),
+            tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransfer>(s, ReceiveExecutor_TokenTransfer.fromSlice) : null,
         }
     },
     store(self: ReceiveExecutor_InitExecute, b: c.Builder): void {
         b.storeUint(0x64cd2fd2, 32);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.effectiveGasLimit);
         b.storeAddress(self.root);
         b.storeUint(self.sequenceNumber, 64);
         b.storeUint(self.sourceChainSelector, 64);
         b.storeUint(self.messageId, 256);
+        storeTolkNullable<ReceiveExecutor_TokenTransfer>(self.tokenTransfer, b,
+            (v,b) => storeCellRef<ReceiveExecutor_TokenTransfer>(v, b, ReceiveExecutor_TokenTransfer.store)
+        );
     },
     toCell(self: ReceiveExecutor_InitExecute): c.Cell {
         return makeCellFrom<ReceiveExecutor_InitExecute>(self, ReceiveExecutor_InitExecute.store);
@@ -1361,107 +1676,346 @@ export const ReceiveExecutor_InitExecute = {
 }
 
 /**
- > struct (0x00e5dd97) ReceiveExecutor_Confirm {
- >     receiver: address
+ > struct ReceiveExecutor_TokenTransfer {
+ >     tokenAdminRegistry: address
+ >     transfer: Any2TVMTokenTransfer
+ >     offchainTokenData: cell?
  > }
  */
-export interface ReceiveExecutor_Confirm {
-    readonly $: 'ReceiveExecutor_Confirm'
-    receiver: c.Address
+export interface ReceiveExecutor_TokenTransfer {
+    readonly $: 'ReceiveExecutor_TokenTransfer'
+    tokenAdminRegistry: c.Address
+    transfer: Any2TVMTokenTransfer
+    offchainTokenData: c.Cell | null /* = null */
 }
 
-export const ReceiveExecutor_Confirm = {
-    PREFIX: 0x00e5dd97,
-
+export const ReceiveExecutor_TokenTransfer = {
     create(args: {
-        receiver: c.Address
-    }): ReceiveExecutor_Confirm {
+        tokenAdminRegistry: c.Address
+        transfer: Any2TVMTokenTransfer
+        offchainTokenData?: c.Cell | null /* = null */
+    }): ReceiveExecutor_TokenTransfer {
         return {
-            $: 'ReceiveExecutor_Confirm',
+            $: 'ReceiveExecutor_TokenTransfer',
+            offchainTokenData: null,
             ...args
         }
     },
-    fromSlice(s: c.Slice): ReceiveExecutor_Confirm {
-        loadAndCheckPrefix32(s, 0x00e5dd97, 'ReceiveExecutor_Confirm');
+    fromSlice(s: c.Slice): ReceiveExecutor_TokenTransfer {
         return {
-            $: 'ReceiveExecutor_Confirm',
-            receiver: s.loadAddress(),
+            $: 'ReceiveExecutor_TokenTransfer',
+            tokenAdminRegistry: s.loadAddress(),
+            transfer: Any2TVMTokenTransfer.fromSlice(s),
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: ReceiveExecutor_Confirm, b: c.Builder): void {
-        b.storeUint(0x00e5dd97, 32);
-        b.storeAddress(self.receiver);
+    store(self: ReceiveExecutor_TokenTransfer, b: c.Builder): void {
+        b.storeAddress(self.tokenAdminRegistry);
+        Any2TVMTokenTransfer.store(self.transfer, b);
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: ReceiveExecutor_Confirm): c.Cell {
-        return makeCellFrom<ReceiveExecutor_Confirm>(self, ReceiveExecutor_Confirm.store);
+    toCell(self: ReceiveExecutor_TokenTransfer): c.Cell {
+        return makeCellFrom<ReceiveExecutor_TokenTransfer>(self, ReceiveExecutor_TokenTransfer.store);
     }
 }
 
 /**
- > struct (0x05dee1bb) ReceiveExecutor_Bounced {
- >     receiver: address
- >     reason: ReceiveExecutor_BouncedReason
+ > struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
+ >     queryId: uint64
+ >     reason: ReleaseOrMint_ReleaseOrMintFailedReason
  > }
  */
-export interface ReceiveExecutor_Bounced {
-    readonly $: 'ReceiveExecutor_Bounced'
-    receiver: c.Address
-    reason: ReceiveExecutor_BouncedReason
+export interface ReceiveExecutor_ReleaseOrMintFailed {
+    readonly $: 'ReceiveExecutor_ReleaseOrMintFailed'
+    queryId: uint64
+    reason: ReleaseOrMint_ReleaseOrMintFailedReason
 }
 
-export const ReceiveExecutor_Bounced = {
-    PREFIX: 0x05dee1bb,
+export const ReceiveExecutor_ReleaseOrMintFailed = {
+    PREFIX: 0xdf58530e,
 
     create(args: {
-        receiver: c.Address
-        reason: ReceiveExecutor_BouncedReason
-    }): ReceiveExecutor_Bounced {
+        queryId?: uint64
+        reason: ReleaseOrMint_ReleaseOrMintFailedReason
+    }): ReceiveExecutor_ReleaseOrMintFailed {
         return {
-            $: 'ReceiveExecutor_Bounced',
-            ...args
+            $: 'ReceiveExecutor_ReleaseOrMintFailed',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): ReceiveExecutor_Bounced {
-        loadAndCheckPrefix32(s, 0x05dee1bb, 'ReceiveExecutor_Bounced');
+    fromSlice(s: c.Slice): ReceiveExecutor_ReleaseOrMintFailed {
+        loadAndCheckPrefix32(s, 0xdf58530e, 'ReceiveExecutor_ReleaseOrMintFailed');
         return {
-            $: 'ReceiveExecutor_Bounced',
-            receiver: s.loadAddress(),
-            reason: ReceiveExecutor_BouncedReason.fromSlice(s),
+            $: 'ReceiveExecutor_ReleaseOrMintFailed',
+            queryId: s.loadUintBig(64),
+            reason: ReleaseOrMint_ReleaseOrMintFailedReason.fromSlice(s),
         }
     },
-    store(self: ReceiveExecutor_Bounced, b: c.Builder): void {
-        b.storeUint(0x05dee1bb, 32);
-        b.storeAddress(self.receiver);
-        ReceiveExecutor_BouncedReason.store(self.reason, b);
+    store(self: ReceiveExecutor_ReleaseOrMintFailed, b: c.Builder): void {
+        b.storeUint(0xdf58530e, 32);
+        b.storeUint(self.queryId, 64);
+        ReleaseOrMint_ReleaseOrMintFailedReason.store(self.reason, b);
     },
-    toCell(self: ReceiveExecutor_Bounced): c.Cell {
-        return makeCellFrom<ReceiveExecutor_Bounced>(self, ReceiveExecutor_Bounced.store);
+    toCell(self: ReceiveExecutor_ReleaseOrMintFailed): c.Cell {
+        return makeCellFrom<ReceiveExecutor_ReleaseOrMintFailed>(self, ReceiveExecutor_ReleaseOrMintFailed.store);
     }
 }
 
 /**
- > enum ReceiveExecutor_BouncedReason { 3 variants }
+ > type ReleaseOrMint_ReleaseOrMintFailedReason = ReleaseOrMintBounced | NotEnoughDestGasAmountForTokenTransfer
  */
-export type ReceiveExecutor_BouncedReason = bigint
+export type ReleaseOrMint_ReleaseOrMintFailedReason =
+    | ReleaseOrMintBounced
+    | NotEnoughDestGasAmountForTokenTransfer
 
-export const ReceiveExecutor_BouncedReason = {
+export const ReleaseOrMint_ReleaseOrMintFailedReason = {
+    fromSlice(s: c.Slice): ReleaseOrMint_ReleaseOrMintFailedReason {
+        return lookupPrefix(s, 0xb70c2a9a, 32) ? ReleaseOrMintBounced.fromSlice(s) :
+            lookupPrefix(s, 0xb304ecdf, 32) ? NotEnoughDestGasAmountForTokenTransfer.fromSlice(s) :
+            throwNonePrefixMatch('ReleaseOrMint_ReleaseOrMintFailedReason');
+    },
+    store(self: ReleaseOrMint_ReleaseOrMintFailedReason, b: c.Builder): void {
+        switch (self.$) {
+            case 'ReleaseOrMintBounced':
+                ReleaseOrMintBounced.store(self, b);
+                break;
+            case 'NotEnoughDestGasAmountForTokenTransfer':
+                NotEnoughDestGasAmountForTokenTransfer.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ReleaseOrMint_ReleaseOrMintFailedReason): c.Cell {
+        return makeCellFrom<ReleaseOrMint_ReleaseOrMintFailedReason>(self, ReleaseOrMint_ReleaseOrMintFailedReason.store);
+    }
+}
+
+/**
+ > struct (0xb70c2a9a) ReleaseOrMintBounced {
+ >     exitCode: int32
+ > }
+ */
+export interface ReleaseOrMintBounced {
+    readonly $: 'ReleaseOrMintBounced'
+    exitCode: int32
+}
+
+export const ReleaseOrMintBounced = {
+    PREFIX: 0xb70c2a9a,
+
+    create(args: {
+        exitCode: int32
+    }): ReleaseOrMintBounced {
+        return {
+            $: 'ReleaseOrMintBounced',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ReleaseOrMintBounced {
+        loadAndCheckPrefix32(s, 0xb70c2a9a, 'ReleaseOrMintBounced');
+        return {
+            $: 'ReleaseOrMintBounced',
+            exitCode: s.loadIntBig(32),
+        }
+    },
+    store(self: ReleaseOrMintBounced, b: c.Builder): void {
+        b.storeUint(0xb70c2a9a, 32);
+        b.storeInt(self.exitCode, 32);
+    },
+    toCell(self: ReleaseOrMintBounced): c.Cell {
+        return makeCellFrom<ReleaseOrMintBounced>(self, ReleaseOrMintBounced.store);
+    }
+}
+
+/**
+ > struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {
+ > }
+ */
+export interface NotEnoughDestGasAmountForTokenTransfer {
+    readonly $: 'NotEnoughDestGasAmountForTokenTransfer'
+}
+
+export const NotEnoughDestGasAmountForTokenTransfer = {
+    PREFIX: 0xb304ecdf,
+
+    create(): NotEnoughDestGasAmountForTokenTransfer {
+        return {
+            $: 'NotEnoughDestGasAmountForTokenTransfer',
+        }
+    },
+    fromSlice(s: c.Slice): NotEnoughDestGasAmountForTokenTransfer {
+        loadAndCheckPrefix32(s, 0xb304ecdf, 'NotEnoughDestGasAmountForTokenTransfer');
+        return {
+            $: 'NotEnoughDestGasAmountForTokenTransfer',
+        }
+    },
+    store(self: NotEnoughDestGasAmountForTokenTransfer, b: c.Builder): void {
+        b.storeUint(0xb304ecdf, 32);
+    },
+    toCell(self: NotEnoughDestGasAmountForTokenTransfer): c.Cell {
+        return makeCellFrom<NotEnoughDestGasAmountForTokenTransfer>(self, NotEnoughDestGasAmountForTokenTransfer.store);
+    }
+}
+
+/**
+ > struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
+ >     queryId: uint64
+ >     receiver: address
+ > }
+ */
+export interface ReceiveExecutor_CCIPReceiveConfirm {
+    readonly $: 'ReceiveExecutor_CCIPReceiveConfirm'
+    queryId: uint64
+    receiver: c.Address
+}
+
+export const ReceiveExecutor_CCIPReceiveConfirm = {
+    PREFIX: 0xf0af71c5,
+
+    create(args: {
+        queryId?: uint64
+        receiver: c.Address
+    }): ReceiveExecutor_CCIPReceiveConfirm {
+        return {
+            $: 'ReceiveExecutor_CCIPReceiveConfirm',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): ReceiveExecutor_CCIPReceiveConfirm {
+        loadAndCheckPrefix32(s, 0xf0af71c5, 'ReceiveExecutor_CCIPReceiveConfirm');
+        return {
+            $: 'ReceiveExecutor_CCIPReceiveConfirm',
+            queryId: s.loadUintBig(64),
+            receiver: s.loadAddress(),
+        }
+    },
+    store(self: ReceiveExecutor_CCIPReceiveConfirm, b: c.Builder): void {
+        b.storeUint(0xf0af71c5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.receiver);
+    },
+    toCell(self: ReceiveExecutor_CCIPReceiveConfirm): c.Cell {
+        return makeCellFrom<ReceiveExecutor_CCIPReceiveConfirm>(self, ReceiveExecutor_CCIPReceiveConfirm.store);
+    }
+}
+
+/**
+ > struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
+ >     queryId: uint64
+ >     receiver: address
+ >     reason: ReceiveExecutor_FailedReason
+ > }
+ */
+export interface ReceiveExecutor_CCIPReceiveFailed {
+    readonly $: 'ReceiveExecutor_CCIPReceiveFailed'
+    queryId: uint64
+    receiver: c.Address
+    reason: ReceiveExecutor_FailedReason
+}
+
+export const ReceiveExecutor_CCIPReceiveFailed = {
+    PREFIX: 0x8854993b,
+
+    create(args: {
+        queryId?: uint64
+        receiver: c.Address
+        reason: ReceiveExecutor_FailedReason
+    }): ReceiveExecutor_CCIPReceiveFailed {
+        return {
+            $: 'ReceiveExecutor_CCIPReceiveFailed',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): ReceiveExecutor_CCIPReceiveFailed {
+        loadAndCheckPrefix32(s, 0x8854993b, 'ReceiveExecutor_CCIPReceiveFailed');
+        return {
+            $: 'ReceiveExecutor_CCIPReceiveFailed',
+            queryId: s.loadUintBig(64),
+            receiver: s.loadAddress(),
+            reason: ReceiveExecutor_FailedReason.fromSlice(s),
+        }
+    },
+    store(self: ReceiveExecutor_CCIPReceiveFailed, b: c.Builder): void {
+        b.storeUint(0x8854993b, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.receiver);
+        ReceiveExecutor_FailedReason.store(self.reason, b);
+    },
+    toCell(self: ReceiveExecutor_CCIPReceiveFailed): c.Cell {
+        return makeCellFrom<ReceiveExecutor_CCIPReceiveFailed>(self, ReceiveExecutor_CCIPReceiveFailed.store);
+    }
+}
+
+/**
+ > enum ReceiveExecutor_FailedReason { 3 variants }
+ */
+export type ReceiveExecutor_FailedReason = bigint
+
+export const ReceiveExecutor_FailedReason = {
     NotEnoughGas: 0n,
     BouncedFromReceiver: 1n,
     BouncedFromRouter: 2n,
 
-    fromSlice(s: c.Slice): ReceiveExecutor_BouncedReason {
+    fromSlice(s: c.Slice): ReceiveExecutor_FailedReason {
         return s.loadUintBig(8);
     },
-    store(self: ReceiveExecutor_BouncedReason, b: c.Builder): void {
+    store(self: ReceiveExecutor_FailedReason, b: c.Builder): void {
         b.storeUint(self, 8);
     },
-    toCell(self: ReceiveExecutor_BouncedReason): c.Cell {
-        return makeCellFrom<ReceiveExecutor_BouncedReason>(self, ReceiveExecutor_BouncedReason.store);
+    toCell(self: ReceiveExecutor_FailedReason): c.Cell {
+        return makeCellFrom<ReceiveExecutor_FailedReason>(self, ReceiveExecutor_FailedReason.store);
+    }
+}
+
+/**
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
+ > }
+ */
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: Set<uint128> /* = [] as map<uint128, ()> */
+}
+
+export const CursedSubjects = {
+    create(args: {
+        data: Set<uint128> /* = [] as map<uint128, ()> */
+    }): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+        }
+    },
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
     }
 }
 
 /**
  > struct (0xfc69c50b) Router_RouteMessage {
+ >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
  >     execId: ReceiveExecutorId
  >     receiver: address
@@ -1470,7 +2024,8 @@ export const ReceiveExecutor_BouncedReason = {
  */
 export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
-    message: CellRef<Any2TVMMessage>
+    queryId: uint64
+    message: Any2TVMMessage
     execId: ReceiveExecutorId
     receiver: c.Address
     gasLimit: coins
@@ -1480,20 +2035,23 @@ export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
     create(args: {
-        message: CellRef<Any2TVMMessage>
+        queryId?: uint64
+        message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
         gasLimit: coins
     }): Router_RouteMessage {
         return {
             $: 'Router_RouteMessage',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RouteMessage {
         loadAndCheckPrefix32(s, 0xfc69c50b, 'Router_RouteMessage');
         return {
             $: 'Router_RouteMessage',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             receiver: s.loadAddress(),
@@ -1502,6 +2060,7 @@ export const Router_RouteMessage = {
     },
     store(self: Router_RouteMessage, b: c.Builder): void {
         b.storeUint(0xfc69c50b, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.receiver);
@@ -1532,14 +2091,15 @@ export const OffRamp_Commit = {
     PREFIX: 0x9d431905,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
     }): OffRamp_Commit {
         return {
             $: 'OffRamp_Commit',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_Commit {
@@ -1549,7 +2109,7 @@ export const OffRamp_Commit = {
             queryId: s.loadUintBig(64),
             reportContext: ReportContext.fromSlice(s),
             report: CommitReport.fromSlice(s),
-            signatures: s.loadRef(),
+            signatures: loadSnakedCellOf(s, SignatureEd25519.fromSlice),
         }
     },
     store(self: OffRamp_Commit, b: c.Builder): void {
@@ -1557,7 +2117,7 @@ export const OffRamp_Commit = {
         b.storeUint(self.queryId, 64);
         ReportContext.store(self.reportContext, b);
         CommitReport.store(self.report, b);
-        b.storeRef(self.signatures);
+        storeSnakedCellOf(self.signatures, b, SignatureEd25519.store);
     },
     toCell(self: OffRamp_Commit): c.Cell {
         return makeCellFrom<OffRamp_Commit>(self, OffRamp_Commit.store);
@@ -1582,13 +2142,14 @@ export const OffRamp_Execute = {
     PREFIX: 0x27bdac33,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }): OffRamp_Execute {
         return {
             $: 'OffRamp_Execute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_Execute {
@@ -1613,57 +2174,75 @@ export const OffRamp_Execute = {
 
 /**
  > struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
  >     executionState: ExecutionState
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  > }
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
-    message: CellRef<Any2TVMRampMessage>
+    queryId: uint64
+    message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
-    gasOverride: coins | null
+    gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
 }
 
 export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
-            ...args
+            gasOverride: null,
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
         return {
             $: 'OffRamp_ExecuteValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
             executionState: ExecutionState.fromSlice(s),
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
         }
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
         ExecutionState.store(self.executionState, b);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
@@ -1674,27 +2253,28 @@ export const OffRamp_ExecuteValidated = {
  > struct (0xa00785cf) OffRamp_ManuallyExecute {
  >     queryId: uint64
  >     report: ExecutionReport
- >     gasOverride: coins
+ >     gasOverride: GasOverride
  > }
  */
 export interface OffRamp_ManuallyExecute {
     readonly $: 'OffRamp_ManuallyExecute'
     queryId: uint64
     report: ExecutionReport
-    gasOverride: coins
+    gasOverride: GasOverride
 }
 
 export const OffRamp_ManuallyExecute = {
     PREFIX: 0xa00785cf,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
-        gasOverride: coins
+        gasOverride: GasOverride
     }): OffRamp_ManuallyExecute {
         return {
             $: 'OffRamp_ManuallyExecute',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ManuallyExecute {
@@ -1703,14 +2283,14 @@ export const OffRamp_ManuallyExecute = {
             $: 'OffRamp_ManuallyExecute',
             queryId: s.loadUintBig(64),
             report: ExecutionReport.fromSlice(s),
-            gasOverride: s.loadCoins(),
+            gasOverride: GasOverride.fromSlice(s),
         }
     },
     store(self: OffRamp_ManuallyExecute, b: c.Builder): void {
         b.storeUint(0xa00785cf, 32);
         b.storeUint(self.queryId, 64);
         ExecutionReport.store(self.report, b);
-        b.storeCoins(self.gasOverride);
+        GasOverride.store(self.gasOverride, b);
     },
     toCell(self: OffRamp_ManuallyExecute): c.Cell {
         return makeCellFrom<OffRamp_ManuallyExecute>(self, OffRamp_ManuallyExecute.store);
@@ -1733,12 +2313,13 @@ export const OffRamp_UpdateSourceChainConfigs = {
     PREFIX: 0x22b4f05c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }): OffRamp_UpdateSourceChainConfigs {
         return {
             $: 'OffRamp_UpdateSourceChainConfigs',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_UpdateSourceChainConfigs {
@@ -1746,13 +2327,13 @@ export const OffRamp_UpdateSourceChainConfigs = {
         return {
             $: 'OffRamp_UpdateSourceChainConfigs',
             queryId: s.loadUintBig(64),
-            configs: s.loadRef(),
+            configs: loadSnakedCellOf(s, SourceChainConfigUpdate.fromSlice),
         }
     },
     store(self: OffRamp_UpdateSourceChainConfigs, b: c.Builder): void {
         b.storeUint(0x22b4f05c, 32);
         b.storeUint(self.queryId, 64);
-        b.storeRef(self.configs);
+        storeSnakedCellOf(self.configs, b, SourceChainConfigUpdate.store);
     },
     toCell(self: OffRamp_UpdateSourceChainConfigs): c.Cell {
         return makeCellFrom<OffRamp_UpdateSourceChainConfigs>(self, OffRamp_UpdateSourceChainConfigs.store);
@@ -1799,47 +2380,51 @@ export const SourceChainConfigUpdate = {
 
 /**
  > struct (0x58cfcb02) OffRamp_DispatchValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     execId: uint192
- >     gasOverride: coins?
+ >     effectiveGasLimit: coins
  > }
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
-    message: CellRef<Any2TVMRampMessage>
+    queryId: uint64
+    message: Any2TVMRampMessage
     execId: uint192
-    gasOverride: coins | null
+    effectiveGasLimit: coins
 }
 
 export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         execId: uint192
-        gasOverride: coins | null
+        effectiveGasLimit: coins
     }): OffRamp_DispatchValidated {
         return {
             $: 'OffRamp_DispatchValidated',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_DispatchValidated {
         loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');
         return {
             $: 'OffRamp_DispatchValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             execId: s.loadUintBig(192),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            effectiveGasLimit: s.loadCoins(),
         }
     },
     store(self: OffRamp_DispatchValidated, b: c.Builder): void {
         b.storeUint(0x58cfcb02, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.execId, 192);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        b.storeCoins(self.effectiveGasLimit);
     },
     toCell(self: OffRamp_DispatchValidated): c.Cell {
         return makeCellFrom<OffRamp_DispatchValidated>(self, OffRamp_DispatchValidated.store);
@@ -1848,12 +2433,14 @@ export const OffRamp_DispatchValidated = {
 
 /**
  > struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
+ >     queryId: uint64
  >     execId: ReceiveExecutorId
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveConfirm {
     readonly $: 'OffRamp_CCIPReceiveConfirm'
+    queryId: uint64
     execId: ReceiveExecutorId
     receiver: c.Address
 }
@@ -1862,24 +2449,28 @@ export const OffRamp_CCIPReceiveConfirm = {
     PREFIX: 0x28f4166f,
 
     create(args: {
+        queryId?: uint64
         execId: ReceiveExecutorId
         receiver: c.Address
     }): OffRamp_CCIPReceiveConfirm {
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_CCIPReceiveConfirm {
         loadAndCheckPrefix32(s, 0x28f4166f, 'OffRamp_CCIPReceiveConfirm');
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
+            queryId: s.loadUintBig(64),
             execId: ReceiveExecutorId.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x28f4166f, 32);
+        b.storeUint(self.queryId, 64);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.receiver);
     },
@@ -1932,13 +2523,15 @@ export const OffRamp_CCIPReceiveBounced = {
 
 /**
  > struct (0x59e56170) OffRamp_NotifySuccess {
- >     header: RampMessageHeader
+ >     queryId: uint64
+ >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
  > }
  */
 export interface OffRamp_NotifySuccess {
     readonly $: 'OffRamp_NotifySuccess'
+    queryId: uint64
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
@@ -1948,27 +2541,31 @@ export const OffRamp_NotifySuccess = {
     PREFIX: 0x59e56170,
 
     create(args: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
     }): OffRamp_NotifySuccess {
         return {
             $: 'OffRamp_NotifySuccess',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_NotifySuccess {
         loadAndCheckPrefix32(s, 0x59e56170, 'OffRamp_NotifySuccess');
         return {
             $: 'OffRamp_NotifySuccess',
-            header: RampMessageHeader.fromSlice(s),
+            queryId: s.loadUintBig(64),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
         }
     },
     store(self: OffRamp_NotifySuccess, b: c.Builder): void {
         b.storeUint(0x59e56170, 32);
-        RampMessageHeader.store(self.header, b);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
     },
@@ -1979,13 +2576,15 @@ export const OffRamp_NotifySuccess = {
 
 /**
  > struct (0x177ebd03) OffRamp_NotifyFailure {
- >     header: RampMessageHeader
+ >     queryId: uint64
+ >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
  > }
  */
 export interface OffRamp_NotifyFailure {
     readonly $: 'OffRamp_NotifyFailure'
+    queryId: uint64
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
@@ -1995,27 +2594,31 @@ export const OffRamp_NotifyFailure = {
     PREFIX: 0x177ebd03,
 
     create(args: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
     }): OffRamp_NotifyFailure {
         return {
             $: 'OffRamp_NotifyFailure',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_NotifyFailure {
         loadAndCheckPrefix32(s, 0x177ebd03, 'OffRamp_NotifyFailure');
         return {
             $: 'OffRamp_NotifyFailure',
-            header: RampMessageHeader.fromSlice(s),
+            queryId: s.loadUintBig(64),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
         }
     },
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
         b.storeUint(0x177ebd03, 32);
-        RampMessageHeader.store(self.header, b);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
     },
@@ -2079,13 +2682,14 @@ export const OffRamp_SetDynamicConfig = {
     PREFIX: 0x95bc5a5c,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }): OffRamp_SetDynamicConfig {
         return {
             $: 'OffRamp_SetDynamicConfig',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_SetDynamicConfig {
@@ -2109,53 +2713,105 @@ export const OffRamp_SetDynamicConfig = {
 }
 
 /**
- > struct (0xa015e0e2) OffRamp_UpdateDeployables {
+ > struct (0x7deaf076) OffRamp_ReleaseOrMint {
  >     queryId: uint64
- >     receiveExecutorCode: cell?
- >     merkleRootCode: cell?
+ >     execId: ReceiveExecutorId
+ >     tokenPool: address
+ >     destGasAmount: coins
+ >     requestedFinalityConfig: uint32
+ >     request: Cell<TokenPool_ReleaseOrMintInV1>
  > }
  */
-export interface OffRamp_UpdateDeployables {
-    readonly $: 'OffRamp_UpdateDeployables'
+export interface OffRamp_ReleaseOrMint {
+    readonly $: 'OffRamp_ReleaseOrMint'
     queryId: uint64
-    receiveExecutorCode: c.Cell | null
-    merkleRootCode: c.Cell | null
+    execId: ReceiveExecutorId
+    tokenPool: c.Address
+    destGasAmount: coins
+    requestedFinalityConfig: uint32
+    request: TokenPool_ReleaseOrMintInV1
 }
 
-export const OffRamp_UpdateDeployables = {
-    PREFIX: 0xa015e0e2,
+export const OffRamp_ReleaseOrMint = {
+    PREFIX: 0x7deaf076,
 
     create(args: {
-        queryId: uint64
-        receiveExecutorCode: c.Cell | null
-        merkleRootCode: c.Cell | null
-    }): OffRamp_UpdateDeployables {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+        tokenPool: c.Address
+        destGasAmount: coins
+        requestedFinalityConfig: uint32
+        request: TokenPool_ReleaseOrMintInV1
+    }): OffRamp_ReleaseOrMint {
         return {
-            $: 'OffRamp_UpdateDeployables',
-            ...args
+            $: 'OffRamp_ReleaseOrMint',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): OffRamp_UpdateDeployables {
-        loadAndCheckPrefix32(s, 0xa015e0e2, 'OffRamp_UpdateDeployables');
+    fromSlice(s: c.Slice): OffRamp_ReleaseOrMint {
+        loadAndCheckPrefix32(s, 0x7deaf076, 'OffRamp_ReleaseOrMint');
         return {
-            $: 'OffRamp_UpdateDeployables',
+            $: 'OffRamp_ReleaseOrMint',
             queryId: s.loadUintBig(64),
-            receiveExecutorCode: s.loadBoolean() ? s.loadRef() : null,
-            merkleRootCode: s.loadBoolean() ? s.loadRef() : null,
+            execId: ReceiveExecutorId.fromSlice(s),
+            tokenPool: s.loadAddress(),
+            destGasAmount: s.loadCoins(),
+            requestedFinalityConfig: s.loadUintBig(32),
+            request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
         }
     },
-    store(self: OffRamp_UpdateDeployables, b: c.Builder): void {
-        b.storeUint(0xa015e0e2, 32);
+    store(self: OffRamp_ReleaseOrMint, b: c.Builder): void {
+        b.storeUint(0x7deaf076, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.receiveExecutorCode, b,
-            (v,b) => b.storeRef(v)
-        );
-        storeTolkNullable<c.Cell>(self.merkleRootCode, b,
-            (v,b) => b.storeRef(v)
-        );
+        ReceiveExecutorId.store(self.execId, b);
+        b.storeAddress(self.tokenPool);
+        b.storeCoins(self.destGasAmount);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
     },
-    toCell(self: OffRamp_UpdateDeployables): c.Cell {
-        return makeCellFrom<OffRamp_UpdateDeployables>(self, OffRamp_UpdateDeployables.store);
+    toCell(self: OffRamp_ReleaseOrMint): c.Cell {
+        return makeCellFrom<OffRamp_ReleaseOrMint>(self, OffRamp_ReleaseOrMint.store);
+    }
+}
+
+/**
+ > enum OffRamp_Error { 22 variants }
+ */
+export type OffRamp_Error = bigint
+
+export const OffRamp_Error = {
+    MessageNotFromOwnedContract: 22100n,
+    SourceChainNotEnabled: 22101n,
+    EmptyExecutionReport: 22102n,
+    InvalidMessageDestChainSelector: 22103n,
+    SourceChainSelectorMismatch: 22104n,
+    InvalidOnRampUpdate: 22105n,
+    InsufficientFee: 22106n,
+    SubjectCursed: 22107n,
+    Unauthorized: 22108n,
+    ZeroAddressNotAllowed: 22109n,
+    TooManyMessagesInReport: 22110n,
+    SignatureVerificationRequiredInCommitPlugin: 22111n,
+    SignatureVerificationNotAllowedInExecutionPlugin: 22112n,
+    InvalidInterval: 22113n,
+    BatchingNotSupported: 22114n,
+    OnRampAddressMismatch: 22115n,
+    EmptyCommitReport: 22116n,
+    MerkleRootCannotBeZero: 22117n,
+    UnsupportedNumberOfTokens: 22118n,
+    ManualExecutionGasAmountCountMismatch: 22119n,
+    InvalidManualExecutionGasLimit: 22120n,
+    UnexpectedTokenData: 22121n,
+
+    fromSlice(s: c.Slice): OffRamp_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: OffRamp_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: OffRamp_Error): c.Cell {
+        return makeCellFrom<OffRamp_Error>(self, OffRamp_Error.store);
     }
 }
 
@@ -2163,7 +2819,7 @@ export const OffRamp_UpdateDeployables = {
  > struct ExecutionReport {
  >     sourceChainSelector: uint64
  >     messages: cell
- >     offchainTokenData: cell
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  >     proofs: SnakedCell<uint256>
  >     proofFlagBits: uint256
  > }
@@ -2172,7 +2828,7 @@ export interface ExecutionReport {
     readonly $: 'ExecutionReport'
     sourceChainSelector: uint64
     messages: c.Cell
-    offchainTokenData: c.Cell
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
     proofs: SnakedCell<uint256>
     proofFlagBits: uint256
 }
@@ -2181,7 +2837,7 @@ export const ExecutionReport = {
     create(args: {
         sourceChainSelector: uint64
         messages: c.Cell
-        offchainTokenData: c.Cell
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
         proofs: SnakedCell<uint256>
         proofFlagBits: uint256
     }): ExecutionReport {
@@ -2195,20 +2851,70 @@ export const ExecutionReport = {
             $: 'ExecutionReport',
             sourceChainSelector: s.loadUintBig(64),
             messages: s.loadRef(),
-            offchainTokenData: s.loadRef(),
-            proofs: s.loadRef(),
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
+            proofs: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             proofFlagBits: s.loadUintBig(256),
         }
     },
     store(self: ExecutionReport, b: c.Builder): void {
         b.storeUint(self.sourceChainSelector, 64);
         b.storeRef(self.messages);
-        b.storeRef(self.offchainTokenData);
-        b.storeRef(self.proofs);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
+        storeSnakedCellOf(self.proofs, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.proofFlagBits, 256);
     },
     toCell(self: ExecutionReport): c.Cell {
         return makeCellFrom<ExecutionReport>(self, ExecutionReport.store);
+    }
+}
+
+/**
+ > struct GasOverride {
+ >     receiverExecutionGasLimit: coins?
+ >     tokenGasOverrides: SnakedCell<coins>?
+ > }
+ */
+export interface GasOverride {
+    readonly $: 'GasOverride'
+    receiverExecutionGasLimit: coins | null /* = null */
+    tokenGasOverrides: SnakedCell<coins> | null /* = null */
+}
+
+export const GasOverride = {
+    create(args: {
+        receiverExecutionGasLimit?: coins | null /* = null */
+        tokenGasOverrides?: SnakedCell<coins> | null /* = null */
+    }): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: null,
+            tokenGasOverrides: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
+            tokenGasOverrides: s.loadBoolean() ? loadSnakedCellOf(s, (s) => s.loadCoins()) : null,
+        }
+    },
+    store(self: GasOverride, b: c.Builder): void {
+        storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
+            (v,b) => b.storeCoins(v)
+        );
+        storeTolkNullable<SnakedCell<coins>>(self.tokenGasOverrides, b, (v,b) => storeSnakedCellOf(v, b, (v, b) => b.storeCoins(v)));
+    },
+    toCell(self: GasOverride): c.Cell {
+        return makeCellFrom<GasOverride>(self, GasOverride.store);
     }
 }
 
@@ -2220,17 +2926,18 @@ export const ExecutionReport = {
  */
 export interface CommitReport {
     readonly $: 'CommitReport'
-    priceUpdates: CellRef<PriceUpdates> | null
+    priceUpdates: PriceUpdates | null /* = null */
     merkleRoots: SnakedCell<MerkleRoot>
 }
 
 export const CommitReport = {
     create(args: {
-        priceUpdates: CellRef<PriceUpdates> | null
+        priceUpdates?: PriceUpdates | null /* = null */
         merkleRoots: SnakedCell<MerkleRoot>
     }): CommitReport {
         return {
             $: 'CommitReport',
+            priceUpdates: null,
             ...args
         }
     },
@@ -2238,17 +2945,66 @@ export const CommitReport = {
         return {
             $: 'CommitReport',
             priceUpdates: s.loadBoolean() ? loadCellRef<PriceUpdates>(s, PriceUpdates.fromSlice) : null,
-            merkleRoots: s.loadRef(),
+            merkleRoots: loadSnakedCellOf(s, MerkleRoot.fromSlice),
         }
     },
     store(self: CommitReport, b: c.Builder): void {
-        storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
+        storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
-        b.storeRef(self.merkleRoots);
+        storeSnakedCellOf(self.merkleRoots, b, MerkleRoot.store);
     },
     toCell(self: CommitReport): c.Cell {
         return makeCellFrom<CommitReport>(self, CommitReport.store);
+    }
+}
+
+/**
+ > struct Any2TVMMessageV1Metadata {
+ >     _header: uint256
+ >     sourceChainSelector: uint64
+ >     destChainSelector: uint64
+ >     onRamp: Cell<CrossChainAddress>
+ > }
+ */
+export interface Any2TVMMessageV1Metadata {
+    readonly $: 'Any2TVMMessageV1Metadata'
+    _header: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
+    sourceChainSelector: uint64
+    destChainSelector: uint64
+    onRamp: CrossChainAddress
+}
+
+export const Any2TVMMessageV1Metadata = {
+    create(args: {
+        _header?: uint256 /* = 94125445462166101730960845378898357591674356293939125390047719859241158747070 */
+        sourceChainSelector: uint64
+        destChainSelector: uint64
+        onRamp: CrossChainAddress
+    }): Any2TVMMessageV1Metadata {
+        return {
+            $: 'Any2TVMMessageV1Metadata',
+            _header: 94125445462166101730960845378898357591674356293939125390047719859241158747070n,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Any2TVMMessageV1Metadata {
+        return {
+            $: 'Any2TVMMessageV1Metadata',
+            _header: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            onRamp: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+        }
+    },
+    store(self: Any2TVMMessageV1Metadata, b: c.Builder): void {
+        b.storeUint(self._header, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.destChainSelector, 64);
+        storeCellRef<CrossChainAddress>(self.onRamp, b, CrossChainAddress.store);
+    },
+    toCell(self: Any2TVMMessageV1Metadata): c.Cell {
+        return makeCellFrom<Any2TVMMessageV1Metadata>(self, Any2TVMMessageV1Metadata.store);
     }
 }
 
@@ -2298,6 +3054,7 @@ export const DeployableHashes = {
 /**
  > struct Config {
  >     chainSelector: uint64
+ >     tokenAdminRegistry: address
  >     feeQuoter: address
  >     permissionlessExecutionThresholdSeconds: uint32
  > }
@@ -2305,6 +3062,7 @@ export const DeployableHashes = {
 export interface Config {
     readonly $: 'Config'
     chainSelector: uint64
+    tokenAdminRegistry: c.Address
     feeQuoter: c.Address
     permissionlessExecutionThresholdSeconds: uint32
 }
@@ -2312,6 +3070,7 @@ export interface Config {
 export const Config = {
     create(args: {
         chainSelector: uint64
+        tokenAdminRegistry: c.Address
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }): Config {
@@ -2324,17 +3083,62 @@ export const Config = {
         return {
             $: 'Config',
             chainSelector: s.loadUintBig(64),
+            tokenAdminRegistry: s.loadAddress(),
             feeQuoter: s.loadAddress(),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
         }
     },
     store(self: Config, b: c.Builder): void {
         b.storeUint(self.chainSelector, 64);
+        b.storeAddress(self.tokenAdminRegistry);
         b.storeAddress(self.feeQuoter);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
+    }
+}
+
+/**
+ > struct OffRamp_StaticConfig {
+ >     rmnRouter: address
+ >     tokenAdminRegistry: address
+ >     chainSelector: uint64
+ > }
+ */
+export interface OffRamp_StaticConfig {
+    readonly $: 'OffRamp_StaticConfig'
+    rmnRouter: c.Address
+    tokenAdminRegistry: c.Address
+    chainSelector: uint64
+}
+
+export const OffRamp_StaticConfig = {
+    create(args: {
+        rmnRouter: c.Address
+        tokenAdminRegistry: c.Address
+        chainSelector: uint64
+    }): OffRamp_StaticConfig {
+        return {
+            $: 'OffRamp_StaticConfig',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_StaticConfig {
+        return {
+            $: 'OffRamp_StaticConfig',
+            rmnRouter: s.loadAddress(),
+            tokenAdminRegistry: s.loadAddress(),
+            chainSelector: s.loadUintBig(64),
+        }
+    },
+    store(self: OffRamp_StaticConfig, b: c.Builder): void {
+        b.storeAddress(self.rmnRouter);
+        b.storeAddress(self.tokenAdminRegistry);
+        b.storeUint(self.chainSelector, 64);
+    },
+    toCell(self: OffRamp_StaticConfig): c.Cell {
+        return makeCellFrom<OffRamp_StaticConfig>(self, OffRamp_StaticConfig.store);
     }
 }
 
@@ -2404,7 +3208,7 @@ export const SourceChainConfig = {
 export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
-    sender: CellRef<CrossChainAddress>
+    sender: CrossChainAddress
     data: c.Cell
     receiver: c.Address
     gasLimit: coins
@@ -2414,7 +3218,7 @@ export interface Any2TVMRampMessage {
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
-        sender: CellRef<CrossChainAddress>
+        sender: CrossChainAddress
         data: c.Cell
         receiver: c.Address
         gasLimit: coins
@@ -2433,7 +3237,7 @@ export const Any2TVMRampMessage = {
             data: s.loadRef(),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
@@ -2442,12 +3246,122 @@ export const Any2TVMRampMessage = {
         b.storeRef(self.data);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
-        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
+    }
+}
+
+/**
+ > struct Any2TVMRampMessageIDData {
+ >     _leafDomainSeparator: bits256
+ >     metadataHash: uint256
+ >     metadata: Cell<Any2TVMRampMessageIDHeader>
+ >     sender: Cell<CrossChainAddress>
+ >     data: cell
+ >     tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?
+ > }
+ */
+export interface Any2TVMRampMessageIDData {
+    readonly $: 'Any2TVMRampMessageIDData'
+    _leafDomainSeparator: bits256 /* = hex('0000000000000000000000000000000000000000000000000000000000000000') as slice as bits256 */
+    metadataHash: uint256
+    metadata: Any2TVMRampMessageIDHeader
+    sender: CrossChainAddress
+    data: c.Cell
+    tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+}
+
+export const Any2TVMRampMessageIDData = {
+    create(args: {
+        _leafDomainSeparator?: bits256 /* = hex('0000000000000000000000000000000000000000000000000000000000000000') as slice as bits256 */
+        metadataHash: uint256
+        metadata: Any2TVMRampMessageIDHeader
+        sender: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
+    }): Any2TVMRampMessageIDData {
+        return {
+            $: 'Any2TVMRampMessageIDData',
+            _leafDomainSeparator: new c.Slice(new c.BitReader(new c.BitString(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0, 256)), []),
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Any2TVMRampMessageIDData {
+        return {
+            $: 'Any2TVMRampMessageIDData',
+            _leafDomainSeparator: loadTolkBitsN(s, 256),
+            metadataHash: s.loadUintBig(256),
+            metadata: loadCellRef<Any2TVMRampMessageIDHeader>(s, Any2TVMRampMessageIDHeader.fromSlice),
+            sender: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            data: s.loadRef(),
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
+        }
+    },
+    store(self: Any2TVMRampMessageIDData, b: c.Builder): void {
+        storeTolkBitsN(self._leafDomainSeparator, 256, b);
+        b.storeUint(self.metadataHash, 256);
+        storeCellRef<Any2TVMRampMessageIDHeader>(self.metadata, b, Any2TVMRampMessageIDHeader.store);
+        storeCellRef<CrossChainAddress>(self.sender, b, CrossChainAddress.store);
+        b.storeRef(self.data);
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
+    },
+    toCell(self: Any2TVMRampMessageIDData): c.Cell {
+        return makeCellFrom<Any2TVMRampMessageIDData>(self, Any2TVMRampMessageIDData.store);
+    }
+}
+
+/**
+ > struct Any2TVMRampMessageIDHeader {
+ >     messageId: uint256
+ >     receiver: address
+ >     sequenceNumber: uint64
+ >     gasLimit: coins
+ >     nonce: uint64
+ > }
+ */
+export interface Any2TVMRampMessageIDHeader {
+    readonly $: 'Any2TVMRampMessageIDHeader'
+    messageId: uint256
+    receiver: c.Address
+    sequenceNumber: uint64
+    gasLimit: coins
+    nonce: uint64
+}
+
+export const Any2TVMRampMessageIDHeader = {
+    create(args: {
+        messageId: uint256
+        receiver: c.Address
+        sequenceNumber: uint64
+        gasLimit: coins
+        nonce: uint64
+    }): Any2TVMRampMessageIDHeader {
+        return {
+            $: 'Any2TVMRampMessageIDHeader',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Any2TVMRampMessageIDHeader {
+        return {
+            $: 'Any2TVMRampMessageIDHeader',
+            messageId: s.loadUintBig(256),
+            receiver: s.loadAddress(),
+            sequenceNumber: s.loadUintBig(64),
+            gasLimit: s.loadCoins(),
+            nonce: s.loadUintBig(64),
+        }
+    },
+    store(self: Any2TVMRampMessageIDHeader, b: c.Builder): void {
+        b.storeUint(self.messageId, 256);
+        b.storeAddress(self.receiver);
+        b.storeUint(self.sequenceNumber, 64);
+        b.storeCoins(self.gasLimit);
+        b.storeUint(self.nonce, 64);
+    },
+    toCell(self: Any2TVMRampMessageIDHeader): c.Cell {
+        return makeCellFrom<Any2TVMRampMessageIDHeader>(self, Any2TVMRampMessageIDHeader.store);
     }
 }
 
@@ -2507,27 +3421,27 @@ export const MerkleRoot = {
 /**
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
- >     destPoolAddress: address
- >     destGasAmount: uint32
- >     extraData: cell
+ >     token: address
+ >     destGasAmount: coins
+ >     extraData: cell?
  >     amount: uint256
  > }
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
-    sourcePoolAddress: CellRef<CrossChainAddress>
-    destPoolAddress: c.Address
-    destGasAmount: uint32
-    extraData: c.Cell
+    sourcePoolAddress: CrossChainAddress
+    token: c.Address
+    destGasAmount: coins
+    extraData: c.Cell | null
     amount: uint256
 }
 
 export const Any2TVMTokenTransfer = {
     create(args: {
-        sourcePoolAddress: CellRef<CrossChainAddress>
-        destPoolAddress: c.Address
-        destGasAmount: uint32
-        extraData: c.Cell
+        sourcePoolAddress: CrossChainAddress
+        token: c.Address
+        destGasAmount: coins
+        extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
         return {
@@ -2539,69 +3453,23 @@ export const Any2TVMTokenTransfer = {
         return {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            destPoolAddress: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
-            extraData: s.loadRef(),
+            token: s.loadAddress(),
+            destGasAmount: s.loadCoins(),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
-        b.storeAddress(self.destPoolAddress);
-        b.storeUint(self.destGasAmount, 32);
-        b.storeRef(self.extraData);
+        b.storeAddress(self.token);
+        b.storeCoins(self.destGasAmount);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
         b.storeUint(self.amount, 256);
     },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
         return makeCellFrom<Any2TVMTokenTransfer>(self, Any2TVMTokenTransfer.store);
-    }
-}
-
-/**
- > struct OffRamp_Deployables {
- >     rmnRouter: address
- >     deployer: cell
- >     merkleRootCode: cell
- >     receiveExecutorCode: cell
- > }
- */
-export interface OffRamp_Deployables {
-    readonly $: 'OffRamp_Deployables'
-    rmnRouter: c.Address
-    deployer: c.Cell
-    merkleRootCode: c.Cell
-    receiveExecutorCode: c.Cell
-}
-
-export const OffRamp_Deployables = {
-    create(args: {
-        rmnRouter: c.Address
-        deployer: c.Cell
-        merkleRootCode: c.Cell
-        receiveExecutorCode: c.Cell
-    }): OffRamp_Deployables {
-        return {
-            $: 'OffRamp_Deployables',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): OffRamp_Deployables {
-        return {
-            $: 'OffRamp_Deployables',
-            rmnRouter: s.loadAddress(),
-            deployer: s.loadRef(),
-            merkleRootCode: s.loadRef(),
-            receiveExecutorCode: s.loadRef(),
-        }
-    },
-    store(self: OffRamp_Deployables, b: c.Builder): void {
-        b.storeAddress(self.rmnRouter);
-        b.storeRef(self.deployer);
-        b.storeRef(self.merkleRootCode);
-        b.storeRef(self.receiveExecutorCode);
-    },
-    toCell(self: OffRamp_Deployables): c.Cell {
-        return makeCellFrom<OffRamp_Deployables>(self, OffRamp_Deployables.store);
     }
 }
 
@@ -2665,11 +3533,10 @@ export const ExecutionState = {
  > struct Storage {
  >     id: uint32
  >     ownable: Ownable2Step
- >     deployables: Cell<OffRamp_Deployables>
+ >     staticConfig: Cell<OffRamp_StaticConfig>
  >     feeQuoter: address
  >     ocr3Base: Cell<OCR3Base>
  >     cursedSubjects: CursedSubjects
- >     chainSelector: uint64
  >     permissionlessExecutionThresholdSeconds: uint32
  >     sourceChainConfigs: map<uint64, SourceChainConfig>
  >     latestPriceSequenceNumber: uint64
@@ -2679,31 +3546,30 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    deployables: CellRef<OffRamp_Deployables>
+    staticConfig: OffRamp_StaticConfig
     feeQuoter: c.Address
-    ocr3Base: CellRef<OCR3Base>
+    ocr3Base: OCR3Base
     cursedSubjects: CursedSubjects
-    chainSelector: uint64
     permissionlessExecutionThresholdSeconds: uint32
-    sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
-    latestPriceSequenceNumber: uint64
+    sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
+    latestPriceSequenceNumber: uint64 /* = 0 */
 }
 
 export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        deployables: CellRef<OffRamp_Deployables>
+        staticConfig: OffRamp_StaticConfig
         feeQuoter: c.Address
-        ocr3Base: CellRef<OCR3Base>
+        ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
-        chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
-        latestPriceSequenceNumber: uint64
+        sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
+        latestPriceSequenceNumber?: uint64 /* = 0 */
     }): Storage {
         return {
             $: 'Storage',
+            latestPriceSequenceNumber: 0n,
             ...args
         }
     },
@@ -2712,26 +3578,24 @@ export const Storage = {
             $: 'Storage',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
-            deployables: loadCellRef<OffRamp_Deployables>(s, OffRamp_Deployables.fromSlice),
+            staticConfig: loadCellRef<OffRamp_StaticConfig>(s, OffRamp_StaticConfig.fromSlice),
             feeQuoter: s.loadAddress(),
             ocr3Base: loadCellRef<OCR3Base>(s, OCR3Base.fromSlice),
             cursedSubjects: CursedSubjects.fromSlice(s),
-            chainSelector: s.loadUintBig(64),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
-            sourceChainConfigs: c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s),
+            sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
             latestPriceSequenceNumber: s.loadUintBig(64),
         }
     },
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
-        storeCellRef<OffRamp_Deployables>(self.deployables, b, OffRamp_Deployables.store);
+        storeCellRef<OffRamp_StaticConfig>(self.staticConfig, b, OffRamp_StaticConfig.store);
         b.storeAddress(self.feeQuoter);
         storeCellRef<OCR3Base>(self.ocr3Base, b, OCR3Base.store);
         CursedSubjects.store(self.cursedSubjects, b);
-        b.storeUint(self.chainSelector, 64);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
-        b.storeDict<uint64, SourceChainConfig>(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
     },
     toCell(self: Storage): c.Cell {
@@ -2796,13 +3660,13 @@ export const ExecutionStateChanged = {
 export interface CommitReportAccepted {
     readonly $: 'CommitReportAccepted'
     merkleRoot: MerkleRoot | null
-    priceUpdates: CellRef<PriceUpdates> | null
+    priceUpdates: PriceUpdates | null
 }
 
 export const CommitReportAccepted = {
     create(args: {
         merkleRoot: MerkleRoot | null
-        priceUpdates: CellRef<PriceUpdates> | null
+        priceUpdates: PriceUpdates | null
     }): CommitReportAccepted {
         return {
             $: 'CommitReportAccepted',
@@ -2818,7 +3682,7 @@ export const CommitReportAccepted = {
     },
     store(self: CommitReportAccepted, b: c.Builder): void {
         storeTolkNullable<MerkleRoot>(self.merkleRoot, b, MerkleRoot.store);
-        storeTolkNullable<CellRef<PriceUpdates>>(self.priceUpdates, b,
+        storeTolkNullable<PriceUpdates>(self.priceUpdates, b,
             (v,b) => storeCellRef<PriceUpdates>(v, b, PriceUpdates.store)
         );
     },
@@ -3051,6 +3915,190 @@ export const OffRamp_RouteMessageBounced = {
 }
 
 /**
+ > enum MultiOCR3Base_Error { 16 variants }
+ */
+export type MultiOCR3Base_Error = bigint
+
+export const MultiOCR3Base_Error = {
+    BigFMustBePositive: 54500n,
+    StaticConfigCannotBeChanged: 54501n,
+    TooManySigners: 54502n,
+    BigFTooHigh: 54503n,
+    TooManyTransmitters: 54504n,
+    NoTransmitters: 54505n,
+    RepeatedSigners: 54506n,
+    RepeatedTransmitters: 54507n,
+    ConfigDigestMismatch: 54508n,
+    UnauthorizedTransmitter: 54509n,
+    WrongNumberOfSignatures: 54510n,
+    UnauthorizedSigner: 54511n,
+    NonUniqueSignatures: 54512n,
+    InvalidSignature: 54513n,
+    NonExistentOcrPluginType: 54514n,
+    NoSigners: 54515n,
+
+    fromSlice(s: c.Slice): MultiOCR3Base_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: MultiOCR3Base_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: MultiOCR3Base_Error): c.Cell {
+        return makeCellFrom<MultiOCR3Base_Error>(self, MultiOCR3Base_Error.store);
+    }
+}
+
+/**
+ > struct TokenPool_Transfer<S, R, C> {
+ >     id: uint256
+ >     details: Cell<TokenPool_TransferDetails<S, R, C>>
+ > }
+ */
+export interface TokenPool_Transfer<S, R, C> {
+    readonly $: 'TokenPool_Transfer'
+    id: uint256
+    details: TokenPool_TransferDetails<S, R, C>
+}
+
+export const TokenPool_Transfer = {
+    create<S, R, C>(args: {
+        id: uint256
+        details: TokenPool_TransferDetails<S, R, C>
+    }): TokenPool_Transfer<S, R, C> {
+        return {
+            $: 'TokenPool_Transfer',
+            ...args
+        }
+    },
+}
+
+/**
+ > struct TokenPool_TransferDetails<S, R, C> {
+ >     receiver: R
+ >     remoteChainSelector: uint64
+ >     originalSender: S
+ >     amount: C
+ >     localToken: address
+ > }
+ */
+export interface TokenPool_TransferDetails<S, R, C> {
+    readonly $: 'TokenPool_TransferDetails'
+    receiver: R
+    remoteChainSelector: uint64
+    originalSender: S
+    amount: C
+    localToken: c.Address
+}
+
+export const TokenPool_TransferDetails = {
+    create<S, R, C>(args: {
+        receiver: R
+        remoteChainSelector: uint64
+        originalSender: S
+        amount: C
+        localToken: c.Address
+    }): TokenPool_TransferDetails<S, R, C> {
+        return {
+            $: 'TokenPool_TransferDetails',
+            ...args
+        }
+    },
+}
+
+/**
+ > type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<Cell<CrossChainAddress>, address, uint256>
+ */
+export type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<CrossChainAddress, c.Address, uint256>
+
+export const TokenPool_ReleaseOrMintTransfer = {
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintTransfer {
+        return (() => {
+            return {
+                $: 'TokenPool_Transfer',
+                id: s.loadUintBig(256),
+                details: loadCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(s,
+                    (s) => (() => {
+                        return {
+                            $: 'TokenPool_TransferDetails',
+                            receiver: s.loadAddress(),
+                            remoteChainSelector: s.loadUintBig(64),
+                            originalSender: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+                            amount: s.loadUintBig(256),
+                            localToken: s.loadAddress(),
+                        }
+                    })()
+                ),
+            }
+        })();
+    },
+    store(self: TokenPool_ReleaseOrMintTransfer, b: c.Builder): void {
+        b.storeUint(self.id, 256);
+        storeCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(self.details, b,
+            (v,b) => { b.storeAddress(v.receiver);
+            b.storeUint(v.remoteChainSelector, 64);
+            storeCellRef<CrossChainAddress>(v.originalSender, b, CrossChainAddress.store);
+            b.storeUint(v.amount, 256);
+            b.storeAddress(v.localToken); }
+        );
+    },
+    toCell(self: TokenPool_ReleaseOrMintTransfer): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintTransfer>(self, TokenPool_ReleaseOrMintTransfer.store);
+    }
+}
+
+/**
+ > struct TokenPool_ReleaseOrMintInV1 {
+ >     transfer: TokenPool_ReleaseOrMintTransfer
+ >     sourcePoolAddress: Cell<CrossChainAddress>
+ >     sourcePoolData: cell?
+ >     offchainTokenData: cell?
+ > }
+ */
+export interface TokenPool_ReleaseOrMintInV1 {
+    readonly $: 'TokenPool_ReleaseOrMintInV1'
+    transfer: TokenPool_ReleaseOrMintTransfer
+    sourcePoolAddress: CrossChainAddress
+    sourcePoolData: c.Cell | null
+    offchainTokenData: c.Cell | null
+}
+
+export const TokenPool_ReleaseOrMintInV1 = {
+    create(args: {
+        transfer: TokenPool_ReleaseOrMintTransfer
+        sourcePoolAddress: CrossChainAddress
+        sourcePoolData: c.Cell | null
+        offchainTokenData: c.Cell | null
+    }): TokenPool_ReleaseOrMintInV1 {
+        return {
+            $: 'TokenPool_ReleaseOrMintInV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintInV1 {
+        return {
+            $: 'TokenPool_ReleaseOrMintInV1',
+            transfer: TokenPool_ReleaseOrMintTransfer.fromSlice(s),
+            sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            sourcePoolData: s.loadBoolean() ? s.loadRef() : null,
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintInV1, b: c.Builder): void {
+        TokenPool_ReleaseOrMintTransfer.store(self.transfer, b);
+        storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
+        storeTolkNullable<c.Cell>(self.sourcePoolData, b,
+            (v,b) => b.storeRef(v)
+        );
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_ReleaseOrMintInV1): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintInV1>(self, TokenPool_ReleaseOrMintInV1.store);
+    }
+}
+
+/**
  > struct PriceUpdates {
  >     tokenPriceUpdates: SnakedCell<TokenPriceUpdate>
  >     gasPriceUpdates: SnakedCell<GasPriceUpdate>
@@ -3075,13 +4123,13 @@ export const PriceUpdates = {
     fromSlice(s: c.Slice): PriceUpdates {
         return {
             $: 'PriceUpdates',
-            tokenPriceUpdates: s.loadRef(),
-            gasPriceUpdates: s.loadRef(),
+            tokenPriceUpdates: loadSnakedCellOf(s, TokenPriceUpdate.fromSlice),
+            gasPriceUpdates: loadSnakedCellOf(s, GasPriceUpdate.fromSlice),
         }
     },
     store(self: PriceUpdates, b: c.Builder): void {
-        b.storeRef(self.tokenPriceUpdates);
-        b.storeRef(self.gasPriceUpdates);
+        storeSnakedCellOf(self.tokenPriceUpdates, b, TokenPriceUpdate.store);
+        storeSnakedCellOf(self.gasPriceUpdates, b, GasPriceUpdate.store);
     },
     toCell(self: PriceUpdates): c.Cell {
         return makeCellFrom<PriceUpdates>(self, PriceUpdates.store);
@@ -3208,10 +4256,9 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OffRamp implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
-        'Common_Error.CrossChainAddressOutOfRange': 5,
         'MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty': 12000,
         'MerkleMultiProof_Error.InvalidProofLeavesTooLarge': 12001,
         'MerkleMultiProof_Error.InvalidProofProofsTooLarge': 12002,
@@ -3220,23 +4267,28 @@ export class OffRamp implements c.Contract {
         'Utils_Error.InvalidData': 13500,
         'Utils_Error.BitmapOutOfBounds': 13501,
         'Upgradeable_Error.VersionMismatch': 19900,
-        'Error.MessageNotFromOwnedContract': 22100,
-        'Error.SourceChainNotEnabled': 22101,
-        'Error.EmptyExecutionReport': 22102,
-        'Error.InvalidMessageDestChainSelector': 22103,
-        'Error.SourceChainSelectorMismatch': 22104,
-        'Error.InvalidOnRampUpdate': 22105,
-        'Error.InsufficientFee': 22106,
-        'Error.SubjectCursed': 22107,
-        'Error.Unauthorized': 22108,
-        'Error.TooManyMessagesInReport': 22110,
-        'Error.SignatureVerificationRequiredInCommitPlugin': 22111,
-        'Error.SignatureVerificationNotAllowedInExecutionPlugin': 22112,
-        'Error.InvalidInterval': 22113,
-        'Error.BatchingNotSupported': 22114,
-        'Error.OnRampAddressMismatch': 22115,
-        'Error.EmptyCommitReport': 22116,
-        'Error.MerkleRootCannotBeZero': 22117,
+        'OffRamp_Error.MessageNotFromOwnedContract': 22100,
+        'OffRamp_Error.SourceChainNotEnabled': 22101,
+        'OffRamp_Error.EmptyExecutionReport': 22102,
+        'OffRamp_Error.InvalidMessageDestChainSelector': 22103,
+        'OffRamp_Error.SourceChainSelectorMismatch': 22104,
+        'OffRamp_Error.InvalidOnRampUpdate': 22105,
+        'OffRamp_Error.InsufficientFee': 22106,
+        'OffRamp_Error.SubjectCursed': 22107,
+        'OffRamp_Error.Unauthorized': 22108,
+        'OffRamp_Error.ZeroAddressNotAllowed': 22109,
+        'OffRamp_Error.TooManyMessagesInReport': 22110,
+        'OffRamp_Error.SignatureVerificationRequiredInCommitPlugin': 22111,
+        'OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin': 22112,
+        'OffRamp_Error.InvalidInterval': 22113,
+        'OffRamp_Error.BatchingNotSupported': 22114,
+        'OffRamp_Error.OnRampAddressMismatch': 22115,
+        'OffRamp_Error.EmptyCommitReport': 22116,
+        'OffRamp_Error.MerkleRootCannotBeZero': 22117,
+        'OffRamp_Error.UnsupportedNumberOfTokens': 22118,
+        'OffRamp_Error.ManualExecutionGasAmountCountMismatch': 22119,
+        'OffRamp_Error.InvalidManualExecutionGasLimit': 22120,
+        'OffRamp_Error.UnexpectedTokenData': 22121,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -3287,14 +4339,13 @@ export class OffRamp implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        deployables: CellRef<OffRamp_Deployables>
+        staticConfig: OffRamp_StaticConfig
         feeQuoter: c.Address
-        ocr3Base: CellRef<OCR3Base>
+        ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
-        chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
-        sourceChainConfigs: c.Dictionary<uint64, SourceChainConfig>
-        latestPriceSequenceNumber: uint64
+        sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
+        latestPriceSequenceNumber?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? OffRamp.CodeCell,
@@ -3305,7 +4356,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampCommit(body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
@@ -3314,7 +4365,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecute(body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }) {
@@ -3322,39 +4373,54 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecuteValidated(body: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }) {
         return OffRamp_ExecuteValidated.toCell(OffRamp_ExecuteValidated.create(body));
     }
 
     static createCellOfOffRampManuallyExecute(body: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
-        gasOverride: coins
+        gasOverride: GasOverride
     }) {
         return OffRamp_ManuallyExecute.toCell(OffRamp_ManuallyExecute.create(body));
     }
 
     static createCellOfOffRampDispatchValidated(body: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         execId: uint192
-        gasOverride: coins | null
+        effectiveGasLimit: coins
     }) {
         return OffRamp_DispatchValidated.toCell(OffRamp_DispatchValidated.create(body));
     }
 
+    static createCellOfOffRampReleaseOrMint(body: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+        tokenPool: c.Address
+        destGasAmount: coins
+        requestedFinalityConfig: uint32
+        request: TokenPool_ReleaseOrMintInV1
+    }) {
+        return OffRamp_ReleaseOrMint.toCell(OffRamp_ReleaseOrMint.create(body));
+    }
+
     static createCellOfOffRampUpdateSourceChainConfigs(body: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }) {
         return OffRamp_UpdateSourceChainConfigs.toCell(OffRamp_UpdateSourceChainConfigs.create(body));
     }
 
     static createCellOfOffRampCCIPReceiveConfirm(body: {
+        queryId?: uint64
         execId: ReceiveExecutorId
         receiver: c.Address
     }) {
@@ -3369,6 +4435,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampNotifyFailure(body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -3377,6 +4444,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampNotifySuccess(body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -3391,7 +4459,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampSetDynamicConfig(body: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }) {
@@ -3399,7 +4467,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOCR3BaseSetOCR3Config(body: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -3410,29 +4478,34 @@ export class OffRamp implements c.Contract {
         return OCR3Base_SetOCR3Config.toCell(OCR3Base_SetOCR3Config.create(body));
     }
 
-    static createCellOfOffRampUpdateDeployables(body: {
-        queryId: uint64
-        receiveExecutorCode: c.Cell | null
-        merkleRootCode: c.Cell | null
-    }) {
-        return OffRamp_UpdateDeployables.toCell(OffRamp_UpdateDeployables.create(body));
-    }
-
     static createCellOfUpgradeableUpgrade(body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
         drainAllAvailable: boolean
     }) {
         return Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body));
+    }
+
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -3443,8 +4516,16 @@ export class OffRamp implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendOffRampCommit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: CommitReport
         signatures: SnakedCell<SignatureEd25519>
@@ -3457,7 +4538,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         reportContext: ReportContext
         report: ExecutionReport
     }, extraOptions?: ExtraSendOptions) {
@@ -3469,11 +4550,13 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecuteValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3483,9 +4566,9 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampManuallyExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         report: ExecutionReport
-        gasOverride: coins
+        gasOverride: GasOverride
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3495,9 +4578,10 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampDispatchValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         execId: uint192
-        gasOverride: coins | null
+        effectiveGasLimit: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3506,8 +4590,23 @@ export class OffRamp implements c.Contract {
         });
     }
 
+    async sendOffRampReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+        tokenPool: c.Address
+        destGasAmount: coins
+        requestedFinalityConfig: uint32
+        request: TokenPool_ReleaseOrMintInV1
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OffRamp_ReleaseOrMint.toCell(OffRamp_ReleaseOrMint.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendOffRampUpdateSourceChainConfigs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         configs: SnakedCell<SourceChainConfigUpdate>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3518,6 +4617,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         execId: ReceiveExecutorId
         receiver: c.Address
     }, extraOptions?: ExtraSendOptions) {
@@ -3540,6 +4640,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampNotifyFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -3552,6 +4653,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampNotifySuccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -3574,7 +4676,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
     }, extraOptions?: ExtraSendOptions) {
@@ -3586,7 +4688,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOCR3BaseSetOCR3Config(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         configDigest: uint256
         ocrPluginType: uint16
         bigF: uint8
@@ -3601,20 +4703,8 @@ export class OffRamp implements c.Contract {
         });
     }
 
-    async sendOffRampUpdateDeployables(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
-        receiveExecutorCode: c.Cell | null
-        merkleRootCode: c.Cell | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: OffRamp_UpdateDeployables.toCell(OffRamp_UpdateDeployables.create(body)),
-            ...extraOptions
-        });
-    }
-
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3625,7 +4715,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -3634,6 +4724,27 @@ export class OffRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }
@@ -3655,20 +4766,21 @@ export class OffRamp implements c.Contract {
         return ({
             $: 'OCR3Base',
             chainId: r.readBigInt(),
-            commit: r.readNullable<CellRef<OCRConfig>>(
+            commit: r.readNullable<OCRConfig>(
                 (r) => r.readCellRef<OCRConfig>(OCRConfig.fromSlice)
             ),
-            execute: r.readNullable<CellRef<OCRConfig>>(
+            execute: r.readNullable<OCRConfig>(
                 (r) => r.readCellRef<OCRConfig>(OCRConfig.fromSlice)
             ),
         });
     }
 
     async getConfig(provider: ContractProvider): Promise<Config> {
-        const r = StackReader.fromGetMethod(3, await provider.get('config', []));
+        const r = StackReader.fromGetMethod(4, await provider.get('config', []));
         return ({
             $: 'Config',
             chainSelector: r.readBigInt(),
+            tokenAdminRegistry: r.readSlice().loadAddress(),
             feeQuoter: r.readSlice().loadAddress(),
             permissionlessExecutionThresholdSeconds: r.readBigInt(),
         });
@@ -3688,9 +4800,9 @@ export class OffRamp implements c.Contract {
         });
     }
 
-    async getAllSourceChainConfigs(provider: ContractProvider): Promise<c.Dictionary<uint64, SourceChainConfig>> {
+    async getAllSourceChainConfigs(provider: ContractProvider): Promise<Map<uint64, SourceChainConfig>> {
         const r = StackReader.fromGetMethod(1, await provider.get('allSourceChainConfigs', []));
-        return r.readDictionary<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
+        return dictToMap(r.readDictionary<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)));
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {

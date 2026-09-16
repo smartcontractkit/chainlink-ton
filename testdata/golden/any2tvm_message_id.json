@@ -1,0 +1,4 @@
+{
+  "description": "Golden MessageID for a fixed Any2TVMRampMessage. Cross-validates that the Go implementation (cciplib/ccip/codec/msghasher.go), the TypeScript implementation (contracts/src/offramp/generateMessageID.ts), and the Tolk implementation (contracts/contracts/ccip/offramp/types.tolk, exercised via contracts/contracts/test/lib/msg_hasher.tolk) all produce the same hash for the same message. Go tests only check their own implementation against this value; TypeScript tests check both the TypeScript and Tolk implementations against it.",
+  "messageId": "0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807"
+}

@@ -32,7 +32,7 @@ struct TokenPool_LockedOrBurned {
 struct TokenPool_LockedOrBurnedDetails {
     token: address;
     sender: address;
-    amount: uint256;
+    amount: coins;
 }
 
 struct TokenPool_ReleasedOrMinted {
@@ -43,7 +43,7 @@ struct TokenPool_ReleasedOrMinted {
 struct TokenPool_ReleasedOrMintedDetails {
     token: address;
     sender: address;
-    amount: uint256;
+    amount: coins;
     recipient: Cell<address>;
 }
 
@@ -74,14 +74,14 @@ struct TokenPool_RemotePoolRemoved {
 struct TokenPool_OutboundRateLimitConsumed {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when inbound rate-limit capacity is consumed in this pool.
 struct TokenPool_InboundRateLimitConsumed {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when fast-finality outbound rate-limit capacity is consumed.
@@ -89,7 +89,7 @@ struct TokenPool_InboundRateLimitConsumed {
 struct TokenPool_FastFinalityOutboundRateLimitConsumed {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when fast-finality inbound rate-limit capacity is consumed.
@@ -97,7 +97,7 @@ struct TokenPool_FastFinalityOutboundRateLimitConsumed {
 struct TokenPool_FastFinalityInboundRateLimitConsumed {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when previously consumed outbound rate-limit capacity is refunded.
@@ -105,7 +105,7 @@ struct TokenPool_FastFinalityInboundRateLimitConsumed {
 struct TokenPool_OutboundRateLimitRefunded {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when previously consumed inbound rate-limit capacity is refunded.
@@ -113,7 +113,7 @@ struct TokenPool_OutboundRateLimitRefunded {
 struct TokenPool_InboundRateLimitRefunded {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when previously consumed fast-finality outbound rate-limit capacity is refunded.
@@ -121,7 +121,7 @@ struct TokenPool_InboundRateLimitRefunded {
 struct TokenPool_FastFinalityOutboundRateLimitRefunded {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when previously consumed fast-finality inbound rate-limit capacity is refunded.
@@ -129,7 +129,7 @@ struct TokenPool_FastFinalityOutboundRateLimitRefunded {
 struct TokenPool_FastFinalityInboundRateLimitRefunded {
     remoteChainSelector: uint64;
     token: address;
-    amount: uint256;
+    amount: coins;
 }
 
 /// Emitted when a token transfer fee configuration is updated for a destination chain.

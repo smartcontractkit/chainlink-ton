@@ -1,15 +1,23 @@
-import "types"
+import "../../lib/jetton/messages"
+
 import "../onramp/messages"
 import "../fee_quoter/messages"
-import "../token_registry/messages"
+import "../token_admin_registry_entry/messages"
 import "../pools/lib/token_pool/messages"
+
+import "types"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
-    | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
-    | TokenRegistry_ReturnTokenInfo
+    | FeeQuoter_MessageValidated_Any
+    | FeeQuoter_MessageValidationFailed_Any
+    | TokenAdminRegistryEntry_ReturnTokenInfo
+    | ResponseWalletAddress
+    | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished;
+
+type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
@@ -29,13 +37,13 @@ fun SendExecutor_Costs.Deploy(): int {
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
-    val baseFee =
-        + ton("0.002") // computeFee
+    return
+        ton("0.002") // computeFee
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
-        ;
-    return baseFee;
+        //TODO: estimate correct gas needed here
+        + ton("0.2"); // overhead for token transfers
 }
 
 @inline

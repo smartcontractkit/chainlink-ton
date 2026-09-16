@@ -1,20 +1,16 @@
 import { toNano, Cell, beginCell, Builder, Slice } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { asSnakeDataUint, fromSnakeData, WRAPPED_NATIVE } from '../../../src/utils'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import * as or from '../../../wrappers/ccip/OnRamp'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  contractsCoverageConfig,
-} from './Router.Setup'
-import { setupGenBindings } from '../../../wrappers/gen'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import { setup, contractsCoverageConfig } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
+import { ChainSelectors } from '../../utils/Selectors'
 
-const EVM_CC_ADDRESS: rt.CrossChainAddress = beginCell().storeBuffer(EVM_ADDRESS).asSlice()
+const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -25,8 +21,6 @@ describe('Router', () => {
   let onRamp: SandboxContract<TreasuryContract>
 
   beforeAll(async () => {
-    setupGenBindings()
-
     blockchain = await Blockchain.create()
     blockchain.verbosity = {
       print: true,
@@ -49,34 +43,25 @@ describe('Router', () => {
     router = blockchain.openContract(rt.Router.fromAddress(res.router.address))
   })
 
-  const ccipSend = rt.Router_CCIPSend.create({
+  const msg = rt.Router_CCIPSend.create({
     queryID: 1n,
-    destChainSelector: CHAINSEL_EVM_TEST_90000001,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_CC_ADDRESS,
     data: Cell.EMPTY,
-    tokenAmounts: beginCell().endCell(),
+    tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
-    extraArgs: {
-      ref: rt.GenericExtraArgsV2.create({
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      }),
-    },
+    extraArgs: rt.GenericExtraArgsV2.create({
+      gasLimit: 100n,
+      allowOutOfOrderExecution: true,
+    }),
   })
-  const msg: rt.CellRef<rt.Router_CCIPSend> = {
-    ref: ccipSend,
-  }
 
   it('should forward getValidatedFee to OnRamp', async () => {
-    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
-      sender.getSender(),
-      toNano('0.5'),
-      {
-        $: 'Router_GetValidatedFee',
-        ccipSend: msg,
-        context: beginCell().asSlice(),
-      },
-    )
+    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
+      $: 'Router_GetValidatedFee',
+      ccipSend: msg,
+      context: beginCell().asSlice(),
+    })
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -88,49 +73,42 @@ describe('Router', () => {
       from: router.address,
       to: onRamp.address,
       success: true,
-      op: or.opcodes.in.getValidatedFee,
+      op: or.OnRamp_GetValidatedFee.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = or.builder.messages.in.getValidatedFee.load(x.beginParse())
+        const decoded = or.OnRamp_GetValidatedFee_Any.fromSlice(x.beginParse())
         return (
-          decoded.msg.queryID === 1 &&
-          decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
-          decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+          decoded.ccipSend.queryID === 1n &&
+          decoded.ccipSend.data.equals(Cell.EMPTY) &&
+          decoded.ccipSend.destChainSelector ===
+            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+          decoded.ccipSend.receiver.toString() === EVM_ADDRESS.toString() &&
+          decoded.ccipSend.tokenAmounts.length === 0 &&
+          decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
   })
 
   it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
-    const badMsg: rt.CellRef<rt.Router_CCIPSend> = {
-      ref: {
-        $: 'Router_CCIPSend',
-        queryID: 1n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
-        receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
-        data: Cell.EMPTY,
-        tokenAmounts: beginCell().endCell(),
-        feeToken: WRAPPED_NATIVE,
-        extraArgs: {
-          ref: rt.GenericExtraArgsV2.create({
-            gasLimit: 100n,
-            allowOutOfOrderExecution: true,
-          }),
-        },
-      },
+    const badMsg: rt.Router_CCIPSend = {
+      $: 'Router_CCIPSend',
+      queryID: 1n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: rt.GenericExtraArgsV2.create({
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      }),
     }
-    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
-      sender.getSender(),
-      toNano('0.5'),
-      {
-        $: 'Router_GetValidatedFee',
-        ccipSend: badMsg,
-        context: beginCell().asSlice(),
-      },
-    )
+    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
+      $: 'Router_GetValidatedFee',
+      ccipSend: badMsg,
+      context: beginCell().asSlice(),
+    })
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -144,9 +122,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          x.beginParse(),
-        )
+        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
         return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
@@ -159,7 +135,7 @@ describe('Router', () => {
         queryId: 1n,
         onRampUpdates: {
           $: 'OnRamps',
-          destChainSelectors: asSnakeDataUint([CHAINSEL_EVM_TEST_90000001], 64),
+          destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
           onRamp: null,
         },
         offRampAdds: null,
@@ -173,32 +149,24 @@ describe('Router', () => {
       })
     }
 
-    const badMsg: rt.CellRef<rt.Router_CCIPSend> = {
-      ref: {
-        $: 'Router_CCIPSend',
-        queryID: 1n,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: EVM_CC_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: beginCell().endCell(),
-        feeToken: WRAPPED_NATIVE,
-        extraArgs: {
-          ref: rt.GenericExtraArgsV2.create({
-            gasLimit: 100n,
-            allowOutOfOrderExecution: true,
-          }),
-        },
-      },
+    const badMsg: rt.Router_CCIPSend = {
+      $: 'Router_CCIPSend',
+      queryID: 1n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_CC_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: rt.GenericExtraArgsV2.create({
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      }),
     }
-    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs(
-      sender.getSender(),
-      toNano('0.5'),
-      {
-        $: 'Router_GetValidatedFee',
-        ccipSend: badMsg,
-        context: beginCell().asSlice(),
-      },
-    )
+    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
+      $: 'Router_GetValidatedFee',
+      ccipSend: badMsg,
+      context: beginCell().asSlice(),
+    })
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
@@ -212,9 +180,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          x.beginParse(),
-        )
+        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
         return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
@@ -247,15 +213,16 @@ describe('Router', () => {
       op: rt.Router_MessageValidated.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidated_RemainingBitsAndRefs.fromSlice(x.beginParse())
+        const decoded = rt.Router_MessageValidated_Any.fromSlice(x.beginParse())
         return (
           decoded.fee === toNano('0.5') &&
-          decoded.msg.ref.queryID === 1n &&
-          decoded.msg.ref.data.equals(Cell.EMPTY) &&
-          decoded.msg.ref.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.ref.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          fromSnakeData(decoded.msg.ref.tokenAmounts, rt.TokenAmount.fromSlice).length === 0 &&
-          decoded.msg.ref.feeToken!.equals(WRAPPED_NATIVE)
+          decoded.msg.queryID === 1n &&
+          decoded.msg.data.equals(Cell.EMPTY) &&
+          decoded.msg.destChainSelector ===
+            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+          decoded.msg.tokenAmounts.length === 0 &&
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -311,17 +278,16 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
-          x.beginParse(),
-        )
+        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
         return (
           decoded.error === 12345n &&
-          decoded.msg.ref.queryID === 1n &&
-          decoded.msg.ref.data.equals(Cell.EMPTY) &&
-          decoded.msg.ref.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.ref.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          fromSnakeData(decoded.msg.ref.tokenAmounts, rt.TokenAmount.fromSlice).length === 0 &&
-          decoded.msg.ref.feeToken!.equals(WRAPPED_NATIVE)
+          decoded.msg.queryID === 1n &&
+          decoded.msg.data.equals(Cell.EMPTY) &&
+          decoded.msg.destChainSelector ===
+            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+          decoded.msg.tokenAmounts.length === 0 &&
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })

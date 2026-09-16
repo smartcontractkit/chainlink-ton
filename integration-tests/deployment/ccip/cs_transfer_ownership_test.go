@@ -25,9 +25,9 @@ import (
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -110,6 +110,7 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	}
 	contracts := []contractEntry{
 		{"Router", &stateCCIPChain.Router},
+		{"TokenAdminRegistry", &stateCCIPChain.TokenAdminRegistry},
 		{"OnRamp", &stateCCIPChain.OnRamp},
 		{"OffRamp", &stateCCIPChain.OffRamp},
 		{"FeeQuoter", &stateCCIPChain.FeeQuoter},
@@ -140,6 +141,7 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	// Step 4: Build contract refs for the contracts to transfer
 	contractRefs := []cldfds.AddressRef{
 		{Address: stateCCIPChain.Router.String(), Type: state.Router, ChainSelector: selector},
+		{Address: stateCCIPChain.TokenAdminRegistry.String(), Type: state.TokenAdminRegistry, ChainSelector: selector},
 		{Address: stateCCIPChain.OnRamp.String(), Type: state.OnRamp, ChainSelector: selector},
 		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector},
 		{Address: stateCCIPChain.FeeQuoter.String(), Type: state.FeeQuoter, ChainSelector: selector},

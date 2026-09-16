@@ -8,13 +8,13 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var InventoryContractPath = bindings.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
+var InventoryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
 
 type InventoryProvider struct {
 	apiClient tracetracking.SignedAPIClient

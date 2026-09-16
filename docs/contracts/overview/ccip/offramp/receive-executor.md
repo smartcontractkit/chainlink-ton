@@ -22,11 +22,11 @@ graph LR
 	OFR -->|InitExecute| RE
 	RE -->|DispatchValidated| OFR
 	OFR -->|RouteMessage| R
-	R -->|CCIPReceive| RCV
+	R -->|Receiver_CCIPReceiveV2| RCV
 	RCV -->|CCIPReceiveConfirm| R
 	R -->|CCIPReceiveConfirm| OFR
 	OFR -->|Confirm| RE
-	R -->|CCIPReceive bounce| OFR
+	R -->|Receiver_CCIPReceiveV2 bounce| OFR
 	OFR -->|Bounced| RE
 ```
 

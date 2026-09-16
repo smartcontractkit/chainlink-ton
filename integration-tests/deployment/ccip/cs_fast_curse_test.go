@@ -7,11 +7,12 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
+
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -48,6 +49,14 @@ func TestFastCurseTON(t *testing.T) {
 	t.Log("TON deployer: ", tonChain.Wallet.WalletAddress().String())
 
 	toolingAPIVersion := semver.MustParse("1.6.0")
+
+	// The bumped chainlink-ccip/deployment requires an UltraFastCurse RBACTimelock to
+	// be present before the EVM DeployChainContracts sequence can deploy the RMN (it is
+	// passed as the RMN's curse admin). TON does not implement Ultra Fast Curse, so seed
+	// a placeholder ref for the EVM chain. See resolveUltraFastCurseTimelock in
+	// chainlink-ccip/chains/evm/deployment/v1_6_0/sequences/deploy_chain_contracts.go.
+	env, err = SeedUltraFastCurseMCMS(env)
+	require.NoError(t, err, "Failed to seed UltraFastCurse MCMS timelock ref")
 
 	// <deploy-evm>
 	mcmsRegistry := cs_core.GetRegistry()
@@ -88,7 +97,8 @@ func TestFastCurseTON(t *testing.T) {
 
 	tonDefinition := lanes.ChainDefinition{
 		Selector: tonChain.Selector,
-		GasPrice: big.NewInt(1e17),
+		// See TonLaneAdapter.GetDefaultGasPrice().
+		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
@@ -202,8 +212,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
-				MCMS:  mcms.Input{},
+				Force:                     false,
+				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the curse changeset
@@ -233,8 +244,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
-				MCMS:  mcms.Input{},
+				Force:                     false,
+				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the uncurse changeset
@@ -272,8 +284,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
-				MCMS:  mcms.Input{},
+				Force:                     false,
+				AllowAsymmetricLaneCurses: true, // bypass bidirectionality check
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the curse changeset
@@ -308,8 +321,9 @@ func TestFastCurseTON(t *testing.T) {
 						Version:              toolingAPIVersion,
 					},
 				},
-				Force: false,
-				MCMS:  mcms.Input{},
+				Force:                     false,
+				AllowAsymmetricLaneCurses: true,
+				MCMS:                      mcms.Input{},
 			}
 
 			// Apply the uncurse changeset

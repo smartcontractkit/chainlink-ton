@@ -1,33 +1,41 @@
 // SPDX-License-Identifier: BUSL-1.1
+/// JettonLockBox types, error codes, and storage.
 
 import "../../../lib/access/access_control"
 
-/// Facility for error codes.
-const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pools.JettonLockBox";
+/// Facility ID used for error code derivation.
+const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pool.JettonLockBox";
 const JettonLockBox_FACILITY_ID = JettonLockBox_FACILITY_NAME.crc32() % 640 + 10;
+const JettonLockBox_CONTRACT_VERSION = "0.1.0";
 
-const JettonLockBox_ERROR_CODE = JettonLockBox_FACILITY_ID * 100;
-
-/// Role that can deposit/withdraw (the "authorized caller").
+/// Role granted to pool contracts that can deposit and withdraw from the lockbox.
 const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
 
+/// Event topics.
+const TOPIC_DEPOSIT = "JettonLockBox_Deposit".crc32();
+const TOPIC_WITHDRAWAL = "JettonLockBox_Withdrawal".crc32();
+
+/// Error codes for JettonLockBox. FACILITY_ID = 567, so codes start at 56700.
 enum JettonLockBox_Error {
-	// InsufficientBalance // not supported on TVM
-    TokenAmountCannotBeZero = JettonLockBox_ERROR_CODE
-    RecipientCannotBeZeroAddress
-    UnsupportedToken
-
+    /// Thrown when a deposit or withdraw amount is zero.
+    TokenAmountCannotBeZero = JettonLockBox_FACILITY_ID * 100; // 56700
+    /// Thrown when a withdrawal target is the zero address.
+    RecipientCannotBeZeroAddress // 56701
+    /// Thrown for operations on unsupported tokens (wrong wallet or uninitialized).
+    UnsupportedToken // 56702
     /// Thrown when trying to initialize the contract more than once.
-    ContractAlreadyInitialized
-
-    /// Thrown when trying to call a function on an uninitialized contract.
-    ContractNotInitialized
+    ContractAlreadyInitialized // 56703
+    /// Thrown when calling a function on an uninitialized contract or with invalid input.
+    ContractNotInitialized // 56704
 }
 
+/// Lockbox storage: tracks the supported jetton and RBAC state.
 struct Storage {
     id: uint64;
 
+    /// Minter address of the token this lockbox holds.
     minterAddress: address;
+    /// Jetton wallet address belonging to this lockbox instance.
     walletAddress: address?;
 
     rbac: AccessControl_Data;
@@ -41,8 +49,7 @@ fun Storage.store(self) {
     contract.setData(self.toCell());
 }
 
-/// Returns whether the contract storage is initialized.
+/// Checks if the lockbox has been initialized (walletAddress is set).
 fun Storage.isInitialized(self): bool {
-    // Should be set during init
     return self.walletAddress != null;
 }

@@ -9,6 +9,7 @@ import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } f
 import { JettonMinter, builder as minterBuilder } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet, builder as walletBuilder } from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 const JETTON_DATA_URI = 'wgram.gas'
 
@@ -132,8 +133,8 @@ describe('wGRAM gas calibration', () => {
   let nextQueryId: bigint
 
   beforeAll(async () => {
-    minterCode = await compile('wgram.JettonMinter')
-    walletCode = await compile('wgram.JettonWallet')
+    minterCode = await contractCode.ccip.local('wgram.JettonMinter')
+    walletCode = await contractCode.ccip.local('wgram.JettonWallet')
   })
 
   beforeEach(async () => {
@@ -293,14 +294,19 @@ describe('wGRAM gas calibration', () => {
         .asCell(),
     )
     const notificationBodyStats = cellStats(
-      walletBuilder.messages.out.transferNotificationForRecipient
-        .encode({
-          queryId: 1,
-          jettonAmount: toNano('0.7'),
-          senderAddress: alice.address,
-          forwardPayload,
-        })
-        .asCell(),
+      (() => {
+        const b = beginCell()
+        walletBuilder.messages.out.transferNotificationForRecipient.store(
+          {
+            queryId: 1,
+            jettonAmount: toNano('0.7'),
+            senderAddress: alice.address,
+            forwardPayload,
+          },
+          b,
+        )
+        return b.endCell()
+      })(),
     )
     const burnNotificationLiveStats = cellStats(
       walletBuilder.messages.out.burnNotificationForMinter
@@ -350,19 +356,24 @@ describe('wGRAM gas calibration', () => {
     // beyond AskToTransfer (transfer flow) or beyond MintNewJettons (mint flow) will break the
     // budget silently in gas terms, so we catch it here at the shape level.
     const askToTransferBodyStats = cellStats(
-      walletBuilder.messages.in.askToTransfer
-        .encode({
-          queryId: 1,
-          jettonAmount: toNano('0.7'),
-          // SMALLEST realistic incoming: customPayload is null (one bit, no ref). Any real call
-          // is at least this big.
-          customPayload: null,
-          destination: alice.address,
-          responseDestination: deployer.address,
-          forwardTonAmount: toNano('0.05'),
-          forwardPayload,
-        })
-        .asCell(),
+      (() => {
+        const b = beginCell()
+        walletBuilder.messages.in.askToTransfer.store(
+          {
+            queryId: 1,
+            jettonAmount: toNano('0.7'),
+            // SMALLEST realistic incoming: customPayload is null (one bit, no ref). Any real call
+            // is at least this big.
+            customPayload: null,
+            destination: alice.address,
+            responseDestination: deployer.address,
+            forwardTonAmount: toNano('0.05'),
+            forwardPayload,
+          },
+          b,
+        )
+        return b.endCell()
+      })(),
     )
     expect(transferBodyStats.bits).toBeLessThan(askToTransferBodyStats.bits)
     expect(transferBodyStats.cells).toBeLessThanOrEqual(askToTransferBodyStats.cells)

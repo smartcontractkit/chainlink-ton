@@ -69,6 +69,16 @@ const FEE_SIZE_SMALL = 1;
 const FEE_SIZE_DEFAULT = 2;
 const FEE_SIZE_LARGE = 3;
 
+/// The zero internal (standard) address: workchain 0 with an all-zero 256-bit hash.
+/// This is the TON analog of EVM's `address(0)`.
+const ZERO_ADDRESS = address("0:0000000000000000000000000000000000000000000000000000000000000000");
+
+/// Returns true if the given address is the zero address.
+@pure
+fun isZeroAddress(addr: address): bool {
+    return addr == ZERO_ADDRESS;
+}
+
 /// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS.
 fun calculateGasFeeDefault(): coins {
     val workchain = contract.getAddress().getWorkchain();
@@ -238,6 +248,21 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
         entry = dict.iterateNext(entry);
     } ;
     return lisplist;
+}
+
+// Helper to cast T? into Cell<T>?
+fun T?.toOptCell(self): Cell<T>? {
+    if (self == null) {
+        return null;
+    }
+    return self.toCell();
+}
+
+fun Cell<T>?.loadOpt(self): T? {
+    if (self == null) {
+        return null;
+    }
+    return self.load();
 }
 
 // This type works as a wrapper for RemainingBitsAndRefs that implements

@@ -4,7 +4,6 @@ import { Address, beginCell, toNano, Dictionary, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
 import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
-import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
   AccessControl_Data,
   JettonLockBox,
@@ -15,25 +14,13 @@ import {
   JettonLockBox_Deposited,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
-import { setupGenBindings } from '../../../wrappers/gen'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseTokenPool'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 // Role constants
 const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'))
 const DEFAULT_ADMIN_ROLE = 0n
-
-// Error codes (from generated binding)
-// Must match contracts/ccip/pools/lockbox/types.tolk JettonLockBox_Error
-// (facility id 624 → base 62400) and the AccessControl facility (474 → 47400).
-const ErrorCodes = {
-  TokenAmountCannotBeZero: 62400,
-  RecipientCannotBeZeroAddress: 62401,
-  UnsupportedToken: 62402,
-  ContractAlreadyInitialized: 62403,
-  ContractNotInitialized: 62404,
-  UnauthorizedAccount: 47400,
-}
 
 // Create an empty AccessControl_Data (no roles initialized yet)
 function emptyAccessControlData(): AccessControl_Data {
@@ -59,10 +46,6 @@ describe('JettonLockBox', () => {
 
   const remoteChainSelector = 91000001n
 
-  beforeAll(async () => {
-    setupGenBindings()
-  })
-
   beforeEach(async () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
@@ -71,8 +54,8 @@ describe('JettonLockBox', () => {
     recipient = await blockchain.treasury('recipient')
 
     // Deploy jetton minter
-    const jettonWalletCode = await jetton.JettonWalletCode()
-    const jettonMinterCode = await jetton.JettonMinterCode()
+    const jettonWalletCode = await contractCode.jetton('JettonWallet')
+    const jettonMinterCode = await contractCode.jetton('JettonMinter')
 
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
@@ -108,12 +91,15 @@ describe('JettonLockBox', () => {
     // Create lockbox using fromStorage (handles serialization correctly)
     // walletAddress starts as null — will be set via init message
     lockbox = blockchain.openContract(
-      JettonLockBox.fromStorage({
-        id: 0n,
-        minterAddress: jettonMinter.address,
-        walletAddress: null,
-        rbac: emptyAccessControlData(),
-      }),
+      JettonLockBox.fromStorage(
+        {
+          id: 0n,
+          minterAddress: jettonMinter.address,
+          walletAddress: null,
+          rbac: emptyAccessControlData(),
+        },
+        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+      ),
     )
 
     // Compute the real jetton wallet address for the lockbox
@@ -162,7 +148,7 @@ describe('JettonLockBox', () => {
 
     it('should return correct type and version', async () => {
       const [type, version] = await lockbox.getTypeAndVersion()
-      expect(type.loadStringTail()).toBe('link.chain.ton.ccip.JettonLockBox')
+      expect(type.loadStringTail()).toBe('link.chain.ton.ccip.pool.JettonLockBox')
       expect(version.loadStringTail()).toBe('0.1.0')
     })
 
@@ -197,6 +183,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount,
+          context: null,
         }),
       )
 
@@ -253,6 +240,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: 0n,
+          context: null,
         }),
       )
 
@@ -279,6 +267,76 @@ describe('JettonLockBox', () => {
         // TODO: ?
         success: true, // The message itself succeeds (no bounce), but deposit is silently skipped
       })
+    })
+
+    it('returns unidentifiable custody to the sender when the forward payload is missing (D1)', async () => {
+      // A deposit notification with a null forward payload cannot be attributed to any pool, so no
+      // `JettonLockBox_Deposited` will ever be issued. The tokens must NOT be silently parked in the
+      // lockbox forever (ANALYSIS_ERROR_HANDLING.md D1) — they are returned best-effort to the
+      // transfer initiator instead.
+      const amount = toNano('7')
+      const queryId = 211n
+
+      // Activate the lockbox's jetton wallet so its balance can be observed (a wallet with no
+      // balance isn't deployed until it receives its first jettons).
+      await jettonMinter.sendMint(deployer.getSender(), {
+        value: toNano('0.5'),
+        message: {
+          queryId,
+          // Mint the jettons to the lockbox OWNER so its dedicated wallet address is deployed.
+          destination: lockbox.address,
+          tonAmount: toNano('0.05'),
+          jettonAmount: toNano('1'),
+          from: deployer.address,
+          responseDestination: null,
+        },
+      })
+      const lockboxBalanceBefore = await lockboxWallet.getJettonBalance()
+      expect(lockboxBalanceBefore).toEqual(toNano('1'))
+      const operatorBalanceBefore = await operatorWallet.getJettonBalance()
+
+      // Sending an empty forward payload makes `loadForwardPayloadAsSlice` return null, so the
+      // deposit is unidentifiable and hits the D1 `returnFundsBestEffort` path.
+      const result = await operatorWallet.sendTransfer(operator.getSender(), {
+        value: toNano('0.2'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: lockbox.address,
+          responseDestination: operator.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.05'),
+          // Empty forward payload → `loadForwardPayloadAsSlice` returns null.
+          forwardPayload: Cell.EMPTY,
+        },
+      })
+
+      // The lockbox's own jetton wallet notifies it of the (unidentifiable) deposit.
+      expect(result.transactions).toHaveTransaction({
+        from: lockboxWallet.address,
+        to: lockbox.address,
+        op: TransferNotificationForRecipient.PREFIX,
+      })
+
+      // No JettonLockBox_Deposited is issued (nothing could be identified/confirmed).
+      const depositedReplies = result.transactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        return (
+          tx.inMessage?.info?.src?.equals?.(lockbox.address) &&
+          !!body &&
+          body.beginParse().remainingBits >= 32 &&
+          body.beginParse().preloadUint(32) === JettonLockBox_Deposited.PREFIX
+        )
+      })
+      expect(depositedReplies).toHaveLength(0)
+
+      // Custody is not permanently parked in the lockbox wallet.
+      const lockboxBalanceAfter = await lockboxWallet.getJettonBalance()
+      expect(lockboxBalanceAfter).toEqual(lockboxBalanceBefore)
+
+      // And the operator's custody is restored.
+      const operatorBalanceAfter = await operatorWallet.getJettonBalance()
+      expect(operatorBalanceAfter).toEqual(operatorBalanceBefore)
     })
 
     it('should reject deposit from non-operator transfer initiator', async () => {
@@ -309,6 +367,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount,
+          context: null,
         }),
       )
 
@@ -325,13 +384,33 @@ describe('JettonLockBox', () => {
         },
       })
 
-      // The jetton transfer itself succeeds (tokens arrive at lockbox wallet),
-      // but the lockbox handler rejects because unauthorized has no OPERATOR_ROLE
+      // Unauthorized deposits are no longer bounced: the role check now lives inside the
+      // try/catch (D1), so the notification is accepted and custody is returned best-effort to the
+      // unauthorized initiator instead of being stranded in the lockbox. No JettonLockBox_Deposited
+      // is ever issued for an unauthorized operator.
       expect(result.transactions).toHaveTransaction({
         from: lockboxWallet.address,
         to: lockbox.address,
-        success: false,
+        success: true,
+        op: TransferNotificationForRecipient.PREFIX,
       })
+
+      // No JettonLockBox_Deposited reply is sent (deposit was rejected / custody returned).
+      const depositedReplies = result.transactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        return (
+          tx.inMessage?.info?.src?.equals?.(lockbox.address) &&
+          !!body &&
+          body.beginParse().remainingBits >= 32 &&
+          body.beginParse().preloadUint(32) === JettonLockBox_Deposited.PREFIX
+        )
+      })
+      expect(depositedReplies).toHaveLength(0)
+
+      // Custody is returned: the lockbox's AskToTransfer moves the jettons back to the unauthorized
+      // initiator. The sender's wallet balance is restored (nothing parked in the lockbox).
+      const afterBalance = await unauthorizedWallet.getJettonBalance()
+      expect(afterBalance).toEqual(toNano('100'))
     })
   })
 
@@ -355,7 +434,7 @@ describe('JettonLockBox', () => {
         from: unauthorized.address,
         to: lockbox.address,
         success: false,
-        exitCode: ErrorCodes.UnauthorizedAccount,
+        exitCode: JettonLockBox.Errors['AccessControl_Error.UnauthorizedAccount'],
       })
     })
 
@@ -368,6 +447,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: depositAmount,
+          context: null,
         }),
       )
 
@@ -428,7 +508,7 @@ describe('JettonLockBox', () => {
         from: operator.address,
         to: lockbox.address,
         success: false,
-        exitCode: ErrorCodes.TokenAmountCannotBeZero,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.TokenAmountCannotBeZero'],
       })
     })
 
@@ -482,7 +562,7 @@ describe('JettonLockBox', () => {
         from: deployer.address,
         to: lockbox.address,
         success: false,
-        exitCode: ErrorCodes.ContractAlreadyInitialized,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.ContractAlreadyInitialized'],
       })
 
       // Verify storage unchanged (wallet still points to original)
@@ -493,12 +573,15 @@ describe('JettonLockBox', () => {
     it('should reject operations on uninitialized contract', async () => {
       // Deploy a fresh lockbox but DON'T init it
       const freshLockbox = blockchain.openContract(
-        JettonLockBox.fromStorage({
-          minterAddress: jettonMinter.address,
-          walletAddress: null,
-          id: 1n,
-          rbac: emptyAccessControlData(),
-        }),
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 1n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
       )
 
       // Deploy without sending init message
@@ -521,18 +604,21 @@ describe('JettonLockBox', () => {
       expect(result.transactions).toHaveTransaction({
         to: freshLockbox.address,
         success: false,
-        exitCode: ErrorCodes.ContractNotInitialized,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.ContractNotInitialized'],
       })
     })
 
     it('should use msg.sender as admin when admin is null in init', async () => {
       const autoAdminLockbox = blockchain.openContract(
-        JettonLockBox.fromStorage({
-          minterAddress: jettonMinter.address,
-          walletAddress: null,
-          id: 2n,
-          rbac: emptyAccessControlData(),
-        }),
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 2n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
       )
 
       const autoAdminWalletAddress = await jettonMinter.getWalletAddress(autoAdminLockbox.address)

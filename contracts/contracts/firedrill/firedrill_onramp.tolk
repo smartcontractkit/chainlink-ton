@@ -70,8 +70,12 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 	val messageBody = TVM2AnyRampMessageBody {
 		receiver: tonAddressToCrossChainAddress(sender).toCell(),
 		data: beginCell().storeUint(123, 32).endCell(),
-		extraArgs: createEmptyCell(),
-		tokenAmounts: createEmptyCell(),
+		extraArgs: (GenericExtraArgsV2 {
+			gasLimit: null,
+			allowOutOfOrderExecution: true,
+		} as ExtraArgs).toCell(),
+		// No token transfer.
+		tokenTransfer: createEmptyCell(),
 		feeToken: tokenAddress,
 		feeTokenAmount: 0
 	};
