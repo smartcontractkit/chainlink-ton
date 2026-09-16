@@ -113,8 +113,12 @@ get fun config(): Config {
 	return {
 		chainSelector: st.chainSelector,
 		tokenAdminRegistry: st.controlAddress,
-		feeQuoter: st.controlAddress,
-		permissionlessExecutionThresholdSeconds: 10,
+		dynamicConfig: OffRamp_DynamicConfig {
+			feeQuoter: st.controlAddress,
+			permissionlessExecutionThresholdSeconds: 10,
+			minGasLimit: ton("0.025"),
+			minTTGasLimit: ton("0.15"),
+		},
 	};
 }
 

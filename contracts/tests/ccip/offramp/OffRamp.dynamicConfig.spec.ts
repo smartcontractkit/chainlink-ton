@@ -33,12 +33,18 @@ describe('OffRamp - Dynamic Config', () => {
     // owner can call SetDynamicConfig
     const newFeeQuoter = await generateRandomTonAddress()
     const newPermissionlessExecutionThresholdSeconds = BigInt(7200)
+    const newMinGasLimit = toNano('0.03')
+    const newMinTTGasLimit = toNano('0.2')
     const result = await setup.offRamp.sendOffRampSetDynamicConfig(
       setup.deployer.getSender(),
       toNano('0.1'),
       {
-        feeQuoter: newFeeQuoter,
-        permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
+        config: of.OffRamp_DynamicConfig.create({
+          feeQuoter: newFeeQuoter,
+          permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
+          minGasLimit: newMinGasLimit,
+          minTTGasLimit: newMinTTGasLimit,
+        }),
       },
     )
     expect(result.transactions).toHaveTransaction({
@@ -49,10 +55,12 @@ describe('OffRamp - Dynamic Config', () => {
 
     // verify changes
     const dynamicConfig = await setup.offRamp.getConfig()
-    expect(dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
-    expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
+    expect(dynamicConfig.dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
+    expect(dynamicConfig.dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
       newPermissionlessExecutionThresholdSeconds,
     )
+    expect(dynamicConfig.dynamicConfig.minGasLimit).toBe(newMinGasLimit)
+    expect(dynamicConfig.dynamicConfig.minTTGasLimit).toBe(newMinTTGasLimit)
 
     // non-owner cannot call SetDynamicConfig
     const other = await blockchain.treasury('other')
@@ -60,8 +68,12 @@ describe('OffRamp - Dynamic Config', () => {
       other.getSender(),
       toNano('0.1'),
       {
-        feeQuoter: newFeeQuoter,
-        permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
+        config: of.OffRamp_DynamicConfig.create({
+          feeQuoter: newFeeQuoter,
+          permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
+          minGasLimit: newMinGasLimit,
+          minTTGasLimit: newMinTTGasLimit,
+        }),
       },
     )
     expect(result2.transactions).toHaveTransaction({

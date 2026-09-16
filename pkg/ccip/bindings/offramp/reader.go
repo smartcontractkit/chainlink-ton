@@ -109,11 +109,27 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			return c, fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
 		}
 
+		minGasLimitInt, err := r.Int(4)
+		if err != nil {
+			return c, fmt.Errorf("failed to get minGasLimit: %w", err)
+		}
+		minGasLimit := tlb.FromNanoTON(minGasLimitInt)
+
+		minTTGasLimitInt, err := r.Int(5)
+		if err != nil {
+			return c, fmt.Errorf("failed to get minTTGasLimit: %w", err)
+		}
+		minTTGasLimit := tlb.FromNanoTON(minTTGasLimitInt)
+
 		return Config{
-			ChainSelector:                           chainSelector,
-			TokenAdminRegistry:                      tokenAdminRegistry,
-			FeeQuoterAddress:                        feeQuoterAddress,
-			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
+			ChainSelector:      chainSelector,
+			TokenAdminRegistry: tokenAdminRegistry,
+			DynamicConfig: DynamicConfig{
+				FeeQuoter:                               feeQuoterAddress,
+				PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
+				MinGasLimit:                             minGasLimit,
+				MinTTGasLimit:                           minTTGasLimit,
+			},
 		}, nil
 	}),
 })

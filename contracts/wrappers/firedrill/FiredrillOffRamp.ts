@@ -89,8 +89,12 @@ export class FiredrillOffRamp implements Contract {
     return of.Config.create({
       chainSelector: result.stack.readBigNumber(),
       tokenAdminRegistry: result.stack.readAddress(),
-      feeQuoter: result.stack.readAddress(),
-      permissionlessExecutionThresholdSeconds: result.stack.readBigNumber(),
+      dynamicConfig: of.OffRamp_DynamicConfig.create({
+        feeQuoter: result.stack.readAddress(),
+        permissionlessExecutionThresholdSeconds: result.stack.readBigNumber(),
+        minGasLimit: result.stack.readBigNumber(),
+        minTTGasLimit: result.stack.readBigNumber(),
+      }),
     })
   }
 

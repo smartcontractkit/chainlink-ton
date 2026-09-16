@@ -236,15 +236,22 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			StaticConfig: offramp.StaticConfig{
-				RMNRouter:          &routerAddress,
-				TokenAdminRegistry: &tokenAdminRegistryAddress,
-				ChainSelector:      in.ChainSelector,
+			Config: offramp.OffRampConfig{
+				StaticConfig: offramp.StaticConfig{
+					RMNRouter:          &routerAddress,
+					TokenAdminRegistry: &tokenAdminRegistryAddress,
+					ChainSelector:      in.ChainSelector,
+				},
+				DynamicConfig: offramp.DynamicConfig{
+					FeeQuoter:                               &feeQuoterAddress,
+					PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
+					MinGasLimit:                             tlb.MustFromTON(in.CCIPConfig.OffRampParams.MinGasLimit),
+					MinTTGasLimit:                           tlb.MustFromTON(in.CCIPConfig.OffRampParams.MinTTGasLimit),
+				},
 			},
-			FeeQuoter: &feeQuoterAddress,
 			// empty OCR3Base
-			OCR3Base:                                offramp.OCR3Base{},
-			PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
+			OCR3Base:                  offramp.OCR3Base{},
+			SourceChainConfigs:        nil,
 			LatestPriceSequenceNumber: 0,
 		}
 

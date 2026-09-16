@@ -29,8 +29,7 @@ struct SourceChainConfigUpdated {
 
 const DYNAMIC_CONFIG_SET_TOPIC: int = "DynamicConfigSet".crc32();
 struct OffRamp_DynamicConfigSet {
-    feeQuoter: address;
-    permissionlessExecutionThresholdSeconds: uint32,
+    config: OffRamp_DynamicConfig,
 }
 
 const RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED: int = "ReceiveExecutorInitExecuteBounced".crc32();

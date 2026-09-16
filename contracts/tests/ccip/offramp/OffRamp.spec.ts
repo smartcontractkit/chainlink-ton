@@ -70,8 +70,8 @@ describe('OffRamp - Upgrade Tests', () => {
       const config = await offramp.getConfig()
       expect(config.chainSelector).toBe(ChainSelectors.testnet.ton)
       expect(config.tokenAdminRegistry).toEqualAddress(owner.address)
-      expect(config.feeQuoter).toEqualAddress(owner.address)
-      expect(config.permissionlessExecutionThresholdSeconds).toBe(
+      expect(config.dynamicConfig.feeQuoter).toEqualAddress(owner.address)
+      expect(config.dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
         PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
       )
       expect(await offramp.getRmnRouter()).toEqualAddress(owner.address)

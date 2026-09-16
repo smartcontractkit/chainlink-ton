@@ -49,8 +49,7 @@ type SourceChainSelectorAdded struct {
 
 // DynamicConfigSet represents the DynamicConfigSet event data
 type DynamicConfigSet struct {
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	Config DynamicConfig `tlb:"."`
 }
 
 // ReceiveExecutorInitExecuteBounced represents the ReceiveExecutorInitExecuteBounced event data
@@ -73,15 +72,13 @@ type RouteMessageBounced struct {
 
 // Storage represents the offRamp contract storage state
 type Storage struct {
-	ID                                      uint32               `tlb:"## 32"`
-	Ownable                                 ownable2step.Storage `tlb:"."`
-	StaticConfig                            StaticConfig         `tlb:"^"`
-	FeeQuoter                               *address.Address     `tlb:"addr"`
-	OCR3Base                                OCR3Base             `tlb:"^"`
-	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
-	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
-	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
-	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
+	ID                        uint32               `tlb:"## 32"`
+	Ownable                   ownable2step.Storage `tlb:"."`
+	Config                    OffRampConfig        `tlb:"^"`
+	OCR3Base                  OCR3Base             `tlb:"^"`
+	CursedSubjects            *cell.Dictionary     `tlb:"dict 128"`
+	SourceChainConfigs        *cell.Dictionary     `tlb:"dict 64"`
+	LatestPriceSequenceNumber uint64               `tlb:"## 64"`
 }
 
 type StaticConfig struct {
@@ -165,10 +162,9 @@ type Execute struct {
 }
 
 type SetDynamicConfig struct {
-	_                                       tlb.Magic        `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID                                 uint64           `tlb:"## 64"`
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	_       tlb.Magic     `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64        `tlb:"## 64"`
+	Config  DynamicConfig `tlb:"."`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -208,12 +204,28 @@ func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
 
-// Config represents the offRamp contract configuration
-type Config struct {
-	ChainSelector                           uint64           `tlb:"## 64"`
-	TokenAdminRegistry                      *address.Address `tlb:"addr"`
-	FeeQuoterAddress                        *address.Address `tlb:"addr"`
+// DynamicConfig holds the dynamic configuration for the OffRamp contract.
+type DynamicConfig struct {
+	FeeQuoter                               *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	MinGasLimit                             tlb.Coins        `tlb:"."`
+	MinTTGasLimit                           tlb.Coins        `tlb:"."`
+}
+
+// OffRampConfig combines the static and dynamic config into a single cell to
+// stay within the TVM 4-ref serialization limit for the root Storage struct.
+// The dynamic config is itself kept in a reference because inlining it would
+// overflow the 1023-bit limit of this struct.
+type OffRampConfig struct {
+	StaticConfig  StaticConfig  `tlb:"."`
+	DynamicConfig DynamicConfig `tlb:"^"`
+}
+
+// Config represents the offRamp contract configuration returned by the config getter.
+type Config struct {
+	ChainSelector      uint64           `tlb:"## 64"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
+	DynamicConfig      DynamicConfig    `tlb:"."`
 }
 
 // Deprecated: Use GetConfig getter instead.

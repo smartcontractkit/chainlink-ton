@@ -116,6 +116,8 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				Coin:                             "0.05",
 				ChainSelector:                    chain.Selector,
 				PermissionlessExecutionThreshold: 0,
+				MinGasLimit:                      "0.025",
+				MinTTGasLimit:                    "0.15",
 			},
 			OnRampParams: config.OnRampParams{
 				ID:            idForContracts,

@@ -94,6 +94,13 @@ struct DeployableHashes {
     deployer: uint256;
 }
 
+struct OffRamp_DynamicConfig {
+    feeQuoter: address
+    permissionlessExecutionThresholdSeconds: uint32
+    minGasLimit: coins
+    minTTGasLimit: coins
+}
+
 struct Config {
     // -- Static config
     chainSelector: uint64
@@ -102,8 +109,7 @@ struct Config {
     // nonceManager
     tokenAdminRegistry: address
     // -- Dynamic config
-    feeQuoter: address
-    permissionlessExecutionThresholdSeconds: uint32
+    dynamicConfig: OffRamp_DynamicConfig
     // isRMNVerificationDisabled
     // messageInterceptor
 }
@@ -114,6 +120,15 @@ struct OffRamp_StaticConfig {
     rmnRouter: address;
     tokenAdminRegistry: address;
     chainSelector: uint64;
+}
+
+// Combines the static and dynamic config into a single cell so the OffRamp root
+// Storage struct stays within the TVM 4-ref serialization limit. The dynamic
+// config is itself kept in a reference because inlining it would overflow the
+// 1023-bit limit of this struct.
+struct OffRamp_Config {
+    staticConfig: OffRamp_StaticConfig;
+    dynamicConfig: Cell<OffRamp_DynamicConfig>;
 }
 
 struct SourceChainConfig {
