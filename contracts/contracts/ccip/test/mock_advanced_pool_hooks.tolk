@@ -4,6 +4,9 @@
 //   queryId % 2 == 0  → Finished  (success)
 //   queryId % 2 == 1  → Failed    (failure)
 
+import "@stdlib/gas-payments"
+
+import "../../lib/utils"
 import "../pools/lib/token_pool/messages"
 
 contract MockAdvancedPoolHooks {
@@ -19,9 +22,14 @@ struct MockAdvancedPoolHooks_Data {
     id: uint8;
 }
 
+fun MockAdvancedPoolHooks_Data.load(): MockAdvancedPoolHooks_Data {
+    return MockAdvancedPoolHooks_Data.fromCell(contract.getData());
+}
+
 type MockAdvancedPoolHooks_InMessage =
   | TokenPool_PreflightCheck
-  | TokenPool_PostflightCheck;
+  | TokenPool_PostflightCheck
+  | TokenPool_GetCCVs;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MockAdvancedPoolHooks_InMessage.fromSlice(in.body);
@@ -33,11 +41,58 @@ fun onInternalMessage(in: InMessage) {
         TokenPool_PostflightCheck => {
             replyPostflight(msg);
         }
+        TokenPool_GetCCVs => {
+            replyGetCCVs(msg);
+        }
         else => {
             // Accept empty messages (top-up), reject everything else.
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
     }
+}
+
+/// Replies to a pool `TokenPool_GetCCVs` with a `TokenPool_QueryCCVsReply`, preserving the
+/// context in `replyPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
+/// The CCV set is driven by the mock's storage `id`:
+///   - `id == 0` (default): empty CCV set, signaling "use lane defaults".
+///   - `id != 0`, `id != 254` and `id != 255`: returns a single hard-coded CCV (the pool itself)
+///     so a NON-empty set flows through the pool → hooks → pool → requester round-trip and is
+///     observable in replies.
+///   - `id == 255`: bounces (throws 0xFFFF), finalizing the query with `TokenPool_GetCCVsFailed`
+///     on the pool side via its `onBouncedMessage` handler. Used to test hook-bounce finalization.
+///   - `id == 254`: genuine out-of-gas — TVM reverts with exit code -14 (`~13`, negative so
+///     user contracts cannot fake it) and the pool must propagate that raw code unmodified.
+const MOCK_HOOKS_BOUNCE_ID = 255;
+const MOCK_HOOKS_OOG_ID = 254;
+
+fun replyGetCCVs(msg: TokenPool_GetCCVs) {
+    val data = MockAdvancedPoolHooks_Data.load();
+    if (data.id == MOCK_HOOKS_BOUNCE_ID) {
+        throw 0xFFFF; // bounce the pool's forwarded GetCCVs
+    }
+    if (data.id == MOCK_HOOKS_OOG_ID) {
+        // Cap gas below what is already used → genuine TVM out-of-gas, bounce exit code -14.
+        setGasLimit(100);
+    }
+
+    var requiredCCVs: array<address> = [];
+    if (data.id != 0) {
+        // A single CCV (the pool that queried us) — meaningful enough for a mock and lets tests
+        // assert that the non-empty set is echoed back through the pool unchanged.
+        requiredCCVs.push(msg.replyTo);
+    }
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: msg.replyTo,
+        body: TokenPool_QueryCCVsReply {
+            queryId: msg.queryId,
+            requiredCCVs: requiredCCVs,
+            replyPayload: msg.forwardPayload,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun replyPreflight(msg: TokenPool_PreflightCheck) {

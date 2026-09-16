@@ -75,4 +75,5 @@ struct CCIPSendExecutor_State_Finalized {
 struct CCIPSendExecutor_Config {
     router: address,
     feeQuoter: address,
+    tokenRegistry: address?,
 }

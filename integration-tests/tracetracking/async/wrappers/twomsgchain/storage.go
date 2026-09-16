@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var StorageContractPath = bindings.GetBuildDir("examples.async-communication.two-msg-chain.Storage/tact_Storage.pkg")
+var StorageContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-msg-chain.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tracetracking.SignedAPIClient

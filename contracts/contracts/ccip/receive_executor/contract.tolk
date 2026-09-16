@@ -4,7 +4,7 @@ import "@stdlib/gas-payments"
 import "../../lib/utils"
 import "../offramp/types"
 import "../offramp/messages"
-import "../token_registry/messages"
+import "../token_admin_registry_entry/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../common/types"
@@ -47,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the TokenAdminRegistry
-        TokenRegistry_ReturnTokenInfo => {
+        TokenAdminRegistryEntry_ReturnTokenInfo => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
@@ -106,7 +106,8 @@ fun onInternalMessage(in: InMessage) {
 // @param value: The value sent with the message, which should be enough to cover the gas costs for the execution and any token transfers.
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute, value: coins) {
     val message = lazy st.message.load();
-    
+
+    st.state.queryId = msg.queryId;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
     if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec()) {
         return endExecutionWithFailure(mutate st, message.header, 0);
@@ -118,7 +119,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
         if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + tokenTransfer.transfer.destGasAmount + ReceiveExecutor_Costs.tokenTransfer()) {
             return endExecutionWithFailure(mutate st, message.header, 0);
         }
-        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry);
+        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry, tokenTransfer.offchainTokenData);
 
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
             return match (ttInfo.state) {
@@ -148,13 +149,14 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
             bounce: true,
             value: 0,
             dest: ttInfo.tokenAdminRegistry,
-            body: TokenRegistry_GetTokenInfo {
+            body: TokenAdminRegistryEntry_GetTokenInfo {
+                queryId: 0,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistryEntry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     if (msg.tokenPool == null) {
         val rampMsg = lazy st.message.load();
         ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
@@ -175,7 +177,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
             value: transfer.destGasAmount + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
-                queryId: 0,
+                queryId: st.state.queryId,
                 execId: st.execId,
                 destGasAmount: transfer.destGasAmount,
                 tokenPool,
@@ -193,7 +195,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
                     },
                     sourcePoolAddress: transfer.sourcePoolAddress,
                     sourcePoolData: transfer.extraData,
-                    offchainTokenData: null, // TBD Any2TVMTokenTransfer doesn't have this.
+                    offchainTokenData: ttInfo.offchainTokenData,
                 }.toCell(),
             }
         }
@@ -210,6 +212,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
             value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
+                queryId: st.state.queryId,
                 message: st.message,
                 execId: st.execId,
                 effectiveGasLimit: st.state.effectiveGasLimit,
@@ -244,7 +247,8 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifyFailure {
-            header: messageHeader,
+            queryId: st.state.queryId,
+            header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
         },
@@ -270,7 +274,8 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifySuccess {
-            header: messageHeader,
+            queryId: st.state.queryId,
+            header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
         },

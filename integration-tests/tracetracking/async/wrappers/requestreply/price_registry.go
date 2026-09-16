@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var PriceRegistryContractPath = bindings.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
+var PriceRegistryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
 
 type PriceRegistryProvider struct {
 	apiClient tracetracking.SignedAPIClient

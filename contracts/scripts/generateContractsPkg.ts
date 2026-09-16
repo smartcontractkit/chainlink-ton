@@ -99,9 +99,14 @@ const CONTRACTS: ContractSource[] = [
   },
   // TP contracts
   {
-    contractType: 'link.chain.ton.ccip.TokenRegistry',
-    compiledFile: 'TokenRegistry.compiled.json',
-    tolkSource: 'contracts/ccip/token_registry/contract.tolk',
+    contractType: 'link.chain.ton.ccip.TokenAdminRegistry',
+    compiledFile: 'TokenAdminRegistry.compiled.json',
+    tolkSource: 'contracts/ccip/token_admin_registry/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.TokenAdminRegistryEntry',
+    compiledFile: 'TokenAdminRegistryEntry.compiled.json',
+    tolkSource: 'contracts/ccip/token_admin_registry_entry/contract.tolk',
   },
   // Deposit accounts
   {

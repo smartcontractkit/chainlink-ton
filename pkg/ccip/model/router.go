@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -18,18 +17,12 @@ import (
 // ---------- Router Model Struct Definitions ----------
 
 type RouterStorage struct {
-	ID                      uint32                        `json:"id"`
-	Ownable                 Ownable2Step                  `json:"ownable"`
-	WrappedNative           *address.Address              `json:"wrappedNative"`
-	OnRamps                 map[uint64]*address.Address   `json:"onRamps"`
-	OffRamps                map[uint64]*address.Address   `json:"offRamps"`
-	RMNRemote               RMNRemote                     `json:"rmnRemote"`
-	TokenRegistryDeployment RouterTokenRegistryDeployment `json:"tokenRegistryDeployment"`
-}
-
-type RouterTokenRegistryDeployment struct {
-	DeployableCode    string `json:"deployableCodeHex"`
-	TokenRegistryCode string `json:"tokenRegistryCodeHex"`
+	ID            uint32                      `json:"id"`
+	Ownable       Ownable2Step                `json:"ownable"`
+	WrappedNative *address.Address            `json:"wrappedNative"`
+	OnRamps       map[uint64]*address.Address `json:"onRamps"`
+	OffRamps      map[uint64]*address.Address `json:"offRamps"`
+	RMNRemote     RMNRemote                   `json:"rmnRemote"`
 }
 
 type RMNRemote struct {
@@ -49,14 +42,7 @@ type RouterStorageBuilder struct {
 // and initialized maps.
 func NewRouterStorageBuilder() *RouterStorageBuilder {
 	return &RouterStorageBuilder{
-		storage: RouterStorage{
-			OnRamps:  make(map[uint64]*address.Address),
-			OffRamps: make(map[uint64]*address.Address),
-			TokenRegistryDeployment: RouterTokenRegistryDeployment{
-				DeployableCode:    hex.EncodeToString(tvm.EmptyCell.ToBOC()),
-				TokenRegistryCode: hex.EncodeToString(tvm.EmptyCell.ToBOC()),
-			},
-		},
+		storage: RouterStorage{OnRamps: make(map[uint64]*address.Address), OffRamps: make(map[uint64]*address.Address)},
 	}
 }
 
@@ -132,22 +118,6 @@ func (b *RouterStorageBuilder) WithRMNRemoteCursedSubject(cursedSubject *big.Int
 	return b
 }
 
-func (b *RouterStorageBuilder) WithDeployableCode(deployableCode string) *RouterStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.TokenRegistryDeployment.DeployableCode = deployableCode
-	return b
-}
-
-func (b *RouterStorageBuilder) WithTokenRegistryCode(tokenRegistryCode string) *RouterStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.TokenRegistryDeployment.TokenRegistryCode = tokenRegistryCode
-	return b
-}
-
 // Build returns the constructed RouterStorage or an error if any step failed.
 func (b *RouterStorageBuilder) Build() (*RouterStorage, error) {
 	if b.err != nil {
@@ -167,13 +137,6 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		).
 		WithWrapperNative(raw.WrappedNative).
 		WithRMNRemote(raw.RMNRemote.Admin.Owner, raw.RMNRemote.Admin.PendingOwner)
-	if raw.TokenRegistryDeployment.DeployableCode != nil {
-		b = b.WithDeployableCode(hex.EncodeToString(raw.TokenRegistryDeployment.DeployableCode.ToBOC()))
-	}
-	if raw.TokenRegistryDeployment.TokenRegistryCode != nil {
-		b = b.WithTokenRegistryCode(hex.EncodeToString(raw.TokenRegistryDeployment.TokenRegistryCode.ToBOC()))
-	}
-
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
 	if err != nil {
@@ -326,19 +289,6 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 		); err != nil {
 			return nil, fmt.Errorf("error while setting CursedSubjects: %w", err)
 		}
-	}
-
-	deployableCode, err := loadCell(s.TokenRegistryDeployment.DeployableCode)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading token registry deployable code: %w", err)
-	}
-	tokenRegistryCode, err := loadCell(s.TokenRegistryDeployment.TokenRegistryCode)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading token registry code: %w", err)
-	}
-	st.TokenRegistryDeployment = router.TokenRegistryDeployment{
-		DeployableCode:    deployableCode,
-		TokenRegistryCode: tokenRegistryCode,
 	}
 
 	return &st, nil

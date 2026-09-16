@@ -5,7 +5,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
@@ -41,9 +40,10 @@ const (
 
 // CCIPSendExecutor_Execute message structure.
 type Execute struct {
-	_          tlb.Magic   `tlb:"#AF3C62B3" json:"-"` //nolint:revive // Ignore opcode tag
-	OnRampSend onramp.Send `tlb:"."`
-	Config     *cell.Cell  `tlb:"^"`
+	_             tlb.Magic        `tlb:"#AF3C62B3" json:"-"` //nolint:revive // Ignore opcode tag
+	OnRampSend    onramp.Send      `tlb:"."`
+	TokenRegistry *address.Address `tlb:"addr"`
+	Config        Config           `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -58,6 +58,7 @@ type Metadata struct {
 
 // CCIPSendExecutor_Config structure.
 type Config struct {
+	Router    *address.Address `tlb:"addr"`
 	FeeQuoter *address.Address `tlb:"addr"`
 }
 
@@ -70,9 +71,10 @@ type InitialData struct {
 // Addresses structure
 type Addresses struct {
 	OnRamp    *address.Address `tlb:"addr"`
+	Router    *address.Address `tlb:"addr"`
 	FeeQuoter *address.Address `tlb:"addr"`
 	// Optional (address?): addr_none when the send carries no token transfers.
-	TokenRegistry *address.Address `tlb:"addr"`
+	TokenRegistry *address.Address `tlb:"maybe ^"`
 }
 
 // State structures

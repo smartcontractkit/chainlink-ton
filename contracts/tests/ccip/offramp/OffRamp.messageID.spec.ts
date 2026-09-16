@@ -75,7 +75,9 @@ describe('OffRamp - Message ID', () => {
     // Any2TVMRampMessage.generateMessageId from ccip/offramp/types.tolk)
     const onChainMessage = tmh.Any2TVMRampMessage.create({
       header: tmh.RampMessageHeader.create(rampMessageHeader),
-      sender: message.sender,
+      sender: tmh.CrossChainAddress.fromSlice(
+        of.CrossChainAddress.toCell(message.sender).beginParse(),
+      ),
       data: message.data,
       receiver: message.receiver,
       gasLimit: message.gasLimit,

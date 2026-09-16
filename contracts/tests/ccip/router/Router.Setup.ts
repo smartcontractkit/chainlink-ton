@@ -20,6 +20,7 @@ type RouterSetupOptionsCommon = {
   sender?: SandboxContract<TreasuryContract>
   receiver?: SandboxContract<TreasuryContract>
   router?: SandboxContract<rt.Router>
+  tokenAdminRegistry?: Address
   skipRouterOnRampConfig?: boolean
 }
 type RouterSetupOverrides = Partial<{
@@ -79,13 +80,26 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   blockchain.libs = libs
   const router = opts.router ?? (await deployRouterInstance(blockchain, deployer))
   const feeQuoter = opts.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
+  const tokenAdminRegistry = opts.tokenAdminRegistry ?? deployer.address
   const onRamp =
     opts.onRamp ??
-    (await deployOnRampInstance(blockchain, deployer, router.address, feeQuoter.address))
+    (await deployOnRampInstance(
+      blockchain,
+      deployer,
+      router.address,
+      feeQuoter.address,
+      tokenAdminRegistry,
+    ))
 
   const offRamp =
     opts.offRamp ??
-    (await deployOffRampInstance(blockchain, deployer, router.address, feeQuoter.address))
+    (await deployOffRampInstance(
+      blockchain,
+      deployer,
+      router.address,
+      feeQuoter.address,
+      tokenAdminRegistry,
+    ))
 
   if (!opts.skipRouterOnRampConfig) {
     await configureRouterWithOnRamp(router, deployer, onRamp.address, offRamp.address)
@@ -135,10 +149,6 @@ async function deployRouterInstance(
       admin: rt.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
       cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
       forwardUpdates: new Set(),
-    }),
-    tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
     }),
   })
   const router = blockchain.openContract(
@@ -276,13 +286,17 @@ async function deployOnRampInstance(
   deployer: SandboxContract<TreasuryContract>,
   router: Address,
   feeQuoter: Address,
+  tokenAdminRegistry: Address,
 ) {
   const data = or.OnRamp_Storage.create({
     id: generateRandomContractId(),
     ownable: or.Ownable2Step.create({
       owner: deployer.address,
     }),
-    chainSelector: ChainSelectors.testnet.ton,
+    staticConfig: or.OnRamp_StaticConfig.create({
+      chainSelector: ChainSelectors.testnet.ton,
+      tokenAdminRegistry,
+    }),
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter,
       feeAggregator: deployer.address,
@@ -290,10 +304,6 @@ async function deployOnRampInstance(
       reserve: toNano('10'),
     }),
     destChainConfigs: new Map(),
-    executor: or.ExecutorDeployment.create({
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-    }),
   })
 
   const onRamp = blockchain.openContract(
@@ -355,6 +365,7 @@ async function deployOffRampInstance(
   deployer: SandboxContract<TreasuryContract>,
   router: Address,
   feeQuoter: Address,
+  tokenAdminRegistry: Address,
 ) {
   const data = of.Storage.create({
     id: generateRandomContractId(),
@@ -362,12 +373,10 @@ async function deployOffRampInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    chainSelector: ChainSelectors.testnet.ton,
-    deployables: of.OffRamp_Deployables.create({
-      deployer: await contractCode.ccip.local('Deployable'),
-      merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
-      receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
+    staticConfig: of.OffRamp_StaticConfig.create({
       rmnRouter: router,
+      tokenAdminRegistry,
+      chainSelector: ChainSelectors.testnet.ton,
     }),
     feeQuoter,
     permissionlessExecutionThresholdSeconds: 0n,
@@ -481,10 +490,6 @@ export async function deployRouterContract(
       admin: rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
       cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
       forwardUpdates: new Set(),
-    }),
-    tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
     }),
   })
 
