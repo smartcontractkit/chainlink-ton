@@ -4,7 +4,7 @@ name: TON - Dependabot lock.nix fixup
 # mismatch in fixed-output derivation". This workflow self-heals:
 #
 #   watched workflow fails on a Dependabot PR -> workflow_run -> this job
-#   runs main's `lock-nix-tidy` on the PR head and pushes the hash fix
+#   runs main's `lock-nix-tidy` on the PR head and commits the hash fix
 #   as a GitHub App -> the same checks re-run -> green.
 #
 # GATI is not cosmetic: on any run triggered by a Dependabot PR, GITHUB_TOKEN
@@ -169,14 +169,13 @@ jobs:
           # nix run keeps CWD, so it audits and rewrites this checkout.
           timeout 15m nix run github:smartcontractkit/chainlink-ton/main#lock-nix-tidy
 
-      - name: Commit and push the fixup
+      - name: Check for a fixup
+        id: diff
         if: steps.pr.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
           REPO: ${{ github.repository }}
           NUM: ${{ steps.pr.outputs.number }}
-          PUSH_REPO: ${{ steps.pr.outputs.push-repo }}
-          HEAD_REF: ${{ steps.pr.outputs.head-ref }}
         run: |
           set -euo pipefail
 
@@ -186,20 +185,27 @@ jobs:
               --color "ededed" --description "lock.nix fixup tried; red has another cause" || true
             gh pr edit "${NUM}" --repo "${REPO}" --add-label nix-hash-skip
             echo "::notice::PR ${NUM}: no hash was stale; labeled nix-hash-skip"
-            exit 0
+            echo "changed=false" >>"${GITHUB_OUTPUT}"
+          else
+            echo "changed=true" >>"${GITHUB_OUTPUT}"
           fi
 
-          git add --all -- '*lock.nix'
+      - name: Commit the fixup
+        id: signed
+        if: steps.diff.outputs.changed == 'true'
+        uses: $/.github/actions/signed-commit
+        with:
+          token: ${{ steps.setup-github-token.outputs.access-token }}
+          paths: "*lock.nix"
+          repository: ${{ steps.pr.outputs.push-repo }}
+          branch: ${{ steps.pr.outputs.head-ref }}
+          # `[dependabot skip]` keeps Dependabot auto-updating; the same marker
+          # is the loop guard in the guard step above.
+          message: "chore(nix): update lock.nix hashes for dependency bumps [dependabot skip]"
 
-          # Constant identity
-          #
-          # The App's own bot rather than the generic `github-actions[bot]`
-          # Sanity-check it with `gh api '/users/app-token-issuer-integrations[bot]'`
-          git config user.name "app-token-issuer-integrations[bot]"
-          git config user.email "204793122+app-token-issuer-integrations[bot]@users.noreply.github.com"
-
-          # [dependabot skip] keeps Dependabot auto-updating; the same
-          # marker is the loop guard above.
-          git commit -m "chore(nix): update lock.nix hashes for dependency bumps [dependabot skip]"
-          git push "https://github.com/${PUSH_REPO}.git" "HEAD:refs/heads/${HEAD_REF}"
-          echo "::notice::pushed lock.nix fixup to ${PUSH_REPO}@${HEAD_REF}"
+      - name: Report fixup
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          COMMIT_URL: ${{ steps.signed.outputs.commit-url }}
+        run: |
+          echo "::notice::pushed signed lock.nix fixup ${COMMIT_URL}"
