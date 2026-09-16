@@ -285,6 +285,22 @@ fun onBouncedMessage(in: InMessageBounced) {
                     );
                 }
             }
+            AskToTransfer => {
+                // Bounced `Router_WithdrawToTokenPool` withdrawal: the jettons never reached the
+                // token pool, so the send is stuck and the executor waits for a reply that will
+                // never come.
+                //
+                // TODO: propagate the failure to the OnRamp so it can fail the send and the
+                // executor can settle. Requires a failure message plus an executor `replyTo` for
+                // this leg, which the Router does not carry. The withdrawal is being reworked to
+                // route through an on-ramp deposit account, which will own this failure path.
+                emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
+                    wallet: in.senderAddress,
+                    tokenPool: richMsg.transferRecipient,
+                    queryId: richMsg.queryId,
+                    exitCode: rich.exitCode,
+                });
+            }
         }
         return;
     }

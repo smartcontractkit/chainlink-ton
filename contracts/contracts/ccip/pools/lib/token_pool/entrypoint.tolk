@@ -94,12 +94,15 @@ fun TokenPool_Data.storeAsContractData(self) {
 /// through every hook (`T?` when a hook may be invoked with no context, e.g. getters).
 ///
 /// There are three hook families, mirroring the three flows:
-/// - **Guards**: curse checks — override to add custom policy.
+/// - **Guards**: curse checks, invoked from the base admission path.
 /// - **Operation hooks**: entry + validation + (pre/post)flight for the LockOrBurn and
 ///   ReleaseOrMint flows. Hooks returning a `TokenPool_*Prepared` may also signal `wait` to defer
 ///   execution to the on-chain (async) `advancedPoolHooks` contract.
 /// - **Continuation hooks**: run after Jetton custody is settled, letting the pool track binding
 ///   side effects (e.g. lock/release accrues fees only on confirmed deposit).
+///
+/// Setting an operation hook replaces the base flow for that phase, so the override owns every
+/// check the base path would have performed (e.g., `validateLockOrBurn` / `validateReleaseOrMint`).
 ///
 /// The fee-withdrawal hook `onWithdrawFeeTokens` is a fourth, standalone extension point.
 struct TokenPool_Hooks<T> {
@@ -1357,14 +1360,15 @@ fun TokenPool<T>.onGetCCVsBounced(
 /// Validates the lock or burn input for correctness on
 /// - token to be locked or burned
 /// - RMN curse status
-/// - if the sender is a valid onRamp
+/// - if the sender is the configured Router
 /// - rate limiting for either default or FTF transfer messages.
 /// - preflight checks hooks (if enabled)
 /// 
 /// @param sender The address of the original sender of the lock or burn request.
 /// @param msg The full LockOrBurn message containing all request fields.
 /// 
-/// @dev This function should always be called before executing a lock or burn.
+/// @dev This function should always be called before executing a lock or burn. Not doing so would
+/// allow for various exploits.
 fun TokenPool<T>.validateLockOrBurn(
     mutate self,
     sender: address,
@@ -1383,6 +1387,7 @@ fun TokenPool<T>.validateLockOrBurn(
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
+    self.onlyRouter(sender);
 
     val feeAmount = self.getFeeAmount(request.transfer, msg.requestedFinalityConfig);
     val destTokenAmount = details.amount - feeAmount;
@@ -1421,10 +1426,6 @@ fun TokenPool<T>.onLockOrBurn(
     sender: address,
     msg: TokenPool_LockOrBurn,
 ): void {
-    // Authenticate before invoking an overridable operation hook so a custom
-    // pool cannot accidentally bypass the Router boundary.
-    self.onlyRouter(sender);
-
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
 
@@ -1752,8 +1753,18 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     }
 }
 
-/// Validates the release or mint input and calls postflightCheck.
+/// Validates the release or mint input for correctness on
+/// - token to be released or minted
+/// - RMN curse status
+/// - if the sender is the configured Router
+/// - if the source pool is configured for the remote chain
+/// - rate limiting for either default or FTF transfer messages.
+/// - postflight checks hooks (if enabled)
+///
 /// @param msg The full ReleaseOrMint message containing all request fields.
+///
+/// @dev This function should always be called before executing a release or mint. Not doing so
+/// would allow for various exploits.
 fun TokenPool<T>.validateReleaseOrMint(
     mutate self,
     sender: address,
@@ -1772,6 +1783,7 @@ fun TokenPool<T>.validateReleaseOrMint(
     assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
+    self.onlyRouter(sender);
     assert(self.isRemotePool(details.remoteChainSelector, request.sourcePoolAddress), TokenPool_Error.InvalidRemotePoolForChain);
 
     val remoteDecimals = self.parseRemoteDecimals(request.sourcePoolData);
@@ -1811,10 +1823,6 @@ fun TokenPool<T>.onReleaseOrMint(
     sender: address,
     msg: TokenPool_ReleaseOrMint,
 ): void {
-    // Authenticate before invoking an overridable operation hook so a custom
-    // pool cannot accidentally bypass the Router boundary.
-    self.onlyRouter(sender);
-
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
 
@@ -1961,12 +1969,8 @@ fun TokenPool<T>.onlyOwnerOrRMNProxy(self, sender: address) {
     );
 }
 
-/// Restricts CCIP token operations to the configured Router.
-///
-/// This check intentionally runs in the message dispatcher, before any pool
-/// hook can handle LockOrBurn or ReleaseOrMint. The Router owns ramp
-/// authentication and applies its own RMN policy; the pool independently
-/// applies its local cursed-subject policy during request validation.
+/// Restricts CCIP token operations to the configured Router. The Router owns ramp authentication
+/// and applies its own RMN policy; the pool applies its local cursed-subject policy independently.
 fun TokenPool<T>.onlyRouter(self, sender: address) {
     val router = self.data.adminConfig.load().dynamicConfig.load().router;
     assert(sender == router, TokenPool_Error.Unauthorized);
@@ -1981,8 +1985,6 @@ fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
 }
 
 fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
-    // The owner-selected local RMN policy is mandatory. Hooks may impose an
-    // additional restriction, but cannot bypass this policy domain.
     assert(self.verifyNotCursed(remoteChainSelector as uint128), TokenPool_Error.CursedByRMN);
 
     if (self.hooks != null && self.hooks.ensureNotCursed != null) {
