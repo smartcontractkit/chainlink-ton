@@ -31,8 +31,7 @@ enum FeeQuoter_Error {
     FeeOverflow
     MessageFeeTooHigh
 
-    // Appended, never inserted: existing codes are part of the observed ABI and of
-    // decoding historical failures, so they must not be renumbered.
+    // Appended to end: existing codes are part of the observed ABI
     TooManySVMExtraArgsAccounts
     InvalidSVMExtraArgsWritableBitmap
 }

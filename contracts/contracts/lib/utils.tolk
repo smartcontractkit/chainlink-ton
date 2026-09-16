@@ -172,16 +172,12 @@ const SNAKE_MAX_CELLS = 128;
 /// Maximum number of data bytes a single TON cell can hold (1023 bits).
 const SNAKE_CELL_MAX_BYTES = 127;
 
-/// Validates that `self` is a canonical byte snake, i.e. that reading it with TVM
-/// `ldref`/`cds` semantics (a single continuation chain, whole bytes per cell)
-/// yields exactly the byte string the offchain verifiers reconstruct. Rejects:
-///  - exotic cells, notably library references whose descriptor (8-bit type tag +
-///    256-bit hash) is not user content, and pruned/merkle cells;
-///  - branched non-terminal cells (more than one continuation reference), where
-///    the offchain decoder follows only the first branch;
-///  - non-terminal cells that are not byte-full, because the offchain decoder pads
-///    each cell's partial trailing byte and would reconstruct different bytes.
-/// Returns the total number of bytes in the snake.
+/// Validates that a byte snake is exactly what the offchain verifiers reconstruct
+/// when reading it with `ldref`/`cds`. Rejects exotic cells (library references
+/// carry a 264-bit descriptor, not user content), any non-terminal cell with more
+/// than one continuation ref, and non-terminal cells that are not byte-full —
+/// the offchain decoder follows only the first branch and pads partial bytes.
+/// Returns the total number of bytes.
 fun cell.assertCanonicalByteSnake(self): int {
     var curr: cell? = self;
     var totalBytes = 0;
@@ -198,6 +194,7 @@ fun cell.assertCanonicalByteSnake(self): int {
         val bits = s.remainingBitsCount();
         val refs = s.remainingRefsCount();
         if (refs == 0) {
+            // only the terminal cell may be partial, and only by whole bytes
             assert (bits % 8 == 0, Utils_Error.InvalidData);
         } else {
             assert (refs == 1, Utils_Error.InvalidData);
@@ -210,14 +207,11 @@ fun cell.assertCanonicalByteSnake(self): int {
     return totalBytes;
 }
 
-/// Same invariants as `assertCanonicalByteSnake`, specialised for a snake of
-/// fixed-width elements (e.g. 256-bit accounts): every cell must hold only whole
-/// elements so that none straddles a cell boundary. Unlike the byte snake, an
-/// intermediate cell need not be full — it just has to end on an element
-/// boundary, which is what the offchain decoder (`unpackArrayFromCell`) produces
-/// and consumes: it loads whole elements from the current cell before following
-/// the continuation. `elemBits` is the element width in bits, matching TON's
-/// bit-native cell model; it must divide a cell's 1023-bit budget
+/// Validates a snake of fixed-width elements (e.g. 256-bit accounts): every cell
+/// must hold only whole elements, so none straddles a cell boundary. Unlike the
+/// byte snake, an intermediate cell need not be full — it just has to end on an
+/// element boundary, which is what the offchain decoder produces and consumes
+/// (it loads whole elements before following the continuation).
 /// Returns the number of complete elements.
 @inline
 fun cell.assertCanonicalFixedWidthSnake(self, elemBits: int): int {
@@ -232,6 +226,7 @@ fun cell.assertCanonicalFixedWidthSnake(self, elemBits: int): int {
         var (s, isExotic) = curr!.beginParseSpecial();
         assert (!isExotic, Utils_Error.InvalidData);
 
+        // a partial trailing element would straddle the cell boundary
         val bits = s.remainingBitsCount();
         val refs = s.remainingRefsCount();
         assert (bits % elemBits == 0, Utils_Error.InvalidData);

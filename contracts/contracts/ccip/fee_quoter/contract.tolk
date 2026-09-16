@@ -246,10 +246,9 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs) {
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
     val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
 
-    // Validate that `data` is a canonical byte snake. Aggregate byte counting is
-    // not enough: branched, partially-filled or exotic (library-reference) cells
-    // can pass an alignment check while the offchain verifiers reconstruct
-    // different bytes, permanently blocking commitment for the lane.
+    // Aggregate byte counting is not enough: branched, partially-filled or exotic
+    // cells pass an alignment check while the offchain verifiers reconstruct
+    // different bytes, which permanently blocks commitment for the lane.
     val (msgDataLen, errorCode) = msg.data.canonicalByteSnakeSafe();
     match (errorCode) {
         0 => { /* continue */ }
@@ -268,9 +267,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs) {
 
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
-    var tokensIter = msg.tokenAmounts.iter();
     val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow as int);
-    assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     val dataAvailabilityCost = _dataAvailabilityCost(
         destChainConfig,
@@ -360,9 +357,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
     // Token transfers are unsupported at this version: require a plain ordinary
-    // (non-exotic) empty cell. `iter().empty()` would resolve a library reference
-    // and accept it, yet the emitted cell would still be the 264-bit descriptor
-    // (type tag + hash) that offchain decoders cannot read.
+    // empty cell. A CTOS-resolving `iter().empty()` would accept a library
+    // reference, whose emitted cell is still the 264-bit descriptor.
     val (tokenAmountsSlice, tokenAmountsExotic) = message.tokenAmounts.beginParseSpecial();
     assert (!tokenAmountsExotic && tokenAmountsSlice.isEmpty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
@@ -371,7 +367,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
         val genericExtraArgsV2 = parseGenericExtraArgs(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        val gasLimit = genericExtraArgsV2.gasLimit != null ? genericExtraArgsV2.gasLimit : 0 as uint256;
+        val gasLimit = genericExtraArgsV2.gasLimit!; // not-nil after parsing
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return (genericExtraArgsV2 as ExtraArgs, gasLimit);
     }
@@ -380,9 +376,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
-        // objectIds are 32 bytes long; require a canonical snake so that every
-        // element is complete within a cell (no element straddles a cell boundary)
-        // and no exotic/branched cells are present.
+        // Require a canonical snake: complete elements (no element straddles a cell
+        // boundary) and no exotic/branched cells.
         val receiverObjectIdsLength = validateExtraArgsCollection(
             suiExtraArgs.receiverObjectIds,
             SUI_ACCOUNT_BYTE_SIZE * 8,
@@ -413,9 +408,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         val gasLimit = svmExtraArgs.computeUnits;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
-        // accounts are 32 bytes long; require a canonical snake so that every
-        // element is complete within a cell (no element straddles a cell boundary)
-        // and no exotic/branched cells are present.
+        // Require a canonical snake: complete elements (no element straddles a cell
+        // boundary) and no exotic/branched cells.
         val accountsLength = validateExtraArgsCollection(
             svmExtraArgs.accounts,
             SVM_ACCOUNT_BYTE_SIZE * 8,
@@ -437,10 +431,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
 
         assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySVMExtraArgsAccounts;
 
-        // Bits above the account count would address accounts the message does not
-        // carry, so the destination cannot execute it in the requested way. Mirrors
-        // EVM FeeQuoter (`InvalidSVMExtraArgsWritableBitmap`). The shift is safe
-        // because `accountsLength` is bounded by SVM_EXTRA_ARGS_MAX_ACCOUNTS above.
+        // Mirrors EVM FeeQuoter. Safe to shift: `accountsLength` is bounded by
+        // SVM_EXTRA_ARGS_MAX_ACCOUNTS above.
         assert (svmExtraArgs.accountIsWritableBitmap >> accountsLength == 0) throw FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap;
 
         assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
@@ -456,7 +448,7 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    // Set defaultTxGasLimit when user-provided extraArgs have a null gasLimit value.
+    // Resolve an absent gasLimit to the default so it never escapes unresolved.
     return GenericExtraArgsV2 {
         gasLimit: extra.gasLimit != null ? extra.gasLimit : defaultTxGasLimit as uint256,
         allowOutOfOrderExecution: extra.allowOutOfOrderExecution,
