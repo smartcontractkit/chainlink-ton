@@ -76,17 +76,49 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: configGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
-		var c Config
-		// The getter returns a single cell containing the OffRamp_Config struct,
-		// where staticConfig is inline and dynamicConfig is a reference.
-		configSlice, err := r.Slice(0)
+		var emptyConfig Config
+		// The getter returns OffRamp_Config as multiple stack values:
+		// staticConfig fields inline (rmnRouter, tokenAdminRegistry, chainSelector),
+		// then dynamicConfig as a cell reference.
+		rmnRouterSlice, err := r.Slice(0)
 		if err != nil {
-			return c, fmt.Errorf("failed to get config slice: %w", err)
+			return emptyConfig, fmt.Errorf("failed to get rmnRouter address slice: %w", err)
 		}
-		if err := tlb.LoadFromCell(&c, configSlice); err != nil {
-			return c, fmt.Errorf("failed to decode OffRampConfig: %w", err)
+		rmnRouter, err := rmnRouterSlice.LoadAddr()
+		if err != nil {
+			return emptyConfig, fmt.Errorf("failed to load rmnRouter address: %w", err)
 		}
-		return c, nil
+
+		tokenAdminRegistrySlice, err := r.Slice(1)
+		if err != nil {
+			return emptyConfig, fmt.Errorf("failed to get tokenAdminRegistry address slice: %w", err)
+		}
+		tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
+		if err != nil {
+			return emptyConfig, fmt.Errorf("failed to load tokenAdminRegistry address: %w", err)
+		}
+
+		chainSelectorInt, err := r.Int(2)
+		if err != nil {
+			return emptyConfig, fmt.Errorf("failed to get chainSelector: %w", err)
+		}
+
+		dynamicConfigCell, err := r.Cell(3)
+		if err != nil {
+			return emptyConfig, fmt.Errorf("failed to get dynamicConfig cell: %w", err)
+		}
+		var dynamicConfig DynamicConfig
+		if err := tlb.LoadFromCell(&dynamicConfig, dynamicConfigCell.BeginParse()); err != nil {
+			return emptyConfig, fmt.Errorf("failed to decode DynamicConfig: %w", err)
+		}
+		return Config{
+			StaticConfig: StaticConfig{
+				RMNRouter:          rmnRouter,
+				TokenAdminRegistry: tokenAdminRegistry,
+				ChainSelector:      chainSelectorInt.Uint64(),
+			},
+			DynamicConfig: dynamicConfig,
+		}, nil
 	}),
 })
 
