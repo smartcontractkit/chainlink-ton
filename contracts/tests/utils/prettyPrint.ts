@@ -120,6 +120,9 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
  * ```
  **/
 export async function dump(txs: BlockchainTransaction[]): Promise<string[]> {
+  if (txs.length === 0) {
+    return []
+  }
   return dumpRecursive(txs[0], txs)
 }
 

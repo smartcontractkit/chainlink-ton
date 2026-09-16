@@ -1,29 +1,23 @@
 import '@ton/test-utils'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import {
   CrossChainAddress,
   CursedSubjects,
   TokenPool,
   TokenPool_ChainUpdate,
-  TokenPool_LockOrBurn,
-  TokenPool_LockOrBurnForwardPayload,
-  TokenPool_LockOrBurnInV1,
-  TokenPool_LockOrBurnOutV1,
-  TokenPool_LockOrBurnPrepared,
-  TokenPool_LockOrBurnTransfer,
   TokenPool_RampUpdate,
   TokenPool_RateLimitConfigPair,
+  TokenPool_RateLimitConfigArgs,
   TokenPool_ReleaseOrMint,
+  TokenPool_ReleaseOrMintFailure,
+  TokenPool_ReleaseOrMintFinished,
   TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_ReleaseOrMintInV1,
-  TokenPool_ReleaseOrMintOutV1,
-  TokenPool_ReleaseOrMintPrepared,
   RateLimiter_Config,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 
 export type TokenPoolBehaviorContext = {
   pool: SandboxContract<TokenPool>
@@ -38,7 +32,11 @@ export type TokenPoolBehaviorContext = {
   localToken: Address
 }
 
-function releaseRequest(
+export type TokenPoolBehaviorHooks = {
+  setup?: (ctx: TokenPoolBehaviorContext) => Promise<void>
+}
+
+export function releaseRequest(
   ctx: TokenPoolBehaviorContext,
   overrides: Partial<TokenPool_ReleaseOrMintInV1> = {},
 ): TokenPool_ReleaseOrMintInV1 {
@@ -63,7 +61,15 @@ function releaseRequest(
 export function runTokenPoolBehaviorTests(
   name: string,
   setup: () => Promise<TokenPoolBehaviorContext>,
+  hooks: TokenPoolBehaviorHooks = {},
 ) {
+  const baseSetup = setup
+  setup = async () => {
+    const ctx = await baseSetup()
+    await hooks.setup?.(ctx)
+    return ctx
+  }
+
   describe(`${name} TokenPool behavior`, () => {
     it('mirrors ramp access and supported chain state after setup', async () => {
       const ctx = await setup()
@@ -107,7 +113,7 @@ export function runTokenPoolBehaviorTests(
           queryId: 920n,
           jettonAmount: toNano('1'),
           transferInitiator: ctx.unauthorized.address,
-          forwardPayload: beginCell().endCell().beginParse(),
+          forwardPayload: Cell.EMPTY.beginParse(),
         },
       )
 
@@ -115,7 +121,7 @@ export function runTokenPoolBehaviorTests(
         from: ctx.unauthorized.address,
         to: ctx.pool.address,
         success: false,
-        exitCode: 14910, // TokenPool_Error.Unauthorized (facility 149 → base 14900, +10)
+        exitCode: 51710, // TokenPool_Error.Unauthorized (facility 517 → base 51700, +10)
       })
     })
 
@@ -124,9 +130,7 @@ export function runTokenPoolBehaviorTests(
 
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set([ctx.remoteChainSelector]),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
@@ -151,6 +155,66 @@ export function runTokenPoolBehaviorTests(
     it('starts with chain not cursed', async () => {
       const ctx = await setup()
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
+    })
+
+    it('rejects releaseOrMint once the inbound rate limit is exhausted', async () => {
+      const ctx = await setup()
+
+      // Tighten the inbound bucket to a non-refilling capacity of 1 so we can
+      // deterministically hit the ceiling on the second release (EVM parity: TokenRateLimitReached).
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 930n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 1n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 1n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      // First release consumes the single inbound token and admits.
+      const first = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 931n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
+      expect(first.transactions).toHaveTransaction({
+        from: ctx.offRamp.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      // Second release of the same amount must be rejected (bucket has no refill, rate=0).
+      const second = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.offRamp.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 932n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+        },
+      )
+      expect(second.transactions).toHaveTransaction({
+        from: ctx.offRamp.address,
+        to: ctx.pool.address,
+        success: false,
+      })
     })
 
     it('returns null ramps for unknown chain', async () => {
@@ -216,9 +280,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           queryId: 904n,
-          cursedSubjects: CursedSubjects.create({
-            data: new Set([ctx.remoteChainSelector]),
-          }),
+          cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
         },
       )
 
@@ -233,17 +295,13 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set([ctx.remoteChainSelector]),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
       await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 902n,
-        cursedSubjects: CursedSubjects.create({
-          data: new Set(),
-        }),
+        cursedSubjects: CursedSubjects.create({ data: new Set<bigint>() }),
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
     })
@@ -519,408 +577,87 @@ export function runTokenPoolBehaviorTests(
       })
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(true)
     })
-  })
-}
 
-// ———————————————————————————————————————————————————————————————————————————————
-// Async Hook Behavior Tests (TON-TP/6)
-// ———————————————————————————————————————————————————————————————————————————————
+    it('reuses the same caller queryId safely across repeated release continuations', async () => {
+      const ctx = await setup()
+      const amount = toNano('1')
+      const queryId = 700n
 
-export type TokenPoolAsyncHookBehaviorContext = TokenPoolBehaviorContext & {
-  hooks: SandboxContract<MockAdvancedPoolHooks>
-}
-
-export function runTokenPoolAsyncHookBehaviorTests(
-  name: string,
-  setup: () => Promise<TokenPoolAsyncHookBehaviorContext>,
-) {
-  describe(`${name} async hook behavior`, () => {
-    //
-    // Helper: build a LockOrBurnInV1 request body
-    //
-    function lockOrBurnIn(
-      ctx: TokenPoolAsyncHookBehaviorContext,
-      overrides: Partial<TokenPool_LockOrBurnInV1> = {},
-    ): TokenPool_LockOrBurnInV1 {
-      const transfer: TokenPool_LockOrBurnTransfer = {
-        $: 'TokenPool_Transfer',
-        id: 1n,
-        details: TokenPool_TransferDetails.create({
-          receiver: ctx.destTokenAddress,
-          remoteChainSelector: ctx.remoteChainSelector,
-          originalSender: ctx.deployer.address,
-          amount: toNano('1'),
-          localToken: ctx.localToken,
+      const repeatedRequest = {
+        queryId,
+        request: releaseRequest(ctx, {
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: TokenPool_TransferDetails.create({
+              originalSender: ctx.sourcePoolAddress,
+              remoteChainSelector: ctx.remoteChainSelector,
+              receiver: ctx.recipient.address,
+              amount,
+              localToken: ctx.localToken,
+            }),
+          }),
         }),
+        requestedFinalityConfig: 0n,
+        replyTo: ctx.deployer.address,
       }
-      return TokenPool_LockOrBurnInV1.create({
-        transfer,
-        ...overrides,
-      })
-    }
 
-    //
-    // Helper: build a LockOrBurn forward payload cell
-    //
-    function lockOrBurnForwardPayload(
-      ctx: TokenPoolAsyncHookBehaviorContext,
-      request: TokenPool_LockOrBurnInV1,
-    ): Cell {
-      const prepared = TokenPool_LockOrBurnPrepared.create({
-        feeAmount: 0n,
-        destTokenAmount: toNano('1'),
-        out: TokenPool_LockOrBurnOutV1.create({
-          destTokenAddress: ctx.destTokenAddress,
-          destPoolData: Cell.EMPTY,
-        }),
-      })
-      const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
-        requestMsg: TokenPool_LockOrBurn.create({
-          queryId: 0n,
-          request: request,
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: null,
-        }),
-        prepared: prepared,
-      })
-      return TokenPool_LockOrBurnForwardPayload.toCell(fwdp)
-    }
-
-    //
-    // Helper: build a ReleaseOrMint forward payload cell
-    //
-    function releaseOrMintForwardPayload(
-      ctx: TokenPoolAsyncHookBehaviorContext,
-      request: TokenPool_ReleaseOrMintInV1,
-    ): Cell {
-      const prepared = TokenPool_ReleaseOrMintPrepared.create({
-        requestedFinalityConfig: 0n,
-        localAmount: toNano('1'),
-        out: TokenPool_ReleaseOrMintOutV1.create({
-          destinationAmount: toNano('1'),
-        }),
-      })
-      const fwdp = TokenPool_ReleaseOrMintForwardPayload.create({
-        originalSender: ctx.offRamp.address,
-        requestMsg: TokenPool_ReleaseOrMint.create({
-          queryId: 0n,
-          request: request,
-          requestedFinalityConfig: 0n,
-          replyTo: null,
-        }),
-        prepared: prepared,
-      })
-      return TokenPool_ReleaseOrMintForwardPayload.toCell(fwdp)
-    }
-
-    // === SetAdvancedPoolHooks access control ===
-
-    it('rejects setAdvancedPoolHooks from non-owner', async () => {
-      const ctx = await setup()
-
-      const result = await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(
-        ctx.unauthorized.getSender(),
-        toNano('0.2'),
-        {
-          queryId: 6001n,
-          advancedPoolHooks: ctx.hooks.address,
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.unauthorized.address,
-        to: ctx.pool.address,
-        success: false,
-      })
-    })
-
-    // === Preflight Check — Success Flow (queryId even) ===
-
-    it('completes LockOrBurn after async preflight check succeeds (queryId=2)', async () => {
-      const ctx = await setup()
-
-      const request = lockOrBurnIn(ctx)
-
-      const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 2n,
-        request: request,
-        requestedFinalityConfig: 0n,
-        tokenArgs: null,
-        replyTo: ctx.deployer.address,
-      })
-
-      // Pool sends PreflightCheck to hooks
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.hooks.address,
-        success: true,
-      })
-
-      // Hook replies Finished → pool processes callback
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-    })
-
-    // === Preflight Check — Failure Flow (queryId odd) ===
-
-    it('sends LockOrBurnFailure and refunds rate limit on async preflight failure (queryId=1)', async () => {
-      const ctx = await setup()
-
-      const request = lockOrBurnIn(ctx)
-
-      const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 1n,
-        request: request,
-        requestedFinalityConfig: 0n,
-        tokenArgs: null,
-        replyTo: ctx.deployer.address,
-      })
-
-      // Pool sends PreflightCheck to hooks
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.hooks.address,
-        success: true,
-      })
-
-      // Hook replies Failed → pool sends LockOrBurnFailure
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-
-      // Pool sends failure notification back to original sender
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.deployer.address,
-        success: true,
-      })
-    })
-
-    // === Postflight Check — Success Flow (queryId even) ===
-
-    it('completes ReleaseOrMint after async postflight check succeeds (queryId=2)', async () => {
-      const ctx = await setup()
-
-      const request = releaseRequest(ctx)
-
-      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+      const first = await ctx.pool.sendTokenPoolReleaseOrMint(
         ctx.offRamp.getSender(),
-        toNano('1'),
-        {
-          queryId: 2n,
-          request: request,
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.offRamp.address,
-        },
+        toNano('0.6'),
+        repeatedRequest,
       )
-
-      // Pool sends PostflightCheck to hooks
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.hooks.address,
-        success: true,
-      })
-
-      // Hook replies Finished → pool processes callback
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-    })
-
-    // === Postflight Check — Failure Flow (queryId odd) ===
-
-    it('sends ReleaseOrMintFailure and refunds rate limit on async postflight failure (queryId=1)', async () => {
-      const ctx = await setup()
-
-      const request = releaseRequest(ctx)
-
-      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+      const second = await ctx.pool.sendTokenPoolReleaseOrMint(
         ctx.offRamp.getSender(),
-        toNano('1'),
-        {
-          queryId: 1n,
-          request: request,
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.offRamp.address,
-        },
+        toNano('0.6'),
+        repeatedRequest,
       )
 
-      // Pool sends PostflightCheck to hooks
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.hooks.address,
-        success: true,
+      const allTransactions = [...first.transactions, ...second.transactions]
+      const completions = allTransactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        if (!body) {
+          return false
+        }
+
+        const slice = body.beginParse()
+        if (slice.remainingBits < 32) {
+          return false
+        }
+
+        if (
+          !tx.inMessage?.info?.src?.equals?.(ctx.pool.address) ||
+          slice.preloadUint(32) !== TokenPool_ReleaseOrMintFinished.PREFIX
+        ) {
+          return false
+        }
+
+        const response = TokenPool_ReleaseOrMintFinished.fromSlice(slice)
+        return response.queryId === queryId && response.out.destinationAmount === amount
       })
 
-      // Hook replies Failed → pool sends ReleaseOrMintFailure
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
+      const failures = allTransactions.filter((tx: any) => {
+        const body = tx.inMessage?.body
+        if (!body) {
+          return false
+        }
+
+        const slice = body.beginParse()
+        if (slice.remainingBits < 32) {
+          return false
+        }
+
+        if (
+          !tx.inMessage?.info?.src?.equals?.(ctx.pool.address) ||
+          slice.preloadUint(32) !== TokenPool_ReleaseOrMintFailure.PREFIX
+        ) {
+          return false
+        }
+
+        return TokenPool_ReleaseOrMintFailure.fromSlice(slice).queryId === queryId
       })
 
-      // Pool sends failure notification
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.offRamp.address,
-        success: true,
-      })
-    })
-
-    // === Inline mode (replyTo = null for LockOrBurn) ===
-
-    it('processes LockOrBurn inline when replyTo is null', async () => {
-      const ctx = await setup()
-
-      const request = lockOrBurnIn(ctx)
-
-      const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 100n,
-        request: request,
-        requestedFinalityConfig: 0n,
-        tokenArgs: null,
-        replyTo: null,
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-    })
-
-    it('processes ReleaseOrMint inline when no hooks configured', async () => {
-      const ctx = await setup()
-
-      const request = releaseRequest(ctx)
-
-      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
-        toNano('1'),
-        {
-          queryId: 100n,
-          request: request,
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.deployer.address,
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.offRamp.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-    })
-
-    // === QueryId-based branching verification ===
-
-    it('even queryId → PreflightCheckFinished, odd queryId → PreflightCheckFailed', async () => {
-      const ctx = await setup()
-
-      // Even → success path
-      const requestEven = lockOrBurnIn(ctx)
-      const evenResult = await ctx.pool.sendTokenPoolLockOrBurn(
-        ctx.deployer.getSender(),
-        toNano('1'),
-        {
-          queryId: 4n,
-          request: requestEven,
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: ctx.deployer.address,
-        },
-      )
-
-      expect(evenResult.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-
-      // Odd → failure path
-      const requestOdd = lockOrBurnIn(ctx)
-      const oddResult = await ctx.pool.sendTokenPoolLockOrBurn(
-        ctx.deployer.getSender(),
-        toNano('1'),
-        {
-          queryId: 5n,
-          request: requestOdd,
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: ctx.deployer.address,
-        },
-      )
-
-      expect(oddResult.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-
-      // Odd path should produce failure notification
-      expect(oddResult.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.deployer.address,
-        success: true,
-      })
-    })
-
-    it('even queryId → PostflightCheckFinished, odd queryId → PostflightCheckFailed', async () => {
-      const ctx = await setup()
-
-      // Even → success
-      const requestEven = releaseRequest(ctx)
-      const evenResult = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
-        toNano('1'),
-        {
-          queryId: 6n,
-          request: requestEven,
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.offRamp.address,
-        },
-      )
-
-      expect(evenResult.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-
-      // Odd → failure
-      const requestOdd = releaseRequest(ctx)
-      const oddResult = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.offRamp.getSender(),
-        toNano('1'),
-        {
-          queryId: 7n,
-          request: requestOdd,
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.offRamp.address,
-        },
-      )
-
-      expect(oddResult.transactions).toHaveTransaction({
-        from: ctx.hooks.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-
-      // Odd path should produce failure notification
-      expect(oddResult.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.offRamp.address,
-        success: true,
-      })
+      expect(completions).toHaveLength(2)
+      expect(failures).toHaveLength(0)
     })
   })
 }

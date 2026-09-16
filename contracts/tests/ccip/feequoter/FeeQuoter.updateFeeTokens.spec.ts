@@ -1,8 +1,9 @@
 import '@ton/test-utils'
 
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
+import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
@@ -22,15 +23,15 @@ describe('FeeQuoter UpdateFeeTokens', () => {
 
   it('should add new fee tokens', async () => {
     const newToken = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const premiumMultiplier = BigInt(3e17)
-
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map([[newToken, { premiumMultiplierWeiPerEth: premiumMultiplier }]]),
-        remove: [],
-      },
+    const premiumMultiplier = feeQuoter.FeeToken.create({
+      premiumMultiplierWeiPerEth: BigInt(3e17),
     })
+
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      { add: new Map([[newToken, premiumMultiplier]]), remove: [] },
+    )
 
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -39,7 +40,7 @@ describe('FeeQuoter UpdateFeeTokens', () => {
 
     // Verify the token was added
     const multiplier = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(newToken)
-    expect(multiplier).toEqual(premiumMultiplier)
+    expect(multiplier).toEqual(premiumMultiplier.premiumMultiplierWeiPerEth)
   })
 
   it('should remove fee tokens', async () => {
@@ -50,13 +51,11 @@ describe('FeeQuoter UpdateFeeTokens', () => {
     expect(multiplierBefore).toBeGreaterThan(0n)
 
     // Remove the token
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map(),
-        remove: [tokenToRemove],
-      },
-    })
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      { add: new Map(), remove: [tokenToRemove] },
+    )
 
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -72,19 +71,24 @@ describe('FeeQuoter UpdateFeeTokens', () => {
   it('should add multiple fee tokens at once', async () => {
     const token1 = FeeQuoterSetup.CUSTOM_TOKEN.token
     const token2 = FeeQuoterSetup.CUSTOM_TOKEN_2.token
-    const premiumMultiplier1 = BigInt(3e17)
-    const premiumMultiplier2 = BigInt(4e17)
+    const premiumMultiplier1 = feeQuoter.FeeToken.create({
+      premiumMultiplierWeiPerEth: BigInt(3e17),
+    })
+    const premiumMultiplier2 = feeQuoter.FeeToken.create({
+      premiumMultiplierWeiPerEth: BigInt(4e17),
+    })
 
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
         add: new Map([
-          [token1, { premiumMultiplierWeiPerEth: premiumMultiplier1 }],
-          [token2, { premiumMultiplierWeiPerEth: premiumMultiplier2 }],
+          [token1, premiumMultiplier1],
+          [token2, premiumMultiplier2],
         ]),
         remove: [],
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -93,10 +97,10 @@ describe('FeeQuoter UpdateFeeTokens', () => {
 
     // Verify both tokens were added
     const multiplier1 = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(token1)
-    expect(multiplier1).toEqual(premiumMultiplier1)
+    expect(multiplier1).toEqual(premiumMultiplier1.premiumMultiplierWeiPerEth)
 
     const multiplier2 = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(token2)
-    expect(multiplier2).toEqual(premiumMultiplier2)
+    expect(multiplier2).toEqual(premiumMultiplier2.premiumMultiplierWeiPerEth)
   })
 
   it('should remove multiple fee tokens at once', async () => {
@@ -104,13 +108,11 @@ describe('FeeQuoter UpdateFeeTokens', () => {
     const token2 = FeeQuoterSetup.NATIVE_TON.token
 
     // Remove both tokens
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map(),
-        remove: [token1, token2],
-      },
-    })
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      { add: new Map(), remove: [token1, token2] },
+    )
 
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -125,15 +127,15 @@ describe('FeeQuoter UpdateFeeTokens', () => {
   it('should add and remove fee tokens in same transaction', async () => {
     const tokenToRemove = FeeQuoterSetup.SOURCE_FEE_TOKEN.token
     const tokenToAdd = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const premiumMultiplier = BigInt(3e17)
-
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map([[tokenToAdd, { premiumMultiplierWeiPerEth: premiumMultiplier }]]),
-        remove: [tokenToRemove],
-      },
+    const premiumMultiplier = feeQuoter.FeeToken.create({
+      premiumMultiplierWeiPerEth: BigInt(3e17),
     })
+
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      { add: new Map([[tokenToAdd, premiumMultiplier]]), remove: [tokenToRemove] },
+    )
 
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -142,7 +144,7 @@ describe('FeeQuoter UpdateFeeTokens', () => {
 
     // Verify token was added
     const multiplier = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(tokenToAdd)
-    expect(multiplier).toEqual(premiumMultiplier)
+    expect(multiplier).toEqual(premiumMultiplier.premiumMultiplierWeiPerEth)
 
     // Verify token was removed
     await expect(
@@ -152,15 +154,15 @@ describe('FeeQuoter UpdateFeeTokens', () => {
 
   it('should update existing fee token premium multiplier', async () => {
     const token = FeeQuoterSetup.SOURCE_FEE_TOKEN.token
-    const newPremiumMultiplier = BigInt(8e17)
-
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map([[token, { premiumMultiplierWeiPerEth: newPremiumMultiplier }]]),
-        remove: [],
-      },
+    const newPremiumMultiplier = feeQuoter.FeeToken.create({
+      premiumMultiplierWeiPerEth: BigInt(8e17),
     })
+
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      { add: new Map([[token, newPremiumMultiplier]]), remove: [] },
+    )
 
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -169,23 +171,20 @@ describe('FeeQuoter UpdateFeeTokens', () => {
 
     // Verify the multiplier was updated
     const multiplier = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(token)
-    expect(multiplier).toEqual(newPremiumMultiplier)
+    expect(multiplier).toEqual(newPremiumMultiplier.premiumMultiplierWeiPerEth)
   })
 
   it('should only allow owner to update fee tokens', async () => {
     const newToken = FeeQuoterSetup.CUSTOM_TOKEN.token
-    const premiumMultiplier = BigInt(3e17)
+    const premiumMultiplier = feeQuoter.FeeToken.create({
+      premiumMultiplierWeiPerEth: BigInt(3e17),
+    })
 
     // Try with non-owner
-    const result = await setup.bind.feeQuoter.sendUpdateFeeTokens(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: {
-          add: new Map([[newToken, { premiumMultiplierWeiPerEth: premiumMultiplier }]]),
-          remove: [],
-        },
-      },
+      toNano('1'),
+      { add: new Map([[newToken, premiumMultiplier]]), remove: [] },
     )
 
     expect(result.transactions).toHaveTransaction({

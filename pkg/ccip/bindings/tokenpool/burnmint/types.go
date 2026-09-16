@@ -5,29 +5,36 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
 // --- Constants ---
 
+const (
+	// ClaimAdminValue is the TON value for claiming minter admin.
+	ClaimAdminValue = 50000000 // 0.05 TON in nanotons
+	// BurnValue is the TON value for burn operations.
+	BurnValue = 50000000 // 0.05 TON in nanotons
+	// MintValue is the TON value for mint operations.
+	MintValue = 100000000 // 0.1 TON in nanotons
+)
+
 // --- Data types ---
 
-// PendingBurn represents a pending burn operation.
-// Corresponds to BurnMintTokenPool_PendingBurn in the Tolk contract.
-type PendingBurn struct {
-	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"."`
-	ExpectedSender *address.Address                   `tlb:"addr"`
+// BurnContext represents the context carried by the CCT burn path. Stores the pool's own
+// jetton wallet address (the burn source) and the full forward payload for finalization.
+type BurnContext struct {
+	_              tlb.Magic                          `tlb:"#ba302a47" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Wallet         *address.Address                   `tlb:"addr"`
+	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
 }
 
-// PendingMint represents a pending mint operation.
-// Corresponds to BurnMintTokenPool_PendingMint in the Tolk contract.
-type PendingMint struct {
-	ReplyTo        *address.Address             `tlb:"addr"`
-	Request        tokenpool.ReleaseOrMintInV1  `tlb:"^"`
-	Out            tokenpool.ReleaseOrMintOutV1 `tlb:"^"`
-	ExpectedSender *address.Address             `tlb:"addr"`
+// MintContext represents the context passed to the DepositAccount (off-ramp role) for mint
+// (release) operations. Carries the full forward payload for post-mint finalization.
+type MintContext struct {
+	_              tlb.Magic                             `tlb:"#b3d52361" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
 }
 
 // --- Messages (incoming) ---
@@ -48,29 +55,25 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the BurnMintTokenPool contract storage.
-// Extends the common TokenPool storage with burn/mint specific state.
 type Storage struct {
-	PoolData     tokenpool.Storage              `tlb:"^"`
-	JettonClient *cell.Cell                     `tlb:"^"`       // Cell<JettonClient> - TODO: define JettonClient type in common/jetton bindings
-	PendingBurns *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingBurn>>
-	PendingMints *tlbe.Dict[uint64, *cell.Cell] `tlb:"dict 64"` // map<uint64, Cell<PendingMint>>
+	PoolData           tokenpool.Storage `tlb:"^"`
+	OffRampAccountCode *cell.Cell        `tlb:"^"` // Compiled code cell of the DepositAccount (off-ramp role)
 }
 
 // --- Exit Codes ---
 
 // ExitCode represents a BurnMintTokenPool-specific error code.
-// FACILITY_ID = 412, base error = 41200.
+// FACILITY_ID = 450, base error = 45000.
 type ExitCode tvm.ExitCode
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodePendingBurnAlreadyExists ExitCode = iota + 41200 // Facility ID 412 * 100
-	ExitCodePendingBurnNotFound
-	ExitCodePendingMintAlreadyExists
-	ExitCodePendingMintNotFound
-	ExitCodeUnexpectedBurnConfirmationSender
-	ExitCodeUnexpectedMintConfirmationSender
+	ExitCodeUnexpectedBurnBounce ExitCode = iota + 45000 // Facility ID 450 * 100
+	ExitCodeUnexpectedMintBounce
+	ExitCodeInvalidOffRampAccountReply
+	ExitCodeInvalidOffRampAccountNotification
+	ExitCodeOffRampAccountDeployFailed
 )
 
 // New converts an ExitCode to a tvm.ExitCode.
@@ -84,6 +87,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	ClaimMinterAdmin{},
 	ReturnExcessesBack{},
+	// Context types
+	BurnContext{},
+	MintContext{},
 }).MustWithStorageType(Storage{})
 
 // --- Standard interface ---

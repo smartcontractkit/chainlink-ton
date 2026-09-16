@@ -74,11 +74,12 @@ var (
 		ChainFamilySelector:             config.TVMFamilySelector,
 		EnforceOutOfOrder:               false,
 		DefaultTokenFeeUSDCents:         0,
-		DefaultTokenDestGasOverhead:     0,
-		DefaultTxGasLimit:               1,
-		GasMultiplierWeiPerEth:          0,
-		GasPriceStalenessThreshold:      0,
-		NetworkFeeUSDCents:              0,
+		// Must be >= MIN_TT_GASLIMIT (ton("0.15") = 150_000_000 nanoTON) on the TON OffRamp.
+		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
+		DefaultTxGasLimit:           1,
+		GasMultiplierWeiPerEth:      0,
+		GasPriceStalenessThreshold:  0,
+		NetworkFeeUSDCents:          0,
 	}
 )
 
@@ -129,7 +130,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:   idForContracts,
 				Coin: "0.05",
 			},
-			TokenRegistryParams: config.TokenRegistryParams{
+			TokenAdminRegistryParams: config.TokenAdminRegistryParams{
 				ID:   idForContracts,
 				Coin: "0.05",
 			},
@@ -146,9 +147,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 
 	var src, dest config.ChainDefinition
 
-	// TODO(@jadepark-dev): config.CCIPTokenPrice("2", 9) was causing fee quoter to return 572+ TON for sending a message.
-	// TODO: Investigate and fix the root cause.
-	tonTokenPrice, err := config.CCIPTokenPrice("2", 3) // Example value
+	tonTokenPrice, err := config.CCIPTokenPrice("2", 9) // Example value
 	if err != nil {
 		env.Logger.Fatalf("AddLaneTONChangesets: failed to get TON token price: %v", err)
 	}

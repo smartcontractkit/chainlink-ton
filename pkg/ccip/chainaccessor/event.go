@@ -10,6 +10,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -50,9 +51,7 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 
 	switch contractName {
 	case consts.ContractNameOnRamp:
-		eventNames = []string{
-			consts.EventNameCCIPMessageSent,
-		}
+		eventNames = []string{consts.EventNameCCIPMessageSent}
 	case consts.ContractNameOffRamp:
 		eventNames = []string{
 			consts.EventNameCommitReportAccepted,
@@ -92,17 +91,40 @@ func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *
 	return nil
 }
 
-// convertCCIPMessageSent converts a TON-specific CCIPMessageSent event to a generic
-// ccipocr3.SendRequestedEvent. This function is idempotent and performs a
-// one-to-one mapping of event fields from the TON format to the standard CCIP format.
 func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
 ) (*ccipocr3.SendRequestedEvent, error) {
+	body := tonEvent.Message.Body
+
+	// The current TON flow supports a single token transfer, so Body.TokenTransfer is
+	// empty when the message carries none, or a one-item SnakedCell when it does.
+	if len(body.TokenTransfer) > 1 {
+		return nil, fmt.Errorf("expected at most one token transfer entry, got %d", len(body.TokenTransfer))
+	}
+
+	var tokenAmounts []ccipocr3.RampTokenAmount
+	if len(body.TokenTransfer) == 1 {
+		transfer := body.TokenTransfer[0]
+		sourcePoolAddress, err := sourcePoolAddressBytes(transfer.SourcePoolAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert source pool address: %w", err)
+		}
+		// The cross-chain amount is the post-fee amount the pool reported
+		// (LockOrBurnFinished.destTokenAmount)
+		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
+			SourcePoolAddress: sourcePoolAddress,
+			DestTokenAddress:  ccipocr3.UnknownAddress(transfer.DestTokenAddress),
+			ExtraData:         cellPayload(transfer.ExtraData),
+			Amount:            ccipocr3.NewBigInt(transfer.Amount),
+			DestExecData:      cellPayload(transfer.DestExecData),
+		})
+	}
+
 	senderAddr, err := codec.ToRawAddr(tonEvent.Message.Sender)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert sender address: %w", err)
 	}
-	feeTokenAddr, err := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
+	feeTokenAddr, err := codec.ToRawAddr(body.FeeToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert fee token address: %w", err)
 	}
@@ -116,13 +138,12 @@ func (a *TONAccessor) convertCCIPMessageSent(
 			Nonce:               tonEvent.Message.Header.Nonce,
 		},
 		Sender:         ccipocr3.UnknownAddress(senderAddr[:]),
-		Data:           ccipocr3.Bytes(tonEvent.Message.Body.Data),
-		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
-		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
+		Data:           ccipocr3.Bytes(body.Data),
+		Receiver:       ccipocr3.UnknownAddress(body.Receiver),
+		ExtraArgs:      ccipocr3.Bytes(body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
-		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount.Nano()),
-		// TODO(2025-01-09): TON CCIP currently supports message transfer only, not token transfer
-		// TokenAmounts:   tokenAmounts,
+		FeeTokenAmount: ccipocr3.NewBigInt(body.FeeTokenAmount.Nano()),
+		TokenAmounts:   tokenAmounts,
 	}
 	genericEvent := &ccipocr3.SendRequestedEvent{
 		DestChainSelector: msg.Header.DestChainSelector,
@@ -130,6 +151,34 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Message:           msg,
 	}
 	return genericEvent, nil
+}
+
+// sourcePoolAddressBytes converts the TON source pool address to its raw
+// (workchain + account id) byte form. Defensively treats a none-address as absent, even
+// though the OnRamp always sets a real address on the single token-transfer entry.
+func sourcePoolAddressBytes(addr *address.Address) (ccipocr3.UnknownAddress, error) {
+	if addr == nil || addr.IsAddrNone() {
+		return nil, nil
+	}
+	raw, err := codec.ToRawAddr(addr)
+	if err != nil {
+		return nil, err
+	}
+	return ccipocr3.UnknownAddress(raw[:]), nil
+}
+
+// cellPayload extracts the raw bytes a payload cell carries. The token-transfer payloads
+// (extraData, destExecData) are capped at CCIP_LOCK_OR_BURN_V1_RET_BYTES, so they always
+// fit in a single cell's data and never spill into references.
+func cellPayload(c *cell.Cell) ccipocr3.Bytes {
+	if c == nil {
+		return nil
+	}
+	data := c.BeginParse().MustLoadSlice(c.BitsSize())
+	if len(data) == 0 {
+		return nil
+	}
+	return ccipocr3.Bytes(data)
 }
 
 func (a *TONAccessor) validateCommitReportAcceptedEvent(

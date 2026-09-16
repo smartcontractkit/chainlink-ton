@@ -56,14 +56,17 @@ func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector 
 
 func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
 	return lanes.FeeQuoterDestChainConfig{
-		IsEnabled:                   true,
-		MaxDataBytes:                2_000,
-		MaxPerMsgGasLimit:           4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
-		DestGasOverhead:             242_500,
-		DestGasPerPayloadByteBase:   42,
-		ChainFamilySelector:         config.TVMFamilySelector,
-		DefaultTokenFeeUSDCents:     0,
-		DefaultTokenDestGasOverhead: 0,
+		IsEnabled:                 true,
+		MaxDataBytes:              2_000,
+		MaxPerMsgGasLimit:         4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
+		DestGasOverhead:           242_500,
+		DestGasPerPayloadByteBase: 42,
+		ChainFamilySelector:       config.TVMFamilySelector,
+		DefaultTokenFeeUSDCents:   0,
+		// DefaultTokenDestGasOverhead is the nanoTON value budgeted for the releaseOrMint
+		// flow on TON. The OffRamp rejects releases with destGasAmount < MIN_TT_GASLIMIT
+		// (ton("0.15") = 150_000_000 nanoTON), so the lane default must be at least that high.
+		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
 		DefaultTxGasLimit:           100_000_000,
 		NetworkFeeUSDCents:          10,
 		V1Params: &lanes.FeeQuoterV1Params{
@@ -85,7 +88,7 @@ func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainC
 }
 
 func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
-	// 1 TON ~2.13 USD -> 1 nanoTON = 2.13e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.13e9
+	// 1 TON ~2.12 USD -> 1 nanoTON = 2.12e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.12e9
 	return big.NewInt(2.12e9)
 }
 

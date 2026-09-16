@@ -7,14 +7,11 @@ struct OnRamp_Storage {
     ownable: Ownable2Step;
 
     // static config
-    chainSelector: uint64; // source chain selector
-
+    staticConfig: Cell<OnRamp_StaticConfig>;
     // dynamic config
     config: Cell<OnRamp_DynamicConfig>;
 
     destChainConfigs: map<uint64, OnRamp_DestChainConfig> = []; // chainSelector -> DestChainConfig
-    //TODO: store the executor code cell inlined when we migrate to Acton
-    executor: ExecutorDeployment;
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

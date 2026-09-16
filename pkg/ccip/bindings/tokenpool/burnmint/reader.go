@@ -1,45 +1,11 @@
 package burnmint
 
 import (
-	"fmt"
-	"math/big"
-
-	"github.com/xssnick/tonutils-go/ton"
-
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
 // --- Getters from burn_mint/contract.tolk ---
-
-// GetHasPendingBurn checks if there is a pending burn operation for the given query ID.
-//
-// On-chain: get fun hasPendingBurn(queryId: uint64): bool
-var GetHasPendingBurn = tvm.Getter[uint64, bool]{
-	Name: "hasPendingBurn",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("error getting Int(0) - hasPendingBurn: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
-	}),
-}
-
-// GetHasPendingMint checks if there is a pending mint operation for the given query ID.
-//
-// On-chain: get fun hasPendingMint(queryId: uint64): bool
-var GetHasPendingMint = tvm.Getter[uint64, bool]{
-	Name: "hasPendingMint",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("error getting Int(0) - hasPendingMint: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
-	}),
-}
 
 // GetTypeAndVersion gets the contract type and version.
 //
@@ -71,6 +37,7 @@ var (
 	GetMirroredPolicy          = tokenpool.GetMirroredPolicy
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
+	GetCCVAmount               = tokenpool.GetCCVAmount
 )
 
 // --- Re-export argument types for convenience ---
@@ -83,6 +50,9 @@ type GetCurrentRateLimiterStateArgs = tokenpool.GetCurrentRateLimiterStateArgs
 
 // GetFeeArgs holds the arguments for the getFee getter.
 type GetFeeArgs = tokenpool.GetFeeArgs
+
+// GetCCVAmountArgs holds the arguments for the getCCVAmount getter.
+type GetCCVAmountArgs = tokenpool.GetCCVAmountArgs
 
 // GetTokenTransferFeeConfigResult holds the optional fee config result.
 type GetTokenTransferFeeConfigResult = tokenpool.GetTokenTransferFeeConfigResult

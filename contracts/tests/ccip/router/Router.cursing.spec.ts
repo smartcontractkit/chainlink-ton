@@ -6,8 +6,10 @@ import { assertLog } from '../../Logs'
 import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
-import * as rt from '../../../wrappers/ccip/Router'
-import { setup, EVM_ADDRESS, contractsCoverageConfig } from './Router.Setup'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import { ccipSendCost, RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
+import { setup, contractsCoverageConfig } from './Router.Setup'
+import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router.cursing', () => {
@@ -41,26 +43,20 @@ describe('Router.cursing', () => {
 
   it('router respects cursing', async () => {
     const msg = {
-      queryID: 1,
+      queryID: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
       feeToken: WRAPPED_NATIVE,
-      extraArgs: rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: 100n,
-          allowOutOfOrderExecution: true,
-        })
-        .asCell(),
+      extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),
     }
 
     // Curse the lane
     {
-      const result = await router.sendRMNRemoteCurse(deployer.getSender(), {
-        value: toNano('1'),
-        body: { queryID: 0n, subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001] },
+      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+        queryId: 0n,
+        subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -79,10 +75,7 @@ describe('Router.cursing', () => {
 
     // Fail router.ccipSend
     {
-      const result = await router.sendCcipSend(sender.getSender(), {
-        value: toNano('1'),
-        body: msg,
-      })
+      const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
@@ -90,15 +83,15 @@ describe('Router.cursing', () => {
         to: router.address,
         deploy: false,
         success: false,
-        exitCode: rt.RouterError.SubjectCursed,
+        exitCode: rt.Router.Errors['Router_Error.SubjectCursed'],
       })
     }
 
     // Uncurse the lane
     {
-      const result = await router.sendRMNRemoteUncurse(deployer.getSender(), {
-        value: toNano('1'),
-        body: { queryID: 0n, subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001] },
+      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+        queryId: 0n,
+        subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -117,10 +110,7 @@ describe('Router.cursing', () => {
 
     // Succeed router.ccipSend
     {
-      const result = await router.sendCcipSend(sender.getSender(), {
-        value: toNano('1'),
-        body: msg,
-      })
+      const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
 
       expect(result.transactions).toHaveTransaction({
         from: sender.address,
@@ -139,9 +129,9 @@ describe('Router.cursing', () => {
   it('router respect global cursing', async () => {
     // Curse all lanes
     {
-      const result = await router.sendRMNRemoteCurse(deployer.getSender(), {
-        value: toNano('1'),
-        body: { queryID: 0n, subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT] },
+      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+        queryId: 0n,
+        subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -150,19 +140,19 @@ describe('Router.cursing', () => {
       })
 
       assertLog(result.transactions, router.address, LogTypes.Cursed, {
-        subject: rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT,
+        subject: RMNREMOTE_GLOBAL_CURSE_SUBJECT,
       })
 
       await verifyNotCursed(router, deployer, false)
       const cursedSubjects = await router.getCursedSubjects()
-      expect(cursedSubjects).toEqual([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT])
+      expect(cursedSubjects).toEqual([RMNREMOTE_GLOBAL_CURSE_SUBJECT])
     }
 
     // Uncurse all lanes
     {
-      const result = await router.sendRMNRemoteUncurse(deployer.getSender(), {
-        value: toNano('1'),
-        body: { queryID: 0n, subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT] },
+      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+        queryId: 0n,
+        subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -171,7 +161,7 @@ describe('Router.cursing', () => {
       })
 
       assertLog(result.transactions, router.address, LogTypes.Uncursed, {
-        subject: rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT,
+        subject: RMNREMOTE_GLOBAL_CURSE_SUBJECT,
       })
 
       await verifyNotCursed(router, deployer, true)
@@ -199,10 +189,11 @@ async function verifyNotCursed(
     await router.getVerifyNotCursed(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
   ).toBe(expected)
 
-  const verification = await router.sendRMNRemoteVerifyNotCursed(deployer.getSender(), {
-    value: toNano('1'),
-    body: { queryID: 0n, subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 },
-  })
+  const verification = await router.sendRouterRMNRemoteVerifyNotCursed(
+    deployer.getSender(),
+    toNano('1'),
+    { queryId: 0n, subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 },
+  )
   expect(verification.transactions).toHaveTransaction({
     from: deployer.address,
     to: router.address,
@@ -212,11 +203,11 @@ async function verifyNotCursed(
     from: router.address,
     to: deployer.address,
     success: true,
-    op: rt.opcodes.out.rmnRemoteVerifyNotCursedResponse,
+    op: rt.Router_RMNRemoteVerifyNotCursedResponse.PREFIX,
     body(x) {
       if (!x) return false
-      const resp = rt.builder.message.out.rmnRemoteVerifyNotCursedResponse.load(x.beginParse())
-      return resp.queryID === 0n && resp.result === expected
+      const resp = rt.Router_RMNRemoteVerifyNotCursedResponse.fromSlice(x.beginParse())
+      return resp.queryId === 0n && resp.result === expected
     },
   })
 }

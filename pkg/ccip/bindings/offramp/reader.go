@@ -84,7 +84,17 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 
 		chainSelector := cs.Uint64()
 
-		feeQuoterAddressSlice, err := r.Slice(1)
+		tokenAdminRegistrySlice, err := r.Slice(1)
+		if err != nil {
+			return c, fmt.Errorf("failed to get TokenAdminRegistry address slice: %w", err)
+		}
+
+		tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
+		if err != nil {
+			return c, fmt.Errorf("failed to load TokenAdminRegistry address: %w", err)
+		}
+
+		feeQuoterAddressSlice, err := r.Slice(2)
 		if err != nil {
 			return c, fmt.Errorf("failed to get feeQuoter address slice: %w", err)
 		}
@@ -94,13 +104,14 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			return c, fmt.Errorf("failed to load feeQuoter address: %w", err)
 		}
 
-		thresholdInt, err := r.Int(2)
+		thresholdInt, err := r.Int(3)
 		if err != nil {
 			return c, fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
 		}
 
 		return Config{
 			ChainSelector:                           chainSelector,
+			TokenAdminRegistry:                      tokenAdminRegistry,
 			FeeQuoterAddress:                        feeQuoterAddress,
 			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
 		}, nil

@@ -192,10 +192,18 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 						},
 						Sender: sender,
 						Body: ocr.TVM2AnyRampMessageBody{
-							Receiver:       common.CrossChainAddress{0x01, 0x02},
-							Data:           common.SnakeBytes{0xAA, 0xBB, 0xCC},
-							ExtraArgs:      tvm.EmptyCell,
-							TokenAmounts:   common.SnakedCell[ocr.TokenAmount]{},
+							Receiver:  common.CrossChainAddress{0x01, 0x02},
+							Data:      common.SnakeBytes{0xAA, 0xBB, 0xCC},
+							ExtraArgs: tvm.EmptyCell,
+							TokenTransfer: common.SnakedCell[ocr.TVM2AnyTokenTransfer]{
+								{
+									SourcePoolAddress: sender,
+									Amount:            big.NewInt(0),
+									DestTokenAddress:  common.CrossChainAddress{},
+									ExtraData:         tvm.EmptyCell,
+									DestExecData:      tvm.EmptyCell,
+								},
+							},
 							FeeToken:       feeToken,
 							FeeTokenAmount: &feeAmount,
 						},

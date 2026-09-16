@@ -12,7 +12,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 func TestCommit_EncodingAndDecoding(t *testing.T) {
@@ -110,18 +109,19 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	dummyCell, err := common.NewDummyCell()
 	require.NoError(t, err)
 	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	destGasAmount := tlb.MustFromTON("1000")
 	tokenAmountsSlice := []ocr.Any2TVMTokenTransfer{
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
-			DestGasAmount:     1000,
+			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(20),
 		},
@@ -145,7 +145,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	report := ocr.ExecuteReport{
 		SourceChainSelector: 1,
 		Message:             rampMessage,
-		OffChainTokenData:   tvm.EmptyCell,
+		OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
 		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
 	}

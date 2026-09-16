@@ -108,6 +108,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 
 	// Randomize node order to avoid always hitting the same node first
 	nodes := make([]*config.Node, len(cfg.Nodes))
+	//nolint:gosec // Non-cryptographic shuffle for load distribution only.
 	indexes := rand.Perm(len(nodes))
 	for i, idx := range indexes {
 		nodes[i] = cfg.Nodes[idx]

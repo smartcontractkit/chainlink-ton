@@ -6,13 +6,11 @@ import "../lib/token_pool/types"
 
 import "types"
 
+/// @notice Pool storage: common pool data + OffRampAccount deployment state.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    // Local storage used for MVP, won't scale to high volume of concurrent messages
-    // with 65,536 cells per contract limit.
-    // TODO: replace with sharded ContextExecutor per message
-    pendingBurns: map<uint64, Cell<BurnMintTokenPool_PendingBurn>> = [];
-    pendingMints: map<uint64, Cell<BurnMintTokenPool_PendingMint>> = [];
+    /// Compiled code cell of the OffRampAccount contract (deployed per mint operation).
+    offRampAccountCode: cell;
 }
 
 fun Storage.load(): Storage {
@@ -41,6 +39,7 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
+                deployableCode: config.deployableCode,
             }.toCell(),
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),
@@ -53,7 +52,6 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        pendingBurns: createEmptyMap(),
-        pendingMints: createEmptyMap(),
+        offRampAccountCode: config.offRampAccountCode,
     };
 }

@@ -119,6 +119,7 @@ func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
 	require.NotNil(t, messageSent.Message.Body.FeeToken)
 	require.Equal(t, TestFeeTokenAddr, messageSent.Message.Body.FeeToken.String())
 	require.NotNil(t, messageSent.Message.Body.FeeTokenAmount)
+	require.Empty(t, messageSent.Message.Body.TokenTransfer)
 }
 
 func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {

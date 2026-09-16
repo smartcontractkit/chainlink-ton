@@ -6,21 +6,21 @@ import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
   sender?: SandboxContract<TreasuryContract>
   receiver?: SandboxContract<TreasuryContract>
   router?: SandboxContract<rt.Router>
+  tokenAdminRegistry?: Address
   skipRouterOnRampConfig?: boolean
 }
 type RouterSetupOverrides = Partial<{
@@ -40,13 +40,13 @@ type RouterSetupResultBase = {
 }
 
 type RouterSetupResultFor<TOverrides extends RouterSetupOverrides> = RouterSetupResultBase &
-  ([TOverrides] extends [{ feeQuoter: SandboxContract<any> }]
+  ([TOverrides] extends [{ feeQuoter: SandboxContract<infer _FeeQuoter> }]
     ? {}
     : { feeQuoter: SandboxContract<fq.FeeQuoter> }) &
-  ([TOverrides] extends [{ onRamp: SandboxContract<any> }]
+  ([TOverrides] extends [{ onRamp: SandboxContract<infer _OnRamp> }]
     ? {}
     : { onRamp: SandboxContract<or.OnRamp> }) &
-  ([TOverrides] extends [{ offRamp: SandboxContract<any> }]
+  ([TOverrides] extends [{ offRamp: SandboxContract<infer _OffRamp> }]
     ? {}
     : { offRamp: SandboxContract<of.OffRamp> })
 
@@ -80,13 +80,26 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   blockchain.libs = libs
   const router = opts.router ?? (await deployRouterInstance(blockchain, deployer))
   const feeQuoter = opts.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
+  const tokenAdminRegistry = opts.tokenAdminRegistry ?? deployer.address
   const onRamp =
     opts.onRamp ??
-    (await deployOnRampInstance(blockchain, deployer, router.address, feeQuoter.address))
+    (await deployOnRampInstance(
+      blockchain,
+      deployer,
+      router.address,
+      feeQuoter.address,
+      tokenAdminRegistry,
+    ))
 
   const offRamp =
     opts.offRamp ??
-    (await deployOffRampInstance(blockchain, deployer, router.address, feeQuoter.address))
+    (await deployOffRampInstance(
+      blockchain,
+      deployer,
+      router.address,
+      feeQuoter.address,
+      tokenAdminRegistry,
+    ))
 
   if (!opts.skipRouterOnRampConfig) {
     await configureRouterWithOnRamp(router, deployer, onRamp.address, offRamp.address)
@@ -123,22 +136,25 @@ async function deployRouterInstance(
   deployer: SandboxContract<TreasuryContract>,
 ) {
   const routerCode = await contractCode.ccip.local('Router')
-  const data: rt.Storage = {
+  const data = rt.Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: rt.Ownable2Step.create({
       owner: deployer.address,
       pendingOwner: null,
-    },
+    }),
     wrappedNative: WRAPPED_NATIVE,
-    onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-    offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-    tokenRegistryDeployment: {
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-    },
-  }
-  const router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
-  const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+    onRamps: new Map(),
+    offRamps: new Map(),
+    rmnRemote: rt.RMNRemote.create({
+      admin: rt.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+      cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+      forwardUpdates: new Set(),
+    }),
+  })
+  const router = blockchain.openContract(
+    rt.Router.fromStorage(data, { overrideContractCode: routerCode }),
+  )
+  const result = await router.sendDeploy(deployer.getSender(), toNano('1'))
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: router.address,
@@ -153,25 +169,23 @@ async function deployFeeQuoterInstance(
   deployer: SandboxContract<TreasuryContract>,
 ) {
   const code = await contractCode.ccip.local('FeeQuoter')
-  const data: fq.FeeQuoterStorage = {
+  const data = fq.Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: fq.Ownable2Step.create({
       owner: deployer.address,
-      pendingOwner: null,
-    },
-    allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
+    }),
+    allowedPriceUpdaters: new Set(),
     maxFeeJuelsPerMsg: 100000000n,
     linkToken: LINK_TOKEN,
-    tokenPriceStalenessThreshold: 1000,
-    usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
-    premiumMultiplierWeiPerEth: Dictionary.empty(
-      Dictionary.Keys.Address(),
-      Dictionary.Values.BigUint(64),
-    ),
-    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
-  }
+    tokenPriceStalenessThreshold: 1000n,
+    usdPerToken: new Map(),
+    premiumMultiplierWeiPerEth: new Map(),
+    destChainConfigs: new Map(),
+  })
 
-  const feeQuoter = blockchain.openContract(fq.FeeQuoter.createFromConfig(data, code))
+  const feeQuoter = blockchain.openContract(
+    fq.FeeQuoter.fromStorage(data, { overrideContractCode: code }),
+  )
 
   {
     const result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -183,27 +197,31 @@ async function deployFeeQuoterInstance(
     })
   }
   {
-    const addPriceUpdaterResult = await feeQuoter.sendAddPriceUpdater(deployer.getSender(), {
-      value: toNano('1'),
-      msg: { priceUpdater: deployer.address },
-    })
+    const addPriceUpdaterResult = await feeQuoter.sendFeeQuoterAddPriceUpdater(
+      deployer.getSender(),
+      toNano('1'),
+      { priceUpdater: deployer.address },
+    )
     expect(addPriceUpdaterResult.transactions).toHaveTransaction({
       to: feeQuoter.address,
       success: true,
     })
 
-    const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
-      value: toNano('1'),
-      msg: {
-        updates: {
-          gasPricesUpdates: [],
-          tokenPricesUpdates: [
-            { token: WRAPPED_NATIVE, price: Decimals.TESTING_VALUES.tokenPrice.eth },
-            { token: LINK_TOKEN, price: Decimals.TESTING_VALUES.tokenPrice.link },
-          ],
-        },
-        sendExcessesTo: null,
-      },
+    const result = await feeQuoter.sendFeeQuoterUpdatePrices(deployer.getSender(), toNano('1'), {
+      updates: fq.PriceUpdates.create({
+        gasPriceUpdates: [],
+        tokenPriceUpdates: [
+          fq.TokenPriceUpdate.create({
+            sourceToken: WRAPPED_NATIVE,
+            usdPerToken: Decimals.TESTING_VALUES.tokenPrice.eth,
+          }),
+          fq.TokenPriceUpdate.create({
+            sourceToken: LINK_TOKEN,
+            usdPerToken: Decimals.TESTING_VALUES.tokenPrice.link,
+          }),
+        ],
+      }),
+      sendExcessesTo: null,
     })
     expect(result.transactions).toHaveTransaction({
       to: feeQuoter.address,
@@ -212,34 +230,37 @@ async function deployFeeQuoterInstance(
   }
 
   {
-    const result = await feeQuoter.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('1'),
-      updates: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          config: {
-            isEnabled: true,
-            maxNumberOfTokensPerMsg: 1,
-            maxDataBytes: 100,
-            maxPerMsgGasLimit: 100,
-            destGasOverhead: 0,
-            destGasPerPayloadByteBase: 0,
-            destGasPerPayloadByteHigh: 0,
-            destGasPerPayloadByteThreshold: 0,
-            destDataAvailabilityOverheadGas: 0,
-            destGasPerDataAvailabilityByte: 0,
-            destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: ChainFamilySelectors.evm,
-            defaultTokenFeeUsdCents: 0,
-            defaultTokenDestGasOverhead: 0,
-            defaultTxGasLimit: 1,
-            gasMultiplierWeiPerEth: 0n,
-            gasPriceStalenessThreshold: 0,
-            networkFeeUsdCents: 0,
-          },
-        },
-      ],
-    })
+    const result = await feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      {
+        updates: [
+          fq.FeeQuoter_UpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            destChainConfig: fq.FeeQuoterDestChainConfig.create({
+              isEnabled: true,
+              maxNumberOfTokensPerMsg: 1n,
+              maxDataBytes: 100n,
+              maxPerMsgGasLimit: 100n,
+              destGasOverhead: 0n,
+              destGasPerPayloadByteBase: 0n,
+              destGasPerPayloadByteHigh: 0n,
+              destGasPerPayloadByteThreshold: 0n,
+              destDataAvailabilityOverheadGas: 0n,
+              destGasPerDataAvailabilityByte: 0n,
+              destDataAvailabilityMultiplierBps: 0n,
+              chainFamilySelector: ChainFamilySelectors.evm,
+              defaultTokenFeeUsdCents: 0n,
+              defaultTokenDestGasOverhead: 0n,
+              defaultTxGasLimit: 1n,
+              gasMultiplierWeiPerEth: 0n,
+              gasPriceStalenessThreshold: 0n,
+              networkFeeUsdCents: 0n,
+            }),
+          }),
+        ],
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       to: feeQuoter.address,
       success: true,
@@ -247,12 +268,9 @@ async function deployFeeQuoterInstance(
   }
 
   {
-    const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
-      value: toNano('1'),
-      msg: {
-        add: new Map([[WRAPPED_NATIVE, { premiumMultiplierWeiPerEth: 1n }]]),
-        remove: [],
-      },
+    const result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
+      add: new Map([[WRAPPED_NATIVE, fq.FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
+      remove: [],
     })
     expect(result.transactions).toHaveTransaction({
       to: feeQuoter.address,
@@ -268,29 +286,31 @@ async function deployOnRampInstance(
   deployer: SandboxContract<TreasuryContract>,
   router: Address,
   feeQuoter: Address,
+  tokenAdminRegistry: Address,
 ) {
-  const code = await contractCode.ccip.local('OnRamp')
-  const data: or.OnRampStorage = {
+  const data = or.OnRamp_Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: or.Ownable2Step.create({
       owner: deployer.address,
-      pendingOwner: null,
-    },
-    chainSelector: CHAINSEL_TON,
-    config: {
+    }),
+    staticConfig: or.OnRamp_StaticConfig.create({
+      chainSelector: ChainSelectors.testnet.ton,
+      tokenAdminRegistry,
+    }),
+    config: or.OnRamp_DynamicConfig.create({
       feeQuoter,
       feeAggregator: deployer.address,
       allowlistAdmin: deployer.address,
       reserve: toNano('10'),
-    },
-    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-    executor: {
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-    },
-  }
+    }),
+    destChainConfigs: new Map(),
+  })
 
-  const onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
+  const onRamp = blockchain.openContract(
+    or.OnRamp.fromStorage(data, {
+      overrideContractCode: await contractCode.ccip.local('OnRamp'),
+    }),
+  )
 
   {
     const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -309,16 +329,19 @@ async function deployOnRampInstance(
       allowlistEnabled: false,
     }
 
-    const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('1'),
-      destChainConfigs: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          router: config.router,
-          allowlistEnabled: config.allowlistEnabled,
-        },
-      ],
-    })
+    const result = await onRamp.sendOnRampUpdateDestChainConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      {
+        updates: [
+          or.OnRampUpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            router: config.router,
+            allowlistEnabled: config.allowlistEnabled,
+          }),
+        ],
+      },
+    )
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: onRamp.address,
@@ -330,7 +353,7 @@ async function deployOnRampInstance(
     })
     assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      config,
+      destChainConfig: config,
     })
   }
 
@@ -342,6 +365,7 @@ async function deployOffRampInstance(
   deployer: SandboxContract<TreasuryContract>,
   router: Address,
   feeQuoter: Address,
+  tokenAdminRegistry: Address,
 ) {
   const data = of.Storage.create({
     id: generateRandomContractId(),
@@ -349,12 +373,10 @@ async function deployOffRampInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    chainSelector: CHAINSEL_TON,
-    deployables: of.OffRamp_Deployables.create({
-      deployer: await contractCode.ccip.local('Deployable'),
-      merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
-      receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
+    staticConfig: of.OffRamp_StaticConfig.create({
       rmnRouter: router,
+      tokenAdminRegistry,
+      chainSelector: ChainSelectors.testnet.ton,
     }),
     feeQuoter,
     permissionlessExecutionThresholdSeconds: 0n,
@@ -370,7 +392,11 @@ async function deployOffRampInstance(
     sourceChainConfigs: new Map(),
   })
 
-  const offRamp = blockchain.openContract(of.OffRamp.fromStorage(data))
+  const offRamp = blockchain.openContract(
+    of.OffRamp.fromStorage(data, {
+      overrideContractCode: await contractCode.ccip.local('OffRamp'),
+    }),
+  )
 
   {
     const result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -401,7 +427,7 @@ async function deployOffRampInstance(
               isEnabled: true,
               minSeqNr: 0n,
               isRMNVerificationDisabled: false,
-              onRamp: CrossChainAddressCodec.FromBuffer(EVM_ADDRESS),
+              onRamp: EVM_ADDRESS,
             }),
           }),
         ],
@@ -424,19 +450,16 @@ async function configureRouterWithOnRamp(
   onRamp: Address,
   offRamp: Address,
 ) {
-  const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-    value: toNano('1'),
-    data: {
-      queryID: BigInt(0),
-      onRamps: {
-        destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
-        onRamp: onRamp,
-      },
-      offRampAdds: {
-        sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
-        offRamp: offRamp,
-      },
-    },
+  const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
+    queryId: 0n,
+    onRampUpdates: rt.OnRamps.create({
+      destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
+      onRamp,
+    }),
+    offRampAdds: rt.OffRamps.create({
+      sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
+      offRamp,
+    }),
   })
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
@@ -454,26 +477,28 @@ export async function deployRouterContract(
   owner: SandboxContract<TreasuryContract>,
   codeOverride?: Cell,
 ) {
-  const code = codeOverride ?? (await rt.Router.code())
-  let data: rt.Storage = {
+  const code = codeOverride ?? (await contractCode.ccip.local('Router'))
+  const data = rt.Storage.create({
     id: generateRandomContractId(),
-    ownable: {
+    ownable: rt.Ownable2Step.create({
       owner: owner.address,
-      pendingOwner: null,
-    },
+    }),
     wrappedNative: WRAPPED_NATIVE,
-    onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-    offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-    tokenRegistryDeployment: {
-      deployableCode: await contractCode.ccip.local('Deployable'),
-      tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-    },
-  }
+    onRamps: new Map(),
+    offRamps: new Map(),
+    rmnRemote: rt.RMNRemote.create({
+      admin: rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
+      cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+      forwardUpdates: new Set(),
+    }),
+  })
 
   // TODO: use deployable to make deterministic?
-  const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
+  const contract = blockchain.openContract(
+    rt.Router.fromStorage(data, { overrideContractCode: code }),
+  )
   const deployer = await blockchain.treasury('deployer')
-  await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+  await contract.sendDeploy(deployer.getSender(), toNano('1'))
   return contract
 }
 
@@ -485,28 +510,22 @@ export function genExecID(opts: {
   return (opts.sourceChainSelector << (192n - 64n)) | (opts.messageID >> 64n)
 }
 
-export const CHAINSEL_TON = 13879075125137744094n
-export const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
-
 export async function contractsCoverageConfig(): Promise<ContractCoverageConfig[]> {
   return [
     {
-      code: await rt.Router.code(),
+      code: await contractCode.ccip.local('Router'),
       name: 'router',
     },
     {
-      code: await fq.FeeQuoter.code(),
+      code: await contractCode.ccip.local('FeeQuoter'),
       name: 'feequoter',
     },
     {
-      code: await or.OnRamp.code(),
+      code: await contractCode.ccip.local('OnRamp'),
       name: 'onramp',
     },
     {
-      code: await sendExecutor.ContractClient.code(),
+      code: await contractCode.ccip.local('OffRamp'),
       name: 'send_executor',
     },
   ]

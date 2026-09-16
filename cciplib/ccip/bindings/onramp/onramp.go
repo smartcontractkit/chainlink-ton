@@ -23,7 +23,6 @@ const (
 	OpcodeSetDynamicConfig                   = 0xa178c62e
 	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
-	OpcodeUpdateSendExecutor                 = 0x82901c45
 	OpcodeWithdrawFeeTokens                  = 0x7052dc75
 )
 
@@ -43,7 +42,6 @@ const (
 	destChainSelectorsGetter = "destChainSelectors"
 )
 
-// CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
 type CCIPMessageSent struct {
 	Message ocr.TVM2AnyRampMessage `tlb:"."`
 }
@@ -99,16 +97,9 @@ type SuiExtraArgsV1 struct {
 type Storage struct {
 	ID               uint32               `tlb:"## 32"`
 	Ownable          ownable2step.Storage `tlb:"."`
-	ChainSelector    uint64               `tlb:"## 64"`
+	StaticConfig     StaticConfig         `tlb:"^"`
 	Config           DynamicConfig        `tlb:"^"`
 	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
-	Executor         ExecutorDeployment   `tlb:"."`
-}
-
-type ExecutorDeployment struct {
-	DeployableCode *cell.Cell `tlb:"^"`
-	ExecutorCode   *cell.Cell `tlb:"^"`
-	CurrentID      *big.Int   `tlb:"## 224"`
 }
 
 // Methods
@@ -142,10 +133,9 @@ type WithdrawFeeTokens struct {
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_             tlb.Magic        `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
-	Msg           *cell.Cell       `tlb:"^"`                  // Cell containing the CCIPSend message
-	Metadata      Metadata         `tlb:"."`                  // Cell containing metadata
-	TokenRegistry *address.Address `tlb:"addr"`
+	_        tlb.Magic  `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
+	Metadata Metadata   `tlb:"."`
 }
 
 type Metadata struct {
@@ -159,6 +149,21 @@ type ExecutorFinishedSuccessfully struct {
 	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
 	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata Metadata      `tlb:"."`                  // Metadata
+	// Pool-supplied token transfer details the OnRamp folds into the emitted
+	// CCIPMessageSent event. Nil when the message carries no token transfer.
+	TokenTransfer *ExecutorTokenTransfer `tlb:"maybe ^"`
+}
+
+// ExecutorTokenTransfer mirrors the contract's OnRamp_ExecutorTokenTransfer: the portion
+// of a token transfer that the CCIPSendExecutor learns from the token pool.
+type ExecutorTokenTransfer struct {
+	// SourcePoolAddress is an optional address on the contract side: addr_none when the
+	// message carries no token transfer.
+	SourcePoolAddress *address.Address         `tlb:"addr"`
+	Amount            *big.Int                 `tlb:"## 256"`
+	DestTokenAddress  common.CrossChainAddress `tlb:"^"`
+	ExtraData         *cell.Cell               `tlb:"^"`
+	DestExecData      *cell.Cell               `tlb:"^"`
 }
 
 type ExecutorFinishedWithError struct {
@@ -174,11 +179,6 @@ type SetDynamicConfigMessage struct {
 	Config DynamicConfig `tlb:"."`
 }
 
-type UpdateSendExecutorMessage struct {
-	_    tlb.Magic  `tlb:"#82901c45" json:"-"` //nolint:revive // Ignore opcode tag
-	Code *cell.Cell `tlb:"^"`                  // New executor code
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateAllowlists{},
 	Send{},
@@ -186,7 +186,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	ExecutorFinishedWithError{},
 	SetDynamicConfigMessage{},
 	UpdateDestChainConfigsMessage{},
-	UpdateSendExecutorMessage{},
 	WithdrawFeeTokens{},
 }).MustWithStorageType(Storage{})
 
@@ -239,7 +238,8 @@ func (c *DynamicConfig) GetterMethodName() string {
 }
 
 type StaticConfig struct {
-	ChainSelector uint64 `tlb:"## 64"`
+	ChainSelector      uint64           `tlb:"## 64"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
 }
 
 // Deprecated: Use GetStaticConfig getter instead.

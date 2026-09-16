@@ -5,16 +5,29 @@ import '@ton/test-utils'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
-import * as ofManual from '../../../wrappers/ccip/OffRamp'
-import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import {
+  FACILITY_NAME,
+  OFFRAMP_CONTRACT_VERSION,
+  SUPPORTED_PREV_VERSIONS,
+  ARTIFACT_NAME,
+} from '../../../wrappers/ccip/OffRamp'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
+
 import { contractCode } from '../../../wrappers/codeLoader'
-import { deployOffRampContract } from './OffRamp.Setup'
+import { deployLegacyOffRampContract, deployOffRampContract } from './OffRamp.Setup'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import * as ofManual from '../../../wrappers/ccip/OffRamp'
+import { generateMockTonAddress } from '../../../src/utils'
+import { errorCode, facilityId } from '../../../wrappers/utils'
+import { crc32 } from 'zlib'
+import { ChainSelectors } from '../../utils/Selectors'
+import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.spec'
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: ofManual.FACILITY_NAME,
-    version: ofManual.OFFRAMP_CONTRACT_VERSION,
+    type: FACILITY_NAME,
+    version: OFFRAMP_CONTRACT_VERSION,
     deployContract: deployOffRampContract,
   })
   currentVersionSpec.run([
@@ -42,19 +55,27 @@ describe('OffRamp - Withdrawable Tests', () => {
 
 describe('OffRamp - Upgrade Tests', () => {
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: ofManual.FACILITY_NAME,
-    prevVersionConfigs: Object.entries(ofManual.SUPPORTED_PREV_VERSIONS).map(
-      ([version, getCode]) => ({
-        version,
-        getCode,
-        deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
-          deployOffRampContract(blockchain, owner, await getCode()),
-      }),
-    ),
-    currentVersion: ofManual.OFFRAMP_CONTRACT_VERSION,
-    getCurrentCode: () => contractCode.ccip.local(ofManual.ARTIFACT_NAME),
+    contractType: FACILITY_NAME,
+    prevVersionConfigs: Object.entries(SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+      version,
+      getCode,
+      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+        deployLegacyOffRampContract(blockchain, owner, await getCode()),
+    })),
+    currentVersion: OFFRAMP_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local(ARTIFACT_NAME),
     CurrentVersionConstructor: of.OffRamp.fromAddress,
     upgradeValue: toNano('0.05'),
+    verifyMigration: async (offramp, owner) => {
+      const config = await offramp.getConfig()
+      expect(config.chainSelector).toBe(ChainSelectors.testnet.ton)
+      expect(config.tokenAdminRegistry).toEqualAddress(owner.address)
+      expect(config.feeQuoter).toEqualAddress(owner.address)
+      expect(config.permissionlessExecutionThresholdSeconds).toBe(
+        PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
+      )
+      expect(await offramp.getRmnRouter()).toEqualAddress(owner.address)
+    },
   })
   upgradeSpec.run([
     {
@@ -66,11 +87,82 @@ describe('OffRamp - Upgrade Tests', () => {
 
 describe('OffRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: ofManual.FACILITY_NAME,
-    currentVersion: ofManual.OFFRAMP_CONTRACT_VERSION,
-    getCurrentCode: () => contractCode.ccip.local(ofManual.ARTIFACT_NAME),
+    contractType: FACILITY_NAME,
+    currentVersion: OFFRAMP_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local(ARTIFACT_NAME),
     CurrentVersionConstructor: of.OffRamp.fromAddress,
     deployCurrentContract: deployOffRampContract,
   })
   currentVersionSpec.run('offramp')
+})
+
+describe('OffRamp - Ownable Tests', () => {
+  it('supports ownable messages', async () => {
+    const blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+    const deployer = await blockchain.treasury('deployer')
+    const other = await blockchain.treasury('other')
+    const offRamp = await deployOffRampContract(
+      blockchain,
+      deployer,
+      await contractCode.ccip.local('OffRamp'),
+      {
+        feeQuoter: generateMockTonAddress(),
+      },
+    )
+
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: await contractCode.ccip.local('OffRamp'),
+            name: 'offramp',
+          },
+        ],
+      },
+    })
+  })
+
+  describe('OffRamp - Commit and Execute', () => {
+    let blockchain: Blockchain
+    let offRamp: SandboxContract<of.OffRamp>
+
+    beforeAll(async () => {
+      blockchain = await Blockchain.create()
+      if (process.env['COVERAGE'] === 'true') {
+        blockchain.enableCoverage()
+        blockchain.verbosity.print = false
+        blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+      }
+      blockchain.now = 10000
+      offRamp = await deployOffRampContract(
+        blockchain,
+        await blockchain.treasury('deployer'),
+        await contractCode.ccip.local('OffRamp'),
+      )
+    })
+
+    it('OffRamp should match facility name and ID', async () => {
+      const facilityIdVal = await offRamp.getFacilityId()
+      expect(facilityIdVal).toBe(BigInt(ofManual.FACILITY_ID))
+
+      const [typeSlice] = await offRamp.getTypeAndVersion()
+      const typeStr = typeSlice.loadStringTail()
+      expect(typeStr).toBe(ofManual.FACILITY_NAME)
+
+      expect(ofManual.FACILITY_ID).toEqual(facilityId(crc32(ofManual.FACILITY_NAME)))
+    })
+
+    it('OffRamp should match error code', async () => {
+      const errorCodeVal = await offRamp.getErrorCode(0n)
+      expect(errorCodeVal).toBe(BigInt(ofManual.ERROR_CODE))
+
+      expect(ofManual.ERROR_CODE).toEqual(errorCode(crc32(ofManual.FACILITY_NAME)))
+    })
+  })
 })

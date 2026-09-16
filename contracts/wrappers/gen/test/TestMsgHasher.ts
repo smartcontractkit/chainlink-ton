@@ -239,40 +239,188 @@ export const RampMessageHeader = {
 }
 
 /**
- > struct TokenAmount {
- >     amount: coins
- >     token: address
- > }
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
  */
-export interface TokenAmount {
-    readonly $: 'TokenAmount'
-    amount: coins
-    token: c.Address
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
+    }
 }
 
-export const TokenAmount = {
+/**
+ > struct (0x181dcf10) GenericExtraArgsV2 {
+ >     gasLimit: uint256?
+ >     allowOutOfOrderExecution: bool
+ > }
+ */
+export interface GenericExtraArgsV2 {
+    readonly $: 'GenericExtraArgsV2'
+    gasLimit: uint256 | null
+    allowOutOfOrderExecution: boolean
+}
+
+export const GenericExtraArgsV2 = {
+    PREFIX: 0x181dcf10,
+
     create(args: {
-        amount: coins
-        token: c.Address
-    }): TokenAmount {
+        gasLimit: uint256 | null
+        allowOutOfOrderExecution: boolean
+    }): GenericExtraArgsV2 {
         return {
-            $: 'TokenAmount',
+            $: 'GenericExtraArgsV2',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenAmount {
+    fromSlice(s: c.Slice): GenericExtraArgsV2 {
+        loadAndCheckPrefix32(s, 0x181dcf10, 'GenericExtraArgsV2');
         return {
-            $: 'TokenAmount',
-            amount: s.loadCoins(),
-            token: s.loadAddress(),
+            $: 'GenericExtraArgsV2',
+            gasLimit: s.loadBoolean() ? s.loadUintBig(256) : null,
+            allowOutOfOrderExecution: s.loadBoolean(),
         }
     },
-    store(self: TokenAmount, b: c.Builder): void {
-        b.storeCoins(self.amount);
-        b.storeAddress(self.token);
+    store(self: GenericExtraArgsV2, b: c.Builder): void {
+        b.storeUint(0x181dcf10, 32);
+        storeTolkNullable<uint256>(self.gasLimit, b,
+            (v,b) => b.storeUint(v, 256)
+        );
+        b.storeBit(self.allowOutOfOrderExecution);
     },
-    toCell(self: TokenAmount): c.Cell {
-        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    toCell(self: GenericExtraArgsV2): c.Cell {
+        return makeCellFrom<GenericExtraArgsV2>(self, GenericExtraArgsV2.store);
+    }
+}
+
+/**
+ > struct (0x1f3b3aba) SVMExtraArgsV1 {
+ >     computeUnits: uint32
+ >     accountIsWritableBitmap: uint64
+ >     allowOutOfOrderExecution: bool
+ >     tokenReceiver: uint256
+ >     accounts: SnakedCell<uint256>
+ > }
+ */
+export interface SVMExtraArgsV1 {
+    readonly $: 'SVMExtraArgsV1'
+    computeUnits: uint32
+    accountIsWritableBitmap: uint64
+    allowOutOfOrderExecution: boolean
+    tokenReceiver: uint256
+    accounts: SnakedCell<uint256>
+}
+
+export const SVMExtraArgsV1 = {
+    PREFIX: 0x1f3b3aba,
+
+    create(args: {
+        computeUnits: uint32
+        accountIsWritableBitmap: uint64
+        allowOutOfOrderExecution: boolean
+        tokenReceiver: uint256
+        accounts: SnakedCell<uint256>
+    }): SVMExtraArgsV1 {
+        return {
+            $: 'SVMExtraArgsV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): SVMExtraArgsV1 {
+        loadAndCheckPrefix32(s, 0x1f3b3aba, 'SVMExtraArgsV1');
+        return {
+            $: 'SVMExtraArgsV1',
+            computeUnits: s.loadUintBig(32),
+            accountIsWritableBitmap: s.loadUintBig(64),
+            allowOutOfOrderExecution: s.loadBoolean(),
+            tokenReceiver: s.loadUintBig(256),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+        }
+    },
+    store(self: SVMExtraArgsV1, b: c.Builder): void {
+        b.storeUint(0x1f3b3aba, 32);
+        b.storeUint(self.computeUnits, 32);
+        b.storeUint(self.accountIsWritableBitmap, 64);
+        b.storeBit(self.allowOutOfOrderExecution);
+        b.storeUint(self.tokenReceiver, 256);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
+    },
+    toCell(self: SVMExtraArgsV1): c.Cell {
+        return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
+    }
+}
+
+/**
+ > struct (0x21ea4ca9) SuiExtraArgsV1 {
+ >     gasLimit: uint256
+ >     allowOutOfOrderExecution: bool
+ >     tokenReceiver: uint256
+ >     receiverObjectIds: SnakedCell<uint256>
+ > }
+ */
+export interface SuiExtraArgsV1 {
+    readonly $: 'SuiExtraArgsV1'
+    gasLimit: uint256
+    allowOutOfOrderExecution: boolean
+    tokenReceiver: uint256
+    receiverObjectIds: SnakedCell<uint256>
+}
+
+export const SuiExtraArgsV1 = {
+    PREFIX: 0x21ea4ca9,
+
+    create(args: {
+        gasLimit: uint256
+        allowOutOfOrderExecution: boolean
+        tokenReceiver: uint256
+        receiverObjectIds: SnakedCell<uint256>
+    }): SuiExtraArgsV1 {
+        return {
+            $: 'SuiExtraArgsV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): SuiExtraArgsV1 {
+        loadAndCheckPrefix32(s, 0x21ea4ca9, 'SuiExtraArgsV1');
+        return {
+            $: 'SuiExtraArgsV1',
+            gasLimit: s.loadUintBig(256),
+            allowOutOfOrderExecution: s.loadBoolean(),
+            tokenReceiver: s.loadUintBig(256),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+        }
+    },
+    store(self: SuiExtraArgsV1, b: c.Builder): void {
+        b.storeUint(0x21ea4ca9, 32);
+        b.storeUint(self.gasLimit, 256);
+        b.storeBit(self.allowOutOfOrderExecution);
+        b.storeUint(self.tokenReceiver, 256);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
+    },
+    toCell(self: SuiExtraArgsV1): c.Cell {
+        return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
     }
 }
 
@@ -337,27 +485,27 @@ export const Any2TVMRampMessage = {
 /**
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
- >     destPoolAddress: address
- >     destGasAmount: uint32
- >     extraData: cell
+ >     token: address
+ >     destGasAmount: coins
+ >     extraData: cell?
  >     amount: uint256
  > }
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
     sourcePoolAddress: CrossChainAddress
-    destPoolAddress: c.Address
-    destGasAmount: uint32
-    extraData: c.Cell
+    token: c.Address
+    destGasAmount: coins
+    extraData: c.Cell | null
     amount: uint256
 }
 
 export const Any2TVMTokenTransfer = {
     create(args: {
         sourcePoolAddress: CrossChainAddress
-        destPoolAddress: c.Address
-        destGasAmount: uint32
-        extraData: c.Cell
+        token: c.Address
+        destGasAmount: coins
+        extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
         return {
@@ -369,17 +517,19 @@ export const Any2TVMTokenTransfer = {
         return {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            destPoolAddress: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
-            extraData: s.loadRef(),
+            token: s.loadAddress(),
+            destGasAmount: s.loadCoins(),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
-        b.storeAddress(self.destPoolAddress);
-        b.storeUint(self.destGasAmount, 32);
-        b.storeRef(self.extraData);
+        b.storeAddress(self.token);
+        b.storeCoins(self.destGasAmount);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
         b.storeUint(self.amount, 256);
     },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
@@ -439,8 +589,8 @@ export const TVM2AnyRampMessage = {
  > struct TVM2AnyRampMessageBody {
  >     receiver: Cell<CrossChainAddress>
  >     data: cell
- >     extraArgs: cell
- >     tokenAmounts: SnakedCell<TokenAmount>
+ >     extraArgs: Cell<ExtraArgs>
+ >     tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>
  >     feeToken: address
  >     feeTokenAmount: coins
  > }
@@ -449,8 +599,8 @@ export interface TVM2AnyRampMessageBody {
     readonly $: 'TVM2AnyRampMessageBody'
     receiver: CrossChainAddress
     data: c.Cell
-    extraArgs: c.Cell
-    tokenAmounts: SnakedCell<TokenAmount>
+    extraArgs: ExtraArgs
+    tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>
     feeToken: c.Address
     feeTokenAmount: coins
 }
@@ -459,8 +609,8 @@ export const TVM2AnyRampMessageBody = {
     create(args: {
         receiver: CrossChainAddress
         data: c.Cell
-        extraArgs: c.Cell
-        tokenAmounts: SnakedCell<TokenAmount>
+        extraArgs: ExtraArgs
+        tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>
         feeToken: c.Address
         feeTokenAmount: coins
     }): TVM2AnyRampMessageBody {
@@ -474,8 +624,8 @@ export const TVM2AnyRampMessageBody = {
             $: 'TVM2AnyRampMessageBody',
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             data: s.loadRef(),
-            extraArgs: s.loadRef(),
-            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
+            tokenTransfer: loadSnakedCellOf(s, TVM2AnyTokenTransfer.fromSlice),
             feeToken: s.loadAddress(),
             feeTokenAmount: s.loadCoins(),
         }
@@ -483,13 +633,66 @@ export const TVM2AnyRampMessageBody = {
     store(self: TVM2AnyRampMessageBody, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeRef(self.data);
-        b.storeRef(self.extraArgs);
-        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
+        storeSnakedCellOf(self.tokenTransfer, b, TVM2AnyTokenTransfer.store);
         b.storeAddress(self.feeToken);
         b.storeCoins(self.feeTokenAmount);
     },
     toCell(self: TVM2AnyRampMessageBody): c.Cell {
         return makeCellFrom<TVM2AnyRampMessageBody>(self, TVM2AnyRampMessageBody.store);
+    }
+}
+
+/**
+ > struct TVM2AnyTokenTransfer {
+ >     sourcePoolAddress: address
+ >     amount: uint256
+ >     destTokenAddress: Cell<CrossChainAddress>
+ >     extraData: cell
+ >     destExecData: cell
+ > }
+ */
+export interface TVM2AnyTokenTransfer {
+    readonly $: 'TVM2AnyTokenTransfer'
+    sourcePoolAddress: c.Address
+    amount: uint256
+    destTokenAddress: CrossChainAddress
+    extraData: c.Cell
+    destExecData: c.Cell
+}
+
+export const TVM2AnyTokenTransfer = {
+    create(args: {
+        sourcePoolAddress: c.Address
+        amount: uint256
+        destTokenAddress: CrossChainAddress
+        extraData: c.Cell
+        destExecData: c.Cell
+    }): TVM2AnyTokenTransfer {
+        return {
+            $: 'TVM2AnyTokenTransfer',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TVM2AnyTokenTransfer {
+        return {
+            $: 'TVM2AnyTokenTransfer',
+            sourcePoolAddress: s.loadAddress(),
+            amount: s.loadUintBig(256),
+            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
+            extraData: s.loadRef(),
+            destExecData: s.loadRef(),
+        }
+    },
+    store(self: TVM2AnyTokenTransfer, b: c.Builder): void {
+        b.storeAddress(self.sourcePoolAddress);
+        b.storeUint(self.amount, 256);
+        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
+        b.storeRef(self.extraData);
+        b.storeRef(self.destExecData);
+    },
+    toCell(self: TVM2AnyTokenTransfer): c.Cell {
+        return makeCellFrom<TVM2AnyTokenTransfer>(self, TVM2AnyTokenTransfer.store);
     }
 }
 
@@ -621,6 +824,14 @@ export class TestMsgHasher implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }

@@ -2,8 +2,10 @@
 import "errors";
 import "../../lib/utils";
 
-// 1-byte length prefixed byte slice (up to 64 bytes)
-// Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits
+/// 1-byte length prefixed byte slice (up to 64 bytes)
+/// 1-byte length prefixed byte slice (up to 64 bytes)
+/// Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits
+/// abi.serialization = (8, 520, 0, 0)
 type CrossChainAddress = slice;
 
 fun CrossChainAddress.packToBuilder(self, mutate b: builder) {
@@ -29,6 +31,8 @@ struct RampMessageHeader { // 512
 }
 
 const LEAF_DOMAIN_SEPARATOR: bits256 = "0000000000000000000000000000000000000000000000000000000000000000".hexToSlice() as bits256;
+
+type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1;
 
 // nolint:opcode : hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2"))
 struct (0x181dcf10) GenericExtraArgsV2 {

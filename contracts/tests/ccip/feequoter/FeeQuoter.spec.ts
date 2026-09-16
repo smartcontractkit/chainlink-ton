@@ -11,15 +11,21 @@ import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import { Cell, toNano } from '@ton/core'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { FEE_QUOTER_SUPPORTED_PREV_VERSIONS } from '../../../wrappers/ccip/FeeQuoter'
+import {
+  FACILITY_NAME,
+  FEE_QUOTER_CONTRACT_VERSION,
+  SUPPORTED_PREV_VERSIONS,
+  FACILITY_ID,
+  ERROR_CODE,
+} from '../../../wrappers/ccip/FeeQuoter'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => contractCode.ccip.local('FeeQuoter'),
-    ContractConstructor: fq.FeeQuoter.createFromAddress,
+    ContractConstructor: fq.FeeQuoter.fromAddress,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
@@ -33,8 +39,8 @@ describe('FeeQuoter - Withdrawable Tests', () => {
 
 describe('FeeQuoter - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: fq.FeeQuoter.type(),
-    version: fq.FeeQuoter.version(),
+    type: FACILITY_NAME,
+    version: FEE_QUOTER_CONTRACT_VERSION,
     deployContract: async (blockchain, deployer) => {
       return setupTestFeeQuoter(deployer, blockchain)
     },
@@ -51,15 +57,15 @@ describe('FeeQuoter - Upgrade Tests', () => {
   class FeeQuoter extends fq.FeeQuoter {}
 
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: fq.FeeQuoter.type(),
-    prevVersionConfigs: Object.entries(fq.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+    contractType: FACILITY_NAME,
+    prevVersionConfigs: Object.entries(SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
       version,
       getCode,
       deploy: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain, await getCode()),
     })),
-    currentVersion: FeeQuoter.version(),
-    getCurrentCode: () => FeeQuoter.code(),
-    CurrentVersionConstructor: FeeQuoter.createFromAddress,
+    currentVersion: FEE_QUOTER_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('FeeQuoter'),
+    CurrentVersionConstructor: FeeQuoter.fromAddress,
     upgradeValue: toNano('0.05'),
   })
   upgradeSpec.run([
@@ -87,7 +93,7 @@ describe('FeeQuoter - Ownable Tests', () => {
         blockchain,
         conf: [
           {
-            code: await feeQuoter.getCode(),
+            code: await contractCode.ccip.local('FeeQuoter'),
             name: 'feequoter',
           },
         ],
@@ -98,10 +104,10 @@ describe('FeeQuoter - Ownable Tests', () => {
 
 describe('FeeQuoter - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: fq.FeeQuoter.type(),
-    currentVersion: fq.FeeQuoter.version(),
-    getCurrentCode: () => fq.FeeQuoter.code(),
-    CurrentVersionConstructor: fq.FeeQuoter.createFromAddress,
+    contractType: FACILITY_NAME,
+    currentVersion: FEE_QUOTER_CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('FeeQuoter'),
+    CurrentVersionConstructor: fq.FeeQuoter.fromAddress,
     deployCurrentContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
   currentVersionSpec.run('feequoter')
@@ -134,26 +140,26 @@ describe('FeeQuoter - Unit Tests', () => {
 
   it('should match facility name and ID', async () => {
     const facilityIdVal = await feeQuoter.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(fq.FACILITY_ID))
+    expect(facilityIdVal).toBe(BigInt(FACILITY_ID))
 
     const [typeSlice] = await feeQuoter.getTypeAndVersion()
-    expect(typeSlice.loadStringTail()).toBe(fq.FACILITY_NAME)
+    expect(typeSlice.loadStringTail()).toBe(FACILITY_NAME)
 
-    expect(fq.FACILITY_ID).toEqual(facilityId(crc32(fq.FACILITY_NAME)))
+    expect(FACILITY_ID).toEqual(facilityId(crc32(FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
     const errorCodeVal = await feeQuoter.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(fq.ERROR_CODE))
+    expect(errorCodeVal).toBe(BigInt(ERROR_CODE))
 
-    expect(fq.ERROR_CODE).toEqual(errorCode(crc32(fq.FACILITY_NAME)))
+    expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
   })
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'feequoter_unit_tests', [
         {
-          code: await fq.FeeQuoter.code(),
+          code: await contractCode.ccip.local('FeeQuoter'),
           name: 'feequoter',
         },
       ])

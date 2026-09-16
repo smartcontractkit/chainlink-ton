@@ -3,7 +3,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { setup } from './OnRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
@@ -11,7 +12,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
-  let config: or.DynamicConfig
+  let config: or.OnRamp_DynamicConfig
   let mockRouter: SandboxContract<TreasuryContract>
   let allowlistAdmin: SandboxContract<TreasuryContract>
   let allowedSendersGroup1: SandboxContract<TreasuryContract>[] = []
@@ -48,21 +49,24 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   })
 
   const configureDestChainConfigs = async () => {
-    const result = await onramp.sendUpdateDestChainConfigs(deployer.getSender(), {
-      value: toNano('0.5'),
-      destChainConfigs: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          router: mockRouter.address,
-          allowlistEnabled: true,
-        },
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
-          router: mockRouter.address,
-          allowlistEnabled: true,
-        },
-      ],
-    })
+    const result = await onramp.sendOnRampUpdateDestChainConfigs(
+      deployer.getSender(),
+      toNano('0.5'),
+      {
+        updates: [
+          or.OnRampUpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            router: mockRouter.address,
+            allowlistEnabled: true,
+          }),
+          or.OnRampUpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+            router: mockRouter.address,
+            allowlistEnabled: true,
+          }),
+        ],
+      },
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -107,24 +111,21 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   }
 
   const seedInitialAllowlists = async () => {
-    const updates: or.UpdateAllowlists = {
-      updates: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          add: allowedSendersGroup1.map((s) => s.address),
-          remove: [],
-        },
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
-          add: allowedSendersGroup2.map((s) => s.address),
-          remove: [],
-        },
-      ],
-    }
+    const updates = [
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        add: allowedSendersGroup1.map((s) => s.address),
+        remove: [],
+      }),
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        add: allowedSendersGroup2.map((s) => s.address),
+        remove: [],
+      }),
+    ]
 
-    const result = await onramp.sendUpdateAllowlists(deployer.getSender(), {
-      value: toNano('0.5'),
-      updateAllowlists: updates,
+    const result = await onramp.sendOnRampUpdateAllowlists(deployer.getSender(), toNano('0.5'), {
+      updates,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -161,25 +162,24 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     await configureDestChainConfigs()
     await seedInitialAllowlists()
 
-    const removeUpdates: or.UpdateAllowlists = {
-      updates: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          add: [],
-          remove: allowedSendersGroup1.map((s) => s.address),
-        },
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
-          add: [],
-          remove: allowedSendersGroup2.map((s) => s.address),
-        },
-      ],
-    }
+    const removeUpdates = [
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        add: [],
+        remove: allowedSendersGroup1.map((s) => s.address),
+      }),
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        add: [],
+        remove: allowedSendersGroup2.map((s) => s.address),
+      }),
+    ]
 
-    const result = await onramp.sendUpdateAllowlists(allowlistAdmin.getSender(), {
-      value: toNano('0.5'),
-      updateAllowlists: removeUpdates,
-    })
+    const result = await onramp.sendOnRampUpdateAllowlists(
+      allowlistAdmin.getSender(),
+      toNano('0.5'),
+      { updates: removeUpdates },
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: allowlistAdmin.address,
@@ -205,25 +205,24 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     const additionalSenderGroup1 = await blockchain.treasury('additionalSender0')
     const additionalSenderGroup2 = await blockchain.treasury('additionalSender1')
 
-    const mixedUpdates: or.UpdateAllowlists = {
-      updates: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          add: [additionalSenderGroup1.address],
-          remove: [allowedSendersGroup1[0].address],
-        },
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
-          add: [additionalSenderGroup2.address],
-          remove: [allowedSendersGroup2[1].address],
-        },
-      ],
-    }
+    const mixedUpdates = [
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        add: [additionalSenderGroup1.address],
+        remove: [allowedSendersGroup1[0].address],
+      }),
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+        add: [additionalSenderGroup2.address],
+        remove: [allowedSendersGroup2[1].address],
+      }),
+    ]
 
-    const result = await onramp.sendUpdateAllowlists(allowlistAdmin.getSender(), {
-      value: toNano('0.5'),
-      updateAllowlists: mixedUpdates,
-    })
+    const result = await onramp.sendOnRampUpdateAllowlists(
+      allowlistAdmin.getSender(),
+      toNano('0.5'),
+      { updates: mixedUpdates },
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: allowlistAdmin.address,
@@ -246,20 +245,19 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     await seedInitialAllowlists()
 
     const randomSender = await blockchain.treasury('randomSender')
-    const updateAllowlists: or.UpdateAllowlists = {
-      updates: [
-        {
-          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          add: allowedSendersGroup1.map((s) => s.address),
-          remove: [],
-        },
-      ],
-    }
+    const updateAllowlists = [
+      or.UpdateAllowlist.create({
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        add: allowedSendersGroup1.map((s) => s.address),
+        remove: [],
+      }),
+    ]
 
-    const result = await onramp.sendUpdateAllowlists(randomSender.getSender(), {
-      value: toNano('0.5'),
-      updateAllowlists,
-    })
+    const result = await onramp.sendOnRampUpdateAllowlists(
+      randomSender.getSender(),
+      toNano('0.5'),
+      { updates: updateAllowlists },
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: randomSender.address,
@@ -275,7 +273,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
         'onramp_apply_dest_chain_config_updates',
         [
           {
-            code: await or.OnRamp.code(),
+            code: await contractCode.ccip.local('OnRamp'),
             name: 'onramp',
           },
         ],

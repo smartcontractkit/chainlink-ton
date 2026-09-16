@@ -43,6 +43,11 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
   CurrentVersionConstructor: (address: Address) => TCurrentVersionContract
   /** Amount of TON to use on sendUpgrade */
   upgradeValue?: bigint
+  /** Verifies contract-specific state after the upgrade has completed. */
+  verifyMigration?: (
+    contract: SandboxContract<TCurrentVersionContract>,
+    owner: SandboxContract<TreasuryContract>,
+  ) => Promise<void>
 }
 
 /**
@@ -270,6 +275,11 @@ export function newUpgradeSpec<
           expect(upgradedEvent.code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
           expect(upgradedEvent.codeHash).toBe(expectedHash)
 
+          await config.verifyMigration?.(
+            currentVersionContract as SandboxContract<TContractV2>,
+            testSetup.owner,
+          )
+
           currentVersionContracts.push(currentVersionContract)
         }
 
@@ -410,7 +420,7 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
           amount,
           {
             queryId: BigInt(Math.floor(Math.random() * 10000)),
-            code: beginCell().endCell(), // Dummy code
+            code: Cell.EMPTY, // Dummy code
           },
         )
 

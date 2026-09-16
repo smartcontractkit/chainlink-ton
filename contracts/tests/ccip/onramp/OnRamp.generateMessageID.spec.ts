@@ -4,22 +4,18 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as relay from '../../../wrappers/test/mock/Relay'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
+import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
-import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import EVM_ADDRESS from '../../utils/evmAddress'
+import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -30,24 +26,20 @@ describe('OnRamp - generate message id', () => {
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let deployableCode: Cell
   let executorID: bigint
 
-  const ccipSend: rt.CCIPSend = {
-    queryID: 1,
+  const ccipSend = or.Router_CCIPSend.create({
+    queryID: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
-    extraArgs: rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      })
-      .asCell(),
-  }
+    extraArgs: or.GenericExtraArgsV2.create({
+      gasLimit: 100n,
+      allowOutOfOrderExecution: true,
+    }),
+  })
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -76,7 +68,6 @@ describe('OnRamp - generate message id', () => {
   })
 
   beforeEach(async () => {
-    deployableCode = await contractCode.ccip.local('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
@@ -84,22 +75,18 @@ describe('OnRamp - generate message id', () => {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
-      executor: {
-        deployableCode: deployableCode,
-        executorCode: await relay.ContractClient.code(),
-      },
     }))
 
-    const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
+    const resultUpdateDestChainConfigs = await onramp.sendOnRampUpdateDestChainConfigs(
       deployer.getSender(),
+      toNano('0.5'),
       {
-        value: toNano('0.5'),
-        destChainConfigs: [
-          {
+        updates: [
+          or.OnRampUpdateDestChainConfig.create({
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: false,
-          },
+          }),
         ],
       },
     )
@@ -109,19 +96,19 @@ describe('OnRamp - generate message id', () => {
       success: true,
     })
 
-    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+    const result = await onramp.sendOnRampSend(mockRouter.getSender(), onrampSendCost, {
       msg: ccipSend,
-      metadata: {
+      metadata: or.Metadata.create({
         sender: senderAddress,
         value: toNano('42'),
-      },
+      }),
     })
 
     expect(result.transactions).toHaveTransaction({
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.onrampSend,
+      op: or.OnRamp_Send.PREFIX,
     })
 
     const deployTX = result.transactions.find(
@@ -139,32 +126,48 @@ describe('OnRamp - generate message id', () => {
       throw new Error('Executor address not found')
     }
 
-    const relayContract = blockchain.openContract(
-      relay.ContractClient.createFromAddress(executorAddress),
-    )
-    executorSender = await relayContract.getSender(deployer.getSender())
+    executorSender = blockchain.sender(executorAddress)
 
-    const executorStorageCell = await relayContract.getStorage()
-    const storage = executor.builder.data.contractInitData.load(executorStorageCell.beginParse())
+    // Read the initial data from the deploy message body itself (not the executor's
+    // live storage): the real CCIPSendExecutor code now runs for real once deployed
+    // and mutates its own storage as part of executing, so it no longer matches the
+    // CCIPSendExecutor_InitialData layout by the time this hook returns.
+    if (!deployTX.inMessage) {
+      throw new Error('Deploy message not found')
+    }
+    const deployMessage = dep.builder.messages.in.initializeAndSend.load(
+      deployTX.inMessage.body.beginParse(),
+    )
+    const storage = ex.CCIPSendExecutor_InitialData.fromSlice(
+      deployMessage.stateInit.data.beginParse(),
+    )
     executorID = storage.id
   })
 
   it('should generate same message id with same message', async () => {
-    const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
-      value: toNano('0.5'),
-      body: {
+    const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
+      executorSender,
+      toNano('0.5'),
+      {
         executorID: executorID,
-        fee: {
+        fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
-        },
+        }),
         msg: ccipSend,
-        metadata: {
+        metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
-        },
+        }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: Cell.EMPTY,
+          destExecData: Cell.EMPTY,
+        }),
       },
-    })
+    )
 
     const expectedTVM2AnyRampMessage = on.TVM2AnyRampMessage.create({
       header: on.RampMessageHeader.create({
@@ -176,10 +179,18 @@ describe('OnRamp - generate message id', () => {
       }),
       sender: senderAddress,
       body: on.TVM2AnyRampMessageBody.create({
-        receiver: CrossChainAddressCodec.FromBuffer(ccipSend.receiver),
+        receiver: ccipSend.receiver,
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
-        tokenAmounts: ccipSend.tokenAmounts.map((ta) => on.TokenAmount.create(ta)),
+        tokenTransfer: [
+          on.TVM2AnyTokenTransfer.create({
+            sourcePoolAddress: senderAddress,
+            amount: 0n,
+            destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
+            extraData: Cell.EMPTY,
+            destExecData: Cell.EMPTY,
+          }),
+        ],
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       }),
@@ -198,9 +209,13 @@ describe('OnRamp - generate message id', () => {
     // On-chain calculation via the real Tolk implementation
     const onChainMessageId = await msgHasher.getTVM2AnyRampMessageID(
       tmh.TVM2AnyRampMessage.create({
-        header: expectedTVM2AnyRampMessage.header,
+        header: tmh.RampMessageHeader.fromSlice(
+          on.RampMessageHeader.toCell(expectedTVM2AnyRampMessage.header).beginParse(),
+        ),
         sender: expectedTVM2AnyRampMessage.sender,
-        body: expectedTVM2AnyRampMessage.body,
+        body: tmh.TVM2AnyRampMessageBody.fromSlice(
+          on.TVM2AnyRampMessageBody.toCell(expectedTVM2AnyRampMessage.body).beginParse(),
+        ),
         feeValueJuels: expectedTVM2AnyRampMessage.feeValueJuels,
       }),
       metadataHash,
@@ -214,7 +229,7 @@ describe('OnRamp - generate message id', () => {
       from: executorSender.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.executorFinishedSuccessfully,
+      op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
     })
 
     for (const tx of result.transactions) {
@@ -224,20 +239,16 @@ describe('OnRamp - generate message id', () => {
       ) {
         for (const msg of tx.outMessages.values()) {
           if (msg.info.type === 'external-out') {
-            const event = or.builder.events.ccipMessageSent.load(msg.body.beginParse())
+            const event = or.CCIPMessageSent.fromSlice(msg.body.beginParse())
             if (event.message.header.messageId !== expectedTVM2AnyRampMessage.header.messageId) {
               expect(event.message.sender).toEqual(expectedTVM2AnyRampMessage.sender)
-              expect(
-                rt.builder.data.crossChainAddress
-                  .load(event.message.body.receiver.beginParse())
-                  .toString('hex'),
-              ).toBe(ccipSend.receiver.toString('hex'))
+              expect(event.message.body.receiver.toString()).toBe(ccipSend.receiver.toString())
               expect(event.message.body.data).toEqual(expectedTVM2AnyRampMessage.body.data)
               expect(event.message.body.extraArgs).toEqual(
                 expectedTVM2AnyRampMessage.body.extraArgs,
               )
-              expect(event.message.body.tokenAmounts).toEqual(
-                expectedTVM2AnyRampMessage.body.tokenAmounts,
+              expect(event.message.body.tokenTransfer).toEqual(
+                expectedTVM2AnyRampMessage.body.tokenTransfer,
               )
               expect(event.message.body.feeToken).toEqual(expectedTVM2AnyRampMessage.body.feeToken)
               expect(event.message.body.feeTokenAmount).toBe(
@@ -289,7 +300,7 @@ describe('OnRamp - generate message id', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_generate_message_id', [
         {
-          code: await onramp.getCode(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])
