@@ -11,8 +11,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 var (
@@ -118,7 +118,7 @@ func encodeDataCellFor(data any) (*cell.Cell, error) {
 		// Check if it's a struct (or pointer to struct)
 		rv := reflect.ValueOf(data)
 		rt := rv.Type()
-		if rt.Kind() == reflect.Ptr {
+		if rt.Kind() == reflect.Pointer {
 			rt = rt.Elem()
 		}
 

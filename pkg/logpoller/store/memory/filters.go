@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"

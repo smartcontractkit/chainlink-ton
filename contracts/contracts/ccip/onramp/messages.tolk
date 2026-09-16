@@ -11,19 +11,25 @@ import "../common/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
-    | OnRamp_GetValidatedFee<RemainingBitsAndRefs>
-    | FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
-    | FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
+    | OnRamp_GetValidatedFee_Any
+    | FeeQuoter_MessageValidated_ToOnRamp
+    | FeeQuoter_MessageValidationFailed_ToOnRamp
     | OnRamp_ExecutorRequestsLockOrBurn
+    | OnRamp_ExecutorRequestsWithdraw
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
-    | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
     | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
     ;
+
+// So that ABIgen can generate codec for FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
+type FeeQuoter_MessageValidated_ToOnRamp = FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
+
+// So that ABIgen can generate codec for FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
+type FeeQuoter_MessageValidationFailed_ToOnRamp = FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
 
 type OnRamp_NotificationInMessage =
     | OnRamp_Send
@@ -32,8 +38,11 @@ type OnRamp_NotificationInMessage =
 struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
-    metadata: Metadata
+    metadata: Metadata;
 }
+
+// So that ABIgen can generate codec for OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+type OnRamp_GetValidatedFee_Any = OnRamp_GetValidatedFee<RemainingBitsAndRefs>
 
 struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
     ccipSend: Cell<Router_CCIPSend>;
@@ -41,10 +50,25 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
 }
 
 struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
-    tokenAmount: TokenAmount,
+    queryID: uint64,
+    tokenAmount: Cell<TokenAmount>, // Cell<> otherwise they don't fit
     tokenPool: address,
     destChainSelector: uint64,
     executorID: CCIPSendExecutor_ID,
+    receiver: Cell<CrossChainAddress>, // Cell<> otherwise they don't fit
+    originalSender: address,
+}
+
+// TODO real numbers
+fun OnRamp_ExecutorRequestsLockOrBurn.cost(): int {
+    return ton("1");
+}
+
+struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
+    queryID: uint64,
+    executorID: CCIPSendExecutor_ID,
+    destChainSelector: uint64,
+    withdrawRequest: Cell<Router_WithdrawRequest>,
 }
 
 struct OnRamp_GetValidatedFeeContext {
@@ -61,6 +85,9 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     fee: Fee
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
+    // Pool-supplied token transfer details, forwarded so the OnRamp can include them in
+    // the emitted CCIPMessageSent event. Null when the message carries no token transfer.
+    tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
@@ -74,15 +101,14 @@ struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
 }
 
-struct (0x82901c45) OnRamp_UpdateSendExecutor {
-    code: cell;
-}
-
 struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
 
 // --- Outgoing messages ---
+
+// So that ABIgen can generate codec for OnRamp_MessageValidated<RemainingBitsAndRefs>
+type OnRamp_MessageValidated_Any = OnRamp_MessageValidated<RemainingBitsAndRefs>
 
 // crc32('OnRamp_MessageValidated')
 struct (0x2afb11bd) OnRamp_MessageValidated<T> {
@@ -91,6 +117,9 @@ struct (0x2afb11bd) OnRamp_MessageValidated<T> {
     context: T
 }
 
+// So that ABIgen can generate codec for OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+type OnRamp_MessageValidationFailed_Any = OnRamp_MessageValidationFailed<RemainingBitsAndRefs>
+
 // crc32('OnRamp_MessageValidationFailed')
 struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     error: uint256,
@@ -98,6 +127,7 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     context: T
 }
 
+// TODO: once fee token support is added, migrate this to use lib/funding/jetton_withdrawable.tolk
 struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
     feeTokens: SnakedCell<address>;
 }

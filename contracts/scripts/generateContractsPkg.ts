@@ -41,9 +41,12 @@ interface ContractSource {
   compiledFile: string
   /**
    * Tolk source file relative to the contracts/ root from which CONTRACT_VERSION
-   * is extracted.
+   * is extracted. Omit for contracts whose version is supplied directly via `version`
+   * (e.g. externally sourced contracts with no Tolk source of their own).
    */
-  tolkSource: string
+  tolkSource?: string
+  /** Explicit version, used when `tolkSource` isn't applicable. */
+  version?: string
 }
 
 /**
@@ -94,15 +97,59 @@ const CONTRACTS: ContractSource[] = [
     compiledFile: 'ReceiveExecutor.compiled.json',
     tolkSource: 'contracts/ccip/receive_executor/contract.tolk',
   },
+  // TP contracts
   {
-    contractType: 'link.chain.ton.ccip.test.Receiver',
-    compiledFile: 'ccip.test.receiver.compiled.json',
-    tolkSource: 'contracts/ccip/test/receiver/contract.tolk',
+    contractType: 'link.chain.ton.ccip.TokenAdminRegistry',
+    compiledFile: 'TokenAdminRegistry.compiled.json',
+    tolkSource: 'contracts/ccip/token_admin_registry/contract.tolk',
   },
   {
-    contractType: 'link.chain.ton.ccip.test.MockTokenPool',
-    compiledFile: 'ccip.test.mockTokenPool.compiled.json',
-    tolkSource: 'contracts/ccip/test/tokenPool/contract.tolk',
+    contractType: 'link.chain.ton.ccip.TokenAdminRegistryEntry',
+    compiledFile: 'TokenAdminRegistryEntry.compiled.json',
+    tolkSource: 'contracts/ccip/token_admin_registry_entry/contract.tolk',
+  },
+  // Deposit accounts
+  {
+    contractType: 'link.chain.ton.ccip.account.DepositAccount',
+    compiledFile: 'ccip.account.DepositAccount.compiled.json',
+    tolkSource: 'contracts/ccip/accounts/deposit/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.account.OnRampAccount',
+    compiledFile: 'ccip.account.OnRampAccount.compiled.json',
+    tolkSource: 'contracts/ccip/accounts/on_ramp_account/contract.tolk',
+  },
+  // TP contracts (version mirrors the <Name>_CONTRACT_VERSION const in each contract's types.tolk)
+  {
+    contractType: 'link.chain.ton.ccip.pool.JettonLockBox',
+    compiledFile: 'ccip.pool.JettonLockBox.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lockbox/JettonLockBox.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseLockboxTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.BurnMintTokenPool',
+    compiledFile: 'ccip.pool.BurnMintTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/burn_mint/contract.tolk',
+  },
+  // MCMS contracts
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool',
+    compiledFile: 'ccip.pool.LockReleaseLockboxTokenPool.compiled.json',
+    tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
   },
   {
     contractType: 'link.chain.ton.mcms.Timelock',
@@ -113,6 +160,17 @@ const CONTRACTS: ContractSource[] = [
     contractType: 'link.chain.ton.mcms.MCMS',
     compiledFile: 'mcms.MCMS.compiled.json',
     tolkSource: 'contracts/mcms/mcms.tolk',
+  },
+  // Test contracts
+  {
+    contractType: 'link.chain.ton.ccip.test.Receiver',
+    compiledFile: 'ccip.test.receiver.compiled.json',
+    tolkSource: 'contracts/ccip/test/receiver/contract.tolk',
+  },
+  {
+    contractType: 'link.chain.ton.ccip.test.MockAdvancedPoolHooks',
+    compiledFile: 'ccip.test.mockAdvancedPoolHooks.compiled.json',
+    tolkSource: 'contracts/ccip/test/mock_advanced_pool_hooks.tolk',
   },
 ]
 
@@ -125,6 +183,47 @@ function extractContractVersion(tolkSourcePath: string): string {
     throw new Error(`CONTRACT_VERSION not found in ${tolkSourcePath}`)
   }
   return match[1]
+}
+
+function resolveContractVersion(source: ContractSource): string {
+  if (source.tolkSource) {
+    return extractContractVersion(source.tolkSource)
+  }
+  if (source.version) {
+    return source.version
+  }
+  throw new Error(`Contract ${source.contractType} has neither a tolkSource nor a version`)
+}
+
+/**
+ * Reference Jetton contracts (JettonMinter, JettonWallet), pinned into build/ by
+ * pinArtifacts.ts from PATH_CONTRACTS_JETTON. Only included when that env var is set,
+ * i.e. when building inside the nix dev/build environments that expose it.
+ *
+ * NOTE: contract types must stay in sync with pkg/bindings/index.go.
+ */
+function getJettonContracts(): ContractSource[] {
+  const jettonBuildDir = process.env.PATH_CONTRACTS_JETTON
+  if (!jettonBuildDir) {
+    return []
+  }
+
+  const jettonPkgJson = JSON.parse(
+    fs.readFileSync(path.join(jettonBuildDir, '..', 'package.json'), 'utf-8'),
+  ) as { version: string }
+
+  return [
+    {
+      contractType: 'com.github.ton-blockchain.jetton-contract.contracts.jetton-minter',
+      compiledFile: 'JettonMinter.compiled.json',
+      version: jettonPkgJson.version,
+    },
+    {
+      contractType: 'com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet',
+      compiledFile: 'JettonWallet.compiled.json',
+      version: jettonPkgJson.version,
+    },
+  ]
 }
 
 interface CliArgs {
@@ -158,9 +257,11 @@ function main(): void {
   const packageVersion = sha ? `${pkgJson.version}+${sha}` : pkgJson.version
 
   const contracts: Record<string, ContractEntry> = {}
-  for (const { contractType, compiledFile, tolkSource } of CONTRACTS) {
-    const version = extractContractVersion(tolkSource)
-    contracts[contractType] = { path: compiledFile, version }
+  for (const source of [...CONTRACTS, ...getJettonContracts()]) {
+    contracts[source.contractType] = {
+      path: source.compiledFile,
+      version: resolveContractVersion(source),
+    }
   }
 
   const output: ContractPackageMetadata = { version: packageVersion, contracts }

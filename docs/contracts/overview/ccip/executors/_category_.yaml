@@ -1,0 +1,7 @@
+position: 8
+label: Executors
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-ccip-executors-index

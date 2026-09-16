@@ -105,7 +105,11 @@ func (lp *service) lookupBlock(ctx context.Context, seqNo uint32, currentMasterc
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
-	return client.LookupBlock(ctx, currentMasterchainBlock.Workchain, currentMasterchainBlock.Shard, seqNo)
+	block, err := client.WaitForBlock(seqNo).LookupBlock(ctx, currentMasterchainBlock.Workchain, currentMasterchainBlock.Shard, seqNo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup block %d: %w", seqNo, err)
+	}
+	return block, nil
 }
 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number

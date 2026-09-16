@@ -13,13 +13,13 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestFilterModel_Conversion(t *testing.T) {
@@ -180,6 +180,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 				sender, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 				feeToken, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 
+				feeAmount := tlb.MustFromTON("0.001")
 				event := onramp.CCIPMessageSent{
 					Message: ocr.TVM2AnyRampMessage{
 						Header: ocr.RampMessageHeader{
@@ -191,12 +192,20 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 						},
 						Sender: sender,
 						Body: ocr.TVM2AnyRampMessageBody{
-							Receiver:       common.CrossChainAddress{0x01, 0x02},
-							Data:           common.SnakeBytes{0xAA, 0xBB, 0xCC},
-							ExtraArgs:      tvm.EmptyCell,
-							TokenAmounts:   common.SnakedCell[ocr.TokenAmount]{},
+							Receiver:  common.CrossChainAddress{0x01, 0x02},
+							Data:      common.SnakeBytes{0xAA, 0xBB, 0xCC},
+							ExtraArgs: tvm.EmptyCell,
+							TokenTransfer: common.SnakedCell[ocr.TVM2AnyTokenTransfer]{
+								{
+									SourcePoolAddress: sender,
+									Amount:            big.NewInt(0),
+									DestTokenAddress:  common.CrossChainAddress{},
+									ExtraData:         tvm.EmptyCell,
+									DestExecData:      tvm.EmptyCell,
+								},
+							},
 							FeeToken:       feeToken,
-							FeeTokenAmount: big.NewInt(1000000),
+							FeeTokenAmount: &feeAmount,
 						},
 						FeeValueJuels: big.NewInt(500000),
 					},

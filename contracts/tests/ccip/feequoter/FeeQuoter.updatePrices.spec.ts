@@ -1,11 +1,12 @@
 import '@ton/test-utils'
 
-import { Address, toNano } from '@ton/core'
+import { Address, Sender, toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
-import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup
@@ -22,30 +23,29 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should only trust allowedPriceUpdaters', async () => {
     // Allow us to updatePrices again
-    const addPriceUpdaterResult = await setup.bind.feeQuoter.sendAddPriceUpdater(
+    const addPriceUpdaterResult = await setup.bind.feeQuoter.sendFeeQuoterAddPriceUpdater(
       setup.acc.owner.getSender(),
-      {
-        value: toNano('1'),
-        msg: { priceUpdater: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      { priceUpdater: setup.acc.deployer.address },
     )
     expect(addPriceUpdaterResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
       success: true,
     })
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [],
-      gasPricesUpdates: [],
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [],
+      gasPriceUpdates: [],
+    })
 
     // Send updatePrices transaction and expect it to succeed
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.deployer.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
     )
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -53,12 +53,10 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // Remove sender from allowed updaters
-    const removePriceUpdaterResult = await setup.bind.feeQuoter.sendRemovePriceUpdater(
+    const removePriceUpdaterResult = await setup.bind.feeQuoter.sendFeeQuoterRemovePriceUpdater(
       setup.acc.owner.getSender(),
-      {
-        value: toNano('1'),
-        msg: { priceUpdater: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      { priceUpdater: setup.acc.deployer.address },
     )
     expect(removePriceUpdaterResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -66,12 +64,13 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // Send updatePrices transaction and expect it to fail
-    const updateFailResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const updateFailResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.deployer.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
     )
     expect(updateFailResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -79,12 +78,13 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // Owner can always update
-    const ownerUpdateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const ownerUpdateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.owner.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
     )
     expect(ownerUpdateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -94,29 +94,28 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should return excess to specified address', async () => {
     // Allow us to updatePrices again
-    const addPriceUpdaterResult = await setup.bind.feeQuoter.sendAddPriceUpdater(
+    const addPriceUpdaterResult = await setup.bind.feeQuoter.sendFeeQuoterAddPriceUpdater(
       setup.acc.owner.getSender(),
-      {
-        value: toNano('1'),
-        msg: { priceUpdater: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      { priceUpdater: setup.acc.deployer.address },
     )
     expect(addPriceUpdaterResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
       success: true,
     })
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [],
-      gasPricesUpdates: [],
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [],
+      gasPriceUpdates: [],
+    })
 
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.deployer.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.externalCaller.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.externalCaller.address,
+      }),
     )
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -128,12 +127,10 @@ describe('FeeQuoter UpdatePrices', () => {
       success: true,
     })
 
-    const updateResult2 = await setup.bind.feeQuoter.sendUpdatePrices(
+    const updateResult2 = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.deployer.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: null },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({ updates: priceUpdates }),
     )
     expect(updateResult2.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -147,21 +144,25 @@ describe('FeeQuoter UpdatePrices', () => {
   })
 
   it('should update only token price', async () => {
-    const tokenPriceUpdate: feeQuoter.TokenPriceUpdate = {
-      token: FeeQuoterSetup.NATIVE_TON.token,
-      price: 4000000000000000000n, // 4e18 = $4
-    }
+    const tokenPriceUpdate = feeQuoter.TokenPriceUpdate.create({
+      sourceToken: FeeQuoterSetup.NATIVE_TON.token,
+      usdPerToken: 4000000000000000000n, // 4e18 = $4
+    })
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [tokenPriceUpdate],
-      gasPricesUpdates: [],
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [tokenPriceUpdate],
+      gasPriceUpdates: [],
+    })
 
     // Send updatePrices transaction
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-    })
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
+    )
 
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -170,26 +171,30 @@ describe('FeeQuoter UpdatePrices', () => {
 
     // Verify the token price was updated
     const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(FeeQuoterSetup.NATIVE_TON.token)
-    expect(tokenPrice.value).toEqual(tokenPriceUpdate.price)
+    expect(tokenPrice.value).toEqual(tokenPriceUpdate.usdPerToken)
   })
 
   it('should update only gas price', async () => {
-    const gasPriceUpdate: feeQuoter.GasPriceUpdate = {
-      chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+    const gasPriceUpdate = feeQuoter.GasPriceUpdate.create({
+      destChainSelector: ChainSelectors.testnet.evm,
       executionGasPrice: 2000000000000000000000n, // 2000e18
       dataAvailabilityGasPrice: 1000000000000000000n, // 1e18
-    }
+    })
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [],
-      gasPricesUpdates: [gasPriceUpdate],
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [],
+      gasPriceUpdates: [gasPriceUpdate],
+    })
 
     // Send updatePrices transaction
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-    })
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
+    )
 
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -198,47 +203,51 @@ describe('FeeQuoter UpdatePrices', () => {
 
     // Verify the gas price was updated
     const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      ChainSelectors.testnet.evm,
     )
-    expect(gasPrice.value.executionGasPrice).toEqual(gasPriceUpdate.executionGasPrice)
-    expect(gasPrice.value.dataAvailabilityGasPrice).toEqual(gasPriceUpdate.dataAvailabilityGasPrice)
+    expect(gasPrice.executionGasPrice).toEqual(gasPriceUpdate.executionGasPrice)
+    expect(gasPrice.dataAvailabilityGasPrice).toEqual(gasPriceUpdate.dataAvailabilityGasPrice)
   })
 
   it('should update multiple prices', async () => {
     const tokenPriceUpdates: feeQuoter.TokenPriceUpdate[] = [
-      { token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }, // $4 - NATIVE_TON
-      { token: FeeQuoterSetup.CUSTOM_TOKEN.token, price: 1800000000000000000000n }, // $1800 - CUSTOM_TOKEN
-      { token: FeeQuoterSetup.CUSTOM_TOKEN_2.token, price: 1000000000000000000n }, // $1 - CUSTOM_TOKEN_2
-    ]
+      { sourceToken: FeeQuoterSetup.NATIVE_TON.token, usdPerToken: 4000000000000000000n }, // $4 - NATIVE_TON
+      { sourceToken: FeeQuoterSetup.CUSTOM_TOKEN.token, usdPerToken: 1800000000000000000000n }, // $1800 - CUSTOM_TOKEN
+      { sourceToken: FeeQuoterSetup.CUSTOM_TOKEN_2.token, usdPerToken: 1000000000000000000n }, // $1 - CUSTOM_TOKEN_2
+    ].map((update) => feeQuoter.TokenPriceUpdate.create(update))
 
     const gasPriceUpdates: feeQuoter.GasPriceUpdate[] = [
       {
-        chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        destChainSelector: ChainSelectors.testnet.evm,
         executionGasPrice: 2000000n, // 2e6
         dataAvailabilityGasPrice: 1000000n, // 1e6
       },
       {
-        chainSelector: FeeQuoterSetup.SOURCE_CHAIN_SELECTOR,
+        destChainSelector: ChainSelectors.testnet.ton,
         executionGasPrice: 2000000000000000000000n, // 2000e18
         dataAvailabilityGasPrice: 1000000000000000000000n, // 1000e18
       },
       {
-        chainSelector: 12345n, // Small chain selector that fits in 64 bits
+        destChainSelector: 12345n, // Small chain selector that fits in 64 bits
         executionGasPrice: 1000000000000000000n, // 1e18
         dataAvailabilityGasPrice: 500000000000000000n, // 0.5e18
       },
-    ]
+    ].map((update) => feeQuoter.GasPriceUpdate.create(update))
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: tokenPriceUpdates,
-      gasPricesUpdates: gasPriceUpdates,
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: tokenPriceUpdates,
+      gasPriceUpdates: gasPriceUpdates,
+    })
 
     // Send updatePrices transaction
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-    })
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
+    )
 
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
@@ -247,34 +256,38 @@ describe('FeeQuoter UpdatePrices', () => {
 
     // Verify all token prices were updated
     for (let i = 0; i < tokenPriceUpdates.length; i++) {
-      const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(tokenPriceUpdates[i].token)
-      expect(tokenPrice.value).toEqual(tokenPriceUpdates[i].price)
+      const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(tokenPriceUpdates[i].sourceToken)
+      expect(tokenPrice.value).toEqual(tokenPriceUpdates[i].usdPerToken)
     }
 
     // Note: For gas prices, we can only test the first one since the contract
     // only supports one destination chain config in our simplified setup
     const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+      ChainSelectors.testnet.evm,
     )
-    expect(gasPrice.value.executionGasPrice).toEqual(gasPriceUpdates[0].executionGasPrice)
-    expect(gasPrice.value.dataAvailabilityGasPrice).toEqual(
-      gasPriceUpdates[0].dataAvailabilityGasPrice,
-    )
+    expect(gasPrice.executionGasPrice).toEqual(gasPriceUpdates[0].executionGasPrice)
+    expect(gasPrice.dataAvailabilityGasPrice).toEqual(gasPriceUpdates[0].dataAvailabilityGasPrice)
   })
 
   it('should revert when caller is not authorized', async () => {
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
-      gasPricesUpdates: [],
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [
+        feeQuoter.TokenPriceUpdate.create({
+          sourceToken: FeeQuoterSetup.NATIVE_TON.token,
+          usdPerToken: 4000000000000000000n,
+        }),
+      ],
+      gasPriceUpdates: [],
+    })
 
     // Try to update prices with unauthorized account (priceUpdaterOne instead of owner)
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.priceUpdaterOne.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
     )
 
     // In TON, unauthorized access typically results in failed transaction
@@ -285,18 +298,24 @@ describe('FeeQuoter UpdatePrices', () => {
   })
 
   it('should only allow owner to update prices', async () => {
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
-      gasPricesUpdates: [],
-    }
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [
+        feeQuoter.TokenPriceUpdate.create({
+          sourceToken: FeeQuoterSetup.NATIVE_TON.token,
+          usdPerToken: 4000000000000000000n,
+        }),
+      ],
+      gasPriceUpdates: [],
+    })
 
     // Owner should be able to update prices
-    const ownerUpdateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const ownerUpdateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.owner.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
     )
 
     expect(ownerUpdateResult.transactions).toHaveTransaction({
@@ -305,12 +324,13 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // External caller should not be able to update prices
-    const externalUpdateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+    const externalUpdateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
       setup.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
-      },
+      toNano('1'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
     )
 
     expect(externalUpdateResult.transactions).toHaveTransaction({
@@ -323,15 +343,24 @@ describe('FeeQuoter UpdatePrices', () => {
     const contract = await blockchain.getContract(setup.bind.feeQuoter.address)
     const initialBalance = contract.balance
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
-      gasPricesUpdates: [],
-    }
-
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
-      value: toNano('0.03'),
-      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: [
+        feeQuoter.TokenPriceUpdate.create({
+          sourceToken: FeeQuoterSetup.NATIVE_TON.token,
+          usdPerToken: 4000000000000000000n,
+        }),
+      ],
+      gasPriceUpdates: [],
     })
+
+    const updateResult = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+      setup.acc.owner.getSender(),
+      toNano('0.03'),
+      feeQuoter.FeeQuoter_UpdatePrices.create({
+        updates: priceUpdates,
+        sendExcessesTo: setup.acc.deployer.address,
+      }),
+    )
 
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,

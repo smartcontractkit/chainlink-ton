@@ -7,13 +7,13 @@ import (
 
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var MemoryContractPath = bindings.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MemoryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tracetracking.SignedAPIClient

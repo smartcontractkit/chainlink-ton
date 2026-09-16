@@ -14,8 +14,11 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "clean": "[ -d build ] && rm -rf build || true",
-    "build": "yarn clean && blueprint build --all && yarn build:pin-deployable && yarn generate-pkg",
-    "build:pin-deployable": "cp contracts/lib/deployable/Deployable.compiled.json build/Deployable.compiled.json",
+    "build-only": "acton build && yarn build:adapt-acton-artifacts",
+    "build": "yarn clean && acton build && yarn build:adapt-acton-artifacts && yarn build:pin-artifacts && yarn generate-pkg",
+    "update:legacy-tact-fixtures": "ts-node scripts/updateLegacyTactFixtures.ts",
+    "build:adapt-acton-artifacts": "ts-node scripts/actonBuildAdapter.ts",
+    "build:pin-artifacts": "ts-node scripts/pinArtifacts.ts",
     "generate-pkg": "ts-node scripts/generateContractsPkg.ts",
     "test": "jest --verbose",
     "test-coverage": "COVERAGE=true jest",
@@ -26,9 +29,11 @@
     "fmt-contracts": "tact-fmt --write contracts",
     "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write .",
+    "typecheck": "tsc --noEmit",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
     "wgram-gas-report": "blueprint test --gas-report -- --config wgram-gas-report.config.ts",
-    "get-key-pair": "ts-node scripts/getKeyPair.ts"
+    "get-key-pair": "ts-node scripts/getKeyPair.ts",
+    "check-overflows": "ts-node scripts/overflowCheck.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",
@@ -41,7 +46,7 @@
     "@ton/blueprint": "0.44.2",
     "@ton/core": "0.63.1",
     "@ton/crypto": "3.3.0",
-    "@ton/sandbox": "0.42.0",
+    "@ton/sandbox": "0.44.0",
     "@ton/test-utils": "0.12.0",
     "@ton/tolk-js": "1.4.1",
     "@ton/ton": "16.2.4",
@@ -51,16 +56,21 @@
     "jest": "^30.0.5",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.1",
+    "ts-morph": "^24.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "zlib": "^1.0.5"
   },
   "resolutions": {
-    "axios": "v1.16.1"
+    "axios": "v1.16.1",
+    "lodash": "^4.18.1",
+    "protobufjs": "^7.5.5"
   },
   "pnpm": {
     "overrides": {
-      "axios": "v1.16.1"
+      "axios": "v1.16.1",
+      "lodash": "^4.18.1",
+      "protobufjs": "^7.5.5"
     }
   }
 }

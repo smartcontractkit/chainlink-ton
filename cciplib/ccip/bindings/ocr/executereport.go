@@ -1,0 +1,96 @@
+package ocr
+
+import (
+	"math/big"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+)
+
+// ExecuteReport represents CCIP execute report messages on the TON blockchain.
+// Message: single message as cell reference
+// OffChainTokenData: vec<vec<vec<u8>>> - per-message lists of per-token data blobs.
+// Stored as a required cell reference to lisp_list<lisp_list<cell>>.
+// Proofs: vec<bytes32> - inline 256-bit proofs using SnakedCell with Proof wrapper (matches TypeScript asSnakeData)
+type ExecuteReport struct {
+	SourceChainSelector uint64                                              `tlb:"## 64"`
+	Message             Any2TVMRampMessage                                  `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
+	OffChainTokenData   common.LispList[common.LispList[common.SnakeBytes]] `tlb:"^"` // vec<vec<vec<u8>>>
+	Proofs              common.SnakedCell[common.Proof]                     `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
+	ProofFlagBits       *big.Int                                            `tlb:"## 256"`
+}
+
+// Any2TVMRampMessage represents ramp message, which is part of the execute report.
+type Any2TVMRampMessage struct {
+	Header       RampMessageHeader                       `tlb:"."`
+	Sender       common.CrossChainAddress                `tlb:"^"`
+	Data         common.SnakeBytes                       `tlb:"^"`
+	Receiver     *address.Address                        `tlb:"addr"`
+	GasLimit     tlb.Coins                               `tlb:"."`
+	TokenAmounts common.SnakedCell[Any2TVMTokenTransfer] `tlb:"maybe ^"`
+}
+
+// RampMessageHeader contains metadata for a ramp message.
+type RampMessageHeader struct {
+	MessageID           []byte `tlb:"bits 256"`
+	SourceChainSelector uint64 `tlb:"## 64"`
+	DestChainSelector   uint64 `tlb:"## 64"`
+	SequenceNumber      uint64 `tlb:"## 64"`
+	Nonce               uint64 `tlb:"## 64"`
+}
+
+// Any2TVMTokenTransfer represents a token transfer within a ramp message.
+type Any2TVMTokenTransfer struct {
+	SourcePoolAddress common.CrossChainAddress `tlb:"^"`
+	DestPoolAddress   *address.Address         `tlb:"addr"`
+	DestGasAmount     *tlb.Coins               `tlb:"."`
+	ExtraData         *cell.Cell               `tlb:"maybe ^"`
+	Amount            *big.Int                 `tlb:"## 256"`
+}
+
+// TVM2AnyRampMessage for execution context (includes onramp address in header)
+type TVM2AnyRampMessage struct {
+	Header        RampMessageHeader      `tlb:"."`
+	Sender        *address.Address       `tlb:"addr"`
+	Body          TVM2AnyRampMessageBody `tlb:"^"`
+	FeeValueJuels *big.Int               `tlb:"## 96"`
+}
+
+type TVM2AnyRampMessageBody struct {
+	Receiver  common.CrossChainAddress `tlb:"^"`
+	Data      common.SnakeBytes        `tlb:"^"`
+	ExtraArgs *cell.Cell               `tlb:"^"`
+	// TokenTransfer is empty when the message carries no token transfer, or a one-item
+	// SnakedCell when it does; the current TVM2Any flow supports a single token transfer
+	// per message.
+	TokenTransfer  common.SnakedCell[TVM2AnyTokenTransfer] `tlb:"^"`
+	FeeToken       *address.Address                        `tlb:"addr"`
+	FeeTokenAmount *tlb.Coins                              `tlb:"."`
+}
+
+// TVM2AnyTokenTransfer mirrors the contract's TVM2AnyTokenTransfer, the TON counterpart
+// of SVM2AnyTokenTransfer / EVM2AnyTokenTransfer. The current TVM2Any flow supports a
+// single token transfer, so TVM2AnyRampMessageBody.TokenTransfer is empty when the
+// message carries no token transfer, or a one-item SnakedCell[TVM2AnyTokenTransfer] when
+// it does.
+type TVM2AnyTokenTransfer struct {
+	// SourcePoolAddress is the TON pool the OnRamp routed the lockOrBurn to. Trusted:
+	// the OnRamp sets it, not the pool. Only present when the message carries a token
+	// transfer (see TVM2AnyRampMessageBody.TokenTransfer).
+	SourcePoolAddress *address.Address `tlb:"addr"`
+	// Amount is the post-fee cross-chain amount reported by the pool.
+	Amount *big.Int `tlb:"## 256"`
+	// DestTokenAddress is UNTRUSTED: any pool owner can return whatever value they want.
+	DestTokenAddress common.CrossChainAddress `tlb:"^"`
+	// ExtraData is the pool data forwarded to the destination chain
+	// (LockOrBurnOutV1.destPoolData).
+	ExtraData *cell.Cell `tlb:"^"`
+	// DestExecData is the destination-chain execution data (gas for the offRamp's
+	// releaseOrMint on EVM destinations). Today it is populated by the CCIPSendExecutor
+	// as a 32-bit big-endian uint32 gas amount (DEFAULT_TOKEN_DEST_GAS_OVERHEAD) until
+	// FeeQuoter produces per-token values.
+	DestExecData *cell.Cell `tlb:"^"`
+}

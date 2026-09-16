@@ -60,7 +60,7 @@ func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Addres
 	if from == 0 {
 		prevBlock = nil // genesis has no prevBlock
 	} else {
-		prevBlock, err = tlp.client.LookupBlock(ctx, to.Workchain, to.Shard, from)
+		prevBlock, err = tlp.client.WaitForBlock(from).LookupBlock(ctx, to.Workchain, to.Shard, from)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lookup block for address=%s, fromSeqNo=%d: %w", addr.String(), from, err)
 		}
@@ -94,7 +94,7 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 	for _, tx := range txs {
 		msgs, _ := tx.Transaction.IO.Out.ToSlice()
 
-		blockData, err := tlp.client.GetBlockData(ctx, tx.Block)
+		blockData, err := tlp.client.WaitForBlock(tx.Block.SeqNo).GetBlockData(ctx, tx.Block)
 		if err != nil {
 			return nil, err
 		}

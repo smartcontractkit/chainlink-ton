@@ -8,11 +8,11 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var (
@@ -121,6 +121,7 @@ type CCIPSend struct {
 
 type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                 `tlb:"## 64"`
 	Message  offramp.Any2TVMMessage `tlb:"^"`
 	ExecID   *big.Int               `tlb:"## 192"`
 	Receiver *address.Address       `tlb:"addr"`
@@ -128,8 +129,9 @@ type RouteMessage struct {
 }
 
 type CCIPReceiveConfirm struct {
-	_      tlb.Magic `tlb:"#1e55bbf6" json:"-"` //nolint:revive // Ignore opcode tag
-	ExecID *big.Int  `tlb:"## 192"`
+	_       tlb.Magic `tlb:"#1e55bbf6" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64    `tlb:"## 64"`
+	ExecID  *big.Int  `tlb:"## 192"`
 }
 
 type MessageSent struct {

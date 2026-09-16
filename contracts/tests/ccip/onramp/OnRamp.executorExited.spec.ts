@@ -1,20 +1,19 @@
-import { Address, Cell, Sender, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as relay from '../../../wrappers/test/mock/Relay'
-import { CHAINSEL_EVM_TEST, setup } from './OnRamp.Setup'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as dep from '../../../wrappers/libraries/Deployable'
+import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import { ChainSelectors } from '../../utils/Selectors'
+import EVM_ADDRESS from '../../utils/evmAddress'
+import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 
 describe('OnRamp - executor exit', () => {
   let blockchain: Blockchain
@@ -24,24 +23,20 @@ describe('OnRamp - executor exit', () => {
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let deployableCode: Cell
   let executorID: bigint
 
-  const ccipSend: rt.CCIPSend = {
-    queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST,
+  const ccipSend = or.Router_CCIPSend.create({
+    queryID: 1n,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
-    extraArgs: rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      })
-      .asCell(),
-  }
+    extraArgs: or.GenericExtraArgsV2.create({
+      gasLimit: 100n,
+      allowOutOfOrderExecution: true,
+    }),
+  })
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -55,7 +50,6 @@ describe('OnRamp - executor exit', () => {
   })
 
   beforeEach(async () => {
-    deployableCode = await contractCode.ccip.local('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
@@ -64,22 +58,18 @@ describe('OnRamp - executor exit', () => {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
-      executor: {
-        deployableCode: deployableCode,
-        executorCode: await relay.ContractClient.code(),
-      },
     }))
 
-    const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
+    const resultUpdateDestChainConfigs = await onramp.sendOnRampUpdateDestChainConfigs(
       deployer.getSender(),
+      toNano('0.5'),
       {
-        value: toNano('0.5'),
-        destChainConfigs: [
-          {
-            destChainSelector: CHAINSEL_EVM_TEST,
+        updates: [
+          or.OnRampUpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             router: mockRouter.address,
             allowlistEnabled: false,
-          },
+          }),
         ],
       },
     )
@@ -89,19 +79,26 @@ describe('OnRamp - executor exit', () => {
       success: true,
     })
 
-    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+    const result = await onramp.sendOnRampSend(mockRouter.getSender(), onrampSendCost, {
       msg: ccipSend,
-      metadata: {
+      metadata: or.Metadata.create({
         sender: senderAddress,
         value: toNano('42'),
-      },
+      }),
     })
 
     expect(result.transactions).toHaveTransaction({
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.onrampSend,
+      op: or.OnRamp_Send.PREFIX,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      success: true,
+      deploy: true,
+      op: dep.opcodes.in.initializeAndSend,
     })
 
     const deployTX = result.transactions.find(
@@ -119,74 +116,95 @@ describe('OnRamp - executor exit', () => {
       throw new Error('Executor address not found')
     }
 
-    const relayContract = blockchain.openContract(
-      relay.ContractClient.createFromAddress(executorAddress),
-    )
-    executorSender = await relayContract.getSender(deployer.getSender())
+    executorSender = blockchain.sender(executorAddress)
 
-    const executorStorageCell = await relayContract.getStorage()
-    const storage = executor.builder.data.contractInitData.load(executorStorageCell.beginParse())
+    // Read the initial data from the deploy message body itself (not the executor's
+    // live storage): the real CCIPSendExecutor code now runs for real once deployed
+    // and mutates its own storage as part of executing, so it no longer matches the
+    // CCIPSendExecutor_InitialData layout by the time this hook returns.
+    if (!deployTX.inMessage) {
+      throw new Error('Deploy message not found')
+    }
+    const deployMessage = dep.builder.messages.in.initializeAndSend.load(
+      deployTX.inMessage.body.beginParse(),
+    )
+    const storage = ex.CCIPSendExecutor_InitialData.fromSlice(
+      deployMessage.stateInit.data.beginParse(),
+    )
     executorID = storage.id
   })
 
   it('should return message sent to router', async () => {
-    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)
-    const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
-      value: toNano('0.5'),
-      body: {
+    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    )
+    const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
+      executorSender,
+      toNano('0.5'),
+      {
         executorID: executorID,
-        fee: {
+        fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
-        },
+        }),
         msg: ccipSend,
-        metadata: {
+        metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
-        },
+        }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: Cell.EMPTY,
+          destExecData: Cell.EMPTY,
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.opcodes.in.messageSent,
+      op: rt.Router_MessageSent.PREFIX,
       body(x) {
         if (!x) return false
-        const msgSent = rt.builder.message.in.messageSent.load(x.beginParse())
+        const msgSent = rt.Router_MessageSent.fromSlice(x.beginParse())
         return (
           msgSent.sender.equals(senderAddress) && msgSent.queryID === BigInt(ccipSend.queryID ?? 0)
         )
       },
     })
 
-    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum + 1n)
+    expect(
+      await onramp.getExpectedNextSequenceNumber(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      ),
+    ).toBe(nextSeqNum + 1n)
   })
 
   it('should return message rejected to router', async () => {
-    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)
-    const result = await onramp.sendExecutorFinishedWithError(executorSender, {
-      value: toNano('0.5'),
-      body: {
-        executorID: executorID,
-        error: 42n,
-        msg: ccipSend,
-        metadata: {
-          sender: senderAddress,
-          value: 42n,
-        },
-      },
+    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+    )
+    const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('0.5'), {
+      executorID: executorID,
+      error: 42n,
+      msg: ccipSend,
+      metadata: or.Metadata.create({
+        sender: senderAddress,
+        value: 42n,
+      }),
     })
 
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.opcodes.in.messageRejected,
+      op: rt.Router_MessageRejected.PREFIX,
       body(x) {
         if (!x) return false
-        const msgSent = rt.builder.message.in.messageRejected.load(x.beginParse())
+        const msgSent = rt.Router_MessageRejected.fromSlice(x.beginParse())
         return (
           msgSent.sender.equals(senderAddress) &&
           msgSent.queryID === BigInt(ccipSend.queryID ?? 0) &&
@@ -194,75 +212,85 @@ describe('OnRamp - executor exit', () => {
         )
       },
     })
-    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum)
+    expect(
+      await onramp.getExpectedNextSequenceNumber(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      ),
+    ).toBe(nextSeqNum)
   })
 
   it('should fail to send message sent if sender is not executor', async () => {
-    const result = await onramp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
-      value: toNano('0.5'),
-      body: {
+    const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
+      deployer.getSender(),
+      toNano('0.5'),
+      {
         executorID: executorID,
-        fee: {
+        fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
-        },
+        }),
         msg: ccipSend,
-        metadata: {
+        metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
-        },
+        }),
+        tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
+          sourcePoolAddress: senderAddress,
+          amount: 0n,
+          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          extraData: Cell.EMPTY,
+          destExecData: Cell.EMPTY,
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: onramp.address,
       success: false,
-      exitCode: or.Errors.Unauthorized,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.Unauthorized'],
     })
   })
 
   it('should fail to send message rejected if executorID is incorrect', async () => {
-    const result = await onramp.sendExecutorFinishedWithError(executorSender, {
-      value: toNano('0.5'),
-      body: {
-        executorID: executorID + 1n, // incorrect ID
-        error: 42n,
-        msg: ccipSend,
-        metadata: {
-          sender: senderAddress,
-          value: 42n,
-        },
-      },
+    const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('3'), {
+      executorID: executorID + 1n, // incorrect ID
+      error: 42n,
+      msg: ccipSend,
+      metadata: or.Metadata.create({
+        sender: senderAddress,
+        value: 42n,
+      }),
     })
 
     expect(result.transactions).toHaveTransaction({
       from: executorSender.address,
       to: onramp.address,
       success: false,
-      exitCode: or.Errors.Unauthorized,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.Unauthorized'],
     })
   })
 
   it('should fail to send message rejected if sender is not executor', async () => {
-    const result = await onramp.sendExecutorFinishedWithError(deployer.getSender(), {
-      value: toNano('0.5'),
-      body: {
+    const result = await onramp.sendOnRampExecutorFinishedWithError(
+      deployer.getSender(),
+      toNano('0.5'),
+      {
         executorID: executorID,
         error: 42n,
         msg: ccipSend,
-        metadata: {
+        metadata: or.Metadata.create({
           sender: senderAddress,
           value: 42n,
-        },
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: onramp.address,
       success: false,
-      exitCode: or.Errors.Unauthorized,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.Unauthorized'],
     })
   })
 
@@ -270,7 +298,7 @@ describe('OnRamp - executor exit', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_executor_exit', [
         {
-          code: await onramp.getCode(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])

@@ -24,13 +24,13 @@ import (
 	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func Test_LogPoller(t *testing.T) {
@@ -80,7 +80,7 @@ func Test_LogPoller(t *testing.T) {
 
 		require.NotNil(t, toBlock)
 
-		prevBlock, err := tonChain.Client.LookupBlock(
+		prevBlock, err := tonChain.Client.WaitForBlock(masterBefore.SeqNo).LookupBlock(
 			t.Context(),
 			masterBefore.Workchain,
 			masterBefore.Shard,
@@ -449,7 +449,7 @@ func Test_LogPoller(t *testing.T) {
 
 				// call GetTransaction to fetch the transaction and verify the proof.
 				// The API tonChain.Client must have proof checking enabled for this to work.
-				tx, terr := tonChain.Client.GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
+				tx, terr := tonChain.Client.WaitForBlock(logEntry.Block.SeqNo).GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
 				require.NoError(t, terr, "Transaction verification failed for lt %d", logEntry.TxLT)
 
 				// final check: ensure the hash of the fetched transaction matches the hash from the log.

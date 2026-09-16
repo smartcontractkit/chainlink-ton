@@ -27,11 +27,15 @@
     "semver": "^7.7.1"
   },
   "resolutions": {
-    "axios": "v1.16.1"
+    "axios": "v1.16.1",
+    "lodash": "^4.18.1",
+    "protobufjs": "^7.5.5"
   },
   "pnpm": {
     "overrides": {
-      "axios": "v1.16.1"
+      "axios": "v1.16.1",
+      "lodash": "^4.18.1",
+      "protobufjs": "^7.5.5"
     }
   }
 }

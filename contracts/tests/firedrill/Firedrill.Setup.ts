@@ -4,9 +4,13 @@ import { randomAddress } from '@ton/test-utils'
 
 import { contractCode } from '../../wrappers/codeLoader'
 import { FiredrillOnRamp } from '../../wrappers/firedrill/FiredrillOnRamp'
-import { FiredrillOffRamp } from '../../wrappers/firedrill/FiredrillOffRamp'
+import {
+  FiredrillOffRamp,
+  FiredrillOffRampStorage,
+} from '../../wrappers/firedrill/FiredrillOffRamp'
 import { FiredrillEntrypoint } from '../../wrappers/firedrill/FiredrillEntrypoint'
-import { CrossChainAddress } from '../../wrappers/ccip/OffRamp'
+import * as rt from '../../wrappers/gen/ccip/Router'
+import * as CrossChainAddressCodec from '../../wrappers/ccip/common/CrossChainAddressCodec'
 
 import { generateRandomContractId } from '../../src/utils'
 
@@ -41,15 +45,16 @@ export async function deployFiredrillOffRamp(
   opts?: {
     controlAddress?: Address
     chainSelector?: bigint
-    onRampAddress?: CrossChainAddress
+    onRampAddress?: rt.CrossChainAddress
   },
 ) {
   const code = await contractCode.ccip.local('firedrill.offramp')
-  const config = {
+  const config: FiredrillOffRampStorage = {
     id: generateRandomContractId(),
     controlAddress: opts?.controlAddress ?? owner.address,
     chainSelector: opts?.chainSelector ?? CHAINSEL_TON_TEST,
-    onRampAddress: opts?.onRampAddress ?? CROSS_CHAIN_ONRAMP_ADDRESS,
+    onRampAddress:
+      opts?.onRampAddress ?? CrossChainAddressCodec.FromBuffer(CROSS_CHAIN_ONRAMP_ADDRESS),
   }
 
   const offramp = blockchain.openContract(FiredrillOffRamp.createFromConfig(config, code))
@@ -101,7 +106,7 @@ export async function setupFiredrill(blockchain: Blockchain) {
 
   const { offramp } = await deployFiredrillOffRamp(blockchain, deployer, {
     controlAddress: entrypoint.address, // Will be updated to entrypoint later
-    onRampAddress: tonAddressToCrossChainAddress(onramp.address),
+    onRampAddress: CrossChainAddressCodec.FromTonAddress(onramp.address),
   })
 
   const initRampsResult = await entrypoint.sendInitRamps(
@@ -131,14 +136,3 @@ export const CROSS_CHAIN_ONRAMP_ADDRESS = Buffer.from(
   '0xcafaae1bab0e7d637cba2f6a3b920185c93d95df',
   'hex',
 )
-
-const TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE = 36
-export function tonAddressToCrossChainAddress(addr: Address): CrossChainAddress {
-  const hash = addr.hash
-  const slice = beginCell()
-    .storeUint(0, 32) // basechain prefix
-    .storeBuffer(hash, 32) // accountId (hash)
-    .endCell()
-    .beginParse()
-  return slice.loadBuffer(TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE)
-}
