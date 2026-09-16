@@ -66,6 +66,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          # A step that exits 0 ends only ITSELF — every later step still runs.
+          # So "skip" must gate the rest of the job, never be a bare `exit 0`.
+          #
+          # The gate is default-deny: `proceed` is written exactly once, here,
+          # after every guard has passed. Skip paths leave it unset, so the
+          # gated steps below stay skipped.
+
           # The PR to act on: dispatch supplies the number; workflow_run only
           # carries the failed head SHA, so resolve commit -> PR.
           NUM="${PR_NUMBER}"
@@ -120,12 +127,14 @@ jobs:
             'if .isCrossRepository then .headRepositoryOwner.login + "/" + .headRepository.name else $r end' \
             pr.json)
           {
+            echo "proceed=true"
             echo "number=${NUM}"
             echo "push-repo=${PUSH_REPO}"
             echo "head-ref=$(jq -r .headRefName pr.json)"
           } >>"${GITHUB_OUTPUT}"
 
       - name: Mint GitHub App token (GATI)
+        if: steps.pr.outputs.proceed == 'true'
         id: setup-github-token
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
         with:
@@ -135,6 +144,7 @@ jobs:
           aws-role-duration-seconds: "1800"
 
       - name: Check out the PR head
+        if: steps.pr.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
           NUM: ${{ steps.pr.outputs.number }}
@@ -146,11 +156,13 @@ jobs:
           gh pr checkout "${NUM}" --repo "${REPO}"
 
       - name: Install Nix
+        if: steps.pr.outputs.proceed == 'true'
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Re-verify fetchers and rewrite stale hashes
+        if: steps.pr.outputs.proceed == 'true'
         run: |
           set -euo pipefail
           # The tool comes from main (branches can predate current revisions);
@@ -158,6 +170,7 @@ jobs:
           timeout 15m nix run github:smartcontractkit/chainlink-ton/main#lock-nix-tidy
 
       - name: Commit and push the fixup
+        if: steps.pr.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
           REPO: ${{ github.repository }}
