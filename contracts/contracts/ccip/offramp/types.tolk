@@ -101,19 +101,6 @@ struct OffRamp_DynamicConfig {
     minTTGasLimit: coins
 }
 
-struct Config {
-    // -- Static config
-    chainSelector: uint64
-    // gasForCallExactCheck
-    // rmnRemote
-    // nonceManager
-    tokenAdminRegistry: address
-    // -- Dynamic config
-    dynamicConfig: OffRamp_DynamicConfig
-    // isRMNVerificationDisabled
-    // messageInterceptor
-}
-
 // Kept in a reference because three full-width values would overflow the
 // OffRamp root data cell alongside ownership and mutable state.
 struct OffRamp_StaticConfig {

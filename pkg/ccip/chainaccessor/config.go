@@ -132,7 +132,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, fmt.Errorf("convert fee quoter address: %w", err)
 	}
-	tokenAdminRegistryBytes, err := addrToBytes(config.TokenAdminRegistry)
+	tokenAdminRegistryBytes, err := addrToBytes(config.StaticConfig.TokenAdminRegistry)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, fmt.Errorf("convert TokenAdminRegistry address: %w", err)
 	}
@@ -141,7 +141,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		CommitLatestOCRConfig: ccipocr3.OCRConfigResponse{OCRConfig: commitConfig},
 		ExecLatestOCRConfig:   ccipocr3.OCRConfigResponse{OCRConfig: execConfig},
 		StaticConfig: ccipocr3.OffRampStaticChainConfig{
-			ChainSelector:        ccipocr3.ChainSelector(config.ChainSelector),
+			ChainSelector:        ccipocr3.ChainSelector(config.StaticConfig.ChainSelector),
 			GasForCallExactCheck: 0,
 			RmnRemote:            nil, // Leave nil so we don't enable full RMN mode on TON, only fast curse
 			TokenAdminRegistry:   tokenAdminRegistryBytes,

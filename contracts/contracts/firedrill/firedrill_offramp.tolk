@@ -108,17 +108,20 @@ get fun ocr3Config(): OCR3Base {
 }
 
 // Getter for dynamic config
-get fun config(): Config {
+get fun config(): OffRamp_Config {
 	val st = lazy FiredrillOffRamp_Storage.load();
-	return {
-		chainSelector: st.chainSelector,
-		tokenAdminRegistry: st.controlAddress,
+	return OffRamp_Config {
+		staticConfig: OffRamp_StaticConfig {
+			rmnRouter: st.controlAddress,
+			tokenAdminRegistry: st.controlAddress,
+			chainSelector: st.chainSelector,
+		},
 		dynamicConfig: OffRamp_DynamicConfig {
 			feeQuoter: st.controlAddress,
 			permissionlessExecutionThresholdSeconds: 10,
 			minGasLimit: ton("0.025"),
 			minTTGasLimit: ton("0.15"),
-		},
+		}.toCell(),
 	};
 }
 

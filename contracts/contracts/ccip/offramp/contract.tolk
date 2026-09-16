@@ -1112,13 +1112,9 @@ get fun ocr3Config(): OCR3Base {
     return st.ocr3Base.load();
 }
 
-get fun config(): Config {
+get fun config(): OffRamp_Config {
     val st = lazy Storage.load();
-    return {
-        chainSelector: st.config.load().staticConfig.chainSelector,
-        tokenAdminRegistry: st.config.load().staticConfig.tokenAdminRegistry,
-        dynamicConfig: st.config.load().dynamicConfig.load(),
-    }
+    return st.config.load();
 }
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {

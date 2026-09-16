@@ -73,64 +73,20 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 })
 
 // GetConfig gets the configuration of the OffRamp contract
-var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
+var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OffRampConfig]{
 	Name: configGetter,
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
-		var c Config
-		cs, err := r.Int(0)
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (OffRampConfig, error) {
+		var c OffRampConfig
+		// The getter returns a single cell containing the OffRamp_Config struct,
+		// where staticConfig is inline and dynamicConfig is a reference.
+		configSlice, err := r.Slice(0)
 		if err != nil {
-			return c, fmt.Errorf("failed to get ChainSelector: %w", err)
+			return c, fmt.Errorf("failed to get config slice: %w", err)
 		}
-
-		chainSelector := cs.Uint64()
-
-		tokenAdminRegistrySlice, err := r.Slice(1)
-		if err != nil {
-			return c, fmt.Errorf("failed to get TokenAdminRegistry address slice: %w", err)
+		if err := tlb.LoadFromCell(&c, configSlice); err != nil {
+			return c, fmt.Errorf("failed to decode OffRampConfig: %w", err)
 		}
-
-		tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
-		if err != nil {
-			return c, fmt.Errorf("failed to load TokenAdminRegistry address: %w", err)
-		}
-
-		feeQuoterAddressSlice, err := r.Slice(2)
-		if err != nil {
-			return c, fmt.Errorf("failed to get feeQuoter address slice: %w", err)
-		}
-
-		feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
-		if err != nil {
-			return c, fmt.Errorf("failed to load feeQuoter address: %w", err)
-		}
-
-		thresholdInt, err := r.Int(3)
-		if err != nil {
-			return c, fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
-		}
-
-		minGasLimitInt, err := r.Int(4)
-		if err != nil {
-			return c, fmt.Errorf("failed to get minGasLimit: %w", err)
-		}
-		minGasLimit := tlb.FromNanoTON(minGasLimitInt)
-
-		minTTGasLimitInt, err := r.Int(5)
-		if err != nil {
-			return c, fmt.Errorf("failed to get minTTGasLimit: %w", err)
-		}
-		minTTGasLimit := tlb.FromNanoTON(minTTGasLimitInt)
-
-		return Config{
-			ChainSelector:      chainSelector,
-			TokenAdminRegistry: tokenAdminRegistry,
-			DynamicConfig: DynamicConfig{
-				FeeQuoter:                               feeQuoterAddress,
-				PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
-				MinGasLimit:                             minGasLimit,
-				MinTTGasLimit:                           minTTGasLimit,
-			},
-		}, nil
+		return c, nil
 	}),
 })
 

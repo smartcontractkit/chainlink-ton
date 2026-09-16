@@ -30,7 +30,7 @@ describe('FiredrillOffRamp - Unit Tests', () => {
 
   it('getConfig should return configuration', async () => {
     const result = await offramp.getConfig()
-    expect(result.chainSelector).toEqual(CHAINSEL_TON_TEST)
+    expect(result.staticConfig.chainSelector).toEqual(CHAINSEL_TON_TEST)
     expect(result.dynamicConfig.feeQuoter).toEqual(deployer.address)
     expect(result.dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(10n)
   })

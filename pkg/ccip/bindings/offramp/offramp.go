@@ -221,15 +221,8 @@ type OffRampConfig struct {
 	DynamicConfig DynamicConfig `tlb:"^"`
 }
 
-// Config represents the offRamp contract configuration returned by the config getter.
-type Config struct {
-	ChainSelector      uint64           `tlb:"## 64"`
-	TokenAdminRegistry *address.Address `tlb:"addr"`
-	DynamicConfig      DynamicConfig    `tlb:"."`
-}
-
 // Deprecated: Use GetConfig getter instead.
-func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
+func (c *OffRampConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	res, err := GetConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
@@ -239,7 +232,7 @@ func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
 }
 
 // Deprecated: Use GetConfig getter instead.
-func (c *Config) GetterMethodName() string {
+func (c *OffRampConfig) GetterMethodName() string {
 	return configGetter
 }
 

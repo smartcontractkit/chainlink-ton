@@ -68,8 +68,8 @@ describe('OffRamp - Upgrade Tests', () => {
     upgradeValue: toNano('0.05'),
     verifyMigration: async (offramp, owner) => {
       const config = await offramp.getConfig()
-      expect(config.chainSelector).toBe(ChainSelectors.testnet.ton)
-      expect(config.tokenAdminRegistry).toEqualAddress(owner.address)
+      expect(config.staticConfig.chainSelector).toBe(ChainSelectors.testnet.ton)
+      expect(config.staticConfig.tokenAdminRegistry).toEqualAddress(owner.address)
       expect(config.dynamicConfig.feeQuoter).toEqualAddress(owner.address)
       expect(config.dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
         PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,

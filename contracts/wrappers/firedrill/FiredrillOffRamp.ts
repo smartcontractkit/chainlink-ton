@@ -84,17 +84,17 @@ export class FiredrillOffRamp implements Contract {
     })
   }
 
-  async getConfig(provider: ContractProvider): Promise<of.Config> {
+  async getConfig(provider: ContractProvider): Promise<of.OffRamp_Config> {
     const result = await provider.get('config', [])
-    return of.Config.create({
-      chainSelector: result.stack.readBigNumber(),
-      tokenAdminRegistry: result.stack.readAddress(),
-      dynamicConfig: of.OffRamp_DynamicConfig.create({
-        feeQuoter: result.stack.readAddress(),
-        permissionlessExecutionThresholdSeconds: result.stack.readBigNumber(),
-        minGasLimit: result.stack.readBigNumber(),
-        minTTGasLimit: result.stack.readBigNumber(),
+    // The getter returns OffRamp_Config as multiple stack values:
+    // staticConfig fields inline, then dynamicConfig as a cell reference.
+    return of.OffRamp_Config.create({
+      staticConfig: of.OffRamp_StaticConfig.create({
+        rmnRouter: result.stack.readAddress(),
+        tokenAdminRegistry: result.stack.readAddress(),
+        chainSelector: result.stack.readBigNumber(),
       }),
+      dynamicConfig: of.OffRamp_DynamicConfig.fromSlice(result.stack.readCell().beginParse()),
     })
   }
 
