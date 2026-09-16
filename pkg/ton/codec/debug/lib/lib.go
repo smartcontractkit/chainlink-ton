@@ -7,8 +7,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type TxInfo struct {

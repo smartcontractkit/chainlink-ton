@@ -10,7 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
 )

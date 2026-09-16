@@ -67,7 +67,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 	curLT, curHash := endLT, endHash
 
 	for {
-		batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, pageSize, curLT, curHash)
+		batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, pageSize, curLT, blockRange.ToSeqNo(), curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
 			// no more transactions to process
 			break
@@ -140,7 +140,7 @@ func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *mo
 	case blockRange.Prev == nil:
 		startLT = 0
 	case blockRange.FromSeqNo() > 0:
-		accPrev, accErr := client.GetAccount(ctx, blockRange.Prev, addr)
+		accPrev, accErr := client.WaitForBlock(blockRange.Prev.SeqNo).GetAccount(ctx, blockRange.Prev, addr)
 		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
 		} else {
@@ -205,7 +205,7 @@ func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.B
 // It returns a list of transactions, a list of corresponding block IDs, and an error if one occurs.
 // ListTransactions - returns list of transactions before (including) passed lt and hash, the oldest one is first in result slice
 // Transactions will be verified to match final tx hash, which should be taken from proved account state, then it is safe.
-func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *address.Address, limit uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, []*ton.BlockIDExt, error) {
+func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *address.Address, limit uint32, lt uint64, seqNo uint32, txHash []byte) ([]*tlb.Transaction, []*ton.BlockIDExt, error) {
 	// unlikely to have overflow, but just for safety
 	if limit > math.MaxInt32 {
 		return nil, nil, fmt.Errorf("limit %d exceeds maximum int32 value", limit)
@@ -221,7 +221,7 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 	if cerr != nil {
 		return nil, nil, fmt.Errorf("failed to get client: %w", cerr)
 	}
-	err := client.Client().QueryLiteserver(ctx, ton.GetTransactions{
+	err := client.WaitForBlock(seqNo).Client().QueryLiteserver(ctx, ton.GetTransactions{
 		Limit: int32(limit),
 		AccID: &ton.AccountID{
 			Workchain: addr.Workchain(),

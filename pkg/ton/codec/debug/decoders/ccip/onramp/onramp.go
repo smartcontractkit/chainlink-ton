@@ -5,14 +5,14 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/ccipcommon"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var TLBs = onramp.TLBs

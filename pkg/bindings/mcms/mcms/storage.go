@@ -5,9 +5,9 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {

@@ -23,7 +23,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -441,7 +441,7 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	}
 	c.lggr.Debug("actor not known")
 	var typeVersion common.TypeAndVersion
-	result, err := c.connection.RunGetMethod(ctx, block, addr, "typeAndVersion")
+	result, err := c.connection.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "typeAndVersion")
 	if err != nil {
 		// We don't fail here because many contracts don't implement typeAndVersion
 		return nil // TODO try deducing from code?
@@ -525,7 +525,7 @@ func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *addres
 	if err != nil {
 		return nil, fmt.Errorf("get masterchain info: %w", err)
 	}
-	account, err := api.GetAccount(ctx, block, srcAddr)
+	account, err := api.WaitForBlock(block.SeqNo).GetAccount(ctx, block, srcAddr)
 	if err != nil {
 		return nil, fmt.Errorf("get account: %w", err)
 	}

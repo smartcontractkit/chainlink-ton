@@ -1,4 +1,5 @@
-import { Builder, Slice, TupleItem } from '@ton/core'
+import { Address, Builder, Cell, Slice, TupleItem } from '@ton/core'
+import { Blockchain } from '@ton/sandbox'
 import { createHash } from 'crypto'
 
 /// Returns the facility ID for the given CRC16 key (e.g. stringCrc16("link.chain.ton.mcms.Timelock")).
@@ -60,4 +61,12 @@ export const remainingBitsOrRefCodec = {
       return src
     }
   },
+}
+
+export async function getStorage(blockchain: Blockchain, addr: Address): Promise<Cell> {
+  const contract = await blockchain.getContract(addr)
+  if (contract.accountState == undefined) throw new Error('Contract account state is undefined')
+  const state = contract.accountState
+  if (state.type !== 'active') throw new Error('Contract account state is not active')
+  return state.state.data!
 }

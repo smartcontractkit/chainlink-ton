@@ -21,11 +21,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 

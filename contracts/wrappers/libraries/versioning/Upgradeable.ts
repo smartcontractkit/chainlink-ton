@@ -83,7 +83,7 @@ export const builder = {
   },
 }
 
-export async function sendUpgrade(
+export async function sendUpgradeableUpgrade(
   provider: ContractProvider,
   via: Sender,
   value: bigint,
@@ -96,21 +96,24 @@ export async function sendUpgrade(
   })
 }
 export interface Interface extends Contract {
-  // readonly address: Address
-
-  sendUpgrade(provider: ContractProvider, via: Sender, value: bigint, body: Upgrade): Promise<void>
+  sendUpgradeableUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: Upgrade,
+  ): Promise<void>
 }
 
 export async function sendUpgradeAndReturnNewVersion<T extends Interface>(
   current: SandboxContract<Interface>,
   via: Sender,
   value: bigint,
-  newVersion: new (address: Address, init?: { code: Cell; data: Cell }) => T,
+  newVersion: (address: Address) => T,
   newCode: Cell,
   queryId?: bigint,
 ): Promise<{ upgradeResult: SendMessageResult; newVersionInstance: T }> {
-  const newVersionInstance = new newVersion(current.address)
-  const upgradeResult = await current.sendUpgrade(via, value, {
+  const newVersionInstance = newVersion(current.address)
+  const upgradeResult = await current.sendUpgradeableUpgrade(via, value, {
     queryId: queryId ?? 0n,
     code: newCode,
   })

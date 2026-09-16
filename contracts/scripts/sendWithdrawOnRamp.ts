@@ -1,7 +1,7 @@
 import { Address, toNano } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
 import { WalletContractV5R1 } from '@ton/ton'
-import { OnRamp } from '../wrappers/ccip/OnRamp'
+import { OnRamp } from '../wrappers/gen/ccip/OnRamp'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as readline from 'readline'
@@ -106,7 +106,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
   } else {
     // Use provider's sender (mnemonic-based)
     sender = provider.sender()
-    senderAddress = sender.address
+    senderAddress = sender.address!
 
     if (!senderAddress) {
       throw new Error('Sender address not available')
@@ -157,7 +157,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
 async function withdrawFromOnRamp(provider: NetworkProvider, sender: any, onRampAddress: Address) {
   // Open OnRamp contract
-  const onRamp = provider.open(OnRamp.createFromAddress(onRampAddress))
+  const onRamp = provider.open(OnRamp.fromAddress(onRampAddress))
 
   // Get dynamic config and show where funds will go BEFORE sending transaction
   let config
@@ -206,7 +206,7 @@ async function withdrawFromOnRamp(provider: NetworkProvider, sender: any, onRamp
 
   // Send withdrawFeeTokens with empty feeTokens array (withdraws native TON)
   // The contract sends excess balance (minus reserve) to the feeAggregator
-  await onRamp.sendWithdrawFeeTokens(
+  await onRamp.sendOnRampWithdrawFeeTokens(
     sender,
     toNano('0.5'), // Higher gas for this operation
     {

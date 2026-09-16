@@ -16,6 +16,7 @@ This repository includes many contracts for the TON network implemented in the [
 - [Deployable](./overview/deployable.md)
 - [MCMS](./overview/mcms/index.md)
 - [wGRAM](./overview/wgram/index.md)
+- [TON Patterns](./ton-patterns.md)
 
 ## Development guides
 
