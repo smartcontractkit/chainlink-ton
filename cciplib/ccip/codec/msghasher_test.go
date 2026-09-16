@@ -244,7 +244,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 				{
 					SourceChainSelector: msg.Header.SourceChainSelector,
 					Messages:            []ccipocr3.Message{msg},
-					OffchainTokenData:   [][][]byte{{}},
+					OffchainTokenData:   nil,
 					Proofs:              []ccipocr3.Bytes32{},
 					ProofFlagBits:       ccipocr3.BigInt{Int: big.NewInt(0)},
 				},

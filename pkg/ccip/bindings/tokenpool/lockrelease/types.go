@@ -46,6 +46,7 @@ type ReturnExcessesBack struct {
 type Storage struct {
 	PoolData           tokenpool.Storage `tlb:"^"`
 	OffRampAccountCode *cell.Cell        `tlb:"^"` // Compiled code cell of the DepositAccount (off-ramp role)
+	AccruedFees        tlb.Coins         `tlb:"."` // accrued lock/release fees held in the pool's own Jetton wallet
 }
 
 // --- Exit Codes ---
@@ -61,6 +62,7 @@ const (
 	ExitCodeInvalidOffRampAccountReply
 	ExitCodeInvalidOffRampAccountNotification
 	ExitCodeOffRampAccountDeployFailed
+	ExitCodeInvalidWithdrawWallet
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

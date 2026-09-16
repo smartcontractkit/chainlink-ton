@@ -2,7 +2,6 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import * as jetton from '../../../wrappers/jetton/JettonCode'
 import {
   CrossChainAddress,
   CursedSubjects,
@@ -25,6 +24,8 @@ import {
   Ownable2Step,
   TokenPool_TransferDetails,
   TokenPool_Transfer,
+  TokenPool_TokenTransferFeeConfig,
+  TokenPool_TokenTransferFeeConfigArgs,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import {
   JettonClient,
@@ -36,7 +37,10 @@ import {
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
-import { runTokenPoolBehaviorTests, runTokenPoolAsyncHookBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { AccessControl_Data } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
@@ -87,8 +91,8 @@ describe('LockReleaseLockboxTokenPool', () => {
     recipient = await blockchain.treasury('recipient')
     lockboxOperator = await blockchain.treasury('lockboxOperator')
 
-    jettonWalletCode = await jetton.JettonWalletCode()
-    const jettonMinterCode = await jetton.JettonMinterCode()
+    jettonWalletCode = await contractCode.jetton('JettonWallet')
+    const jettonMinterCode = await contractCode.jetton('JettonMinter')
 
     // Deploy jetton minter
     jettonMinter = blockchain.openContract(
@@ -421,6 +425,148 @@ describe('LockReleaseLockboxTokenPool', () => {
       hooks,
     }
   })
+
+  // WithdrawFeeTokens behavior tests (fee accrual + withdrawal). The lockbox pool forwards only
+  // the post-fee amount to the lockbox, leaving the fee in the pool's own wallet as the
+  // withdrawable amount (no accrued-fee ledger => unbounded base path).
+  runTokenPoolWithdrawFeeTokensBehaviorTests('LockReleaseLockboxTokenPool', async () => {
+    const feeAdmin = await blockchain.treasury('feeAdmin')
+    const unauthorized = await blockchain.treasury('unauthorized')
+    const feeBps = 100n // 1% transfer fee
+    const poolWallet = await userWallet(lockReleaseLockboxPool.address)
+
+    // Enable a 1% transfer fee for the lane so locks accrue fees into the pool wallet.
+    await lockReleaseLockboxPool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 3n,
+        updates: [
+          TokenPool_TokenTransferFeeConfigArgs.create({
+            destChainSelector: remoteChainSelector,
+            tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+              destGasOverhead: 1n,
+              destBytesOverhead: 0n,
+              finalityFeeUSDCents: 0n,
+              fastFinalityFeeUSDCents: 0n,
+              finalityTransferFeeBps: feeBps,
+              fastFinalityTransferFeeBps: feeBps,
+              isEnabled: true,
+            }),
+          }),
+        ],
+        disableChainSelectors: [],
+      },
+    )
+
+    // Performs a successful fee-accruing lock of `amount` jettons. The pool forwards only the
+    // post-fee amount to the lockbox, leaving `feeAmount` in the pool's own wallet.
+    const doLock = async (amount: bigint, queryId: bigint) => {
+      const onRampWallet = await userWallet(deployer.address)
+
+      await jettonMinter.sendMint(deployer.getSender(), {
+        value: toNano('1'),
+        message: {
+          queryId: 0n,
+          destination: deployer.address,
+          tonAmount: toNano('0.05'),
+          jettonAmount: toNano('50'),
+          from: deployer.address,
+          responseDestination: deployer.address,
+          forwardTonAmount: 0n,
+        },
+      })
+
+      const feeAmount = (amount * feeBps) / 10000n
+      const lockOrBurn = TokenPool_LockOrBurn.create({
+        queryId,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount,
+              localToken: jettonMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+      const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg: lockOrBurn,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount,
+          destTokenAmount: amount - feeAmount,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      await onRampWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: lockReleaseLockboxPool.address,
+          responseDestination: deployer.address,
+          customPayload: beginCell().storeBit(1).endCell(),
+          forwardTonAmount: toNano('0.5'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+        },
+      })
+      return { feeAmount }
+    }
+
+    // The pool's own jetton wallet is only deployed once it first receives jettons, so tolerate
+    // it not being active yet (returns 0 pre-first-lock).
+    const getWithdrawableFees = async (): Promise<bigint> => {
+      try {
+        return await poolWallet.getJettonBalance()
+      } catch {
+        return 0n
+      }
+    }
+
+    return {
+      pool,
+      blockchain,
+      deployer,
+      recipient,
+      unauthorized,
+      feeAdmin,
+      getWithdrawableFees,
+      poolWallet,
+      userWallet,
+      feeBps,
+      doLock,
+    }
+  })
+
+  // CCV & fees behavior (TON-TP: getCCVs / getCCVsAndFees parity with EVM IPoolV2).
+  // Enables a 1% fee config so the getCCVsAndFees post-fee math is exercised.
+  runTokenPoolCcvFeesBehaviorTests(
+    'LockReleaseLockboxTokenPool',
+    async () => ({
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      blockchain,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+    }),
+    { withFeeConfig: true },
+  )
 
   /* === LockReleaseLockboxTokenPool-specific tests === */
 

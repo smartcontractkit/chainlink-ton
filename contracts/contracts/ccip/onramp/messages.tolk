@@ -20,7 +20,6 @@ type OnRamp_InMessage =
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
-    | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
     | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
@@ -40,8 +39,6 @@ struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata;
-    // TODO: consider introducing OnRamp_SendV2 instead of mutating OnRamp_Send to maintain backwards compatibility on the OnRamp upgrade path.
-    tokenRegistry: address? = null;
 }
 
 // So that ABIgen can generate codec for OnRamp_GetValidatedFee<RemainingBitsAndRefs>
@@ -104,10 +101,6 @@ struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
 }
 
-struct (0x82901c45) OnRamp_UpdateSendExecutor {
-    code: cell;
-}
-
 struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
@@ -134,6 +127,7 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     context: T
 }
 
+// TODO: once fee token support is added, migrate this to use lib/funding/jetton_withdrawable.tolk
 struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
     feeTokens: SnakedCell<address>;
 }

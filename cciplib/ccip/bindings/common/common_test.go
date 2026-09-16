@@ -95,6 +95,27 @@ func TestCrossChainAddress_RoundTrip(t *testing.T) {
 	require.Equal(t, original, restored)
 }
 
+func TestLispList_RoundTrip(t *testing.T) {
+	type listContainer struct {
+		List LispList[SnakeBytes] `tlb:"^"`
+	}
+
+	first := SnakeBytes("first")
+	second := SnakeBytes("second")
+	original := listContainer{
+		List: LispList[SnakeBytes]{&first, &second},
+	}
+
+	c, err := tlb.ToCell(original)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), c.RefsNum(), "the list is stored as a cell reference")
+
+	var restored listContainer
+	err = tlb.LoadFromCell(&restored, c.BeginParse())
+	require.NoError(t, err)
+	require.Equal(t, original.List, restored.List)
+}
+
 func TestPackAndUnloadCellToByteArray(t *testing.T) {
 	tests := []struct {
 		name      string

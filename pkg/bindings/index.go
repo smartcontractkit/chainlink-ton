@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
@@ -16,8 +17,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenregistry"
 )
 
 const (
@@ -32,26 +34,28 @@ const (
 	// Contract types
 
 	// Libs and traits
-	TypeOwnable      tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
-	TypeRBAC         tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
-	TypeWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
-	TypeUpgradeable  tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
+	TypeOwnable            tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
+	TypeRBAC               tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
+	TypeWithdrawable       tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
+	TypeJettonWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.JettonWithdrawable"
+	TypeUpgradeable        tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
 
 	// MCMS
 	TypeMCMS     tvm.FullyQualifiedName = PkgMCMS + ".MCMS"
 	TypeTimelock tvm.FullyQualifiedName = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter          tvm.FullyQualifiedName = PkgCCIP + ".Router"
-	TypeOnRamp          tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
-	TypeOffRamp         tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter       tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor    tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
-	TypeDeployable      tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
-	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
-	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
-	TypeTokenRegistry   tvm.FullyQualifiedName = PkgCCIP + ".TokenRegistry"
-	TypeDepositAccount  tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
+	TypeRouter                  tvm.FullyQualifiedName = PkgCCIP + ".Router"
+	TypeOnRamp                  tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
+	TypeOffRamp                 tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter               tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor            tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable              tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
+	TypeMerkleRoot              tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor         tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
+	TypeTokenAdminRegistry      tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistry"
+	TypeTokenAdminRegistryEntry tvm.FullyQualifiedName = PkgCCIP + ".TokenAdminRegistryEntry"
+	TypeDepositAccount          tvm.FullyQualifiedName = PkgCCIP + ".account.DepositAccount"
 
 	// Test contract types
 	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
@@ -80,15 +84,16 @@ const (
 	ShortReceiver                    = "Receiver"
 	ShortTimelock                    = "RBACTimelock"
 	ShortMCMS                        = "MCMS"
-	ShortTokenRegistry               = "TokenAdminRegistry"
+	ShortTokenAdminRegistry          = "TokenAdminRegistry"
 	ShortLockReleaseTokenPool        = "LockReleaseTokenPool"
 	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
-	ShortOwnable      = "Ownable"
-	ShortRBAC         = "RBAC" // ShortType for Role-Based Access Control trait
-	ShortWithdrawable = "Withdrawable"
-	ShortUpgradeable  = "Upgradeable"
+	ShortOwnable            = "Ownable"
+	ShortRBAC               = "RBAC" // ShortType for Role-Based Access Control trait
+	ShortWithdrawable       = "Withdrawable"
+	ShortJettonWithdrawable = "JettonWithdrawable"
+	ShortUpgradeable        = "Upgradeable"
 
 	// Jetton short names
 	ShortJettonWallet = "JettonWallet"
@@ -109,9 +114,9 @@ var AllContractTypes = []struct {
 	{ShortMerkleRoot, TypeMerkleRoot},
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
+	{ShortTokenAdminRegistry, TypeTokenAdminRegistry},
 	{ShortLockReleaseTokenPool, TypeLockReleaseTokenPool},
 	{ShortLockReleaseLockboxTokenPool, TypeLockReleaseLockboxTokenPool},
-	{ShortTokenRegistry, TypeTokenRegistry},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
@@ -120,10 +125,11 @@ var AllContractTypes = []struct {
 var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 	m := map[string]tvm.FullyQualifiedName{
 		// Traits (not in AllContractTypes)
-		ShortOwnable:      TypeOwnable,
-		ShortRBAC:         TypeRBAC,
-		ShortWithdrawable: TypeWithdrawable,
-		ShortUpgradeable:  TypeUpgradeable,
+		ShortOwnable:            TypeOwnable,
+		ShortRBAC:               TypeRBAC,
+		ShortWithdrawable:       TypeWithdrawable,
+		ShortJettonWithdrawable: TypeJettonWithdrawable,
+		ShortUpgradeable:        TypeUpgradeable,
 		// Jetton
 		ShortJettonWallet: TypeJettonWallet,
 		ShortJettonMinter: TypeJettonMinter,
@@ -137,22 +143,24 @@ var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 // Map of TLBs keyed by contract type
 var Registry = tvm.ContractTLBRegistry{
 	// Libs and traits
-	TypeOwnable:      ownable2step.TLBs,
-	TypeRBAC:         rbac.TLBs,
-	TypeWithdrawable: withdrawable.TLBs,
-	TypeUpgradeable:  upgradeable.TLBs,
+	TypeOwnable:            ownable2step.TLBs,
+	TypeRBAC:               rbac.TLBs,
+	TypeWithdrawable:       withdrawable.TLBs,
+	TypeJettonWithdrawable: jetton_withdrawable.TLBs,
+	TypeUpgradeable:        upgradeable.TLBs,
 
 	// MCMS contract types
 	TypeMCMS:     mcms.TLBs,
 	TypeTimelock: timelock.TLBs,
 
 	// CCIP contract types
-	TypeRouter:        router.TLBs,
-	TypeOnRamp:        onramp.TLBs,
-	TypeOffRamp:       offramp.TLBs,
-	TypeFeeQuoter:     feequoter.TLBs,
-	TypeSendExecutor:  ccipsendexecutor.TLBs,
-	TypeTokenRegistry: tokenregistry.TLBs,
+	TypeRouter:                  router.TLBs,
+	TypeOnRamp:                  onramp.TLBs,
+	TypeOffRamp:                 offramp.TLBs,
+	TypeFeeQuoter:               feequoter.TLBs,
+	TypeSendExecutor:            ccipsendexecutor.TLBs,
+	TypeTokenAdminRegistry:      tokenadminregistry.TLBs,
+	TypeTokenAdminRegistryEntry: tokenadminregistryentry.TLBs,
 
 	// Token pool contract types
 	TypeLockReleaseTokenPool: lockrelease.TLBs,

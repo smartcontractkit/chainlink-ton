@@ -11,6 +11,9 @@ struct Storage {
     poolData: Cell<TokenPool_Data>;
     /// Compiled code cell of the OffRampAccount contract (deployed per-operation).
     offRampAccountCode: cell;
+    /// Accrued lock/burn fees held in the pool's own Jetton wallet that `withdrawFeeTokens`
+    /// may move. Accounted for here as the lock/release TP doesn't use a lockbox mechanism.
+    accruedFees: coins;
 }
 
 fun Storage.load(): Storage {
@@ -53,5 +56,6 @@ fun Storage.init(config: LockReleaseTokenPool_InitConfig): Storage {
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
         offRampAccountCode: config.offRampAccountCode,
+        accruedFees: 0,
     };
 }

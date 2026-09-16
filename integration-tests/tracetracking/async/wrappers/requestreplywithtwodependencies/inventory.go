@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var InventoryContractPath = bindings.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
+var InventoryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
 
 type InventoryProvider struct {
 	apiClient tracetracking.SignedAPIClient

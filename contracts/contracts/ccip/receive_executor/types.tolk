@@ -12,23 +12,27 @@ struct ReceiveExecutor_State {
     messageExecution: ReceiveExecutor_MessageExecutionState
     /// TON to use for message execution. Updated by the latest execute call. Depends on the gasOverride in the message
     effectiveGasLimit: coins
+    /// queryId propagated from the OffRamp execution flow, used in outgoing messages
+    queryId: uint64 = 0
 }
 
 struct ReceiveExecutor_TokenTransferInfo {
     /// destGasAmount is updated by the latest execute call
     transfer: Cell<Any2TVMTokenTransfer>;
     tokenAdminRegistry: address
+    // Offchain token data for this token transfer (untrusted).
+    offchainTokenData: cell? = null;
     state : ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Untouched {};
 }
 
-fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Any2TVMTokenTransfer, tokenAdminRegistry: address): ReceiveExecutor_TokenTransferInfo {
+fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Any2TVMTokenTransfer, tokenAdminRegistry: address, offchainTokenData: cell?): ReceiveExecutor_TokenTransferInfo {
     if (self != null) {
         // The new transfer has the updated destGasAmount, so we need to update the transfer in the state
         self.transfer = transfer.toCell();
         return self
     }
 
-    return ReceiveExecutor_TokenTransferInfo { transfer: transfer.toCell(), tokenAdminRegistry };
+    return ReceiveExecutor_TokenTransferInfo { transfer: transfer.toCell(), tokenAdminRegistry, offchainTokenData };
 }
 
 type ReceiveExecutor_TokenTransferState = 

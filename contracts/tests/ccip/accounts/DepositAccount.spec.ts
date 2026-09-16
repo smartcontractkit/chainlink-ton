@@ -42,7 +42,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload: ForwardPayloadRemainder.fromSlice(beginCell().endCell().beginParse()),
+      forwardPayload: ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
     })
 
   // Build a boxed Jetton `TransferNotificationForRecipient`-shaped body carried by a real wallet.

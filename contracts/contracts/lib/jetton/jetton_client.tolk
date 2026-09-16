@@ -100,47 +100,17 @@ fun JettonClient.isWallet(self, sender: address): bool {
     return sender == self.walletAddress();
 }
 
-@inline
-fun loadMaybeForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
-    val forwardPayloadCell = forwardPayload.loadMaybeRef();
-    if (forwardPayloadCell != null) {
-        forwardPayload.assertEnd();
-        return forwardPayloadCell;
-    } else {
-        if (forwardPayload.isEmpty()) {
-            return null;
-        }
-        return beginCell().storeSlice(forwardPayload).endCell();
-    }
-}
-
-@inline
-fun loadMaybeForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
-    val forwardPayloadCell = forwardPayload.loadMaybeRef();
-    if (forwardPayloadCell != null) {
-        forwardPayload.assertEnd();
-        return forwardPayloadCell.beginParse();
-    } else {
-        if (forwardPayload.isEmpty()) {
-            return null;
-        }
-        return forwardPayload;
-    }
-}
-
+/// Forward payload as a cell: ref variant returns the ref itself (no copy), inline variant
+/// is materialized into a new cell, empty returns `null`.
 @inline
 fun loadForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
-    val forwardPayloadCell = forwardPayload.loadMaybeRef();
-    if (forwardPayloadCell != null) {
-        forwardPayload.assertEnd();
-        return forwardPayloadCell;
-    }
-    if (forwardPayload.isEmpty()) {
-        return null;
-    }
-    return beginCell().storeSlice(forwardPayload).endCell();
+    val s = loadForwardPayloadAsSlice(forwardPayload);
+
+    return s != null ? beginCell().storeSlice(s).endCell() : null;
 }
 
+/// Forward payload as a slice: ref variant returns the ref contents (asserting nothing
+/// follows), inline variant returns the remainder itself, empty returns `null`.
 @inline
 fun loadForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
     val forwardPayloadCell = forwardPayload.loadMaybeRef();
@@ -148,8 +118,10 @@ fun loadForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
         forwardPayload.assertEnd();
         return forwardPayloadCell.beginParse();
     }
+
     if (forwardPayload.isEmpty()) {
         return null;
     }
+
     return forwardPayload;
 }

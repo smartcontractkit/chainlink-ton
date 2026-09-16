@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var MemoryContractPath = bindings.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MemoryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tracetracking.SignedAPIClient

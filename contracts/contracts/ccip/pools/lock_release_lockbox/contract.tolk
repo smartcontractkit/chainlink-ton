@@ -7,6 +7,7 @@ import "../../../lib/utils"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
+import "../../../lib/funding/jetton_withdrawable"
 
 import "../../common/types"
 import "../../accounts/deposit/messages"
@@ -17,12 +18,12 @@ import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
+import "../lockbox/messages"
 
 import "messages"
 import "types"
 import "storage"
 
-import "../lockbox/messages"
 
 contract LockReleaseLockboxTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
@@ -85,12 +86,14 @@ fun deployOffRampAccountWithRelease(
     queryId: uint64,
     context: LockReleaseLockboxTokenPool_ReleaseContext,
 ) {
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(recipient, ());
+
     val oaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool (inits the account)
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool (inits the account)
+        poolAddr, // proxy = pool
         beneficiaries,
     );
 
@@ -108,6 +111,7 @@ fun deployOffRampAccountWithRelease(
 
 /// Handles DepositAccount_Reply after account deployment for release.
 /// Extracts context from Reply forwardPayload, then sends JettonLockBox_Withdraw to the lockbox.
+/// The lockbox withdraws to the account's jetton wallet, which forwards the notification via account to pool.
 fun onDepositAccountReply(
     mutate st: Storage,
     sender: address,
@@ -116,7 +120,7 @@ fun onDepositAccountReply(
     // Extract release context from Reply forwardPayload.
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
     val contextCell = msg.forwardPayload!;
-    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
     val prepared = lazy operation.prepared.load();
     val requestIn = lazy operation.requestMsg.load().request.load();
@@ -124,23 +128,24 @@ fun onDepositAccountReply(
 
     // Validate sender: derive expected account address and verify. Owner = proxy = pool,
     // beneficiary = the final recipient.
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(details.receiver, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
 
     // Compute account's jetton wallet address (where lockbox should withdraw to).
-    val jettonClient = st.poolData.load().jettonClient();
+    val jc = st.poolData.load().jettonClient();
 
     // Build extra with sendExcessesTo so ReturnExcessesBack routes to pool.
     // Also pass release context as forwardPayload so it survives the lockbox → jetton wallet hop.
     val withdrawExtra = JettonLockBox_WithdrawExtra {
-        sendExcessesTo: contract.getAddress(),
+        sendExcessesTo: poolAddr,
         failureContext: null,
         forwardTonAmount: ton("0.01"), // required for TransferNotificationForRecipient
         forwardPayload: contextCell,
@@ -155,7 +160,7 @@ fun onDepositAccountReply(
         dest: st.lockbox,
         body: JettonLockBox_Withdraw {
             queryId: msg.queryId,
-            token: jettonClient.masterAddress,
+            token: jc.masterAddress,
             remoteChainSelector: details.remoteChainSelector,
             amount: prepared.localAmount,
             recipientWallet: sender, // account address
@@ -167,18 +172,36 @@ fun onDepositAccountReply(
 
 /// Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
-    val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    var st = Storage.load();
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
-            var st = Storage.load();
+            // Distinguish a fee-withdrawal `AskToTransfer` (tagged with a `WithdrawContext`) from a
+            // lock `AskToTransfer` (tagged with a `LockContext`).
+            val data = st.poolData.load();
+            val jc = data.jettonClient();
+            if (JettonWithdrawable.onWithdrawBounced(jc.walletAddress(), msg)) {
+                assert(jc.isWallet(in.senderAddress)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
+                st.store();
+
+                return;
+            }
+
             onLockTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
         // The account rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
         // reply with a failure so the sender can retry instead of the release silently stalling.
         DepositAccount_Init => {
-            var st = Storage.load();
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
+            st.store();
+        }
+        // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
+        TokenPool_GetCCVs => {
+            var pool = loadPool(st);
+            pool.onGetCCVsBounced(msg, rich.exitCode);
+            st.poolData = pool.data.toCell();
             st.store();
         }
     }
@@ -337,12 +360,7 @@ fun onReleaseOrMintContinue(
 
     // Deploy OffRampAccount with context embedded.
     // OAA owner = recipient (can withdraw released jettons).
-    deployOffRampAccountWithRelease(
-        st,
-        details.receiver,
-        msg.queryId,
-        context,
-    );
+    deployOffRampAccountWithRelease(st, details.receiver, msg.queryId, context);
 
     return st;
 }
@@ -387,12 +405,13 @@ fun onDepositAccountForwardNotification(
     // jetton wallet (the account's own derived CCT wallet for this pool's token).
     val releaseRecipient = getReleaseRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
+    val poolAddr = contract.getAddress();
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(releaseRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         st.offRampAccountCode,
-        contract.getAddress(), // owner = pool
-        contract.getAddress(), // proxy = pool
+        poolAddr, // owner = pool
+        poolAddr, // proxy = pool
         beneficiaries,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
@@ -444,6 +463,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
+            onWithdrawFeeTokens: null,
         },
     };
 }
@@ -588,4 +608,24 @@ get fun getFeeAmount(
 ): coins {
     val pool = loadPool(Storage.load());
     return pool.getFeeAmount(transfer, requestedFinalityConfig);
+}
+
+/// Returns the amount that would be passed to the CCV hooks for a `getCCVs` query,
+/// given a transfer direction. Mirrors EVM's `getRequiredCCVs` amount logic: outbound is the
+/// post-fee source-denominated amount; inbound is the source amount converted to local decimals
+/// (via `sourcePoolData` in `extraData`).
+/// @param remoteChainSelector The remote lane.
+/// @param sourceDenominatedAmount The source-denominated amount.
+/// @param requestedFinalityConfig Requested finality encoding.
+/// @param direction `TokenPool_MessageDirection` (0 outbound, 1 inbound).
+/// @param extraData Direction-specific payload (tokenArgs outbound, sourcePoolData inbound).
+get fun getCCVAmount(
+    remoteChainSelector: uint64,
+    sourceDenominatedAmount: coins,
+    requestedFinalityConfig: uint32,
+    direction: TokenPool_MessageDirection,
+    extraData: cell?,
+): coins {
+    val pool = loadPool(Storage.load());
+    return pool.getCCVAmount(remoteChainSelector, sourceDenominatedAmount, requestedFinalityConfig, direction, extraData);
 }

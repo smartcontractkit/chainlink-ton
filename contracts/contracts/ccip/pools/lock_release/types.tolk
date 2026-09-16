@@ -22,6 +22,8 @@ enum LockRelease_Error {
     InvalidOffRampAccountReply // 7201
     InvalidOffRampAccountNotification // 7202
     OffRampAccountDeployFailed // 7203
+    // The withdraw fee request must carry exactly one transfer targeting a single, allowed wallet.
+    InvalidWithdrawWallet // 7204
 }
 
 // TODO: remove?

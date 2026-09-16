@@ -240,24 +240,15 @@ func TestStorage(t *testing.T) {
 	err = destConfigMap.Set(k.EndCell(), c)
 	require.NoError(t, err)
 
-	ExecutorCode := func() *cell.Cell {
-		b := cell.BeginCell()
-		require.NoError(t, b.StoreUInt(42, 32))
-		return b.EndCell()
-	}()
-
-	DeployableCode := func() *cell.Cell {
-		b := cell.BeginCell()
-		require.NoError(t, b.StoreUInt(52, 32))
-		return b.EndCell()
-	}()
-
 	s := Storage{
 		ID: 43,
 		Ownable: ownable2step.Storage{
 			Owner: dummyAddr,
 		},
-		ChainSelector: 42,
+		StaticConfig: StaticConfig{
+			ChainSelector:      42,
+			TokenAdminRegistry: dummyAddr,
+		},
 		Config: DynamicConfig{
 			FeeAggregator:  dummyAddr,
 			FeeQuoter:      dummyAddr,
@@ -265,11 +256,6 @@ func TestStorage(t *testing.T) {
 			Reserve:        tlb.MustFromTON("0.05"),
 		},
 		DestChainConfigs: destConfigMap,
-		Executor: ExecutorDeployment{
-			DeployableCode: DeployableCode,
-			ExecutorCode:   ExecutorCode,
-			CurrentID:      big.NewInt(123),
-		},
 	}
 
 	c, err = tlb.ToCell(s)
@@ -279,11 +265,9 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s.ID, decoded.ID)
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
-	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
+	require.Equal(t, s.StaticConfig.ChainSelector, decoded.StaticConfig.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
-	require.Equal(t, DeployableCode, decoded.Executor.DeployableCode)
-	require.Equal(t, ExecutorCode, decoded.Executor.ExecutorCode)
-	require.Equal(t, big.NewInt(123), decoded.Executor.CurrentID) // zero value
+	require.Equal(t, dummyAddr, decoded.StaticConfig.TokenAdminRegistry)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)

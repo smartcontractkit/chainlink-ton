@@ -22,7 +22,6 @@ const (
 
 // LockContext represents the context for a lock operation. Carries the full forward payload
 // for post-lock finalization.
-// Corresponds to LockReleaseLockboxTokenPool_LockContext (opcode: 0x60fdb63b).
 type LockContext struct {
 	_              tlb.Magic                          `tlb:"#60fdb63b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
@@ -30,7 +29,6 @@ type LockContext struct {
 
 // ReleaseContext represents the context passed to the DepositAccount (off-ramp role) for
 // release operations. Carries the full forward payload for post-release finalization.
-// Corresponds to LockReleaseLockboxTokenPool_ReleaseContext (opcode: 0x90230477).
 type ReleaseContext struct {
 	_              tlb.Magic                             `tlb:"#90230477" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
@@ -48,7 +46,6 @@ type ReturnExcessesBack struct {
 // --- Storage ---
 
 // Storage represents the LockReleaseLockboxTokenPool contract storage.
-// Matches Tolk: struct Storage { poolData: Cell<TokenPool_Data>; lockbox: address; offRampAccountCode: cell; }
 type Storage struct {
 	PoolData           tokenpool.Storage `tlb:"^"`
 	Lockbox            *address.Address  `tlb:"addr"` // JettonLockBox address

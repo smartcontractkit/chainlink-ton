@@ -75,22 +75,19 @@ type RouteMessageBounced struct {
 type Storage struct {
 	ID                                      uint32               `tlb:"## 32"`
 	Ownable                                 ownable2step.Storage `tlb:"."`
-	Deployables                             Deployables          `tlb:"^"`
+	StaticConfig                            StaticConfig         `tlb:"^"`
 	FeeQuoter                               *address.Address     `tlb:"addr"`
 	OCR3Base                                OCR3Base             `tlb:"^"`
 	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
-	ChainSelector                           uint64               `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
 	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
 	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
 }
 
-// Deployables holds the deployable code cells for the offRamp contract
-type Deployables struct {
-	RMNRouter           *address.Address `tlb:"addr"`
-	Deployer            *cell.Cell       `tlb:"^"`
-	MerkleRootCode      *cell.Cell       `tlb:"^"`
-	ReceiveExecutorCode *cell.Cell       `tlb:"^"`
+type StaticConfig struct {
+	RMNRouter          *address.Address `tlb:"addr"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
+	ChainSelector      uint64           `tlb:"## 64"`
 }
 
 // ConfigInfo represents the configuration information for OCR3
@@ -103,11 +100,12 @@ type ConfigInfo struct {
 
 // Methods
 
-// CCIPReceive represents the CCIP message received on TON
-type CCIPReceive struct {
-	_       tlb.Magic      `tlb:"#b3126df1" json:"-"` //nolint:revive // Ignore opcode tag
+// CCIPReceiveV2 represents the CCIP message received on TON
+type CCIPReceiveV2 struct {
+	_       tlb.Magic      `tlb:"#5b4bc7a6" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
-	Message Any2TVMMessage `tlb:"."`
+	QueryID uint64         `tlb:"## 64"`
+	Message Any2TVMMessage `tlb:"^"`
 }
 
 // Any2TVMMessage represents a cross-chain message to TON
@@ -173,25 +171,17 @@ type SetDynamicConfig struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
-type UpdateDeployables struct {
-	_                   tlb.Magic  `tlb:"#a015e0e2" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID             uint64     `tlb:"## 64"`
-	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
-	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
-	CCIPReceive{},
+	CCIPReceiveV2{},
 	SetOCR3Config{},
 	UpdateSourceChainConfigs{},
 	Commit{},
 	Execute{},
 	SetDynamicConfig{},
-	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
 
 var (
-	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceive]())
+	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveV2]())
 )
 
 // Config types that implements getter fetching interface with rpc client
@@ -221,6 +211,7 @@ func (c *OCR3Base) GetterMethodName() string {
 // Config represents the offRamp contract configuration
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
+	TokenAdminRegistry                      *address.Address `tlb:"addr"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
@@ -272,7 +263,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorMerkleRootCannotBeZero)
+		ecMax = int32(ErrorUnexpectedTokenData)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -296,6 +287,10 @@ const (
 	ErrorOnRampAddressMismatch
 	ErrorEmptyCommitReport
 	ErrorMerkleRootCannotBeZero
+	ErrorUnsupportedNumberOfTokens
+	ErrorManualExecutionGasAmountCountMismatch
+	ErrorInvalidManualExecutionGasLimit
+	ErrorUnexpectedTokenData
 )
 
 // Getter method names for binding fetchers

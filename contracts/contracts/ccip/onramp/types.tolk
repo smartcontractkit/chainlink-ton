@@ -29,23 +29,11 @@ struct OnRampUpdateDestChainConfig {
     allowlistEnabled: bool;
 }
 
-struct ExecutorDeployment {
-    deployableCode: cell;
-    executorCode: cell; // code for SendExecutor
-}
-
-@inline
-fun ExecutorDeployment.autoDeployAddress(self, executorID: CCIPSendExecutor_ID): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: self.deployableCode,
-            data: NamespacedDeployableData({
-                namespace: DeployableNamespace_CCIPSendExecutor,
-                owner: contract.getAddress(),
-                id: executorID,
-            }),
-        }
-    }
+// Kept in a reference so full addresses do not compete with ownership state in
+// OnRamp's root data cell.
+struct OnRamp_StaticConfig {
+    chainSelector: uint64;
+    tokenAdminRegistry: address;
 }
 
 struct UpdateAllowlist {

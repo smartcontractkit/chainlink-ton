@@ -108,10 +108,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
         cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
         forwardUpdates: new Set(),
       }),
-      tokenRegistryDeployment: rt.Router_TokenRegistryDeployment.create({
-        deployableCode: await contractCode.ccip.local('Deployable'),
-        tokenRegistryCode: await contractCode.ccip.local('TokenRegistry'),
-      }),
     })
     router = blockchain.openContract(
       rt.Router.fromStorage(routerData, { overrideContractCode: routerCode }),
@@ -124,7 +120,10 @@ describe('CCIP OnRamp Gas Estimation', () => {
       ownable: or.Ownable2Step.create({
         owner: deployer.address,
       }),
-      chainSelector: ChainSelectors.testnet.ton,
+      staticConfig: or.OnRamp_StaticConfig.create({
+        chainSelector: ChainSelectors.testnet.ton,
+        tokenAdminRegistry: deployer.address,
+      }),
       config: or.OnRamp_DynamicConfig.create({
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
@@ -132,10 +131,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
         reserve: toNano('1'),
       }),
       destChainConfigs: new Map(),
-      executor: or.ExecutorDeployment.create({
-        executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-        deployableCode: await contractCode.ccip.local('Deployable'),
-      }),
     })
     onRamp = blockchain.openContract(
       or.OnRamp.fromStorage(onRampData, {
