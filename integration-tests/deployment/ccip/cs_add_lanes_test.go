@@ -195,7 +195,7 @@ func TestAddLanes(t *testing.T) {
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
 		require.True(t, exit, "offRamp view not found")
 		require.Equal(t, offRampAddr, *offRampView.Address)
-		require.Equal(t, tonChainSelector, offRampView.Config.ChainSelector)
+		require.Equal(t, tonChainSelector, offRampView.Config.StaticConfig.ChainSelector)
 		require.Equal(t, feeQuoterAddr, *offRampView.Config.DynamicConfig.FeeQuoter)
 		require.Equal(t, routerAddr, *offRampView.SourceChainConfigs[evmSelector].Router)
 		require.True(t, offRampView.SourceChainConfigs[evmSelector].IsEnabled)

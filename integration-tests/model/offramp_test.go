@@ -138,8 +138,8 @@ func TestDecodeOffRampData(t *testing.T) {
 		require.Equal(t, uint32(120), storage.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds)
 
 		// MinGasLimit / MinTTGasLimit
-		require.Equal(t, big.NewInt(25000000), storage.Config.DynamicConfig.MinGasLimit.NanoTON())
-		require.Equal(t, big.NewInt(150000000), storage.Config.DynamicConfig.MinTTGasLimit.NanoTON())
+		require.Equal(t, big.NewInt(25000000), storage.Config.DynamicConfig.MinGasLimit.Nano())
+		require.Equal(t, big.NewInt(150000000), storage.Config.DynamicConfig.MinTTGasLimit.Nano())
 		// Latest price sequence number
 		require.Equal(t, uint64(1000), storage.LatestPriceSequenceNumber)
 

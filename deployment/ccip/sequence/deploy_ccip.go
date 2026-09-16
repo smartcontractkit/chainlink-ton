@@ -236,7 +236,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			Config: offramp.OffRampConfig{
+			Config: offramp.Config{
 				StaticConfig: offramp.StaticConfig{
 					RMNRouter:          &routerAddress,
 					TokenAdminRegistry: &tokenAdminRegistryAddress,

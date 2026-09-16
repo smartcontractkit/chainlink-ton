@@ -73,10 +73,10 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 })
 
 // GetConfig gets the configuration of the OffRamp contract
-var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OffRampConfig]{
+var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: configGetter,
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (OffRampConfig, error) {
-		var c OffRampConfig
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
+		var c Config
 		// The getter returns a single cell containing the OffRamp_Config struct,
 		// where staticConfig is inline and dynamicConfig is a reference.
 		configSlice, err := r.Slice(0)

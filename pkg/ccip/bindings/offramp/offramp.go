@@ -74,7 +74,7 @@ type RouteMessageBounced struct {
 type Storage struct {
 	ID                        uint32               `tlb:"## 32"`
 	Ownable                   ownable2step.Storage `tlb:"."`
-	Config                    OffRampConfig        `tlb:"^"`
+	Config                    Config               `tlb:"^"`
 	OCR3Base                  OCR3Base             `tlb:"^"`
 	CursedSubjects            *cell.Dictionary     `tlb:"dict 128"`
 	SourceChainConfigs        *cell.Dictionary     `tlb:"dict 64"`
@@ -212,17 +212,17 @@ type DynamicConfig struct {
 	MinTTGasLimit                           tlb.Coins        `tlb:"."`
 }
 
-// OffRampConfig combines the static and dynamic config into a single cell to
+// Config combines the static and dynamic config into a single cell to
 // stay within the TVM 4-ref serialization limit for the root Storage struct.
 // The dynamic config is itself kept in a reference because inlining it would
 // overflow the 1023-bit limit of this struct.
-type OffRampConfig struct {
+type Config struct {
 	StaticConfig  StaticConfig  `tlb:"."`
 	DynamicConfig DynamicConfig `tlb:"^"`
 }
 
 // Deprecated: Use GetConfig getter instead.
-func (c *OffRampConfig) UnmarshalResult(result *ton.ExecutionResult) error {
+func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
 	res, err := GetConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
@@ -232,7 +232,7 @@ func (c *OffRampConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 }
 
 // Deprecated: Use GetConfig getter instead.
-func (c *OffRampConfig) GetterMethodName() string {
+func (c *Config) GetterMethodName() string {
 	return configGetter
 }
 

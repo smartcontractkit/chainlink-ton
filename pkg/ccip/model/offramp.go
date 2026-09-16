@@ -485,7 +485,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
-		Config: offramp.OffRampConfig{
+		Config: offramp.Config{
 			StaticConfig: offramp.StaticConfig{
 				RMNRouter:          s.Config.StaticConfig.RMNRouter,
 				TokenAdminRegistry: s.Config.StaticConfig.TokenAdminRegistry,
