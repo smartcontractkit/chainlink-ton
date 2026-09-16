@@ -445,14 +445,12 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
     val extra = _parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
-    assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
+    // Resolve an absent gasLimit to the default so it never escapes unresolved.
+    val gasLimit = extra.gasLimit != null ? extra.gasLimit! : defaultTxGasLimit as uint256;
+    assert (gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    // Resolve an absent gasLimit to the default so it never escapes unresolved.
-    return GenericExtraArgsV2 {
-        gasLimit: extra.gasLimit != null ? extra.gasLimit : defaultTxGasLimit as uint256,
-        allowOutOfOrderExecution: extra.allowOutOfOrderExecution,
-    };
+    return GenericExtraArgsV2 { gasLimit, allowOutOfOrderExecution: extra.allowOutOfOrderExecution };
 }
 
 fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {

@@ -874,6 +874,34 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
+    it('reverts when defaultTxGasLimit exceeds maxPerMsgGasLimit for absent gasLimit', async () => {
+      await setup.bind.feeQuoter.sendUpdateDestChainConfigs(setup.acc.owner.getSender(), {
+        value: toNano('1'),
+        updates: [
+          {
+            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+            config: {
+              ...FeeQuoterSetup.destChainConfig,
+              defaultTxGasLimit: FeeQuoterSetup.MAX_GAS_LIMIT + 1,
+            },
+          },
+        ],
+      })
+
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({ kind: 'generic-v2', allowOutOfOrderExecution: true })
+          .endCell(),
+      }
+
+      await setup.assertGetFeeValidationError(message, feeQuoter.errors.GasLimitTooHigh)
+    })
+
     // NOTE: GasLimitTooHigh already tested above as "should revert when gas limit too high"
   })
 

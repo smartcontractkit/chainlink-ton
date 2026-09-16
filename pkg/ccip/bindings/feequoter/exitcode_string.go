@@ -36,11 +36,13 @@ func _() {
 	_ = x[ErrorTokenPriceTooLow-34425]
 	_ = x[ErrorFeeOverflow-34426]
 	_ = x[ErrorMessageFeeTooHigh-34427]
+	_ = x[ErrorTooManySVMExtraArgsAccounts-34428]
+	_ = x[ErrorInvalidSVMExtraArgsWritableBitmap-34429]
 }
 
-const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidEVMReceiverAddressErrorInvalid32ByteReceiverAddressErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHigh"
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidEVMReceiverAddressErrorInvalid32ByteReceiverAddressErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHighErrorTooManySVMExtraArgsAccountsErrorInvalidSVMExtraArgsWritableBitmap"
 
-var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 210, 240, 270, 295, 336, 356, 374, 398, 423, 442, 464, 493, 513, 544, 573, 599, 622, 655, 682, 703, 719, 741}
+var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 210, 240, 270, 295, 336, 356, 374, 398, 423, 442, 464, 493, 513, 544, 573, 599, 622, 655, 682, 703, 719, 741, 773, 811}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 34400
