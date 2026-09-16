@@ -70,7 +70,7 @@ jobs:
           # carries the failed head SHA, so resolve commit -> PR.
           NUM="${PR_NUMBER}"
           if [[ -z ${NUM} ]]; then
-            NUM=$(gh api "repos/${REPO}/commits/${EVENT_SHA}/pull-requests" \
+            NUM=$(gh api "repos/${REPO}/commits/${EVENT_SHA}/pulls" \
               --jq '.[0].number // empty') || true
             [[ -n ${NUM} ]] || { echo "::error::no PR associated with ${EVENT_SHA}"; exit 1; }
           fi
@@ -137,13 +137,13 @@ jobs:
       - name: Check out the PR head
         env:
           GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+          NUM: ${{ steps.pr.outputs.number }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # checkout ran unauthenticated: let gh sign git requests. The base
-          # repo's pull refs work even for forks this token can't see.
+          # The seed clone is unauthenticated: let gh sign its git requests.
           gh auth setup-git
-          gh pr checkout "${{ steps.pr.outputs.number }}" \
-            --repo "${{ github.repository }}"
+          gh pr checkout "${NUM}" --repo "${REPO}"
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
@@ -176,11 +176,14 @@ jobs:
             exit 0
           fi
 
-          BOT_LOGIN=$(gh api user --jq .login)
-          BOT_ID=$(gh api user --jq .id)
-          git config user.name "${BOT_LOGIN}"
-          git config user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
           git add --all -- '*lock.nix'
+
+          # Constant identity
+          #
+          # The App's own bot rather than the generic `github-actions[bot]`
+          # Sanity-check it with `gh api '/users/app-token-issuer-integrations[bot]'`
+          git config user.name "app-token-issuer-integrations[bot]"
+          git config user.email "204793122+app-token-issuer-integrations[bot]@users.noreply.github.com"
 
           # [dependabot skip] keeps Dependabot auto-updating; the same
           # marker is the loop guard above.
