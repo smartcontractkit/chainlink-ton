@@ -18,9 +18,9 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const defaultFundAmountTON = "1000"

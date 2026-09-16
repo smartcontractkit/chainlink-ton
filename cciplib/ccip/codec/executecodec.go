@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
@@ -95,9 +95,12 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
 
-			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-			if err != nil {
-				return nil, fmt.Errorf("pack extra data: %w", err)
+			var extraData *cell.Cell
+			if len(tokenAmount.ExtraData) > 0 {
+				extraData, err = tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
+				if err != nil {
+					return nil, fmt.Errorf("pack extra data: %w", err)
+				}
 			}
 
 			destPoolTonAddr := AddressBytesToTONAddressWithBurning(tokenAmount.DestTokenAddress)
@@ -153,7 +156,32 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		TokenAmounts: tokenAmounts,
 	}
 
-	// Handle chainReport.OffchainTokenData here as needed in the future
+	// Encode offchainTokenData as per-message lists of per-token data blobs.
+	// TON supports a single message with a single token transfer, but retains
+	// the external report ABI's two-dimensional shape.
+	offchainTokenData := make(common.LispList[common.LispList[common.SnakeBytes]], 1)
+	perMessageTokenData := make(common.LispList[common.SnakeBytes], 0, len(tokenAmounts))
+	// OffchainTokenData is [][]byte indexed per-message then per-token.
+	// A tokenless message may omit it; encode that case as the required [ [] ] shape.
+	if chainReport.OffchainTokenData == nil {
+		if len(tokenAmounts) != 0 {
+			return nil, fmt.Errorf("offchainTokenData count 0 does not match tokenAmounts count %d", len(tokenAmounts))
+		}
+	} else {
+		if len(chainReport.OffchainTokenData) != 1 {
+			return nil, fmt.Errorf("TON supports single message only, got %d offchainTokenData message entries", len(chainReport.OffchainTokenData))
+		}
+		msgTokenData := chainReport.OffchainTokenData[0]
+		// The number of per-token blobs must match the number of token transfers.
+		if len(msgTokenData) != len(tokenAmounts) {
+			return nil, fmt.Errorf("offchainTokenData count %d does not match tokenAmounts count %d", len(msgTokenData), len(tokenAmounts))
+		}
+		for _, blob := range msgTokenData {
+			sb := common.SnakeBytes(blob)
+			perMessageTokenData = append(perMessageTokenData, &sb)
+		}
+	}
+	offchainTokenData[0] = &perMessageTokenData
 
 	proofs := make(common.SnakedCell[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
@@ -166,7 +194,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
 		Message:             rampMessage,
-		OffChainTokenData:   tvm.EmptyCell, // default empty cell as on-chain, will be removed after token transfer is supported
+		OffChainTokenData:   offchainTokenData,
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
 	}
@@ -218,9 +246,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		var tokenAmounts []ccipocr3.RampTokenAmount
 		for _, tokenAmount := range msg.TokenAmounts {
 			var extraData common.SnakeBytes
-			err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
-			if err != nil {
-				return executeReport, fmt.Errorf("unpack extra data: %w", err)
+			if tokenAmount.ExtraData != nil {
+				err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
+				if err != nil {
+					return executeReport, fmt.Errorf("unpack extra data: %w", err)
+				}
 			}
 
 			destTokenRaw, err := ToRawAddr(tokenAmount.DestPoolAddress)
@@ -231,7 +261,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 
 			// big endian encoding for dest gas amount
 			destGasAmount := make([]byte, 4)
-			binary.BigEndian.PutUint32(destGasAmount, tokenAmount.DestGasAmount)
+			destGasAmountNano := tokenAmount.DestGasAmount.Nano().Uint64()
+			if destGasAmountNano > 0xFFFFFFFF {
+				return executeReport, fmt.Errorf("dest gas amount exceeds uint32 limit: %d", destGasAmountNano)
+			}
+			binary.BigEndian.PutUint32(destGasAmount, uint32(destGasAmountNano))
 
 			// Defensive check
 			if tokenAmount.Amount.Sign() < 0 {
@@ -279,7 +313,17 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		})
 
 		offchainTokenData := make([][][]byte, 0)
-		// Currently offchain token data is not supported in TON execute reports, so we leave it empty
+
+		if len(tonReport.OffChainTokenData) > 0 {
+			offchainTokenData = make([][][]byte, 0, len(tonReport.OffChainTokenData))
+			for _, perMessageTokenData := range tonReport.OffChainTokenData {
+				msgTokenData := make([][]byte, 0, len(*perMessageTokenData))
+				for _, blob := range *perMessageTokenData {
+					msgTokenData = append(msgTokenData, []byte(*blob))
+				}
+				offchainTokenData = append(offchainTokenData, msgTokenData)
+			}
+		}
 
 		executeReport.ChainReports = append(executeReport.ChainReports, ccipocr3.ExecutePluginReportSingleChain{
 			SourceChainSelector: ccipocr3.ChainSelector(tonReport.SourceChainSelector),
@@ -294,22 +338,30 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 }
 
 // Duplicate with ccipevm, consider moving to common package
-func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
+func extractDestGasAmountFromMap(input map[string]any) (*tlb.Coins, error) {
 	// Iterate through the expected fields in the struct
 	for fieldName, fieldValue := range input {
 		lowercase := strings.ToLower(fieldName)
 		switch lowercase {
 		case "destgasamount":
-			// Expect uint32
-			if val, ok := fieldValue.(uint32); ok {
-				return val, nil
+			switch val := fieldValue.(type) {
+			case uint32:
+				coins := tlb.FromNanoTONU(uint64(val))
+				return &coins, nil
+			case int64: // LOOP converts expected uint32 to int64
+				if val < 0 || val > math.MaxUint32 {
+					return nil, fmt.Errorf("destgasamount out of uint32 range: %d", val)
+				}
+				coins := tlb.FromNanoTONU(uint64(val))
+				return &coins, nil
+			default:
+				return nil, fmt.Errorf("invalid type for destgasamount, expected uint32 or int64, got %T", fieldValue)
 			}
-			return 0, errors.New("invalid type for destgasamount, expected uint32")
 		default:
 		}
 	}
 
-	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
+	return nil, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
 func parseExtraArgsMapAndRetrieveGasLimit(input map[string]any) (*big.Int, error) {

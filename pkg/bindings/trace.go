@@ -3,11 +3,11 @@ package bindings
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // DefaultTraceStopCondition is the default policy for bounded trace tracking - stopping message (DAG)
@@ -55,10 +55,10 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 	}
 
 	switch uint64(opcodeParent) {
-	// Trace the CCIPReceive flow, exclude the receiver downstream messages
+	// Trace the Receiver_CCIPReceiveV2 flow, exclude the receiver downstream messages
 	case offramp.OpcodeCCIPReceive:
 		// Stop tracing if the current message is not router.CCIPReceiveConfirm (i.e. don't consider
-		// any other outgoing msgs/notifications from third-party CCIP receiver contracts - on offramp.CCIPReceive)
+		// any other outgoing msgs/notifications from third-party CCIP receiver contracts - on offramp.Receiver_CCIPReceiveV2)
 		return uint64(opcodeCurrent) != router.OpcodeCCIPReceiveConfirm, nil
 	}
 

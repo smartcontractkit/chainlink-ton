@@ -12,10 +12,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"

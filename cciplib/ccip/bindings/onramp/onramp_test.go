@@ -240,24 +240,15 @@ func TestStorage(t *testing.T) {
 	err = destConfigMap.Set(k.EndCell(), c)
 	require.NoError(t, err)
 
-	ExecutorCode := func() *cell.Cell {
-		b := cell.BeginCell()
-		require.NoError(t, b.StoreUInt(42, 32))
-		return b.EndCell()
-	}()
-
-	DeployableCode := func() *cell.Cell {
-		b := cell.BeginCell()
-		require.NoError(t, b.StoreUInt(52, 32))
-		return b.EndCell()
-	}()
-
 	s := Storage{
 		ID: 43,
 		Ownable: ownable2step.Storage{
 			Owner: dummyAddr,
 		},
-		ChainSelector: 42,
+		StaticConfig: StaticConfig{
+			ChainSelector:      42,
+			TokenAdminRegistry: dummyAddr,
+		},
 		Config: DynamicConfig{
 			FeeAggregator:  dummyAddr,
 			FeeQuoter:      dummyAddr,
@@ -265,11 +256,6 @@ func TestStorage(t *testing.T) {
 			Reserve:        tlb.MustFromTON("0.05"),
 		},
 		DestChainConfigs: destConfigMap,
-		Executor: ExecutorDeployment{
-			DeployableCode: DeployableCode,
-			ExecutorCode:   ExecutorCode,
-			CurrentID:      big.NewInt(123),
-		},
 	}
 
 	c, err = tlb.ToCell(s)
@@ -279,11 +265,9 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s.ID, decoded.ID)
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
-	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
+	require.Equal(t, s.StaticConfig.ChainSelector, decoded.StaticConfig.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
-	require.Equal(t, DeployableCode, decoded.Executor.DeployableCode)
-	require.Equal(t, ExecutorCode, decoded.Executor.ExecutorCode)
-	require.Equal(t, big.NewInt(123), decoded.Executor.CurrentID) // zero value
+	require.Equal(t, dummyAddr, decoded.StaticConfig.TokenAdminRegistry)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)
@@ -308,4 +292,28 @@ func TestStorage(t *testing.T) {
 			require.True(t, b)
 		}
 	}
+}
+
+// TestExecutorTokenTransferAddrNone covers the no-token-transfer case: the contract
+// stores OnRamp_ExecutorTokenTransfer.sourcePoolAddress as an optional address, so the
+// wire value is addr_none and must decode without error.
+func TestExecutorTokenTransferAddrNone(t *testing.T) {
+	emptyCrossChainAddress := cell.BeginCell().MustStoreUInt(0, 8).EndCell()
+	packed := cell.BeginCell().
+		MustStoreAddr(nil). // addr_none, as emptyExecutorTokenTransfer() emits
+		MustStoreBigUInt(big.NewInt(0), 256).
+		MustStoreRef(emptyCrossChainAddress).
+		MustStoreRef(cell.BeginCell().EndCell()).
+		MustStoreRef(cell.BeginCell().EndCell()).
+		EndCell()
+
+	var decoded ExecutorTokenTransfer
+	require.NoError(t, tlb.LoadFromCell(&decoded, packed.BeginParse()))
+	require.True(t, decoded.SourcePoolAddress == nil || decoded.SourcePoolAddress.IsAddrNone())
+	require.Equal(t, 0, decoded.Amount.Sign())
+
+	// And it round-trips back to the same cell.
+	reencoded, err := tlb.ToCell(decoded)
+	require.NoError(t, err)
+	require.Equal(t, packed.Hash(), reencoded.Hash())
 }

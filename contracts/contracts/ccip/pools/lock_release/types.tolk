@@ -1,23 +1,39 @@
 // SPDX-License-Identifier: BUSL-1.1
+
 import "../../../lib/jetton/jetton_client"
-import "../lib/token_pool/types"
+import "../lib/token_pool/messages"
 
-const LockReleaseTokenPool_CONTRACT_NAME = "link.chain.ton.ccip.LockReleaseTokenPool".literalSlice();
-const LockReleaseTokenPool_CONTRACT_VERSION = "0.1.0".literalSlice();
-const LockReleaseTokenPool_RELEASE_TRANSFER_VALUE = ton("0.05");
+/// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
+const LockReleaseTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseTokenPool";
+const LockReleaseTokenPool_FACILITY_ID = LockReleaseTokenPool_FACILITY_NAME.crc32() % 640 + 10;
+
 const LockReleaseTokenPool_REPLY_VALUE = ton("0.01");
+const LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE = ton("0.2");
 
-struct LockReleaseTokenPool_PendingRelease {
-    replyTo: address?;
-    request: Cell<TokenPool_ReleaseOrMintInV1>;
-    out: Cell<TokenPool_ReleaseOrMintOutV1>;
-    expectedSender: address;
+/// @notice Context passed to OffRampAccount for release operations.
+/// Carries the full forward payload for post-release finalization.
+struct (0xed696f9b) LockReleaseTokenPool_ReleaseContext {
+    forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
+/// Error codes for LockReleaseTokenPool. FACILITY_ID = 72, so codes start at 7200.
+enum LockRelease_Error {
+    UnexpectedReleaseBounce = LockReleaseTokenPool_FACILITY_ID * 100 // 7200
+    InvalidOffRampAccountReply // 7201
+    InvalidOffRampAccountNotification // 7202
+    OffRampAccountDeployFailed // 7203
+    // The withdraw fee request must carry exactly one transfer targeting a single, allowed wallet.
+    InvalidWithdrawWallet // 7204
+}
+
+// TODO: remove?
 struct LockReleaseTokenPool_InitConfig {
     owner: address;
     jettonClient: JettonClient;
+    offRampAccountCode: cell;
     tokenDecimals: uint8;
     router: address;
     rmnProxy: address;
+    /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
+    deployableCode: cell? = null;
 }

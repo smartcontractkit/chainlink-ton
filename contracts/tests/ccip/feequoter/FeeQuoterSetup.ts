@@ -1,22 +1,20 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano, beginCell, Dictionary, Address } from '@ton/core'
+import { Cell, toNano, beginCell, Address } from '@ton/core'
 
 import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
+import * as manualfq from '../../../wrappers/ccip/FeeQuoter'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
-import {
-  CHAIN_FAMILY_SELECTOR_SVM,
-  CHAIN_FAMILY_SELECTOR_SUI,
-  CHAIN_FAMILY_SELECTOR_APTOS,
-} from '../../gas-report/constants'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -46,45 +44,30 @@ export class FeeQuoterSetup {
   static readonly USD_PER_DATA_AVAILABILITY_GAS = 1000000000n // 1 gwei in wei
 
   // Ethereum address
-  static readonly DEST_ADDRESS = Buffer.from(
-    '0000000000000000000000001234567890123456789012345678901234567890',
-    'hex',
-  ) // 32 bytes
+  static readonly DEST_ADDRESS = EVM_ADDRESS
 
-  static readonly MAX_DATA_SIZE = 300
-  static readonly MAX_TOKENS_LENGTH = 0 // We don't support token transfers in TON yet
-  static readonly MAX_GAS_LIMIT = 4000000
+  static readonly MAX_DATA_SIZE = 300n
+  static readonly MAX_TOKENS_LENGTH = 0n // We don't support token transfers in TON yet
+  static readonly MAX_GAS_LIMIT = 4000000n
 
   // OnRamp constants
-  static readonly MAX_MSG_FEES_JUELS = BigInt(1_000e18) // 1_000e18
-  static readonly DEST_GAS_OVERHEAD = 300000
-  static readonly DEST_GAS_PER_PAYLOAD_BYTE_BASE = 16
-  static readonly DEST_GAS_PER_PAYLOAD_BYTE_HIGH = 40
-  static readonly DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD = 100
+  static readonly MAX_MSG_FEES_JUELS = 1_000_000_000_000_000_000_000n // 1_000e18
+  static readonly DEST_GAS_OVERHEAD = 300000n
+  static readonly DEST_GAS_PER_PAYLOAD_BYTE_BASE = 16n
+  static readonly DEST_GAS_PER_PAYLOAD_BYTE_HIGH = 40n
+  static readonly DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD = 100n
 
-  static readonly DEFAULT_TOKEN_FEE_USD_CENTS = 50
-  static readonly DEFAULT_TOKEN_BYTES_OVERHEAD = 32
-  static readonly DEFAULT_TOKEN_DEST_GAS_OVERHEAD = 90_000
+  static readonly DEFAULT_TOKEN_FEE_USD_CENTS = 50n
+  static readonly DEFAULT_TOKEN_BYTES_OVERHEAD = 32n
+  static readonly DEFAULT_TOKEN_DEST_GAS_OVERHEAD = 90_000n
 
   // Data availability constants
-  static readonly DEST_GAS_PER_DATA_AVAILABILITY_BYTE = 16
+  static readonly DEST_GAS_PER_DATA_AVAILABILITY_BYTE = 16n
   static readonly DEST_DATA_AVAILABILITY_OVERHEAD_GAS =
-    188 +
-    (32 * 31 + 4) * this.DEST_GAS_PER_DATA_AVAILABILITY_BYTE +
-    (32 * 34 + 4) * this.DEST_GAS_PER_DATA_AVAILABILITY_BYTE
-  static readonly DEST_GAS_DATA_AVAILABILITY_MULTIPLIER_BPS = 6840
-
-  // Chain selectors
-  static readonly CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
-  static readonly CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
-  static readonly CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
-  static readonly CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
-
-  static readonly DEST_CHAIN_SELECTOR_EVM = 909606746561742123n // EVM test chain (same as CHAINSEL_EVM_TEST_90000001)
-  static readonly DEST_CHAIN_SELECTOR_SVM = 16423721717087811551n // SVM test chain
-  static readonly DEST_CHAIN_SELECTOR_APTOS = 77777n // Aptos test chain
-  static readonly DEST_CHAIN_SELECTOR_SUI = 9762610643973837292n // SUI test chain
-  static readonly SOURCE_CHAIN_SELECTOR = 13879075125137744094n // TON test chain
+    188n +
+    (32n * 31n + 4n) * this.DEST_GAS_PER_DATA_AVAILABILITY_BYTE +
+    (32n * 34n + 4n) * this.DEST_GAS_PER_DATA_AVAILABILITY_BYTE
+  static readonly DEST_GAS_DATA_AVAILABILITY_MULTIPLIER_BPS = 6840n
 
   // Packed gas price (L1 gas price left-shifted + L2 gas price)
   static readonly PACKED_USD_PER_GAS =
@@ -94,8 +77,8 @@ export class FeeQuoterSetup {
     .storeBuffer(Buffer.from('MESSAGE_RECEIVER', 'utf8'))
     .endCell()
 
-  static readonly TWELVE_HOURS = 12 * 60 * 60 // 12 hours in seconds
-  static readonly GAS_LIMIT = 200000
+  static readonly TWELVE_HOURS = 12n * 60n * 60n // 12 hours in seconds
+  static readonly GAS_LIMIT = 200000n
 
   // Native TON
   static readonly NATIVE_TON: Token = {
@@ -138,11 +121,11 @@ export class FeeQuoterSetup {
   }
 
   blockchain: Blockchain
-  code: TestCode
-  acc: TestAccounts
-  bind: TestContracts
+  code!: TestCode
+  acc!: TestAccounts
+  bind!: TestContracts
 
-  static readonly destChainConfig: feeQuoter.DestChainConfig = {
+  static readonly destChainConfig = feeQuoter.FeeQuoterDestChainConfig.create({
     // minimal valid config for EVM destination
     isEnabled: true,
     maxNumberOfTokensPerMsg: FeeQuoterSetup.MAX_TOKENS_LENGTH,
@@ -155,25 +138,22 @@ export class FeeQuoterSetup {
     destDataAvailabilityOverheadGas: FeeQuoterSetup.DEST_DATA_AVAILABILITY_OVERHEAD_GAS,
     destGasPerDataAvailabilityByte: FeeQuoterSetup.DEST_GAS_PER_DATA_AVAILABILITY_BYTE,
     destDataAvailabilityMultiplierBps: FeeQuoterSetup.DEST_GAS_DATA_AVAILABILITY_MULTIPLIER_BPS,
-    chainFamilySelector: FeeQuoterSetup.CHAIN_FAMILY_SELECTOR_EVM,
+    chainFamilySelector: ChainFamilySelectors.evm,
     defaultTokenFeeUsdCents: FeeQuoterSetup.DEFAULT_TOKEN_FEE_USD_CENTS,
     defaultTokenDestGasOverhead: FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD,
     defaultTxGasLimit: FeeQuoterSetup.GAS_LIMIT,
     gasMultiplierWeiPerEth: BigInt(5e17),
     gasPriceStalenessThreshold: FeeQuoterSetup.TWELVE_HOURS,
-    networkFeeUsdCents: 100,
-  }
+    networkFeeUsdCents: 100n,
+  })
 
   constructor(blockchain: Blockchain) {
     this.blockchain = blockchain
-    this.code = null as any
-    this.acc = null as any
-    this.bind = null as any
   }
 
   static async compileContracts(): Promise<TestCode> {
     return {
-      feeQuoter: await feeQuoter.FeeQuoter.code(),
+      feeQuoter: await contractCode.ccip.local('FeeQuoter'),
       counter: await contractCode.ccip.local('examples.Counter'),
     }
   }
@@ -203,37 +183,25 @@ export class FeeQuoterSetup {
       priceUpdaterOne: await this.blockchain.treasury('priceUpdaterOne'),
       externalCaller: await this.blockchain.treasury('externalCaller'),
     }
-
-    this.bind = {
-      feeQuoter: null as any,
-      counter: null as any,
-    }
   }
 
   /**
    * Setup the FeeQuoter contract with minimal configuration (following setupTestFeeQuoter pattern)
    */
   async setupFeeQuoterContract(): Promise<void> {
-    const data: feeQuoter.FeeQuoterStorage = {
+    const data = feeQuoter.Storage.create({
       id: generateRandomContractId(),
-      ownable: {
+      ownable: feeQuoter.Ownable2Step.create({
         owner: this.acc.owner.address,
-        pendingOwner: null,
-      },
-      allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
+      }),
+      allowedPriceUpdaters: new Set(),
       maxFeeJuelsPerMsg: FeeQuoterSetup.MAX_MSG_FEES_JUELS,
       linkToken: FeeQuoterSetup.SOURCE_LINK.token,
       tokenPriceStalenessThreshold: FeeQuoterSetup.TWELVE_HOURS,
-      usdPerToken: Dictionary.empty(
-        Dictionary.Keys.Address(),
-        feeQuoter.createTimestampedPriceValue(),
-      ),
-      premiumMultiplierWeiPerEth: Dictionary.empty(
-        Dictionary.Keys.Address(),
-        Dictionary.Values.BigUint(64),
-      ),
-      destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
-    }
+      usdPerToken: new Map(),
+      premiumMultiplierWeiPerEth: new Map(),
+      destChainConfigs: new Map(),
+    })
 
     // Pre-setup token prices for testing (following Solidity setup pattern)
     const currentTime = 1n
@@ -242,15 +210,20 @@ export class FeeQuoterSetup {
       FeeQuoterSetup.CUSTOM_TOKEN,
       FeeQuoterSetup.CUSTOM_TOKEN_2,
     ]) {
-      data.usdPerToken.set(token.token, {
-        value: token.price,
-        timestamp: currentTime,
-      })
+      data.usdPerToken.set(
+        token.token,
+        feeQuoter.TimestampedPrice.create({
+          value: token.price,
+          timestamp: currentTime,
+        }),
+      )
     }
 
-    this.bind.feeQuoter = this.blockchain.openContract(
-      feeQuoter.FeeQuoter.createFromConfig(data, this.code.feeQuoter),
+    const feeQuoterContract = this.blockchain.openContract(
+      feeQuoter.FeeQuoter.fromStorage(data, { overrideContractCode: this.code.feeQuoter }),
     )
+    // TODO shis is unatural
+    this.bind = { feeQuoter: feeQuoterContract } as TestContracts
   }
 
   /**
@@ -287,36 +260,36 @@ export class FeeQuoterSetup {
     })
 
     // Add config for EVM destination (following setupTestFeeQuoter pattern)
-    const destConfigResult = await this.bind.feeQuoter.sendUpdateDestChainConfigs(
+    const destConfigResult = await this.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
       this.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
         updates: [
-          {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
-            config: FeeQuoterSetup.destChainConfig,
-          },
-          {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
-            config: {
+          feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testnet.evm,
+            destChainConfig: FeeQuoterSetup.destChainConfig,
+          }),
+          feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testnet.solana,
+            destChainConfig: feeQuoter.FeeQuoterDestChainConfig.create({
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SVM,
-            },
-          },
-          {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
-            config: {
+              chainFamilySelector: ChainFamilySelectors.svm,
+            }),
+          }),
+          feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testnet.aptos,
+            destChainConfig: feeQuoter.FeeQuoterDestChainConfig.create({
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_APTOS,
-            },
-          },
-          {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
-            config: {
+              chainFamilySelector: ChainFamilySelectors.aptos,
+            }),
+          }),
+          feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+            destChainSelector: ChainSelectors.testnet.sui,
+            destChainConfig: feeQuoter.FeeQuoterDestChainConfig.create({
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SUI,
-            },
-          },
+              chainFamilySelector: ChainFamilySelectors.sui,
+            }),
+          }),
         ],
       },
     )
@@ -327,17 +300,21 @@ export class FeeQuoterSetup {
     })
 
     // Configure the feeToken (following setupTestFeeQuoter pattern)
-    const feeTokenResult = await this.bind.feeQuoter.sendUpdateFeeTokens(
+    const feeTokenResult = await this.bind.feeQuoter.sendFeeQuoterUpdateFeeTokens(
       this.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: {
-          add: new Map([
-            [FeeQuoterSetup.SOURCE_FEE_TOKEN.token, { premiumMultiplierWeiPerEth: BigInt(5e17) }], // 0.5x
-            [FeeQuoterSetup.NATIVE_TON.token, { premiumMultiplierWeiPerEth: BigInt(2e18) }], // 2.0x
-          ]),
-          remove: [],
-        },
+        add: new Map([
+          [
+            FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+            feeQuoter.FeeToken.create({ premiumMultiplierWeiPerEth: BigInt(5e17) }),
+          ],
+          [
+            FeeQuoterSetup.NATIVE_TON.token,
+            feeQuoter.FeeToken.create({ premiumMultiplierWeiPerEth: BigInt(2e18) }),
+          ],
+        ]),
+        remove: [],
       },
     )
     expect(feeTokenResult.transactions).toHaveTransaction({
@@ -347,23 +324,25 @@ export class FeeQuoterSetup {
 
     const pricedTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS.concat(FeeQuoterSetup.DEST_FEE_TOKENS)
 
-    const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: pricedTokens,
-      gasPricesUpdates: [
-        {
-          chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+    const priceUpdates = feeQuoter.PriceUpdates.create({
+      tokenPriceUpdates: pricedTokens.map(({ token, price }) =>
+        feeQuoter.TokenPriceUpdate.create({ sourceToken: token, usdPerToken: price }),
+      ),
+      gasPriceUpdates: [
+        feeQuoter.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testnet.evm,
           executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
           dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        },
+        }),
       ],
-    }
+    })
 
     // Allow us to updatePrices
-    const addPriceUpdaterResult = await this.bind.feeQuoter.sendAddPriceUpdater(
+    const addPriceUpdaterResult = await this.bind.feeQuoter.sendFeeQuoterAddPriceUpdater(
       this.acc.owner.getSender(),
+      toNano('1'),
       {
-        value: toNano('1'),
-        msg: { priceUpdater: this.acc.owner.address },
+        priceUpdater: this.acc.owner.address,
       },
     )
 
@@ -373,10 +352,11 @@ export class FeeQuoterSetup {
     })
 
     // Send updatePrices transaction
-    const updateResult = await this.bind.feeQuoter.sendUpdatePrices(this.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates, sendExcessesTo: this.acc.owner.address },
-    })
+    const updateResult = await this.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+      this.acc.owner.getSender(),
+      toNano('1'),
+      { updates: priceUpdates, sendExcessesTo: this.acc.owner.address },
+    )
 
     expect(updateResult.transactions).toHaveTransaction({
       to: this.bind.feeQuoter.address,
@@ -384,57 +364,56 @@ export class FeeQuoterSetup {
     })
 
     // Update TokenTransferFeeConfigs
-    const transferFeeConfigResult = await this.bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
-      this.acc.owner.getSender(),
-      {
-        value: toNano('1'),
-        msg: {
+    const transferFeeConfigResult =
+      await this.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+        this.acc.owner.getSender(),
+        toNano('1'),
+        {
           updates: new Map([
             [
-              FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
-              {
+              BigInt(ChainSelectors.testnet.evm),
+              feeQuoter.UpdateTokenTransferFeeConfig.create({
                 add: new Map([
                   [
                     FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
-                    {
+                    feeQuoter.TokenTransferFeeConfig.create({
                       isEnabled: true,
-                      minFeeUsdCents: 1_00, // 1 USD
-                      maxFeeUsdCents: 1000_00, // 1,000 USD
-                      deciBps: 2_5, // 2.5 bps, or 0.25%
-                      destGasOverhead: 100_000,
-                      destBytesOverhead: 32,
-                    },
+                      minFeeUsdCents: 1_00n,
+                      maxFeeUsdCents: 1000_00n,
+                      deciBps: 2_5n,
+                      destGasOverhead: 100_000n,
+                      destBytesOverhead: 32n,
+                    }),
                   ],
                   [
                     FeeQuoterSetup.CUSTOM_TOKEN.token,
-                    {
+                    feeQuoter.TokenTransferFeeConfig.create({
                       isEnabled: true,
-                      minFeeUsdCents: 2_00, // 2 USD
-                      maxFeeUsdCents: 2000_00, // 2,000 USD
-                      deciBps: 10_0, // 10 bps, or 0.1%
-                      destGasOverhead: 95_000,
-                      destBytesOverhead: 200,
-                    },
+                      minFeeUsdCents: 2_00n,
+                      maxFeeUsdCents: 2000_00n,
+                      deciBps: 10_0n,
+                      destGasOverhead: 95_000n,
+                      destBytesOverhead: 200n,
+                    }),
                   ],
                   [
                     FeeQuoterSetup.CUSTOM_TOKEN_2.token,
-                    {
+                    feeQuoter.TokenTransferFeeConfig.create({
                       isEnabled: false,
-                      minFeeUsdCents: 2_00, // 2 USD
-                      maxFeeUsdCents: 2000_00, // 2,000 USD
-                      deciBps: 10_0, // 10 bps, or 0.1%
-                      destGasOverhead: 1,
-                      destBytesOverhead: 200,
-                    },
+                      minFeeUsdCents: 2_00n,
+                      maxFeeUsdCents: 2000_00n,
+                      deciBps: 10_0n,
+                      destGasOverhead: 1n,
+                      destBytesOverhead: 200n,
+                    }),
                   ],
                 ]),
                 remove: [],
-              },
+              }),
             ],
           ]),
         },
-      },
-    )
+      )
   }
 
   /**
@@ -476,8 +455,8 @@ export class FeeQuoterSetup {
   /**
    * Helper function to convert USD cents to wei (equivalent to _configUSDCentToWei)
    */
-  static configUSDCentToWei(usdCent: number): bigint {
-    return BigInt(usdCent) * BigInt(1e16) // usdCent * 1e16
+  static configUSDCentToWei(usdCent: bigint): bigint {
+    return usdCent * 10000000000000000n // usdCent * 1e16
   }
 
   /**
@@ -489,15 +468,15 @@ export class FeeQuoterSetup {
   }: {
     tokenAmounts?: rt.TokenAmount[]
     feeToken?: Address
-  }): rt.CCIPSend {
-    return {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+  }): rt.Router_CCIPSend {
+    return rt.Router_CCIPSend.create({
+      destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts,
       feeToken,
       extraArgs: this.generateExtraArgs(FeeQuoterSetup.GAS_LIMIT),
-    }
+    })
   }
 
   /**
@@ -511,13 +490,13 @@ export class FeeQuoterSetup {
     token: Address
     amount: bigint
     feeToken?: Address
-  }): rt.CCIPSend {
+  }): rt.Router_CCIPSend {
     return this.generateEmptyMessage({
       tokenAmounts: [
-        {
+        rt.TokenAmount.create({
           token,
           amount,
-        },
+        }),
       ],
       feeToken,
     })
@@ -526,27 +505,22 @@ export class FeeQuoterSetup {
   /**
    * Generate extra args for TON (equivalent to Client._argsToBytes)
    */
-  generateExtraArgs(gasLimit: number): Cell {
-    return rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
-        allowOutOfOrderExecution: true,
-        gasLimit: BigInt(gasLimit),
-      })
-      .endCell()
+  generateExtraArgs(gasLimit: bigint): rt.GenericExtraArgsV2 {
+    return rt.GenericExtraArgsV2.create({
+      allowOutOfOrderExecution: true,
+      gasLimit,
+    })
   }
 
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(msg: rt.CCIPSend): Promise<feeQuoter.MessageValidated> {
-    const res = await this.bind.feeQuoter.sendGetValidatedFee(this.acc.externalCaller.getSender(), {
-      value: toNano('1'),
-      msg: {
-        msg,
-        context: beginCell().asSlice(),
-      },
-    })
+  async getValidatedFee(msg: rt.Router_CCIPSend): Promise<sx.FeeQuoter_MessageValidated_Any> {
+    const res = await this.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+      this.acc.externalCaller.getSender(),
+      toNano('1'),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg, context: beginCell().asSlice() }),
+    )
 
     // request
     expect(res.transactions).toHaveTransaction({
@@ -574,9 +548,9 @@ export class FeeQuoterSetup {
 
     const body = resp.body.beginParse()
     const errorCode = body.preloadUint(32)
-    if (errorCode !== sx.opcodes.in.messageValidated) {
-      if (errorCode === sx.opcodes.in.messageValidationFailed) {
-        const failure = sx.builder.message.in.messageValidationFailed.load(resp.body.beginParse())
+    if (errorCode !== sx.FeeQuoter_MessageValidated.PREFIX) {
+      if (errorCode === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
+        const failure = sx.FeeQuoter_MessageValidationFailed_Any.fromSlice(resp.body.beginParse())
         throw new Error(
           `Message validation failed with error ${printErrorName(Number(failure.error))}`,
         )
@@ -584,19 +558,27 @@ export class FeeQuoterSetup {
         throw new Error(`Unexpected response opcode: ${errorCode}`)
       }
     }
-    const messageValidated = feeQuoter.builder.message.out.messageValidated.load(
-      resp.body.beginParse(),
-    )
+    const messageValidated = sx.FeeQuoter_MessageValidated_Any.fromSlice(resp.body.beginParse())
     return messageValidated
   }
 
-  async assertGetFeeValidationError(message: rt.CCIPSend, expectedError: number): Promise<void> {
-    const result = await this.bind.feeQuoter.sendGetValidatedFee(
+  async assertGetFeeValidationError(
+    message: rt.Router_CCIPSend | Cell,
+    expectedError: number,
+  ): Promise<void> {
+    const body =
+      message instanceof Cell
+        ? message
+        : feeQuoter.FeeQuoter_GetValidatedFee_Any.toCell(
+            feeQuoter.FeeQuoter_GetValidatedFee.create({
+              msg: message,
+              context: beginCell().asSlice(),
+            }),
+          )
+    const result = await this.bind.feeQuoter.send(
       this.acc.externalCaller.getSender(),
-      {
-        value: toNano('1'),
-        msg: { msg: message, context: beginCell().asSlice() },
-      },
+      toNano('1'),
+      body,
     )
 
     // It should return failure due to overflow
@@ -609,7 +591,7 @@ export class FeeQuoterSetup {
     try {
       expect(result.transactions).toHaveTransaction({
         from: this.bind.feeQuoter.address,
-        op: sx.opcodes.in.messageValidationFailed,
+        op: sx.FeeQuoter_MessageValidationFailed.PREFIX,
         success: true,
       })
     } catch (error) {
@@ -617,7 +599,7 @@ export class FeeQuoterSetup {
       try {
         expect(result.transactions).toHaveTransaction({
           from: this.bind.feeQuoter.address,
-          op: sx.opcodes.in.messageValidated,
+          op: sx.FeeQuoter_MessageValidated.PREFIX,
           success: true,
         })
         success = true
@@ -629,12 +611,12 @@ export class FeeQuoterSetup {
     try {
       expect(result.transactions).toHaveTransaction({
         from: this.bind.feeQuoter.address,
-        op: sx.opcodes.in.messageValidationFailed,
+        op: sx.FeeQuoter_MessageValidationFailed.PREFIX,
         success: true,
         body(x) {
-          return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
+          return verifyBodyMessage<manualfq.FeeQuoter_MessageValidationFailed_Any>(
             x,
-            sx.builder.message.in.messageValidationFailed,
+            manualfq.FeeQuoter_MessageValidationFailed_Any,
             [
               (msg) => {
                 if (msg.error === BigInt(expectedError)) {
@@ -669,61 +651,61 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
 }
 function printErrorName(error: number): string {
   switch (error) {
-    case feeQuoter.errors.UnsupportedChainFamilySelector:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedChainFamilySelector']:
       return 'UnsupportedChainFamilySelector'
-    case feeQuoter.errors.GasLimitTooHigh:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.GasLimitTooHigh']:
       return 'GasLimitTooHigh'
-    case feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue']:
       return 'ExtraArgOutOfOrderExecutionMustBeTrue'
-    case feeQuoter.errors.InvalidExtraArgsData:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData']:
       return 'InvalidExtraArgsData'
-    case feeQuoter.errors.UnsupportedNumberOfTokens:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens']:
       return 'UnsupportedNumberOfTokens'
-    case feeQuoter.errors.InvalidEVMReceiverAddress:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress']:
       return 'InvalidEVMReceiverAddress'
-    case feeQuoter.errors.Invalid32ByteReceiverAddress:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress']:
       return 'Invalid32ByteReceiverAddress'
-    case feeQuoter.errors.InvalidSuiReceiverAddress:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSuiReceiverAddress']:
       return 'InvalidSuiReceiverAddress'
-    case feeQuoter.errors.InvalidSVMReceiverAddress:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSVMReceiverAddress']:
       return 'InvalidSVMReceiverAddress'
-    case feeQuoter.errors.InvalidTokenReceiver:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidTokenReceiver']:
       return 'InvalidTokenReceiver'
-    case feeQuoter.errors.TooManySuiExtraArgsReceiverObjectIds:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds']:
       return 'TooManySuiExtraArgsReceiverObjectIds'
-    case feeQuoter.errors.MsgDataTooLarge:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge']:
       return 'MsgDataTooLarge'
-    case feeQuoter.errors.StaleGasPrice:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.StaleGasPrice']:
       return 'StaleGasPrice'
-    case feeQuoter.errors.DestChainNotEnabled:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.DestChainNotEnabled']:
       return 'DestChainNotEnabled'
-    case feeQuoter.errors.FeeTokenNotSupported:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeTokenNotSupported']:
       return 'FeeTokenNotSupported'
-    case feeQuoter.errors.InvalidMsgData:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidMsgData']:
       return 'InvalidMsgData'
-    case feeQuoter.errors.TokenNotSupported:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported']:
       return 'TokenNotSupported'
-    case feeQuoter.errors.UnknownDestChainSelector:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnknownDestChainSelector']:
       return 'UnknownDestChainSelector'
-    case feeQuoter.errors.InsufficientFee:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InsufficientFee']:
       return 'InsufficientFee'
-    case feeQuoter.errors.TokenTransfersNotSupported:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenTransfersNotSupported']:
       return 'TokenTransfersNotSupported'
-    case feeQuoter.errors.UnauthorizedPriceUpdater:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnauthorizedPriceUpdater']:
       return 'UnauthorizedPriceUpdater'
-    case feeQuoter.errors.ExecutionCostOverflow:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.ExecutionCostOverflow']:
       return 'ExecutionCostOverflow'
-    case feeQuoter.errors.PremiumFeeOverflow:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.PremiumFeeOverflow']:
       return 'PremiumFeeOverflow'
-    case feeQuoter.errors.DataAvailabilityCostOverflow:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.DataAvailabilityCostOverflow']:
       return 'DataAvailabilityCostOverflow'
-    case feeQuoter.errors.FeeCalculationOverflow:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeCalculationOverflow']:
       return 'FeeCalculationOverflow'
-    case feeQuoter.errors.TokenPriceTooLow:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenPriceTooLow']:
       return 'TokenPriceTooLow'
-    case feeQuoter.errors.FeeOverflow:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeOverflow']:
       return 'FeeOverflow'
-    case feeQuoter.errors.MessageFeeTooHigh:
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MessageFeeTooHigh']:
       return 'MessageFeeTooHigh'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)

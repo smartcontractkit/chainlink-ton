@@ -71,7 +71,7 @@ type SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call struct {
 
 // DecodeDestExecDataToMap is a helper method to define mock.On call
 //   - destExecData ccipocr3.Bytes
-func (_e *SourceChainExtraDataCodec_Expecter) DecodeDestExecDataToMap(destExecData interface{}) *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call {
+func (_e *SourceChainExtraDataCodec_Expecter) DecodeDestExecDataToMap(destExecData any) *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call {
 	return &SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call{Call: _e.mock.On("DecodeDestExecDataToMap", destExecData)}
 }
 
@@ -88,8 +88,8 @@ func (_c *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call) Run(run func(d
 	return _c
 }
 
-func (_c *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call) Return(stringToV map[string]any, err error) *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call {
-	_c.Call.Return(stringToV, err)
+func (_c *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call) Return(stringToAnyMoqParam map[string]any, err error) *SourceChainExtraDataCodec_DecodeDestExecDataToMap_Call {
+	_c.Call.Return(stringToAnyMoqParam, err)
 	return _c
 }
 
@@ -133,7 +133,7 @@ type SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call struct {
 
 // DecodeExtraArgsToMap is a helper method to define mock.On call
 //   - extraArgs ccipocr3.Bytes
-func (_e *SourceChainExtraDataCodec_Expecter) DecodeExtraArgsToMap(extraArgs interface{}) *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call {
+func (_e *SourceChainExtraDataCodec_Expecter) DecodeExtraArgsToMap(extraArgs any) *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call {
 	return &SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call{Call: _e.mock.On("DecodeExtraArgsToMap", extraArgs)}
 }
 
@@ -150,8 +150,8 @@ func (_c *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call) Run(run func(extr
 	return _c
 }
 
-func (_c *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call) Return(stringToV map[string]any, err error) *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call {
-	_c.Call.Return(stringToV, err)
+func (_c *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call) Return(stringToAnyMoqParam map[string]any, err error) *SourceChainExtraDataCodec_DecodeExtraArgsToMap_Call {
+	_c.Call.Return(stringToAnyMoqParam, err)
 	return _c
 }
 

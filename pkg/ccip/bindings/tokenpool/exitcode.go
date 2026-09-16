@@ -1,6 +1,6 @@
 package tokenpool
 
-import "github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+import "github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
@@ -16,7 +16,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorInvalidTransferFeeBps ExitCode = iota + 14900 // Facility ID 149 * 100
+	ErrorInvalidTransferFeeBps ExitCode = iota + 51700 // Facility ID 517 * 100
 	ErrorInvalidTokenTransferFeeConfig
 	ErrorCallerIsNotARampOnRouter
 	ErrorZeroAddressInvalid

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../../lib/jetton/messages"
+import "../../../../lib/funding/jetton_withdrawable"
 import "../../../../lib/utils"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
@@ -39,6 +40,32 @@ struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
 struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
     queryId: uint64;
     advancedPoolHooks: address?;
+}
+
+/// Sets the compiled Deployable code used to derive source-chain deposit accounts.
+/// @dev Owner-only (admin config). See `TokenPool_AdminConfig.deployableCode`.
+struct (0x3868e309) TokenPool_SetDeployableCode {
+    queryId: uint64;
+    deployableCode: cell?;
+}
+
+/// Replied on `TokenPool_SetDeployableCode` to confirm tx and return excess to sender.
+struct (0x89d602e5) TokenPool_DeployableCodeSet {
+    queryId: uint64;
+    deployableCode: cell?;
+}
+
+/// Sets the Deployables namespaces whose deposit-account contracts the pool will accept.
+/// @dev Owner-only (dynamic config). Each entry must be a namespace for which
+///      `TokenPool_AdminConfig.deployableCode` is registered. Replaces any previous set.
+struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
+    queryId: uint64;
+    allowedDepositNamespaces: map<uint32, bool>;
+}
+
+/// Replied on `TokenPool_SetAllowedDepositNamespaces` to confirm tx and return excess to sender.
+struct (0xc1ffe3a6) TokenPool_AllowedDepositNamespacesSet {
+    queryId: uint64;
 }
 
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
@@ -133,7 +160,7 @@ struct (0x4129d109) TokenPool_PreflightCheck {
     request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
-    amountPostFee: uint256;
+    amountPostFee: coins;
     replyTo: address;
     replyPayload: cell?;
 }
@@ -142,10 +169,91 @@ struct (0x4129d109) TokenPool_PreflightCheck {
 struct (0x703c2b58) TokenPool_PostflightCheck {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
-    localAmount: uint256;
+    localAmount: coins;
     requestedFinalityConfig: uint32;
     replyTo: address;
     replyPayload: cell?;
+}
+
+/// Optional fee parameters computed by the pool for a `TokenPool_GetCCVsAndFees` request
+/// (mirroring EVM `getFee` + the outbound fee-subtraction). `feesProvided=false` means the
+/// fields are meaningless and callers must fall back to FeeQuoter defaults (isEnabled=false).
+struct TokenPool_FeeContext {
+    feeConfig: TokenPool_TokenTransferFeeConfig;
+    amountPostFee: coins;
+    feesProvided: bool;
+}
+
+/// Requests the pool's required CCVs for a transfer (no fees). The pool replies with
+/// `TokenPool_CCVs`. This same message is also used for the pool→hooks hop (`replyTo` = pool,
+/// `forwardPayload` carries the pool's context) in BOTH the CCVs and CCVsAndFees flows, so the
+/// hooks only ever need to handle this one message.
+/// @dev The pool replies to the request sender. `forwardPayload` is per-request context echoed
+///      back in the reply (and failure) so the caller can resume its flow.
+struct (0xc5476d2b) TokenPool_GetCCVs {
+    queryId: uint64;
+    localToken: address;                            // The pool's local token.
+    remoteChainSelector: uint64;                    // The remote lane for this transfer.
+    amount: coins;                                  // Source-denominated amount (post-fee/local on the hooks hop).
+    requestedFinalityConfig: uint32;                // Finality encoding (see `FinalityCodec`).
+    direction: TokenPool_MessageDirection;          // 0 outbound, 1 inbound.
+    extraData: cell?;                               // tokenArgs outbound, sourcePoolData inbound.
+    replyTo: address;                               // Hooks reply destination on the pool→hooks hop (the pool).
+    forwardPayload: cell?;                          // Caller context; pool→hooks: Cell<TokenPool_GetCCVsContext>.
+}
+
+/// Same query inputs as `TokenPool_GetCCVs` (see there for field semantics); the pool
+/// additionally computes the fees (`TokenPool_FeeContext`) and replies with `TokenPool_CCVsAndFees`.
+/// TON-native, asynchronous replacement for EVM `getRequiredCCVs` + `getFee`.
+struct (0xd22944d5) TokenPool_GetCCVsAndFees {
+    queryId: uint64;
+    localToken: address;
+    remoteChainSelector: uint64;
+    amount: coins;
+    requestedFinalityConfig: uint32;
+    direction: TokenPool_MessageDirection;
+    extraData: cell?;
+    forwardPayload: cell?;                          // Per-request context echoed back in the reply.
+}
+
+/// Reply to `TokenPool_GetCCVs`: required CCVs only; `fwdPayload` echoes the caller's context.
+struct (0x6c70b2dd) TokenPool_CCVs {
+    queryId: uint64;
+    requiredCCVs: array<address>;                   // Max 255; empty = use lane defaults.
+    fwdPayload: cell?;
+}
+
+/// Reply to `TokenPool_GetCCVsAndFees`: required CCVs plus pool-computed `fees`.
+struct (0x158dd7d5) TokenPool_CCVsAndFees {
+    queryId: uint64;
+    requiredCCVs: array<address>;                   // Max 255; empty = use lane defaults.
+    fees: Cell<TokenPool_FeeContext>;
+    fwdPayload: cell?;
+}
+
+/// Failure reply finalizing a CCV query that could not complete (e.g. the hooks bounced),
+/// so the caller can abort/resume using the echoed `fwdPayload`.
+struct (0x0449d467) TokenPool_GetCCVsFailed {
+    queryId: uint64;
+    errorCode: int32;                               // Raw TVM exit code; signed, can be negative (OOG is -14).
+    fwdPayload: cell?;
+}
+
+/// Context the pool captures from a `TokenPool_GetCCVs`/`TokenPool_GetCCVsAndFees` and echoes
+/// through the hooks hop so it can reassemble the final reply on the callback. `fees` is set only
+/// for the `AndFees` flow (computed eagerly in `onGetCCVsAndFees`) and selects the reply variant.
+struct TokenPool_GetCCVsContext {
+    replyTo: address;
+    fwdPayload: cell?;
+    fees: cell?;                                    // Cell<TokenPool_FeeContext>; null for CCVs-only.
+}
+
+/// Reply from AdvancedPoolHooks carrying the required CCV set for a `TokenPool_GetCCVs`
+/// forwarded by the pool. An empty `requiredCCVs` list signals "use the lane defaults".
+struct (0x30612b17) TokenPool_QueryCCVsReply {
+    queryId: uint64;
+    requiredCCVs: array<address>;                   // Max 255.
+    replyPayload: cell?;                            // Cell<TokenPool_GetCCVsContext> echoed back.
 }
 
 type TokenPool_InMessage =
@@ -156,17 +264,23 @@ type TokenPool_InMessage =
     | TokenPool_ReleaseOrMint
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
+    | TokenPool_GetCCVs
+    | TokenPool_GetCCVsAndFees
+    | TokenPool_QueryCCVsReply
     | TokenPool_ApplyChainUpdates
     | TokenPool_AddRemotePool
     | TokenPool_RemoveRemotePool
     | TokenPool_SetDynamicConfig
     | TokenPool_SetAllowedFinalityConfig
     | TokenPool_SetAdvancedPoolHooks
+    | TokenPool_SetDeployableCode
+    | TokenPool_SetAllowedDepositNamespaces
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
     | TokenPool_SetRMNProxy
-    | TokenPool_SetCursedSubjects;
+    | TokenPool_SetCursedSubjects
+    | JettonWithdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
@@ -177,7 +291,9 @@ struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
     // TODO: unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
-    destTokenAmount: uint256;
+    /// Token amount in local token decimals after deducting the fee.
+    // TBD: rename to just amount?
+    destTokenAmount: coins;
 }
 
 struct (0x3476ea72) TokenPool_LockOrBurnFailure {
@@ -265,10 +381,17 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
+    | TokenPool_CCVs
+    | TokenPool_CCVsAndFees
+    | TokenPool_GetCCVsFailed
+    // The same GetCCVs struct is reused for the pool→hooks hop.
+    | TokenPool_GetCCVs
     | TokenPool_RemotePoolAddedNotification
     | TokenPool_RemotePoolRemovedNotification
     | TokenPool_FinalityConfigSet
     | TokenPool_DynamicConfigSet
+    | TokenPool_DeployableCodeSet
+    | TokenPool_AllowedDepositNamespacesSet
     | TokenPool_RateLimitConfiguredNotification
     | TokenPool_CursedSubjectsSet
     | TokenPool_AdvancedPoolHooksSet

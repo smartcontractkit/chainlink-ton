@@ -1,4 +1,5 @@
 import { Dictionary, DictionaryKeyTypes, DictionaryKey, DictionaryValue } from '@ton/core'
+import { Codec } from './codec'
 
 export const loadMap = <K extends DictionaryKeyTypes, V>(
   key: DictionaryKey<K>,
@@ -22,8 +23,20 @@ export function loadDict<K extends DictionaryKeyTypes, V>(dict: Dictionary<K, V>
   return map
 }
 
-// Returns an DictionaryValue<[]> key (serialized as bool), used for map<K, ()>
-// where value is an empty tesnor (not important, only presence of key matters)
-export function createEmptyTensorValue() {
-  return Dictionary.Values.Bool() as unknown as DictionaryValue<[]>
+export const Values = {
+  // Returns an DictionaryValue<[]> key (serialized as bool), used for map<K, ()>
+  // where value is an empty tesnor (not important, only presence of key matters)
+  EmptyTensor: (): DictionaryValue<[]> => {
+    return Dictionary.Values.Bool() as unknown as DictionaryValue<[]>
+  },
+  FromCodec: <T>(codec: Codec<T>): DictionaryValue<T> => {
+    return {
+      serialize: (src, builder) => {
+        codec.store(src, builder)
+      },
+      parse: (src): T => {
+        return codec.fromSlice(src)
+      },
+    }
+  },
 }

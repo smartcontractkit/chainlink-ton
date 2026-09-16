@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
@@ -31,7 +32,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/relay"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const ClientTTL = 30 * time.Second

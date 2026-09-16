@@ -18,7 +18,7 @@ type Cell[T any] cell.Cell
 func NewCellFrom[T any](v T) (*Cell[T], error) {
 	// Check if T is a pointer type and fail fast with a clear error
 	var zero T
-	if reflect.TypeOf(zero) != nil && reflect.TypeOf(zero).Kind() == reflect.Ptr {
+	if reflect.TypeOf(zero) != nil && reflect.TypeOf(zero).Kind() == reflect.Pointer {
 		return nil, fmt.Errorf("Cell type parameter T must be a value type, not a pointer type (got %T)", zero)
 	}
 
@@ -55,7 +55,7 @@ func (c *Cell[T]) ToValue() (T, error) {
 	err := tlb.LoadFromCell(&v, c.MustToCell().BeginParse())
 	if err != nil {
 		// Provide a hint if the error might be due to using a pointer type
-		if reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Ptr {
+		if reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Pointer {
 			return v, fmt.Errorf("failed to load value from cell (hint: T should be a value type, not a pointer): %w", err)
 		}
 		return v, fmt.Errorf("failed to load value from cell: %w", err)
