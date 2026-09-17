@@ -7,12 +7,11 @@ struct OnRamp_Storage {
     ownable: Ownable2Step;
 
     // static config
-    chainSelector: uint64; // source chain selector
+    staticConfig: Cell<OnRamp_StaticConfig>;
     // dynamic config
     config: Cell<OnRamp_DynamicConfig>;
 
     destChainConfigs: map<uint64, OnRamp_DestChainConfig> = []; // chainSelector -> DestChainConfig
-    deployablesConfig: Cell<OnRamp_DeployablesConfig>;
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

@@ -25,11 +25,10 @@ import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
-import { OffRampWithTokenPoolTestSetup } from './OffRamp.Setup'
+import { OffRampWithTokenPoolTestSetup, PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.Setup'
 import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Execute', () => {
   let blockchain: Blockchain
   let setup: s.OffRampTestSetup
@@ -82,7 +81,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -149,7 +148,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -213,7 +212,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
       })
@@ -1297,7 +1296,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1366,7 +1365,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1433,7 +1432,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1478,7 +1477,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1545,7 +1544,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1626,7 +1625,7 @@ describe('OffRamp - Execute', () => {
             return b
           })(),
         ),
-        offchainTokenData: Cell.EMPTY,
+        offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
       })
@@ -1702,7 +1701,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1781,7 +1780,7 @@ describe('OffRamp - Execute', () => {
               return b
             })(),
           ),
-          offchainTokenData: Cell.EMPTY,
+          offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
         })
@@ -1940,6 +1939,49 @@ describe('OffRamp - Execute', () => {
         success: false,
         exitCode: of.OffRamp.Errors['OffRamp_Error.Unauthorized'],
       })
+    })
+
+    it('forwards a non-empty offchainTokenData cell to the token pool', async () => {
+      const message = setup.createTestMessageWithToken()
+      // Non-empty per-token offchain data blob. The OffRamp must forward it
+      // verbatim instead of collapsing it to null.
+      const offchainTokenData = beginCell().storeUint(0xdeadbeef, 32).endCell()
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
+        [offchainTokenData],
+      ])
+      const result = await setup.executeReport(report)
+
+      // The transfer still completes end to end.
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+
+      // Router -> TokenPool: the offchain data must survive the whole
+      // OffRamp -> ReceiveExecutor -> OffRamp -> Router -> TokenPool hop.
+      const releaseOrMintTx = findTransaction(result.transactions, {
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
+
+      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
+        releaseOrMintTx.inMessage!.body!.beginParse(),
+      )
+      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
+      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
     })
 
     it('executes a token transfer to a non-contract receiver', async () => {

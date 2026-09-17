@@ -23,7 +23,6 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as OCR3Logs from '../../../wrappers/libraries/ocr/Logs'
 import * as deployable from '../../../wrappers/libraries/Deployable'
-import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.spec'
 import { ChainSelectors } from '../../utils/Selectors'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
 
@@ -37,6 +36,8 @@ import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
+
+export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
@@ -52,9 +53,6 @@ export async function deployOffRampContract(
   owner: SandboxContract<TreasuryContract>,
   code?: Cell,
   opts?: {
-    deployerCode?: Cell
-    merkleRootCode?: Cell
-    receiveExecutorCode?: Cell
     feeQuoter?: Address
     tokenAdminRegistry?: Address
   },
@@ -64,12 +62,10 @@ export async function deployOffRampContract(
     ownable: of.Ownable2Step.create({
       owner: owner.address,
     }),
-    deployables: of.OffRamp_Deployables.create({
+    staticConfig: of.OffRamp_StaticConfig.create({
       rmnRouter: owner.address, // used to determine who can send RMN updates
       tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
-      deployer: opts?.deployerCode ?? Cell.EMPTY,
-      merkleRootCode: opts?.merkleRootCode ?? Cell.EMPTY,
-      receiveExecutorCode: opts?.receiveExecutorCode ?? Cell.EMPTY,
+      chainSelector: ChainSelectors.testnet.ton,
     }),
     feeQuoter: opts?.feeQuoter ?? owner.address, // placeholder
     ocr3Base: of.OCR3Base.create({
@@ -80,7 +76,6 @@ export async function deployOffRampContract(
     cursedSubjects: of.CursedSubjects.create({
       data: new Set(),
     }),
-    chainSelector: ChainSelectors.testnet.ton,
     permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
     sourceChainConfigs: new Map(),
     latestPriceSequenceNumber: 0n,
@@ -93,6 +88,51 @@ export async function deployOffRampContract(
   )
 
   let result = await offramp.sendDeploy(owner.getSender(), toNano('0.05'))
+  expect(result.transactions).toHaveTransaction({
+    from: owner.address,
+    to: offramp.address,
+    deploy: true,
+    success: true,
+  })
+  return offramp
+}
+
+// This layout matches the deployed 1.6.2 OffRamp. The deployable code cells
+// are deliberately retained in the fixture because the migration discards them.
+export async function deployLegacyOffRampContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+  code: Cell,
+): Promise<SandboxContract<of.OffRamp>> {
+  const deployables = beginCell()
+    .storeAddress(owner.address)
+    .storeAddress(owner.address)
+    .storeRef(beginCell().endCell())
+    .storeRef(beginCell().endCell())
+    .storeRef(beginCell().endCell())
+    .endCell()
+  const data = beginCell()
+  data.storeUint(generateRandomContractId(), 32)
+  of.Ownable2Step.store(of.Ownable2Step.create({ owner: owner.address, pendingOwner: null }), data)
+  data.storeRef(deployables)
+  data.storeAddress(owner.address)
+  data.storeRef(
+    of.OCR3Base.toCell(of.OCR3Base.create({ chainId: 1n, commit: null, execute: null })),
+  )
+  of.CursedSubjects.store(of.CursedSubjects.create({ data: new Set() }), data)
+  data.storeUint(ChainSelectors.testnet.ton, 64)
+  data.storeUint(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS, 32)
+  data.storeDict(null)
+  data.storeUint(0n, 64)
+
+  const init = { code, data: data.endCell() }
+  const offramp = blockchain.openContract(of.OffRamp.fromAddress(contractAddress(0, init)))
+  const result = await owner.send({
+    to: offramp.address,
+    value: toNano('0.05'),
+    init,
+    body: beginCell().endCell(),
+  })
   expect(result.transactions).toHaveTransaction({
     from: owner.address,
     to: offramp.address,
@@ -204,9 +244,6 @@ export class OffRampTestSetup {
         this.deployer,
         this.code.offRamp,
         {
-          deployerCode: this.code.deployable,
-          merkleRootCode: this.code.merkleRoot,
-          receiveExecutorCode: this.code.receiveExecutor,
           feeQuoter: this.feeQuoter.address,
           tokenAdminRegistry: this.tokenAdminRegistry,
         },
@@ -505,7 +542,16 @@ export class OffRampTestSetup {
   createExecuteReport(
     messages: of.Any2TVMRampMessage[],
     sourceChainSelector = this.SOURCE_CHAIN_SELECTOR,
+    offchainTokenData?: Cell[][],
   ): of.ExecutionReport {
+    // If not explicitly provided, auto-detect: messages with token transfers
+    // require a non-empty per-message list (one entry per token transfer).
+    let tokenData = offchainTokenData
+    if (tokenData === undefined) {
+      tokenData = messages.map((msg) =>
+        msg.tokenAmounts ? msg.tokenAmounts.map(() => Cell.EMPTY) : [],
+      )
+    }
     return of.ExecutionReport.create({
       sourceChainSelector,
       // TODO tolk type should should be snakedCell
@@ -516,7 +562,7 @@ export class OffRampTestSetup {
           return b
         })(),
       ),
-      offchainTokenData: Cell.EMPTY, // TODO tolk type should be snakedCell
+      offchainTokenData: tokenData,
       proofs: [],
       proofFlagBits: 0n,
     })

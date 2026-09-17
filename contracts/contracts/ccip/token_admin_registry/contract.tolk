@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "messages"
 import "storage"
-import "types"
 import "errors"
 import "../../lib/utils"
 import "events"
@@ -34,12 +33,6 @@ const CONTRACT_VERSION = "1.6.0".literalSlice();
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
     match (msg) {
-        TokenAdminRegistry_SetEntryDeployment => {
-            var st = lazy TokenAdminRegistry_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            st.entryDeployment = msg.entryDeployment;
-            st.store();
-        }
         TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -89,7 +82,7 @@ fun onInternalMessage(in: InMessage) {
 /// sufficient to recompute the only entry address that may send that event.
 fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
     val expectedEntry = TokenAdminRegistryEntry.deriveAddress(
-        st.entryDeployment.deployableCode,
+        deployableCode(),
         token,
         contract.getAddress(),
     ).calculateAddress();
@@ -119,9 +112,8 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
     // Until then, the root owner is the trusted registration module.
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
 
-    val deployment = st.entryDeployment;
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployment.deployableCode,
+        deployableCode(),
         msg.tokenAddress,
         contract.getAddress(),
     );
@@ -135,7 +127,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         dest: entryAddress,
         body: Deployable_InitializeAndSend {
             stateInit: {
-                code: deployment.entryCode,
+                code: entryCode(),
                 data: TokenRegistry_Storage {
                     tokenAddress: msg.tokenAddress,
                     tokenInfo: msg.tokenInfo.load(),
@@ -163,9 +155,8 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 /// active administrator exists, so this cannot reclaim a configured token.
 fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_OverridePendingAdministrator) {
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
-    val deployment = st.entryDeployment;
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployment.deployableCode,
+        deployableCode(),
         msg.tokenAddress,
         contract.getAddress(),
     );
@@ -186,7 +177,7 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
 /// remains responsible for checking its own active/pending administrator state.
 fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_TransferAdminRole, actor: address) {
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        st.entryDeployment.deployableCode,
+        deployableCode(),
         msg.tokenAddress,
         contract.getAddress(),
     );
@@ -204,7 +195,7 @@ fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Tr
 
 fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_AcceptAdminRole, actor: address) {
     val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        st.entryDeployment.deployableCode,
+        deployableCode(),
         msg.tokenAddress,
         contract.getAddress(),
     );
@@ -217,6 +208,17 @@ fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Acce
             actor,
         }.toCell(),
     }).send(SEND_MODE_REGULAR);
+}
+
+import "../../../gen/Deployable.code"
+import "../../../gen/TokenAdminRegistryEntry.code"
+
+fun deployableCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun entryCode(): cell {
+    return tokenAdminRegistryEntryCompiledCode();
 }
 
 /// Gets the current owner of the registry root.

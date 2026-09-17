@@ -31,6 +31,14 @@ in {
 
   sourceRoot = ".";
 
+  # Acton is distributed as a dynamically linked Linux binary. Patch its ELF
+  # interpreter and provide the runtime libraries expected in the Nix store.
+  nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.autoPatchelfHook;
+  buildInputs = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    pkgs.stdenv.cc.cc.lib
+    pkgs.openssl
+  ];
+
   installPhase = ''
     runHook preInstall
     install -Dm755 acton $out/bin/acton

@@ -109,11 +109,13 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
+            queryId: msg.queryId,
             message: message.toCell(),
             root: st.root,
             metadataHash: msg.metadataHash,
             gasOverride: msg.gasOverride,
             executionState: state,
+            offchainTokenData: msg.offchainTokenData,
         }
     });
     executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

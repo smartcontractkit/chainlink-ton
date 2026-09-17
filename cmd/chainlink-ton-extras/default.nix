@@ -5,14 +5,6 @@
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
   package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
 
-  go_1_26_6 = pkgs.go_1_26.overrideAttrs (_old: rec {
-    version = "1.26.6";
-    src = pkgs.fetchurl {
-      url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-oHIcVMaIkBRI13rZs+x+p8R0cwdV/4kTgukuy5P/LLE=";
-    };
-  });
-
   # Fetch karalabe/hid for HIDAPI C sources and headers
   karalabe-hid = pkgs.fetchFromGitHub {
     owner = "karalabe";
@@ -21,7 +13,7 @@
     sha256 = "sha256-z3KSqKrIoy6WR2HUPjKJEm93NvuN0m9Edcq5BtGO5yA=";
   };
 in
-  pkgs.buildGo126Module.override {go = go_1_26_6;} rec {
+  pkgs.buildGo126Module rec {
     inherit (package-info) version;
     pname = "chainlink-ton-extras";
 
