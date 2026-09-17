@@ -72,7 +72,7 @@ func cmdEncode(args []string) {
 	}
 
 	var fx fixture
-	if err := json.Unmarshal(data, &fx); err != nil {
+	if err = json.Unmarshal(data, &fx); err != nil {
 		fatalf("decode JSON: %v", err)
 	}
 
@@ -93,7 +93,7 @@ func cmdEncode(args []string) {
 		fatalf("encode returned nil BOC (empty report?)")
 	}
 
-	if err := os.WriteFile(*output, boc, 0o644); err != nil {
+	if err := os.WriteFile(*output, boc, 0o600); err != nil {
 		fatalf("write output %s: %v", *output, err)
 	}
 }
@@ -134,7 +134,7 @@ func cmdDecode(args []string) {
 	if err != nil {
 		fatalf("encode JSON: %v", err)
 	}
-	if err := os.WriteFile(*output, append(out, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(*output, append(out, '\n'), 0o600); err != nil {
 		fatalf("write output %s: %v", *output, err)
 	}
 }

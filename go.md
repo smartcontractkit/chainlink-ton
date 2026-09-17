@@ -252,6 +252,8 @@ flowchart LR
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/cciplib --> chainlink-common
 	click chainlink-ton/cciplib href "https://github.com/smartcontractkit/chainlink-ton"
+	chainlink-ton/cciplib/ccip/bindings/ocr/testdata/legacyexecutereport --> chainlink-ton/cciplib
+	click chainlink-ton/cciplib/ccip/bindings/ocr/testdata/legacyexecutereport href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/deployment
 	click chainlink-ton/deployment href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/devenv
@@ -445,6 +447,7 @@ flowchart LR
 	subgraph chainlink-ton-repo[chainlink-ton]
 		 chainlink-ton
 		 chainlink-ton/cciplib
+		 chainlink-ton/cciplib/ccip/bindings/ocr/testdata/legacyexecutereport
 		 chainlink-ton/deployment
 		 chainlink-ton/devenv
 		 chainlink-ton/integration-tests

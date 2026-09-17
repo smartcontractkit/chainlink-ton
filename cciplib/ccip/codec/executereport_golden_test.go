@@ -120,7 +120,7 @@ func TestExecuteReport_TokenlessMatchesGoldenBOC(t *testing.T) {
 
 	// OffchainTokenData: decoded is [] (non-nil empty), fixture is [] (non-nil empty).
 	// Both should be len 0.
-	assert.Len(t, decodedCR.OffchainTokenData, 0, "tokenless report decodes to empty offchainTokenData")
+	assert.Empty(t, decodedCR.OffchainTokenData, "tokenless report decodes to empty offchainTokenData")
 
 	// Messages
 	require.Len(t, decodedCR.Messages, 1, "decoded report must have one message")
