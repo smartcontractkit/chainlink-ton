@@ -106,7 +106,6 @@ jobs:
       - name: Push dirty tag
         run: |
           set -euo pipefail
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
+          # No git identity here: this creates a LIGHTWEIGHT tag
           git tag "${{ steps.version.outputs.tag_name }}" "${{ steps.get_sha.outputs.full_sha }}"
           git push origin "${{ steps.version.outputs.tag_name }}"
