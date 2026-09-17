@@ -1115,9 +1115,9 @@ get fun config(): Config {
     val st = lazy Storage.load();
     return {
         chainSelector: st.staticConfig.load().chainSelector,
-        tokenAdminRegistry: st.staticConfig.load().tokenAdminRegistry,
         feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+        tokenAdminRegistry: st.staticConfig.load().tokenAdminRegistry,
     }
 }
 

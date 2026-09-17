@@ -100,12 +100,14 @@ struct Config {
     // gasForCallExactCheck
     // rmnRemote
     // nonceManager
-    tokenAdminRegistry: address
     // -- Dynamic config
     feeQuoter: address
     permissionlessExecutionThresholdSeconds: uint32
     // isRMNVerificationDisabled
     // messageInterceptor
+    // -- Static config (appended for backwards compatibility; old contracts
+    // return a 3-element stack and omit this field)
+    tokenAdminRegistry: address
 }
 
 // Kept in a reference because three full-width values would overflow the
