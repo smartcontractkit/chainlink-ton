@@ -4,7 +4,12 @@ go 1.26.2
 
 // Keep this tool outside the cciplib module so its import resolves to the
 // binding before OffChainTokenData changed to a nested LispList.
-require github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260914214413-1f3ac22e4746
+// Pinned to commit 7f72e847b2fb (tag: contracts/1.6.2+7f72e847b2fb), the last
+// commit on main before PR #884 introduced the nested LispList[LispList[SnakeBytes]].
+// At that commit, OffChainTokenData was *cell.Cell (hardcoded to tvm.EmptyCell
+// for tokenless reports), which produces the same empty cell as the current
+// canonicalization. This commit is on main, so the Go module proxy can resolve it.
+require github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260915153529-7f72e847b2fb
 
 require (
 	github.com/smartcontractkit/chain-selectors v1.0.98

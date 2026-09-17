@@ -78,8 +78,8 @@ github.com/smartcontractkit/chain-selectors v1.0.98 h1:fuI7CQ1o5cX64eO4/Lvwtfhdp
 github.com/smartcontractkit/chain-selectors v1.0.98/go.mod h1:qy7whtgG5g+7z0jt0nRyii9bLND9m15NZTzuQPkMZ5w=
 github.com/smartcontractkit/chainlink-common v0.11.2-0.20260407150650-8115835abd6e h1:SLnJ0/55Rcn9/9OWrjhvhOTDW9+Bhd63v1tY4dvqtQM=
 github.com/smartcontractkit/chainlink-common v0.11.2-0.20260407150650-8115835abd6e/go.mod h1:Ob7ZRLEvPkDwGUjKdDIiHy0Mxu4+UG6oMBkR7Jv/U6o=
-github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260914214413-1f3ac22e4746 h1:hdXai5Hc6EvkaO/oLm2iXgTJD18nrTja7ryahHTX8bc=
-github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260914214413-1f3ac22e4746/go.mod h1:aouw6zQP+An/4Qy0FWfOjITq2zrpLZnrBf39jTwqUps=
+github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260915153529-7f72e847b2fb h1:kA8eawNuj8iIGzOXJKGxoVLxv14YytyDNFCDUQjTuvg=
+github.com/smartcontractkit/chainlink-ton/cciplib v0.0.0-20260915153529-7f72e847b2fb/go.mod h1:aouw6zQP+An/4Qy0FWfOjITq2zrpLZnrBf39jTwqUps=
 github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d h1:LokA9PoCNb8mm8mDT52c3RECPMRsGz1eCQORq+J3n74=
 github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d/go.mod h1:Acy3BTBxou83ooMESLO90s8PKSu7RvLCzwSTbxxfOK0=
 github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 h1:RN5mrigyirb8anBEtdjtHFIufXdacyTi6i4KBfeNXeo=
