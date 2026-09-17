@@ -1,0 +1,124 @@
+name: Signed commit
+description: >-
+  Commit changes to a branch through the GitHub API, so GitHub signs them.
+
+  A pushed commit can never be verified: a signature is made by whoever writes
+  the commit, a runner holds no GitHub signing key, and an uploaded commit is
+  stored verbatim (signing it would change its hash). Only GitHub can sign, so
+  the commit is created server-side with createCommitOnBranch. Needed wherever
+  the default branch requires signed commits: an unsigned commit on a PR head
+  blocks that PR's merge, even though the squash commit would itself be signed.
+
+  Operates on the git working tree in the current directory, which must be a
+  checkout of `repository`. Created for the TON lock.nix fixup; kept repo-
+  agnostic so it can move to smartcontractkit/.github/actions/.
+
+inputs:
+  token:
+    description: >-
+      Token used to create the commit. Pass a GitHub App installation token (the
+      commit is attributed to that App's bot) or the default GITHUB_TOKEN (which
+      signs as github-actions[bot]). A PAT cannot sign: commit signing for bots
+      needs a bot-generated token.
+    required: true
+  paths:
+    description: >-
+      Git pathspec(s) to commit, one per line or space-separated (e.g.
+      '*lock.nix'). Only changes under these are staged, so unrelated dirty
+      files stay out of the commit. Both modifications and deletions are
+      committed; an empty value is an error rather than "commit everything".
+    required: true
+  repository:
+    description: Repository to commit to, as owner/name. Use for fork-based PRs.
+    required: true
+  branch:
+    description: Branch to commit to. Must already exist.
+    required: true
+  message:
+    description: Commit headline.
+    required: true
+
+outputs:
+  commit-sha:
+    description: SHA of the created commit.
+    value: ${{ steps.commit.outputs.sha }}
+  commit-url:
+    description: HTML URL of the created commit.
+    value: ${{ steps.commit.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create the commit
+      id: commit
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PATHS: ${{ inputs.paths }}
+        REPO: ${{ inputs.repository }}
+        BRANCH: ${{ inputs.branch }}
+        MSG: ${{ inputs.message }}
+      run: |
+        set -euo pipefail
+
+        read -r -a PATTERNS <<<"${PATHS//$'\n'/ }"
+        if [[ ${#PATTERNS[@]} -eq 0 ]]; then
+          echo "::error::paths is empty; refusing to stage the whole tree"
+          exit 1
+        fi
+
+        # `-A` so removals are staged too. Scoping every command to PATTERNS
+        # keeps unrelated dirty files out and stops anything a previous step
+        # staged elsewhere from riding along.
+        git add -A -- "${PATTERNS[@]}"
+
+        # createCommitOnBranch takes additions and deletions separately and
+        # rejects a path listed in both, so classify by status rather than
+        # assuming every change is an addition.
+        ADDS=$(git diff --cached --name-only --diff-filter=d -- "${PATTERNS[@]}" \
+          | while read -r f; do
+              jq -n --arg path "$f" --arg contents "$(base64 -w0 "$f")" \
+                '{path: $path, contents: $contents}'
+            done | jq -s .)
+        DELS=$(git diff --cached --name-only --diff-filter=D -- "${PATTERNS[@]}" \
+          | while read -r f; do jq -n --arg path "$f" '{path: $path}'; done | jq -s .)
+
+        if [[ $(jq 'length' <<<"${ADDS}") -eq 0 && $(jq 'length' <<<"${DELS}") -eq 0 ]]; then
+          echo "::error::nothing to commit under: ${PATTERNS[*]}"
+          exit 1
+        fi
+
+        # expectedHeadOid is the concurrency guard: the API refuses the commit if
+        # the branch moved since we read it, instead of clobbering a newer head.
+        OID=$(gh api "repos/${REPO}/git/ref/heads/${BRANCH}" --jq .object.sha)
+
+        QUERY='mutation($repo: String!, $branch: String!, $oid: GitObjectID!, $msg: String!, $adds: [FileAddition!]!, $dels: [FileDeletion!]!) {
+          createCommitOnBranch(input: {
+            branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+            message: {headline: $msg},
+            fileChanges: {additions: $adds, deletions: $dels},
+            expectedHeadOid: $oid
+          }) { commit { oid url } }
+        }'
+
+        # gh exits 0 even when GraphQL reports `errors` in its body, so a failed
+        # mutation has to be detected explicitly: otherwise the error response
+        # leaves an empty result and the step still reports success.
+        RESP=$(jq -n --arg q "${QUERY}" \
+            --arg repo "${REPO}" --arg branch "${BRANCH}" --arg oid "${OID}" \
+            --arg msg "${MSG}" --argjson adds "${ADDS}" --argjson dels "${DELS}" \
+            '{query: $q, variables: {repo: $repo, branch: $branch, oid: $oid, msg: $msg, adds: $adds, dels: $dels}}' \
+          | gh api graphql --input -)
+
+        if ! jq -e '.data.createCommitOnBranch.commit.oid' >/dev/null <<<"${RESP}"; then
+          echo "::error::createCommitOnBranch failed for ${REPO}@${BRANCH}"
+          jq -r '.errors[]?.message' <<<"${RESP}" | sed 's/^/  /' >&2 || true
+          exit 1
+        fi
+
+        {
+          echo "sha=$(jq -r '.data.createCommitOnBranch.commit.oid' <<<"${RESP}")"
+          echo "url=$(jq -r '.data.createCommitOnBranch.commit.url' <<<"${RESP}")"
+        } >>"${GITHUB_OUTPUT}"
+
+        echo "::notice::committed $(( $(jq 'length' <<<"${ADDS}") + $(jq 'length' <<<"${DELS}") )) file(s) to ${REPO}@${BRANCH}"
