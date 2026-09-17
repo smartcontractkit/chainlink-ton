@@ -3,8 +3,8 @@ package timelock
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 func EmptyDataFrom(id uint32) Data {

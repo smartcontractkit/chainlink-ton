@@ -8,10 +8,10 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- Router Model Struct Definitions ----------
@@ -42,10 +42,7 @@ type RouterStorageBuilder struct {
 // and initialized maps.
 func NewRouterStorageBuilder() *RouterStorageBuilder {
 	return &RouterStorageBuilder{
-		storage: RouterStorage{
-			OnRamps:  make(map[uint64]*address.Address),
-			OffRamps: make(map[uint64]*address.Address),
-		},
+		storage: RouterStorage{OnRamps: make(map[uint64]*address.Address), OffRamps: make(map[uint64]*address.Address)},
 	}
 }
 
@@ -140,7 +137,6 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		).
 		WithWrapperNative(raw.WrappedNative).
 		WithRMNRemote(raw.RMNRemote.Admin.Owner, raw.RMNRemote.Admin.PendingOwner)
-
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
 	if err != nil {

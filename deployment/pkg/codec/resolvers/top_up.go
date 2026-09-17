@@ -90,7 +90,7 @@ func (r *topUpResolver) Resolve(input map[string]any) (opston.InternalMessage[an
 		return opston.InternalMessage[any]{}, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
 
-	contractState, err := r.chain.Client.GetAccount(ctx, block, in.DstAddr)
+	contractState, err := r.chain.Client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, in.DstAddr)
 	if err != nil {
 		return opston.InternalMessage[any]{}, fmt.Errorf("failed to get balance for address %s: %w", in.DstAddr.String(), err)
 	}

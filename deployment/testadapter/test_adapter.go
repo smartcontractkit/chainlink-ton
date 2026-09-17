@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -37,18 +38,24 @@ import (
 	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 
+	cciplibonramp "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
+	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	tonlogpoller "github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
@@ -56,6 +63,8 @@ import (
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 )
+
+var debugMode = os.Getenv("DEBUG_MODE") == "true"
 
 func init() {
 	testadapters.GetTestAdapterRegistry().RegisterTestAdapter(chain_selectors.FamilyTon, semver.MustParse("1.6.0"), NewTONAdapter)
@@ -72,11 +81,28 @@ func NewTONAdapter(env *deployment.Environment, selector uint64) testadapters.Te
 		panic(fmt.Sprintf("chain not found: %d", selector))
 	}
 
-	s := &testadapters.DataStoreStateProvider{Selector: selector, DS: env.DataStore}
 	return &TONAdapter{
-		state: s,
+		state: &envStateProvider{selector, env},
 		Chain: c,
 	}
+}
+
+// envStateProvider resolves addresses against the environment's *current* datastore.
+//
+// The environment replaces env.DataStore with a new sealed store every time a deployment
+// step merges its output (see mergeDS in devenv), so capturing env.DataStore once at
+// adapter construction pins a snapshot taken before tokens and token pools are deployed.
+//
+// The DataStore object must not be held by reference, because it is replaced with a new
+// sealed store after every deployment step.
+type envStateProvider struct {
+	selector uint64
+	env      *deployment.Environment
+}
+
+func (p *envStateProvider) GetAddress(ty datastore.ContractType, qualifier ...string) (string, error) {
+	ds := &testadapters.DataStoreStateProvider{Selector: p.selector, DS: p.env.DataStore}
+	return ds.GetAddress(ty, qualifier...)
 }
 
 func (a *TONAdapter) getAddress(ty datastore.ContractType) (address.Address, error) {
@@ -105,35 +131,110 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 		return nil, err
 	}
 
-	// TODO: add TokenAmounts support for TON token transfers
-	return router.CCIPSend{
+	tokenAmounts := make(common.SnakedCell[router.TokenAmount], 0, len(components.TokenAmounts))
+	for _, ta := range components.TokenAmounts {
+		tokenAddr, parseErr := address.ParseAddr(ta.Token)
+		if parseErr != nil {
+			return nil, fmt.Errorf("failed to parse token address %q: %w", ta.Token, parseErr)
+		}
+		amount, parseErr := tlb.FromNano(ta.Amount, 9)
+		if parseErr != nil {
+			return nil, fmt.Errorf("failed to convert token amount %q to coins: %w", ta.Amount, parseErr)
+		}
+		tokenAmounts = append(tokenAmounts, router.TokenAmount{
+			Amount: amount,
+			Token:  tokenAddr,
+		})
+	}
+
+	ccipSend := router.CCIPSend{
 		QueryID:           rand.Uint64(),
 		DestChainSelector: components.DestChainSelector,
 		Data:              components.Data,
 		Receiver:          components.Receiver,
+		TokenAmounts:      tokenAmounts,
 		ExtraArgs:         c, // TODO handle ExtraArgs properly
 		FeeToken:          feeToken,
+	}
+	// If there are no tokenAmounts this is arbitrary messaging, return the CCIPSend message
+	if components.TokenAmounts == nil {
+		return ccipSend, nil
+	}
+	if len(components.TokenAmounts) > 1 {
+		return nil, errors.New("multiple token transfers are not supported on TON")
+	}
+	tokenAmount := components.TokenAmounts[0]
+	// Right now for messages with token transfers we transfer the tokens to the Router wallet and the CCIPSend message goes in the forward payload.
+	tokenAddr, err := address.ParseAddr(tokenAmount.Token)
+	if err != nil {
+		return nil, errors.New("failed to parse token address")
+	}
+
+	routerAddr, err := a.getAddress(state.Router)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get router address: %w", err)
+	}
+
+	// The message is sent to the sender's own jetton wallet, which then forwards the
+	// tokens to the Router's jetton wallet (derived on-chain from TransferRecipient).
+	ownedWalletAddr, err := tvm.CallGetterLatest(context.Background(), a.Client, tokenAddr, minter.GetWalletAddress, a.WalletAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive owned jetton wallet address: %w", err)
+	}
+
+	ccipSendCell, err := tlb.ToCell(ccipSend)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert CCIPSend message to cell: %w", err)
+	}
+
+	return TokenTransferMessage{
+		OwnedJettonWallet: ownedWalletAddr,
+		Transfer: jettonwallet.AskToTransfer{
+			QueryID:           rand.Uint64(),
+			JettonAmount:      tokenAmounts[0].Amount,
+			TransferRecipient: &routerAddr,
+			SendExcessesTo:    a.WalletAddress,
+			ForwardTonAmount:  tlb.MustFromTON("5"),
+			ForwardPayload:    ccipSendCell,
+		},
 	}, nil
+}
+
+// TokenTransferMessage is the message built by BuildMessage when the CCIP request includes
+// token transfers. It must be sent to OwnedJettonWallet (the sender's own jetton wallet, already
+// deployed via the pre-mint step in DeployToken), which forwards the tokens to the Router along
+// with the CCIPSend message as forward payload.
+type TokenTransferMessage struct {
+	OwnedJettonWallet *address.Address
+	Transfer          jettonwallet.AskToTransfer
 }
 
 func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, string, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
-	msg, ok := m.(router.CCIPSend)
-	if !ok {
-		return 0, "", errors.New("expected router.CCIPSend")
+	var seq uint64
+	var eAny any
+	var err error
+	switch msg := m.(type) {
+	case router.CCIPSend:
+		// Arbitrary messaging (no token transfer): send the CCIPSend message directly to the Router.
+		seq, eAny, err = SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
+	case TokenTransferMessage:
+		// Token transfer: send the jetton transfer to the sender's own jetton wallet, which
+		// forwards the tokens (and the CCIPSend message in the forward payload) to the Router.
+		seq, eAny, err = SendTokenTransferMessage(ctx, a.Chain, a.state, a.Selector, msg)
+	default:
+		return 0, "", fmt.Errorf("unsupported message type %T: expected router.CCIPSend or TokenTransferMessage", m)
 	}
-
-	seq, eAny, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
 	if err != nil {
 		return 0, "", err
 	}
-	event, ok := eAny.(onramp.CCIPMessageSent)
+	messageIDBytes, ok := eAny.([]byte)
 	if !ok {
-		return 0, "", errors.New("expected onramp.CCIPMessageSent")
+		return 0, "", fmt.Errorf("expected []byte messageID, got %T", eAny)
 	}
-	messageID := hex.EncodeToString(event.Message.Header.MessageID)
+	messageID := hex.EncodeToString(messageIDBytes)
 	return seq, messageID, nil
 }
 
@@ -282,6 +383,35 @@ func (a *TONAdapter) GetInboundNonce(ctx context.Context, sender []byte, srcSel 
 func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNumRange ccipocr3.SeqNumRange) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+
+	if debugMode {
+		cancel := a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
+			s := msg.InternalMsg.Body.BeginParse()
+			if s.BitsLeft() == 0 {
+				return false
+			}
+			op, errM := s.LoadUInt(32)
+			if errM != nil {
+				fmt.Printf("Failed to parse op code from message body: %v\n", errM)
+				return false
+			}
+			if op != 0x9d431905 { // Commit opcode
+				return false
+			}
+			var commit offramp.Commit
+			errM = tlb.LoadFromCell(&commit, s, true)
+			if errM != nil {
+				fmt.Printf("Failed to parse Commit message: %v\n", errM)
+				return false
+			}
+			if len(commit.CommitReport.MerkleRoots) == 0 {
+				return false
+			}
+			return true
+		}, "Commit")
+		defer cancel()
+	}
+
 	_, err = confirmCommitWithExpectedSeqNumRangeTON(
 		t,
 		sourceSelector,
@@ -295,6 +425,10 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (execStates map[uint64]int) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+	if debugMode {
+		cancel := a.startExecuteMonitor(t, offRamp)
+		defer cancel()
+	}
 	execStates, err = confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
@@ -310,6 +444,10 @@ func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, s
 func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+	if debugMode {
+		cancel := a.startExecuteMonitor(t, offRamp)
+		defer cancel()
+	}
 	executionStates, err := confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
@@ -327,23 +465,321 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 	}
 }
 
+func (a *TONAdapter) startExecuteMonitor(t *testing.T, offRamp address.Address) func() {
+	return a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
+		s := msg.InternalMsg.Body.BeginParse()
+		if s.BitsLeft() == 0 {
+			return false
+		}
+		op, err := s.LoadUInt(32)
+		if err != nil {
+			fmt.Printf("Failed to parse op code from message body: %v\n", err)
+			return false
+		}
+		if op != 0x27bdac33 { // Execute opcode
+			return false
+		}
+		return true
+	}, "Execute")
+}
+
+// TODO leaks go routine
+func (a *TONAdapter) startMonitor(t *testing.T, offRamp address.Address, filter func(msg tracetracking.ReceivedMessage) bool, msgType string) (cancel func()) {
+	fmt.Printf("Starting monitor for OffRamp: %s\n", offRamp.String())
+	router, err := a.getAddress("Router")
+	require.NoError(t, err)
+	receiver, err := a.getAddress("Receiver")
+	require.NoError(t, err)
+	tokenPool, err := a.getAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	require.NoError(t, err)
+
+	ctx, cancelCtx := context.WithCancel(t.Context())
+	offRampMsgs := make(chan *tlb.Transaction)
+	go a.Client.SubscribeOnTransactions(ctx, &offRamp, 0, offRampMsgs)
+
+	handler := make(chan struct{})
+	go func() {
+		fmt.Println("Started monitor")
+		defer close(handler)
+		for {
+			tx, ok := <-offRampMsgs
+			if !ok {
+				return
+			}
+			msg, errM := tracetracking.MapToReceivedMessage(tx)
+			if errM != nil {
+				panic(fmt.Sprintf("failed to map received message: %v", errM))
+			}
+			if msg.InternalMsg == nil {
+				continue
+			}
+			if !filter(msg) {
+				continue
+			}
+			errM = msg.WaitForTrace(ctx, a.Client)
+			if errM != nil {
+				panic(fmt.Sprintf("failed to wait for trace: %v\n", errM))
+			}
+			exitCodeStr := ""
+			exitCode, errM := msg.TraceExitCode()
+			if errM != nil {
+				exitCodeStr = fmt.Sprintf("Trace exit code: Failed to get: %v", errM)
+			} else {
+				exitCodeStr = fmt.Sprintf("Trace exit code: %d", exitCode)
+			}
+			fmt.Println(exitCodeStr)
+			trace := debug.NewDebuggerSequenceTrace(map[string]debug.TypeAndVersion{
+				router.String():    {Type: "Router"},
+				offRamp.String():   {Type: "OffRamp"},
+				receiver.String():  {Type: "Receiver"},
+				tokenPool.String(): {Type: "TokenPool"},
+			}, sequenceDiagram.OutputFmtURL).DumpReceived(&msg)
+			fmt.Printf("Router received %s msg: \n%s\n", msgType, trace)
+		}
+	}()
+
+	cancel = func() {
+		cancelCtx()
+		<-handler
+	}
+	return cancel
+}
+
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
-	// TODO: implement when TON token transfer support is added
-	return errors.ErrUnsupported
+	// Real jetton approval (e.g. minting an allowance / notifying the pool) is not
+	// yet implemented; no tokens actually move so there is nothing to approve yet.
+
+	// Fund the LockReleaseTokenPool with liquidity so it can release tokens when
+	// acting as a destination. The pool holds jettons in its own jetton wallet; we
+	// mint tokens directly to that wallet address. This is test-only setup — EVM
+	// and Solana use BurnMintTokenPools that don't need liquidity, but TON uses
+	// LockReleaseTokenPool which custodies real tokens.
+	if err := a.fundPoolLiquidity(ctx, tokenAddress); err != nil {
+		return fmt.Errorf("failed to fund pool liquidity: %w", err)
+	}
+
+	return nil
 }
 
 func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, ownerAddress []byte) (*big.Int, error) {
-	// TODO: implement when TON token transfer support is added
-	return nil, errors.ErrUnsupported
+	minterAddr, err := address.ParseAddr(tokenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
+	}
+
+	ac := codec.NewAddressCodec()
+	ownerAddrStr, err := ac.AddressBytesToString(ownerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert owner address bytes to string: %w", err)
+	}
+	ownerAddr, err := address.ParseAddr(ownerAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse owner address %q: %w", ownerAddrStr, err)
+	}
+
+	// Look up the pool address from the datastore via the state provider.
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool address: %w", err)
+	}
+	poolAddr, err := address.ParseAddr(poolAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
+	}
+
+	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, poolAddr, tokenpool.GetDepositAccount, ownerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive deposit account for receiver %q: %w", ownerAddrStr, err)
+	}
+
+	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, depositAccountAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive jetton wallet address for owner %q: %w", ownerAddrStr, err)
+	}
+
+	balance, err := tvm.CallGetterLatest(ctx, a.Client, walletAddr, jettonwallet.GetWalletData)
+	if err != nil {
+		// The jetton wallet contract has not been deployed yet (no transfer has ever
+		// landed for this owner), so treat it as a zero balance rather than an error.
+		return big.NewInt(0), nil
+	}
+
+	return balance, nil
+}
+
+// fundPoolLiquidity mints jettons directly to the LockReleaseTokenPool's jetton wallet
+// so the pool has tokens to release when it acts as a destination. This is test-only
+// setup: EVM and Solana use BurnMintTokenPools that mint on release, but TON uses
+// LockReleaseTokenPool which custodies real tokens and must be pre-funded.
+func (a *TONAdapter) fundPoolLiquidity(ctx context.Context, tokenAddress string) error {
+	tokenAddr, err := address.ParseAddr(tokenAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
+	}
+
+	// Look up the pool address from the datastore via the state provider.
+	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	if err != nil {
+		return fmt.Errorf("failed to look up %s address to fund pool liquidity: %w",
+			bindings.ShortLockReleaseTokenPool, err)
+	}
+	poolAddr, err := address.ParseAddr(poolAddrStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
+	}
+
+	// Derive the pool's jetton wallet address.
+	poolWalletAddr, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, poolAddr)
+	if err != nil {
+		return fmt.Errorf("failed to derive pool jetton wallet address: %w", err)
+	}
+
+	// Mint 1000 tokens to the pool's jetton wallet.
+	liquidityAmount := tlb.MustFromTON("1000")
+	queryID, err := tvm.RandomQueryID()
+	if err != nil {
+		return fmt.Errorf("failed to generate query id for liquidity mint: %w", err)
+	}
+
+	mintBody, err := tlb.ToCell(minter.MintNewJettons{
+		QueryID:       queryID,
+		MintRecipient: poolAddr,
+		TonAmount:     tlb.MustFromTON("0.05"),
+		InternalTransferMsg: jettonwallet.InternalTransferStep{
+			QueryID:           queryID,
+			JettonAmount:      liquidityAmount,
+			TransferInitiator: a.WalletAddress,
+			SendExcessesTo:    a.WalletAddress,
+			ForwardTonAmount:  tlb.ZeroCoins,
+			ForwardPayload:    nil,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build mint message: %w", err)
+	}
+
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     tokenAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        mintBody,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to mint liquidity to pool wallet %s: %w", poolWalletAddr.String(), err)
+	}
+	msg, err := tracetracking.MapToReceivedMessage(tx)
+	if err != nil {
+		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	err = msg.WaitForTrace(ctx, a.Client)
+	if err != nil {
+		return fmt.Errorf("failed to wait for trace of liquidity mint: %w", err)
+	}
+	exitCode, err := msg.TraceExitCodeWith(successfullJettonTransfer(a.Wallet.Address(), tokenAddr, poolWalletAddr))
+	if err != nil {
+		return fmt.Errorf("failed to get trace exit code for liquidity mint: %w", err)
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("liquidity mint failed with exit code %d; check pool wallet %s for balance", exitCode, poolWalletAddr.String())
+	}
+	// Check that the pool's jetton wallet has the expected balance.
+	tpBalance, err := tvm.CallGetterLatest(ctx, a.Client, poolWalletAddr, jettonwallet.GetWalletData)
+	if err != nil {
+		return fmt.Errorf("failed to get TokenPool jetton balance: %w", err)
+	}
+	if tpBalance.Cmp(liquidityAmount.Nano()) < 0 {
+		return fmt.Errorf("pool jetton wallet balance %s is lower than minimum liquidity amount %s", tpBalance.String(), liquidityAmount.String())
+	}
+
+	return nil
+}
+
+func successfullJettonTransfer(minterAuthority, jettonMinter, receiverWallet *address.Address) tracetracking.StopCondition {
+	return func(parent, current *tracetracking.ReceivedMessage) (bool, error) {
+		if current.InternalMsg == nil {
+			return false, nil
+		}
+		type Msg struct {
+			Src *address.Address
+			Dst *address.Address
+			Op  uint32
+		}
+		matchesMsg := func(msg Msg) bool {
+			if !current.InternalMsg.SrcAddr.Equals(msg.Src) || !current.InternalMsg.DstAddr.Equals(msg.Dst) {
+				return false
+			}
+			s := current.InternalMsg.Body.BeginParse()
+			op, err := s.LoadUInt(32)
+			if err != nil {
+				return false
+			}
+			return op == uint64(msg.Op)
+		}
+		// Flow: MinterAuthority --> Minter --> ReceiverWallet.
+		// Traverse those two hops; prune every other branch (excesses, notifications).
+		authorityToMinter := matchesMsg(Msg{
+			Src: minterAuthority,
+			Dst: jettonMinter,
+			Op:  0x642b7d07, // MintNewJettons // TODO make this depend on the Jetton implementation
+		})
+
+		minterToWallet := matchesMsg(Msg{
+			Src: jettonMinter,
+			Dst: receiverWallet,
+			Op:  0x178d4519, // InternalTransferStep // TODO make this depend on the Jetton implementation
+		})
+		return !authorityToMinter && !minterToWallet, nil
+	}
 }
 
 func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
-	return nil, errors.ErrUnsupported
+	suffix := strconv.FormatUint(a.Selector, 10) + "-" + chain_selectors.FamilyTon
+	registryAddr, err := a.GetRegistryAddress()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get registry address: %w", err)
+	}
+
+	preMintAmount := uint64(1_000_000) // pre-mint 1 million tokens
+	return &tokensapi.TokenExpansionInputPerChain{
+		TokenPoolVersion: semver.MustParse("1.6.0"),
+		DeployTokenInput: &tokensapi.DeployTokenInput{
+			Decimals:      9,
+			Symbol:        "TEST_TOKEN_" + suffix,
+			Name:          "TEST TOKEN " + suffix,
+			Type:          deployment.ContractType(bindings.ShortJettonMinter),
+			PreMint:       &preMintAmount,
+			Senders:       []string{a.WalletAddress.String()},
+			ExternalAdmin: a.WalletAddress.String(),
+			CCIPAdmin:     a.WalletAddress.String(),
+		},
+		DeployTokenPoolInput: &tokensapi.DeployTokenPoolInput{
+			PoolType:           bindings.ShortLockReleaseTokenPool,
+			TokenPoolQualifier: "TEST TOKEN POOL " + suffix,
+		},
+		TokenTransferConfig: &tokensapi.TokenTransferConfig{
+			ChainSelector: a.Selector,
+			RegistryRef: datastore.AddressRef{
+				ChainSelector: a.Selector,
+				Address:       registryAddr,
+			},
+			RemoteChains: map[uint64]tokensapi.RemoteChainConfig[*datastore.AddressRef, datastore.AddressRef]{},
+		},
+		// UpdateAuthorities is a no-op for the TON token adapter today, so skip it
+		// rather than sending a transaction that isn't backed by real behavior.
+		SkipOwnershipTransfer: true,
+	}, nil
 }
 
 func (a *TONAdapter) GetRegistryAddress() (string, error) {
-	// TODO: implement when TON token transfer support is added
-	return "", errors.ErrUnsupported
+	addr, err := a.getAddress(state.TokenAdminRegistry)
+	if err != nil {
+		return "", fmt.Errorf("failed to get TokenAdminRegistry address: %w", err)
+	}
+	return addr.String(), nil
 }
 
 func (a *TONAdapter) CurrentBlock(t *testing.T) uint64 {
@@ -501,15 +937,12 @@ func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) 
 }
 
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
-// TODO: add TokenAmounts support for TON token transfers
 func SendCCIPMessage(
 	ctx context.Context,
 	chain cldf_ton.Chain,
 	state testadapters.StateProvider,
 	sourceChain uint64,
 	msg router.CCIPSend) (uint64, any, error) {
-	senderWallet := chain.Wallet
-	senderAddr := chain.WalletAddress
 	clientConn := chain.Client
 
 	l, err := logger.New()
@@ -529,9 +962,7 @@ func SendCCIPMessage(
 	}
 	feeQuoterAddr := address.MustParseAddr(rawFeeQuoterAddr)
 
-	ccipSend := msg
-
-	ccipSendCell, err := tlb.ToCell(ccipSend)
+	ccipSendCell, err := tlb.ToCell(msg)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to convert to cell: %w", err)
 	}
@@ -539,28 +970,123 @@ func SendCCIPMessage(
 	l.Infof("Getting Fee to send CCIP request from chain selector %d to chain selector %d",
 		sourceChain, msg.DestChainSelector)
 
+	fee, err := getValidatedFee(ctx, clientConn, feeQuoterAddr, ccipSendCell)
+	if err != nil {
+		return 0, nil, err
+	}
+	l.Infof("Fee to send CCIP request: %s nano TON", fee.String())
+
+	value := big.NewInt(0).Add(fee, tlb.MustFromTON("3").Nano() /* To cover for gas */)
+
+	knownAddresses := map[string]debug.TypeAndVersion{
+		routerAddr.String():    {Type: "Router", Version: *semver.MustParse("0.0.0")},
+		feeQuoterAddr.String(): {Type: "FeeQuoter", Version: *semver.MustParse("0.0.0")},
+	}
+
+	return sendCellAndAwaitCCIPMessageSent(ctx, chain, sourceChain, routerAddr, ccipSendCell, value, knownAddresses)
+}
+
+// SendTokenTransferMessage sends a CCIP token transfer request from a TON chain. The jetton
+// AskToTransfer message is sent to the sender's own jetton wallet (msg.OwnedJettonWallet), which
+// forwards the tokens to the Router along with the CCIPSend message carried in the transfer's
+// forward payload.
+func SendTokenTransferMessage(
+	ctx context.Context,
+	chain cldf_ton.Chain,
+	state testadapters.StateProvider,
+	sourceChain uint64,
+	msg TokenTransferMessage) (uint64, any, error) {
+	clientConn := chain.Client
+
+	l, err := logger.New()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	rawFeeQuoterAddr, err := state.GetAddress("FeeQuoter")
+	if err != nil {
+		return 0, nil, err
+	}
+	feeQuoterAddr := address.MustParseAddr(rawFeeQuoterAddr)
+
+	l.Infof("Getting Fee to send CCIP token transfer from chain selector %d", sourceChain)
+
+	fee, err := getValidatedFee(ctx, clientConn, feeQuoterAddr, msg.Transfer.ForwardPayload)
+	if err != nil {
+		return 0, nil, err
+	}
+	l.Infof("Fee to send CCIP token transfer: %s nano TON", fee.String())
+
+	transferCell, err := tlb.ToCell(msg.Transfer)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to convert token transfer message to cell: %w", err)
+	}
+
+	// The attached value must cover the CCIP fee (forwarded on to the Router alongside the
+	// tokens via ForwardTonAmount) plus gas for the jetton wallet -> jetton wallet -> Router
+	// notification hops.
+	value := big.NewInt(0).Add(fee, msg.Transfer.ForwardTonAmount.Nano())
+	value = value.Add(value, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
+
+	knownAddresses := map[string]debug.TypeAndVersion{
+		msg.OwnedJettonWallet.String(): {Type: "OwnedJettonWallet", Version: *semver.MustParse("0.0.0")},
+		feeQuoterAddr.String():         {Type: "FeeQuoter", Version: *semver.MustParse("0.0.0")},
+	}
+
+	return sendCellAndAwaitCCIPMessageSent(ctx, chain, sourceChain, msg.OwnedJettonWallet, transferCell, value, knownAddresses)
+}
+
+// getValidatedFee queries the FeeQuoter for the fee (in native TON) required to send ccipSendCell.
+func getValidatedFee(ctx context.Context, clientConn ton.APIClientWrapped, feeQuoterAddr *address.Address, ccipSendCell *cell.Cell) (*big.Int, error) {
 	block, err := clientConn.CurrentMasterchainInfo(ctx)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
-	getResult, err := clientConn.RunGetMethod(ctx, block, feeQuoterAddr, "validatedFeeCell", ccipSendCell)
+	waiterClient := clientConn.WaitForBlock(block.SeqNo)
+	getResult, err := waiterClient.RunGetMethod(ctx, block, feeQuoterAddr, "validatedFeeCell", ccipSendCell)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get validatedFee: %w", err)
+		return nil, fmt.Errorf("failed to get validatedFee: %w", err)
 	}
 
 	fee, err := getResult.Int(0)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get fee: %w", err)
+		return nil, fmt.Errorf("failed to get fee: %w", err)
 	}
-	l.Infof("Fee to send CCIP request: %s nano TON", fee.String())
+	return fee, nil
+}
 
-	l.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
-		sourceChain, msg.DestChainSelector, senderAddr.String())
+// sendCellAndAwaitCCIPMessageSent sends bodyCell with the given value to dstAddr, waits for the
+// transaction trace to complete, and flattens the resulting message tree looking for the
+// onramp.CCIPMessageSent event emitted once the request reaches the OnRamp.
+func sendCellAndAwaitCCIPMessageSent(
+	ctx context.Context,
+	chain cldf_ton.Chain,
+	sourceChain uint64,
+	dstAddr *address.Address,
+	bodyCell *cell.Cell,
+	value *big.Int,
+	knownAddresses map[string]debug.TypeAndVersion,
+) (uint64, any, error) {
+	senderWallet := chain.Wallet
+	senderAddr := chain.WalletAddress
+	clientConn := chain.Client
 
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
+	l, err := logger.New()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	l.Infof("(Ton) Sending request from chain selector %d to address %s using sender %s",
+		sourceChain, dstAddr.String(), senderAddr.String())
+
+	block, err := clientConn.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+	waiterClient := clientConn.WaitForBlock(block.SeqNo)
 
 	// Check sender balance before sending
-	senderAccount, err := clientConn.GetAccount(ctx, block, senderAddr)
+	senderAccount, err := waiterClient.GetAccount(ctx, block, senderAddr)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get sender account: %w", err)
 	}
@@ -575,14 +1101,14 @@ func SendCCIPMessage(
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
 			Bounce:      false,
-			DstAddr:     routerAddr,
+			DstAddr:     dstAddr,
 			Amount:      tlb.MustFromNano(value, 9),
-			Body:        ccipSendCell,
+			Body:        bodyCell,
 		},
 	}
 
 	ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
-	receivedMsg, blockID, err := ttConn.SendWaitTransaction(ctx, *routerAddr, walletMsg)
+	receivedMsg, blockID, err := ttConn.SendWaitTransaction(ctx, *dstAddr, walletMsg)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
@@ -602,29 +1128,22 @@ func SendCCIPMessage(
 	}
 
 	// TODO: This is temporary debugging code to be removed later
-	zeroVersion := *semver.MustParse("0.0.0")
-	knownAddresses := map[string]debug.TypeAndVersion{
-		senderAddr.String(): {Type: "SenderWallet", Version: zeroVersion},
-		// state.LinkTokenAddress.String(): {Type: "LinkTokenAddress", Version: zeroVersion},
-		// state.OffRamp.String():          {Type: "OffRamp", Version: zeroVersion},
-		routerAddr.String(): {Type: "Router", Version: zeroVersion},
-		// state.OnRamp.String():           {Type: "OnRamp", Version: zeroVersion},
-		feeQuoterAddr.String(): {Type: "FeeQuoter", Version: zeroVersion},
-		// state.ReceiverAddress.String():  {Type: "ReceiverAddress", Version: zeroVersion},
-	}
+	knownAddresses[senderAddr.String()] = debug.TypeAndVersion{Type: "SenderWallet", Version: *semver.MustParse("0.0.0")}
 	l.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(receivedMsg))
 	l.Infof("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMsg))
 
-	event, err := waitForReceivedMsgFlatten(ctx, l, clientConn, receivedMsg)
+	messageID, sequenceNumber, err := waitForReceivedMsgFlatten(ctx, l, clientConn, receivedMsg)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get CCIPMessageSent from flattening received messages: %w", err)
 	}
-	return event.Message.Header.SequenceNumber, event, nil
+	return sequenceNumber, messageID, nil
 }
 
-func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSent, error) {
+// waitForReceivedMsgFlatten walks the received message tree looking for the CCIPMessageSent
+// event emitted by the OnRamp, and returns its messageID and sequence number.
+func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) ([]byte, uint64, error) {
 	if msg == nil {
-		return onramp.CCIPMessageSent{}, errors.New("received message is nil")
+		return nil, 0, errors.New("received message is nil")
 	}
 
 	// Collect all messages to process in a queue
@@ -676,17 +1195,24 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 	}
 
 	if commitMessage == nil || len(commitMessage.OutgoingExternalMessages) == 0 {
-		return onramp.CCIPMessageSent{}, errors.New("no received messages were processed")
+		return nil, 0, errors.New("no received messages were processed")
 	}
 
-	var event onramp.CCIPMessageSent
-	err := tlb.LoadFromCell(&event, commitMessage.OutgoingExternalMessages[0].Body.BeginParse())
+	extMsg := commitMessage.OutgoingExternalMessages[0]
+	topic, err := tonevent.NewExtOutLogBucket(extMsg.DstAddr).DecodeEventTopic()
 	if err != nil {
-		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
-		return onramp.CCIPMessageSent{}, err
+		return nil, 0, fmt.Errorf("failed to decode event topic: %w", err)
 	}
 
-	return event, nil
+	if topic != cciplibonramp.TopicCCIPMessageSent {
+		return nil, 0, fmt.Errorf("unexpected event topic %#x for CCIPMessageSent", topic)
+	}
+	var event onramp.CCIPMessageSent
+	if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
+		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
+		return nil, 0, err
+	}
+	return event.Message.Header.MessageID, event.Message.Header.SequenceNumber, nil
 }
 
 var (

@@ -18,10 +18,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
@@ -251,6 +251,20 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 		totalCost, err1 := baseCost.Add(&executeReport.Message.GasLimit)
 		if err1 != nil {
 			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err1)
+		}
+		if len(executeReport.Message.TokenAmounts) > 0 {
+			baseTokenTransferCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTONTokenTransfer))
+
+			for _, tokenAmount := range executeReport.Message.TokenAmounts {
+				totalCost, err1 = totalCost.Add(&baseTokenTransferCost)
+				if err1 != nil {
+					return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add token transfer cost to total cost: %w", err1)
+				}
+				totalCost, err1 = totalCost.Add(tokenAmount.DestGasAmount)
+				if err1 != nil {
+					return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add token gas amount to total cost: %w", err1)
+				}
+			}
 		}
 
 		return txID, totalCost, &executeReport.Message.GasLimit, nil

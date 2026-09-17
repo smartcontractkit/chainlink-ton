@@ -15,8 +15,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	// TODO: These imports should be removed and injected via options/factories
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
@@ -27,7 +27,7 @@ import (
 var ErrUnsupportedSample = errors.New("unsupported sample generation")
 
 const (
-	defaultMaxDepth           = 6
+	defaultMaxDepth           = 12
 	defaultMaxCollectionItems = 2
 	defaultPointerNilProb     = 0.15
 )
@@ -206,10 +206,6 @@ func (g *Generator) Generate(proto any) (any, error) {
 }
 
 func (g *Generator) buildValue(t reflect.Type, field *reflect.StructField, visited map[reflect.Type]int, depth int) (reflect.Value, error) {
-	if depth > g.maxDepth {
-		return reflect.Zero(t), fmt.Errorf("%w: depth limit reached for %s", ErrUnsupportedSample, t)
-	}
-
 	ctx := &Context{Generator: g, Type: t, Field: field, Depth: depth}
 	if field != nil {
 		ctx.Tag = parseTLBTag(field.Tag.Get("tlb"))
@@ -217,6 +213,10 @@ func (g *Generator) buildValue(t reflect.Type, field *reflect.StructField, visit
 
 	if factory, ok := g.custom[t]; ok {
 		return factory(ctx)
+	}
+
+	if depth > g.maxDepth {
+		return reflect.Zero(t), fmt.Errorf("%w: depth limit reached for %s", ErrUnsupportedSample, t)
 	}
 
 	switch t.Kind() {

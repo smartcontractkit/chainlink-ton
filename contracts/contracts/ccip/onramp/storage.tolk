@@ -7,17 +7,11 @@ struct OnRamp_Storage {
     ownable: Ownable2Step;
 
     // static config
-    chainSelector: uint64; // source chain selector
-
+    staticConfig: Cell<OnRamp_StaticConfig>;
     // dynamic config
     config: Cell<OnRamp_DynamicConfig>;
 
-    destChainConfigs: map<uint64, OnRamp_DestChainConfig>; // chainSelector -> DestChainConfig
-    executor: ExecutorDeployment;
-
-    // Address of the TokenRegistry queried by the CCIPSendExecutor during token transfers.
-    // Null until token transfers are configured. TODO: replace with per-token registry resolution.
-    tokenRegistry: address?;
+    destChainConfigs: map<uint64, OnRamp_DestChainConfig> = []; // chainSelector -> DestChainConfig
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

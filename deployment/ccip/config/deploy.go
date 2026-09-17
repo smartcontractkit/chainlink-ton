@@ -13,11 +13,12 @@ import (
 type TokenSymbol string
 
 type ChainContractParams struct {
-	FeeQuoterParams FeeQuoterParams
-	OffRampParams   OffRampParams
-	OnRampParams    OnRampParams
-	RouterParams    RouterParams
-	ReceiverParams  ReceiverParams
+	FeeQuoterParams          FeeQuoterParams
+	OffRampParams            OffRampParams
+	OnRampParams             OnRampParams
+	RouterParams             RouterParams
+	ReceiverParams           ReceiverParams
+	TokenAdminRegistryParams TokenAdminRegistryParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -36,6 +37,9 @@ func (c ChainContractParams) Validate() error {
 	}
 	if err := c.ReceiverParams.Validate(); err != nil {
 		return fmt.Errorf("invalid ReceiverParams: %w", err)
+	}
+	if err := c.TokenAdminRegistryParams.Validate(); err != nil {
+		return fmt.Errorf("invalid TokenAdminRegistryParams: %w", err)
 	}
 	return nil
 }
@@ -115,6 +119,16 @@ type ReceiverParams struct {
 }
 
 func (r ReceiverParams) Validate() error {
+	// No specific validation for now
+	return nil
+}
+
+type TokenAdminRegistryParams struct {
+	ID   uint32
+	Coin string
+}
+
+func (t TokenAdminRegistryParams) Validate() error {
 	// No specific validation for now
 	return nil
 }

@@ -29,8 +29,9 @@ export enum Errors {
   NoSigners,
 }
 
-export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
-export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
+// TODO bigints
+export const OCR3_PLUGIN_TYPE_COMMIT = BigInt(0x0000)
+export const OCR3_PLUGIN_TYPE_EXECUTE = BigInt(0x0001)
 
 export const opcodes = {
   in: {

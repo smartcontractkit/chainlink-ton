@@ -1,7 +1,8 @@
-import { Cell } from '@ton/core'
-import { CellCodec } from '../../wrappers/utils'
-import * as jetton from '../../wrappers/jetton/JettonWallet'
-import * as rt from '../../wrappers/ccip/Router'
+import { Cell, Slice } from '@ton/core'
+import * as manualJettonWallet from '../../wrappers/jetton/JettonWallet'
+import * as jetton from '../../wrappers/gen/ccip/cct/JettonWallet'
+import * as rt from '../../wrappers/gen/ccip/Router'
+import { CellCodec } from '../../wrappers/gen'
 
 export function verifyBodyMessage<T>(
   body: Cell | undefined,
@@ -15,7 +16,7 @@ export function verifyBodyMessage<T>(
 
   let message: T
   try {
-    message = codec.load(body.beginParse())
+    message = codec.fromSlice(body.beginParse())
   } catch (e) {
     console.log('Failed to parse message body:', e)
     return false
@@ -27,20 +28,22 @@ export function verifyBodyMessage<T>(
 export function verifyBodyIsTransferRequest(
   body: Cell | undefined,
   options: {
-    transferRequestValidation?: (request: jetton.AskToTransfer) => boolean
+    transferRequestValidation?: (request: manualJettonWallet.AskToTransfer) => boolean
   } = {},
 ): boolean {
   const { transferRequestValidation } = options
   const validations = transferRequestValidation ? [transferRequestValidation] : []
 
-  return verifyBodyMessage(body, jetton.builder.messages.in.askToTransfer, validations)
+  return verifyBodyMessage(body, manualJettonWallet.builder.messages.in.askToTransfer, validations)
 }
 
 export function verifyBodyIsTransferRequestWithFwdPayload<T>(
   body: Cell | undefined,
   payloadCodec: CellCodec<T>,
   options: {
-    transferRequestValidation?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
+    transferRequestValidation?: (
+      request: manualJettonWallet.AskToTransferWithFwdPayload<T>,
+    ) => boolean
     fwdPayloadValidation?: (payload: T) => boolean
   } = {},
 ): boolean {
@@ -50,7 +53,7 @@ export function verifyBodyIsTransferRequestWithFwdPayload<T>(
     ...(transferRequestValidation ? [transferRequestValidation] : []),
     ...(fwdPayloadValidation
       ? [
-          (request: jetton.AskToTransferWithFwdPayload<T>) =>
+          (request: manualJettonWallet.AskToTransferWithFwdPayload<T>) =>
             fwdPayloadValidation(request.forwardPayload),
         ]
       : []),
@@ -58,7 +61,7 @@ export function verifyBodyIsTransferRequestWithFwdPayload<T>(
 
   return verifyBodyMessage(
     body,
-    jetton.builder.messages.in.askToTransferWithFwdPayload(payloadCodec),
+    manualJettonWallet.builder.messages.in.askToTransferWithFwdPayload<T>(payloadCodec),
     validations,
   )
 }
@@ -74,11 +77,7 @@ export function verifyBodyIsTransferNotification(
   const { transferNotificationValidaton } = options
   const validations = transferNotificationValidaton ? [transferNotificationValidaton] : []
 
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.out.transferNotificationForRecipient,
-    validations,
-  )
+  return verifyBodyMessage(body, jetton.TransferNotificationForRecipient, validations)
 }
 
 export function verifyBodyIsTransferNotificationWithFwdPayload<T>(
@@ -86,7 +85,7 @@ export function verifyBodyIsTransferNotificationWithFwdPayload<T>(
   payloadCodec: CellCodec<T>,
   options: {
     transferNotificationValidaton?: (
-      notification: jetton.TransferNotificationWithFwdPayload<T>,
+      notification: manualJettonWallet.TransferNotificationWithFwdPayload<T>,
     ) => boolean
     fwdPayloadValidation?: (payload: T) => boolean
   } = {},
@@ -97,7 +96,7 @@ export function verifyBodyIsTransferNotificationWithFwdPayload<T>(
     ...(transferNotificationValidaton ? [transferNotificationValidaton] : []),
     ...(fwdPayloadValidation
       ? [
-          (notification: jetton.TransferNotificationWithFwdPayload<T>) =>
+          (notification: manualJettonWallet.TransferNotificationWithFwdPayload<T>) =>
             fwdPayloadValidation(notification.forwardPayload),
         ]
       : []),
@@ -105,7 +104,7 @@ export function verifyBodyIsTransferNotificationWithFwdPayload<T>(
 
   return verifyBodyMessage(
     body,
-    jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
+    manualJettonWallet.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
     validations,
   )
 }
@@ -113,23 +112,23 @@ export function verifyBodyIsTransferNotificationWithFwdPayload<T>(
 export function verifyBodyIsRouterMessageSent(
   body: Cell | undefined,
   options: {
-    validation?: (ack: rt.MessageSent) => boolean
+    validation?: (ack: rt.Router_MessageSent) => boolean
   } = {},
 ): boolean {
   const { validation } = options
   const validations = validation ? [validation] : []
 
-  return verifyBodyMessage(body, rt.builder.message.in.messageSent, validations)
+  return verifyBodyMessage(body, rt.Router_MessageSent, validations)
 }
 
 export function verifyBodyIsRouterCCIPSendACK(
   body: Cell | undefined,
   options: {
-    validation?: (ack: rt.CCIPSendACK) => boolean
+    validation?: (ack: rt.Router_CCIPSendACK) => boolean
   } = {},
 ): boolean {
   const { validation } = options
   const validations = validation ? [validation] : []
 
-  return verifyBodyMessage(body, rt.builder.message.out.ccipSendACK, validations)
+  return verifyBodyMessage(body, rt.Router_CCIPSendACK, validations)
 }

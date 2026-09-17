@@ -8,8 +8,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	jetton_common "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/jetton"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var TLBs = wallet.TLBs

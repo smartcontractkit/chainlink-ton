@@ -3,14 +3,10 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
-import * as rt from '../../../wrappers/ccip/Router'
-import * as of from '../../../wrappers/ccip/OffRamp'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  contractsCoverageConfig,
-  genExecID,
-} from './Router.Setup'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -47,12 +43,12 @@ describe('Router', () => {
   })
 
   it('should handle ccipReceiveConfirm', async () => {
-    const execID = genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 1n })
-    const result = await router.sendCCIPReceiveConfirm(receiver.getSender(), {
-      value: toNano('1'),
-      body: {
-        execID,
-      },
+    const execID = genExecID({
+      sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      messageID: 1n,
+    })
+    const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
+      execId: execID,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -65,32 +61,29 @@ describe('Router', () => {
       from: router.address,
       to: offRamp.address,
       success: true,
-      op: of.opcodes.in.ccipReceiveConfirm,
+      op: of.OffRamp_CCIPReceiveConfirm.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = of.builder.messages.in.ccipReceiveConfirm.load(x.beginParse())
-        return decoded.execID === execID
+        const decoded = of.OffRamp_CCIPReceiveConfirm.fromSlice(x.beginParse())
+        return decoded.execId === execID
       },
     })
   })
 
   it('should throw on ccipReceiveConfirm with execID with invalid source chain', async () => {
     const execID = genExecID({
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
+      sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
       messageID: 1n,
     })
-    const result = await router.sendCCIPReceiveConfirm(receiver.getSender(), {
-      value: toNano('1'),
-      body: {
-        execID,
-      },
+    const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
+      execId: execID,
     })
 
     expect(result.transactions).toHaveTransaction({
       from: receiver.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.SourceChainNotEnabled,
+      exitCode: rt.Router.Errors['Router_Error.SourceChainNotEnabled'],
     })
   })
 

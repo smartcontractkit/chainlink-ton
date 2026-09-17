@@ -5,17 +5,15 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 // CCIPSend Executor opcodes
 const (
-	OpcodeCCIPSendExecutorExecute   = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
-	OpcodeCCIPSendExecutorExecuteV2 = 0x09BBEB9E // crc32('CCIPSendExecutor_ExecuteV2')
+	OpcodeCCIPSendExecutorExecute = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -40,26 +38,16 @@ const (
 	ErrorFeeQuoterBounce
 )
 
-// CCIPSendExecutor_Execute message structure
-//
-// Deprecated: superseded by ExecuteV2 (kept for backwards compatibility during the
-// token-transfer rollout). Its config (Config) has no tokenRegistry.
+// CCIPSendExecutor_Execute message structure.
 type Execute struct {
-	_          tlb.Magic   `tlb:"#AF3C62B3" json:"-"` //nolint:revive // Ignore opcode tag
-	OnRampSend onramp.Send `tlb:"."`
-	Config     *cell.Cell  `tlb:"^"`
-}
-
-// CCIPSendExecutor_ExecuteV2 message structure. Carries a ConfigV2 that may include a tokenRegistry.
-type ExecuteV2 struct {
-	_          tlb.Magic   `tlb:"#09BBEB9E" json:"-"` //nolint:revive // Ignore opcode tag
-	OnRampSend onramp.Send `tlb:"."`
-	Config     *cell.Cell  `tlb:"^"`
+	_             tlb.Magic        `tlb:"#AF3C62B3" json:"-"` //nolint:revive // Ignore opcode tag
+	OnRampSend    onramp.Send      `tlb:"."`
+	TokenRegistry *address.Address `tlb:"addr"`
+	Config        Config           `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	Execute{},
-	ExecuteV2{},
 }).MustWithStorageType(InitialData{})
 
 // Metadata structure
@@ -69,17 +57,9 @@ type Metadata struct {
 }
 
 // CCIPSendExecutor_Config structure.
-//
-// Deprecated: used by the V1 Execute message. Use ConfigV2 (carries tokenRegistry) with ExecuteV2.
 type Config struct {
+	Router    *address.Address `tlb:"addr"`
 	FeeQuoter *address.Address `tlb:"addr"`
-}
-
-// CCIPSendExecutor_ConfigV2 structure, used by ExecuteV2.
-type ConfigV2 struct {
-	FeeQuoter *address.Address `tlb:"addr"`
-	// Optional (address?): addr_none when the send carries no token transfers.
-	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 // Initial data structure for CCIPSend Executor
@@ -91,9 +71,10 @@ type InitialData struct {
 // Addresses structure
 type Addresses struct {
 	OnRamp    *address.Address `tlb:"addr"`
+	Router    *address.Address `tlb:"addr"`
 	FeeQuoter *address.Address `tlb:"addr"`
 	// Optional (address?): addr_none when the send carries no token transfers.
-	TokenRegistry *address.Address `tlb:"addr"`
+	TokenRegistry *address.Address `tlb:"maybe ^"`
 }
 
 // State structures

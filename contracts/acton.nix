@@ -7,10 +7,6 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: let
         target = "aarch64-apple-darwin";
         hash = "sha256-RLD82Sjxlq6bp+sIjorFGxVek/4lBIhFO1lCfD1jwhY=";
       };
-      x86_64-darwin = {
-        target = "x86_64-apple-darwin";
-        hash = "sha256-HxpJyiHYYMbqKWUZNuLd3lIBRO31Kyo8pyLeHWNH82Q=";
-      };
       aarch64-linux = {
         target = "aarch64-unknown-linux-gnu";
         hash = "sha256-kJ7tT5Bv/FntBih+lBECwEyzkiodfoRBR4pUYws5tXM=";
@@ -35,6 +31,14 @@ in {
 
   sourceRoot = ".";
 
+  # Acton is distributed as a dynamically linked Linux binary. Patch its ELF
+  # interpreter and provide the runtime libraries expected in the Nix store.
+  nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.autoPatchelfHook;
+  buildInputs = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    pkgs.stdenv.cc.cc.lib
+    pkgs.openssl
+  ];
+
   installPhase = ''
     runHook preInstall
     install -Dm755 acton $out/bin/acton
@@ -46,6 +50,6 @@ in {
     homepage = "https://ton-blockchain.github.io/acton";
     license = with licenses; [mit asl20];
     mainProgram = "acton";
-    platforms = ["aarch64-darwin" "x86_64-darwin" "aarch64-linux" "x86_64-linux"];
+    platforms = ["aarch64-darwin" "aarch64-linux" "x86_64-linux"];
   };
 })

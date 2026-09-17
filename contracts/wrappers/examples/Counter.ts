@@ -183,7 +183,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
   }
 
   // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<[Slice, Slice]> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
 

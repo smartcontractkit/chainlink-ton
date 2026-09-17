@@ -21,12 +21,12 @@ import (
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	toncommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	cs "github.com/smartcontractkit/chainlink-ton/deployment/pkg/changesets"
@@ -145,7 +145,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify timelock is initialized
-	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
+	isInitializedResponse, err := chain.Client.WaitForBlock(mc.SeqNo).RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
 	require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify timelock is still initialized
-	isInitializedResponse, err = chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
+	isInitializedResponse, err = chain.Client.WaitForBlock(mc.SeqNo).RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err = isInitializedResponse.Int(0)
 	require.NoError(t, err)

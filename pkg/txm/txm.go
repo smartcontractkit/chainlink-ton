@@ -21,10 +21,10 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
@@ -172,7 +172,7 @@ func (t *Txm) Enqueue(request Request) error {
 		if err != nil {
 			return fmt.Errorf("RPC error: failed to get current masterchain info: %w", err)
 		}
-		transmitterAccount, err := client.Client.GetAccount(ctx, block, client.Wallet.WalletAddress())
+		transmitterAccount, err := client.Client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, client.Wallet.WalletAddress())
 		if err != nil {
 			return fmt.Errorf("RPC error: failed to get transmitter account info: %w", err)
 		}

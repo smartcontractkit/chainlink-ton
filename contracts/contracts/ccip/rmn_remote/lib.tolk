@@ -3,7 +3,7 @@
 const RMNREMOTE_GLOBAL_CURSE_SUBJECT =  0x01000000000000000000000000000001
 
 struct CursedSubjects {
-    data: map<uint128, ()>;
+    data: map<uint128, ()> = [];
 }
 
 fun CursedSubjects.curse(mutate self, subject: uint128) {
