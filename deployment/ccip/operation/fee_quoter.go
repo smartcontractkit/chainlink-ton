@@ -49,24 +49,41 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, dp *dep.DependencyProvider, i
 	}
 
 	addEntries := make(map[common.AddressWrap]feequoter.FeeToken, len(in.FeeTokens))
+	// Canonicalize by raw address (workchain:hashdata) so that equivalent textual
+	// forms (e.g. bounceable EQ and non-bounceable UQ) collapse to a single key.
+	// AddressWrap holds *address.Address which compares by pointer identity, so
+	// without canonicalization two forms of the same address would produce
+	// duplicate 267-bit dictionary keys on serialization.
+	addSeen := make(map[string]struct{}, len(in.FeeTokens))
 	for token, update := range in.FeeTokens {
 		//nolint:govet // allow shadowing
 		tokenAddress, err := address.ParseAddr(token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse token address: %w", err)
 		}
+		canonical := tokenAddress.StringRaw()
+		if _, dup := addSeen[canonical]; dup {
+			return nil, fmt.Errorf("duplicate fee token address %q (canonical %s)", token, canonical)
+		}
+		addSeen[canonical] = struct{}{}
 		addEntries[common.AddressWrap{Val: tokenAddress}] = feequoter.FeeToken{
 			PremiumMultiplierWeiPerEth: update.PremiumMultiplierWeiPerEth,
 		}
 	}
 
 	remove := make(common.SnakedCell[common.AddressWrap], 0, len(in.Remove))
+	removeSeen := make(map[string]struct{}, len(in.Remove))
 	for _, addrStr := range in.Remove {
 		//nolint:govet // allow shadowing
 		tokenAddress, err := address.ParseAddr(addrStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse remove address %q: %w", addrStr, err)
 		}
+		canonical := tokenAddress.StringRaw()
+		if _, dup := removeSeen[canonical]; dup {
+			continue // skip duplicate remove entry
+		}
+		removeSeen[canonical] = struct{}{}
 		remove = append(remove, common.AddressWrap{Val: tokenAddress})
 	}
 
