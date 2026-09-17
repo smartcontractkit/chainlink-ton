@@ -9,11 +9,11 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
@@ -218,8 +218,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
-		Reports:     reports,
-		DataStore:   dataStore,
+		Reports:   reports,
+		DataStore: dataStore,
+		//nolint:staticcheck // Required for CLD backward compatibility until all consumers use DataStore.
 		AddressBook: ab,
 	}, nil
 }

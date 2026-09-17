@@ -3,15 +3,16 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 describe('OnRamp - WithdrawFeeTokens', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
-  let config: or.DynamicConfig
+  let config: or.OnRamp_DynamicConfig
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -35,7 +36,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     const balanceBefore = (await blockchain.getContract(onramp.address)).balance
     expect(balanceBefore).toBeGreaterThan(reserve)
 
-    const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
+    const result = await onramp.sendOnRampWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
       feeTokens: [],
     })
 
@@ -59,7 +60,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
   })
 
   it('should fail to withdraw non empty fee tokens', async () => {
-    const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
+    const result = await onramp.sendOnRampWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
       feeTokens: [WRAPPED_NATIVE],
     })
 
@@ -67,12 +68,12 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       from: deployer.address,
       to: onramp.address,
       success: false,
-      exitCode: or.Errors.UnknownToken,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.UnknownToken'],
     })
   })
 
   it('should fail to withdraw fee tokens with low msg value', async () => {
-    const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.01'), {
+    const result = await onramp.sendOnRampWithdrawFeeTokens(deployer.getSender(), toNano('0.01'), {
       feeTokens: [],
     })
 
@@ -80,7 +81,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       from: deployer.address,
       to: onramp.address,
       success: false,
-      exitCode: or.Errors.InsufficientValue,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.InsufficientValue'],
     })
   })
 
@@ -88,14 +89,11 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     // First, update reserve to be higher than balance
     {
       const balance = (await blockchain.getContract(onramp.address)).balance
-      const result = await onramp.sendSetDynamicConfig(deployer.getSender(), {
-        value: toNano('0.1'),
-        body: {
-          config: {
-            ...config,
-            reserve: balance + toNano('1'),
-          },
-        },
+      const result = await onramp.sendOnRampSetDynamicConfig(deployer.getSender(), toNano('0.1'), {
+        config: or.OnRamp_DynamicConfig.create({
+          ...config,
+          reserve: balance + toNano('1'),
+        }),
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -109,7 +107,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     expect(prevBalance).toBeLessThan(reserve + withdrawalFeeTokensMsgValue) // Ensure balance is lower than reserve + msg value
 
     // Now, try to withdraw again, which should fail
-    const result = await onramp.sendWithdrawFeeTokens(
+    const result = await onramp.sendOnRampWithdrawFeeTokens(
       deployer.getSender(),
       withdrawalFeeTokensMsgValue,
       {
@@ -154,7 +152,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_withdraw_fee_tokens', [
         {
-          code: await or.OnRamp.code(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])

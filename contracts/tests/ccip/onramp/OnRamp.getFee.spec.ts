@@ -3,16 +3,13 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import { CHAINSEL_EVM_TEST_90000002, deployOnRampContract, setup } from './OnRamp.Setup'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import { contractCode } from '../../../wrappers/codeLoader'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
+import { setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
+import { ChainSelectors } from '../../utils/Selectors'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 describe('OnRamp - Get Fee', () => {
   let blockchain: Blockchain
@@ -21,21 +18,18 @@ describe('OnRamp - Get Fee', () => {
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
 
-  const ccipSend: rt.CCIPSend = {
-    queryID: 1,
-    destChainSelector: CHAINSEL_EVM_TEST_90000002,
+  const ccipSend = or.Router_CCIPSend.create({
+    queryID: 1n,
+    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
     feeToken: WRAPPED_NATIVE,
-    extraArgs: rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      })
-      .asCell(),
-  }
+    extraArgs: or.GenericExtraArgsV2.create({
+      gasLimit: 100n,
+      allowOutOfOrderExecution: true,
+    }),
+  })
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -64,27 +58,32 @@ describe('OnRamp - Get Fee', () => {
     // 2. get fee quoter address from onramp <=
     // 3. get validated fee from fee quoter
 
-    const queriedFeeQuoter = await onramp.getFeeQuoter(CHAINSEL_EVM_TEST_90000002) // We don't validate chain selector here yet. We might enable different fee quoters per chain later.
+    const queriedFeeQuoter = await onramp.getFeeQuoter(
+      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
+    ) // We don't validate chain selector here yet. We might enable different fee quoters per chain later.
     expect(queriedFeeQuoter).toEqual(mockFeeQuoter.address)
   })
 
   it('should forward get fee to fee quoter', async () => {
-    const result = await onramp.sendGetValidatedFee(mockRouter.getSender(), {
-      value: toNano('0.5'),
-      msg: ccipSend,
-      context: beginCell().storeUint(42, 32).endCell(), // arbitrary context
-    })
+    const result = await onramp.sendOnRampGetValidatedFeeAny(
+      mockRouter.getSender(),
+      toNano('0.5'),
+      or.OnRamp_GetValidatedFee.create({
+        ccipSend,
+        context: beginCell().storeUint(42, 32).asSlice(), // arbitrary context
+      }),
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.getValidatedFee,
+      op: or.OnRamp_GetValidatedFee.PREFIX,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockFeeQuoter.address,
-      op: fq.opcodes.in.getValidatedFee,
+      op: fq.FeeQuoter_GetValidatedFee.PREFIX,
     })
 
     const tx = result.transactions.find(
@@ -105,97 +104,103 @@ describe('OnRamp - Get Fee', () => {
     if (outMsg.info.type !== 'internal') {
       throw new Error('Unexpected message type')
     }
-    expect(outMsg.body.beginParse().loadUint(32)).toBe(fq.opcodes.in.getValidatedFee)
-    const decoded = fq.builder.message.in.getValidatedFee.load(outMsg.body.beginParse())
-    expect(decoded.msg).toEqual(ccipSend)
+    const body = outMsg.body.beginParse()
+    expect(body.loadUint(32)).toBe(fq.FeeQuoter_GetValidatedFee.PREFIX)
+    const decoded = fq.Router_CCIPSend.fromSlice(body.loadRef().beginParse())
+    expect(decoded.queryID).toBe(ccipSend.queryID)
+    expect(decoded.destChainSelector).toBe(ccipSend.destChainSelector)
+    expect(decoded.feeToken).toEqual(ccipSend.feeToken)
   })
 
   it('should throw error if message validated comes from non-feequoter', async () => {
     const anotherSender = await blockchain.treasury('anotherSender')
-    const result = await onramp.sendMessageValidated(anotherSender.getSender(), {
-      value: toNano('0.5'),
-      body: {
-        fee: {
+    const result = await onramp.sendFeeQuoterMessageValidatedToOnRamp(
+      anotherSender.getSender(),
+      toNano('0.5'),
+      or.FeeQuoter_MessageValidated.create({
+        fee: or.Fee.create({
           feeTokenAmount: 123456n,
           feeValueJuels: 12345n,
-        },
+        }),
         msg: ccipSend,
-        context: {
+        context: or.OnRamp_GetValidatedFeeContext.create({
           onrampContext: mockRouter.address,
           userContext: beginCell().storeUint(42, 32).asSlice(), // arbitrary context
-        },
-      },
-    })
+        }),
+      }),
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: anotherSender.address,
       to: onramp.address,
       success: false,
-      op: or.opcodes.in.messageValidated,
-      exitCode: or.Errors.Unauthorized,
+      op: or.FeeQuoter_MessageValidated.PREFIX,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.Unauthorized'],
     })
   })
 
   it('should forward message validated', async () => {
-    const result = await onramp.sendMessageValidated(mockFeeQuoter.getSender(), {
-      value: toNano('0.5'),
-      body: {
-        fee: {
+    const result = await onramp.sendFeeQuoterMessageValidatedToOnRamp(
+      mockFeeQuoter.getSender(),
+      toNano('0.5'),
+      or.FeeQuoter_MessageValidated.create({
+        fee: or.Fee.create({
           feeTokenAmount: 123456n,
           feeValueJuels: 12345n,
-        },
+        }),
         msg: ccipSend,
-        context: {
+        context: or.OnRamp_GetValidatedFeeContext.create({
           onrampContext: mockRouter.address,
           userContext: beginCell().storeUint(42, 32).asSlice(), // arbitrary context
-        },
-      },
-    })
+        }),
+      }),
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: mockFeeQuoter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.messageValidated,
+      op: or.FeeQuoter_MessageValidated.PREFIX,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockRouter.address,
-      op: or.opcodes.out.messageValidated,
+      op: or.OnRamp_MessageValidated.PREFIX,
     })
   })
 
   it('should forward message validation failed', async () => {
-    const validationFailedMsg = {
+    const validationFailedMsg = or.FeeQuoter_MessageValidationFailed.create({
       error: 123n,
       msg: ccipSend,
-      context: {
+      context: or.OnRamp_GetValidatedFeeContext.create({
         onrampContext: mockRouter.address,
         userContext: beginCell().storeUint(42, 32).asSlice(),
-      },
-    }
-    const result = await onramp.sendMessageValidationFailed(mockFeeQuoter.getSender(), {
-      value: toNano('0.5'),
-      body: validationFailedMsg,
+      }),
     })
+    const result = await onramp.sendFeeQuoterMessageValidationFailedToOnRamp(
+      mockFeeQuoter.getSender(),
+      toNano('0.5'),
+      validationFailedMsg,
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: mockFeeQuoter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.messageValidationFailed,
+      op: or.FeeQuoter_MessageValidationFailed.PREFIX,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockRouter.address,
-      op: or.opcodes.out.messageValidationFailed,
-      body: or.builder.messages.out.messageValidationFailed
-        .encode({
-          error: validationFailedMsg.error,
-          msg: validationFailedMsg.msg,
-          context: validationFailedMsg.context.userContext,
-        })
-        .asCell(),
+      op: or.OnRamp_MessageValidationFailed.PREFIX,
+      body: (body) => {
+        if (!body) return false
+        const decoded = or.OnRamp_MessageValidationFailed_Any.fromSlice(body.beginParse())
+        return (
+          decoded.error === validationFailedMsg.error && decoded.msg.queryID === ccipSend.queryID
+        )
+      },
     })
   })
 
@@ -203,7 +208,7 @@ describe('OnRamp - Get Fee', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_get_fee', [
         {
-          code: await onramp.getCode(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])

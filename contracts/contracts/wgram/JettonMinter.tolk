@@ -1,6 +1,26 @@
 // SPDX-License-Identifier: MIT
 tolk 1.4.1
 
+// DISCLAIMER
+//
+// This code represents an example of using a Chainlink product or service, and is intended for
+// demonstration and educational purposes only. It is provided “AS IS” and “AS AVAILABLE” without
+// warranties of any kind, has not been audited, and may omit checks or error handling. Each party
+// intending to use this example code does so entirely at their own risk and must perform its own
+// audits, security and code review, key management, and testing before any production deployment
+// and ensure the operation and performance of such code matches expectations. Neither Chainlink
+// Labs nor the Chainlink Foundation deploys, operates, monitors, maintains or endorses any
+// deployment of this code. Note that this is not a Chainlink product, feature or service, and
+// there are no commitments made with respect to the code, including compatibility with future
+// Chainlink releases. You should not rely on this code without first conducting your own
+// technical, engineering, and security review. This code is also outside the scope of any
+// Chainlink bug bounty programs. Neither Chainlink Labs, the Chainlink Foundation, nor Chainlink
+// node operators are responsible for outcomes due to errors in this example or how it is deployed
+// or operated, or liable for any resulting claims or damages. Use of the Chainlink Network is
+// subject to the Chainlink Foundation Terms of Service (https://chain.link/terms), which provides
+// important information and disclosures. By using this code, you acknowledge and agree to these
+// terms.
+
 import "@stdlib/strings"
 import "@stdlib/gas-payments"
 import "../lib/jetton/errors"

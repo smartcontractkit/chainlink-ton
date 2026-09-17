@@ -5,9 +5,10 @@ import (
 	"math/big"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	evm_fee_quoter "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 
-	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 )
 
 const (
@@ -24,6 +25,10 @@ const (
 	SVMFamilySelector   uint32 = 0x1e10bdc4
 	AptosFamilySelector uint32 = 0xac77ffec
 	TVMFamilySelector   uint32 = 0x647e2ba9
+
+	// DefaultTokenDestGasOverheadTON is the minimum nanoTON budget we must send
+	// for Any2TON token transfers so OffRamp.onReleaseOrMint does not reject them.
+	DefaultTokenDestGasOverheadTON uint32 = 250_000_000
 )
 
 // ConnectionConfig defines how a chain should connect with other chains.

@@ -251,10 +251,11 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 	bundle := operations.NewBundle(t.Context, b.Logger, rptr, opts...)
 
 	env := cldf.Environment{
-		GetContext:        t.Context,
-		Logger:            b.Logger,
-		BlockChains:       blockchains,
-		DataStore:         datastore.NewMemoryDataStore().Seal(),
+		GetContext:  t.Context,
+		Logger:      b.Logger,
+		BlockChains: blockchains,
+		DataStore:   datastore.NewMemoryDataStore().Seal(),
+		//nolint:staticcheck // Required for compatibility
 		ExistingAddresses: cldf.NewMemoryAddressBook(),
 		OperationsBundle:  bundle,
 	}

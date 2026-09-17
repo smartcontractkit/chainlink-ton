@@ -1,0 +1,881 @@
+import '@ton/test-utils'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
+import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
+import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
+import {
+  Ownable2Step,
+  CrossChainAddress,
+  CursedSubjects,
+  RateLimiter_Config,
+  TokenPool,
+  TokenPool_Data,
+  TokenPool_AdminConfig,
+  TokenPool_RampUpdate,
+  TokenPool_RateLimitConfigPair,
+  TokenPool_ChainUpdate,
+  TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnFailure,
+  TokenPool_LockOrBurnInV1,
+  TokenPool_LockOrBurnFinished,
+  TokenPool_LockOrBurnForwardPayload,
+  TokenPool_LockOrBurnPrepared,
+  TokenPool_LockOrBurnOutV1,
+  TokenPool_ReleaseOrMintInV1,
+  TokenPool_ReleaseOrMintFinished,
+  TokenPool_MirroredPolicy,
+  TokenPool_DynamicConfig,
+  TokenPool_Transfer,
+  TokenPool_TransferDetails,
+  TokenPool_TokenTransferFeeConfig,
+  TokenPool_TokenTransferFeeConfigArgs,
+} from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMinter'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
+import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { contractCode } from '../../../wrappers/codeLoader'
+import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
+
+// Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
+// from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
+function buildForgedCCTReturnExcessesBack(poolAddress: Address): Cell {
+  return CCT_ReturnExcessesBack.toCell(
+    CCT_ReturnExcessesBack.create({
+      queryId: 999n,
+      initiator: poolAddress,
+      forwardPayload: beginCell().storeUint(0xba302a47, 32).endCell(),
+    }),
+  )
+}
+
+describe('BurnMintTokenPool', () => {
+  let blockchain: Blockchain
+  let deployer: SandboxContract<TreasuryContract>
+  let offRamp: SandboxContract<TreasuryContract>
+  let unauthorized: SandboxContract<TreasuryContract>
+  let recipient: SandboxContract<TreasuryContract>
+
+  let cctMinter: SandboxContract<cct.JettonMinter>
+  let cctMinterRuntime: SandboxContract<JettonMinter>
+  let burnMintPool: SandboxContract<BurnMintTokenPool>
+  let pool: SandboxContract<TokenPool>
+  let cctWalletCode: Cell
+
+  let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
+
+  const remoteChainSelector = 91000001n
+
+  let sourcePoolAddress: CrossChainAddress
+  let destTokenAddress: CrossChainAddress
+  let receiverAddress: CrossChainAddress
+
+  beforeAll(async () => {
+    sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
+    destTokenAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('dest-token'))
+    receiverAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('receiver'))
+  })
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create()
+    deployer = await blockchain.treasury('deployer')
+    offRamp = await blockchain.treasury('offramp')
+    unauthorized = await blockchain.treasury('unauthorized')
+    recipient = await blockchain.treasury('recipient')
+
+    cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
+    const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
+    const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
+
+    cctMinter = blockchain.openContract(
+      cct.JettonMinter.fromStorage(
+        cct.MinterStorage.create({
+          totalSupply: 0n,
+          adminAddress: deployer.address,
+          nextAdminAddress: null,
+          jettonWalletCode: cctWalletCode,
+          metadataUri: 'cct-test',
+        }),
+        { overrideContractCode: cctMinterCode },
+      ),
+    )
+    await cctMinter.sendDeploy(deployer.getSender(), toNano('1'))
+    cctMinterRuntime = blockchain.openContract(JettonMinter.createFromAddress(cctMinter.address))
+
+    burnMintPool = blockchain.openContract(
+      BurnMintTokenPool.fromStorage(
+        {
+          poolData: TokenPool_Data.create({
+            adminConfig: TokenPool_AdminConfig.create({
+              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
+              dynamicConfig: TokenPool_DynamicConfig.create({
+                router: deployer.address,
+                rateLimitAdmin: null,
+                feeAdmin: null,
+                allowedDepositNamespaces: new Map(),
+              }),
+              jettonClient: JettonClient.create({
+                masterAddress: cctMinter.address,
+                jettonWalletCode: cctWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
+            }),
+            mirroredPolicy: TokenPool_MirroredPolicy.create({
+              onRamps: new Map(),
+              offRamps: new Map(),
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
+            }),
+            tokenDecimals: 9n,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
+          }),
+          offRampAccountCode: DepositAccount.CodeCell,
+        },
+        { overrideContractCode: burnMintPoolCode },
+      ),
+    )
+    await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
+
+    // Standard TokenPool interface
+    pool = blockchain.openContract(TokenPool.fromAddress(burnMintPool.address))
+
+    {
+      const r = await burnMintPool.sendTokenPoolApplyChainUpdates(
+        deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 1n,
+          remoteChainSelectorsToRemove: [],
+          chainsToAdd: [
+            TokenPool_ChainUpdate.create({
+              remoteChainSelector,
+              remotePoolAddresses: [sourcePoolAddress],
+              remoteTokenAddress: destTokenAddress,
+              rateLimitConfigs: TokenPool_RateLimitConfigPair.create({
+                outbound: RateLimiter_Config.create({
+                  isEnabled: true,
+                  capacity: toNano('100'),
+                  rate: 1n,
+                }),
+                inbound: RateLimiter_Config.create({
+                  isEnabled: true,
+                  capacity: toNano('100'),
+                  rate: 1n,
+                }),
+              }),
+            }),
+          ],
+        },
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: burnMintPool.address,
+        success: true,
+      })
+    }
+
+    await burnMintPool.sendTokenPoolUpdateRampAccess(deployer.getSender(), toNano('0.2'), {
+      queryId: 2n,
+      updates: [
+        TokenPool_RampUpdate.create({
+          remoteChainSelector,
+          onRamp: deployer.address,
+          offRamp: offRamp.address,
+        }),
+      ],
+    })
+
+    // Mint user-side test balance before handing minter admin to the pool.
+    const mintToOnRamp = await cctMinterRuntime.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      mintOpcode: 0x00000015,
+      message: {
+        queryId: 101n,
+        destination: deployer.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('10'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: 0n,
+      },
+    })
+    expect(mintToOnRamp.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: cctMinter.address,
+      success: true,
+    })
+
+    await cctMinterRuntime.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      mintOpcode: 0x00000015,
+      message: {
+        queryId: 102n,
+        destination: unauthorized.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('2'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: 0n,
+      },
+    })
+
+    // Admin handoff: deployer sets pending admin to pool, pool claims ownership itself.
+    const changeAdminResult = await cctMinterRuntime.sendChangeAdmin(deployer.getSender(), {
+      value: toNano('0.2'),
+      message: {
+        queryId: 201n,
+        newAdmin: burnMintPool.address,
+      },
+    })
+    expect(changeAdminResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: cctMinter.address,
+      success: true,
+    })
+
+    const claimAdminResult = await burnMintPool.sendBurnMintTokenPoolClaimMinterAdmin(
+      deployer.getSender(),
+      toNano('0.2'),
+      { queryId: 202n },
+    )
+    expect(claimAdminResult.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: cctMinter.address,
+      success: true,
+    })
+
+    const jettonData = await cctMinterRuntime.getJettonData()
+    expect(jettonData.admin).toEqualAddress(burnMintPool.address)
+    expect(await cctMinterRuntime.getNextAdminAddress()).toBeNull()
+
+    userWallet = async (address: Address) => {
+      return blockchain.openContract(
+        JettonWallet.createFromAddress(await cctMinterRuntime.getWalletAddress(address)),
+      )
+    }
+  })
+
+  runTokenPoolBehaviorTests('BurnMintTokenPool', async () => ({
+    pool,
+    deployer,
+    offRamp,
+    altOffRamp: deployer,
+    unauthorized,
+    recipient,
+    remoteChainSelector,
+    unsupportedChainSelector: remoteChainSelector + 1n,
+    unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(Buffer.from('unknown-source-pool')),
+    remoteTokenAddress: destTokenAddress,
+    onRampAddress: deployer.address,
+    destTokenAddress,
+    sourcePoolAddress,
+    localToken: cctMinter.address,
+  }))
+
+  // Async hook behavior tests (TON-TP/6)
+  runTokenPoolAsyncHookBehaviorTests('BurnMintTokenPool', async () => {
+    // Deploy mock hooks
+    const hooks = blockchain.openContract(
+      MockAdvancedPoolHooks.fromStorage(
+        { id: 0n },
+        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+      ),
+    )
+    await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
+
+    // Register hooks on pool
+    const setHooksResult = await pool.sendTokenPoolSetAdvancedPoolHooks(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 9999n,
+        advancedPoolHooks: hooks.address,
+      },
+    )
+    expect(setHooksResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: pool.address,
+      success: true,
+    })
+
+    return {
+      pool,
+      deployer,
+      offRamp,
+      unauthorized,
+      recipient,
+      remoteChainSelector,
+      unsupportedChainSelector: remoteChainSelector + 1n,
+      unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(
+        Buffer.from('unknown-source-pool'),
+      ),
+      remoteTokenAddress: destTokenAddress,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: cctMinter.address,
+      hooks,
+    }
+  })
+
+  // WithdrawFeeTokens behavior tests (fee accrual + withdrawal). burn/mint burns only the
+  // post-fee amount, leaving the fee jettons behind in the pool's own wallet, so the fee balance
+  // is the withdrawable amount (no accrued-fee ledger => unbounded base path).
+  runTokenPoolWithdrawFeeTokensBehaviorTests('BurnMintTokenPool', async () => {
+    const feeAdmin = await blockchain.treasury('feeAdmin')
+    const feeBps = 100n // 1% transfer fee
+    const poolWallet = await userWallet(burnMintPool.address)
+
+    // Enable a 1% transfer fee for the lane so locks accrue fees into the pool wallet.
+    await burnMintPool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 3n,
+        updates: [
+          TokenPool_TokenTransferFeeConfigArgs.create({
+            destChainSelector: remoteChainSelector,
+            tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+              destGasOverhead: 1n,
+              destBytesOverhead: 0n,
+              finalityFeeUSDCents: 0n,
+              fastFinalityFeeUSDCents: 0n,
+              finalityTransferFeeBps: feeBps,
+              fastFinalityTransferFeeBps: feeBps,
+              isEnabled: true,
+            }),
+          }),
+        ],
+        disableChainSelectors: [],
+      },
+    )
+
+    // Performs a successful fee-accruing lock of `amount` jettons. The pool burns only the
+    // post-fee amount, leaving `feeAmount` in the pool's own wallet.
+    const doLock = async (amount: bigint, queryId: bigint) => {
+      const onRampWallet = await userWallet(deployer.address)
+      const feeAmount = (amount * feeBps) / 10000n
+      const lockOrBurn = TokenPool_LockOrBurn.create({
+        queryId,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: queryId,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount,
+              localToken: cctMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+      const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg: lockOrBurn,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount,
+          destTokenAmount: amount - feeAmount,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      await onRampWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.5'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+        },
+      })
+      return { feeAmount }
+    }
+
+    // The pool's own jetton wallet is only deployed once it first receives jettons, so tolerate
+    // it not being active yet (returns 0 pre-first-lock).
+    const getWithdrawableFees = async (): Promise<bigint> => {
+      try {
+        return await poolWallet.getJettonBalance()
+      } catch {
+        return 0n
+      }
+    }
+
+    return {
+      pool,
+      blockchain,
+      deployer,
+      recipient,
+      unauthorized,
+      feeAdmin,
+      getWithdrawableFees,
+      poolWallet,
+      userWallet,
+      feeBps,
+      doLock,
+    }
+  })
+
+  // CCV & fees behavior (TON-TP: getCCVs / getCCVsAndFees parity with EVM IPoolV2).
+  // Enables a 1% fee config so the getCCVsAndFees post-fee math is exercised.
+  runTokenPoolCcvFeesBehaviorTests(
+    'BurnMintTokenPool',
+    async () => ({
+      pool,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      blockchain,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: cctMinter.address,
+    }),
+    { withFeeConfig: true },
+  )
+
+  it('rejects claim-minter-admin from non-owner sender', async () => {
+    const result = await burnMintPool.sendBurnMintTokenPoolClaimMinterAdmin(
+      unauthorized.getSender(),
+      toNano('0.2'),
+      { queryId: 302n },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: unauthorized.address,
+      to: burnMintPool.address,
+      success: false,
+    })
+  })
+
+  it('returns transfer inputs that bypass the prevalidated forward path', async () => {
+    const unauthorizedWallet = await userWallet(unauthorized.address)
+    const poolWallet = await userWallet(burnMintPool.address)
+    const result = await unauthorizedWallet.sendTransfer(unauthorized.getSender(), {
+      value: toNano('2'),
+      message: {
+        queryId: 303,
+        jettonAmount: toNano('1'),
+        destination: burnMintPool.address,
+        responseDestination: unauthorized.address,
+        customPayload: null,
+        forwardTonAmount: toNano('0.2'),
+        forwardPayload: TokenPool_LockOrBurn.toCell(
+          TokenPool_LockOrBurn.create({
+            queryId: 303n,
+            request: TokenPool_LockOrBurnInV1.create({
+              transfer: TokenPool_Transfer.create({
+                id: 303n,
+                details: TokenPool_TransferDetails.create({
+                  receiver: receiverAddress,
+                  remoteChainSelector,
+                  originalSender: unauthorized.address,
+                  amount: toNano('1'),
+                  localToken: cctMinter.address,
+                }),
+              }),
+            }),
+            requestedFinalityConfig: 0n,
+            tokenArgs: null,
+            replyTo: unauthorized.address,
+          }),
+        ),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: poolWallet.address,
+      to: burnMintPool.address,
+      success: true,
+    })
+    expect(await unauthorizedWallet.getJettonBalance()).toEqual(toNano('2'))
+    expect(await poolWallet.getJettonBalance()).toEqual(0n)
+  })
+
+  describe('lockOrBurn transfer input validation', () => {
+    it('returns tokens and notifies the requester when payload amount does not match transferred amount', async () => {
+      const onRampWallet = await userWallet(deployer.address)
+      const poolWallet = await userWallet(burnMintPool.address)
+      const requestMsg = TokenPool_LockOrBurn.create({
+        queryId: 304n,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 304n,
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount: toNano('1'),
+              localToken: cctMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+      })
+      const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: deployer.address,
+        requestMsg,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: toNano('1'),
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 304,
+          jettonAmount: toNano('2'),
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: burnMintPool.address,
+        to: poolWallet.address,
+        success: true,
+        op: 0x0f8a7ea5, // AskToTransfer
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: burnMintPool.address,
+        to: deployer.address,
+        // The Treasury test recipient does not implement this callback. Assert
+        // the emitted message, including that it carries the residual inbound
+        // value instead of consuming it in the pool.
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        value: (value) => value !== undefined && value > 0n,
+        body(body) {
+          if (!body) return false
+          const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
+          return (
+            failure.queryId === 304n &&
+            failure.errorCode === BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch'])
+          )
+        },
+      })
+      expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
+      expect(await poolWallet.getJettonBalance()).toEqual(0n)
+    })
+
+    it('returns tokens without a callback when transfer forward payload is malformed', async () => {
+      const deployerWallet = await userWallet(deployer.address)
+      const poolWallet = await userWallet(burnMintPool.address)
+
+      const result = await deployerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 45,
+          jettonAmount: toNano('1'),
+          destination: burnMintPool.address,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: beginCell().storeUint(0, 32).endCell(),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: burnMintPool.address,
+        to: poolWallet.address,
+        success: true,
+        op: 0x0f8a7ea5, // AskToTransfer
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: burnMintPool.address,
+        to: deployer.address,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+      })
+      expect(await deployerWallet.getJettonBalance()).toEqual(toNano('10'))
+      expect(await poolWallet.getJettonBalance()).toEqual(0n)
+    })
+  })
+
+  it('burns tokens on lockOrBurn path and finalizes through the executor notification', async () => {
+    const deployerWallet = await userWallet(deployer.address)
+    const poolWallet = await userWallet(burnMintPool.address)
+
+    const queryId = 11n
+    const jettonAmount = toNano('3')
+
+    // === Step 0: Mint jettons to deployer ===
+    await cctMinterRuntime.sendMint(deployer.getSender(), {
+      value: toNano('1'),
+      mintOpcode: 0x00000015,
+      message: {
+        queryId: 100n,
+        destination: deployer.address,
+        tonAmount: toNano('0.05'),
+        jettonAmount: toNano('10'),
+        from: deployer.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: 0n,
+      },
+    })
+
+    // === Step 1: Send LockOrBurn to the pool ===
+    // Pool validates → sends TokenPool_LockOrBurnWithdraw with forward payload back to deployer
+    const lockOrBurn = TokenPool_LockOrBurn.create({
+      queryId,
+      request: TokenPool_LockOrBurnInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: queryId,
+          details: TokenPool_TransferDetails.create({
+            receiver: receiverAddress,
+            remoteChainSelector,
+            originalSender: deployer.address,
+            amount: jettonAmount,
+            localToken: cctMinter.address,
+          }),
+        }),
+      }),
+      requestedFinalityConfig: 0n,
+      tokenArgs: null,
+      replyTo: deployer.address,
+    })
+
+    const result1 = await burnMintPool.sendTokenPoolLockOrBurn(
+      deployer.getSender(),
+      toNano('1'),
+      lockOrBurn,
+    )
+
+    // Confirm pool sent TokenPool_LockOrBurnWithdraw back
+    expect(result1.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: deployer.address,
+      success: true,
+      op: TokenPool_LockOrBurnWithdraw.PREFIX,
+    })
+
+    // Extract forward payload from the withdraw message sent by the pool
+    const withdrawEvent = result1.events.find(
+      (e) =>
+        e.type === 'message_sent' &&
+        e.from.equals(burnMintPool.address) &&
+        e.to.equals(deployer.address),
+    ) as { type: 'message_sent'; body: Cell } | undefined
+    expect(withdrawEvent).toBeDefined()
+
+    const withdrawBody = TokenPool_LockOrBurnWithdraw.fromSlice(withdrawEvent!.body.beginParse())
+    expect(withdrawBody.queryId).toBe(queryId)
+
+    // Build expected forward payload (matching what pool creates in validateLockOrBurn)
+    const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+      originalSender: unauthorized.address,
+      requestMsg: lockOrBurn,
+      prepared: TokenPool_LockOrBurnPrepared.create({
+        feeAmount: 0n,
+        destTokenAmount: jettonAmount,
+        out: TokenPool_LockOrBurnOutV1.create({
+          destTokenAddress,
+          destPoolData: Cell.EMPTY,
+        }),
+      }),
+    })
+
+    // Verify pool's forward payload matches our expected one
+    expect(withdrawBody.forwardPayload.requestMsg.queryId).toBe(
+      expectedForwardPayload.requestMsg.queryId,
+    )
+    expect(withdrawBody.forwardPayload.prepared.feeAmount).toBe(
+      expectedForwardPayload.prepared.feeAmount,
+    )
+    expect(withdrawBody.forwardPayload.prepared.destTokenAmount).toBe(
+      expectedForwardPayload.prepared.destTokenAmount,
+    )
+
+    // === Step 2: Send jettons from deployer wallet to pool with the pool's forward payload ===
+    const forwardPayloadCell = TokenPool_LockOrBurnForwardPayload.toCell(
+      withdrawBody.forwardPayload,
+    )
+
+    // Jetton wallet sends TransferNotificationForRecipient to the pool.
+    // Pool sends CCT_AskToBurn (with continuation context) to its own wallet; the CCT wallet
+    // relays it via the minter back to the pool on CCT_ReturnExcessesBack, which finalizes.
+    const result2 = await deployerWallet.sendTransfer(deployer.getSender(), {
+      value: toNano('0.5'),
+      message: {
+        queryId: Number(queryId),
+        jettonAmount,
+        destination: burnMintPool.address,
+        responseDestination: null,
+        customPayload: null,
+        forwardTonAmount: toNano('0.3'),
+        forwardPayload: forwardPayloadCell,
+      },
+    })
+
+    expect(await poolWallet.getJettonBalance()).toEqual(0n)
+
+    expect(result2.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: deployer.address,
+      success: true,
+      op: TokenPool_LockOrBurnFinished.PREFIX,
+    })
+  })
+
+  it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
+    const result = await burnMintPool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.6'),
+      {
+        queryId: 22n,
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 22n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('2'),
+              localToken: cctMinter.address,
+            }),
+          }),
+          sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
+        requestedFinalityConfig: 0n,
+        replyTo: deployer.address,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: burnMintPool.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: cctMinter.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: deployer.address,
+      success: true,
+      op: TokenPool_ReleaseOrMintFinished.PREFIX,
+      body(body) {
+        if (!body) return false
+        const response = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
+        return response.queryId === 22n && response.out.destinationAmount === toNano('2')
+      },
+    })
+  })
+
+  it('mints on releaseOrMint with null replyTo without emitting response message', async () => {
+    const result = await burnMintPool.sendTokenPoolReleaseOrMint(
+      offRamp.getSender(),
+      toNano('0.6'),
+      {
+        queryId: 305n,
+        request: TokenPool_ReleaseOrMintInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 305n,
+            details: TokenPool_TransferDetails.create({
+              originalSender: sourcePoolAddress,
+              remoteChainSelector,
+              receiver: recipient.address,
+              amount: toNano('1'),
+              localToken: cctMinter.address,
+            }),
+          }),
+          sourcePoolAddress,
+          sourcePoolData: null,
+          offchainTokenData: null,
+        }),
+        requestedFinalityConfig: 0n,
+        replyTo: null,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: burnMintPool.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: cctMinter.address,
+      success: true,
+    })
+
+    const releaseResponses = result.transactions.filter((tx: any) => {
+      const body = tx.inMessage?.body
+      if (!body) {
+        return false
+      }
+
+      const slice = body.beginParse()
+      if (slice.remainingBits < 32) {
+        return false
+      }
+
+      return (
+        tx.inMessage?.info?.src?.equals?.(burnMintPool.address) &&
+        slice.preloadUint(32) === TokenPool_ReleaseOrMintFinished.PREFIX
+      )
+    })
+    expect(releaseResponses.length).toBe(0)
+  })
+
+  it('rejects forged CCT burn completions from an untrusted sender', async () => {
+    const forged = await unauthorized.send({
+      to: burnMintPool.address,
+      value: toNano('0.1'),
+      bounce: false,
+      body: buildForgedCCTReturnExcessesBack(burnMintPool.address),
+    })
+
+    // A forged CCT_ReturnExcessesBack carrying a burn continuation must be rejected:
+    // the sender is not the CCT JettonMinter, so the pool must not finalize the burn.
+    expect(forged.transactions).toHaveTransaction({
+      from: unauthorized.address,
+      to: burnMintPool.address,
+      success: false,
+    })
+  })
+})

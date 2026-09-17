@@ -15,14 +15,14 @@ import (
 
 	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"

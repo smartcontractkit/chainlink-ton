@@ -137,7 +137,7 @@ func (p *Proxy) acceptLoop(ctx context.Context) {
 		case BehaviourEnabled:
 			p.serverConns[clientConn] = struct{}{}
 		case BehaviourStall:
-			connCtx, connCancel = context.WithCancel(ctx) //nolint:gosec // connCancel is stored in p.stalledConns and called when the connection is closed
+			connCtx, connCancel = context.WithCancel(ctx)
 			p.stalledConns[clientConn] = connCancel
 		default:
 		}

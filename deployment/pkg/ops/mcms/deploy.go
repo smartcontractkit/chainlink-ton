@@ -20,11 +20,11 @@ import (
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdseq "github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"

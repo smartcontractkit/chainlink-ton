@@ -6,7 +6,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 )
 
 type TestDSORM struct {
