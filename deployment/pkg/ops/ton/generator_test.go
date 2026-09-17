@@ -21,6 +21,7 @@ import (
 	// TODO: These imports should be removed and injected via options/factories
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 // ErrUnsupportedSample is returned when the generator cannot construct a value for a type.
@@ -584,6 +585,22 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 				wrappedDict.Set(key, common.AddressWrap{Val: addr})
 			}
 			return reflect.ValueOf(wrappedDict), nil
+		},
+		reflect.TypeFor[*tlbe.Dict[common.AddressWrap, feequoter.FeeToken]](): func(ctx *Context) (reflect.Value, error) {
+			d := tlbe.NewEmptyDict[common.AddressWrap, feequoter.FeeToken]()
+
+			entries := ctx.Generator.randomCollectionSize()
+			for range entries {
+				var api wallet.TonAPI
+				w, err := tvm.NewRandomV5R1TestWallet(api, -217)
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				d.Set(common.AddressWrap{Val: w.Address()}, feequoter.FeeToken{
+					PremiumMultiplierWeiPerEth: ctx.Generator.randomUnsignedInt(64),
+				})
+			}
+			return reflect.ValueOf(d), nil
 		},
 	}
 }
