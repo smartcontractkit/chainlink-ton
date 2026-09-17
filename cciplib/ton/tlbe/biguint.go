@@ -2,7 +2,6 @@ package tlbe // tlb extras
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -23,64 +22,6 @@ func AsUnsigned(v *big.Int, sz uint) *big.Int {
 	mask.Sub(mask, big.NewInt(1))
 
 	return new(big.Int).And(v, mask) // interpret as uint sz
-}
-
-// BigUint stores an unsigned integer with a fixed bit width for TLB encoding.
-type BigUint struct {
-	Bits  uint
-	Value *big.Int
-}
-
-// loadFromCell enforces unsigned semantics for the configured bit width.
-func (b *BigUint) loadFromCell(bits uint, loader *cell.Slice) error {
-	if b == nil {
-		return errors.New("BigUint pointer is nil")
-	}
-	if loader == nil {
-		return errors.New("cell loader is nil")
-	}
-
-	width := bits
-	if width == 0 {
-		width = b.Bits
-	}
-	if width == 0 {
-		return errors.New("bit width must be greater than zero")
-	}
-
-	val, err := loader.LoadBigInt(width)
-	if err != nil {
-		return fmt.Errorf("failed to load bigint: %w", err)
-	}
-
-	b.Bits = width
-	b.Value = AsUnsigned(val, width)
-	return nil
-}
-
-// toCell serializes the stored number using unsigned semantics for width bits.
-func (b BigUint) toCell(bits uint) (*cell.Cell, error) {
-	width := bits
-	if width == 0 {
-		width = b.Bits
-	}
-	if width == 0 {
-		return nil, errors.New("bit width must be greater than zero")
-	}
-
-	val := b.Value
-	if val == nil {
-		val = new(big.Int)
-	}
-
-	unsigned := AsUnsigned(val, width)
-
-	builder := cell.BeginCell()
-	if err := builder.StoreBigInt(unsigned, width); err != nil {
-		return nil, fmt.Errorf("failed to store bigint: %w", err)
-	}
-
-	return builder.EndCell(), nil
 }
 
 // --- Fixed-width unsigned integers ---
@@ -139,7 +80,7 @@ func uintBytesFromCell(dst []byte, loader *cell.Slice) error {
 		if err != nil {
 			return fmt.Errorf("failed to load byte %d: %w", i, err)
 		}
-		dst[i] = byte(by)
+		dst[i] = byte(by) //nolint:gosec // G115: LoadUInt(8) always fits in a byte
 	}
 
 	return nil
