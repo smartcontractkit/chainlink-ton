@@ -3,6 +3,7 @@ package ops
 import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	ccipoperation "github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -22,6 +23,9 @@ var (
 
 		// MCMS operations
 		mcms.SetConfig.AsUntypedRelaxed(),
+
+		// CCIP operations
+		ccipoperation.UpdateFeeQuoterFeeTokensOp.AsUntypedRelaxed(),
 	}
 
 	// Registry is the (default) operations registry for available TON operations.

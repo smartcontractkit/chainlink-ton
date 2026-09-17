@@ -267,9 +267,9 @@ type UpdatePrices struct {
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                             `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                      `tlb:"dict 267"`
-	Remove common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	_      tlb.Magic                                `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
+	Add    *tlbe.Dict[common.AddressWrap, FeeToken] `tlb:"."`
+	Remove common.SnakedCell[common.AddressWrap]    `tlb:"^"`
 }
 
 // UpdateTokenTransferFeeConfig is a value type stored in a dictionary, NOT a message.
