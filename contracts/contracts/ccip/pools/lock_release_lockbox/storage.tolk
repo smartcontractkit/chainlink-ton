@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-import "../../../lib/jetton/jetton_client"
 import "../../../lib/access/ownable_2step"
 import "../../rmn_remote/lib"
-import "../types"
-import "../token_pool"
+import "../lib/token_pool/types"
+import "../lib/token_pool/entrypoint"
 
 import "types"
 
+/// @notice Pool storage: common pool data, lockbox reference, + OffRampAccount code for deployment.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
+    /// Address of the JettonLockBox contract used for deposit/withdraw operations.
     lockbox: address;
-    // Pending contexts keyed by queryId for async flow completion.
-    pendingLocks: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingLock>>;
-    pendingReleases: map<uint64, Cell<LockReleaseLockboxTokenPool_PendingRelease>>;
+    /// Compiled code cell of the OffRampAccount contract (deployed per release operation).
+    offRampAccountCode: cell;
 }
 
 fun Storage.load(): Storage {
@@ -42,6 +42,7 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: createAddressNone() as address,
+                deployableCode: config.deployableCode,
             }.toCell(),
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),
@@ -55,7 +56,6 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
         lockbox: config.lockbox,
-        pendingLocks: createEmptyMap(),
-        pendingReleases: createEmptyMap(),
+        offRampAccountCode: config.offRampAccountCode,
     };
 }

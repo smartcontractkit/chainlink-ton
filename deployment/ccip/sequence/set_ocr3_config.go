@@ -4,9 +4,9 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 )

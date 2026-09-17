@@ -1,6 +1,6 @@
 import { Address, toNano } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
-import { Receiver, ReceiverBehavior } from '../wrappers/examples/Receiver'
+import * as tr from '../wrappers/gen/ccip/TestReceiver'
 
 export async function run(provider: NetworkProvider, args: string[]) {
   const [receiverRaw, behaviorRaw] = args
@@ -14,11 +14,13 @@ export async function run(provider: NetworkProvider, args: string[]) {
   const receiver = Address.parse(receiverRaw)
 
   // Map string -> enum value
-  const behavior = (ReceiverBehavior as any)[behaviorRaw as keyof typeof ReceiverBehavior]
+  const behavior = (tr.TestReceiver_Behavior as any)[
+    behaviorRaw as keyof typeof tr.TestReceiver_Behavior
+  ]
 
   if (behavior === undefined) {
     throw new Error(
-      `Unknown behavior "${behaviorRaw}". Valid values: ${Object.keys(ReceiverBehavior).join(', ')}`,
+      `Unknown behavior "${behaviorRaw}". Valid values: ${Object.keys(tr.TestReceiver_Behavior).join(', ')}`,
     )
   }
 
@@ -30,8 +32,10 @@ export async function run(provider: NetworkProvider, args: string[]) {
 async function updateReceiverBehavior(
   provider: NetworkProvider,
   receiver: Address,
-  behavior: ReceiverBehavior,
+  behavior: tr.TestReceiver_Behavior,
 ) {
-  const receiverContract = provider.open(Receiver.createFromAddress(receiver))
-  await receiverContract.sendUpdateBehavior(provider.sender(), toNano('0.05'), { behavior })
+  const receiverContract = provider.open(tr.TestReceiver.fromAddress(receiver))
+  await receiverContract.sendTestReceiverUpdateBehavior(provider.sender(), toNano('0.05'), {
+    behavior,
+  })
 }

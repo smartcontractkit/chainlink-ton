@@ -19,9 +19,6 @@ type lisp_list<T> = T[]
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -44,16 +41,50 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
+
+function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
+    const map = new Map<K, V>();
+    for (const [k, v] of d) {
+        map.set(k, v);
+    }
+    return map;
+}
+
+function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+    for (const [k, v] of m) {
+        d.set(k, v);
+    }
+    return d;
+}
+
+
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
 
 function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
     b.storeSlice(v);
@@ -107,13 +138,16 @@ function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
 }
 
 function storeLispListOf<T>(v: lisp_list<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    let tail = c.Cell.EMPTY;
-    for (let i = 0; i < v.length; ++i) {
-        let itemB = beginCell();
-        storeFn_T(v[i], itemB);
-        tail = itemB.storeRef(tail).endCell();
-    }
-    b.storeRef(tail);
+
+        let tail = c.Cell.EMPTY;
+        for (let i = 0; i < v.length; ++i) {
+            let itemB = beginCell();
+            itemB.storeRef(tail);
+            storeFn_T(v[i], itemB);
+            tail = itemB.endCell();
+        }
+        b.storeRef(tail);
+      
 }
 
 function loadLispListOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): lisp_list<T> {
@@ -235,8 +269,8 @@ class StackReader {
         return readFn_T(this);
     }
 
-    readCellRef<T>(loadFn_T: LoadCallback<T>): CellRef<T> {
-        return { ref: loadFn_T(this.readCell().beginParse()) };
+    readCellRef<T>(loadFn_T: LoadCallback<T>): T {
+        return loadFn_T(this.readCell().beginParse());
     }
 
     readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
@@ -307,6 +341,52 @@ export const UnsafeBodyNoRef = {
             ...args
         }
     },
+}
+
+/**
+ > enum FeeQuoter_Error { 28 variants }
+ */
+export type FeeQuoter_Error = bigint
+
+export const FeeQuoter_Error = {
+    UnsupportedChainFamilySelector: 34400n,
+    GasLimitTooHigh: 34401n,
+    ExtraArgOutOfOrderExecutionMustBeTrue: 34402n,
+    InvalidExtraArgsData: 34403n,
+    UnsupportedNumberOfTokens: 34404n,
+    InvalidEVMReceiverAddress: 34405n,
+    Invalid32ByteReceiverAddress: 34406n,
+    InvalidSuiReceiverAddress: 34407n,
+    InvalidSVMReceiverAddress: 34408n,
+    InvalidTokenReceiver: 34409n,
+    TooManySuiExtraArgsReceiverObjectIds: 34410n,
+    MsgDataTooLarge: 34411n,
+    StaleGasPrice: 34412n,
+    DestChainNotEnabled: 34413n,
+    FeeTokenNotSupported: 34414n,
+    InvalidMsgData: 34415n,
+    TokenNotSupported: 34416n,
+    UnknownDestChainSelector: 34417n,
+    InsufficientFee: 34418n,
+    TokenTransfersNotSupported: 34419n,
+    UnauthorizedPriceUpdater: 34420n,
+    ExecutionCostOverflow: 34421n,
+    PremiumFeeOverflow: 34422n,
+    DataAvailabilityCostOverflow: 34423n,
+    FeeCalculationOverflow: 34424n,
+    TokenPriceTooLow: 34425n,
+    FeeOverflow: 34426n,
+    MessageFeeTooHigh: 34427n,
+
+    fromSlice(s: c.Slice): FeeQuoter_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: FeeQuoter_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: FeeQuoter_Error): c.Cell {
+        return makeCellFrom<FeeQuoter_Error>(self, FeeQuoter_Error.store);
+    }
 }
 
 /**
@@ -409,7 +489,7 @@ export const UsdPerUnitGasUpdated = {
 export interface FeeQuoter_UpdatePrices {
     readonly $: 'FeeQuoter_UpdatePrices'
     updates: PriceUpdates
-    sendExcessesTo: c.Address | null
+    sendExcessesTo: c.Address | null /* = null */
 }
 
 export const FeeQuoter_UpdatePrices = {
@@ -417,10 +497,11 @@ export const FeeQuoter_UpdatePrices = {
 
     create(args: {
         updates: PriceUpdates
-        sendExcessesTo: c.Address | null
+        sendExcessesTo?: c.Address | null /* = null */
     }): FeeQuoter_UpdatePrices {
         return {
             $: 'FeeQuoter_UpdatePrices',
+            sendExcessesTo: null,
             ...args
         }
     },
@@ -443,6 +524,32 @@ export const FeeQuoter_UpdatePrices = {
 }
 
 /**
+ > type FeeQuoter_GetValidatedFee_Any = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+ */
+export type FeeQuoter_GetValidatedFee_Any = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+
+export const FeeQuoter_GetValidatedFee_Any = {
+    fromSlice(s: c.Slice): FeeQuoter_GetValidatedFee_Any {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x7496ff56, 'FeeQuoter_GetValidatedFee');
+            return {
+                $: 'FeeQuoter_GetValidatedFee',
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: FeeQuoter_GetValidatedFee_Any, b: c.Builder): void {
+        b.storeUint(0x7496ff56, 32);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: FeeQuoter_GetValidatedFee_Any): c.Cell {
+        return makeCellFrom<FeeQuoter_GetValidatedFee_Any>(self, FeeQuoter_GetValidatedFee_Any.store);
+    }
+}
+
+/**
  > struct (0x7496ff56) FeeQuoter_GetValidatedFee<T> {
  >     msg: Cell<Router_CCIPSend>
  >     context: T
@@ -450,7 +557,7 @@ export const FeeQuoter_UpdatePrices = {
  */
 export interface FeeQuoter_GetValidatedFee<T> {
     readonly $: 'FeeQuoter_GetValidatedFee'
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -458,7 +565,7 @@ export const FeeQuoter_GetValidatedFee = {
     PREFIX: 0x7496ff56,
 
     create<T>(args: {
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_GetValidatedFee<T> {
         return {
@@ -476,7 +583,7 @@ export const FeeQuoter_GetValidatedFee = {
  */
 export interface FeeQuoter_UpdateFeeTokens {
     readonly $: 'FeeQuoter_UpdateFeeTokens'
-    add: c.Dictionary<c.Address, FeeToken>
+    add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
     remove: SnakedCell<c.Address>
 }
 
@@ -484,7 +591,7 @@ export const FeeQuoter_UpdateFeeTokens = {
     PREFIX: 0xd0984986,
 
     create(args: {
-        add: c.Dictionary<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
         remove: SnakedCell<c.Address>
     }): FeeQuoter_UpdateFeeTokens {
         return {
@@ -496,14 +603,14 @@ export const FeeQuoter_UpdateFeeTokens = {
         loadAndCheckPrefix32(s, 0xd0984986, 'FeeQuoter_UpdateFeeTokens');
         return {
             $: 'FeeQuoter_UpdateFeeTokens',
-            add: c.Dictionary.load<c.Address, FeeToken>(c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store), s),
-            remove: s.loadRef(),
+            add: dictToMap(c.Dictionary.load<c.Address, FeeToken>(c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store), s)),
+            remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: FeeQuoter_UpdateFeeTokens, b: c.Builder): void {
         b.storeUint(0xd0984986, 32);
-        b.storeDict<c.Address, FeeToken>(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store));
-        b.storeRef(self.remove);
+        b.storeDict<c.Address, FeeToken>(mapToDict(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store)), c.Dictionary.Keys.Address(), createDictionaryValue<FeeToken>(FeeToken.fromSlice, FeeToken.store));
+        storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: FeeQuoter_UpdateFeeTokens): c.Cell {
         return makeCellFrom<FeeQuoter_UpdateFeeTokens>(self, FeeQuoter_UpdateFeeTokens.store);
@@ -520,7 +627,7 @@ export const FeeQuoter_UpdateFeeTokens = {
 export interface FeeQuoter_MessageValidated<T> {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -529,7 +636,7 @@ export const FeeQuoter_MessageValidated = {
 
     create<T>(args: {
         fee: Fee
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidated<T> {
         return {
@@ -549,7 +656,7 @@ export const FeeQuoter_MessageValidated = {
 export interface FeeQuoter_MessageValidationFailed<T> {
     readonly $: 'FeeQuoter_MessageValidationFailed'
     error: uint256
-    msg: CellRef<Router_CCIPSend>
+    msg: Router_CCIPSend
     context: T
 }
 
@@ -558,7 +665,7 @@ export const FeeQuoter_MessageValidationFailed = {
 
     create<T>(args: {
         error: uint256
-        msg: CellRef<Router_CCIPSend>
+        msg: Router_CCIPSend
         context: T
     }): FeeQuoter_MessageValidationFailed<T> {
         return {
@@ -575,14 +682,14 @@ export const FeeQuoter_MessageValidationFailed = {
  */
 export interface FeeQuoter_UpdateTokenTransferFeeConfigs {
     readonly $: 'FeeQuoter_UpdateTokenTransferFeeConfigs'
-    updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+    updates: Map<uint64, UpdateTokenTransferFeeConfig>
 }
 
 export const FeeQuoter_UpdateTokenTransferFeeConfigs = {
     PREFIX: 0xb2826316,
 
     create(args: {
-        updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+        updates: Map<uint64, UpdateTokenTransferFeeConfig>
     }): FeeQuoter_UpdateTokenTransferFeeConfigs {
         return {
             $: 'FeeQuoter_UpdateTokenTransferFeeConfigs',
@@ -593,12 +700,12 @@ export const FeeQuoter_UpdateTokenTransferFeeConfigs = {
         loadAndCheckPrefix32(s, 0xb2826316, 'FeeQuoter_UpdateTokenTransferFeeConfigs');
         return {
             $: 'FeeQuoter_UpdateTokenTransferFeeConfigs',
-            updates: c.Dictionary.load<uint64, UpdateTokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store), s),
+            updates: dictToMap(c.Dictionary.load<uint64, UpdateTokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store), s)),
         }
     },
     store(self: FeeQuoter_UpdateTokenTransferFeeConfigs, b: c.Builder): void {
         b.storeUint(0xb2826316, 32);
-        b.storeDict<uint64, UpdateTokenTransferFeeConfig>(self.updates, c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store));
+        b.storeDict<uint64, UpdateTokenTransferFeeConfig>(mapToDict(self.updates, c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<UpdateTokenTransferFeeConfig>(UpdateTokenTransferFeeConfig.fromSlice, UpdateTokenTransferFeeConfig.store));
     },
     toCell(self: FeeQuoter_UpdateTokenTransferFeeConfigs): c.Cell {
         return makeCellFrom<FeeQuoter_UpdateTokenTransferFeeConfigs>(self, FeeQuoter_UpdateTokenTransferFeeConfigs.store);
@@ -630,12 +737,12 @@ export const FeeQuoter_UpdateDestChainConfigs = {
         loadAndCheckPrefix32(s, 0x2d2410f6, 'FeeQuoter_UpdateDestChainConfigs');
         return {
             $: 'FeeQuoter_UpdateDestChainConfigs',
-            updates: s.loadRef(),
+            updates: loadSnakedCellOf(s, FeeQuoter_UpdateDestChainConfig.fromSlice),
         }
     },
     store(self: FeeQuoter_UpdateDestChainConfigs, b: c.Builder): void {
         b.storeUint(0x2d2410f6, 32);
-        b.storeRef(self.updates);
+        storeSnakedCellOf(self.updates, b, FeeQuoter_UpdateDestChainConfig.store);
     },
     toCell(self: FeeQuoter_UpdateDestChainConfigs): c.Cell {
         return makeCellFrom<FeeQuoter_UpdateDestChainConfigs>(self, FeeQuoter_UpdateDestChainConfigs.store);
@@ -779,13 +886,13 @@ export const PriceUpdates = {
     fromSlice(s: c.Slice): PriceUpdates {
         return {
             $: 'PriceUpdates',
-            tokenPriceUpdates: s.loadRef(),
-            gasPriceUpdates: s.loadRef(),
+            tokenPriceUpdates: loadSnakedCellOf(s, TokenPriceUpdate.fromSlice),
+            gasPriceUpdates: loadSnakedCellOf(s, GasPriceUpdate.fromSlice),
         }
     },
     store(self: PriceUpdates, b: c.Builder): void {
-        b.storeRef(self.tokenPriceUpdates);
-        b.storeRef(self.gasPriceUpdates);
+        storeSnakedCellOf(self.tokenPriceUpdates, b, TokenPriceUpdate.store);
+        storeSnakedCellOf(self.gasPriceUpdates, b, GasPriceUpdate.store);
     },
     toCell(self: PriceUpdates): c.Cell {
         return makeCellFrom<PriceUpdates>(self, PriceUpdates.store);
@@ -1102,15 +1209,15 @@ export const TokenTransferFeeConfig = {
 export interface DestChainConfig {
     readonly $: 'DestChainConfig'
     config: FeeQuoterDestChainConfig
-    usdPerUnitGas: CellRef<GasPrice>
-    tokenTransferFeeConfigs: c.Dictionary<c.Address, TokenTransferFeeConfig>
+    usdPerUnitGas: GasPrice
+    tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
 }
 
 export const DestChainConfig = {
     create(args: {
         config: FeeQuoterDestChainConfig
-        usdPerUnitGas: CellRef<GasPrice>
-        tokenTransferFeeConfigs: c.Dictionary<c.Address, TokenTransferFeeConfig>
+        usdPerUnitGas: GasPrice
+        tokenTransferFeeConfigs: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
     }): DestChainConfig {
         return {
             $: 'DestChainConfig',
@@ -1122,13 +1229,13 @@ export const DestChainConfig = {
             $: 'DestChainConfig',
             config: FeeQuoterDestChainConfig.fromSlice(s),
             usdPerUnitGas: loadCellRef<GasPrice>(s, GasPrice.fromSlice),
-            tokenTransferFeeConfigs: c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s),
+            tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s)),
         }
     },
     store(self: DestChainConfig, b: c.Builder): void {
         FeeQuoterDestChainConfig.store(self.config, b);
         storeCellRef<GasPrice>(self.usdPerUnitGas, b, GasPrice.store);
-        b.storeDict<c.Address, TokenTransferFeeConfig>(self.tokenTransferFeeConfigs, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
+        b.storeDict<c.Address, TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
     },
     toCell(self: DestChainConfig): c.Cell {
         return makeCellFrom<DestChainConfig>(self, DestChainConfig.store);
@@ -1143,13 +1250,13 @@ export const DestChainConfig = {
  */
 export interface UpdateTokenTransferFeeConfig {
     readonly $: 'UpdateTokenTransferFeeConfig'
-    add: c.Dictionary<c.Address, TokenTransferFeeConfig>
+    add: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
     remove: SnakedCell<c.Address>
 }
 
 export const UpdateTokenTransferFeeConfig = {
     create(args: {
-        add: c.Dictionary<c.Address, TokenTransferFeeConfig>
+        add: Map<c.Address, TokenTransferFeeConfig> /* = [] as map<address, TokenTransferFeeConfig> */
         remove: SnakedCell<c.Address>
     }): UpdateTokenTransferFeeConfig {
         return {
@@ -1160,13 +1267,13 @@ export const UpdateTokenTransferFeeConfig = {
     fromSlice(s: c.Slice): UpdateTokenTransferFeeConfig {
         return {
             $: 'UpdateTokenTransferFeeConfig',
-            add: c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s),
-            remove: s.loadRef(),
+            add: dictToMap(c.Dictionary.load<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store), s)),
+            remove: loadSnakedCellOf(s, (s) => s.loadAddress()),
         }
     },
     store(self: UpdateTokenTransferFeeConfig, b: c.Builder): void {
-        b.storeDict<c.Address, TokenTransferFeeConfig>(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
-        b.storeRef(self.remove);
+        b.storeDict<c.Address, TokenTransferFeeConfig>(mapToDict(self.add, c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store));
+        storeSnakedCellOf(self.remove, b, (v, b) => b.storeAddress(v));
     },
     toCell(self: UpdateTokenTransferFeeConfig): c.Cell {
         return makeCellFrom<UpdateTokenTransferFeeConfig>(self, UpdateTokenTransferFeeConfig.store);
@@ -1299,26 +1406,26 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    allowedPriceUpdaters: c.Dictionary<c.Address, []>
+    allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
     maxFeeJuelsPerMsg: uint96
     linkToken: c.Address
     tokenPriceStalenessThreshold: uint32
-    usdPerToken: c.Dictionary<c.Address, TimestampedPrice>
-    premiumMultiplierWeiPerEth: c.Dictionary<c.Address, uint64>
-    destChainConfigs: c.Dictionary<uint64, DestChainConfig>
+    usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
+    premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
+    destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
 }
 
 export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        allowedPriceUpdaters: c.Dictionary<c.Address, []>
+        allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
         maxFeeJuelsPerMsg: uint96
         linkToken: c.Address
         tokenPriceStalenessThreshold: uint32
-        usdPerToken: c.Dictionary<c.Address, TimestampedPrice>
-        premiumMultiplierWeiPerEth: c.Dictionary<c.Address, uint64>
-        destChainConfigs: c.Dictionary<uint64, DestChainConfig>
+        usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
+        premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
+        destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
     }): Storage {
         return {
             $: 'Storage',
@@ -1330,31 +1437,34 @@ export const Storage = {
             $: 'Storage',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
-            allowedPriceUpdaters: c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                (s) => [],
-                (v,b) => { {} }
-            ), s),
+            allowedPriceUpdaters: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
             maxFeeJuelsPerMsg: s.loadUintBig(96),
             linkToken: s.loadAddress(),
             tokenPriceStalenessThreshold: s.loadUintBig(32),
-            usdPerToken: c.Dictionary.load<c.Address, TimestampedPrice>(c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store), s),
-            premiumMultiplierWeiPerEth: c.Dictionary.load<c.Address, uint64>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64), s),
-            destChainConfigs: c.Dictionary.load<uint64, DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store), s),
+            usdPerToken: dictToMap(c.Dictionary.load<c.Address, TimestampedPrice>(c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store), s)),
+            premiumMultiplierWeiPerEth: dictToMap(c.Dictionary.load<c.Address, uint64>(c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64), s)),
+            destChainConfigs: dictToMap(c.Dictionary.load<uint64, DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store), s)),
         }
     },
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
-        b.storeDict<c.Address, []>(self.allowedPriceUpdaters, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+        b.storeDict<c.Address, []>(setToDict(self.allowedPriceUpdaters, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
             (s) => [],
             (v,b) => { {} }
         ));
         b.storeUint(self.maxFeeJuelsPerMsg, 96);
         b.storeAddress(self.linkToken);
         b.storeUint(self.tokenPriceStalenessThreshold, 32);
-        b.storeDict<c.Address, TimestampedPrice>(self.usdPerToken, c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store));
-        b.storeDict<c.Address, uint64>(self.premiumMultiplierWeiPerEth, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64));
-        b.storeDict<uint64, DestChainConfig>(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store));
+        b.storeDict<c.Address, TimestampedPrice>(mapToDict(self.usdPerToken, c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store)), c.Dictionary.Keys.Address(), createDictionaryValue<TimestampedPrice>(TimestampedPrice.fromSlice, TimestampedPrice.store));
+        b.storeDict<c.Address, uint64>(mapToDict(self.premiumMultiplierWeiPerEth, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64));
+        b.storeDict<uint64, DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store));
     },
     toCell(self: Storage): c.Cell {
         return makeCellFrom<Storage>(self, Storage.store);
@@ -1375,6 +1485,39 @@ export const CrossChainAddress = {
     },
     toCell(self: CrossChainAddress): c.Cell {
         return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
     }
 }
 
@@ -1463,7 +1606,7 @@ export const SVMExtraArgsV1 = {
             accountIsWritableBitmap: s.loadUintBig(64),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            accounts: s.loadRef(),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SVMExtraArgsV1, b: c.Builder): void {
@@ -1472,7 +1615,7 @@ export const SVMExtraArgsV1 = {
         b.storeUint(self.accountIsWritableBitmap, 64);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.accounts);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SVMExtraArgsV1): c.Cell {
         return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
@@ -1516,7 +1659,7 @@ export const SuiExtraArgsV1 = {
             gasLimit: s.loadUintBig(256),
             allowOutOfOrderExecution: s.loadBoolean(),
             tokenReceiver: s.loadUintBig(256),
-            receiverObjectIds: s.loadRef(),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: SuiExtraArgsV1, b: c.Builder): void {
@@ -1524,7 +1667,7 @@ export const SuiExtraArgsV1 = {
         b.storeUint(self.gasLimit, 256);
         b.storeBit(self.allowOutOfOrderExecution);
         b.storeUint(self.tokenReceiver, 256);
-        b.storeRef(self.receiverObjectIds);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
     },
     toCell(self: SuiExtraArgsV1): c.Cell {
         return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
@@ -1570,6 +1713,27 @@ export const TokenAmount = {
 }
 
 /**
+ > enum Ownable2Step_Error { 3 variants }
+ */
+export type Ownable2Step_Error = bigint
+
+export const Ownable2Step_Error = {
+    OnlyCallableByOwner: 49800n,
+    CannotTransferToSelf: 49801n,
+    MustBeProposedOwner: 49802n,
+
+    fromSlice(s: c.Slice): Ownable2Step_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Ownable2Step_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Ownable2Step_Error): c.Cell {
+        return makeCellFrom<Ownable2Step_Error>(self, Ownable2Step_Error.store);
+    }
+}
+
+/**
  > struct Ownable2Step {
  >     owner: address
  >     pendingOwner: address?
@@ -1578,16 +1742,17 @@ export const TokenAmount = {
 export interface Ownable2Step {
     readonly $: 'Ownable2Step'
     owner: c.Address
-    pendingOwner: c.Address | null
+    pendingOwner: c.Address | null /* = null */
 }
 
 export const Ownable2Step = {
     create(args: {
         owner: c.Address
-        pendingOwner: c.Address | null
+        pendingOwner?: c.Address | null /* = null */
     }): Ownable2Step {
         return {
             $: 'Ownable2Step',
+            pendingOwner: null,
             ...args
         }
     },
@@ -1608,6 +1773,87 @@ export const Ownable2Step = {
 }
 
 /**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct Ownable2Step_OwnershipTransferRequested {
  >     queryId: uint64
  >     newOwner: address
@@ -1621,12 +1867,13 @@ export interface Ownable2Step_OwnershipTransferRequested {
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
@@ -1661,13 +1908,14 @@ export interface Ownable2Step_OwnershipTransferred {
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
@@ -1685,6 +1933,27 @@ export const Ownable2Step_OwnershipTransferred = {
     },
     toCell(self: Ownable2Step_OwnershipTransferred): c.Cell {
         return makeCellFrom<Ownable2Step_OwnershipTransferred>(self, Ownable2Step_OwnershipTransferred.store);
+    }
+}
+
+/**
+ > enum Withdrawable_Error { 3 variants }
+ */
+export type Withdrawable_Error = bigint
+
+export const Withdrawable_Error = {
+    InsufficientBalance: 57100n,
+    HitReserve: 57101n,
+    InvalidRequest: 57102n,
+
+    fromSlice(s: c.Slice): Withdrawable_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Withdrawable_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Withdrawable_Error): c.Cell {
+        return makeCellFrom<Withdrawable_Error>(self, Withdrawable_Error.store);
     }
 }
 
@@ -1710,7 +1979,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -1718,7 +1987,8 @@ export const Withdrawable_Withdraw = {
     }): Withdrawable_Withdraw {
         return {
             $: 'Withdrawable_Withdraw',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
@@ -1748,6 +2018,25 @@ export const Withdrawable_Withdraw = {
 }
 
 /**
+ > enum Upgradeable_Error { 1 variants }
+ */
+export type Upgradeable_Error = bigint
+
+export const Upgradeable_Error = {
+    VersionMismatch: 19900n,
+
+    fromSlice(s: c.Slice): Upgradeable_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: Upgradeable_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: Upgradeable_Error): c.Cell {
+        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
+    }
+}
+
+/**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
  >     queryId: uint64
  >     code: cell
@@ -1763,12 +2052,13 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
@@ -1828,9 +2118,71 @@ export const Upgradeable_UpgradedEvent = {
 }
 
 /**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
+    }
+}
+
+/**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct (0x31768d95) Router_CCIPSend {
@@ -1840,7 +2192,7 @@ export type SnakedCell<T> = c.Cell
  >     data: cell
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
- >     extraArgs: cell
+ >     extraArgs: Cell<ExtraArgs>
  > }
  */
 export interface Router_CCIPSend {
@@ -1851,24 +2203,25 @@ export interface Router_CCIPSend {
     data: c.Cell
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
-    extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+    extraArgs: ExtraArgs
 }
 
 export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID: uint64
+        queryID?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
-        extraArgs: CellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>
+        extraArgs: ExtraArgs
     }): Router_CCIPSend {
         return {
             $: 'Router_CCIPSend',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
@@ -1879,14 +2232,9 @@ export const Router_CCIPSend = {
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadRef(),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(s,
-                (s) => lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-                    lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-                    lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-                    throwNonePrefixMatch('Router_CCIPSend.extraArgs')
-            ),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
         }
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
@@ -1895,21 +2243,9 @@ export const Router_CCIPSend = {
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
         b.storeRef(self.data);
-        b.storeRef(self.tokenAmounts);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
-        storeCellRef<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>(self.extraArgs, b,
-            (v,b) => { switch (v.$) {
-                case 'GenericExtraArgsV2':
-                    GenericExtraArgsV2.store(v, b);
-                    break;
-                case 'SVMExtraArgsV1':
-                    SVMExtraArgsV1.store(v, b);
-                    break;
-                case 'SuiExtraArgsV1':
-                    SuiExtraArgsV1.store(v, b);
-                    break;
-            } }
-        );
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
     },
     toCell(self: Router_CCIPSend): c.Cell {
         return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
@@ -1958,15 +2294,19 @@ export class FeeQuoter implements c.Contract {
     static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
-        'Common_Error.CrossChainAddressOutOfRange': 5,
         'Utils_Error.InvalidData': 13500,
+        'Utils_Error.BitmapOutOfBounds': 13501,
         'Upgradeable_Error.VersionMismatch': 19900,
         'FeeQuoter_Error.UnsupportedChainFamilySelector': 34400,
         'FeeQuoter_Error.GasLimitTooHigh': 34401,
         'FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue': 34402,
         'FeeQuoter_Error.InvalidExtraArgsData': 34403,
+        'FeeQuoter_Error.UnsupportedNumberOfTokens': 34404,
+        'FeeQuoter_Error.InvalidEVMReceiverAddress': 34405,
+        'FeeQuoter_Error.Invalid32ByteReceiverAddress': 34406,
         'FeeQuoter_Error.InvalidSuiReceiverAddress': 34407,
         'FeeQuoter_Error.InvalidSVMReceiverAddress': 34408,
+        'FeeQuoter_Error.InvalidTokenReceiver': 34409,
         'FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds': 34410,
         'FeeQuoter_Error.MsgDataTooLarge': 34411,
         'FeeQuoter_Error.StaleGasPrice': 34412,
@@ -1978,7 +2318,12 @@ export class FeeQuoter implements c.Contract {
         'FeeQuoter_Error.InsufficientFee': 34418,
         'FeeQuoter_Error.TokenTransfersNotSupported': 34419,
         'FeeQuoter_Error.UnauthorizedPriceUpdater': 34420,
+        'FeeQuoter_Error.ExecutionCostOverflow': 34421,
+        'FeeQuoter_Error.PremiumFeeOverflow': 34422,
+        'FeeQuoter_Error.DataAvailabilityCostOverflow': 34423,
+        'FeeQuoter_Error.FeeCalculationOverflow': 34424,
         'FeeQuoter_Error.TokenPriceTooLow': 34425,
+        'FeeQuoter_Error.FeeOverflow': 34426,
         'FeeQuoter_Error.MessageFeeTooHigh': 34427,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
@@ -2014,13 +2359,13 @@ export class FeeQuoter implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        allowedPriceUpdaters: c.Dictionary<c.Address, []>
+        allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
         maxFeeJuelsPerMsg: uint96
         linkToken: c.Address
         tokenPriceStalenessThreshold: uint32
-        usdPerToken: c.Dictionary<c.Address, TimestampedPrice>
-        premiumMultiplierWeiPerEth: c.Dictionary<c.Address, uint64>
-        destChainConfigs: c.Dictionary<uint64, DestChainConfig>
+        usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
+        premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
+        destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? FeeQuoter.CodeCell,
@@ -2044,20 +2389,20 @@ export class FeeQuoter implements c.Contract {
 
     static createCellOfFeeQuoterUpdatePrices(body: {
         updates: PriceUpdates
-        sendExcessesTo: c.Address | null
+        sendExcessesTo?: c.Address | null /* = null */
     }) {
         return FeeQuoter_UpdatePrices.toCell(FeeQuoter_UpdatePrices.create(body));
     }
 
     static createCellOfFeeQuoterUpdateFeeTokens(body: {
-        add: c.Dictionary<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
         remove: SnakedCell<c.Address>
     }) {
         return FeeQuoter_UpdateFeeTokens.toCell(FeeQuoter_UpdateFeeTokens.create(body));
     }
 
     static createCellOfFeeQuoterUpdateTokenTransferFeeConfigs(body: {
-        updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+        updates: Map<uint64, UpdateTokenTransferFeeConfig>
     }) {
         return FeeQuoter_UpdateTokenTransferFeeConfigs.toCell(FeeQuoter_UpdateTokenTransferFeeConfigs.create(body));
     }
@@ -2068,19 +2413,12 @@ export class FeeQuoter implements c.Contract {
         return FeeQuoter_UpdateDestChainConfigs.toCell(FeeQuoter_UpdateDestChainConfigs.create(body));
     }
 
-    static createCellOfFeeQuoterGetValidatedFeeRemainingBitsAndRefs_(body: {
-        msg: CellRef<Router_CCIPSend>
-        context: RemainingBitsAndRefs
-    }) {
-        return makeCellFrom<FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>>(FeeQuoter_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-            (v,b) => { b.storeUint(0x7496ff56, 32);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            storeTolkRemaining(v.context, b); }
-        );
+    static createCellOfFeeQuoterGetValidatedFeeAny(body: FeeQuoter_GetValidatedFee_Any) {
+        return FeeQuoter_GetValidatedFee_Any.toCell(body);
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -2090,16 +2428,37 @@ export class FeeQuoter implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
+    }
+
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: c.Cell.EMPTY,
+            ...extraOptions
+        });
+    }
+
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
             ...extraOptions
         });
     }
@@ -2126,7 +2485,7 @@ export class FeeQuoter implements c.Contract {
 
     async sendFeeQuoterUpdatePrices(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         updates: PriceUpdates
-        sendExcessesTo: c.Address | null
+        sendExcessesTo?: c.Address | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2136,7 +2495,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendFeeQuoterUpdateFeeTokens(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        add: c.Dictionary<c.Address, FeeToken>
+        add: Map<c.Address, FeeToken> /* = [] as map<address, FeeToken> */
         remove: SnakedCell<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2147,7 +2506,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendFeeQuoterUpdateTokenTransferFeeConfigs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        updates: c.Dictionary<uint64, UpdateTokenTransferFeeConfig>
+        updates: Map<uint64, UpdateTokenTransferFeeConfig>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2166,23 +2525,16 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async sendFeeQuoterGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        msg: CellRef<Router_CCIPSend>
-        context: RemainingBitsAndRefs
-    }, extraOptions?: ExtraSendOptions) {
+    async sendFeeQuoterGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: FeeQuoter_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>>(FeeQuoter_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-                (v,b) => { b.storeUint(0x7496ff56, 32);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                storeTolkRemaining(v.context, b); }
-            ),
+            body: FeeQuoter_GetValidatedFee_Any.toCell(body),
             ...extraOptions
         });
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -2196,7 +2548,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2206,33 +2558,45 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async getValidatedFeeCell(provider: ContractProvider, msg: CellRef<Router_CCIPSend>): Promise<coins> {
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async getValidatedFeeCell(provider: ContractProvider, msg: Router_CCIPSend): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('validatedFeeCell', [
-            { type: 'cell', cell: Router_CCIPSend.toCell(msg.ref) },
+            { type: 'cell', cell: Router_CCIPSend.toCell(msg) },
         ]));
         return r.readBigInt();
     }
 
-    async getValidatedFee(provider: ContractProvider, msg: {
-        readonly $: 'Router_CCIPSend'
-        queryID: uint64
-        destChainSelector: uint64
-        receiver: CrossChainAddress
-        data: c.Cell
-        tokenAmounts: SnakedCell<TokenAmount>
-        feeToken: c.Address | null
-        extraArgs: c.Cell
-    }): Promise<coins> {
+    async getValidatedFee(provider: ContractProvider, msg: Router_CCIPSend): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('validatedFee', [
-            { type: 'int', value: msg.queryID },
+            { type: 'int', value: msg.queryID ?? 0n },
             { type: 'int', value: msg.destChainSelector },
             { type: 'slice', cell: beginCell().storeSlice(msg.receiver).endCell() },
             { type: 'cell', cell: msg.data },
-            { type: 'cell', cell: msg.tokenAmounts },
+            { type: 'cell', cell: makeCellFrom<SnakedCell<TokenAmount>>(msg.tokenAmounts, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store)) },
             msg.feeToken === null ? { type: 'null' } : { type: 'slice', cell: makeCellFrom<c.Address | null>(msg.feeToken,
                 (v,b) => b.storeAddress(v)
             ) },
-            { type: 'cell', cell: msg.extraArgs },
+            { type: 'cell', cell: ExtraArgs.toCell(msg.extraArgs) },
         ]));
         return r.readBigInt();
     }
@@ -2250,7 +2614,7 @@ export class FeeQuoter implements c.Contract {
         });
     }
 
-    async getTokenPrices(provider: ContractProvider, tokens: array<c.Address>): Promise<array<CellRef<TimestampedPrice> | null>> {
+    async getTokenPrices(provider: ContractProvider, tokens: array<c.Address>): Promise<array<TimestampedPrice | null>> {
         const r = StackReader.fromGetMethod(1, await provider.get('tokenPrices', [
             { type: 'tuple', items: tokens.map(
                 (ith) => ({ type: 'slice', cell: makeCellFrom<c.Address>(ith,
@@ -2258,18 +2622,18 @@ export class FeeQuoter implements c.Contract {
                 ) })
             )},
         ]));
-        return r.readArrayOf<CellRef<TimestampedPrice> | null>(
-            (r) => r.readNullable<CellRef<TimestampedPrice>>(
+        return r.readArrayOf<TimestampedPrice | null>(
+            (r) => r.readNullable<TimestampedPrice>(
                 (r) => r.readCellRef<TimestampedPrice>(TimestampedPrice.fromSlice)
             )
         );
     }
 
-    async getDestinationChainGasPrice(provider: ContractProvider, destChainSelector: uint64): Promise<c.Cell> {
+    async getDestinationChainGasPrice(provider: ContractProvider, destChainSelector: uint64): Promise<GasPrice> {
         const r = StackReader.fromGetMethod(1, await provider.get('destinationChainGasPrice', [
             { type: 'int', value: destChainSelector },
         ]));
-        return r.readCell();
+        return r.readCellRef<GasPrice>(GasPrice.fromSlice);
     }
 
     async getTokenAndGasPrices(provider: ContractProvider, token: c.Address, destChainSelector: uint64): Promise<void> {
@@ -2344,7 +2708,7 @@ export class FeeQuoter implements c.Contract {
                 networkFeeUsdCents: r.readBigInt(),
             }),
             usdPerUnitGas: r.readCellRef<GasPrice>(GasPrice.fromSlice),
-            tokenTransferFeeConfigs: r.readDictionary<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store)),
+            tokenTransferFeeConfigs: dictToMap(r.readDictionary<c.Address, TokenTransferFeeConfig>(c.Dictionary.Keys.Address(), createDictionaryValue<TokenTransferFeeConfig>(TokenTransferFeeConfig.fromSlice, TokenTransferFeeConfig.store))),
         });
     }
 

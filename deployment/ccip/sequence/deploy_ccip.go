@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -21,14 +20,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 )
 
 type DeployCCIPSeqInput struct {
@@ -73,7 +73,8 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			bindings.TypeFeeQuoter,
 			bindings.TypeOffRamp,
 			bindings.TypeOnRamp,
-			bindings.TypeTokenRegistry,
+			bindings.TypeTokenAdminRegistry,
+			bindings.TypeTokenAdminRegistryEntry,
 			bindings.TypeTestReceiver,
 			bindings.TypeTimelock,
 			bindings.TypeSendExecutor,
@@ -111,10 +112,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 			OnRamps:  nil, // set afterward
 			OffRamps: nil, // set afterward
-			TokenRegistryDeployment: router.TokenRegistryDeployment{
-				DeployableCode:    tonCompiledContracts[bindings.TypeDeployable].Code,
-				TokenRegistryCode: tonCompiledContracts[bindings.TypeTokenRegistry].Code,
-			},
 		}
 
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeRouter], routerStorage, nil, in.CCIPConfig.RouterParams.Coin)
@@ -124,6 +121,24 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 		addresses = append(addresses, *outputAddr)
 		routerAddress = *address.MustParseAddr(outputAddr.Address)
+	}
+
+	// TokenAdminRegistry must be available before both ramps are deployed: each
+	// derives the same deterministic TokenAdminRegistryEntry address from it.
+	tokenAdminRegistryAddress := stateCCIP.TokenAdminRegistry
+	if tokenAdminRegistryAddress.IsAddrNone() {
+		registryStorage := tokenadminregistry.Storage{
+			ID: in.CCIPConfig.TokenAdminRegistryParams.ID,
+			Ownable: ownable2step.Storage{
+				Owner: chain.WalletAddress, PendingOwner: address.NewAddressNone(),
+			},
+		}
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTokenAdminRegistry], registryStorage, nil, in.CCIPConfig.TokenAdminRegistryParams.Coin)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("deploy TokenAdminRegistry: %w", err)
+		}
+		addresses = append(addresses, *outputAddr)
+		tokenAdminRegistryAddress = *address.MustParseAddr(outputAddr.Address)
 	}
 
 	// FeeQuoter
@@ -190,7 +205,10 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			ChainSelector: in.ChainSelector,
+			StaticConfig: onramp.StaticConfig{
+				ChainSelector:      in.ChainSelector,
+				TokenAdminRegistry: &tokenAdminRegistryAddress,
+			},
 			Config: onramp.DynamicConfig{
 				FeeQuoter:      &feeQuoterAddress,
 				FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
@@ -198,11 +216,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Reserve:        reserve,
 			},
 			DestChainConfigs: nil,
-			Executor: onramp.ExecutorDeployment{
-				DeployableCode: tonCompiledContracts[bindings.TypeDeployable].Code,
-				ExecutorCode:   tonCompiledContracts[bindings.TypeSendExecutor].Code,
-				CurrentID:      big.NewInt(0),
-			},
 		}
 
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin)
@@ -223,16 +236,14 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			Deployables: offramp.Deployables{
-				RMNRouter:           &routerAddress,
-				Deployer:            tonCompiledContracts[bindings.TypeDeployable].Code,
-				MerkleRootCode:      tonCompiledContracts[bindings.TypeMerkleRoot].Code,
-				ReceiveExecutorCode: tonCompiledContracts[bindings.TypeReceiveExecutor].Code,
+			StaticConfig: offramp.StaticConfig{
+				RMNRouter:          &routerAddress,
+				TokenAdminRegistry: &tokenAdminRegistryAddress,
+				ChainSelector:      in.ChainSelector,
 			},
 			FeeQuoter: &feeQuoterAddress,
 			// empty OCR3Base
 			OCR3Base:                                offramp.OCR3Base{},
-			ChainSelector:                           in.ChainSelector,
 			PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 			LatestPriceSequenceNumber: 0,
 		}

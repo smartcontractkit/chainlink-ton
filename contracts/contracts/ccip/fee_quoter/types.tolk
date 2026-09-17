@@ -91,7 +91,7 @@ struct DestChainConfig {
 
     usdPerUnitGas: Cell<GasPrice>;
 
-    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
+    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig> = [];
 }
 
 const SVM_EXTRA_ARGS_MAX_ACCOUNTS= 64;
@@ -129,7 +129,7 @@ const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
 + 32; // per-chain token billing config, not always included in the token lookup table
 
 struct UpdateTokenTransferFeeConfig {
-    add: map<address, TokenTransferFeeConfig>; // token address -> config
+    add: map<address, TokenTransferFeeConfig> = []; // token address -> config
     remove: SnakedCell<address>;
 }
 

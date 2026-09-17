@@ -8,13 +8,13 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var StorageContractPath = bindings.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
+var StorageContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tracetracking.SignedAPIClient

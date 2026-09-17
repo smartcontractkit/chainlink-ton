@@ -9,7 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"

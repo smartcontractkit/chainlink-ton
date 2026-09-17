@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
-import "../lock_release/messages"
+import "../lib/token_pool/messages"
+import "../../accounts/deposit/messages"
 import "../lockbox/messages"
+import "types"
 
-// Messages we receive from lockbox or jetton system:
-// - JettonLockBox_Deposited: lockbox confirms deposit (lock flow completion)
-// - JettonLockBox_WithdrawFailed: lockbox reports withdraw failure (release error)
-// - ReturnExcessesBack: completion signal for both lock and release flows
 type LockReleaseLockboxTokenPool_InMessage =
     | ReturnExcessesBack
     | JettonLockBox_Deposited
-    | JettonLockBox_WithdrawFailed;
+    | JettonLockBox_WithdrawFailed
+    | DepositAccount_Reply
+    | DepositAccount_ForwardNotification;
 
 type LockReleaseLockboxTokenPool_OutMessage =
     | AskToTransfer;
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | DepositAccount_Init
+    | TokenPool_GetCCVs;

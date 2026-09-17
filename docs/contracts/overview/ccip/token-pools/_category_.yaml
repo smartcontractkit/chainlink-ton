@@ -1,0 +1,7 @@
+position: 7
+label: Token Pools
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: token-pools-index

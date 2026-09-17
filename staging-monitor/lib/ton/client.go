@@ -10,17 +10,18 @@ import (
 	"strings"
 	"time"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
-	chainsel "github.com/smartcontractkit/chain-selectors"
-
+	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+
+	tonhash "github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -31,7 +32,6 @@ import (
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-	tonhash "github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -162,12 +162,12 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}
 
 	// Extract messageID from event
-	ccipEvent, ok := event.(onramp.CCIPMessageSent)
+	messageIDBytes, ok := event.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("unexpected event type: %T", event)
+		return nil, fmt.Errorf("expected []byte messageID, got %T", event)
 	}
 
-	messageID := hex.EncodeToString(ccipEvent.Message.Header.MessageID)
+	messageID := hex.EncodeToString(messageIDBytes)
 	lggr.Infow("CCIP message sent from TON", "seqNum", seqNum, "messageID", messageID)
 
 	return &lib.SendResult{
@@ -192,7 +192,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 		return fmt.Errorf("failed to parse receiver address: %w", err)
 	}
 
-	lggr.Infow("Waiting for CCIPReceive event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
+	lggr.Infow("Waiting for Receiver_CCIPReceiveV2 event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
 
 	// Setup logpoller service
 	eventName := "Receiver_CCIPMessageReceived"
@@ -244,7 +244,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 			return ctx.Err()
 
 		case <-progressTicker.C:
-			lggr.Infow("Still waiting for CCIPReceive",
+			lggr.Infow("Still waiting for Receiver_CCIPReceiveV2",
 				"receiver", lib.RedactAddress(receiver),
 				"elapsed", time.Since(startTime).Round(time.Second).String())
 
@@ -341,7 +341,9 @@ type mapStateProvider struct {
 	addresses map[datastore.ContractType]string
 }
 
-func (p *mapStateProvider) GetAddress(ty datastore.ContractType) (string, error) {
+var _ testadapters.StateProvider = (*mapStateProvider)(nil)
+
+func (p *mapStateProvider) GetAddress(ty datastore.ContractType, _ ...string) (string, error) {
 	addr, ok := p.addresses[ty]
 	if !ok {
 		return "", fmt.Errorf("address not found for contract type: %s", ty)

@@ -2,14 +2,13 @@ package lockreleaselockbox
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Getters from lock_release_lockbox/contract.tolk ---
@@ -18,34 +17,6 @@ import (
 // plus variant-specific getters.
 
 // --- Variant-specific getters ---
-
-// GetHasPendingLock checks if there is a pending lock operation for the given query ID.
-//
-// On-chain: get fun hasPendingLock(queryId: uint64): bool
-var GetHasPendingLock = tvm.Getter[uint64, bool]{
-	Name: "hasPendingLock",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("error getting Int(0) - hasPendingLock: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
-	}),
-}
-
-// GetHasPendingRelease checks if there is a pending release operation for the given query ID.
-//
-// On-chain: get fun hasPendingRelease(queryId: uint64): bool
-var GetHasPendingRelease = tvm.Getter[uint64, bool]{
-	Name: "hasPendingRelease",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("error getting Int(0) - hasPendingRelease: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
-	}),
-}
 
 // GetLockbox gets the JettonLockBox address used by this token pool.
 //
@@ -93,6 +64,7 @@ var (
 	GetMirroredPolicy          = tokenpool.GetMirroredPolicy
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
+	GetCCVAmount               = tokenpool.GetCCVAmount
 )
 
 // --- Re-export argument types for convenience ---
@@ -105,6 +77,9 @@ type GetCurrentRateLimiterStateArgs = tokenpool.GetCurrentRateLimiterStateArgs
 
 // GetFeeArgs holds the arguments for the getFee getter.
 type GetFeeArgs = tokenpool.GetFeeArgs
+
+// GetCCVAmountArgs holds the arguments for the getCCVAmount getter.
+type GetCCVAmountArgs = tokenpool.GetCCVAmountArgs
 
 // GetTokenTransferFeeConfigResult holds the optional fee config result.
 type GetTokenTransferFeeConfigResult = tokenpool.GetTokenTransferFeeConfigResult
