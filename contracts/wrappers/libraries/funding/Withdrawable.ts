@@ -29,7 +29,7 @@ export type Withdraw = {
   queryId: bigint
   destination: Address
   amount: bigint
-  reserve?: bigint
+  reserve: bigint | null
   drainAllAvailable: boolean
 }
 
@@ -53,7 +53,7 @@ export const builder = {
               queryId: src.loadUintBig(64),
               destination: src.loadAddress(),
               amount: src.loadCoins(),
-              reserve: src.loadMaybeCoins() ?? undefined,
+              reserve: src.loadMaybeCoins(),
               drainAllAvailable: src.loadBit(),
             }
           },
@@ -63,7 +63,7 @@ export const builder = {
   },
 }
 
-export async function sendWithdraw(
+export async function sendWithdrawableWithdraw(
   provider: ContractProvider,
   via: Sender,
   value: bigint,
@@ -82,7 +82,7 @@ export async function getReserve(provider: ContractProvider): Promise<bigint> {
 }
 
 export interface Interface extends Contract {
-  sendWithdraw(
+  sendWithdrawableWithdraw(
     provider: ContractProvider,
     via: Sender,
     value: bigint,

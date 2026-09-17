@@ -12,7 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
@@ -21,15 +21,15 @@ import (
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
@@ -85,7 +85,7 @@ func TestDeployCCIP(t *testing.T) {
 			AllowListEnabled:        false,
 		},
 		Selector: tonChain.Selector,
-		GasPrice: big.NewInt(1e17),
+		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 			linkAddr.String():         big.NewInt(20),
@@ -210,6 +210,9 @@ func TestDeployCCIP(t *testing.T) {
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
 	require.NoError(t, err)
+	tokenAdminRegistryAddr := state[chainSelector].TokenAdminRegistry
+	rawTokenAdminRegistryAddr, err := addrCodec.AddressStringToBytes(tokenAdminRegistryAddr.String())
+	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
 
@@ -332,7 +335,7 @@ func TestDeployCCIP(t *testing.T) {
 				ChainSelector:        ccipocr3.ChainSelector(tonChain.Selector),
 				GasForCallExactCheck: 0,
 				RmnRemote:            nil,
-				TokenAdminRegistry:   nil,
+				TokenAdminRegistry:   rawTokenAdminRegistryAddr,
 				NonceManager:         nil,
 			},
 			DynamicConfig: ccipocr3.OffRampDynamicChainConfig{

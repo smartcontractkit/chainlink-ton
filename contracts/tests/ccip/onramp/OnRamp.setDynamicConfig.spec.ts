@@ -3,16 +3,17 @@ import { randomAddress } from '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 import { deployOnRampContract } from './OnRamp.Setup'
-import * as or from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 
 describe('OnRamp - set Dynamic Config', () => {
   let blockchain: Blockchain
   let owner: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
-  let config: or.DynamicConfig
+  let config: or.OnRamp_DynamicConfig
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -34,12 +35,13 @@ describe('OnRamp - set Dynamic Config', () => {
       allowlistAdmin: randomAddress(),
       reserve: toNano('42'),
     }
-    const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
-      value: toNano('0.5'),
-      body: {
-        config: newConfig,
+    const resultUpdateDestChainConfigs = await onramp.sendOnRampSetDynamicConfig(
+      owner.getSender(),
+      toNano('0.5'),
+      {
+        config: or.OnRamp_DynamicConfig.create(newConfig),
       },
-    })
+    )
     expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
       from: owner.address,
       to: onramp.address,
@@ -61,12 +63,13 @@ describe('OnRamp - set Dynamic Config', () => {
       allowlistAdmin: randomAddress(),
       reserve: toNano('42'),
     }
-    const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(nonOwner.getSender(), {
-      value: toNano('0.5'),
-      body: {
-        config: newConfig,
+    const resultUpdateDestChainConfigs = await onramp.sendOnRampSetDynamicConfig(
+      nonOwner.getSender(),
+      toNano('0.5'),
+      {
+        config: or.OnRamp_DynamicConfig.create(newConfig),
       },
-    })
+    )
     expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
       from: nonOwner.address,
       to: onramp.address,
@@ -79,7 +82,7 @@ describe('OnRamp - set Dynamic Config', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_set-dynamic_config_tests', [
         {
-          code: await onramp.getCode(),
+          code: await contractCode.ccip.local('OnRamp'),
           name: 'onramp',
         },
       ])

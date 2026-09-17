@@ -49,6 +49,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			CommitPriceUpdateOnlyCostTON: 0.05,
 			CommitPriceAndRootCostTON:    0.08,
 			ExecuteCostTON:               0.1,
+			ExecuteCostTONTokenTransfer:  0.05,
 		}
 		err := cfg.ValidateConfig()
 		require.NoError(t, err)
@@ -59,6 +60,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			CommitPriceUpdateOnlyCostTON: 0,
 			CommitPriceAndRootCostTON:    0.08,
 			ExecuteCostTON:               0.1,
+			ExecuteCostTONTokenTransfer:  0.05,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
@@ -70,6 +72,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			CommitPriceUpdateOnlyCostTON: 0.05,
 			CommitPriceAndRootCostTON:    0,
 			ExecuteCostTON:               0.1,
+			ExecuteCostTONTokenTransfer:  0.05,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
@@ -81,6 +84,19 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			CommitPriceUpdateOnlyCostTON: 0.05,
 			CommitPriceAndRootCostTON:    0.08,
 			ExecuteCostTON:               0,
+			ExecuteCostTONTokenTransfer:  0.05,
+		}
+		err := cfg.ValidateConfig()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ExecuteCostTON")
+	})
+
+	t.Run("fails when ExecuteCostTONTokenTransfer is zero", func(t *testing.T) {
+		cfg := &Config{
+			CommitPriceUpdateOnlyCostTON: 0.05,
+			CommitPriceAndRootCostTON:    0.08,
+			ExecuteCostTON:               0.1,
+			ExecuteCostTONTokenTransfer:  0,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
@@ -102,6 +118,7 @@ func TestDefaultConfigSet(t *testing.T) {
 		assert.Greater(t, DefaultConfigSet.CommitPriceUpdateOnlyCostTON, 0.0)
 		assert.Greater(t, DefaultConfigSet.CommitPriceAndRootCostTON, 0.0)
 		assert.Greater(t, DefaultConfigSet.ExecuteCostTON, 0.0)
+		assert.Greater(t, DefaultConfigSet.ExecuteCostTONTokenTransfer, 0.0)
 	})
 
 	t.Run("default config passes validation", func(t *testing.T) {

@@ -1,30 +1,31 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
-import "../../lib/funding/withdrawable.tolk"
-import "../../lib/access/ownable_2step"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable"
+import "../../lib/access/ownable_2step"
 import "../../lib/versioning/upgradeable"
+import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../../lib/jetton/jetton_client"
 import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
 import "../offramp/types"
-import "../common/messages"
-import "../test/tokenPool/messages"
+import "../rmn_remote/lib"
+import "../pools/lib/token_pool/messages"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
 import "events"
-import "../../lib/deployable/namespace"
-import "../token_registry/storage"
-import "../token_registry/messages"
-import "../../lib/deployable/types"
+import "../pools/lib/token_pool/types"
+import "../common/types"
+import "../../lib/jetton/jetton_client"
 
 tolk 1.4.1
 
@@ -37,8 +38,8 @@ contract Router {
     description: "link.chain.ton.ccip.Router"
 
     storage: Storage
-    incomingMessages: Router_InMsg
-    forceAbiExport: (Router_MessageValidationFailed_RemainingBitsAndRefs, Router_MessageValidated_RemainingBitsAndRefs)
+    incomingMessages: Router_InMsg | Ownable2Step_Messages
+    forceAbiExport: (Router_MessageValidationFailed_Any, Router_MessageValidated_Any)
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -86,10 +87,16 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be OffRamp
         Router_RouteMessage => {
             val st = lazy Storage.load();
-            val message: Any2TVMMessage = msg.message.load();
+            val message = lazy msg.message.load();
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
-            onRouteMessage(msg, message);
+            onRouteMessage(msg, msg.message);
+        }
+        // Sender must be OnRamp
+        Router_WithdrawToTokenPool => {
+            var st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onWithdrawToTokenPool(mutate st, msg);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -165,11 +172,13 @@ fun onInternalMessage(in: InMessage) {
         }
         Router_LockOrBurn => {
             val st = lazy Storage.load();
-            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            val request = lazy msg.request.load();
+            val details = lazy request.transfer.details.load();
+            assertSenderIsOnRamp(st, details.remoteChainSelector, in.senderAddress);
             onLockOrBurn(msg);
         }
         // Sender must be a Jetton Wallet owned by the Router
-        Common_JettonTransferNotification => {
+        TransferNotificationForRecipient => {
             // TODO we can't just throw errors in the Router on JettonTransferNotification - this will burn the tokens.
             // - We either need to return them (do we have enough gas to return?)
             // - Or we need to store state and mark them invalid to be able to withdraw
@@ -183,49 +192,21 @@ fun onInternalMessage(in: InMessage) {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
 
-            assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
+            // TODO: this doesn't compile
+            // assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
 
             //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
-            val sendMsg = lazy Router_CCIPSend.fromCell(msg.forwardPayload);
+            var forwardPayload = msg.forwardPayload;
+            val sendMsg = lazy Router_CCIPSend.fromCell(forwardPayload.loadRef());
 
             var tokenAmounts = sendMsg.tokenAmounts.iter();
             assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
 
             val transferedJetton = tokenAmounts.next();
-            assert (transferedJetton.amount == msg.amount) throw Router_Error.TokenAmountMismatch;
+            assert (transferedJetton.amount == msg.jettonAmount) throw Router_Error.TokenAmountMismatch;
             assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
-            onCCIPSend(sendMsg, msg.sender, in.valueCoins);
-        }
-        Router_TokenRegistrySetTokenInfo => {
-            val st = Storage.load();
-            val registryAddress = getTokenRegistryDeployAddress(st, msg.tokenAddress);
-            if (msg.isNewEntry) {
-                val deployMsg = createMessage({
-                    bounce: false,
-                    value: ton("0.015"),
-                    dest: registryAddress,
-                    body: Deployable_Initialize {
-                        stateInit: {
-                            code: st.tokenRegistryDeployment.load().tokenRegistryCode,
-                            data: TokenRegistry_Storage {
-                                tokenAddress: msg.tokenAddress,
-                                tokenInfo: msg.tokenInfo
-                            }.toCell(),
-                        }
-                    },
-                });
-                deployMsg.send(SEND_MODE_REGULAR);
-            }
-            val setTokenInfoMsg = createMessage({
-                bounce: false,
-                value: ton("0.015"),
-                dest: registryAddress,
-                body: TokenRegistry_SetTokenInfo {
-                    info: msg.tokenInfo
-                }
-            });
-            setTokenInfoMsg.send(SEND_MODE_REGULAR); //TODO check send_mode
+            onCCIPSend(sendMsg, msg.transferInitiator!, in.valueCoins);
         }
         else => {
             // attempt to handle Ownable messages
@@ -247,7 +228,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
       // We are lazy matching and only accessing the first element of the struct.
       // The rest of the data is not a part of the bounced body so it cannot be accessed
-      Receiver_CCIPReceive => { onCCIPReceiveBounced(msg.execId, in.senderAddress) }
+      Receiver_CCIPReceiveV2 => { onCCIPReceiveBounced(msg.execId, in.senderAddress) }
       // We cannot take any action if the OffRamp is bouncing the Router messages other than to emit an event for visibility
       OffRamp_CCIPReceiveConfirm => {
         emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
@@ -274,9 +255,10 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage (process)
-//     Router          ->> Receiver: Receiver_CCIPReceive
-fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
-    val ccipReceive: Receiver_CCIPReceive = {
+//     Router          ->> Receiver: Receiver_CCIPReceiveV2
+fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
+    val ccipReceive: Receiver_CCIPReceiveV2 = {
+        queryId: msg.queryId,
         execId: msg.execId,
         message,
     };
@@ -288,6 +270,25 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
         body: ccipReceive,
     });
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val transferRequest = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: withdrawRequest.routerWalletAddress,
+        body: AskToTransfer {
+            queryId: msg.queryID,
+            jettonAmount: withdrawRequest.amount,
+            transferRecipient: withdrawRequest.tokenPool,
+            sendExcessesTo: null, // TBD
+            customPayload: null, // TBD
+            forwardTonAmount: ton("0.5"), // TODO
+            forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+        },
+    });
+    transferRequest.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
@@ -374,7 +375,7 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
 
 //     ReceiveExecutor ->> OffRamp:         OffRamp_DispatchValidated
 //     OffRamp         ->> Router:          Router_RouteMessage
-//     Router          ->> Receiver:        Receiver_CCIPReceive
+//     Router          ->> Receiver:        Receiver_CCIPReceiveV2
 //     Receiver        ->> Router:          Router_CCIPReceiveConfirm (process)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveConfirm
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
@@ -389,6 +390,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
         value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
+            queryId: msg.queryId,
             execId: msg.execId,
             receiver: sender,
         },
@@ -409,8 +411,8 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 
 //     ReceiveExecutor ->> OffRamp:         OffRamp_DispatchValidated
 //     OffRamp         ->> Router:          Router_RouteMessage
-//     Router          ->> Receiver:        Receiver_CCIPReceive
-//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce, process)
+//     Router          ->> Receiver:        Receiver_CCIPReceiveV2
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2 (bounce, process)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
 fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
@@ -418,6 +420,9 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
+    // queryId is not available from the bounced body (only the first 256 bits are returned,
+    // which covers the opcode + execId + part of the queryId), so it is omitted. The ReceiveExecutor
+    // already stores the queryId in its own storage.
     val receiveBounced = createMessage({
         bounce: true,
         value: OffRamp_Costs.receiveConfirmOrDeny(),
@@ -554,15 +559,6 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         msg.feeToken = st.wrappedNative
     }
 
-    // Calculate the token registry address if there is a token amount.
-    // If the token does not exist then the call to get token info will bounce from the ramps.
-    var tokenRegistry: address? = null;
-    if (!msg.tokenAmounts.empty()) {
-        val tokenAmount = msg.tokenAmounts.iter().next(); // Only one tokenAmount per msg is supported
-        //TODO should we assert that there is only one token in the tokenAmounts? Or do we just ignore after the first one?
-        tokenRegistry = getTokenRegistryDeployAddress(st, tokenAmount.token).calculateAddress();
-    }
-
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
@@ -571,7 +567,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         bounce: true,
         value: 0,
         dest: onRampResult.loadValue(),
-        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }, tokenRegistry},
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }},
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -714,9 +710,12 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
         bounce: true,
         value: 0,
         dest: msg.tokenPool,
-        body: MockTokenPool_LockOrBurn {
-            tokenAmount: msg.tokenAmount,
-            notify: msg.executorAddress,
+        body: TokenPool_LockOrBurn {
+            queryId: msg.queryID,
+            request: msg.request,
+            requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
+            tokenArgs: null, // TBD?
+            replyTo: msg.executorAddress,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -736,22 +735,6 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
-}
-
-/*
-Derives the token registry contract address from the token address
-*/
-fun getTokenRegistryDeployAddress(st: Storage, tokenAddress: address): AutoDeployAddress {
-    return {
-        stateInit: {
-            code: st.tokenRegistryDeployment.load().deployableCode,
-            data: NamespacedDeployableData({
-                namespace: DeployableNamespace_TokenRegistry,
-                owner: contract.getAddress(),
-                id: tokenAddress,
-            }),
-        }
-    }
 }
 
 @method_id(1000)

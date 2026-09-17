@@ -10,10 +10,10 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- OffRamp Model Struct Definitions ----------
@@ -21,21 +21,19 @@ import (
 type OffRampStorage struct {
 	ID                                      uint32                       `json:"id"`
 	Ownable                                 Ownable2Step                 `json:"ownable"`
-	Deployables                             Deployables                  `json:"deployables"`
+	StaticConfig                            StaticConfig                 `json:"staticConfig"`
 	FeeQuoter                               *address.Address             `json:"feeQuoter"`
 	OCR3Base                                OCR3Base                     `json:"ocr3Base"`
 	CursedSubjects                          []*big.Int                   `json:"cursedSubjects"`
-	ChainSelector                           uint64                       `json:"chainSelector"`
 	PermissionlessExecutionThresholdSeconds uint32                       `json:"PermissionlessExecutionThresholdSeconds"`
 	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
 	LatestPriceSequenceNumber               uint64                       `json:"LatestPriceSequenceNumber"`
 }
 
-type Deployables struct {
-	RMNRouter           *address.Address `json:"rmnRouter"`
-	Deployer            string           `json:"deployerHex"`
-	MerkleRootCode      string           `json:"MerkleRootCodeHex"`
-	ReceiveExecutorCode string           `json:"ReceiveExecutorCodeHex"`
+type StaticConfig struct {
+	RMNRouter          *address.Address `json:"rmnRouter"`
+	TokenAdminRegistry *address.Address `json:"tokenAdminRegistry"`
+	ChainSelector      uint64           `json:"chainSelector"`
 }
 
 type OCR3Base struct {
@@ -109,31 +107,15 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.RMNRouter = router
+	b.storage.StaticConfig.RMNRouter = router
 	return b
 }
 
-func (b *OffRampStorageBuilder) WithDeployerCode(deployerCodeHex string) *OffRampStorageBuilder {
+func (b *OffRampStorageBuilder) WithTokenAdminRegistry(tokenAdminRegistry *address.Address) *OffRampStorageBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.storage.Deployables.Deployer = deployerCodeHex
-	return b
-}
-
-func (b *OffRampStorageBuilder) WithMerkleRootCode(merkleRootCode string) *OffRampStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.Deployables.MerkleRootCode = merkleRootCode
-	return b
-}
-
-func (b *OffRampStorageBuilder) WithReceiveExecutorCode(receiveExecutorCode string) *OffRampStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.Deployables.ReceiveExecutorCode = receiveExecutorCode
+	b.storage.StaticConfig.TokenAdminRegistry = tokenAdminRegistry
 	return b
 }
 
@@ -174,7 +156,7 @@ func (b *OffRampStorageBuilder) WithChainSelector(selector uint64) *OffRampStora
 	if b.err != nil {
 		return b
 	}
-	b.storage.ChainSelector = selector
+	b.storage.StaticConfig.ChainSelector = selector
 	return b
 }
 
@@ -220,15 +202,12 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 			raw.Ownable.PendingOwner,
 		).
 		WithFeeQuoter(raw.FeeQuoter).
-		WithChainSelector(raw.ChainSelector).
+		WithChainSelector(raw.StaticConfig.ChainSelector).
 		WithPermissionlessExecutionThresholdSeconds(raw.PermissionlessExecutionThresholdSeconds).
 		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
 
-	// Deployables
-	b = b.WithRMNRouter(raw.Deployables.RMNRouter).
-		WithDeployerCode(hex.EncodeToString(raw.Deployables.Deployer.ToBOC())).
-		WithMerkleRootCode(hex.EncodeToString(raw.Deployables.MerkleRootCode.ToBOC())).
-		WithReceiveExecutorCode(hex.EncodeToString(raw.Deployables.ReceiveExecutorCode.ToBOC()))
+	b = b.WithRMNRouter(raw.StaticConfig.RMNRouter).
+		WithTokenAdminRegistry(raw.StaticConfig.TokenAdminRegistry)
 
 	// OCR3Base
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
@@ -412,21 +391,6 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 }
 
 func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
-	deployerCode, err := loadCell(s.Deployables.Deployer)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading deployer code: %w", err)
-	}
-
-	merkleRootCode, err := loadCell(s.Deployables.MerkleRootCode)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading merkle root code: %w", err)
-	}
-
-	receiveExecutorCode, err := loadCell(s.Deployables.ReceiveExecutorCode)
-	if err != nil {
-		return nil, fmt.Errorf("error while loading receive executor code: %w", err)
-	}
-
 	commitOCR3Config, err := ocr3ConfigToBinding(s.OCR3Base.Commit)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading commit OCR3 config: %w", err)
@@ -494,14 +458,12 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			PendingOwner: s.Ownable.PendingOwner,
 		},
 		FeeQuoter:                               s.FeeQuoter,
-		ChainSelector:                           s.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: s.PermissionlessExecutionThresholdSeconds,
 		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
-		Deployables: offramp.Deployables{
-			RMNRouter:           s.Deployables.RMNRouter,
-			Deployer:            deployerCode,
-			MerkleRootCode:      merkleRootCode,
-			ReceiveExecutorCode: receiveExecutorCode,
+		StaticConfig: offramp.StaticConfig{
+			RMNRouter:          s.StaticConfig.RMNRouter,
+			TokenAdminRegistry: s.StaticConfig.TokenAdminRegistry,
+			ChainSelector:      s.StaticConfig.ChainSelector,
 		},
 		OCR3Base: offramp.OCR3Base{
 			ChainID: chainIDU8,

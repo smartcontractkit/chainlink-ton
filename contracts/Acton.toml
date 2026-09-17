@@ -7,6 +7,8 @@ license = "see LICENSE in LICENSE"
 [wrappers.typescript]
 output-dir = "wrappers/gen"
 
+# CCIP contracts
+
 [contracts.Router]
 display-name = "link.chain.ton.ccip.Router"
 src = "contracts/ccip/router/contract.tolk"
@@ -17,13 +19,13 @@ depends = []
 display-name = "link.chain.ton.ccip.OnRamp"
 src = "contracts/ccip/onramp/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "CCIPSendExecutor"]
 
 [contracts.OffRamp]
 display-name = "link.chain.ton.ccip.OffRamp"
 src = "contracts/ccip/offramp/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "MerkleRoot", "ReceiveExecutor"]
 
 [contracts.FeeQuoter]
 display-name = "link.chain.ton.ccip.FeeQuoter"
@@ -35,6 +37,18 @@ depends = []
 [contracts.CCIPSendExecutor]
 display-name = "link.chain.ton.ccip.CCIPSendExecutor"
 src = "contracts/ccip/ccipsend_executor/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.DepositAccount]
+display-name = "link.chain.ton.ccip.account.DepositAccount"
+src = "contracts/ccip/accounts/deposit/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.OnRampAccount]
+display-name = "link.chain.ton.ccip.account.OnRampAccount"
+src = "contracts/ccip/accounts/on_ramp_account/contract.tolk"
 domain = "ccip"
 depends = []
 
@@ -50,15 +64,92 @@ src = "contracts/ccip/merkle_root/contract.tolk"
 domain = "ccip"
 depends = []
 
-[contracts.MockTokenPool]
-display-name = "link.chain.ton.ccip.test.TokenPool"
-src = "contracts/ccip/test/tokenPool/contract.tolk"
+# CCIP Libraries
+
+# Deployable's bytecode is pinned and must never change (see contracts/lib/deployable/README.md):
+# src points directly at the precompiled .boc so acton never recompiles it from
+# contract.tolk. Runtime code-hash checks (wrappers/codeLoader.ts,
+# deployment/utils/compiled_contracts.go) still verify it against DEPLOYABLE_HASH
+# on every load.
+[contracts.Deployable]
+display-name = "link.chain.ton.ccip.Deployable"
+src = "contracts/lib/deployable/Deployable.boc"
+depends = []
+
+[contracts.Receiver]
+display-name = "link.chain.ton.ccip.lib.Receiver"
+src = "contracts/lib/receiver/CCIPReceiver.tolk"
 domain = "ccip"
 depends = []
 
-[contracts.TokenRegistry]
-display-name = "link.chain.ton.ccip.TokenRegistry"
-src = "contracts/ccip/token_registry/contract.tolk"
+
+# CCIP Test contracts
+
+[contracts.TestReceiver]
+display-name = "link.chain.ton.ccip.test.Receiver"
+src = "contracts/ccip/test/receiver/contract.tolk"
+domain = "ccip"
+depends = []
+
+# TokenTransfer contracts
+
+[contracts.JettonMinter]
+display-name = "link.chain.ton.ccip.cct.JettonMinter"
+src = "contracts/ccip/cct/JettonMinter.tolk"
+domain = "ccip/cct"
+depends = []
+
+[contracts.JettonWallet]
+display-name = "link.chain.ton.ccip.cct.JettonWallet"
+src = "contracts/ccip/cct/JettonWallet.tolk"
+domain = "ccip/cct"
+depends = []
+
+[contracts.TokenPool]
+display-name = "link.chain.ton.ccip.pool.TokenPool"
+src = "contracts/ccip/pools/TokenPool.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.JettonLockBox]
+display-name = "link.chain.ton.ccip.pool.JettonLockBox"
+src = "contracts/ccip/pools/lockbox/JettonLockBox.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.LockReleaseTokenPool]
+display-name = "link.chain.ton.ccip.pool.LockReleaseTokenPool"
+src = "contracts/ccip/pools/lock_release/contract.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.BurnMintTokenPool]
+display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
+src = "contracts/ccip/pools/burn_mint/contract.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.LockReleaseLockboxTokenPool]
+display-name = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
+src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
+domain = "ccip/pools"
+depends = []
+
+[contracts.MockAdvancedPoolHooks]
+display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
+src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
+domain = "ccip/test"
+depends = []
+
+[contracts.TokenAdminRegistry]
+display-name = "link.chain.ton.ccip.TokenAdminRegistry"
+src = "contracts/ccip/token_admin_registry/contract.tolk"
+domain = "ccip"
+depends = ["TokenAdminRegistryEntry", "Deployable"]
+
+[contracts.TokenAdminRegistryEntry]
+display-name = "link.chain.ton.ccip.TokenAdminRegistryEntry"
+src = "contracts/ccip/token_admin_registry_entry/contract.tolk"
 domain = "ccip"
 depends = []
 
@@ -72,6 +163,128 @@ depends = []
 display-name = "link.chain.ton.mcms.MCMS"
 src = "contracts/mcms/mcms.tolk"
 domain = "mcms"
+depends = []
+
+# TODO: gen lib bindings
+# [contracts.AccessControl]
+# display-name = "link.chain.ton.lib.access.AccessControl"
+# src = "contracts/lib/access/access_control.tolk"
+# domain = "mcms"
+# depends = []
+
+# Testing wrappers
+
+[contracts.TestLibMath]
+display-name = "link.chain.ton.test.lib.math"
+src = "contracts/test/lib/math.tolk"
+domain = "test"
+depends = []
+
+[contracts.TestMsgHasher]
+display-name = "link.chain.ton.test.lib.MsgHasher"
+src = "contracts/test/lib/msg_hasher.tolk"
+domain = "test"
+depends = []
+
+# Example contracts (built for parity with the old `blueprint build --all`, not
+# wired up for TypeScript wrapper generation via nix run .#abigen -- see the
+# `domain` field note on [contracts.TokenPool] above)
+
+[contracts."examples.Counter"]
+display-name = "examples.Counter"
+src = "contracts/examples/counter.tolk"
+depends = []
+
+[contracts."examples.jetton.OnrampMock"]
+display-name = "examples.jetton.OnrampMock"
+src = "contracts/examples/jetton/onramp_mock.tolk"
+depends = []
+
+[contracts."examples.jetton.JettonSender"]
+display-name = "examples.jetton.JettonSender"
+src = "contracts/examples/jetton/sender.tolk"
+depends = []
+
+[contracts."examples.jetton.SimpleJettonReceiver"]
+display-name = "examples.jetton.SimpleJettonReceiver"
+src = "contracts/examples/jetton/simple_receiver.tolk"
+depends = []
+
+[contracts."examples.funding.WithdrawableWallet"]
+display-name = "examples.funding.WithdrawableWallet"
+src = "contracts/test/examples/funding/withdrawable_wallet.tolk"
+depends = []
+
+[contracts."examples.MerkleProof"]
+display-name = "examples.MerkleProof"
+src = "contracts/test/examples/merkle_multi_proof_calculator.tolk"
+depends = []
+
+[contracts."examples.OCR3Base"]
+display-name = "examples.OCR3Base"
+src = "contracts/test/examples/ocr3_base.tolk"
+depends = []
+
+[contracts."examples.versioning.upgrades.UpgradeableCounterV1"]
+display-name = "examples.versioning.upgrades.UpgradeableCounterV1"
+src = "contracts/test/examples/versioning/upgrades/upgradeable_counter/v1/contract.tolk"
+depends = []
+
+[contracts."examples.versioning.upgrades.UpgradeableCounterV2"]
+display-name = "examples.versioning.upgrades.UpgradeableCounterV2"
+src = "contracts/test/examples/versioning/upgrades/upgradeable_counter/v2/contract.tolk"
+depends = []
+
+[contracts."examples.versioning.upgrades.WrongVersion"]
+display-name = "examples.versioning.upgrades.WrongVersion"
+src = "contracts/test/examples/versioning/upgrades/wrong_version.tolk"
+depends = []
+
+# Firedrill contracts
+
+[contracts."firedrill.entrypoint"]
+display-name = "firedrill.entrypoint"
+src = "contracts/firedrill/firedrill_entrypoint.tolk"
+depends = []
+
+[contracts."firedrill.offramp"]
+display-name = "firedrill.offramp"
+src = "contracts/firedrill/firedrill_offramp.tolk"
+depends = []
+
+[contracts."firedrill.onramp"]
+display-name = "firedrill.onramp"
+src = "contracts/firedrill/firedrill_onramp.tolk"
+depends = []
+
+# wgram contracts
+
+[contracts."wgram.JettonMinter"]
+display-name = "wgram.JettonMinter"
+src = "contracts/wgram/JettonMinter.tolk"
+depends = []
+
+[contracts."wgram.JettonWallet"]
+display-name = "wgram.JettonWallet"
+src = "contracts/wgram/JettonWallet.tolk"
+depends = []
+
+# More testing wrappers
+
+[contracts."tests.lib.secp256k1_verifier"]
+display-name = "tests.lib.secp256k1_verifier"
+src = "contracts/test/lib/secp256k1_verifier.tolk"
+depends = []
+
+[contracts."tests.mock.Bouncer"]
+display-name = "tests.mock.Bouncer"
+src = "contracts/test/mock/bouncer.tolk"
+depends = []
+
+[contracts.TestLispList]
+display-name = "link.chain.ton.test.examples.LispList"
+src = "contracts/test/examples/lisp_list.tolk"
+domain = "test"
 depends = []
 
 # fmt is not very mature yet

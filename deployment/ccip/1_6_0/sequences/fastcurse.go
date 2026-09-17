@@ -15,20 +15,20 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/mcms/types"
 )
@@ -235,13 +235,6 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 				return sequences.OnChainOutput{}, errors.New("no subjects provided for curse")
 			}
 
-			// Validate subject format (big-endian encoding)
-			for _, subject := range in.Subjects {
-				if err := validateSubjectFormat(subject); err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("invalid subject format: %w", err)
-				}
-			}
-
 			// Get TON chain
 			chain, ok := chains.TonChains()[in.ChainSelector]
 			if !ok {
@@ -332,13 +325,6 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 				return sequences.OnChainOutput{}, errors.New("no subjects provided for uncurse")
 			}
 
-			// Validate subject format (big-endian encoding)
-			for _, subject := range in.Subjects {
-				if err := validateSubjectFormat(subject); err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("invalid subject format: %w", err)
-				}
-			}
-
 			// Get TON chain
 			chain, ok := chains.TonChains()[in.ChainSelector]
 			if !ok {
@@ -415,27 +401,6 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
 		},
 	)
-}
-
-// Helper functions
-
-// validateSubjectFormat validates that the subject uses big-endian encoding
-// For TON, chain selectors are encoded in the last 8 bytes (big-endian)
-// The first 8 bytes should be zeros, except for GlobalCurseSubject
-func validateSubjectFormat(subject api.Subject) error {
-	// Global curse subject has a special pattern, allow it
-	if subject == api.GlobalCurseSubject() {
-		return nil
-	}
-
-	// For regular chain selectors, first 8 bytes should be 0, TODO double check this
-	for i := range 8 {
-		if subject[i] != 0 {
-			return fmt.Errorf("invalid subject format for TON: expected big-endian encoding with zeros in first 8 bytes, got subject=%v", subject)
-		}
-	}
-
-	return nil
 }
 
 var _ api.CurseAdapter = &TonCurseAdapter{}

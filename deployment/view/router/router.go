@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	routerview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type View struct {

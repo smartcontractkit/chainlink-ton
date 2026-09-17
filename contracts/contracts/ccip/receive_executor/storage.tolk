@@ -3,11 +3,19 @@ import "../offramp/types"
 import "types"
 
 struct ReceiveExecutor_Storage {
-    owner: address; // MerkleRoot contract
+    owner: address; // OffRamp
     message: Cell<Any2TVMRampMessage>;
     root: address;
     execId: uint192;
-    state: ReceiveExecutor_MessageState = ReceiveExecutor_MessageState.Untouched;
+    state: ReceiveExecutor_State = ReceiveExecutor_State {
+        // tokenTransfer is initialized in the handler `onInitExecute` if it is null.
+        tokenTransfer: null,
+        messageExecution: ReceiveExecutor_MessageExecutionState.Untouched,
+        // effectiveGasLimit is initialized in `onInitExecute`.
+        effectiveGasLimit: 0,
+        // queryId is initialized in `onInitExecute`.
+        queryId: 0,
+    };
     lastExecutionTimestamp: uint64 = 0;
 }
 

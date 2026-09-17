@@ -11,6 +11,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/feequoter"
@@ -27,7 +28,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/tree"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	tt "github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type TypeAndVersion struct {

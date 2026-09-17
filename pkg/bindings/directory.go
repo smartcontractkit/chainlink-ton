@@ -30,3 +30,12 @@ func GetBuildDir(contractPath string) string {
 	buildsDir := GetBuildsDir()
 	return path.Join(buildsDir, contractPath)
 }
+
+// GetTestDataDir returns the location of versioned contract fixtures.
+//
+// Unlike build artifacts, test data is available without running the contract
+// build first. Use this only for contracts that exist solely to support tests.
+func GetTestDataDir(contractPath string) string {
+	repoRoot := GetRepoRootDir()
+	return path.Join(repoRoot, "contracts", "testdata", contractPath)
+}

@@ -9,12 +9,12 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+// TypeScript wrappers flatten a TVM linked list `[1 [2 [3 null]]]` to `[1 2 3]`
+type lisp_list<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
-export type CellRef<T> = {
-    ref: T
-}
 
 function makeCellFrom<T>(self: T, storeFn_T: StoreCallback<T>): c.Cell {
     let b = beginCell();
@@ -37,15 +37,15 @@ function throwNonePrefixMatch(fieldPath: string): never {
     throw new Error(`Incorrect prefix for '${fieldPath}': none of variants matched`);
 }
 
-function storeCellRef<T>(cell: CellRef<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     let b_ref = c.beginCell();
-    storeFn_T(cell.ref, b_ref);
+    storeFn_T(value, b_ref);
     b.storeRef(b_ref.endCell());
 }
 
-function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): CellRef<T> {
+function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
-    return { ref: loadFn_T(s_ref) };
+    return loadFn_T(s_ref);
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -55,6 +55,32 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeLispListOf<T>(v: lisp_list<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+
+        let tail = c.Cell.EMPTY;
+        for (let i = 0; i < v.length; ++i) {
+            let itemB = beginCell();
+            itemB.storeRef(tail);
+            storeFn_T(v[i], itemB);
+            tail = itemB.endCell();
+        }
+        b.storeRef(tail);
+      
+}
+
+function loadLispListOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): lisp_list<T> {
+    let outArr = [] as lisp_list<T>;
+    let head = s.loadRef().beginParse();
+    while (head.remainingRefs) {
+        let tailSnaked = head.loadRef();
+        let headValue = loadFn_T(head);
+        head.endParse();    // ensure no data is present besides T
+        outArr.unshift(headValue);
+        head = tailSnaked.beginParse();
+    }
+    return outArr;
 }
 
 // ————————————————————————————————————————————
@@ -149,64 +175,166 @@ type uint256 = bigint
 /**
  > type SnakedCell<T> = cell
  */
-export type SnakedCell<T> = c.Cell
+export type SnakedCell<T> = T[]
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    if (v.length === 0) {
+        b.storeRef(c.Cell.EMPTY);
+        return;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    b.storeRef(current);
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
  >     executionState: ExecutionState
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  > }
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
-    message: CellRef<Any2TVMRampMessage>
+    queryId: uint64
+    message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
-    gasOverride: coins | null
+    gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
 }
 
 export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
-            ...args
+            gasOverride: null,
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
         return {
             $: 'OffRamp_ExecuteValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
             executionState: ExecutionState.fromSlice(s),
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
         }
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
-        );
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
         ExecutionState.store(self.executionState, b);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
+    }
+}
+
+/**
+ > struct GasOverride {
+ >     receiverExecutionGasLimit: coins?
+ >     tokenGasOverrides: SnakedCell<coins>?
+ > }
+ */
+export interface GasOverride {
+    readonly $: 'GasOverride'
+    receiverExecutionGasLimit: coins | null /* = null */
+    tokenGasOverrides: SnakedCell<coins> | null /* = null */
+}
+
+export const GasOverride = {
+    create(args: {
+        receiverExecutionGasLimit?: coins | null /* = null */
+        tokenGasOverrides?: SnakedCell<coins> | null /* = null */
+    }): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: null,
+            tokenGasOverrides: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): GasOverride {
+        return {
+            $: 'GasOverride',
+            receiverExecutionGasLimit: s.loadBoolean() ? s.loadCoins() : null,
+            tokenGasOverrides: s.loadBoolean() ? loadSnakedCellOf(s, (s) => s.loadCoins()) : null,
+        }
+    },
+    store(self: GasOverride, b: c.Builder): void {
+        storeTolkNullable<coins>(self.receiverExecutionGasLimit, b,
+            (v,b) => b.storeCoins(v)
+        );
+        storeTolkNullable<SnakedCell<coins>>(self.tokenGasOverrides, b, (v,b) => storeSnakedCellOf(v, b, (v, b) => b.storeCoins(v)));
+    },
+    toCell(self: GasOverride): c.Cell {
+        return makeCellFrom<GasOverride>(self, GasOverride.store);
     }
 }
 
@@ -223,7 +351,7 @@ export const OffRamp_ExecuteValidated = {
 export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
-    sender: CellRef<CrossChainAddress>
+    sender: CrossChainAddress
     data: c.Cell
     receiver: c.Address
     gasLimit: coins
@@ -233,7 +361,7 @@ export interface Any2TVMRampMessage {
 export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
-        sender: CellRef<CrossChainAddress>
+        sender: CrossChainAddress
         data: c.Cell
         receiver: c.Address
         gasLimit: coins
@@ -252,7 +380,7 @@ export const Any2TVMRampMessage = {
             data: s.loadRef(),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
     },
     store(self: Any2TVMRampMessage, b: c.Builder): void {
@@ -261,9 +389,7 @@ export const Any2TVMRampMessage = {
         b.storeRef(self.data);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
-        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
     toCell(self: Any2TVMRampMessage): c.Cell {
         return makeCellFrom<Any2TVMRampMessage>(self, Any2TVMRampMessage.store);
@@ -273,27 +399,27 @@ export const Any2TVMRampMessage = {
 /**
  > struct Any2TVMTokenTransfer {
  >     sourcePoolAddress: Cell<CrossChainAddress>
- >     destPoolAddress: address
- >     destGasAmount: uint32
- >     extraData: cell
+ >     token: address
+ >     destGasAmount: coins
+ >     extraData: cell?
  >     amount: uint256
  > }
  */
 export interface Any2TVMTokenTransfer {
     readonly $: 'Any2TVMTokenTransfer'
-    sourcePoolAddress: CellRef<CrossChainAddress>
-    destPoolAddress: c.Address
-    destGasAmount: uint32
-    extraData: c.Cell
+    sourcePoolAddress: CrossChainAddress
+    token: c.Address
+    destGasAmount: coins
+    extraData: c.Cell | null
     amount: uint256
 }
 
 export const Any2TVMTokenTransfer = {
     create(args: {
-        sourcePoolAddress: CellRef<CrossChainAddress>
-        destPoolAddress: c.Address
-        destGasAmount: uint32
-        extraData: c.Cell
+        sourcePoolAddress: CrossChainAddress
+        token: c.Address
+        destGasAmount: coins
+        extraData: c.Cell | null
         amount: uint256
     }): Any2TVMTokenTransfer {
         return {
@@ -305,17 +431,19 @@ export const Any2TVMTokenTransfer = {
         return {
             $: 'Any2TVMTokenTransfer',
             sourcePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            destPoolAddress: s.loadAddress(),
-            destGasAmount: s.loadUintBig(32),
-            extraData: s.loadRef(),
+            token: s.loadAddress(),
+            destGasAmount: s.loadCoins(),
+            extraData: s.loadBoolean() ? s.loadRef() : null,
             amount: s.loadUintBig(256),
         }
     },
     store(self: Any2TVMTokenTransfer, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.sourcePoolAddress, b, CrossChainAddress.store);
-        b.storeAddress(self.destPoolAddress);
-        b.storeUint(self.destGasAmount, 32);
-        b.storeRef(self.extraData);
+        b.storeAddress(self.token);
+        b.storeCoins(self.destGasAmount);
+        storeTolkNullable<c.Cell>(self.extraData, b,
+            (v,b) => b.storeRef(v)
+        );
         b.storeUint(self.amount, 256);
     },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
@@ -364,51 +492,68 @@ export const ExecutionState = {
 
 /**
  > struct (0x038ede91) MerkleRoot_Validate {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
- >     gasOverride: coins?
+ >     gasOverride: GasOverride?
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  > }
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
-    message: CellRef<Any2TVMRampMessage>
+    queryId: uint64
+    message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
-    gasOverride: coins | null
+    gasOverride: GasOverride | null
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
 }
 
 export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
         return {
             $: 'MerkleRoot_Validate',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? s.loadCoins() : null,
+            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<coins>(self.gasOverride, b,
-            (v,b) => b.storeCoins(v)
+        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
         );
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
@@ -631,7 +776,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAm4AART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwD/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9TTH9P/0wABk/oAMJIwbeID0CDT/zHTPzHTPzHXCz+BSK1TGL6VUxe7wwCRcOLy9FMHoYFIrSHBQPL0cyGqAKwnsAGqAK2BSKshwAORf5UhwADDAOLy9CVus+MPgUitUxgGBwgB/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1wsHIMID8kWBSK1TJb6VUyS7wwCRcOLy9FMUoYFIrSHBQPL0cyGqAKwksAGqAK2BSKwBwwLy9IFIrCHAApF/lSHAA8MA4vL0gUitUyW+lVMku8MAkXDi8vRRFKGBSK0JACz4IyqhUAW8gUiqAZF/lSTAA8MA4vL0AA40gUioJPLyANy+lVMXu8MAkXDi8vQnoYFIrSHBQPL0cyGqAKyzFrAFqgCuFbEEyM7JyM+THPVqKswpzwv/y/8ibpRsEs+Blc+DWPoC4ssHycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8ntVAGcIcFA8vRzIaoArLMTsAKqAFIQrBKxAcACkwakBt5TEqGkJ7qOk4jIz4WIUmD6UnHPC27MyYMG+wDeBcjL/xT6UhLLP8s/yz/Lf8sPye1UCgAAAgEgDQ4AC7hoWBALqABVtivxoPNjS3NZcxtDC0txc6N7cXMbG0uBcmsrk1tjKpN7e6QRamJcbFxjEAAZtcUQKRUUBBCB935QkA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAuUAART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwB/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1NMf0//TAAGf0wABkvoAkm0B4vQEgQCKlG1tWHDibQLXTNCUIMcAs44e1G0B1AHQlCDHALOZ1NTRUANvAgLQ6DDRUANvAgLQ6DAG0CDT/zHTPzHTPzHXCz+BSK1THL4GAf4x7UTQ0//6SNM/0z/TP9N/1wsPgUip+JInxwXy9AfTP9cLByDCA/JFgUitUyW+lVMku8MAkXDi8vRTFKGBSK0hwUDy9HMhqgCsJLABqgCtgUisAcMC8vSBSKwhwAKRf5UhwAPDAOLy9IFIrVMlvpVTJLvDAJFw4vL0URShgUitCQH+lVMbu8MAkXDi8vRTC6GBSK0hwUDy9HMhqgCsK7ABqgCtgUirIcADkX+VIcAAwwDi8vQowwCOFvgjLqFQCLyBSKoBkX+VJ8ADwwDi8vSXN4FIqCfy8uKBSK1THL6VUxu7wwCRcOLy9CuhgUitIcFA8vRzIaoArLMasAmqAK4ZsQcD/gjIzsnIz5Mc9WoqGMs/F8wszwv/E8v/BI4VA8+DI26UMwLPgZbPg1AD+gLiEvQAlFsBz4HiyweIkyJus46YyMwCbyKIkyJus5jIzAJvIgPMyegyA8zJ6DLMycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8kKCggABO1UAZwhwUDy9HMhqgCssxOwAqoAUhCsErEBwAKTBqQG3lMSoaQnuo6TiMjPhYhSYPpScc8LbszJgwb7AN4FyMv/FPpSEss/yz/LP8t/yw/J7VQKAAACASANDgALuGhYEAuoAFW2K/Gg82NLc1lzG0MLS3Fzo3txcxsbS4FyayuTW2Mqk3t7pBFqYlxsXGMQABm1xRApFRQEEIH3flCQ');
 
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
@@ -683,10 +828,12 @@ export class MerkleRoot implements c.Contract {
     }
 
     static createCellOfMerkleRootValidate(body: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }) {
         return MerkleRoot_Validate.toCell(MerkleRoot_Validate.create(body));
     }
@@ -706,11 +853,21 @@ export class MerkleRoot implements c.Contract {
         });
     }
 
+    send(provider: ContractProvider, via: Sender, msgValue: coins, body: c.Cell, extraOptions?: ExtraSendOptions): Promise<void> {
+        return provider.internal(via, {
+            value: msgValue,
+            body,
+            ...extraOptions
+        });
+    }
+
     async sendMerkleRootValidate(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: CellRef<Any2TVMRampMessage>
+        queryId?: uint64
+        message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: coins | null
+        gasOverride: GasOverride | null
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

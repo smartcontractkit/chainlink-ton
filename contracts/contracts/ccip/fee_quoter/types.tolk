@@ -78,8 +78,6 @@ const VAL_1E18: uint256 = 1000000000000000000;
   /// The fixed bytes does not cover struct data (this is represented by MESSAGE_FIXED_BYTES_PER_TOKEN)
 const TON_2_EVM_MESSAGE_FIXED_BYTES = 15 * 32;
 
-const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
-
 const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
 const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
 const CHAIN_FAMILY_SELECTOR_TVM:   uint32 = 0x647e2ba9;
@@ -93,7 +91,7 @@ struct DestChainConfig {
 
     usdPerUnitGas: Cell<GasPrice>;
 
-    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
+    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig> = [];
 }
 
 const SVM_EXTRA_ARGS_MAX_ACCOUNTS= 64;
@@ -131,7 +129,7 @@ const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
 + 32; // per-chain token billing config, not always included in the token lookup table
 
 struct UpdateTokenTransferFeeConfig {
-    add: map<address, TokenTransferFeeConfig>; // token address -> config
+    add: map<address, TokenTransferFeeConfig> = []; // token address -> config
     remove: SnakedCell<address>;
 }
 
