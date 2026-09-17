@@ -93,18 +93,18 @@ func TestUint128_Values(t *testing.T) {
 func TestUintWrappers_AreComparable(t *testing.T) {
 	v128 := new(big.Int).Lsh(big.NewInt(1), 100)
 	a128, b128 := *NewUint128(v128), *NewUint128(v128)
-	require.True(t, a128 == b128, "equal Uint128 values must compare equal with ==")
-	require.False(t, a128 == *NewUint128(big.NewInt(1)), "different Uint128 values must compare unequal with ==")
+	require.Equal(t, a128, b128, "equal Uint128 values must compare equal")
+	require.NotEqual(t, a128, *NewUint128(big.NewInt(1)), "different Uint128 values must compare unequal")
 
 	v160 := new(big.Int).Lsh(big.NewInt(1), 159)
 	a160, b160 := *NewUint160(v160), *NewUint160(v160)
-	require.True(t, a160 == b160, "equal Uint160 values must compare equal with ==")
-	require.False(t, a160 == *NewUint160(big.NewInt(1)), "different Uint160 values must compare unequal with ==")
+	require.Equal(t, a160, b160, "equal Uint160 values must compare equal")
+	require.NotEqual(t, a160, *NewUint160(big.NewInt(1)), "different Uint160 values must compare unequal")
 
 	v256 := new(big.Int).Lsh(big.NewInt(1), 255)
 	a256, b256 := *NewUint256(v256), *NewUint256(v256)
-	require.True(t, a256 == b256, "equal Uint256 values must compare equal with ==")
-	require.False(t, a256 == *NewUint256(big.NewInt(1)), "different Uint256 values must compare unequal with ==")
+	require.Equal(t, a256, b256, "equal Uint256 values must compare equal")
+	require.NotEqual(t, a256, *NewUint256(big.NewInt(1)), "different Uint256 values must compare unequal")
 }
 
 // TestUintWrappers_DictKeyRoundTrip is the regression test for the pointer-key
