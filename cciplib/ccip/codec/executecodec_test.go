@@ -116,6 +116,23 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		assert.Nil(t, encoded)
 	})
 
+	t.Run("tokenless report uses legacy empty offchain-token-data cell", func(t *testing.T) {
+		report := randomTONExecuteReport(t, 5009297550715157269)
+		report.ChainReports[0].Messages[0].TokenAmounts = nil
+		// OCR represents the single tokenless message as one empty per-message
+		// list. The TON binding must canonicalize it to an empty outer list so it
+		// remains byte-for-byte compatible with the old binding.
+		report.ChainReports[0].OffchainTokenData = [][][]byte{{}}
+
+		encoded, err := codec.Encode(ctx, report)
+		require.NoError(t, err)
+		c, err := cell.FromBOC(encoded)
+		require.NoError(t, err)
+		var onChainReport ocr.ExecuteReport
+		require.NoError(t, tlb.LoadFromCell(&onChainReport, c.BeginParse()))
+		assert.Empty(t, onChainReport.OffChainTokenData)
+	})
+
 	t.Run("proof validation", func(t *testing.T) {
 		report := randomTONExecuteReport(t, 5009297550715157269)
 
