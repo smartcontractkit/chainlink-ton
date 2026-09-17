@@ -8,7 +8,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 type FeeTokenConfig struct {
@@ -41,34 +41,27 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, dp *dep.DependencyProvider, i
 		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
 
-	configs := cell.NewDict(267)
+	// skip if there's no updates
+	if len(in.FeeTokens) == 0 {
+		return nil, nil
+	}
+
+	addEntries := make(map[common.AddressWrap]feequoter.FeeToken, len(in.FeeTokens))
 	for token, update := range in.FeeTokens {
 		//nolint:govet // allow shadowing
 		tokenAddress, err := address.ParseAddr(token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse token address: %w", err)
 		}
-		key := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell()
-		value, err := tlb.ToCell(feequoter.FeeToken{
+		addEntries[common.AddressWrap{Val: tokenAddress}] = feequoter.FeeToken{
 			PremiumMultiplierWeiPerEth: update.PremiumMultiplierWeiPerEth,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
-		}
-		if err := configs.Set(key, value); err != nil {
-			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
 		}
 	}
 
-	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, stateCCIP.FeeQuoter.String())
-
-	// skip if there's no updates
-	if len(in.FeeTokens) == 0 {
-		return nil, nil
-	}
+	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", addEntries, stateCCIP.FeeQuoter.String())
 
 	input := feequoter.UpdateFeeTokens{
-		Add:    configs,
+		Add:    tlbe.NewDict(addEntries),
 		Remove: nil,
 	}
 
