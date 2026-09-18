@@ -31,7 +31,7 @@ const (
 	// (DefaultOffRampMinTTGasLimit), which is seeded into the dynamic config
 	// during migration and can be updated via OffRamp_SetDynamicConfig.
 	// In tests we set it equal to the floor to verify the minimum is sufficient.
-	DefaultTokenDestGasOverheadTON uint32 = 160_000_000
+	DefaultTokenDestGasOverheadTON uint32 = 200_000_000
 
 	// DefaultTxGasLimitTON is the nanoTON gas limit the FeeQuoter assigns to a
 	// tx by default. It must be >= the OffRamp's minGasLimit
@@ -52,11 +52,12 @@ const (
 	DefaultOffRampMinGasLimitNanoTON uint32 = 25_000_000
 
 	// DefaultOffRampMinTTGasLimit is the default minimum gas limit (in TON) for
-	// token transfers on the OffRamp. LockRelease_LockBox needs
-	// LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE. It is seeded into the
-	// OffRamp dynamic config at deployment / migration time.
+	// token transfers on the OffRamp. It must be >= LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
+	// (ton("0.2") = 200_000_000 nanoTON), which is the value the LockRelease_LockBox
+	// pool needs to deploy its off-ramp account. It is seeded into the OffRamp dynamic
+	// config at deployment / migration time.
 	// DefaultTokenDestGasOverheadTON must be >= this.
-	DefaultOffRampMinTTGasLimit = "0.16"
+	DefaultOffRampMinTTGasLimit = "0.2"
 )
 
 // ConnectionConfig defines how a chain should connect with other chains.

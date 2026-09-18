@@ -276,7 +276,7 @@ fun migrate(storage: cell, version: slice): cell {
                 feeQuoter: old.feeQuoter,
                 permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
                 minGasLimit: ton("0.025"),
-                minTTGasLimit: ton("0.15"),
+                minTTGasLimit: ton("0.2"),
             }.toCell(),
         }.toCell(),
         ocr3Base: old.ocr3Base,
