@@ -75,12 +75,12 @@ struct FeeQuoter_Costs {}
 // Minimum value for calling FeeQuoter_GetValidatedFee
 fun FeeQuoter_Costs.GetValidatedFee(): int {
     return 
-        + ton("0.05") // computeFee
-        + ton("0.019") // MessageValidated | MessageValidationFailed fwdFee
+        + grams("0.05") // computeFee
+        + grams("0.019") // MessageValidated | MessageValidationFailed fwdFee
         ;
 }
 
 fun FeeQuoter_Costs.updatePrices(): int {
     // when we support token transfers the message value amount should depend on the quantity of supported tokens
-    return ton("0.01");
+    return grams("0.01");
 }

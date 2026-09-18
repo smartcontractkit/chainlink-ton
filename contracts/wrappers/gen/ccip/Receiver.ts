@@ -1,5 +1,5 @@
 // AUTO-GENERATED, do not edit
-// It's a TypeScript wrapper for a CCIPReceiver contract in Tolk.
+// It's a TypeScript wrapper for a Receiver contract in Tolk.
 /* eslint-disable */
 
 import * as c from '@ton/core';
@@ -117,7 +117,7 @@ let customSerializersRegistry: Map<string, [CustomPackToBuilderFn<any> | null, C
 
 function ensureCustomSerializerRegistered(typeName: string) {
     if (!customSerializersRegistry.has(typeName)) {
-        throw new Error(`Custom packToBuilder/unpackFromSlice was not registered for type 'CCIPReceiver.${typeName}'.\n(in Tolk code, they have custom logic \`fun ${typeName}__packToBuilder\`)\nSteps to fix:\n1) in your code, create and implement\n > function ${typeName}__packToBuilder(self: ${typeName}, b: Builder): void { ... }\n > function ${typeName}__unpackFromSlice(s: Slice): ${typeName} { ... }\n2) register them in advance by calling\n > CCIPReceiver.registerCustomPackUnpack('${typeName}', ${typeName}__packToBuilder, ${typeName}__unpackFromSlice);`);
+        throw new Error(`Custom packToBuilder/unpackFromSlice was not registered for type 'Receiver.${typeName}'.\n(in Tolk code, they have custom logic \`fun ${typeName}__packToBuilder\`)\nSteps to fix:\n1) in your code, create and implement\n > function ${typeName}__packToBuilder(self: ${typeName}, b: Builder): void { ... }\n > function ${typeName}__unpackFromSlice(s: Slice): ${typeName} { ... }\n2) register them in advance by calling\n > Receiver.registerCustomPackUnpack('${typeName}', ${typeName}__packToBuilder, ${typeName}__unpackFromSlice);`);
     }
 }
 
@@ -305,7 +305,7 @@ export const CrossChainAddress = {
 }
 
 // ————————————————————————————————————————————
-//    class CCIPReceiver
+//    class Receiver
 //
 
 interface ExtraSendOptions {
@@ -342,7 +342,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
     return new c.Address(options.workchain ?? 0, addrHash);
 }
 
-export class CCIPReceiver implements c.Contract {
+export class Receiver implements c.Contract {
     static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAGQABFP8A9KQT9LzyyAsBABTTMPiR8kCED/Lw');
 
     static Errors = {
@@ -362,23 +362,23 @@ export class CCIPReceiver implements c.Contract {
         unpackFromSliceFn: CustomUnpackFromSliceFn<T> | null,
     ) {
         if (customSerializersRegistry.has(typeName)) {
-            throw new Error(`Custom pack/unpack for 'CCIPReceiver.${typeName}' already registered`);
+            throw new Error(`Custom pack/unpack for 'Receiver.${typeName}' already registered`);
         }
         customSerializersRegistry.set(typeName, [packToBuilderFn, unpackFromSliceFn]);
     }
 
     static fromAddress(address: c.Address) {
-        return new CCIPReceiver(address);
+        return new Receiver(address);
     }
 
     static fromStorage(emptyStorage: {
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? CCIPReceiver.CodeCell,
+            code: deployedOptions?.overrideContractCode ?? Receiver.CodeCell,
             data: MockCCIPReceiver_Storage.toCell(MockCCIPReceiver_Storage.create()),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
-        return new CCIPReceiver(address, initialState);
+        return new Receiver(address, initialState);
     }
 
     static createCellOfCCIPReceiverInMessage(body: CCIPReceiver_InMessage) {
