@@ -374,7 +374,7 @@ async function deployOffRampInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    config: of.OffRamp_Config.create({
+    config: of.OffRamp_StorageConfig.create({
       staticConfig: of.OffRamp_StaticConfig.create({
         rmnRouter: router,
         tokenAdminRegistry,

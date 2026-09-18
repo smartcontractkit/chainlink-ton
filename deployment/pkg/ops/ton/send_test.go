@@ -32,7 +32,6 @@ import (
 )
 
 var unsupported = []uint64{
-	0xD0984986,           // feequoter.UpdateFeeTokens, requires dictionary surrogate
 	0xaf7a9ac6,           // router.RMNOwnableMessage, nested message envelope with generic parameter - not supported by current generator
 	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }

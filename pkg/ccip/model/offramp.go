@@ -21,14 +21,14 @@ import (
 type OffRampStorage struct {
 	ID                        uint32                       `json:"id"`
 	Ownable                   Ownable2Step                 `json:"ownable"`
-	Config                    OffRampConfig                `json:"config"`
+	Config                    StorageConfig                `json:"config"`
 	OCR3Base                  OCR3Base                     `json:"ocr3Base"`
 	CursedSubjects            []*big.Int                   `json:"cursedSubjects"`
 	SourceChainConfigs        map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
 	LatestPriceSequenceNumber uint64                       `json:"LatestPriceSequenceNumber"`
 }
 
-type OffRampConfig struct {
+type StorageConfig struct {
 	StaticConfig  StaticConfig  `json:"staticConfig"`
 	DynamicConfig DynamicConfig `json:"dynamicConfig"`
 }
@@ -485,7 +485,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
-		Config: offramp.Config{
+		Config: offramp.StorageConfig{
 			StaticConfig: offramp.StaticConfig{
 				RMNRouter:          s.Config.StaticConfig.RMNRouter,
 				TokenAdminRegistry: s.Config.StaticConfig.TokenAdminRegistry,

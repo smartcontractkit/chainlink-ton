@@ -101,6 +101,38 @@ struct OffRamp_DynamicConfig {
     minTTGasLimit: coins
 }
 
+// Config is the backwards-compatible struct returned by the config() getter.
+//
+// Field order matches the TVM stack returned by the getter:
+//   0: chainSelector
+//   1: feeQuoter
+//   2: permissionlessExecutionThresholdSeconds
+//   3: tokenAdminRegistry (appended for backwards compat; old contracts return 3 elements)
+//   4: minGasLimit         (appended by this PR; old contracts return 4 elements)
+//   5: minTTGasLimit       (appended by this PR; old contracts return 5 elements)
+//
+// New fields are appended at the end so old contracts and old Go readers remain
+// compatible — they simply read fewer stack elements.
+struct Config {
+    // -- Static config
+    chainSelector: uint64
+    // gasForCallExactCheck
+    // rmnRemote
+    // nonceManager
+    // -- Dynamic config
+    feeQuoter: address
+    permissionlessExecutionThresholdSeconds: uint32
+    // isRMNVerificationDisabled
+    // messageInterceptor
+    // -- Static config (appended for backwards compatibility; old contracts
+    // return a 3-element stack and omit this field)
+    tokenAdminRegistry: address
+    // -- Dynamic config (appended by this PR; old contracts return a 4-element
+    // stack and omit these fields)
+    minGasLimit: coins
+    minTTGasLimit: coins
+}
+
 // Kept in a reference because three full-width values would overflow the
 // OffRamp root data cell alongside ownership and mutable state.
 struct OffRamp_StaticConfig {
@@ -113,7 +145,7 @@ struct OffRamp_StaticConfig {
 // Storage struct stays within the TVM 4-ref serialization limit. The dynamic
 // config is itself kept in a reference because inlining it would overflow the
 // 1023-bit limit of this struct.
-struct OffRamp_Config {
+struct OffRamp_StorageConfig {
     staticConfig: OffRamp_StaticConfig;
     dynamicConfig: Cell<OffRamp_DynamicConfig>;
 }

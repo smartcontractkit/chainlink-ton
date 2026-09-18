@@ -3,14 +3,6 @@
   pkgs,
   lib,
 }: let
-  go_1_26_6 = pkgs.go_1_26.overrideAttrs (_old: rec {
-    version = "1.26.6";
-    src = pkgs.fetchurl {
-      url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-oHIcVMaIkBRI13rZs+x+p8R0cwdV/4kTgukuy5P/LLE=";
-    };
-  });
-
   tonapiwaitlint = pkgs.callPackage ./tools/tonapiwaitlint {inherit pkgs;};
 in
   pkgs.mkShell {
@@ -20,7 +12,7 @@ in
         alejandra
 
         # Go 1.26 + tools
-        go_1_26_6
+        go_1_26
         gopls
         delve
         golangci-lint

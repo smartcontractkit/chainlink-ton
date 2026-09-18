@@ -55,12 +55,12 @@ describe('OffRamp - Dynamic Config', () => {
 
     // verify changes
     const dynamicConfig = await setup.offRamp.getConfig()
-    expect(dynamicConfig.dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
-    expect(dynamicConfig.dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
+    expect(dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
+    expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
       newPermissionlessExecutionThresholdSeconds,
     )
-    expect(dynamicConfig.dynamicConfig.minGasLimit).toBe(newMinGasLimit)
-    expect(dynamicConfig.dynamicConfig.minTTGasLimit).toBe(newMinTTGasLimit)
+    expect(dynamicConfig.minGasLimit).toBe(newMinGasLimit)
+    expect(dynamicConfig.minTTGasLimit).toBe(newMinTTGasLimit)
 
     // non-owner cannot call SetDynamicConfig
     const other = await blockchain.treasury('other')

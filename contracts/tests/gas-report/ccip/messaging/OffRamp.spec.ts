@@ -209,7 +209,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         ownable: of.Ownable2Step.create({
           owner: deployer.address,
         }),
-        config: of.OffRamp_Config.create({
+        config: of.OffRamp_StorageConfig.create({
           staticConfig: of.OffRamp_StaticConfig.create({
             rmnRouter: deployer.address,
             tokenAdminRegistry: deployer.address,

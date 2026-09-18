@@ -266,7 +266,7 @@ fun migrate(storage: cell, version: slice): cell {
     return Storage {
         id: old.id,
         ownable: old.ownable,
-        config: OffRamp_Config {
+        config: OffRamp_StorageConfig {
             staticConfig: OffRamp_StaticConfig {
                 rmnRouter: oldDeployables.rmnRouter,
                 tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
@@ -1112,9 +1112,17 @@ get fun ocr3Config(): OCR3Base {
     return st.ocr3Base.load();
 }
 
-get fun config(): OffRamp_Config {
+get fun config(): Config {
     val st = lazy Storage.load();
-    return st.config.load();
+    val dynamicConfig = st.config.load().dynamicConfig.load();
+    return {
+        chainSelector: st.config.load().staticConfig.chainSelector,
+        feeQuoter: dynamicConfig.feeQuoter,
+        permissionlessExecutionThresholdSeconds: dynamicConfig.permissionlessExecutionThresholdSeconds,
+        tokenAdminRegistry: st.config.load().staticConfig.tokenAdminRegistry,
+        minGasLimit: dynamicConfig.minGasLimit,
+        minTTGasLimit: dynamicConfig.minTTGasLimit,
+    }
 }
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {

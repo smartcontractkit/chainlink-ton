@@ -74,7 +74,7 @@ type RouteMessageBounced struct {
 type Storage struct {
 	ID                        uint32               `tlb:"## 32"`
 	Ownable                   ownable2step.Storage `tlb:"."`
-	Config                    Config               `tlb:"^"`
+	Config                    StorageConfig        `tlb:"^"`
 	OCR3Base                  OCR3Base             `tlb:"^"`
 	CursedSubjects            *cell.Dictionary     `tlb:"dict 128"`
 	SourceChainConfigs        *cell.Dictionary     `tlb:"dict 64"`
@@ -204,7 +204,8 @@ func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
 
-// DynamicConfig holds the dynamic configuration for the OffRamp contract.
+// DynamicConfig holds the dynamic configuration for the OffRamp contract,
+// stored in a cell reference inside StorageConfig.
 type DynamicConfig struct {
 	FeeQuoter                               *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
@@ -212,13 +213,36 @@ type DynamicConfig struct {
 	MinTTGasLimit                           tlb.Coins        `tlb:"."`
 }
 
-// Config combines the static and dynamic config into a single cell to
-// stay within the TVM 4-ref serialization limit for the root Storage struct.
-// The dynamic config is itself kept in a reference because inlining it would
-// overflow the 1023-bit limit of this struct.
-type Config struct {
+// StorageConfig is the on-chain storage layout for the combined static and
+// dynamic config, kept in a single cell reference in Storage. The dynamic
+// config is itself a cell reference because inlining it would overflow the
+// 1023-bit limit.
+type StorageConfig struct {
 	StaticConfig  StaticConfig  `tlb:"."`
 	DynamicConfig DynamicConfig `tlb:"^"`
+}
+
+// Config represents the offRamp contract configuration returned by the config()
+// getter.
+//
+// Field order matches the TVM stack returned by the getter:
+//
+//	0: chainSelector
+//	1: feeQuoter
+//	2: permissionlessExecutionThresholdSeconds
+//	3: tokenAdminRegistry (optional — old contracts return only 3 elements)
+//	4: minGasLimit         (optional — old contracts return only 4 elements)
+//	5: minTTGasLimit       (optional — old contracts return only 5 elements)
+//
+// New fields are appended at the end so old contracts and old Go readers remain
+// compatible — they simply read fewer stack elements.
+type Config struct {
+	ChainSelector                           uint64           `tlb:"## 64"`
+	FeeQuoterAddress                        *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	TokenAdminRegistry                      *address.Address `tlb:"addr"`
+	MinGasLimit                             tlb.Coins        `tlb:"."`
+	MinTTGasLimit                           tlb.Coins        `tlb:"."`
 }
 
 // Deprecated: Use GetConfig getter instead.

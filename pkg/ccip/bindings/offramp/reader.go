@@ -72,53 +72,84 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 	}),
 })
 
-// GetConfig gets the configuration of the OffRamp contract
+// GetConfig gets the configuration of the OffRamp contract.
+//
+// The config() getter returns a TVM stack whose layout evolved:
+//   - Old contracts (pre-1.7.0):    3 elements [chainSelector, feeQuoter, threshold]
+//   - 1.7.0 (NONEVM-6144):          4 elements [..., tokenAdminRegistry]
+//   - This PR (NONEVM-6030):        6 elements [..., minGasLimit, minTTGasLimit]
+//
+// New fields are appended at the end so the first N stack positions are
+// identical across versions. This reader reads indices 0-2 unconditionally
+// and conditionally reads later indices only when the stack has enough
+// elements, leaving optional fields at their zero value for old contracts.
 var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: configGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
-		var emptyConfig Config
-		// The getter returns OffRamp_Config as multiple stack values:
-		// staticConfig fields inline (rmnRouter, tokenAdminRegistry, chainSelector),
-		// then dynamicConfig as a cell reference.
-		rmnRouterSlice, err := r.Slice(0)
+		var c Config
+
+		chainSelectorInt, err := r.Int(0)
 		if err != nil {
-			return emptyConfig, fmt.Errorf("failed to get rmnRouter address slice: %w", err)
-		}
-		rmnRouter, err := rmnRouterSlice.LoadAddr()
-		if err != nil {
-			return emptyConfig, fmt.Errorf("failed to load rmnRouter address: %w", err)
+			return c, fmt.Errorf("failed to get chainSelector: %w", err)
 		}
 
-		tokenAdminRegistrySlice, err := r.Slice(1)
+		feeQuoterAddressSlice, err := r.Slice(1)
 		if err != nil {
-			return emptyConfig, fmt.Errorf("failed to get tokenAdminRegistry address slice: %w", err)
-		}
-		tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
-		if err != nil {
-			return emptyConfig, fmt.Errorf("failed to load tokenAdminRegistry address: %w", err)
+			return c, fmt.Errorf("failed to get feeQuoter address slice: %w", err)
 		}
 
-		chainSelectorInt, err := r.Int(2)
+		feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
 		if err != nil {
-			return emptyConfig, fmt.Errorf("failed to get chainSelector: %w", err)
+			return c, fmt.Errorf("failed to load feeQuoter address: %w", err)
 		}
 
-		dynamicConfigCell, err := r.Cell(3)
+		thresholdInt, err := r.Int(2)
 		if err != nil {
-			return emptyConfig, fmt.Errorf("failed to get dynamicConfig cell: %w", err)
+			return c, fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
 		}
-		var dynamicConfig DynamicConfig
-		if err := tlb.LoadFromCell(&dynamicConfig, dynamicConfigCell.BeginParse()); err != nil {
-			return emptyConfig, fmt.Errorf("failed to decode DynamicConfig: %w", err)
+
+		c = Config{
+			ChainSelector:                           chainSelectorInt.Uint64(),
+			FeeQuoterAddress:                        feeQuoterAddress,
+			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
 		}
-		return Config{
-			StaticConfig: StaticConfig{
-				RMNRouter:          rmnRouter,
-				TokenAdminRegistry: tokenAdminRegistry,
-				ChainSelector:      chainSelectorInt.Uint64(),
-			},
-			DynamicConfig: dynamicConfig,
-		}, nil
+
+		stackLen := len(r.AsTuple())
+
+		// tokenAdminRegistry is only present in new contracts (4+ element stack).
+		// Old contracts return 3 elements; leave TokenAdminRegistry nil.
+		if stackLen > 3 {
+			tokenAdminRegistrySlice, err := r.Slice(3)
+			if err != nil {
+				return c, fmt.Errorf("failed to get TokenAdminRegistry address slice: %w", err)
+			}
+
+			tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
+			if err != nil {
+				return c, fmt.Errorf("failed to load TokenAdminRegistry address: %w", err)
+			}
+			c.TokenAdminRegistry = tokenAdminRegistry
+		}
+
+		// minGasLimit is only present in contracts deployed with this PR (6+ element stack).
+		if stackLen > 4 {
+			minGasLimitInt, err := r.Int(4)
+			if err != nil {
+				return c, fmt.Errorf("failed to get minGasLimit: %w", err)
+			}
+			c.MinGasLimit = tlb.FromNanoTON(minGasLimitInt)
+		}
+
+		// minTTGasLimit is only present in contracts deployed with this PR (6+ element stack).
+		if stackLen > 5 {
+			minTTGasLimitInt, err := r.Int(5)
+			if err != nil {
+				return c, fmt.Errorf("failed to get minTTGasLimit: %w", err)
+			}
+			c.MinTTGasLimit = tlb.FromNanoTON(minTTGasLimitInt)
+		}
+
+		return c, nil
 	}),
 })
 

@@ -9,7 +9,7 @@ struct Storage {
     ownable: Ownable2Step;
     // Static and dynamic config are combined into a single cell reference to
     // stay within the TVM 4-ref serialization limit for the root Storage struct.
-    config: Cell<OffRamp_Config>;
+    config: Cell<OffRamp_StorageConfig>;
     ocr3Base: Cell<OCR3Base>
     cursedSubjects: CursedSubjects;
 

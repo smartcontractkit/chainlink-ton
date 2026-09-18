@@ -65,7 +65,7 @@ export async function deployOffRampContract(
     ownable: of.Ownable2Step.create({
       owner: owner.address,
     }),
-    config: of.OffRamp_Config.create({
+    config: of.OffRamp_StorageConfig.create({
       staticConfig: of.OffRamp_StaticConfig.create({
         rmnRouter: owner.address, // used to determine who can send RMN updates
         tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
