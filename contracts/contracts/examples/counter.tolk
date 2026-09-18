@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.4.1
+tolk 1.4.2
 
 import "@stdlib/common.tolk"
 import "../lib/utils.tolk"

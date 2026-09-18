@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 /// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
-const MIN_GRAM_TO_RESERVE: int = ton("0.05");
+const MIN_GRAM_TO_RESERVE: int = grams("0.05");
 
 /// Runtime data stored by each DepositAccount instance.
 ///

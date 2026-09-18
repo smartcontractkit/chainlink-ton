@@ -208,12 +208,22 @@ func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
 
-// Config represents the offRamp contract configuration
+// Config represents the offRamp contract configuration.
+//
+// Field order matches the TVM stack returned by the config() getter:
+//
+//	0: chainSelector
+//	1: feeQuoter
+//	2: permissionlessExecutionThresholdSeconds
+//	3: tokenAdminRegistry (optional — old contracts return only 3 elements)
+//
+// tokenAdminRegistry is appended last so that old contracts (3-element stack)
+// and old Go readers (which read only indices 0-2) remain compatible.
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
-	TokenAdminRegistry                      *address.Address `tlb:"addr"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	TokenAdminRegistry                      *address.Address `tlb:"addr"`
 }
 
 // Deprecated: Use GetConfig getter instead.
