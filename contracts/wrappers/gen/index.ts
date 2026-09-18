@@ -8,7 +8,7 @@ import { ReceiveExecutor } from './ccip/ReceiveExecutor';
 import { CCIPSendExecutor } from './ccip/CCIPSendExecutor';
 import { MerkleRoot } from './ccip/MerkleRoot';
 
-import { CCIPReceiver } from './ccip/Receiver';
+import { Receiver } from './ccip/Receiver';
 
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
@@ -30,7 +30,7 @@ export function setupGenBindings() {
       FeeQuoter,
       Router,
       MerkleRoot,
-      CCIPReceiver
+      Receiver
     ]
 
     const TokenPools = [

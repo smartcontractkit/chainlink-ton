@@ -7,9 +7,9 @@ import "../lib/token_pool/messages"
 const BurnMintTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.BurnMintTokenPool";
 const BurnMintTokenPool_FACILITY_ID = BurnMintTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
-const BurnMintTokenPool_CLAIM_ADMIN_VALUE = ton("0.05");
-const BurnMintTokenPool_BURN_VALUE = ton("0.05");
-const BurnMintTokenPool_MINT_VALUE = ton("0.1");
+const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
+const BurnMintTokenPool_BURN_VALUE = grams("0.05");
+const BurnMintTokenPool_MINT_VALUE = grams("0.1");
 
 /// Context carried by the CCT burn path (burn only). Stores the pool's own jetton
 /// wallet address (the burn source) and the full forward payload for finalization.

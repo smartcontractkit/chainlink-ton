@@ -5,7 +5,7 @@ import "errors"
 import "types"
 import "../token_admin_registry/messages"
 
-tolk 1.4.1
+tolk 1.4.2
 
 // The state-bearing shard of TokenAdminRegistry.
 contract TokenAdminRegistryEntry {
@@ -169,7 +169,7 @@ fun notifyRoot(body: cell) {
     val st = TokenRegistry_Storage.load();
     createMessage({
         bounce: true,
-        value: ton("0.001"),
+        value: grams("0.001"),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,
     }).send(SEND_MODE_REGULAR);
