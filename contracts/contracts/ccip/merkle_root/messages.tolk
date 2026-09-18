@@ -7,10 +7,12 @@ type MerkleRoot_InMessage =
     | MerkleRoot_MarkState;
 
 struct (0x038ede91) MerkleRoot_Validate {
+    queryId: uint64,
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
     gasOverride: GasOverride?,
+    offchainTokenData: lisp_list<lisp_list<cell>>,
 }
 
 //crc32('MerkleRoot_MarkState')
@@ -32,4 +34,3 @@ fun MerkleRoot_Costs.markState(): int {
 
 const MERKLE_ROOT_COSTS_MARK_STATE_FEE = grams("0.005");
 const MERKLE_ROOT_COSTS_VALIDATE_FEE = grams("0.012");
-

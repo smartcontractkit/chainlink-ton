@@ -12,7 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var ItemPriceContractPath = bindings.GetBuildDir("examples.async-communication.request-reply.ItemPrice/tact_ItemPrice.pkg")
+var ItemPriceContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply.ItemPrice/tact_ItemPrice.pkg")
 
 type ItemPriceProvider struct {
 	apiClient tracetracking.SignedAPIClient

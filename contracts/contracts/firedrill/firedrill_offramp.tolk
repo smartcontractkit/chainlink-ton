@@ -114,6 +114,7 @@ get fun config(): Config {
 		chainSelector: st.chainSelector,
 		feeQuoter: st.controlAddress,
 		permissionlessExecutionThresholdSeconds: 10,
+		tokenAdminRegistry: st.controlAddress,
 	};
 }
 

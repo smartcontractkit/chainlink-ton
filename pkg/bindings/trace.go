@@ -55,10 +55,10 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 	}
 
 	switch uint64(opcodeParent) {
-	// Trace the CCIPReceive flow, exclude the receiver downstream messages
+	// Trace the Receiver_CCIPReceiveV2 flow, exclude the receiver downstream messages
 	case offramp.OpcodeCCIPReceive:
 		// Stop tracing if the current message is not router.CCIPReceiveConfirm (i.e. don't consider
-		// any other outgoing msgs/notifications from third-party CCIP receiver contracts - on offramp.CCIPReceive)
+		// any other outgoing msgs/notifications from third-party CCIP receiver contracts - on offramp.Receiver_CCIPReceiveV2)
 		return uint64(opcodeCurrent) != router.OpcodeCCIPReceiveConfirm, nil
 	}
 

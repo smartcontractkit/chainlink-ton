@@ -14,7 +14,7 @@ export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
 }
-export const CONTRACT_VERSION = '1.6.1'
+export const CONTRACT_VERSION = '1.7.0'
 
 export const onrampSendCost = toNano('4') // TODO this should be calculated based on the message size and gas limit, but for now we use a fixed value
 

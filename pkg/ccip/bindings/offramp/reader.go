@@ -72,7 +72,16 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 	}),
 })
 
-// GetConfig gets the configuration of the OffRamp contract
+// GetConfig gets the configuration of the OffRamp contract.
+//
+// The config() getter returns a TVM stack whose layout evolved:
+//   - Old contracts (pre-1.7.0): 3 elements [chainSelector, feeQuoter, threshold]
+//   - New contracts (1.7.0+):     4 elements [chainSelector, feeQuoter, threshold, tokenAdminRegistry]
+//
+// tokenAdminRegistry was appended at the end (not inserted in the middle) so
+// that the first 3 stack positions are identical across versions. This reader
+// reads indices 0-2 unconditionally and conditionally reads index 3 only when
+// the stack has 4 elements, leaving TokenAdminRegistry nil for old contracts.
 var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: configGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
@@ -99,11 +108,28 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			return c, fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
 		}
 
-		return Config{
+		c = Config{
 			ChainSelector:                           chainSelector,
 			FeeQuoterAddress:                        feeQuoterAddress,
 			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
-		}, nil
+		}
+
+		// tokenAdminRegistry is only present in new contracts (4-element stack).
+		// Old contracts return 3 elements; leave TokenAdminRegistry nil.
+		if len(r.AsTuple()) > 3 {
+			tokenAdminRegistrySlice, err := r.Slice(3)
+			if err != nil {
+				return c, fmt.Errorf("failed to get TokenAdminRegistry address slice: %w", err)
+			}
+
+			tokenAdminRegistry, err := tokenAdminRegistrySlice.LoadAddr()
+			if err != nil {
+				return c, fmt.Errorf("failed to load TokenAdminRegistry address: %w", err)
+			}
+			c.TokenAdminRegistry = tokenAdminRegistry
+		}
+
+		return c, nil
 	}),
 })
 

@@ -4,15 +4,8 @@
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
   package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
-  go_1_26_6 = pkgs.go_1_26.overrideAttrs (_old: rec {
-    version = "1.26.6";
-    src = pkgs.fetchurl {
-      url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-oHIcVMaIkBRI13rZs+x+p8R0cwdV/4kTgukuy5P/LLE=";
-    };
-  });
 in
-  pkgs.buildGo126Module.override {go = go_1_26_6;} rec {
+  pkgs.buildGo126Module rec {
     inherit (package-info) version;
     pname = "chainlink-ton";
 
@@ -27,6 +20,7 @@ in
 
     # pin the vendor hash (update using 'pkgs.lib.fakeHash')
     vendorHash = lock.chainlink-ton;
+    proxyVendor = true;
 
     # postInstall script to write version and rev to share folder
     postInstall = ''

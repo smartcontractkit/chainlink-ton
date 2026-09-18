@@ -20,7 +20,6 @@ type OnRamp_InMessage =
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
-    | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
     | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
@@ -40,8 +39,6 @@ struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata;
-    // TODO: consider introducing OnRamp_SendV2 instead of mutating OnRamp_Send to maintain backwards compatibility on the OnRamp upgrade path.
-    tokenRegistry: address? = null;
 }
 
 // So that ABIgen can generate codec for OnRamp_GetValidatedFee<RemainingBitsAndRefs>
@@ -102,10 +99,6 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
 
 struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
-}
-
-struct (0x82901c45) OnRamp_UpdateSendExecutor {
-    code: cell;
 }
 
 struct (0x9dc06185) OnRamp_UpdateAllowlists {

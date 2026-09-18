@@ -90,6 +90,7 @@ export class FiredrillOffRamp implements Contract {
       chainSelector: result.stack.readBigNumber(),
       feeQuoter: result.stack.readAddress(),
       permissionlessExecutionThresholdSeconds: result.stack.readBigNumber(),
+      tokenAdminRegistry: result.stack.readAddress(),
     })
   }
 

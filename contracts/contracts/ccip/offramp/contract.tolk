@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "@stdlib/lisp-lists"
+
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
@@ -19,7 +21,7 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
-import "../token_registry/types"
+import "../token_admin_registry_entry/types"
 
 import "messages"
 import "errors"
@@ -92,12 +94,6 @@ fun onInternalMessage(in:InMessage) {
             onSetOCR3Config(msg)
         }
         // Sender must be owner
-        OffRamp_UpdateDeployables => {
-            val st = lazy Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            onUpdateDeployables(st, msg)
-        }
-        // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
             val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -106,7 +102,7 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
-            assert(in.senderAddress == st.deployables.load().rmnRouter, OffRamp_Error.Unauthorized);
+            assert(in.senderAddress == st.staticConfig.load().rmnRouter, OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
@@ -258,7 +254,7 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
     });
 
     // Send ReceiveBounced to initiate the failure notification trace 
-    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
+    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
 }
 
 // Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -270,7 +266,46 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    val old = Storage_V1_6_2.fromCell(storage);
+    val oldDeployables = old.deployables.load();
+    return Storage {
+        id: old.id,
+        ownable: old.ownable,
+        staticConfig: OffRamp_StaticConfig {
+            rmnRouter: oldDeployables.rmnRouter,
+            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+            chainSelector: old.chainSelector,
+        }.toCell(),
+        feeQuoter: old.feeQuoter,
+        ocr3Base: old.ocr3Base,
+        cursedSubjects: old.cursedSubjects,
+        permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
+        sourceChainConfigs: old.sourceChainConfigs,
+        latestPriceSequenceNumber: old.latestPriceSequenceNumber,
+    }.toCell();
+}
+
+// Persisted layout for the final 1.6.2 release. The three code cells are now
+// compile-time dependencies of OffRamp and intentionally do not survive.
+struct Storage_V1_6_2 {
+    id: uint32;
+    ownable: Ownable2Step;
+    deployables: Cell<OffRamp_Deployables_V1_6_2>;
+    feeQuoter: address;
+    ocr3Base: Cell<OCR3Base>;
+    cursedSubjects: CursedSubjects;
+    chainSelector: uint64;
+    permissionlessExecutionThresholdSeconds: uint32;
+    sourceChainConfigs: map<uint64, SourceChainConfig> = [];
+    latestPriceSequenceNumber: uint64 = 0;
+}
+
+struct OffRamp_Deployables_V1_6_2 {
+    rmnRouter: address;
+    tokenAdminRegistry: address;
+    deployer: cell;
+    merkleRootCode: cell;
+    receiveExecutorCode: cell;
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -291,18 +326,22 @@ fun version(): slice { return CONTRACT_VERSION; }
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2 (bounce)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
 
+    // queryId is not available on this path (OffRamp_CCIPReceiveBounced originates from a
+    // bounced Receiver_CCIPReceiveV2, where only the first 256 bits are returned). The
+    // ReceiveExecutor already stores the queryId in its own storage.
     val receiveBounced = createMessage({
         bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveFailed{ 
+            queryId: 0,
             receiver: msg.receiver,
             reason: ReceiveExecutor_FailedReason.BouncedFromReceiver,
         }
@@ -335,10 +374,10 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
 fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
+    val messageHeader = lazy msg.header.load();
     // propagate state change to root
-    markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success);
 
-    val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
@@ -357,10 +396,10 @@ fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
+    val messageHeader = lazy msg.header.load();
     // propagate state change to root
-    markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure);
 
-    val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
@@ -379,7 +418,7 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
 //     participant OffRamp
 //     participant ReceiveExecutor
 
-//     Receiver        ->> Router:          Receiver_CCIPReceive
+//     Receiver        ->> Router:          Receiver_CCIPReceiveV2
 //     Router          ->> OffRamp:         Router_CCIPReceiveConfirm
 //     OffRamp         ->> ReceiveExecutor: OffRamp_CCIPReceiveConfirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
@@ -389,6 +428,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
         value: 0,
         dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveConfirm {
+            queryId: msg.queryId,
             receiver: msg.receiver,
         },
     });
@@ -409,19 +449,20 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
 
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage
-//     Router          ->> Receiver: Receiver_CCIPReceive
+//     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
     if (msg.effectiveGasLimit < MIN_GASLIMIT) {
-        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
+        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
         value: msg.effectiveGasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
+            queryId: msg.queryId,
             message: Any2TVMMessage {
                 messageId: message.header.messageId,
                 sourceChainSelector: message.header.sourceChainSelector,
@@ -438,12 +479,13 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-fun ccipReceiveFailed(receiveExecutor: address, receiver: address, reason: ReceiveExecutor_FailedReason) {
+fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
     val receiveBounced = createMessage({
         bounce: false,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_CCIPReceiveFailed{
+            queryId,
             receiver,
             reason,
         }
@@ -452,13 +494,13 @@ fun ccipReceiveFailed(receiveExecutor: address, receiver: address, reason: Recei
 }
 
 // Send ReceiveBounced to initiate the failure notification trace
-fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
+fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
     val receiveBounced = createMessage({
         bounce: false,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_ReleaseOrMintFailed {
-            queryID,
+            queryId,
             reason,
         }
     });
@@ -506,22 +548,6 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     }
 
     st.ocr3Base = ocr3Base.toCell();
-    st.store();
-}
-
-// Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
-fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
-    var deployables = st.deployables.load();
-
-    if (msg.receiveExecutorCode != null) {
-        deployables.receiveExecutorCode = msg.receiveExecutorCode!;
-    }
-
-    if (msg.merkleRootCode != null) {
-        deployables.merkleRootCode = msg.merkleRootCode!;
-    }
-
-    st.deployables = deployables.toCell();
     st.store();
 }
 
@@ -591,7 +617,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             dest: getMerkleRootDeployAddress(st, root.merkleRoot),
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().merkleRootCode,
+                    code: merkleRootCode(),
                     data: MerkleRoot_Storage {
                         root: root.merkleRoot,
                         owner: contract.getAddress(),
@@ -666,7 +692,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 //     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
-    onExecuteSingleReport(msg.report, msg.gasOverride, value);
+    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryId);
 }
 
 // Executes a single cross-chain execution report.
@@ -691,7 +717,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
         createEmptyCell(),
     );
 
-    onExecuteSingleReport(msg.report, null, value);
+    onExecuteSingleReport(msg.report, null, value, msg.queryId);
 }
 
 // Executes a single cross-chain execution report. Verifies source chain
@@ -705,7 +731,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins) {
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryId: uint64) {
     assert(value >= (OffRamp_Costs.execute() + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT /* TBD + ReleaseOrMint.cost()? */), OffRamp_Error.InsufficientFee);
     var st = Storage.load();
 
@@ -718,6 +744,17 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
+    // Validate offchainTokenData shape: it must have one entry per message.
+    // TON currently supports one message with at most one token transfer.
+    var offchainTokenData = report.offchainTokenData;
+    val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+    val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
+    if (hasTokens) {
+        assert(!offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+    } else {
+        assert(offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+    }
+
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);
 
@@ -729,14 +766,14 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
     val metadataHash = Any2TVMMessageV1Metadata {
         sourceChainSelector: report.sourceChainSelector,
-        destChainSelector: st.chainSelector,
+        destChainSelector: st.staticConfig.load().chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
     // the st.chainSelector as the destChainSelector.
-    assert(message.header.destChainSelector == st.chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
+    assert(message.header.destChainSelector == st.staticConfig.load().chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
     // been committed for the report source chain selector this will be caught by the root verification.
@@ -757,10 +794,12 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
         value: 0,
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
+            queryId,
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash,
             permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
             gasOverride,
+            offchainTokenData: report.offchainTokenData,
         },
     });
     // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the emits
@@ -857,7 +896,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
             dest: executorAddress,
             body: Deployable_Initialize {
                 stateInit: {
-                    code: st.deployables.load().receiveExecutorCode,
+                    code: receiveExecutorCode(),
                     data: ReceiveExecutor_Storage {
                         owner: contract.getAddress(),
                         message: message.toCell(),
@@ -871,17 +910,19 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
-        effectiveGasLimit: msg.gasOverride.getEffectiveGasLimit(message.gasLimit),
+        queryId: msg.queryId,
+        effectiveGasLimit: message.gasLimit,
         root: sender,
         sequenceNumber: message.header.sequenceNumber,
         sourceChainSelector: message.header.sourceChainSelector,
         messageId: message.header.messageId,
     };
 
-    // TODO: This is precarious. We should standarize a pattern to handle errors. Maybe all handlers should be wrapped in a try/catch
+    // TODO: this hides the validation error that caused the message to fail.
     try {
-        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride);
-        // TODO this hides the error
+        val offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+        initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
+        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride, offchainTokenDataForTTOfMessage);
     } catch {
         return messageExecutionFailed(initExecuteMsg);
     }
@@ -905,7 +946,9 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 //
 // @throws OffRamp_Error.UnsupportedNumberOfTokens if tokenAmounts is not null and its len != 1.
 // @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch the number of gasOverride.tokenGasOverrides does not match the number of tokenAmounts.
-fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?): Cell<ReceiveExecutor_TokenTransfer>? {
+// @throws OffRamp_Error.UnexpectedTokenData if offchainTokenData does not contain exactly one
+// per-message list with exactly one entry for the single token transfer.
+fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
         assert(gasOverride == null || gasOverride.tokenGasOverrides == null, OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         return null;
@@ -913,12 +956,24 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
     tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
 
-    // TODO probably the tokenRegistryMaster
-    val tokenRegistryOwnerAddress = st.sourceChainConfigs.mustGet(sourceChainSelector).router;
-    val registryAddress = TokenRegistry.deriveAddress(st.deployables.load().deployer, tokenTransfer.token, tokenRegistryOwnerAddress).calculateAddress();
+    // Extract the single per-message list and its single token-data blob.
+    var tokenData: cell? = null;
+    val userTokenData = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+    if (userTokenData != createEmptyCell()) {
+        tokenData = userTokenData;
+    }
+
+    val staticConfig = st.staticConfig.load();
+    val registryAddress = TokenAdminRegistryEntry.deriveAddress(
+        deployerCode(),
+        tokenTransfer.token,
+        staticConfig.tokenAdminRegistry,
+    ).calculateAddress();
+
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
         transfer: tokenTransfer,
+        offchainTokenData: tokenData,
     }.toCell();
 }
 
@@ -954,7 +1009,7 @@ Derives the receiver executor contract address from the execId
 fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
@@ -978,7 +1033,7 @@ Derives the merkle root contract address from the merkleRootId
 fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
     return {
         stateInit: {
-            code: st.deployables.load().deployer,
+            code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_MerkleRoot,
                 owner: contract.getAddress(),
@@ -994,6 +1049,22 @@ Verifies that the caller corresponds to a merkle root contract
 fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
     val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
     assert(expectedAddress.calculateAddress() == sender) throw OffRamp_Error.MessageNotFromOwnedContract;
+}
+
+import "../../../gen/Deployable.code"
+import "../../../gen/MerkleRoot.code"
+import "../../../gen/ReceiveExecutor.code"
+
+fun deployerCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun merkleRootCode(): cell {
+    return merkleRootCompiledCode();
+}
+
+fun receiveExecutorCode(): cell {
+    return receiveExecutorCompiledCode();
 }
 
 /*
@@ -1043,9 +1114,10 @@ get fun ocr3Config(): OCR3Base {
 get fun config(): Config {
     val st = lazy Storage.load();
     return {
-        chainSelector: st.chainSelector,
+        chainSelector: st.staticConfig.load().chainSelector,
         feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+        tokenAdminRegistry: st.staticConfig.load().tokenAdminRegistry,
     }
 }
 
@@ -1070,19 +1142,16 @@ get fun cursedSubjects(): lisp_list<uint128> {
 }
 
 get fun deployableHashes() : DeployableHashes {
-    val st = lazy Storage.load();
-    val deployables = st.deployables.load();
     return DeployableHashes {
-        merkleRoot: deployables.merkleRootCode.hash(),
-        receiveExecutor: deployables.receiveExecutorCode.hash(),
-        deployer: deployables.deployer.hash(),
+        merkleRoot: merkleRootCode().hash(),
+        receiveExecutor: receiveExecutorCode().hash(),
+        deployer: deployerCode().hash(),
     }
 }
 
 get fun rmnRouter(): address {
     val st = lazy Storage.load();
-    val deployables = st.deployables.load();
-    return deployables.rmnRouter;
+    return st.staticConfig.load().rmnRouter;
 }
 
 /// Gets the current owner of the contract.
