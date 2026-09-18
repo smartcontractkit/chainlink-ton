@@ -2,8 +2,12 @@
 // cciplib binding immediately before OffChainTokenData became a nested LispList.
 //
 // The module is kept outside the cciplib module (see go.mod) so its import resolves
-// to the pinned legacy version (v0.0.0-20260914214413-1f3ac22e4746), where
-// ocr.ExecuteReport.OffChainTokenData is common.LispList[common.SnakeBytes] (flat).
+// to the pinned legacy version (v0.0.0-20260915153529-7f72e847b2fb, commit 7f72e847b2fb,
+// tag contracts/1.6.2+7f72e847b2fb), the last commit on main before PR #884 introduced
+// the nested LispList[LispList[SnakeBytes]]. At that commit,
+// ocr.ExecuteReport.OffChainTokenData is *cell.Cell, hardcoded to tvm.EmptyCell for
+// tokenless reports — which produces the same single empty cell as the current
+// canonicalization.
 //
 // It uses the real ccipocr3.ExecutePluginReport JSON types and the real
 // NewExecutePluginCodecV1/NewExtraDataDecoder from the legacy cciplib, so the
