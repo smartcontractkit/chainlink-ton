@@ -157,15 +157,22 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	}
 
 	// Encode offchainTokenData as per-message lists of per-token data blobs.
-	// TON supports a single message with a single token transfer, but retains
-	// the external report ABI's two-dimensional shape.
-	offchainTokenData := make(common.LispList[common.LispList[common.SnakeBytes]], 1)
-	perMessageTokenData := make(common.LispList[common.SnakeBytes], 0, len(tokenAmounts))
-	// OffchainTokenData is [][]byte indexed per-message then per-token.
-	// A tokenless message may omit it; encode that case as the required [ [] ] shape.
-	if chainReport.OffchainTokenData == nil {
-		if len(tokenAmounts) != 0 {
-			return nil, fmt.Errorf("offchainTokenData count 0 does not match tokenAmounts count %d", len(tokenAmounts))
+	// A tokenless report is canonicalized as an empty outer list. Its cell is
+	// identical to the legacy lisp_list<cell> encoding, where an empty list is
+	// also an empty cell. Do not encode it as [ [] ], which adds a list element
+	// and would change the report hash before TON has processed a token transfer.
+	offchainTokenData := make(common.LispList[common.LispList[common.SnakeBytes]], 0)
+	if len(tokenAmounts) == 0 {
+		// Tokenless report: OffchainTokenData may be nil, an empty slice, or
+		// [[]] (one empty per-message list, as OCR represents a single tokenless
+		// message). All of these canonicalize to an empty outer list.
+		if len(chainReport.OffchainTokenData) > 0 {
+			if len(chainReport.OffchainTokenData) != 1 {
+				return nil, fmt.Errorf("TON supports single message only, got %d offchainTokenData message entries", len(chainReport.OffchainTokenData))
+			}
+			if len(chainReport.OffchainTokenData[0]) != 0 {
+				return nil, fmt.Errorf("offchainTokenData count %d does not match tokenAmounts count 0", len(chainReport.OffchainTokenData[0]))
+			}
 		}
 	} else {
 		if len(chainReport.OffchainTokenData) != 1 {
@@ -176,12 +183,13 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		if len(msgTokenData) != len(tokenAmounts) {
 			return nil, fmt.Errorf("offchainTokenData count %d does not match tokenAmounts count %d", len(msgTokenData), len(tokenAmounts))
 		}
+		perMessageTokenData := make(common.LispList[common.SnakeBytes], 0, len(msgTokenData))
 		for _, blob := range msgTokenData {
 			sb := common.SnakeBytes(blob)
 			perMessageTokenData = append(perMessageTokenData, &sb)
 		}
+		offchainTokenData = append(offchainTokenData, &perMessageTokenData)
 	}
-	offchainTokenData[0] = &perMessageTokenData
 
 	proofs := make(common.SnakedCell[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {

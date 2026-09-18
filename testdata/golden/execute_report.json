@@ -1,0 +1,35 @@
+{
+    "description": "Tokenless ccipocr3.ExecutePluginReport used to verify that the current cciplib binding (nested LispList[LispList[SnakeBytes]] OffChainTokenData) produces the exact same bag of cells as the legacy binding (flat LispList[SnakeBytes]) when there are no token transfers. No token-transfer messages have happened for TON in production yet, so tokenless reports must encode to the identical BOC. The companion execute_report.boc is the committed golden BOC produced by the legacy binding; CI regenerates it and asserts no mutation, while the Go test in cciplib encodes with the current codec and asserts byte equality, then decodes the golden BOC and asserts the result matches this fixture.",
+    "report": {
+        "chainReports": [
+            {
+                "sourceChainSelector": 5009297550715157269,
+                "messages": [
+                    {
+                        "header": {
+                            "messageId": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+                            "sourceChainSelector": "5009297550715157269",
+                            "destChainSelector": "1234",
+                            "seqNum": "5678",
+                            "nonce": 9012
+                        },
+                        "sender": "0x1122334455",
+                        "data": "0xaabbccdd",
+                        "receiver": "0x00000000ed1691307050047117b998b561d8de82d31fbf84910ced6eb5fc92e7485ef8a7",
+                        "extraArgs": "0x",
+                        "feeToken": "0x",
+                        "feeTokenAmount": "0",
+                        "feeValueJuels": "0",
+                        "tokenAmounts": null
+                    }
+                ],
+                "offchainTokenData": [],
+                "proofs": [
+                    "0x0000000000000000000000000000000000000000000000000000000000000001",
+                    "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                ],
+                "proofFlagBits": "3"
+            }
+        ]
+    }
+}

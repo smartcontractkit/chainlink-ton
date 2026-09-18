@@ -13,8 +13,10 @@ struct ExecutionReport {
     sourceChainSelector: uint64;
     messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
     // Offchain token data for every message and token transfer in the report.
-    // An empty list when the report carries no token transfers; otherwise each
-    // outer entry is a message and each inner entry is that message's token-data blob.
+    // A tokenless report may use either `[]` (empty outer list) or `[[]]` (one
+    // empty per-message list); both are accepted. When there are token
+    // transfers, each outer entry is a message and each inner entry is that
+    // message's token-data blob.
     // WARNING: offchainTokenData is untrusted data.
     offchainTokenData: lisp_list<lisp_list<cell>>;
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
