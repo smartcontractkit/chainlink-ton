@@ -49,8 +49,7 @@ type SourceChainSelectorAdded struct {
 
 // DynamicConfigSet represents the DynamicConfigSet event data
 type DynamicConfigSet struct {
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	Config DynamicConfig `tlb:"."`
 }
 
 // ReceiveExecutorInitExecuteBounced represents the ReceiveExecutorInitExecuteBounced event data
@@ -73,15 +72,13 @@ type RouteMessageBounced struct {
 
 // Storage represents the offRamp contract storage state
 type Storage struct {
-	ID                                      uint32               `tlb:"## 32"`
-	Ownable                                 ownable2step.Storage `tlb:"."`
-	StaticConfig                            StaticConfig         `tlb:"^"`
-	FeeQuoter                               *address.Address     `tlb:"addr"`
-	OCR3Base                                OCR3Base             `tlb:"^"`
-	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
-	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
-	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
-	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
+	ID                        uint32               `tlb:"## 32"`
+	Ownable                   ownable2step.Storage `tlb:"."`
+	Config                    StorageConfig        `tlb:"^"`
+	OCR3Base                  OCR3Base             `tlb:"^"`
+	CursedSubjects            *cell.Dictionary     `tlb:"dict 128"`
+	SourceChainConfigs        *cell.Dictionary     `tlb:"dict 64"`
+	LatestPriceSequenceNumber uint64               `tlb:"## 64"`
 }
 
 type StaticConfig struct {
@@ -165,10 +162,9 @@ type Execute struct {
 }
 
 type SetDynamicConfig struct {
-	_                                       tlb.Magic        `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID                                 uint64           `tlb:"## 64"`
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	_       tlb.Magic     `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64        `tlb:"## 64"`
+	Config  DynamicConfig `tlb:"."`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -208,22 +204,45 @@ func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
 
-// Config represents the offRamp contract configuration.
+// DynamicConfig holds the dynamic configuration for the OffRamp contract,
+// stored in a cell reference inside StorageConfig.
+type DynamicConfig struct {
+	FeeQuoter                               *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+	MinGasLimit                             tlb.Coins        `tlb:"."`
+	MinTTGasLimit                           tlb.Coins        `tlb:"."`
+}
+
+// StorageConfig is the on-chain storage layout for the combined static and
+// dynamic config, kept in a single cell reference in Storage. The dynamic
+// config is itself a cell reference because inlining it would overflow the
+// 1023-bit limit.
+type StorageConfig struct {
+	StaticConfig  StaticConfig  `tlb:"."`
+	DynamicConfig DynamicConfig `tlb:"^"`
+}
+
+// Config represents the offRamp contract configuration returned by the config()
+// getter.
 //
-// Field order matches the TVM stack returned by the config() getter:
+// Field order matches the TVM stack returned by the getter:
 //
 //	0: chainSelector
 //	1: feeQuoter
 //	2: permissionlessExecutionThresholdSeconds
 //	3: tokenAdminRegistry (optional — old contracts return only 3 elements)
+//	4: minGasLimit         (optional — old contracts return only 4 elements)
+//	5: minTTGasLimit       (optional — old contracts return only 5 elements)
 //
-// tokenAdminRegistry is appended last so that old contracts (3-element stack)
-// and old Go readers (which read only indices 0-2) remain compatible.
+// New fields are appended at the end so old contracts and old Go readers remain
+// compatible — they simply read fewer stack elements.
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 	TokenAdminRegistry                      *address.Address `tlb:"addr"`
+	MinGasLimit                             tlb.Coins        `tlb:"."`
+	MinTTGasLimit                           tlb.Coins        `tlb:"."`
 }
 
 // Deprecated: Use GetConfig getter instead.

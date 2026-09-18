@@ -8,6 +8,7 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 )
 
 type TokenSymbol string
@@ -75,6 +76,8 @@ type OffRampParams struct {
 	Coin                             string
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
+	MinGasLimit                      string
+	MinTTGasLimit                    string
 }
 
 func (o OffRampParams) Validate() error {
@@ -83,6 +86,18 @@ func (o OffRampParams) Validate() error {
 	}
 	if o.PermissionlessExecutionThreshold == 0 {
 		return errors.New("PermissionlessExecutionThreshold can't be 0")
+	}
+	if o.MinGasLimit == "" {
+		return errors.New("MinGasLimit can't be empty")
+	}
+	if _, err := tlb.FromTON(o.MinGasLimit); err != nil {
+		return fmt.Errorf("invalid MinGasLimit %q: %w", o.MinGasLimit, err)
+	}
+	if o.MinTTGasLimit == "" {
+		return errors.New("MinTTGasLimit can't be empty")
+	}
+	if _, err := tlb.FromTON(o.MinTTGasLimit); err != nil {
+		return fmt.Errorf("invalid MinTTGasLimit %q: %w", o.MinTTGasLimit, err)
 	}
 	return nil
 }

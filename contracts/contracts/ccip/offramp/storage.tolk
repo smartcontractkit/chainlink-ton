@@ -7,13 +7,11 @@ import "../rmn_remote/lib"
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;
-    staticConfig: Cell<OffRamp_StaticConfig>;
-    feeQuoter: address;
+    // Static and dynamic config are combined into a single cell reference to
+    // stay within the TVM 4-ref serialization limit for the root Storage struct.
+    config: Cell<OffRamp_StorageConfig>;
     ocr3Base: Cell<OCR3Base>
     cursedSubjects: CursedSubjects;
-
-    // dynamic config
-    permissionlessExecutionThresholdSeconds: uint32,
 
     sourceChainConfigs: map<uint64, SourceChainConfig> = [];
 

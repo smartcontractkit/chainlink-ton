@@ -75,23 +75,22 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 // GetConfig gets the configuration of the OffRamp contract.
 //
 // The config() getter returns a TVM stack whose layout evolved:
-//   - Old contracts (pre-1.7.0): 3 elements [chainSelector, feeQuoter, threshold]
-//   - New contracts (1.7.0+):     4 elements [chainSelector, feeQuoter, threshold, tokenAdminRegistry]
+//   - Old contracts (pre-1.7.0):    3 elements [chainSelector, feeQuoter, threshold]
+//   - 1.7.0 (NONEVM-6144):          4 elements [..., tokenAdminRegistry]
+//   - This PR (NONEVM-6030):        6 elements [..., minGasLimit, minTTGasLimit]
 //
-// tokenAdminRegistry was appended at the end (not inserted in the middle) so
-// that the first 3 stack positions are identical across versions. This reader
-// reads indices 0-2 unconditionally and conditionally reads index 3 only when
-// the stack has 4 elements, leaving TokenAdminRegistry nil for old contracts.
+// Only the 3-element version was deployed to production, so we only need to
+// distinguish between 3 (old) and 6 (new). When the stack has more than 3
+// elements, we assert it has exactly 6 and read all remaining fields.
 var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: configGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
 		var c Config
-		cs, err := r.Int(0)
-		if err != nil {
-			return c, fmt.Errorf("failed to get ChainSelector: %w", err)
-		}
 
-		chainSelector := cs.Uint64()
+		chainSelectorInt, err := r.Int(0)
+		if err != nil {
+			return c, fmt.Errorf("failed to get chainSelector: %w", err)
+		}
 
 		feeQuoterAddressSlice, err := r.Slice(1)
 		if err != nil {
@@ -109,14 +108,21 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 		}
 
 		c = Config{
-			ChainSelector:                           chainSelector,
+			ChainSelector:                           chainSelectorInt.Uint64(),
 			FeeQuoterAddress:                        feeQuoterAddress,
 			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
 		}
 
-		// tokenAdminRegistry is only present in new contracts (4-element stack).
-		// Old contracts return 3 elements; leave TokenAdminRegistry nil.
-		if len(r.AsTuple()) > 3 {
+		stackLen := len(r.AsTuple())
+
+		// Old contracts return 3 elements; leave optional fields at zero values.
+		// Only the 3-element version was deployed to production, so if there are
+		// more than 3, we assert exactly 6 and read all remaining fields.
+		if stackLen > 3 {
+			if stackLen != 6 {
+				return c, fmt.Errorf("unexpected config stack length: expected 3 or 6, got %d", stackLen)
+			}
+
 			tokenAdminRegistrySlice, err := r.Slice(3)
 			if err != nil {
 				return c, fmt.Errorf("failed to get TokenAdminRegistry address slice: %w", err)
@@ -127,6 +133,18 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 				return c, fmt.Errorf("failed to load TokenAdminRegistry address: %w", err)
 			}
 			c.TokenAdminRegistry = tokenAdminRegistry
+
+			minGasLimitInt, err := r.Int(4)
+			if err != nil {
+				return c, fmt.Errorf("failed to get minGasLimit: %w", err)
+			}
+			c.MinGasLimit = tlb.FromNanoTON(minGasLimitInt)
+
+			minTTGasLimitInt, err := r.Int(5)
+			if err != nil {
+				return c, fmt.Errorf("failed to get minTTGasLimit: %w", err)
+			}
+			c.MinTTGasLimit = tlb.FromNanoTON(minTTGasLimitInt)
 		}
 
 		return c, nil

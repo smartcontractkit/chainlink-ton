@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -19,10 +20,10 @@ func addrSlice(t *testing.T, addr *address.Address) *cell.Slice {
 	return b.EndCell().BeginParse()
 }
 
-// TestGetConfig_NewContract verifies the decoder correctly reads the 4-element
-// stack returned by new (1.7.0+) OffRamp contracts:
+// TestGetConfig_NewContract verifies the decoder correctly reads the 6-element
+// stack returned by new OffRamp contracts:
 //
-//	[chainSelector, feeQuoter, threshold, tokenAdminRegistry]
+//	[chainSelector, feeQuoter, threshold, tokenAdminRegistry, minGasLimit, minTTGasLimit]
 func TestGetConfig_NewContract(t *testing.T) {
 	feeQuoter, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
@@ -33,6 +34,9 @@ func TestGetConfig_NewContract(t *testing.T) {
 		chainSelector uint64 = 4294932324 // TON testnet
 		threshold     uint32 = 300
 	)
+
+	minGasLimit := tlb.MustFromTON("0.025")
+	minTTGasLimit := tlb.MustFromTON("0.2")
 
 	// TVM stack is stored bottom-to-top, so the first-pushed element is at the
 	// end of the slice. NewExecutionResult expects the slice in the order the
@@ -46,6 +50,8 @@ func TestGetConfig_NewContract(t *testing.T) {
 		addrSlice(t, feeQuoter),          // index 1: feeQuoter
 		big.NewInt(int64(threshold)),     // index 2: permissionlessExecutionThresholdSeconds
 		addrSlice(t, tokenAdminRegistry), // index 3: tokenAdminRegistry
+		minGasLimit.Nano(),               // index 4: minGasLimit
+		minTTGasLimit.Nano(),             // index 5: minTTGasLimit
 	})
 
 	cfg, err := GetConfig.Decoder.Decode(result)
@@ -56,6 +62,8 @@ func TestGetConfig_NewContract(t *testing.T) {
 	require.Equal(t, threshold, cfg.PermissionlessExecutionThresholdSeconds)
 	require.NotNil(t, cfg.TokenAdminRegistry)
 	require.True(t, cfg.TokenAdminRegistry.Equals(tokenAdminRegistry))
+	require.Equal(t, minGasLimit.Nano(), cfg.MinGasLimit.Nano())
+	require.Equal(t, minTTGasLimit.Nano(), cfg.MinTTGasLimit.Nano())
 }
 
 // TestGetConfig_OldContract verifies the decoder correctly reads the 3-element
