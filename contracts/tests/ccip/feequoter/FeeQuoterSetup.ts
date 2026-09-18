@@ -47,7 +47,7 @@ export class FeeQuoterSetup {
   static readonly DEST_ADDRESS = EVM_ADDRESS
 
   static readonly MAX_DATA_SIZE = 300n
-  static readonly MAX_TOKENS_LENGTH = 0n // We don't support token transfers in TON yet
+  static readonly MAX_TOKENS_LENGTH = 2n
   static readonly MAX_GAS_LIMIT = 4000000n
 
   // OnRamp constants
@@ -393,17 +393,6 @@ export class FeeQuoterSetup {
                       maxFeeUsdCents: 2000_00n,
                       deciBps: 10_0n,
                       destGasOverhead: 95_000n,
-                      destBytesOverhead: 200n,
-                    }),
-                  ],
-                  [
-                    FeeQuoterSetup.CUSTOM_TOKEN_2.token,
-                    feeQuoter.TokenTransferFeeConfig.create({
-                      isEnabled: false,
-                      minFeeUsdCents: 2_00n,
-                      maxFeeUsdCents: 2000_00n,
-                      deciBps: 10_0n,
-                      destGasOverhead: 1n,
                       destBytesOverhead: 200n,
                     }),
                   ],

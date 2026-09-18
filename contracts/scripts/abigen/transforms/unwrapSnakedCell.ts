@@ -1,12 +1,3 @@
-// ---------------------------------------------------------------------------
-//   SnakedCell<T> ergonomic transform
-//
-//   acton generates `type SnakedCell<T> = c.Cell`, forcing every caller to
-//   manually snake-encode arrays before calling `.create()`. This rewrites
-//   the generated output so that `SnakedCell<T>` is `T[]` and the generated
-//   `store()` / `fromSlice()` methods handle the snake encoding
-//   automatically — the same way `lisp_list<T>` already works.
-// ---------------------------------------------------------------------------
 // Primitive Tolk integer types that appear as SnakedCell<T> type parameters.
 // These don't have generated `.store` / `.fromSlice` methods, so we inline
 
@@ -35,10 +26,14 @@ function snakeLoadExpr(itemType: string): string {
 
 const SNAKED_HELPERS = `
 
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+// Builds the snake-encoded content cell for a SnakedCell<T> field, i.e. what the field's cell
+// *value* actually is (not wrapped in an extra ref). Message/struct encoding needs that content
+// nested one ref deep (see storeSnakedCellOf below), but a get-method stack argument of type
+// SnakedCell<T> (= cell) is passed directly as this content cell - no extra ref indirection, since
+// get-method args aren't loaded via a struct's loadRef()-based field deserialization.
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
     if (v.length === 0) {
-        b.storeRef(c.Cell.EMPTY);
-        return;
+        return c.Cell.EMPTY;
     }
     const cells: c.Builder[] = [];
     let builder = c.beginCell();
@@ -57,7 +52,11 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
         cells[i].storeRef(current);
         current = cells[i].endCell();
     }
-    b.storeRef(current);
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
 }
 
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
@@ -197,7 +196,7 @@ function transformSnakedStackBoundary(
     const storeExpr = snakeStoreExpr(info.itemType)
     rewraps.push({
       prop: cellProp,
-      text: `makeCellFrom<SnakedCell<${info.itemType}>>(${objText}.${field}, (v,b) => storeSnakedCellOf(v, b, ${storeExpr}))`,
+      text: `buildSnakedCellOf<${info.itemType}>(${objText}.${field}, ${storeExpr})`,
     })
   }
 

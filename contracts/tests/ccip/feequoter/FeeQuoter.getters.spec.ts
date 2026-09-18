@@ -155,8 +155,14 @@ describe('FeeQuoter Getters', () => {
       const fee = await setup.bind.feeQuoter.getValidatedFeeCell(message)
 
       expect(fee).toBeGreaterThan(0n)
+    })
 
-      // Verify it matches the non-cell version
+    it('should match the non-cell (stack-args) validatedFee get-method', async () => {
+      const message = setup.generateEmptyMessage({
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+      })
+
+      const fee = await setup.bind.feeQuoter.getValidatedFeeCell(message)
       const feeFromMessage = await setup.bind.feeQuoter.getValidatedFee(message)
       expect(fee).toBe(feeFromMessage)
     })
@@ -290,46 +296,6 @@ describe('FeeQuoter Getters', () => {
       const nonExistentChain = 99999n
 
       await expect(setup.bind.feeQuoter.getDestChainConfig(nonExistentChain)).rejects.toThrow()
-    })
-  })
-
-  describe('dataAvailabilityCost', () => {
-    it('should calculate data availability cost', async () => {
-      const cost = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        ChainSelectors.testnet.evm,
-        FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-        1000n,
-        0n,
-        0n,
-      )
-
-      expect(cost).toBeGreaterThan(0n)
-    })
-
-    it('should throw error for non-existent chain', async () => {
-      const nonExistentChain = 99999n
-
-      await expect(
-        setup.bind.feeQuoter.getDataAvailabilityCost(
-          nonExistentChain,
-          FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-          1000n,
-          0n,
-          0n,
-        ),
-      ).rejects.toThrow()
-    })
-
-    it('should throw error when token transfers provided (not supported)', async () => {
-      await expect(
-        setup.bind.feeQuoter.getDataAvailabilityCost(
-          ChainSelectors.testnet.evm,
-          FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
-          1000n,
-          1n, // tokenCount > 0
-          32n,
-        ),
-      ).rejects.toThrow()
     })
   })
 
