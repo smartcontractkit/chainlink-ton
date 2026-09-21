@@ -386,7 +386,11 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 
 	if debugMode {
 		cancel := a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
-			s := msg.InternalMsg.Body.BeginParse()
+			s, errP := msg.InternalMsg.Body.BeginParse()
+			if errP != nil {
+				fmt.Printf("Failed to begin parsing message body: %v\n", errP)
+				return false
+			}
 			if s.BitsLeft() == 0 {
 				return false
 			}
@@ -467,7 +471,11 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 
 func (a *TONAdapter) startExecuteMonitor(t *testing.T, offRamp address.Address) func() {
 	return a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
-		s := msg.InternalMsg.Body.BeginParse()
+		s, errP := msg.InternalMsg.Body.BeginParse()
+		if errP != nil {
+			fmt.Printf("Failed to begin parsing message body: %v\n", errP)
+			return false
+		}
 		if s.BitsLeft() == 0 {
 			return false
 		}
