@@ -20,7 +20,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
 	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/monitoring/balance"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -98,7 +97,7 @@ func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
 	return newChain(cfg, opts.KeyStore, opts.Logger, opts.DS)
 }
 
-func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
+func newChain(cfg *config.TOMLConfig, loopKs core.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
 	lggr = logger.With(lggr, "chainID", cfg.ChainID)
 
 	_, err := strconv.ParseInt(cfg.ChainID, 10, 16)
@@ -413,7 +412,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 	return nil, fmt.Errorf("no valid TON nodes available, last error: %w", lastErr)
 }
 
-func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped, loopKs loop.Keystore, accountIndex int) (*wallet.Wallet, error) {
+func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped, loopKs core.Keystore, accountIndex int) (*wallet.Wallet, error) {
 	accounts, err := loopKs.Accounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list accounts: %w", err)
