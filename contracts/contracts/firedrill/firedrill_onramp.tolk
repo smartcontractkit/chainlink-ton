@@ -1,4 +1,4 @@
-tolk 1.4.1
+tolk 1.4.2
 
 contract FiredrillOnRamp {
 	author: "SmartContract Chainlink Limited SEZC"
@@ -103,7 +103,7 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
 		feeQuoter: st.controlAddress,
 		feeAggregator: st.controlAddress,
 		allowlistAdmin: st.controlAddress,
-		reserve: ton("0")
+		reserve: grams("0")
 	};
 }
 
