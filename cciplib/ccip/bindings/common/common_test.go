@@ -111,7 +111,7 @@ func TestLispList_RoundTrip(t *testing.T) {
 	require.Equal(t, uint(1), c.RefsNum(), "the list is stored as a cell reference")
 
 	var restored listContainer
-	err = tlb.LoadFromCell(&restored, c.BeginParse())
+	err = tlb.LoadFromCell(&restored, c.MustBeginParse())
 	require.NoError(t, err)
 	require.Equal(t, original.List, restored.List)
 }

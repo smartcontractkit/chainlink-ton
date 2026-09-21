@@ -654,7 +654,11 @@ func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
 
 		var elem T
 		// T must implement tlb.Unmarshaler; use tlb.LoadFromCell which checks for the interface
-		if err := tlb.LoadFromCell(&elem, elemCell.BeginParse()); err != nil {
+		elemSlice, err := elemCell.BeginParse()
+		if err != nil {
+			return fmt.Errorf("failed to begin parsing lisp_list element cell: %w", err)
+		}
+		if err := tlb.LoadFromCell(&elem, elemSlice); err != nil {
 			return fmt.Errorf("failed to decode lisp_list element: %w", err)
 		}
 		result = append(result, &elem)
@@ -662,7 +666,10 @@ func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
 			return fmt.Errorf("lisp_list length %d exceeds maximum of %d", len(result), MaxArrayLength)
 		}
 
-		curr = next.BeginParse()
+		curr, err = next.BeginParse()
+		if err != nil {
+			return fmt.Errorf("failed to begin parsing lisp_list chain cell: %w", err)
+		}
 	}
 
 	// Elements were collected in reverse order (deepest first); reverse to restore original order.
