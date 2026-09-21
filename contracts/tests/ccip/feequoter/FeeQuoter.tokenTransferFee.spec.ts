@@ -115,9 +115,8 @@ describe('FeeQuoter Token Transfer Fee', () => {
     const gasFeeUSD =
       gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
 
-    const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-      feeTokenAddr,
-    )
+    const premiumMultiplierWeiPerEth =
+      await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(feeTokenAddr)
     const messageFeeUSD = totalPremium * premiumMultiplierWeiPerEth
 
     return (gasFeeUSD + messageFeeUSD) / feeTokenPrice
