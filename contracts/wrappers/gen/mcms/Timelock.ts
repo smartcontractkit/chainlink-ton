@@ -1532,10 +1532,9 @@ export const Timelock_OpPendingInfo = {
  */
 export type SnakedCell<T> = T[]
 
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
     if (v.length === 0) {
-        b.storeRef(c.Cell.EMPTY);
-        return;
+        return c.Cell.EMPTY;
     }
     const cells: c.Builder[] = [];
     let builder = c.beginCell();
@@ -1554,7 +1553,11 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
         cells[i].storeRef(current);
         current = cells[i].endCell();
     }
-    b.storeRef(current);
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
 }
 
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
@@ -2221,7 +2224,7 @@ export class Timelock implements c.Contract {
 
     async getHashOperationBatch(provider: ContractProvider, op: Timelock_OperationBatch): Promise<uint256> {
         const r = StackReader.fromGetMethod(1, await provider.get('hashOperationBatch', [
-            { type: 'cell', cell: makeCellFrom<SnakedCell<Timelock_Call>>(op.calls, (v,b) => storeSnakedCellOf(v, b, Timelock_Call.store)) },
+            { type: 'cell', cell: buildSnakedCellOf<Timelock_Call>(op.calls, Timelock_Call.store) },
             { type: 'int', value: op.predecessor },
             { type: 'int', value: op.salt },
         ]));
