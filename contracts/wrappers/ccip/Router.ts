@@ -9,7 +9,7 @@ export const ARTIFACT_NAME = 'Router'
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
 }
-export const ROUTER_CONTRACT_VERSION = '1.6.1'
+export const ROUTER_CONTRACT_VERSION = '1.7.0'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.Router'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
@@ -25,6 +25,8 @@ export const opcodes = {
     routeMessage: 0xfc69c50b,
     rmnRemoteCurse: 0xf3388046,
     rmnRemoteUncurse: 0x3f153a31,
+    rmnRemoteSetCurseAdmins: 0x13f63121,
+    rmnRemoteSetUncurseAdmins: 0x8720d17e,
     verifyNotCursed: 0x0b95aa4e,
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,

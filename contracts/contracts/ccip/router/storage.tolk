@@ -4,7 +4,14 @@ import "../../ccip/rmn_remote/lib"
 import "types"
 
 struct RMNRemote {
+    // The RMN admin is the high-security governance authority that manages
+    // the operation-specific caller lists below.
     admin: Ownable2Step;
+    // Curse and uncurse deliberately have separate authorization domains.
+    // In production the UltraFastCurse timelock is expected to be a curse
+    // admin only; normal RMN governance controls uncurse access.
+    curseAdmins: map<address, ()> = [];
+    uncurseAdmins: map<address, ()> = [];
     cursedSubjects: CursedSubjects;
     forwardUpdates: map<address, ()> = [];
 }

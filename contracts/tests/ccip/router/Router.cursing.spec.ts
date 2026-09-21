@@ -16,6 +16,7 @@ describe('Router.cursing', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
+  let fastCurser: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<TreasuryContract>
   let onRamp: SandboxContract<TreasuryContract>
@@ -35,6 +36,7 @@ describe('Router.cursing', () => {
     }
     feeQuoter = await blockchain.treasury('feeQuoter')
     onRamp = await blockchain.treasury('onRamp')
+    fastCurser = await blockchain.treasury('fastCurser')
   })
 
   beforeEach(async () => {
@@ -168,6 +170,80 @@ describe('Router.cursing', () => {
       const cursedSubjects = await router.getCursedSubjects()
       expect(cursedSubjects).toEqual([])
     }
+  })
+
+  it('separates curse and uncurse callers', async () => {
+    const subject = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+
+    const unauthorizedSet = await router.sendRouterRMNRemoteSetCurseAdmins(
+      sender.getSender(),
+      toNano('1'),
+      { queryId: 0n, admins: new Set([sender.address]) },
+    )
+    expect(unauthorizedSet.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+    })
+
+    const setCurseAdmins = await router.sendRouterRMNRemoteSetCurseAdmins(
+      deployer.getSender(),
+      toNano('1'),
+      { queryId: 0n, admins: new Set([fastCurser.address]) },
+    )
+    expect(setCurseAdmins.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+
+    // The emergency caller can pause, but cannot reopen a lane.
+    const curse = await router.sendRouterRMNRemoteCurse(fastCurser.getSender(), toNano('1'), {
+      queryId: 0n,
+      subjects: [subject],
+    })
+    expect(curse.transactions).toHaveTransaction({
+      from: fastCurser.address,
+      to: router.address,
+      success: true,
+    })
+
+    const fastUncurse = await router.sendRouterRMNRemoteUncurse(
+      fastCurser.getSender(),
+      toNano('1'),
+      {
+        queryId: 0n,
+        subjects: [subject],
+      },
+    )
+    expect(fastUncurse.transactions).toHaveTransaction({
+      from: fastCurser.address,
+      to: router.address,
+      success: false,
+    })
+
+    // The normal RMN administrator retains recovery authority but is no
+    // longer a curse caller once the emergency set is installed.
+    const normalCurse = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      queryId: 0n,
+      subjects: [subject],
+    })
+    expect(normalCurse.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: false,
+    })
+
+    const uncurse = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+      queryId: 0n,
+      subjects: [subject],
+    })
+    expect(uncurse.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+    await verifyNotCursed(router, deployer, true)
   })
 
   afterAll(async () => {

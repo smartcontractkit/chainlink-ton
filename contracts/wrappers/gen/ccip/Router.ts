@@ -234,6 +234,14 @@ class StackReader {
     readCellRef<T>(loadFn_T: LoadCallback<T>): T {
         return loadFn_T(this.readCell().beginParse());
     }
+
+    readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
+        }
+        return c.Dictionary.loadDirect<K, V>(keySerializer, valueSerializer, this.readCell());
+    }
 }
 
 // ————————————————————————————————————————————
@@ -1991,6 +1999,110 @@ export const Router_RMNRemoteUncurse = {
 }
 
 /**
+ > struct (0x13f63121) Router_RMNRemoteSetCurseAdmins {
+ >     queryId: uint64
+ >     admins: map<address, ()>
+ > }
+ */
+export interface Router_RMNRemoteSetCurseAdmins {
+    readonly $: 'Router_RMNRemoteSetCurseAdmins'
+    queryId: uint64
+    admins: Set<c.Address>
+}
+
+export const Router_RMNRemoteSetCurseAdmins = {
+    PREFIX: 0x13f63121,
+
+    create(args: {
+        queryId?: uint64
+        admins: Set<c.Address>
+    }): Router_RMNRemoteSetCurseAdmins {
+        return {
+            $: 'Router_RMNRemoteSetCurseAdmins',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_RMNRemoteSetCurseAdmins {
+        loadAndCheckPrefix32(s, 0x13f63121, 'Router_RMNRemoteSetCurseAdmins');
+        return {
+            $: 'Router_RMNRemoteSetCurseAdmins',
+            queryId: s.loadUintBig(64),
+            admins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+        }
+    },
+    store(self: Router_RMNRemoteSetCurseAdmins, b: c.Builder): void {
+        b.storeUint(0x13f63121, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeDict<c.Address, []>(setToDict(self.admins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: Router_RMNRemoteSetCurseAdmins): c.Cell {
+        return makeCellFrom<Router_RMNRemoteSetCurseAdmins>(self, Router_RMNRemoteSetCurseAdmins.store);
+    }
+}
+
+/**
+ > struct (0x8720d17e) Router_RMNRemoteSetUncurseAdmins {
+ >     queryId: uint64
+ >     admins: map<address, ()>
+ > }
+ */
+export interface Router_RMNRemoteSetUncurseAdmins {
+    readonly $: 'Router_RMNRemoteSetUncurseAdmins'
+    queryId: uint64
+    admins: Set<c.Address>
+}
+
+export const Router_RMNRemoteSetUncurseAdmins = {
+    PREFIX: 0x8720d17e,
+
+    create(args: {
+        queryId?: uint64
+        admins: Set<c.Address>
+    }): Router_RMNRemoteSetUncurseAdmins {
+        return {
+            $: 'Router_RMNRemoteSetUncurseAdmins',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_RMNRemoteSetUncurseAdmins {
+        loadAndCheckPrefix32(s, 0x8720d17e, 'Router_RMNRemoteSetUncurseAdmins');
+        return {
+            $: 'Router_RMNRemoteSetUncurseAdmins',
+            queryId: s.loadUintBig(64),
+            admins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+        }
+    },
+    store(self: Router_RMNRemoteSetUncurseAdmins, b: c.Builder): void {
+        b.storeUint(0x8720d17e, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeDict<c.Address, []>(setToDict(self.admins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: Router_RMNRemoteSetUncurseAdmins): c.Cell {
+        return makeCellFrom<Router_RMNRemoteSetUncurseAdmins>(self, Router_RMNRemoteSetUncurseAdmins.store);
+    }
+}
+
+/**
  > struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
  >     queryId: uint64
  >     subject: uint128
@@ -2539,6 +2651,8 @@ export const Router_MessageValidationFailed = {
 /**
  > struct RMNRemote {
  >     admin: Ownable2Step
+ >     curseAdmins: map<address, ()>
+ >     uncurseAdmins: map<address, ()>
  >     cursedSubjects: CursedSubjects
  >     forwardUpdates: map<address, ()>
  > }
@@ -2546,6 +2660,8 @@ export const Router_MessageValidationFailed = {
 export interface RMNRemote {
     readonly $: 'RMNRemote'
     admin: Ownable2Step
+    curseAdmins: Set<c.Address> /* = [] as map<address, ()> */
+    uncurseAdmins: Set<c.Address> /* = [] as map<address, ()> */
     cursedSubjects: CursedSubjects
     forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
 }
@@ -2553,6 +2669,8 @@ export interface RMNRemote {
 export const RMNRemote = {
     create(args: {
         admin: Ownable2Step
+        curseAdmins: Set<c.Address> /* = [] as map<address, ()> */
+        uncurseAdmins: Set<c.Address> /* = [] as map<address, ()> */
         cursedSubjects: CursedSubjects
         forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
     }): RMNRemote {
@@ -2565,6 +2683,14 @@ export const RMNRemote = {
         return {
             $: 'RMNRemote',
             admin: Ownable2Step.fromSlice(s),
+            curseAdmins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+            uncurseAdmins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
             cursedSubjects: CursedSubjects.fromSlice(s),
             forwardUpdates: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                             (s) => [],
@@ -2574,6 +2700,20 @@ export const RMNRemote = {
     },
     store(self: RMNRemote, b: c.Builder): void {
         Ownable2Step.store(self.admin, b);
+        b.storeDict<c.Address, []>(setToDict(self.curseAdmins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+        b.storeDict<c.Address, []>(setToDict(self.uncurseAdmins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
         CursedSubjects.store(self.cursedSubjects, b);
         b.storeDict<c.Address, []>(setToDict(self.forwardUpdates, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                         (s) => [],
@@ -3374,7 +3514,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -3526,6 +3666,20 @@ export class Router implements c.Contract {
         subjects: SnakedCell<uint128>
     }) {
         return Router_RMNRemoteUncurse.toCell(Router_RMNRemoteUncurse.create(body));
+    }
+
+    static createCellOfRouterRMNRemoteSetCurseAdmins(body: {
+        queryId?: uint64
+        admins: Set<c.Address>
+    }) {
+        return Router_RMNRemoteSetCurseAdmins.toCell(Router_RMNRemoteSetCurseAdmins.create(body));
+    }
+
+    static createCellOfRouterRMNRemoteSetUncurseAdmins(body: {
+        queryId?: uint64
+        admins: Set<c.Address>
+    }) {
+        return Router_RMNRemoteSetUncurseAdmins.toCell(Router_RMNRemoteSetUncurseAdmins.create(body));
     }
 
     static createCellOfRouterRMNRemoteVerifyNotCursed(body: {
@@ -3743,6 +3897,28 @@ export class Router implements c.Contract {
         });
     }
 
+    async sendRouterRMNRemoteSetCurseAdmins(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        admins: Set<c.Address>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_RMNRemoteSetCurseAdmins.toCell(Router_RMNRemoteSetCurseAdmins.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendRouterRMNRemoteSetUncurseAdmins(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        admins: Set<c.Address>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_RMNRemoteSetUncurseAdmins.toCell(Router_RMNRemoteSetUncurseAdmins.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendRouterRMNRemoteVerifyNotCursed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         subject: uint128
@@ -3873,6 +4049,22 @@ export class Router implements c.Contract {
         return r.readNullable<c.Address>(
             (r) => r.readSlice().loadAddress()
         );
+    }
+
+    async getRmnCurseAdmins(provider: ContractProvider): Promise<Set<c.Address>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_curseAdmins', []));
+        return dictToSet(r.readDictionary<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                    (s) => [],
+                    (v,b) => { {} }
+                )));
+    }
+
+    async getRmnUncurseAdmins(provider: ContractProvider): Promise<Set<c.Address>> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_uncurseAdmins', []));
+        return dictToSet(r.readDictionary<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
+                    (s) => [],
+                    (v,b) => { {} }
+                )));
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

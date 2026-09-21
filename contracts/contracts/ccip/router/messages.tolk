@@ -26,6 +26,8 @@ type Router_InMsg =
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
     | Router_RMNRemoteUncurse
+    | Router_RMNRemoteSetCurseAdmins
+    | Router_RMNRemoteSetUncurseAdmins
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
@@ -97,6 +99,18 @@ struct (0xf3388046) Router_RMNRemoteCurse {
 struct (0x3f153a31) Router_RMNRemoteUncurse {
     queryId: uint64
     subjects: SnakedCell<uint128>
+}
+
+// Replaces the caller set for the corresponding RMN operation. Only the RMN
+// admin may configure these sets; callers in either set cannot change roles.
+struct (0x13f63121) Router_RMNRemoteSetCurseAdmins {
+    queryId: uint64
+    admins: map<address, ()>
+}
+
+struct (0x8720d17e) Router_RMNRemoteSetUncurseAdmins {
+    queryId: uint64
+    admins: map<address, ()>
 }
 
 // Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.

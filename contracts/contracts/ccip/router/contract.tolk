@@ -29,12 +29,12 @@ import "../../lib/jetton/jetton_client"
 
 tolk 1.4.2
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
 
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.Router"
 
     storage: Storage
@@ -43,7 +43,12 @@ contract Router {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+    // The 1.6.0 release and the interim 1.6.1 Router share the persisted
+    // RMNRemote layout represented by Router_Storage_V1_6_1 below.
+    assert (
+        version.bitsEqual("1.6.0".literalSlice()) ||
+        version.bitsEqual("1.6.1".literalSlice())
+    ) throw Upgradeable_Error.VersionMismatch;
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -105,19 +110,37 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= Router_Costs.receiveConfirm()) throw Router_Error.InsufficientFee;
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
-        // Sender must RMN remote admin
+        // Sender must be in the RMN curse caller set.
         Router_RMNRemoteCurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
-            rmn.admin.requireOwner(in.senderAddress);
+            requireRMNCurseAdmin(rmn, in.senderAddress);
             onRMNRemoteCurse(st, rmn, msg);
         }
-        // Sender must RMN remote admin
+        // Sender must be in the RMN uncurse caller set.
         Router_RMNRemoteUncurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
-            rmn.admin.requireOwner(in.senderAddress);
+            requireRMNUncurseAdmin(rmn, in.senderAddress);
             onRMNRemoteUncurse(st, rmn, msg);
+        }
+        // Sender must be the high-security RMN admin.
+        Router_RMNRemoteSetCurseAdmins => {
+            var st = lazy Storage.load();
+            var rmn = st.rmnRemote.load();
+            rmn.admin.requireOwner(in.senderAddress);
+            rmn.curseAdmins = msg.admins;
+            st.rmnRemote = rmn.toCell();
+            st.store();
+        }
+        // Sender must be the high-security RMN admin.
+        Router_RMNRemoteSetUncurseAdmins => {
+            var st = lazy Storage.load();
+            var rmn = st.rmnRemote.load();
+            rmn.admin.requireOwner(in.senderAddress);
+            rmn.uncurseAdmins = msg.admins;
+            st.rmnRemote = rmn.toCell();
+            st.store();
         }
         // Permissionless
         Router_RMNRemoteVerifyNotCursed => {
@@ -606,6 +629,14 @@ fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
     }
 }
 
+fun requireRMNCurseAdmin(rmn: RMNRemote, sender: address) {
+    assert(rmn.curseAdmins.get(sender).isFound, Ownable2Step_Error.OnlyCallableByOwner);
+}
+
+fun requireRMNUncurseAdmin(rmn: RMNRemote, sender: address) {
+    assert(rmn.uncurseAdmins.get(sender).isFound, Ownable2Step_Error.OnlyCallableByOwner);
+}
+
 /*
 Handles RMNRemote uncurse operations by removing specified cursed subjects
 and propagating updates to cached OffRamp contracts.
@@ -740,7 +771,46 @@ fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    val old = Router_Storage_V1_6_1.fromCell(storage);
+    val oldRMN = old.rmnRemote.load();
+    val rmnOwner = oldRMN.admin.get_owner();
+    var curseAdmins: map<address, ()> = [];
+    var uncurseAdmins: map<address, ()> = [];
+    // Preserve the old single-admin behavior on upgrade. Governance can then
+    // install the dedicated UltraFastCurse timelock in curseAdmins only.
+    curseAdmins.set(rmnOwner, ());
+    uncurseAdmins.set(rmnOwner, ());
+    return Storage {
+        id: old.id,
+        ownable: old.ownable,
+        wrappedNative: old.wrappedNative,
+        onRamps: old.onRamps,
+        offRamps: old.offRamps,
+        rmnRemote: RMNRemote {
+            admin: oldRMN.admin,
+            curseAdmins,
+            uncurseAdmins,
+            cursedSubjects: oldRMN.cursedSubjects,
+            forwardUpdates: oldRMN.forwardUpdates,
+        }.toCell(),
+    }.toCell();
+}
+
+// Persisted RMNRemote layout before curse and uncurse callers were separated.
+// Keep this local to the migration boundary.
+struct Router_RMNRemote_V1_6_1 {
+    admin: Ownable2Step;
+    cursedSubjects: CursedSubjects;
+    forwardUpdates: map<address, ()> = [];
+}
+
+struct Router_Storage_V1_6_1 {
+    id: uint32;
+    ownable: Ownable2Step;
+    wrappedNative: address;
+    onRamps: map<uint64, address> = [];
+    offRamps: map<uint64, address> = [];
+    rmnRemote: Cell<Router_RMNRemote_V1_6_1>;
 }
 
 @method_id(1001)
@@ -780,6 +850,14 @@ get fun rmn_owner(): address {
 get fun rmn_pendingOwner(): address? {
     val st = lazy Storage.load();
     return st.rmnRemote.load().admin.get_pendingOwner();
+}
+
+get fun rmn_curseAdmins(): map<address, ()> {
+    return Storage.load().rmnRemote.load().curseAdmins;
+}
+
+get fun rmn_uncurseAdmins(): map<address, ()> {
+    return Storage.load().rmnRemote.load().uncurseAdmins;
 }
 
 get fun typeAndVersion(): (slice, slice) {

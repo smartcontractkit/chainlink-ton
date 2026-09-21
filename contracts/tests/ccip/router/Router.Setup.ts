@@ -1,4 +1,4 @@
-import { Dictionary, beginCell, toNano, Cell, Address } from '@ton/core'
+import { Dictionary, beginCell, toNano, Cell, Address, contractAddress } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { assertLog } from '../../Logs'
@@ -147,6 +147,8 @@ async function deployRouterInstance(
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
       admin: rt.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+      curseAdmins: new Set([deployer.address]),
+      uncurseAdmins: new Set([deployer.address]),
       cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
       forwardUpdates: new Set(),
     }),
@@ -478,6 +480,39 @@ export async function deployRouterContract(
   codeOverride?: Cell,
 ) {
   const code = codeOverride ?? (await contractCode.ccip.local('Router'))
+
+  // Previous Router releases stored a single RMN admin and did not contain
+  // the operation-specific caller sets. Build that exact layout when the
+  // upgrade test deploys a historical code cell.
+  if (codeOverride) {
+    const rmnAdmin = rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null })
+    const legacyRMN = beginCell()
+    rt.Ownable2Step.store(rmnAdmin, legacyRMN)
+    rt.CursedSubjects.store(rt.CursedSubjects.create({ data: new Set() }), legacyRMN)
+    legacyRMN.storeDict(null)
+
+    const data = beginCell()
+    data.storeUint(generateRandomContractId(), 32)
+    rt.Ownable2Step.store(
+      rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
+      data,
+    )
+    data.storeAddress(WRAPPED_NATIVE)
+    data.storeDict(null)
+    data.storeDict(null)
+    data.storeRef(legacyRMN.endCell())
+    const init = { code, data: data.endCell() }
+    const contract = blockchain.openContract(rt.Router.fromAddress(contractAddress(0, init)))
+    const deployer = await blockchain.treasury('deployer')
+    await deployer.send({
+      to: contract.address,
+      value: toNano('1'),
+      init,
+      body: beginCell().endCell(),
+    })
+    return contract
+  }
+
   const data = rt.Storage.create({
     id: generateRandomContractId(),
     ownable: rt.Ownable2Step.create({
@@ -488,6 +523,8 @@ export async function deployRouterContract(
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
       admin: rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
+      curseAdmins: new Set([owner.address]),
+      uncurseAdmins: new Set([owner.address]),
       cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
       forwardUpdates: new Set(),
     }),

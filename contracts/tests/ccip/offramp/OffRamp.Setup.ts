@@ -272,6 +272,8 @@ export class OffRampTestSetup {
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
           admin: rt.Ownable2Step.create({ owner: this.deployer.address }),
+          curseAdmins: new Set([this.deployer.address]),
+          uncurseAdmins: new Set([this.deployer.address]),
           cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
           forwardUpdates: new Set(),
         }),
