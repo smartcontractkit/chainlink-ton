@@ -148,7 +148,7 @@ export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.2'] as const
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<c.Cell>> = {
   '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
 }
-export const FEE_QUOTER_CONTRACT_VERSION = '1.6.3'
+export const FEE_QUOTER_CONTRACT_VERSION = '1.7.0'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
