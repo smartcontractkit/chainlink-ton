@@ -102,13 +102,16 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
 }
 
 function storeLispListOf<T>(v: lisp_list<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    let tail = c.Cell.EMPTY;
-    for (let i = 0; i < v.length; ++i) {
-        let itemB = beginCell();
-        storeFn_T(v[i], itemB);
-        tail = itemB.storeRef(tail).endCell();
-    }
-    b.storeRef(tail);
+
+        let tail = c.Cell.EMPTY;
+        for (let i = 0; i < v.length; ++i) {
+            let itemB = beginCell();
+            itemB.storeRef(tail);
+            storeFn_T(v[i], itemB);
+            tail = itemB.endCell();
+        }
+        b.storeRef(tail);
+      
 }
 
 function loadLispListOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): lisp_list<T> {
@@ -1490,50 +1493,69 @@ export const FeeQuoter_UpdatePrices = {
 
 /**
  > struct (0x038ede91) MerkleRoot_Validate {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
  >     gasOverride: GasOverride?
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  > }
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
+    queryId: uint64
     message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
     gasOverride: GasOverride | null
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
 }
 
 export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
         gasOverride: GasOverride | null
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
         return {
             $: 'MerkleRoot_Validate',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
             gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
         storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
@@ -1584,6 +1606,7 @@ export const MerkleRoot_MarkState = {
 
 /**
  > struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
+ >     queryId: uint64
  >     effectiveGasLimit: coins
  >     root: address
  >     sequenceNumber: uint64
@@ -1594,6 +1617,7 @@ export const MerkleRoot_MarkState = {
  */
 export interface ReceiveExecutor_InitExecute {
     readonly $: 'ReceiveExecutor_InitExecute'
+    queryId: uint64
     effectiveGasLimit: coins
     root: c.Address
     sequenceNumber: uint64
@@ -1606,6 +1630,7 @@ export const ReceiveExecutor_InitExecute = {
     PREFIX: 0x64cd2fd2,
 
     create(args: {
+        queryId?: uint64
         effectiveGasLimit: coins
         root: c.Address
         sequenceNumber: uint64
@@ -1616,13 +1641,15 @@ export const ReceiveExecutor_InitExecute = {
         return {
             $: 'ReceiveExecutor_InitExecute',
             tokenTransfer: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_InitExecute {
         loadAndCheckPrefix32(s, 0x64cd2fd2, 'ReceiveExecutor_InitExecute');
         return {
             $: 'ReceiveExecutor_InitExecute',
+            queryId: s.loadUintBig(64),
             effectiveGasLimit: s.loadCoins(),
             root: s.loadAddress(),
             sequenceNumber: s.loadUintBig(64),
@@ -1633,6 +1660,7 @@ export const ReceiveExecutor_InitExecute = {
     },
     store(self: ReceiveExecutor_InitExecute, b: c.Builder): void {
         b.storeUint(0x64cd2fd2, 32);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.effectiveGasLimit);
         b.storeAddress(self.root);
         b.storeUint(self.sequenceNumber, 64);
@@ -1651,21 +1679,25 @@ export const ReceiveExecutor_InitExecute = {
  > struct ReceiveExecutor_TokenTransfer {
  >     tokenAdminRegistry: address
  >     transfer: Any2TVMTokenTransfer
+ >     offchainTokenData: cell?
  > }
  */
 export interface ReceiveExecutor_TokenTransfer {
     readonly $: 'ReceiveExecutor_TokenTransfer'
     tokenAdminRegistry: c.Address
     transfer: Any2TVMTokenTransfer
+    offchainTokenData: c.Cell | null /* = null */
 }
 
 export const ReceiveExecutor_TokenTransfer = {
     create(args: {
         tokenAdminRegistry: c.Address
         transfer: Any2TVMTokenTransfer
+        offchainTokenData?: c.Cell | null /* = null */
     }): ReceiveExecutor_TokenTransfer {
         return {
             $: 'ReceiveExecutor_TokenTransfer',
+            offchainTokenData: null,
             ...args
         }
     },
@@ -1674,11 +1706,15 @@ export const ReceiveExecutor_TokenTransfer = {
             $: 'ReceiveExecutor_TokenTransfer',
             tokenAdminRegistry: s.loadAddress(),
             transfer: Any2TVMTokenTransfer.fromSlice(s),
+            offchainTokenData: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: ReceiveExecutor_TokenTransfer, b: c.Builder): void {
         b.storeAddress(self.tokenAdminRegistry);
         Any2TVMTokenTransfer.store(self.transfer, b);
+        storeTolkNullable<c.Cell>(self.offchainTokenData, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: ReceiveExecutor_TokenTransfer): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransfer>(self, ReceiveExecutor_TokenTransfer.store);
@@ -1687,13 +1723,13 @@ export const ReceiveExecutor_TokenTransfer = {
 
 /**
  > struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     reason: ReleaseOrMint_ReleaseOrMintFailedReason
  > }
  */
 export interface ReceiveExecutor_ReleaseOrMintFailed {
     readonly $: 'ReceiveExecutor_ReleaseOrMintFailed'
-    queryID: uint64
+    queryId: uint64
     reason: ReleaseOrMint_ReleaseOrMintFailedReason
 }
 
@@ -1701,26 +1737,26 @@ export const ReceiveExecutor_ReleaseOrMintFailed = {
     PREFIX: 0xdf58530e,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         reason: ReleaseOrMint_ReleaseOrMintFailedReason
     }): ReceiveExecutor_ReleaseOrMintFailed {
         return {
             $: 'ReceiveExecutor_ReleaseOrMintFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_ReleaseOrMintFailed {
         loadAndCheckPrefix32(s, 0xdf58530e, 'ReceiveExecutor_ReleaseOrMintFailed');
         return {
             $: 'ReceiveExecutor_ReleaseOrMintFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             reason: ReleaseOrMint_ReleaseOrMintFailedReason.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_ReleaseOrMintFailed, b: c.Builder): void {
         b.storeUint(0xdf58530e, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         ReleaseOrMint_ReleaseOrMintFailedReason.store(self.reason, b);
     },
     toCell(self: ReceiveExecutor_ReleaseOrMintFailed): c.Cell {
@@ -1825,11 +1861,13 @@ export const NotEnoughDestGasAmountForTokenTransfer = {
 
 /**
  > struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
+ >     queryId: uint64
  >     receiver: address
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveConfirm {
     readonly $: 'ReceiveExecutor_CCIPReceiveConfirm'
+    queryId: uint64
     receiver: c.Address
 }
 
@@ -1837,22 +1875,26 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
     PREFIX: 0xf0af71c5,
 
     create(args: {
+        queryId?: uint64
         receiver: c.Address
     }): ReceiveExecutor_CCIPReceiveConfirm {
         return {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_CCIPReceiveConfirm {
         loadAndCheckPrefix32(s, 0xf0af71c5, 'ReceiveExecutor_CCIPReceiveConfirm');
         return {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
+            queryId: s.loadUintBig(64),
             receiver: s.loadAddress(),
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0xf0af71c5, 32);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.receiver);
     },
     toCell(self: ReceiveExecutor_CCIPReceiveConfirm): c.Cell {
@@ -1862,12 +1904,14 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
 
 /**
  > struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
+ >     queryId: uint64
  >     receiver: address
  >     reason: ReceiveExecutor_FailedReason
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveFailed {
     readonly $: 'ReceiveExecutor_CCIPReceiveFailed'
+    queryId: uint64
     receiver: c.Address
     reason: ReceiveExecutor_FailedReason
 }
@@ -1876,24 +1920,28 @@ export const ReceiveExecutor_CCIPReceiveFailed = {
     PREFIX: 0x8854993b,
 
     create(args: {
+        queryId?: uint64
         receiver: c.Address
         reason: ReceiveExecutor_FailedReason
     }): ReceiveExecutor_CCIPReceiveFailed {
         return {
             $: 'ReceiveExecutor_CCIPReceiveFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReceiveExecutor_CCIPReceiveFailed {
         loadAndCheckPrefix32(s, 0x8854993b, 'ReceiveExecutor_CCIPReceiveFailed');
         return {
             $: 'ReceiveExecutor_CCIPReceiveFailed',
+            queryId: s.loadUintBig(64),
             receiver: s.loadAddress(),
             reason: ReceiveExecutor_FailedReason.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveFailed, b: c.Builder): void {
         b.storeUint(0x8854993b, 32);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.receiver);
         ReceiveExecutor_FailedReason.store(self.reason, b);
     },
@@ -1967,6 +2015,7 @@ export const CursedSubjects = {
 
 /**
  > struct (0xfc69c50b) Router_RouteMessage {
+ >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
  >     execId: ReceiveExecutorId
  >     receiver: address
@@ -1975,6 +2024,7 @@ export const CursedSubjects = {
  */
 export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
+    queryId: uint64
     message: Any2TVMMessage
     execId: ReceiveExecutorId
     receiver: c.Address
@@ -1985,6 +2035,7 @@ export const Router_RouteMessage = {
     PREFIX: 0xfc69c50b,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMMessage
         execId: ReceiveExecutorId
         receiver: c.Address
@@ -1992,13 +2043,15 @@ export const Router_RouteMessage = {
     }): Router_RouteMessage {
         return {
             $: 'Router_RouteMessage',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RouteMessage {
         loadAndCheckPrefix32(s, 0xfc69c50b, 'Router_RouteMessage');
         return {
             $: 'Router_RouteMessage',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             receiver: s.loadAddress(),
@@ -2007,6 +2060,7 @@ export const Router_RouteMessage = {
     },
     store(self: Router_RouteMessage, b: c.Builder): void {
         b.storeUint(0xfc69c50b, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.receiver);
@@ -2120,56 +2174,75 @@ export const OffRamp_Execute = {
 
 /**
  > struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
  >     gasOverride: GasOverride?
  >     executionState: ExecutionState
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  > }
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
+    queryId: uint64
     message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
     gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
 }
 
 export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
             gasOverride: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
         return {
             $: 'OffRamp_ExecuteValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
             gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
             executionState: ExecutionState.fromSlice(s),
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
         }
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
         storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
         ExecutionState.store(self.executionState, b);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
@@ -2307,6 +2380,7 @@ export const SourceChainConfigUpdate = {
 
 /**
  > struct (0x58cfcb02) OffRamp_DispatchValidated {
+ >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     execId: uint192
  >     effectiveGasLimit: coins
@@ -2314,6 +2388,7 @@ export const SourceChainConfigUpdate = {
  */
 export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
+    queryId: uint64
     message: Any2TVMRampMessage
     execId: uint192
     effectiveGasLimit: coins
@@ -2323,19 +2398,22 @@ export const OffRamp_DispatchValidated = {
     PREFIX: 0x58cfcb02,
 
     create(args: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         execId: uint192
         effectiveGasLimit: coins
     }): OffRamp_DispatchValidated {
         return {
             $: 'OffRamp_DispatchValidated',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_DispatchValidated {
         loadAndCheckPrefix32(s, 0x58cfcb02, 'OffRamp_DispatchValidated');
         return {
             $: 'OffRamp_DispatchValidated',
+            queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             execId: s.loadUintBig(192),
             effectiveGasLimit: s.loadCoins(),
@@ -2343,6 +2421,7 @@ export const OffRamp_DispatchValidated = {
     },
     store(self: OffRamp_DispatchValidated, b: c.Builder): void {
         b.storeUint(0x58cfcb02, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.execId, 192);
         b.storeCoins(self.effectiveGasLimit);
@@ -2354,12 +2433,14 @@ export const OffRamp_DispatchValidated = {
 
 /**
  > struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
+ >     queryId: uint64
  >     execId: ReceiveExecutorId
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveConfirm {
     readonly $: 'OffRamp_CCIPReceiveConfirm'
+    queryId: uint64
     execId: ReceiveExecutorId
     receiver: c.Address
 }
@@ -2368,24 +2449,28 @@ export const OffRamp_CCIPReceiveConfirm = {
     PREFIX: 0x28f4166f,
 
     create(args: {
+        queryId?: uint64
         execId: ReceiveExecutorId
         receiver: c.Address
     }): OffRamp_CCIPReceiveConfirm {
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_CCIPReceiveConfirm {
         loadAndCheckPrefix32(s, 0x28f4166f, 'OffRamp_CCIPReceiveConfirm');
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
+            queryId: s.loadUintBig(64),
             execId: ReceiveExecutorId.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x28f4166f, 32);
+        b.storeUint(self.queryId, 64);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.receiver);
     },
@@ -2438,13 +2523,15 @@ export const OffRamp_CCIPReceiveBounced = {
 
 /**
  > struct (0x59e56170) OffRamp_NotifySuccess {
- >     header: RampMessageHeader
+ >     queryId: uint64
+ >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
  > }
  */
 export interface OffRamp_NotifySuccess {
     readonly $: 'OffRamp_NotifySuccess'
+    queryId: uint64
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
@@ -2454,27 +2541,31 @@ export const OffRamp_NotifySuccess = {
     PREFIX: 0x59e56170,
 
     create(args: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
     }): OffRamp_NotifySuccess {
         return {
             $: 'OffRamp_NotifySuccess',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_NotifySuccess {
         loadAndCheckPrefix32(s, 0x59e56170, 'OffRamp_NotifySuccess');
         return {
             $: 'OffRamp_NotifySuccess',
-            header: RampMessageHeader.fromSlice(s),
+            queryId: s.loadUintBig(64),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
         }
     },
     store(self: OffRamp_NotifySuccess, b: c.Builder): void {
         b.storeUint(0x59e56170, 32);
-        RampMessageHeader.store(self.header, b);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
     },
@@ -2485,13 +2576,15 @@ export const OffRamp_NotifySuccess = {
 
 /**
  > struct (0x177ebd03) OffRamp_NotifyFailure {
- >     header: RampMessageHeader
+ >     queryId: uint64
+ >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
  > }
  */
 export interface OffRamp_NotifyFailure {
     readonly $: 'OffRamp_NotifyFailure'
+    queryId: uint64
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
@@ -2501,27 +2594,31 @@ export const OffRamp_NotifyFailure = {
     PREFIX: 0x177ebd03,
 
     create(args: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
     }): OffRamp_NotifyFailure {
         return {
             $: 'OffRamp_NotifyFailure',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_NotifyFailure {
         loadAndCheckPrefix32(s, 0x177ebd03, 'OffRamp_NotifyFailure');
         return {
             $: 'OffRamp_NotifyFailure',
-            header: RampMessageHeader.fromSlice(s),
+            queryId: s.loadUintBig(64),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
         }
     },
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
         b.storeUint(0x177ebd03, 32);
-        RampMessageHeader.store(self.header, b);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
     },
@@ -2616,58 +2713,6 @@ export const OffRamp_SetDynamicConfig = {
 }
 
 /**
- > struct (0xa015e0e2) OffRamp_UpdateDeployables {
- >     queryId: uint64
- >     receiveExecutorCode: cell?
- >     merkleRootCode: cell?
- > }
- */
-export interface OffRamp_UpdateDeployables {
-    readonly $: 'OffRamp_UpdateDeployables'
-    queryId: uint64
-    receiveExecutorCode: c.Cell | null
-    merkleRootCode: c.Cell | null
-}
-
-export const OffRamp_UpdateDeployables = {
-    PREFIX: 0xa015e0e2,
-
-    create(args: {
-        queryId?: uint64
-        receiveExecutorCode: c.Cell | null
-        merkleRootCode: c.Cell | null
-    }): OffRamp_UpdateDeployables {
-        return {
-            $: 'OffRamp_UpdateDeployables',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): OffRamp_UpdateDeployables {
-        loadAndCheckPrefix32(s, 0xa015e0e2, 'OffRamp_UpdateDeployables');
-        return {
-            $: 'OffRamp_UpdateDeployables',
-            queryId: s.loadUintBig(64),
-            receiveExecutorCode: s.loadBoolean() ? s.loadRef() : null,
-            merkleRootCode: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: OffRamp_UpdateDeployables, b: c.Builder): void {
-        b.storeUint(0xa015e0e2, 32);
-        b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.receiveExecutorCode, b,
-            (v,b) => b.storeRef(v)
-        );
-        storeTolkNullable<c.Cell>(self.merkleRootCode, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: OffRamp_UpdateDeployables): c.Cell {
-        return makeCellFrom<OffRamp_UpdateDeployables>(self, OffRamp_UpdateDeployables.store);
-    }
-}
-
-/**
  > struct (0x7deaf076) OffRamp_ReleaseOrMint {
  >     queryId: uint64
  >     execId: ReceiveExecutorId
@@ -2731,7 +2776,7 @@ export const OffRamp_ReleaseOrMint = {
 }
 
 /**
- > enum OffRamp_Error { 21 variants }
+ > enum OffRamp_Error { 22 variants }
  */
 export type OffRamp_Error = bigint
 
@@ -2757,6 +2802,7 @@ export const OffRamp_Error = {
     UnsupportedNumberOfTokens: 22118n,
     ManualExecutionGasAmountCountMismatch: 22119n,
     InvalidManualExecutionGasLimit: 22120n,
+    UnexpectedTokenData: 22121n,
 
     fromSlice(s: c.Slice): OffRamp_Error {
         return s.loadUintBig(15);
@@ -2773,7 +2819,7 @@ export const OffRamp_Error = {
  > struct ExecutionReport {
  >     sourceChainSelector: uint64
  >     messages: cell
- >     offchainTokenData: cell
+ >     offchainTokenData: lisp_list<lisp_list<cell>>
  >     proofs: SnakedCell<uint256>
  >     proofFlagBits: uint256
  > }
@@ -2782,7 +2828,7 @@ export interface ExecutionReport {
     readonly $: 'ExecutionReport'
     sourceChainSelector: uint64
     messages: c.Cell
-    offchainTokenData: c.Cell
+    offchainTokenData: lisp_list<lisp_list<c.Cell>>
     proofs: SnakedCell<uint256>
     proofFlagBits: uint256
 }
@@ -2791,7 +2837,7 @@ export const ExecutionReport = {
     create(args: {
         sourceChainSelector: uint64
         messages: c.Cell
-        offchainTokenData: c.Cell
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
         proofs: SnakedCell<uint256>
         proofFlagBits: uint256
     }): ExecutionReport {
@@ -2805,7 +2851,11 @@ export const ExecutionReport = {
             $: 'ExecutionReport',
             sourceChainSelector: s.loadUintBig(64),
             messages: s.loadRef(),
-            offchainTokenData: s.loadRef(),
+            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
+                (s) => loadLispListOf<c.Cell>(s,
+                    (s) => s.loadRef()
+                )
+            ),
             proofs: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             proofFlagBits: s.loadUintBig(256),
         }
@@ -2813,7 +2863,11 @@ export const ExecutionReport = {
     store(self: ExecutionReport, b: c.Builder): void {
         b.storeUint(self.sourceChainSelector, 64);
         b.storeRef(self.messages);
-        b.storeRef(self.offchainTokenData);
+        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
+            (v,b) => { storeLispListOf<c.Cell>(v, b,
+                (v,b) => b.storeRef(v)
+            ); }
+        );
         storeSnakedCellOf(self.proofs, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.proofFlagBits, 256);
     },
@@ -3000,25 +3054,25 @@ export const DeployableHashes = {
 /**
  > struct Config {
  >     chainSelector: uint64
- >     tokenAdminRegistry: address
  >     feeQuoter: address
  >     permissionlessExecutionThresholdSeconds: uint32
+ >     tokenAdminRegistry: address
  > }
  */
 export interface Config {
     readonly $: 'Config'
     chainSelector: uint64
-    tokenAdminRegistry: c.Address
     feeQuoter: c.Address
     permissionlessExecutionThresholdSeconds: uint32
+    tokenAdminRegistry: c.Address
 }
 
 export const Config = {
     create(args: {
         chainSelector: uint64
-        tokenAdminRegistry: c.Address
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
+        tokenAdminRegistry: c.Address
     }): Config {
         return {
             $: 'Config',
@@ -3029,19 +3083,62 @@ export const Config = {
         return {
             $: 'Config',
             chainSelector: s.loadUintBig(64),
-            tokenAdminRegistry: s.loadAddress(),
             feeQuoter: s.loadAddress(),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+            tokenAdminRegistry: s.loadAddress(),
         }
     },
     store(self: Config, b: c.Builder): void {
         b.storeUint(self.chainSelector, 64);
-        b.storeAddress(self.tokenAdminRegistry);
         b.storeAddress(self.feeQuoter);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        b.storeAddress(self.tokenAdminRegistry);
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
+    }
+}
+
+/**
+ > struct OffRamp_StaticConfig {
+ >     rmnRouter: address
+ >     tokenAdminRegistry: address
+ >     chainSelector: uint64
+ > }
+ */
+export interface OffRamp_StaticConfig {
+    readonly $: 'OffRamp_StaticConfig'
+    rmnRouter: c.Address
+    tokenAdminRegistry: c.Address
+    chainSelector: uint64
+}
+
+export const OffRamp_StaticConfig = {
+    create(args: {
+        rmnRouter: c.Address
+        tokenAdminRegistry: c.Address
+        chainSelector: uint64
+    }): OffRamp_StaticConfig {
+        return {
+            $: 'OffRamp_StaticConfig',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_StaticConfig {
+        return {
+            $: 'OffRamp_StaticConfig',
+            rmnRouter: s.loadAddress(),
+            tokenAdminRegistry: s.loadAddress(),
+            chainSelector: s.loadUintBig(64),
+        }
+    },
+    store(self: OffRamp_StaticConfig, b: c.Builder): void {
+        b.storeAddress(self.rmnRouter);
+        b.storeAddress(self.tokenAdminRegistry);
+        b.storeUint(self.chainSelector, 64);
+    },
+    toCell(self: OffRamp_StaticConfig): c.Cell {
+        return makeCellFrom<OffRamp_StaticConfig>(self, OffRamp_StaticConfig.store);
     }
 }
 
@@ -3377,59 +3474,6 @@ export const Any2TVMTokenTransfer = {
 }
 
 /**
- > struct OffRamp_Deployables {
- >     rmnRouter: address
- >     tokenAdminRegistry: address
- >     deployer: cell
- >     merkleRootCode: cell
- >     receiveExecutorCode: cell
- > }
- */
-export interface OffRamp_Deployables {
-    readonly $: 'OffRamp_Deployables'
-    rmnRouter: c.Address
-    tokenAdminRegistry: c.Address
-    deployer: c.Cell
-    merkleRootCode: c.Cell
-    receiveExecutorCode: c.Cell
-}
-
-export const OffRamp_Deployables = {
-    create(args: {
-        rmnRouter: c.Address
-        tokenAdminRegistry: c.Address
-        deployer: c.Cell
-        merkleRootCode: c.Cell
-        receiveExecutorCode: c.Cell
-    }): OffRamp_Deployables {
-        return {
-            $: 'OffRamp_Deployables',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): OffRamp_Deployables {
-        return {
-            $: 'OffRamp_Deployables',
-            rmnRouter: s.loadAddress(),
-            tokenAdminRegistry: s.loadAddress(),
-            deployer: s.loadRef(),
-            merkleRootCode: s.loadRef(),
-            receiveExecutorCode: s.loadRef(),
-        }
-    },
-    store(self: OffRamp_Deployables, b: c.Builder): void {
-        b.storeAddress(self.rmnRouter);
-        b.storeAddress(self.tokenAdminRegistry);
-        b.storeRef(self.deployer);
-        b.storeRef(self.merkleRootCode);
-        b.storeRef(self.receiveExecutorCode);
-    },
-    toCell(self: OffRamp_Deployables): c.Cell {
-        return makeCellFrom<OffRamp_Deployables>(self, OffRamp_Deployables.store);
-    }
-}
-
-/**
  > type ReceiveExecutorId = uint192
  */
 export type ReceiveExecutorId = uint192
@@ -3489,11 +3533,10 @@ export const ExecutionState = {
  > struct Storage {
  >     id: uint32
  >     ownable: Ownable2Step
- >     deployables: Cell<OffRamp_Deployables>
+ >     staticConfig: Cell<OffRamp_StaticConfig>
  >     feeQuoter: address
  >     ocr3Base: Cell<OCR3Base>
  >     cursedSubjects: CursedSubjects
- >     chainSelector: uint64
  >     permissionlessExecutionThresholdSeconds: uint32
  >     sourceChainConfigs: map<uint64, SourceChainConfig>
  >     latestPriceSequenceNumber: uint64
@@ -3503,11 +3546,10 @@ export interface Storage {
     readonly $: 'Storage'
     id: uint32
     ownable: Ownable2Step
-    deployables: OffRamp_Deployables
+    staticConfig: OffRamp_StaticConfig
     feeQuoter: c.Address
     ocr3Base: OCR3Base
     cursedSubjects: CursedSubjects
-    chainSelector: uint64
     permissionlessExecutionThresholdSeconds: uint32
     sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
     latestPriceSequenceNumber: uint64 /* = 0 */
@@ -3517,11 +3559,10 @@ export const Storage = {
     create(args: {
         id: uint32
         ownable: Ownable2Step
-        deployables: OffRamp_Deployables
+        staticConfig: OffRamp_StaticConfig
         feeQuoter: c.Address
         ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
-        chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
         sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
         latestPriceSequenceNumber?: uint64 /* = 0 */
@@ -3537,11 +3578,10 @@ export const Storage = {
             $: 'Storage',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
-            deployables: loadCellRef<OffRamp_Deployables>(s, OffRamp_Deployables.fromSlice),
+            staticConfig: loadCellRef<OffRamp_StaticConfig>(s, OffRamp_StaticConfig.fromSlice),
             feeQuoter: s.loadAddress(),
             ocr3Base: loadCellRef<OCR3Base>(s, OCR3Base.fromSlice),
             cursedSubjects: CursedSubjects.fromSlice(s),
-            chainSelector: s.loadUintBig(64),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             sourceChainConfigs: dictToMap(c.Dictionary.load<uint64, SourceChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store), s)),
             latestPriceSequenceNumber: s.loadUintBig(64),
@@ -3550,11 +3590,10 @@ export const Storage = {
     store(self: Storage, b: c.Builder): void {
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
-        storeCellRef<OffRamp_Deployables>(self.deployables, b, OffRamp_Deployables.store);
+        storeCellRef<OffRamp_StaticConfig>(self.staticConfig, b, OffRamp_StaticConfig.store);
         b.storeAddress(self.feeQuoter);
         storeCellRef<OCR3Base>(self.ocr3Base, b, OCR3Base.store);
         CursedSubjects.store(self.cursedSubjects, b);
-        b.storeUint(self.chainSelector, 64);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
@@ -4217,7 +4256,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OffRamp implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty': 12000,
@@ -4249,6 +4288,7 @@ export class OffRamp implements c.Contract {
         'OffRamp_Error.UnsupportedNumberOfTokens': 22118,
         'OffRamp_Error.ManualExecutionGasAmountCountMismatch': 22119,
         'OffRamp_Error.InvalidManualExecutionGasLimit': 22120,
+        'OffRamp_Error.UnexpectedTokenData': 22121,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -4299,11 +4339,10 @@ export class OffRamp implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint32
         ownable: Ownable2Step
-        deployables: OffRamp_Deployables
+        staticConfig: OffRamp_StaticConfig
         feeQuoter: c.Address
         ocr3Base: OCR3Base
         cursedSubjects: CursedSubjects
-        chainSelector: uint64
         permissionlessExecutionThresholdSeconds: uint32
         sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
         latestPriceSequenceNumber?: uint64 /* = 0 */
@@ -4334,11 +4373,13 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampExecuteValidated(body: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }) {
         return OffRamp_ExecuteValidated.toCell(OffRamp_ExecuteValidated.create(body));
     }
@@ -4352,6 +4393,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampDispatchValidated(body: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         execId: uint192
         effectiveGasLimit: coins
@@ -4378,6 +4420,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampCCIPReceiveConfirm(body: {
+        queryId?: uint64
         execId: ReceiveExecutorId
         receiver: c.Address
     }) {
@@ -4392,6 +4435,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampNotifyFailure(body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -4400,6 +4444,7 @@ export class OffRamp implements c.Contract {
     }
 
     static createCellOfOffRampNotifySuccess(body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -4431,14 +4476,6 @@ export class OffRamp implements c.Contract {
         transmitters: SnakedCell<c.Address>
     }) {
         return OCR3Base_SetOCR3Config.toCell(OCR3Base_SetOCR3Config.create(body));
-    }
-
-    static createCellOfOffRampUpdateDeployables(body: {
-        queryId?: uint64
-        receiveExecutorCode: c.Cell | null
-        merkleRootCode: c.Cell | null
-    }) {
-        return OffRamp_UpdateDeployables.toCell(OffRamp_UpdateDeployables.create(body));
     }
 
     static createCellOfUpgradeableUpgrade(body: {
@@ -4513,11 +4550,13 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampExecuteValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
+        offchainTokenData: lisp_list<lisp_list<c.Cell>>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4539,6 +4578,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampDispatchValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         message: Any2TVMRampMessage
         execId: uint192
         effectiveGasLimit: coins
@@ -4577,6 +4617,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         execId: ReceiveExecutorId
         receiver: c.Address
     }, extraOptions?: ExtraSendOptions) {
@@ -4599,6 +4640,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampNotifyFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -4611,6 +4653,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampNotifySuccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
@@ -4656,18 +4699,6 @@ export class OffRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: OCR3Base_SetOCR3Config.toCell(OCR3Base_SetOCR3Config.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendOffRampUpdateDeployables(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        receiveExecutorCode: c.Cell | null
-        merkleRootCode: c.Cell | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: OffRamp_UpdateDeployables.toCell(OffRamp_UpdateDeployables.create(body)),
             ...extraOptions
         });
     }
@@ -4749,9 +4780,9 @@ export class OffRamp implements c.Contract {
         return ({
             $: 'Config',
             chainSelector: r.readBigInt(),
-            tokenAdminRegistry: r.readSlice().loadAddress(),
             feeQuoter: r.readSlice().loadAddress(),
             permissionlessExecutionThresholdSeconds: r.readBigInt(),
+            tokenAdminRegistry: r.readSlice().loadAddress(),
         });
     }
 

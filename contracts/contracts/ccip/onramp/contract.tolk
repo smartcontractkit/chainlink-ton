@@ -3,6 +3,7 @@ import "../../lib/access/ownable_2step";
 import "../../lib/utils";
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
+import "../../lib/deployable/namespace"
 
 import "../common/types";
 
@@ -21,13 +22,13 @@ import "storage"
 import "errors"
 import "messages"
 
-tolk 1.4.1
+tolk 1.4.2
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 
 contract OnRamp {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.OnRamp"
 
     storage: OnRamp_Storage
@@ -79,25 +80,25 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
-            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
-            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             val st = lazy OnRamp_Storage.load();
-            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorFinishedSuccessfully(st, msg);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
             val st = lazy OnRamp_Storage.load();
-            assert(st.deployablesConfig.load().getExecutorDeployment().autoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorFinishedWithError(st, msg);
         }
         // Sender must be the owner
@@ -121,15 +122,6 @@ fun onInternalMessage(in: InMessage) {
                 st.ownable.requireOwner(in.senderAddress);
             }
             onApplyAllowlistUpdates(mutate st, msg.updates);
-            st.store();
-        }
-        // Sender must be the owner
-        OnRamp_UpdateSendExecutor => {
-            var st = lazy OnRamp_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            var deployables = st.deployablesConfig.load();
-            deployables.executor.executorCode = msg.code;
-            st.deployablesConfig = deployables.toCell();
             st.store();
         }
         // Permissionless
@@ -210,7 +202,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: OnRamp_MessageValidated_Any {
+        body: OnRamp_MessageValidated {
             fee: msg.fee.feeTokenAmount,
             msg: msg.msg,
             context: userContext,
@@ -240,7 +232,7 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: OnRamp_MessageValidationFailed_Any {
+        body: OnRamp_MessageValidationFailed {
             error: msg.error,
             msg: msg.msg,
             context: userContext,
@@ -253,6 +245,30 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
 fun generateRandomSendExecutorId(): CCIPSendExecutor_ID {
     random.initialize();
     return (random.uint256() >> 32) as CCIPSendExecutor_ID;
+}
+
+import "../../../gen/Deployable.code"
+import "../../../gen/CCIPSendExecutor.code"
+
+fun deployableCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun executorCode(): cell {
+    return ccipSendExecutorCompiledCode();
+}
+
+fun executorAutoDeployAddress(executorID: CCIPSendExecutor_ID): AutoDeployAddress {
+    return AutoDeployAddress {
+        stateInit: ContractState {
+            code: deployableCode(),
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_CCIPSendExecutor,
+                owner: contract.getAddress(),
+                id: executorID,
+            }),
+        }
+    }
 }
 
 /*
@@ -268,32 +284,32 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         }
     }
     val config = st.config.load();
-    val deployables = st.deployablesConfig.load();
+    val staticConfig = st.staticConfig.load();
     var tokenRegistry: address? = null;
     val tokenAmounts = payload.msg.load().tokenAmounts;
     if (!tokenAmounts.empty()) {
         val token = tokenAmounts.iter().next().token;
         tokenRegistry = TokenAdminRegistryEntry.deriveAddress(
-            deployables.getExecutorDeployment().deployableCode,
+            deployableCode(),
             token,
-            deployables.getTokenAdminRegistry(),
+            staticConfig.tokenAdminRegistry,
         ).calculateAddress();
     }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: deployables.getExecutorDeployment().autoDeployAddress(executorId),
+        dest: executorAutoDeployAddress(executorId),
         body: Deployable_InitializeAndSend {
             stateInit: {
-                code: deployables.getExecutorDeployment().executorCode,
+                code: executorCode(),
                 data:  CCIPSendExecutor_InitialData {
                     onramp: contract.getAddress(),
                     id: executorId,
                 }.toCell(),
             },
             selfMessage: {
-                value: SendExecutor_Costs.Execute() + ton("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
+                value: SendExecutor_Costs.Execute() + grams("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
@@ -374,7 +390,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     var rampMessage = TVM2AnyRampMessage {
         header: RampMessageHeader {
             messageId: 0, // populated after hashing
-            sourceChainSelector: st.chainSelector,
+            sourceChainSelector: st.staticConfig.load().chainSelector,
             destChainSelector: ccipsend.destChainSelector,
             sequenceNumber: destChainConfig.sequenceNumber,
             // Only bump nonce for messages that specify allowOutOfOrderExecution == false. Otherwise, we may block ordered
@@ -399,7 +415,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = TVM2AnyRampMessageV1Metadata {
-        sourceChainSelector: st.chainSelector,
+        sourceChainSelector: st.staticConfig.load().chainSelector,
         destChainSelector: ccipsend.destChainSelector,
         onRamp: contract.getAddress(),
     }.toCell().hash();
@@ -419,7 +435,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             sender: metadata.sender,
         },
     });
-    reserveToncoinsOnBalance(msg.fee.feeTokenAmount, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(msg.fee.feeTokenAmount, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -462,7 +478,7 @@ fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) 
     emit(
         CONFIG_SET_TOPIC,
         ConfigSet {
-            chainSelector: st.chainSelector,
+            chainSelector: st.staticConfig.load().chainSelector,
             dynamicConfig: msg.config,
         }
     )
@@ -550,7 +566,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
-    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
         bounce: true,
@@ -573,10 +589,9 @@ get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     return config.sequenceNumber + 1;
 }
 
-// Note: getStaticConfig name is kept to match EVM implementation, but only chain selector is part of that original static config
-get fun staticConfig(): uint64 {
+get fun staticConfig(): OnRamp_StaticConfig {
     val st = lazy OnRamp_Storage.load();
-    return st.chainSelector;
+    return st.staticConfig.load();
 }
 
 get fun dynamicConfig(): OnRamp_DynamicConfig {
@@ -624,13 +639,11 @@ get fun pendingOwner(): address? {
 }
 
 get fun sendExecutorCode(): cell {
-    val st = lazy OnRamp_Storage.load();
-    return st.deployablesConfig.load().getExecutorDeployment().executorCode;
+    return executorCode();
 }
- 
+
 get fun sendExecutorCodeHash(): uint256 {
-    val st = lazy OnRamp_Storage.load();
-    return st.deployablesConfig.load().getExecutorDeployment().executorCode.hash();
+    return executorCode().hash();
 }
 
 get fun typeAndVersion(): (slice, slice) {
@@ -654,7 +667,39 @@ get fun reserve(): coins {
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    return storage;
+    val old = OnRamp_Storage_V1_6_0.fromCell(storage);
+    val oldDeployables = old.deployablesConfig.load();
+    return OnRamp_Storage {
+        id: old.id,
+        ownable: old.ownable,
+        staticConfig: OnRamp_StaticConfig {
+            chainSelector: old.chainSelector,
+            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+        }.toCell(),
+        config: old.config,
+        destChainConfigs: old.destChainConfigs,
+    }.toCell();
+}
+
+// Persisted layout for the final 1.6.0 release. Keep this local to the
+// migration boundary: executor code is now compiled into OnRamp.
+struct OnRamp_Storage_V1_6_0 {
+    id: uint32;
+    ownable: Ownable2Step;
+    chainSelector: uint64;
+    config: Cell<OnRamp_DynamicConfig>;
+    destChainConfigs: map<uint64, OnRamp_DestChainConfig> = [];
+    deployablesConfig: Cell<OnRamp_DeployablesConfig_V1_6_0>;
+}
+
+struct ExecutorDeployment_V1_6_0 {
+    deployableCode: cell;
+    executorCode: cell;
+}
+
+struct OnRamp_DeployablesConfig_V1_6_0 {
+    executor: ExecutorDeployment_V1_6_0;
+    tokenAdminRegistry: address;
 }
 
 @method_id(1001)

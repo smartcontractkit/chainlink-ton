@@ -14,7 +14,7 @@ import "messages"
 import "types"
 import "errors"
 
-tolk 1.4.1
+tolk 1.4.2
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 
@@ -106,7 +106,8 @@ fun onInternalMessage(in: InMessage) {
 // @param value: The value sent with the message, which should be enough to cover the gas costs for the execution and any token transfers.
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute, value: coins) {
     val message = lazy st.message.load();
-    
+
+    st.state.queryId = msg.queryId;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
     if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec()) {
         return endExecutionWithFailure(mutate st, message.header, 0);
@@ -118,7 +119,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
         if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + tokenTransfer.transfer.destGasAmount + ReceiveExecutor_Costs.tokenTransfer()) {
             return endExecutionWithFailure(mutate st, message.header, 0);
         }
-        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry);
+        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry, tokenTransfer.offchainTokenData);
 
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
             return match (ttInfo.state) {
@@ -176,7 +177,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
             value: transfer.destGasAmount + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
-                queryId: 0,
+                queryId: st.state.queryId,
                 execId: st.execId,
                 destGasAmount: transfer.destGasAmount,
                 tokenPool,
@@ -194,7 +195,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
                     },
                     sourcePoolAddress: transfer.sourcePoolAddress,
                     sourcePoolData: transfer.extraData,
-                    offchainTokenData: null, // TBD Any2TVMTokenTransfer doesn't have this.
+                    offchainTokenData: ttInfo.offchainTokenData,
                 }.toCell(),
             }
         }
@@ -211,6 +212,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
             value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
+                queryId: st.state.queryId,
                 message: st.message,
                 execId: st.execId,
                 effectiveGasLimit: st.state.effectiveGasLimit,
@@ -245,7 +247,8 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifyFailure {
-            header: messageHeader,
+            queryId: st.state.queryId,
+            header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
         },
@@ -271,7 +274,8 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifySuccess {
-            header: messageHeader,
+            queryId: st.state.queryId,
+            header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
         },

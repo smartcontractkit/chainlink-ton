@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -62,6 +63,8 @@ import (
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 )
+
+var debugMode = os.Getenv("DEBUG_MODE") == "true"
 
 func init() {
 	testadapters.GetTestAdapterRegistry().RegisterTestAdapter(chain_selectors.FamilyTon, semver.MustParse("1.6.0"), NewTONAdapter)
@@ -380,6 +383,35 @@ func (a *TONAdapter) GetInboundNonce(ctx context.Context, sender []byte, srcSel 
 func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNumRange ccipocr3.SeqNumRange) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+
+	if debugMode {
+		cancel := a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
+			s := msg.InternalMsg.Body.BeginParse()
+			if s.BitsLeft() == 0 {
+				return false
+			}
+			op, errM := s.LoadUInt(32)
+			if errM != nil {
+				fmt.Printf("Failed to parse op code from message body: %v\n", errM)
+				return false
+			}
+			if op != 0x9d431905 { // Commit opcode
+				return false
+			}
+			var commit offramp.Commit
+			errM = tlb.LoadFromCell(&commit, s, true)
+			if errM != nil {
+				fmt.Printf("Failed to parse Commit message: %v\n", errM)
+				return false
+			}
+			if len(commit.CommitReport.MerkleRoots) == 0 {
+				return false
+			}
+			return true
+		}, "Commit")
+		defer cancel()
+	}
+
 	_, err = confirmCommitWithExpectedSeqNumRangeTON(
 		t,
 		sourceSelector,
@@ -393,6 +425,10 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (execStates map[uint64]int) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+	if debugMode {
+		cancel := a.startExecuteMonitor(t, offRamp)
+		defer cancel()
+	}
 	execStates, err = confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
@@ -408,6 +444,10 @@ func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, s
 func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+	if debugMode {
+		cancel := a.startExecuteMonitor(t, offRamp)
+		defer cancel()
+	}
 	executionStates, err := confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
@@ -423,6 +463,86 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 		require.Equal(t, int(utils.EXECUTION_STATE_FAILURE), state,
 			"expected execution state FAILURE for seqNr %d, got state %d", seqNr, state)
 	}
+}
+
+func (a *TONAdapter) startExecuteMonitor(t *testing.T, offRamp address.Address) func() {
+	return a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
+		s := msg.InternalMsg.Body.BeginParse()
+		if s.BitsLeft() == 0 {
+			return false
+		}
+		op, err := s.LoadUInt(32)
+		if err != nil {
+			fmt.Printf("Failed to parse op code from message body: %v\n", err)
+			return false
+		}
+		if op != 0x27bdac33 { // Execute opcode
+			return false
+		}
+		return true
+	}, "Execute")
+}
+
+// TODO leaks go routine
+func (a *TONAdapter) startMonitor(t *testing.T, offRamp address.Address, filter func(msg tracetracking.ReceivedMessage) bool, msgType string) (cancel func()) {
+	fmt.Printf("Starting monitor for OffRamp: %s\n", offRamp.String())
+	router, err := a.getAddress("Router")
+	require.NoError(t, err)
+	receiver, err := a.getAddress("Receiver")
+	require.NoError(t, err)
+	tokenPool, err := a.getAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	require.NoError(t, err)
+
+	ctx, cancelCtx := context.WithCancel(t.Context())
+	offRampMsgs := make(chan *tlb.Transaction)
+	go a.Client.SubscribeOnTransactions(ctx, &offRamp, 0, offRampMsgs)
+
+	handler := make(chan struct{})
+	go func() {
+		fmt.Println("Started monitor")
+		defer close(handler)
+		for {
+			tx, ok := <-offRampMsgs
+			if !ok {
+				return
+			}
+			msg, errM := tracetracking.MapToReceivedMessage(tx)
+			if errM != nil {
+				panic(fmt.Sprintf("failed to map received message: %v", errM))
+			}
+			if msg.InternalMsg == nil {
+				continue
+			}
+			if !filter(msg) {
+				continue
+			}
+			errM = msg.WaitForTrace(ctx, a.Client)
+			if errM != nil {
+				panic(fmt.Sprintf("failed to wait for trace: %v\n", errM))
+			}
+			exitCodeStr := ""
+			exitCode, errM := msg.TraceExitCode()
+			if errM != nil {
+				exitCodeStr = fmt.Sprintf("Trace exit code: Failed to get: %v", errM)
+			} else {
+				exitCodeStr = fmt.Sprintf("Trace exit code: %d", exitCode)
+			}
+			fmt.Println(exitCodeStr)
+			trace := debug.NewDebuggerSequenceTrace(map[string]debug.TypeAndVersion{
+				router.String():    {Type: "Router"},
+				offRamp.String():   {Type: "OffRamp"},
+				receiver.String():  {Type: "Receiver"},
+				tokenPool.String(): {Type: "TokenPool"},
+			}, sequenceDiagram.OutputFmtURL).DumpReceived(&msg)
+			fmt.Printf("Router received %s msg: \n%s\n", msgType, trace)
+		}
+	}()
+
+	cancel = func() {
+		cancelCtx()
+		<-handler
+	}
+	return cancel
 }
 
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {

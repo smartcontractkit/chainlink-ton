@@ -7,7 +7,7 @@ import "errors"
 import "storage"
 import "types"
 
-tolk 1.4.1
+tolk 1.4.2
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
@@ -109,11 +109,13 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
+            queryId: msg.queryId,
             message: message.toCell(),
             root: st.root,
             metadataHash: msg.metadataHash,
             gasOverride: msg.gasOverride,
             executionState: state,
+            offchainTokenData: msg.offchainTokenData,
         }
     });
     executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

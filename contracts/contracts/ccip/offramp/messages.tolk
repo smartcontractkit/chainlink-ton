@@ -32,7 +32,6 @@ type OffRamp_InMessage =
     | OffRamp_UpdateCursedSubjects
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
-    | OffRamp_UpdateDeployables
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw;
 
@@ -56,11 +55,13 @@ struct (0x27bdac33) OffRamp_Execute {
 }
 
 struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+    queryId: uint64;
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
     gasOverride: GasOverride? = null;
     executionState: ExecutionState;
+    offchainTokenData: lisp_list<lisp_list<cell>>;
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
@@ -82,6 +83,7 @@ struct SourceChainConfigUpdate {
 
 //Must be sent from an owned ReceiveExecutor contract
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
+    queryId: uint64;
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
     // Gas limit to use for the message execution
@@ -89,6 +91,7 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
+    queryId: uint64;
     execId: ReceiveExecutorId;
     receiver: address;
 }
@@ -99,13 +102,15 @@ struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
 }
 
 struct (0x59e56170) OffRamp_NotifySuccess {
-    header: RampMessageHeader;
+    queryId: uint64;
+    header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
 }
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
-    header: RampMessageHeader;
+    queryId: uint64;
+    header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
 }
@@ -120,12 +125,6 @@ struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
     permissionlessExecutionThresholdSeconds: uint32,
 }
 
-struct (0xa015e0e2) OffRamp_UpdateDeployables {
-    queryId: uint64;
-    receiveExecutorCode: cell?;
-    merkleRootCode: cell?;
-}
-
 struct (0x7deaf076) OffRamp_ReleaseOrMint {
     queryId: uint64
     execId: ReceiveExecutorId
@@ -136,7 +135,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 }
 
 fun OffRamp_ReleaseOrMint.cost(): coins {
-    return ton("0.02"); // TODO
+    return grams("0.02"); // TODO
 }
 
 struct OffRamp_Costs{}
@@ -176,9 +175,9 @@ fun OffRamp_Costs.execute(): int {
     return baseFee + MerkleRoot_Costs.validate();
 }
 
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = ton("0.012");
-const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = ton("0.005");
-const OFFRAMP_COSTS_NOTIFY_FEE = ton("0.004");
-const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = ton("0.004");
-const OFFRAMP_COSTS_COMMIT_FEE = ton("0.015");
-const OFFRAMP_COSTS_EXECUTE_FEE = ton("0.0125");
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.012");
+const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
+const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.004");
+const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.004");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.015");
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0125");

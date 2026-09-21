@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.1
+tolk 1.4.2
 
 import "../lib/utils";
 import "../lib/secp256k1";
@@ -419,7 +419,7 @@ const TOPIC_BOUNCE_HANDLED = "MCMS_BounceHandled".crc32();
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = ton("0.05");
+const MIN_TON_TO_RESERVE: int = grams("0.05");
 
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
@@ -1047,7 +1047,7 @@ fun MCMS<T>.execute(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
 
     self._execute(op.to, op.value, op.data);
 
@@ -1672,8 +1672,8 @@ struct MCMS_Costs{}
 
 fun MCMS_Costs.setRoot(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MCMS_NewRoot fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.019") // MCMS_NewRoot fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
@@ -1682,26 +1682,26 @@ fun MCMS_Costs.setRoot(): int {
 // while the rest (rent, op.value) is paid/reserved by the contract.
 fun MCMS_Costs.execute(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // message executed/sent fwdFee
+        + grams("0.002") // computeFee
+        + grams("0.019") // message executed/sent fwdFee
         + 0            // op.value is reserved by the contract
-        + ton("0.019") // MCMS_OpExecuted fwdFee (reply)
+        + grams("0.019") // MCMS_OpExecuted fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
 
 fun MCMS_Costs.setConfig(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MCMS_ConfigSet fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.019") // MCMS_ConfigSet fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
 
 fun MCMS_Costs.submitErrorReport(): int {
     return
-        + ton("0.002") // computeFee
-        + ton("0.019") // MCMS_ErrorReportSubmitted fwdFee (reply)
+        + grams("0.002") // computeFee
+        + grams("0.019") // MCMS_ErrorReportSubmitted fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
         ;
 }
