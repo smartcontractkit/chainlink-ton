@@ -740,6 +740,46 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
+    it('rejects a zero token receiver when transferring tokens', async () => {
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [
+          rt.TokenAmount.create({
+            token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+            amount: toNano('1'),
+          }),
+        ],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: validSVMExtraArgs,
+      })
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidTokenReceiver'],
+      )
+    })
+
+    it('rejects writable bits beyond the supplied accounts', async () => {
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: {
+          ...validSVMExtraArgs,
+          accountIsWritableBitmap: 2n,
+        },
+      })
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap'],
+      )
+    })
+
     it('counts token payload and pool-return bytes towards maxDataBytes', async () => {
       const destChainConfig = await setup.bind.feeQuoter.getDestChainConfig(
         ChainSelectors.testnet.solana,
@@ -859,6 +899,27 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
       const result = await setup.getValidatedFee(message)
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
+    })
+
+    it('rejects a zero token receiver when transferring tokens', async () => {
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.sui,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [
+          rt.TokenAmount.create({
+            token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+            amount: toNano('1'),
+          }),
+        ],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: validSVMExtraArgs,
+      })
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidTokenReceiver'],
+      )
     })
 
     it('reverts with empty extra args', async () => {

@@ -696,6 +696,12 @@ function printErrorName(error: number): string {
       return 'FeeOverflow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MessageFeeTooHigh']:
       return 'MessageFeeTooHigh'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenTransferConfigMustBeEnabled']:
+      return 'TokenTransferConfigMustBeEnabled'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidDestBytesOverhead']:
+      return 'InvalidDestBytesOverhead'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap']:
+      return 'InvalidSVMExtraArgsWritableBitmap'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

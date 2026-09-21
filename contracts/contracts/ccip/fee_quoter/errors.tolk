@@ -34,4 +34,5 @@ enum FeeQuoter_Error {
     MessageFeeTooHigh
     TokenTransferConfigMustBeEnabled
     InvalidDestBytesOverhead
+    InvalidSVMExtraArgsWritableBitmap
 }

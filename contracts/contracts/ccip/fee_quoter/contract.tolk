@@ -432,6 +432,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        assert (tokenCount == 0 || suiExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
 
         // objectIds are 32 bytes long
         val objectIds = suiExtraArgs.receiverObjectIds.iter();
@@ -472,6 +473,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         // accounts are 32 bytes long
         val accounts = svmExtraArgs.accounts.iter();
         val accountsLength = accounts.size(SVM_ACCOUNT_BYTE_SIZE);
+        assert (tokenCount == 0 || svmExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
         // The max payload size for SVM is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
         var svmExpandedDataLength = msgDataLen;
@@ -490,6 +492,9 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         }
 
         assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
+        if (accountsLength < SVM_EXTRA_ARGS_MAX_ACCOUNTS) {
+            assert (svmExtraArgs.accountIsWritableBitmap >> accountsLength == 0) throw FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap;
+        }
 
         val tokenTransferDataOverhead = mustProd(tokenCount, SVM_TOKEN_TRANSFER_DATA_OVERHEAD, FeeQuoter_Error.ExecutionCostOverflow);
         svmExtraArgsDataLen = mustAdd(svmExtraArgsDataLen, tokenTransferDataOverhead, FeeQuoter_Error.ExecutionCostOverflow);
