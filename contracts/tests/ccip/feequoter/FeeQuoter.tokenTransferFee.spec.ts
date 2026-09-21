@@ -108,20 +108,16 @@ describe('FeeQuoter Token Transfer Fee', () => {
 
     const msgDataLen = 0n
     const calldataLen = msgDataLen + totalBytesOverhead
-    const threshold = FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD
-    const calldataGas =
-      calldataLen > threshold
-        ? (calldataLen - threshold) * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_HIGH +
-          threshold * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
-        : calldataLen * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
+    const calldataGas = calldataLen * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
 
     const gasUsed =
       FeeQuoterSetup.GAS_LIMIT + FeeQuoterSetup.DEST_GAS_OVERHEAD + totalGas + calldataGas
     const gasFeeUSD =
       gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
 
-    const premiumMultiplierWeiPerEth =
-      await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(feeTokenAddr)
+    const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
+      feeTokenAddr,
+    )
     const messageFeeUSD = totalPremium * premiumMultiplierWeiPerEth
 
     return (gasFeeUSD + messageFeeUSD) / feeTokenPrice

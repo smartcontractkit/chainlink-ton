@@ -76,21 +76,16 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       const result = await setup.getValidatedFee(message)
 
-      // Verify fee calculation with high gas and large data
+      // Verify large payloads are charged at the flat base rate.
       const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
         message.feeToken!,
       )
 
       const calldataLen = BigInt(customDataSize)
 
-      // Calculate calldata cost with threshold
-      const callDataCostHigh =
-        (calldataLen - FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD) *
-          FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_HIGH +
-        FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD *
-          FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
+      const calldataCost = calldataLen * FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE
 
-      const gasUsed = customGasLimit + FeeQuoterSetup.DEST_GAS_OVERHEAD + callDataCostHigh
+      const gasUsed = customGasLimit + FeeQuoterSetup.DEST_GAS_OVERHEAD + calldataCost
 
       const gasFeeUSD =
         gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS

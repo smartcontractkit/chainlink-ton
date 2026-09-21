@@ -307,14 +307,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     }
 
     val calldataLen = mustAdd(mustAdd(msgDataLen, extraArgsDataLen, FeeQuoter_Error.ExecutionCostOverflow), tokenTransferBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
-    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow);
-    val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
-    if (calldataLen > calldataThreshold) {
-        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow);
-        val extraBytes = calldataLen - calldataThreshold;
-        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow);
-        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow);
-    }
+    // Match the current EVM and Solana FeeQuoters: payload bytes use one flat base rate.
+    val calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow);
 
     val executionGasBase = mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow);
     val executionGasWithTokenOverhead = mustAdd(executionGasBase, tokenTransferGas, FeeQuoter_Error.ExecutionCostOverflow);
