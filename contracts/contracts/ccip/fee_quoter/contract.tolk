@@ -15,7 +15,7 @@ import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
 
-tolk 1.4.1
+tolk 1.4.2
 
 contract FeeQuoter {
     author: "SmartContract Chainlink Limited SEZC"
@@ -612,7 +612,7 @@ fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
         dest: receiver,
         body: createEmptyCell(),
     });
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     returnExcesses.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 

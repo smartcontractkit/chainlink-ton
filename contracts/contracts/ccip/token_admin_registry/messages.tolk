@@ -1,8 +1,6 @@
 import "../token_admin_registry_entry/types"
-import "types"
 
 type TokenAdminRegistry_InMessage =
-    | TokenAdminRegistry_SetEntryDeployment
     | TokenAdminRegistry_RegisterToken
     | TokenAdminRegistry_OverridePendingAdministrator
     | TokenAdminRegistry_TransferAdminRole
@@ -10,12 +8,6 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_AdministratorTransferRequested
     | TokenAdminRegistry_AdministratorTransferred
     | TokenAdminRegistry_PoolSet;
-
-// crc32('TokenAdminRegistry_SetEntryDeployment')
-struct (0x3ec09499) TokenAdminRegistry_SetEntryDeployment {
-    queryId: uint64;
-    entryDeployment: TokenAdminRegistry_EntryDeployment;
-}
 
 // crc32('TokenAdminRegistry_RegisterToken')
 struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {

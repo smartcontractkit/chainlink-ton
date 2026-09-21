@@ -293,7 +293,10 @@ async function deployOnRampInstance(
     ownable: or.Ownable2Step.create({
       owner: deployer.address,
     }),
-    chainSelector: ChainSelectors.testnet.ton,
+    staticConfig: or.OnRamp_StaticConfig.create({
+      chainSelector: ChainSelectors.testnet.ton,
+      tokenAdminRegistry,
+    }),
     config: or.OnRamp_DynamicConfig.create({
       feeQuoter,
       feeAggregator: deployer.address,
@@ -301,13 +304,6 @@ async function deployOnRampInstance(
       reserve: toNano('10'),
     }),
     destChainConfigs: new Map(),
-    deployablesConfig: or.OnRamp_DeployablesConfig.create({
-      executor: or.ExecutorDeployment.create({
-        deployableCode: await contractCode.ccip.local('Deployable'),
-        executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
-      }),
-      tokenAdminRegistry,
-    }),
   })
 
   const onRamp = blockchain.openContract(
@@ -377,13 +373,10 @@ async function deployOffRampInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    chainSelector: ChainSelectors.testnet.ton,
-    deployables: of.OffRamp_Deployables.create({
-      deployer: await contractCode.ccip.local('Deployable'),
-      merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
-      receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
+    staticConfig: of.OffRamp_StaticConfig.create({
       rmnRouter: router,
       tokenAdminRegistry,
+      chainSelector: ChainSelectors.testnet.ton,
     }),
     feeQuoter,
     permissionlessExecutionThresholdSeconds: 0n,

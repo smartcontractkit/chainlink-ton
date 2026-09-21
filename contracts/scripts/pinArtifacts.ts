@@ -1,10 +1,14 @@
 #!/usr/bin/env ts-node
 /**
- * Copies pre-compiled artifacts into build/ that blueprint does not produce itself:
- *  - Deployable.compiled.json, which cannot be compiled from Tolk (its code hash is
- *    self-referential).
+ * Copies pre-compiled artifacts into build/ that acton does not produce itself:
  *  - The reference Jetton contracts (JettonMinter, JettonWallet), sourced from the
  *    Nix-provided PATH_CONTRACTS_JETTON directory when available.
+ *
+ * Deployable.compiled.json is pinned by `acton build` itself: Acton.toml points
+ * [contracts.Deployable] straight at contracts/lib/deployable/Deployable.boc (its
+ * code hash is self-referential, so it can never be recompiled from Tolk), and
+ * scripts/actonBuildAdapter.ts converts acton's build/Deployable.json into the
+ * legacy build/Deployable.compiled.json shape alongside every other contract.
  *
  * Usage (from the contracts/ directory):
  *   ts-node scripts/pinArtifacts.ts
@@ -18,13 +22,6 @@ const BUILD_DIR = 'build'
 interface PinnedArtifact {
   src: string
   dest: string
-}
-
-function deployableArtifact(): PinnedArtifact {
-  return {
-    src: path.join('contracts', 'lib', 'deployable', 'Deployable.compiled.json'),
-    dest: path.join(BUILD_DIR, 'Deployable.compiled.json'),
-  }
 }
 
 // Pins the reference Jetton contracts from PATH_CONTRACTS_JETTON, if the env var is set.
@@ -42,7 +39,7 @@ function jettonArtifacts(): PinnedArtifact[] {
 }
 
 function main(): void {
-  const artifacts = [deployableArtifact(), ...jettonArtifacts()]
+  const artifacts = jettonArtifacts()
 
   fs.mkdirSync(BUILD_DIR, { recursive: true })
 

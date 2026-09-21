@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var DbContractPath = bindings.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
+var DbContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
 	apiClient tracetracking.SignedAPIClient

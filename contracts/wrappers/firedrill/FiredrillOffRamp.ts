@@ -88,9 +88,9 @@ export class FiredrillOffRamp implements Contract {
     const result = await provider.get('config', [])
     return of.Config.create({
       chainSelector: result.stack.readBigNumber(),
-      tokenAdminRegistry: result.stack.readAddress(),
       feeQuoter: result.stack.readAddress(),
       permissionlessExecutionThresholdSeconds: result.stack.readBigNumber(),
+      tokenAdminRegistry: result.stack.readAddress(),
     })
   }
 

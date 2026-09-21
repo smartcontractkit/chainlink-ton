@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.4.1
+tolk 1.4.2
 
 import "@stdlib/gas-payments"
 import "../jetton/forward_payload_wrap"
@@ -12,7 +12,7 @@ const JettonWithdrawable_FACILITY_ID = JettonWithdrawable_FACILITY_NAME.crc32() 
 const TOPIC_FEE_TOKEN_WITHDRAWN = "FeeTokenWithdrawn".crc32();
 
 // Rent cushion reserved on withdraw
-const JettonWithdrawable_MIN_RESERVE = ton("0.01");
+const JettonWithdrawable_MIN_RESERVE = grams("0.01");
 
 struct JettonWithdrawable {}
 

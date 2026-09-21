@@ -8,7 +8,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -16,18 +15,21 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 type FeeTokenConfig struct {
 	PremiumMultiplierWeiPerEth uint64
 }
 
-// UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens
+// UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens.
+// FeeTokens maps token addresses to add/update, Remove lists token addresses to remove.
 type UpdateFeeQuoterFeeTokensInput struct {
 	FeeTokens map[string]FeeTokenConfig // token address (string) -> { premium multiplier }
+	Remove    []string                  // token addresses (string) to remove as fee tokens
 }
 
-// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
+// UpdateFeeQuoterFeeTokensOp operation to update FeeQuoter fee tokens
 var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	"ton/ops/ccip/fee-quoter/update-fee-tokens",
 	semver.MustParse("0.1.0"),
@@ -41,35 +43,55 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, dp *dep.DependencyProvider, i
 		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
 
-	configs := cell.NewDict(267)
+	// skip if there's nothing to add or remove
+	if len(in.FeeTokens) == 0 && len(in.Remove) == 0 {
+		return nil, nil
+	}
+
+	addEntries := make(map[common.AddressWrap]feequoter.FeeToken, len(in.FeeTokens))
+	// Canonicalize by raw address (workchain:hashdata) so that equivalent textual
+	// forms (e.g. bounceable EQ and non-bounceable UQ) collapse to a single key.
+	// AddressWrap holds *address.Address which compares by pointer identity, so
+	// without canonicalization two forms of the same address would produce
+	// duplicate 267-bit dictionary keys on serialization.
+	addSeen := make(map[string]struct{}, len(in.FeeTokens))
 	for token, update := range in.FeeTokens {
 		//nolint:govet // allow shadowing
 		tokenAddress, err := address.ParseAddr(token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse token address: %w", err)
 		}
-		key := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell()
-		value, err := tlb.ToCell(feequoter.FeeToken{
+		canonical := tokenAddress.StringRaw()
+		if _, dup := addSeen[canonical]; dup {
+			return nil, fmt.Errorf("duplicate fee token address %q (canonical %s)", token, canonical)
+		}
+		addSeen[canonical] = struct{}{}
+		addEntries[common.AddressWrap{Val: tokenAddress}] = feequoter.FeeToken{
 			PremiumMultiplierWeiPerEth: update.PremiumMultiplierWeiPerEth,
-		})
+		}
+	}
+
+	remove := make(common.SnakedCell[common.AddressWrap], 0, len(in.Remove))
+	removeSeen := make(map[string]struct{}, len(in.Remove))
+	for _, addrStr := range in.Remove {
+		//nolint:govet // allow shadowing
+		tokenAddress, err := address.ParseAddr(addrStr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
+			return nil, fmt.Errorf("failed to parse remove address %q: %w", addrStr, err)
 		}
-		if err := configs.Set(key, value); err != nil {
-			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
+		canonical := tokenAddress.StringRaw()
+		if _, dup := removeSeen[canonical]; dup {
+			continue // skip duplicate remove entry
 		}
+		removeSeen[canonical] = struct{}{}
+		remove = append(remove, common.AddressWrap{Val: tokenAddress})
 	}
 
-	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, stateCCIP.FeeQuoter.String())
-
-	// skip if there's no updates
-	if len(in.FeeTokens) == 0 {
-		return nil, nil
-	}
+	b.Logger.Debugf("Updated FeeQuoter fee tokens: add=%v, remove=%v, address: %v", addEntries, remove, stateCCIP.FeeQuoter.String())
 
 	input := feequoter.UpdateFeeTokens{
-		Add:    configs,
-		Remove: nil,
+		Add:    tlbe.NewDict(addEntries),
+		Remove: remove,
 	}
 
 	payload, err := tlb.ToCell(input)
