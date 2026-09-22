@@ -280,6 +280,7 @@ func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.Upda
 			_inputMCMS := opsmcms.NewSendOrPlanInput(mcmstypes.ChainSelector(in.ChainSelector))
 
 			for _, contractRef := range in.MCMContracts {
+				//nolint:govet // allow shadowing
 				contractAddr, err := utils.ToTONAddress(contractRef)
 				if err != nil {
 					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve MCMS contract address: %w", err)
