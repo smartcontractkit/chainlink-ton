@@ -121,7 +121,9 @@ func TestUintWrappers_DictKeyRoundTrip(t *testing.T) {
 		c, err := d.ToCell()
 		require.NoError(t, err)
 
-		dict, err := c.BeginParse().LoadDict(128)
+		s, err := c.BeginParse()
+		require.NoError(t, err)
+		dict, err := s.LoadDict(128)
 		require.NoError(t, err)
 
 		restored, err := NewDictFromDictionary[Uint128, struct{}](dict)
@@ -144,7 +146,9 @@ func TestUintWrappers_DictKeyRoundTrip(t *testing.T) {
 		c, err := d.ToCell()
 		require.NoError(t, err)
 
-		dict, err := c.BeginParse().LoadDict(160)
+		s, err := c.BeginParse()
+		require.NoError(t, err)
+		dict, err := s.LoadDict(160)
 		require.NoError(t, err)
 
 		restored, err := NewDictFromDictionary[Uint160, bool](dict)
@@ -169,7 +173,9 @@ func TestUintWrappers_DictKeyRoundTrip(t *testing.T) {
 		c, err := d.ToCell()
 		require.NoError(t, err)
 
-		dict, err := c.BeginParse().LoadDict(256)
+		s, err := c.BeginParse()
+		require.NoError(t, err)
+		dict, err := s.LoadDict(256)
 		require.NoError(t, err)
 
 		restored, err := NewDictFromDictionary[Uint256, uint64](dict)
@@ -195,7 +201,7 @@ func TestUint128_DictStructFieldRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded uint128SetHolder
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 	require.Len(t, decoded.Subjects.AsMap(), 1)
 }
 
@@ -242,7 +248,7 @@ func TestUintWrappers_MaskSignBit(t *testing.T) {
 
 			// Pointer fields must decode too.
 			var ptrTyped ptrTypedValues
-			err = tlb.LoadFromCell(&ptrTyped, c.BeginParse())
+			err = tlb.LoadFromCell(&ptrTyped, c.MustBeginParse())
 			require.NoError(t, err)
 
 			require.NotNil(t, ptrTyped.Address, "pointer address is nil")
@@ -341,16 +347,16 @@ func TestUintWrappers_CellRoundTripAndWidth(t *testing.T) {
 			switch x := original.(type) {
 			case Uint128:
 				var decoded Uint128
-				require.NoError(t, decoded.LoadFromCell(c.BeginParse()))
+				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
 				require.Equal(t, x, decoded)
 				require.Equal(t, x.ToBigInt(), decoded.ToBigInt())
 			case Uint160:
 				var decoded Uint160
-				require.NoError(t, decoded.LoadFromCell(c.BeginParse()))
+				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
 				require.Equal(t, x, decoded)
 			case Uint256:
 				var decoded Uint256
-				require.NoError(t, decoded.LoadFromCell(c.BeginParse()))
+				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
 				require.Equal(t, x, decoded)
 			}
 		})
