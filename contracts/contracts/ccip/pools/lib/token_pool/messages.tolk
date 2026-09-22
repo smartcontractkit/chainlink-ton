@@ -2,6 +2,7 @@
 import "../../../../lib/jetton/messages"
 import "../../../../lib/funding/jetton_withdrawable"
 import "../../../../lib/utils"
+import "../../../../lib/access/access_control"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 
@@ -82,17 +83,6 @@ struct (0x30a1d1f7) TokenPool_ApplyTokenTransferFeeConfigUpdates {
 struct (0xe30764be) TokenPool_UpdateRampAccess {
     queryId: uint64;
     updates: SnakedCell<TokenPool_RampUpdate>;
-}
-
-/// Sets the RMN proxy address, a role which is responsible for updating the cursed subjects list.
-struct (0x9929b642) TokenPool_SetRMNProxy {
-    queryId: uint64;
-    rmnProxy: address;
-}
-
-struct (0x9da4da09) TokenPool_SetCursedSubjects {
-    queryId: uint64;
-    cursedSubjects: CursedSubjects;
 }
 
 /// Lock tokens into the pool or burn the tokens.
@@ -278,8 +268,9 @@ type TokenPool_InMessage =
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_UpdateRampAccess
-    | TokenPool_SetRMNProxy
-    | TokenPool_SetCursedSubjects
+    | CursePolicy_Curse
+    | CursePolicy_Uncurse
+    | AccessControl_InMessage
     | JettonWithdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
@@ -343,18 +334,6 @@ struct (0xdd7b0c71) TokenPool_RateLimitConfiguredNotification {
     queryId: uint64;
 }
 
-/// Replied on `TokenPool_SetRMNProxy` to confirm tx and return excess to sender.
-struct (0xe5d08b2e) TokenPool_RMNProxySet {
-    queryId: uint64;
-    rmnProxy: address;
-}
-
-/// Replied on `TokenPool_SetCursedSubjects` to confirm tx and return excess to sender.
-struct (0x15800161) TokenPool_CursedSubjectsSet {
-    queryId: uint64;
-    cursedSubjects: CursedSubjects;
-}
-
 /// Replied on `TokenPool_ApplyChainUpdates` to confirm tx and return excess to sender.
 struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
     queryId: uint64;
@@ -393,7 +372,6 @@ type TokenPool_OutMessage =
     | TokenPool_DeployableCodeSet
     | TokenPool_AllowedDepositNamespacesSet
     | TokenPool_RateLimitConfiguredNotification
-    | TokenPool_CursedSubjectsSet
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied
     | TokenPool_RampAccessUpdatesApplied

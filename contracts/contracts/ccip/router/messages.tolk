@@ -13,6 +13,7 @@ import "../offramp/messages"
 import "../onramp/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../rmn_remote/lib"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -25,8 +26,8 @@ type Router_InMsg =
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
-    | Router_RMNRemoteCurse
-    | Router_RMNRemoteUncurse
+    | CursePolicy_Curse
+    | CursePolicy_Uncurse
     | AccessControl_InMessage
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
@@ -91,16 +92,6 @@ struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
 }
 
 // curse/uncurse/verify uncursed (also as getter)
-struct (0xf3388046) Router_RMNRemoteCurse {
-    queryId: uint64
-    subjects: SnakedCell<uint128>
-}
-
-struct (0x3f153a31) Router_RMNRemoteUncurse {
-    queryId: uint64
-    subjects: SnakedCell<uint128>
-}
-
 // Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
 struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
     queryId: uint64

@@ -21,6 +21,7 @@ import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup } from '../router/Router.Setup'
+import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -153,7 +154,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 owner: deployer.address,
                 pendingOwner: null,
               }),
-              rmnProxy: deployer.address,
               dynamicConfig: tp.TokenPool_DynamicConfig.create({
                 router: router.address,
                 rateLimitAdmin: deployer.address,
@@ -169,9 +169,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
             mirroredPolicy: tp.TokenPool_MirroredPolicy.create({
               onRamps: new Map(),
               offRamps: new Map(),
-              cursedSubjects: tp.CursedSubjects.create({
-                data: new Set(),
-              }),
+              cursePolicy: createCursePolicy(deployer.address),
             }),
             tokenDecimals: 0n,
             remoteChainConfigs: new Map(),

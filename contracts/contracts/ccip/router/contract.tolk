@@ -10,7 +10,6 @@ import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../../lib/jetton/jetton_client"
-import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
 import "../onramp/types"
@@ -32,11 +31,6 @@ tolk 1.4.2
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
-// Keccak256 role identifiers, consistent with the shared AccessControl and
-// MCMS role conventions.
-const CURSE_ROLE = 0xb3c5b7cb9096e539f419cdc795a52c8cbe8dfbc9e27f70077d0b9749efe27fc5; // keccak256('CURSE_ROLE')
-const UNCURSE_ROLE = 0x19331e9591f40b6bd5c2716faeab95f6a63184877fab2619bf484155c597abf0; // keccak256('UNCURSE_ROLE')
-
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.7.0"
@@ -116,14 +110,14 @@ fun onInternalMessage(in: InMessage) {
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must hold the RMN curse role.
-        Router_RMNRemoteCurse => {
+        CursePolicy_Curse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
-        Router_RMNRemoteUncurse => {
+        CursePolicy_Uncurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
@@ -245,9 +239,9 @@ fun onInternalMessage(in: InMessage) {
 fun onRMNAccessControlMessage(sender: address, value: coins, body: slice) {
     var st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    var rbac = rmn.hookTrait__AccessControl();
+    var rbac = rmn.policy.hookTrait__AccessControl();
     rbac.onInternalMessage(sender, value, body);
-    rmn.rbac = rbac.data.toCell();
+    rmn.policy.rbac = rbac.data.toCell();
     st.rmnRemote = rmn.toCell();
     st.store();
 }
@@ -581,7 +575,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
 
     // verify destination chain not cursed
     var rmn = st.rmnRemote.load();
-    val isCursed = rmn.cursedSubjects.isCursed(msg.destChainSelector as uint128);
+    val isCursed = rmn.policy.cursedSubjects.isCursed(msg.destChainSelector as uint128);
     assert(!isCursed, Router_Error.SubjectCursed);
 
     if (msg.feeToken == null) {
@@ -605,11 +599,11 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
 Handles RMNRemote curse operations by adding specified cursed subjects
 and propagating updates to cached OffRamp contracts.
 */
-fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
+fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: CursePolicy_Curse) {
     var subjects = msg.subjects.iter();
     while (!subjects.empty()) {
         val subject = subjects.next();
-        rmn.cursedSubjects.curse(subject);
+        rmn.policy.cursedSubjects.curse(subject);
         emit(
             CURSED_TOPIC,
             Cursed {
@@ -628,34 +622,30 @@ fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
             bounce: false,
             value: grams("0.05"),
             dest: destination,
-            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
+            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.policy.cursedSubjects },
         });
         sendMsg.send(SEND_MODE_IGNORE_ERRORS);
         entry = rmn.forwardUpdates.iterateNext(entry);
     }
 }
 
-fun RMNRemote.hookTrait__AccessControl(self): AccessControl<null?> {
-    return AccessControl<null?> { data: AccessControl_Data.fromCell(self.rbac), context: null, hooks: null };
-}
-
 fun requireRMNCurseAdmin(rmn: RMNRemote, sender: address) {
-    rmn.hookTrait__AccessControl().requireRole(CURSE_ROLE, sender);
+    rmn.policy.requireCurseRole(sender);
 }
 
 fun requireRMNUncurseAdmin(rmn: RMNRemote, sender: address) {
-    rmn.hookTrait__AccessControl().requireRole(UNCURSE_ROLE, sender);
+    rmn.policy.requireUncurseRole(sender);
 }
 
 /*
 Handles RMNRemote uncurse operations by removing specified cursed subjects
 and propagating updates to cached OffRamp contracts.
 */
-fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse) {
+fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: CursePolicy_Uncurse) {
     var subjects = msg.subjects.iter();
     while (!subjects.empty()) {
         val subject = subjects.next();
-        rmn.cursedSubjects.uncurse(subject);
+        rmn.policy.cursedSubjects.uncurse(subject);
         emit(
             UNCURSED_TOPIC,
             Uncursed {
@@ -674,7 +664,7 @@ fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse
             bounce: false,
             value: grams("0.05"),
             dest: destination,
-            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
+            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.policy.cursedSubjects },
         });
         sendMsg.send(SEND_MODE_IGNORE_ERRORS);
         entry = rmn.forwardUpdates.iterateNext(entry);
@@ -784,12 +774,10 @@ fun migrate(storage: cell, version: slice): cell {
     val old = Router_Storage_V1_6_1.fromCell(storage);
     val oldRMN = old.rmnRemote.load();
     val rmnOwner = oldRMN.admin.get_owner();
-    var rbac = AccessControl<null?> { data: {}, context: null, hooks: null };
     // Preserve the legacy RMN administrator's capabilities and make it the
     // standard AccessControl administrator for future role management.
-    rbac._grantRole(0, rmnOwner, DEFAULT_ADMIN_ROLE, rmnOwner);
-    rbac._grantRole(0, rmnOwner, CURSE_ROLE, rmnOwner);
-    rbac._grantRole(0, rmnOwner, UNCURSE_ROLE, rmnOwner);
+    var policy = CursePolicy.init(rmnOwner, rmnOwner, rmnOwner);
+    policy.cursedSubjects = oldRMN.cursedSubjects;
     return Storage {
         id: old.id,
         ownable: old.ownable,
@@ -798,8 +786,7 @@ fun migrate(storage: cell, version: slice): cell {
         offRamps: old.offRamps,
         rmnRemote: RMNRemote {
             admin: oldRMN.admin,
-            rbac: rbac.data.toCell(),
-            cursedSubjects: oldRMN.cursedSubjects,
+            policy,
             forwardUpdates: oldRMN.forwardUpdates,
         }.toCell(),
     }.toCell();
@@ -828,13 +815,13 @@ fun version(): slice { return CONTRACT_VERSION; }
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    return !rmn.cursedSubjects.isCursed(subject);
+    return !rmn.policy.cursedSubjects.isCursed(subject);
 }
 
 get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     val rmn = st.rmnRemote.load();
-    return keysLispList(rmn.cursedSubjects.data)!;
+    return keysLispList(rmn.policy.cursedSubjects.data)!;
 }
 
 /// Gets the current owner of the contract.
@@ -862,11 +849,11 @@ get fun rmn_pendingOwner(): address? {
 }
 
 get fun rmn_hasRole(role: uint256, account: address): bool {
-    return Storage.load().rmnRemote.load().hookTrait__AccessControl().hasRole(role, account);
+    return Storage.load().rmnRemote.load().policy.hookTrait__AccessControl().hasRole(role, account);
 }
 
 get fun rmn_getRoleAdmin(role: uint256): uint256 {
-    return Storage.load().rmnRemote.load().hookTrait__AccessControl().getRoleAdmin(role);
+    return Storage.load().rmnRemote.load().policy.hookTrait__AccessControl().getRoleAdmin(role);
 }
 
 get fun typeAndVersion(): (slice, slice) {

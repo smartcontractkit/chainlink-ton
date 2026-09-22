@@ -61,7 +61,7 @@ describe('Router.cursing', () => {
 
     // Curse the lane
     {
-      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
@@ -96,7 +96,7 @@ describe('Router.cursing', () => {
 
     // Uncurse the lane
     {
-      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
@@ -136,7 +136,7 @@ describe('Router.cursing', () => {
   it('router respect global cursing', async () => {
     // Curse all lanes
     {
-      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
@@ -157,7 +157,7 @@ describe('Router.cursing', () => {
 
     // Uncurse all lanes
     {
-      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
@@ -218,7 +218,7 @@ describe('Router.cursing', () => {
     expect(await router.getRmnHasRole(UNCURSE_ROLE, fastCurser.address)).toBe(false)
 
     // The emergency caller can pause, but cannot reopen a lane.
-    const curse = await router.sendRouterRMNRemoteCurse(fastCurser.getSender(), toNano('1'), {
+    const curse = await router.sendCursePolicyCurse(fastCurser.getSender(), toNano('1'), {
       queryId: 0n,
       subjects: [subject],
     })
@@ -228,7 +228,7 @@ describe('Router.cursing', () => {
       success: true,
     })
 
-    const fastUncurse = await router.sendRouterRMNRemoteUncurse(
+    const fastUncurse = await router.sendCursePolicyUncurse(
       fastCurser.getSender(),
       toNano('1'),
       {
@@ -244,7 +244,7 @@ describe('Router.cursing', () => {
 
     // The normal RMN administrator retains recovery authority but is no
     // longer a curse caller once the emergency set is installed.
-    const normalCurse = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+    const normalCurse = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
       queryId: 0n,
       subjects: [subject],
     })
@@ -254,7 +254,7 @@ describe('Router.cursing', () => {
       success: false,
     })
 
-    const uncurse = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+    const uncurse = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
       queryId: 0n,
       subjects: [subject],
     })

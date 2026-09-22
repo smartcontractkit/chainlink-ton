@@ -481,12 +481,8 @@ get fun offRamp(remoteChainSelector: uint64): address? {
     return entry.isFound ? entry.loadValue() : null;
 }
 
-get fun getRMNProxy(): address {
-    return Storage.load().poolData.load().adminConfig.load().rmnProxy;
-}
-
 get fun verifyNotCursed(subject: uint128): bool {
-    return !Storage.load().poolData.load().mirroredPolicy.load().cursedSubjects.isCursed(subject);
+    return !Storage.load().poolData.load().mirroredPolicy.load().cursePolicy.cursedSubjects.isCursed(subject);
 }
 
 get fun owner(): address {

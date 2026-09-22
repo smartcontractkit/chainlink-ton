@@ -11,7 +11,7 @@ import {
 } from '@ton/sandbox'
 import { toNano, Cell, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
-import { createRMNAccessControl } from '../../../../wrappers/ccip/Router'
+import { createCursePolicy } from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import '@ton/test-utils'
@@ -110,8 +110,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       onRamps: new Map(),
       rmnRemote: rt.RMNRemote.create({
         admin: rt.Ownable2Step.create({ owner: deployer.address }),
-        rbac: createRMNAccessControl(deployer.address),
-        cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+        policy: createCursePolicy(deployer.address),
         forwardUpdates: new Set(),
       }),
     })

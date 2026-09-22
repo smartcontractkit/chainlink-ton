@@ -130,20 +130,6 @@ var GetOffRamp = tvm.Getter[uint64, *address.Address]{
 	}),
 }
 
-// GetRMNProxy gets the RMN proxy address.
-//
-// On-chain: get fun getRMNProxy(): address
-var GetRMNProxy = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
-	Name: "getRMNProxy",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
-		addrSlice, err := r.Slice(0)
-		if err != nil {
-			return nil, fmt.Errorf("error getting Slice(0) - getRMNProxy: %w", err)
-		}
-		return addrSlice.LoadAddr()
-	}),
-})
-
 // GetVerifyNotCursed checks if the input subject is not cursed.
 //
 // On-chain: get fun verifyNotCursed(subject: uint128): bool

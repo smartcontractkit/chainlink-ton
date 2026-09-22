@@ -22,7 +22,6 @@ var (
 	GetSupportedChains         = tokenpool.GetSupportedChains
 	GetOnRamp                  = tokenpool.GetOnRamp
 	GetOffRamp                 = tokenpool.GetOffRamp
-	GetRMNProxy                = tokenpool.GetRMNProxy
 	GetVerifyNotCursed         = tokenpool.GetVerifyNotCursed
 	GetDynamicConfig           = tokenpool.GetDynamicConfig
 	GetAllowedFinalityConfig   = tokenpool.GetAllowedFinalityConfig

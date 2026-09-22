@@ -397,7 +397,6 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 						Owner:        owner,
 						PendingOwner: nil,
 					},
-					RMNProxy: owner,
 					DynamicConfig: tokenpool.DynamicConfig{
 						Router:                   &routerAddr,
 						RateLimitAdmin:           rateLimitAdmin,
@@ -416,7 +415,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					// the Tolk contract's createEmptyMap() default.
 					OnRamps:        nil,
 					OffRamps:       nil,
-					CursedSubjects: tokenpool.CursedSubjects{Data: nil},
+					CursePolicy: mustTokenPoolCursePolicy(owner),
 				},
 				TokenDecimals:           defaultJettonDecimals,
 				RemoteChainConfigs:      nil,
@@ -851,6 +850,40 @@ func buildOffchainJettonContent(symbol string) *cell.Cell {
 		}
 	}
 	return b.EndCell()
+}
+
+// mustTokenPoolCursePolicy mirrors CursePolicy.init in Tolk. Pools have a
+// local policy: the pool owner is the default admin and initially holds both
+// emergency roles.
+func mustTokenPoolCursePolicy(owner *address.Address) tokenpool.CursePolicy {
+	roles := cell.NewDict(256)
+	for _, role := range []string{
+		"0",
+		"b3c5b7cb9096e539f419cdc795a52c8cbe8dfbc9e27f70077d0b9749efe27fc5",
+		"19331e9591f40b6bd5c2716faeab95f6a63184877fab2619bf484155c597abf0",
+	} {
+		roleID, ok := new(big.Int).SetString(role, 16)
+		if !ok {
+			panic("invalid curse-policy role")
+		}
+		members := cell.NewDict(267)
+		if err := members.Set(cell.BeginCell().MustStoreAddr(owner).EndCell(), cell.BeginCell().MustStoreUInt(1, 1).EndCell()); err != nil {
+			panic(err)
+		}
+		roleData, err := tlb.ToCell(tokenpool.AccessControlRoleData{
+			AdminRole: big.NewInt(0), MembersLen: 1, HasRole: members,
+		})
+		if err != nil {
+			panic(err)
+		}
+		if err := roles.Set(cell.BeginCell().MustStoreBigUInt(roleID, 256).EndCell(), cell.BeginCell().MustStoreRef(roleData).EndCell()); err != nil {
+			panic(err)
+		}
+	}
+	return tokenpool.CursePolicy{
+		RBAC:           tokenpool.AccessControlData{Roles: roles},
+		CursedSubjects: tokenpool.CursedSubjects{Data: nil},
+	}
 }
 
 // Parses the address, if the string is empty returns a non initialized address

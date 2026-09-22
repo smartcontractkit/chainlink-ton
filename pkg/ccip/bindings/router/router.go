@@ -22,8 +22,11 @@ var (
 	OpcodeCCIPReceiveConfirm        = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
 	OpcodeMessageSent               = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
 	OpcodeMessageRejected           = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
-	OpcodeRMNRemoteCurse            = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
-	OpcodeRMNRemoteUncurse          = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
+	OpcodeCursePolicyCurse          = tvm.MustExtractMagic(reflect.TypeFor[CursePolicyCurse]())
+	OpcodeCursePolicyUncurse        = tvm.MustExtractMagic(reflect.TypeFor[CursePolicyUncurse]())
+	// Deprecated aliases retained for existing deployment callers.
+	OpcodeRMNRemoteCurse            = OpcodeCursePolicyCurse
+	OpcodeRMNRemoteUncurse          = OpcodeCursePolicyUncurse
 	OpcodeAccessControlGrantRole    = tvm.MustExtractMagic(reflect.TypeFor[AccessControlGrantRole]())
 	OpcodeAccessControlRevokeRole   = tvm.MustExtractMagic(reflect.TypeFor[AccessControlRevokeRole]())
 	OpcodeAccessControlRenounceRole = tvm.MustExtractMagic(reflect.TypeFor[AccessControlRenounceRole]())
@@ -71,9 +74,13 @@ type Storage struct {
 
 type RMNRemote struct {
 	Admin          ownable2step.Storage `tlb:"."`
-	RBAC           AccessControlData    `tlb:"^"`
-	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
+	Policy         CursePolicy          `tlb:"."`
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
+}
+
+type CursePolicy struct {
+	RBAC           AccessControlData `tlb:"^"`
+	CursedSubjects *cell.Dictionary  `tlb:"dict 128"`
 }
 
 // AccessControlData is the audited shared access-control storage composed by
@@ -178,19 +185,24 @@ type CCIPSendNACK struct {
 	Error   *big.Int  `tlb:"## 256"`
 }
 
-// RMNRemoteCurse message type for cursing subjects on the router.
-type RMNRemoteCurse struct {
+// CursePolicyCurse censors subjects under the shared local curse policy.
+type CursePolicyCurse struct {
 	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-// RMNRemoteUncurse message type for uncursing subjects on the router.
-type RMNRemoteUncurse struct {
+// CursePolicyUncurse removes subjects under the shared local curse policy.
+type CursePolicyUncurse struct {
 	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
+
+// Deprecated: use CursePolicyCurse.
+type RMNRemoteCurse = CursePolicyCurse
+// Deprecated: use CursePolicyUncurse.
+type RMNRemoteUncurse = CursePolicyUncurse
 
 type AccessControlGrantRole struct {
 	_       tlb.Magic        `tlb:"#95cd540f" json:"-"` //nolint:revive // Ignore opcode tag
@@ -227,8 +239,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPSendNACK{},
 	MessageSent{},
 	MessageRejected{},
-	RMNRemoteCurse{},
-	RMNRemoteUncurse{},
+	CursePolicyCurse{},
+	CursePolicyUncurse{},
 	AccessControlGrantRole{},
 	AccessControlRevokeRole{},
 	AccessControlRenounceRole{},

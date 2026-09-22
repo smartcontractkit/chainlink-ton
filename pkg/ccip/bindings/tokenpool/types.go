@@ -54,16 +54,32 @@ type DynamicConfig struct {
 	AllowedDepositNamespaces *tlbe.Dict[uint32, bool] `tlb:"."`
 }
 
-// MirroredPolicy holds on/off ramp addresses and cursed subjects.
+// MirroredPolicy holds mirrored ramp access and the pool's independent local
+// curse policy. Curse configuration is deliberately not mirrored from Router.
 //
 // Dict fields use *cell.Dictionary rather than *tlbe.Dict: tonutils-go's tlb
 // encoder (used to build init data for contract deploys, see
 // deployment/utils/operation/deploy_ton_contract.go) type-asserts "dict N"
 // fields directly to *cell.Dictionary and panics on any other type.
 type MirroredPolicy struct {
-	OnRamps        *cell.Dictionary `tlb:"dict 64"`
-	OffRamps       *cell.Dictionary `tlb:"dict 64"`
-	CursedSubjects CursedSubjects   `tlb:"."`
+	OnRamps     *cell.Dictionary `tlb:"dict 64"`
+	OffRamps    *cell.Dictionary `tlb:"dict 64"`
+	CursePolicy CursePolicy      `tlb:"."`
+}
+
+type CursePolicy struct {
+	RBAC           AccessControlData `tlb:"^"`
+	CursedSubjects CursedSubjects    `tlb:"."`
+}
+
+type AccessControlData struct {
+	Roles *cell.Dictionary `tlb:"dict 256"`
+}
+
+type AccessControlRoleData struct {
+	AdminRole  *big.Int         `tlb:"## 256"`
+	MembersLen uint64           `tlb:"## 64"`
+	HasRole    *cell.Dictionary `tlb:"dict 267"`
 }
 
 // CursedSubjects represents the set of cursed subjects (uint128 keys with empty values).
@@ -251,7 +267,6 @@ type JettonClient struct {
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
 	Ownable               ownable2step.Storage `tlb:"^"`
-	RMNProxy              *address.Address     `tlb:"addr"`
 	DynamicConfig         DynamicConfig        `tlb:"^"`
 	JettonClient          JettonClient         `tlb:"."`
 	AllowedFinalityConfig uint32               `tlb:"## 32"`
@@ -355,18 +370,23 @@ type UpdateRampAccess struct {
 	Updates common.SnakedCell[RampUpdate] `tlb:"^"`
 }
 
-// SetRMNProxy sets the RMN proxy address.
-type SetRMNProxy struct {
-	_        tlb.Magic        `tlb:"#9929b642" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID  uint64           `tlb:"## 64"`
-	RMNProxy *address.Address `tlb:"addr"`
+// CursePolicyCurse adds subjects to this pool's local curse policy.
+type CursePolicyCurse struct {
+	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive
+	QueryID  uint64                     `tlb:"## 64"`
+	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-// SetCursedSubjects sets the cursed subjects list.
-type SetCursedSubjects struct {
-	_              tlb.Magic      `tlb:"#9da4da09" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64         `tlb:"## 64"`
-	CursedSubjects CursedSubjects `tlb:"."`
+// CursePolicyUncurse removes subjects from this pool's local curse policy.
+type CursePolicyUncurse struct {
+	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive
+	QueryID  uint64                     `tlb:"## 64"`
+	Subjects common.SnakedCell[Subject] `tlb:"^"`
+}
+
+// Subject is a uint128 curse subject encoded in a SnakedCell.
+type Subject struct {
+	Value *big.Int `tlb:"## 128"`
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens.
@@ -637,20 +657,6 @@ type FeeConfigApplied struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// RMNProxySet confirms the RMN proxy was set.
-type RMNProxySet struct {
-	_        tlb.Magic        `tlb:"#e5d08b2e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID  uint64           `tlb:"## 64"`
-	RMNProxy *address.Address `tlb:"addr"`
-}
-
-// CursedSubjectsSet confirms the cursed subjects were set.
-type CursedSubjectsSet struct {
-	_              tlb.Magic      `tlb:"#15800161" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64         `tlb:"## 64"`
-	CursedSubjects CursedSubjects `tlb:"."`
-}
-
 // AdvancedPoolHooksSet confirms the advanced pool hooks were set.
 type AdvancedPoolHooksSet struct {
 	_                 tlb.Magic        `tlb:"#3c869d80" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -821,8 +827,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
 	UpdateRampAccess{},
-	SetRMNProxy{},
-	SetCursedSubjects{},
+	CursePolicyCurse{},
+	CursePolicyUncurse{},
 	JettonWithdrawableWithdraw{},
 	LockOrBurn{},
 	ReleaseOrMint{},
@@ -848,8 +854,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	FinalityConfigSet{},
 	DynamicConfigSet{},
 	RateLimitConfiguredNotification{},
-	RMNProxySet{},
-	CursedSubjectsSet{},
 	AdvancedPoolHooksSet{},
 	DeployableCodeSet{},
 	AllowedDepositNamespacesSet{},

@@ -36,7 +36,9 @@ struct TokenPool_DynamicConfig {
 struct TokenPool_MirroredPolicy {
     onRamps: map<uint64, address> = [];
     offRamps: map<uint64, address> = [];
-    cursedSubjects: CursedSubjects;
+    // Unlike ramp access, this policy is local to the pool and is never
+    // mirrored from Router.
+    cursePolicy: CursePolicy;
 }
 
 struct TokenPool_RampUpdate {

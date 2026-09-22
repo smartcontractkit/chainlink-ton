@@ -138,7 +138,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		).
 		WithWrapperNative(raw.WrappedNative).
 		WithRMNRemote(raw.RMNRemote.Admin.Owner, raw.RMNRemote.Admin.PendingOwner)
-	b.storage.RMNRemote.Roles = raw.RMNRemote.RBAC.Roles
+	b.storage.RMNRemote.Roles = raw.RMNRemote.Policy.RBAC.Roles
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
 	if err != nil {
@@ -193,7 +193,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 	}
 
 	// RMNRemote.CursedSubjects
-	cursedSubjects, err := raw.RMNRemote.CursedSubjects.LoadAll()
+	cursedSubjects, err := raw.RMNRemote.Policy.CursedSubjects.LoadAll()
 	if err != nil {
 		return fmt.Errorf("error while loading RMNRemote.CursedSubjects: %w", err)
 	}
@@ -229,7 +229,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 				Owner:        s.RMNRemote.Admin.Owner,
 				PendingOwner: s.RMNRemote.Admin.PendingOwner,
 			},
-			RBAC: router.AccessControlData{Roles: s.RMNRemote.Roles},
+			Policy: router.CursePolicy{RBAC: router.AccessControlData{Roles: s.RMNRemote.Roles}},
 		},
 	}
 
@@ -285,9 +285,9 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	}
 
 	// RMNRemote.CursedObjects
-	st.RMNRemote.CursedSubjects = cell.NewDict(128)
+	st.RMNRemote.Policy.CursedSubjects = cell.NewDict(128)
 	for _, co := range s.RMNRemote.CursedSubjects {
-		if err := st.RMNRemote.CursedSubjects.Set(
+		if err := st.RMNRemote.Policy.CursedSubjects.Set(
 			cell.BeginCell().MustStoreBigUInt(co, 128).EndCell(),
 			tvm.EmptyCell,
 		); err != nil {

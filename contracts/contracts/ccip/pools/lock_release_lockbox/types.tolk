@@ -40,7 +40,6 @@ struct LockReleaseLockboxTokenPool_InitConfig {
     offRampAccountCode: cell;
     tokenDecimals: uint8;
     router: address;
-    rmnProxy: address;
     lockbox: address;
     /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
     deployableCode: cell? = null;

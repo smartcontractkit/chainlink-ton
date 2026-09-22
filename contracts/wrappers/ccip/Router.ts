@@ -39,6 +39,13 @@ export function createRMNAccessControl(admin: Address) {
   })
 }
 
+export function createCursePolicy(admin: Address): rt.CursePolicy {
+  return rt.CursePolicy.create({
+    rbac: createRMNAccessControl(admin),
+    cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+  })
+}
+
 export const opcodes = {
   in: {
     applyRampUpdates: 0x7db6745d,

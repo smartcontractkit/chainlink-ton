@@ -2,6 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
+import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import {
   CrossChainAddress,
@@ -117,7 +118,6 @@ describe('LockReleaseTokenPool', () => {
           poolData: TokenPool_Data.create({
             adminConfig: TokenPool_AdminConfig.create({
               ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-              rmnProxy: deployer.address,
               dynamicConfig: TokenPool_DynamicConfig.create({
                 router: deployer.address,
                 rateLimitAdmin: null,
@@ -134,9 +134,7 @@ describe('LockReleaseTokenPool', () => {
             mirroredPolicy: TokenPool_MirroredPolicy.create({
               onRamps: new Map(),
               offRamps: new Map(),
-              cursedSubjects: CursedSubjects.create({
-                data: new Set(),
-              }),
+              cursePolicy: createCursePolicy(deployer.address),
             }),
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),
@@ -989,12 +987,12 @@ describe('LockReleaseTokenPool', () => {
   })
 
   it('mirrors cursed state locally and blocks release while cursed', async () => {
-    const curseUpdate = await lockReleasePool.sendTokenPoolSetCursedSubjects(
+    const curseUpdate = await lockReleasePool.sendCursePolicyCurse(
       deployer.getSender(),
       toNano('0.2'),
       {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({ data: new Set([remoteChainSelector]) }),
+        subjects: [remoteChainSelector],
       },
     )
 

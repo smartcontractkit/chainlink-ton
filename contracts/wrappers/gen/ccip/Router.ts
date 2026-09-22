@@ -1308,48 +1308,6 @@ export const Receiver_CCIPReceiveV2 = {
 }
 
 /**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
- > }
- */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: Set<uint128> /* = [] as map<uint128, ()> */
-}
-
-export const CursedSubjects = {
-    create(args: {
-        data: Set<uint128> /* = [] as map<uint128, ()> */
-    }): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-        }
-    },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
-    }
-}
-
-/**
  > struct (0xdcf993c2) OnRamp_Send {
  >     msg: Cell<Router_CCIPSend>
  >     metadata: Metadata
@@ -1654,6 +1612,172 @@ export const ReceiveExecutorId = {
     },
     toCell(self: ReceiveExecutorId): c.Cell {
         return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    }
+}
+
+/**
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
+ > }
+ */
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: Set<uint128> /* = [] as map<uint128, ()> */
+}
+
+export const CursedSubjects = {
+    create(args: {
+        data: Set<uint128> /* = [] as map<uint128, ()> */
+    }): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+        }
+    },
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
+    }
+}
+
+/**
+ > struct CursePolicy {
+ >     rbac: Cell<AccessControl_Data>
+ >     cursedSubjects: CursedSubjects
+ > }
+ */
+export interface CursePolicy {
+    readonly $: 'CursePolicy'
+    rbac: AccessControl_Data
+    cursedSubjects: CursedSubjects
+}
+
+export const CursePolicy = {
+    create(args: {
+        rbac: AccessControl_Data
+        cursedSubjects: CursedSubjects
+    }): CursePolicy {
+        return {
+            $: 'CursePolicy',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy {
+        return {
+            $: 'CursePolicy',
+            rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
+            cursedSubjects: CursedSubjects.fromSlice(s),
+        }
+    },
+    store(self: CursePolicy, b: c.Builder): void {
+        storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
+        CursedSubjects.store(self.cursedSubjects, b);
+    },
+    toCell(self: CursePolicy): c.Cell {
+        return makeCellFrom<CursePolicy>(self, CursePolicy.store);
+    }
+}
+
+/**
+ > struct (0xf3388046) CursePolicy_Curse {
+ >     queryId: uint64
+ >     subjects: SnakedCell<uint128>
+ > }
+ */
+export interface CursePolicy_Curse {
+    readonly $: 'CursePolicy_Curse'
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+export const CursePolicy_Curse = {
+    PREFIX: 0xf3388046,
+
+    create(args: {
+        queryId?: uint64
+        subjects: SnakedCell<uint128>
+    }): CursePolicy_Curse {
+        return {
+            $: 'CursePolicy_Curse',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy_Curse {
+        loadAndCheckPrefix32(s, 0xf3388046, 'CursePolicy_Curse');
+        return {
+            $: 'CursePolicy_Curse',
+            queryId: s.loadUintBig(64),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
+        }
+    },
+    store(self: CursePolicy_Curse, b: c.Builder): void {
+        b.storeUint(0xf3388046, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
+    },
+    toCell(self: CursePolicy_Curse): c.Cell {
+        return makeCellFrom<CursePolicy_Curse>(self, CursePolicy_Curse.store);
+    }
+}
+
+/**
+ > struct (0x3f153a31) CursePolicy_Uncurse {
+ >     queryId: uint64
+ >     subjects: SnakedCell<uint128>
+ > }
+ */
+export interface CursePolicy_Uncurse {
+    readonly $: 'CursePolicy_Uncurse'
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+export const CursePolicy_Uncurse = {
+    PREFIX: 0x3f153a31,
+
+    create(args: {
+        queryId?: uint64
+        subjects: SnakedCell<uint128>
+    }): CursePolicy_Uncurse {
+        return {
+            $: 'CursePolicy_Uncurse',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy_Uncurse {
+        loadAndCheckPrefix32(s, 0x3f153a31, 'CursePolicy_Uncurse');
+        return {
+            $: 'CursePolicy_Uncurse',
+            queryId: s.loadUintBig(64),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
+        }
+    },
+    store(self: CursePolicy_Uncurse, b: c.Builder): void {
+        b.storeUint(0x3f153a31, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
+    },
+    toCell(self: CursePolicy_Uncurse): c.Cell {
+        return makeCellFrom<CursePolicy_Uncurse>(self, CursePolicy_Uncurse.store);
     }
 }
 
@@ -2240,92 +2364,6 @@ export const Router_CCIPReceiveConfirm = {
 }
 
 /**
- > struct (0xf3388046) Router_RMNRemoteCurse {
- >     queryId: uint64
- >     subjects: SnakedCell<uint128>
- > }
- */
-export interface Router_RMNRemoteCurse {
-    readonly $: 'Router_RMNRemoteCurse'
-    queryId: uint64
-    subjects: SnakedCell<uint128>
-}
-
-export const Router_RMNRemoteCurse = {
-    PREFIX: 0xf3388046,
-
-    create(args: {
-        queryId?: uint64
-        subjects: SnakedCell<uint128>
-    }): Router_RMNRemoteCurse {
-        return {
-            $: 'Router_RMNRemoteCurse',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_RMNRemoteCurse {
-        loadAndCheckPrefix32(s, 0xf3388046, 'Router_RMNRemoteCurse');
-        return {
-            $: 'Router_RMNRemoteCurse',
-            queryId: s.loadUintBig(64),
-            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
-        }
-    },
-    store(self: Router_RMNRemoteCurse, b: c.Builder): void {
-        b.storeUint(0xf3388046, 32);
-        b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
-    },
-    toCell(self: Router_RMNRemoteCurse): c.Cell {
-        return makeCellFrom<Router_RMNRemoteCurse>(self, Router_RMNRemoteCurse.store);
-    }
-}
-
-/**
- > struct (0x3f153a31) Router_RMNRemoteUncurse {
- >     queryId: uint64
- >     subjects: SnakedCell<uint128>
- > }
- */
-export interface Router_RMNRemoteUncurse {
-    readonly $: 'Router_RMNRemoteUncurse'
-    queryId: uint64
-    subjects: SnakedCell<uint128>
-}
-
-export const Router_RMNRemoteUncurse = {
-    PREFIX: 0x3f153a31,
-
-    create(args: {
-        queryId?: uint64
-        subjects: SnakedCell<uint128>
-    }): Router_RMNRemoteUncurse {
-        return {
-            $: 'Router_RMNRemoteUncurse',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_RMNRemoteUncurse {
-        loadAndCheckPrefix32(s, 0x3f153a31, 'Router_RMNRemoteUncurse');
-        return {
-            $: 'Router_RMNRemoteUncurse',
-            queryId: s.loadUintBig(64),
-            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
-        }
-    },
-    store(self: Router_RMNRemoteUncurse, b: c.Builder): void {
-        b.storeUint(0x3f153a31, 32);
-        b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
-    },
-    toCell(self: Router_RMNRemoteUncurse): c.Cell {
-        return makeCellFrom<Router_RMNRemoteUncurse>(self, Router_RMNRemoteUncurse.store);
-    }
-}
-
-/**
  > struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
  >     queryId: uint64
  >     subject: uint128
@@ -2874,24 +2912,21 @@ export const Router_MessageValidationFailed = {
 /**
  > struct RMNRemote {
  >     admin: Ownable2Step
- >     rbac: Cell<AccessControl_Data>
- >     cursedSubjects: CursedSubjects
+ >     policy: CursePolicy
  >     forwardUpdates: map<address, ()>
  > }
  */
 export interface RMNRemote {
     readonly $: 'RMNRemote'
     admin: Ownable2Step
-    rbac: AccessControl_Data
-    cursedSubjects: CursedSubjects
+    policy: CursePolicy
     forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
 }
 
 export const RMNRemote = {
     create(args: {
         admin: Ownable2Step
-        rbac: AccessControl_Data
-        cursedSubjects: CursedSubjects
+        policy: CursePolicy
         forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
     }): RMNRemote {
         return {
@@ -2903,8 +2938,7 @@ export const RMNRemote = {
         return {
             $: 'RMNRemote',
             admin: Ownable2Step.fromSlice(s),
-            rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
-            cursedSubjects: CursedSubjects.fromSlice(s),
+            policy: CursePolicy.fromSlice(s),
             forwardUpdates: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                             (s) => [],
                             (v,b) => { {} }
@@ -2913,8 +2947,7 @@ export const RMNRemote = {
     },
     store(self: RMNRemote, b: c.Builder): void {
         Ownable2Step.store(self.admin, b);
-        storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
-        CursedSubjects.store(self.cursedSubjects, b);
+        CursePolicy.store(self.policy, b);
         b.storeDict<c.Address, []>(setToDict(self.forwardUpdates, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                         (s) => [],
                         (v,b) => { {} }
@@ -3714,7 +3747,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -3856,18 +3889,18 @@ export class Router implements c.Contract {
         return Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body));
     }
 
-    static createCellOfRouterRMNRemoteCurse(body: {
+    static createCellOfCursePolicyCurse(body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }) {
-        return Router_RMNRemoteCurse.toCell(Router_RMNRemoteCurse.create(body));
+        return CursePolicy_Curse.toCell(CursePolicy_Curse.create(body));
     }
 
-    static createCellOfRouterRMNRemoteUncurse(body: {
+    static createCellOfCursePolicyUncurse(body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }) {
-        return Router_RMNRemoteUncurse.toCell(Router_RMNRemoteUncurse.create(body));
+        return CursePolicy_Uncurse.toCell(CursePolicy_Uncurse.create(body));
     }
 
     static createCellOfAccessControlGrantRole(body: {
@@ -4087,24 +4120,24 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterRMNRemoteCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCursePolicyCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_RMNRemoteCurse.toCell(Router_RMNRemoteCurse.create(body)),
+            body: CursePolicy_Curse.toCell(CursePolicy_Curse.create(body)),
             ...extraOptions
         });
     }
 
-    async sendRouterRMNRemoteUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCursePolicyUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_RMNRemoteUncurse.toCell(Router_RMNRemoteUncurse.create(body)),
+            body: CursePolicy_Uncurse.toCell(CursePolicy_Uncurse.create(body)),
             ...extraOptions
         });
     }

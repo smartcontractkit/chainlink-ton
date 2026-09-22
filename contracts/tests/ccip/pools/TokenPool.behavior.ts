@@ -128,9 +128,9 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint while chain is cursed', async () => {
       const ctx = await setup()
 
-      await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendCursePolicyCurse(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
+        subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
@@ -275,12 +275,12 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects cursed-subject updates from non-rmn sender', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendTokenPoolSetCursedSubjects(
+      const result = await ctx.pool.sendCursePolicyCurse(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
           queryId: 904n,
-          cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
+          subjects: [ctx.remoteChainSelector],
         },
       )
 
@@ -293,15 +293,15 @@ export function runTokenPoolBehaviorTests(
 
     it('can clear cursed subject back to not cursed', async () => {
       const ctx = await setup()
-      await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendCursePolicyCurse(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 901n,
-        cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
+        subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
-      await ctx.pool.sendTokenPoolSetCursedSubjects(ctx.deployer.getSender(), toNano('0.2'), {
+      await ctx.pool.sendCursePolicyUncurse(ctx.deployer.getSender(), toNano('0.2'), {
         queryId: 902n,
-        cursedSubjects: CursedSubjects.create({ data: new Set<bigint>() }),
+        subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
     })

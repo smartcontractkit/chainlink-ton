@@ -19,7 +19,7 @@ import {
   WRAPPED_NATIVE,
 } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { createRMNAccessControl } from '../../../wrappers/ccip/Router'
+import { createCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as OCR3Logs from '../../../wrappers/libraries/ocr/Logs'
@@ -273,8 +273,7 @@ export class OffRampTestSetup {
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
           admin: rt.Ownable2Step.create({ owner: this.deployer.address }),
-          rbac: createRMNAccessControl(this.deployer.address),
-          cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+          policy: createCursePolicy(this.deployer.address),
           forwardUpdates: new Set(),
         }),
       })
@@ -935,7 +934,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
               ownable: tp.Ownable2Step.create({
                 owner: this.deployer.address,
               }),
-              rmnProxy: this.deployer.address,
               dynamicConfig: tp.TokenPool_DynamicConfig.create({
                 router: this.router.address,
                 rateLimitAdmin: this.deployer.address,
@@ -951,9 +949,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             mirroredPolicy: tp.TokenPool_MirroredPolicy.create({
               onRamps: new Map(),
               offRamps: new Map(),
-              cursedSubjects: tp.CursedSubjects.create({
-                data: new Set(),
-              }),
+              cursePolicy: createCursePolicy(this.deployer.address),
             }),
             tokenDecimals,
             remoteChainConfigs: new Map(),

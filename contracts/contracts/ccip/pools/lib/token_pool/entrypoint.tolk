@@ -10,6 +10,7 @@ import "../../../../lib/jetton/jetton-utils"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../../lib/access/access_control"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 
@@ -49,7 +50,6 @@ struct TokenPool<T> {
 
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
-    rmnProxy: address;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
     /// The pool's Jetton identity (master + wallet code). Single source of truth used to
     /// derive and authenticate the pool's own wallet.
@@ -251,11 +251,6 @@ fun TokenPool<T>.getTokenDecimals(self): uint8 {
 }
 
 @inline
-fun TokenPool<T>.getRmnProxy(self): address {
-    val ac = lazy self.data.adminConfig.load();
-    return ac.rmnProxy;
-}
-
 /// Gets the pools dynamic configuration.
 @inline
 fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
@@ -292,7 +287,7 @@ fun TokenPool<T>.getOffRamp(self, remoteChainSelector: uint64): address? {
 
 @inline
 fun TokenPool<T>.verifyNotCursed(self, subject: uint128): bool {
-    return !self.data.mirroredPolicy.load().cursedSubjects.isCursed(subject);
+    return !self.data.mirroredPolicy.load().cursePolicy.cursedSubjects.isCursed(subject);
 }
 
 /// Checks whether a remote chain is supported in the token pool.
@@ -675,50 +670,32 @@ fun TokenPool<T>.applyRampAccessUpdates(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun TokenPool<T>.setRMNProxy(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    rmnProxy: address
-) {
-    var adminConfig = self.data.adminConfig.load();
-    adminConfig.ownable.load().requireOwner(sender);
-
-    // EVM makes `rmnProxy` immutable (constructor-checked); TON makes it mutable here, so the
-    // zero-address guard must live on the setter. See AUDIT_REPORT.md L-11.
-    assert(!isZeroAddress(rmnProxy), TokenPool_Error.ZeroAddressInvalid);
-
-    adminConfig.rmnProxy = rmnProxy;
-    self.data.adminConfig = adminConfig.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_RMNProxySet { queryId, rmnProxy },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+fun TokenPool<T>.curse(mutate self, sender: address, subjects: SnakedCell<uint128>) {
+    var mirroredPolicy = self.data.mirroredPolicy.load();
+    mirroredPolicy.cursePolicy.requireCurseRole(sender);
+    var entries = subjects.iter();
+    while (!entries.empty()) {
+        mirroredPolicy.cursePolicy.cursedSubjects.curse(entries.next());
+    }
+    self.data.mirroredPolicy = mirroredPolicy.toCell();
 }
 
-fun TokenPool<T>.setCursedSubjects(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    cursedSubjects: CursedSubjects,
-) {
-    self.onlyOwnerOrRMNProxy(sender);
-
+fun TokenPool<T>.uncurse(mutate self, sender: address, subjects: SnakedCell<uint128>) {
     var mirroredPolicy = self.data.mirroredPolicy.load();
-    mirroredPolicy.cursedSubjects = cursedSubjects;
+    mirroredPolicy.cursePolicy.requireUncurseRole(sender);
+    var entries = subjects.iter();
+    while (!entries.empty()) {
+        mirroredPolicy.cursePolicy.cursedSubjects.uncurse(entries.next());
+    }
     self.data.mirroredPolicy = mirroredPolicy.toCell();
+}
 
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_CursedSubjectsSet { queryId, cursedSubjects },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address, value: coins, body: slice) {
+    var mirroredPolicy = self.data.mirroredPolicy.load();
+    var rbac = mirroredPolicy.cursePolicy.hookTrait__AccessControl();
+    rbac.onInternalMessage(sender, value, body);
+    mirroredPolicy.cursePolicy.rbac = rbac.data.toCell();
+    self.data.mirroredPolicy = mirroredPolicy.toCell();
 }
 
 fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice): bool {
@@ -792,11 +769,20 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_UpdateRampAccess => {
             self.applyRampAccessUpdates(msgSender, msg.queryId, msg.updates);
         }
-        TokenPool_SetRMNProxy => {
-            self.setRMNProxy(msgSender, msg.queryId, msg.rmnProxy);
+        CursePolicy_Curse => {
+            self.curse(msgSender, msg.subjects);
         }
-        TokenPool_SetCursedSubjects => {
-            self.setCursedSubjects(msgSender, msg.queryId, msg.cursedSubjects);
+        CursePolicy_Uncurse => {
+            self.uncurse(msgSender, msg.subjects);
+        }
+        AccessControl_GrantRole => {
+            self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody);
+        }
+        AccessControl_RevokeRole => {
+            self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody);
+        }
+        AccessControl_RenounceRole => {
+            self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody);
         }
         JettonWithdrawable_Withdraw => {
             self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);
@@ -1994,16 +1980,6 @@ fun TokenPool<T>.onlyOwnerOrRateLimitAdmin(self, sender: address) {
     };
     assert(
         sender == ownable.owner || senderIsRateLimitAdmin(),
-        TokenPool_Error.Unauthorized
-    );
-}
-
-/// Checks whether the msg.sender is either the owner or the RMN proxy.
-fun TokenPool<T>.onlyOwnerOrRMNProxy(self, sender: address) {
-    val adminConfig = self.data.adminConfig.load();
-    val ownable = adminConfig.ownable.load();
-    assert(
-        sender == ownable.owner || sender == adminConfig.rmnProxy,
         TokenPool_Error.Unauthorized
     );
 }

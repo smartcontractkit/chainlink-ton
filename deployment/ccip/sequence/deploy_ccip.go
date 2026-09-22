@@ -113,8 +113,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 					Owner:        chain.WalletAddress,
 					PendingOwner: address.NewAddressNone(),
 				},
-				RBAC:           rbac,
-				CursedSubjects: nil,
+				Policy: router.CursePolicy{RBAC: rbac, CursedSubjects: nil},
 				ForwardUpdates: nil,
 			},
 			OnRamps:  nil, // set afterward

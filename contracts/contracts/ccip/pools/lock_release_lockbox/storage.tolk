@@ -33,7 +33,6 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
                     owner: config.owner,
                     pendingOwner: null,
                 }.toCell(),
-                rmnProxy: config.rmnProxy,
                 dynamicConfig: TokenPool_DynamicConfig {
                     router: config.router,
                     rateLimitAdmin: null,
@@ -47,9 +46,7 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
             mirroredPolicy: TokenPool_MirroredPolicy {
                 onRamps: createEmptyMap(),
                 offRamps: createEmptyMap(),
-                cursedSubjects: CursedSubjects {
-                    data: createEmptyMap(),
-                },
+                cursePolicy: CursePolicy.init(config.owner, config.owner, config.owner),
             }.toCell(),
             tokenDecimals: config.tokenDecimals,
             remoteChainConfigs: createEmptyMap(),

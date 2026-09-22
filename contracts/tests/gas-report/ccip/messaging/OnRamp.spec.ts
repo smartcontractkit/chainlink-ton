@@ -11,7 +11,7 @@ import {
 import { toNano, Address } from '@ton/core'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
-import { createRMNAccessControl } from '../../../../wrappers/ccip/Router'
+import { createCursePolicy } from '../../../../wrappers/ccip/Router'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { WRAPPED_NATIVE } from '../../../../src/utils'
@@ -106,8 +106,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       onRamps: new Map(),
       rmnRemote: rt.RMNRemote.create({
         admin: rt.Ownable2Step.create({ owner: deployer.address }),
-        rbac: createRMNAccessControl(deployer.address),
-        cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+        policy: createCursePolicy(deployer.address),
         forwardUpdates: new Set(),
       }),
     })

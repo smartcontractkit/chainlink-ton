@@ -400,21 +400,21 @@ export const TokenPool_DynamicConfig = {
  > struct TokenPool_MirroredPolicy {
  >     onRamps: map<uint64, address>
  >     offRamps: map<uint64, address>
- >     cursedSubjects: CursedSubjects
+ >     cursePolicy: CursePolicy
  > }
  */
 export interface TokenPool_MirroredPolicy {
     readonly $: 'TokenPool_MirroredPolicy'
     onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
     offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
-    cursedSubjects: CursedSubjects
+    cursePolicy: CursePolicy
 }
 
 export const TokenPool_MirroredPolicy = {
     create(args: {
         onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
         offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
-        cursedSubjects: CursedSubjects
+        cursePolicy: CursePolicy
     }): TokenPool_MirroredPolicy {
         return {
             $: 'TokenPool_MirroredPolicy',
@@ -432,7 +432,7 @@ export const TokenPool_MirroredPolicy = {
                             (s) => s.loadAddress(),
                             (v,b) => b.storeAddress(v)
                         ), s)),
-            cursedSubjects: CursedSubjects.fromSlice(s),
+            cursePolicy: CursePolicy.fromSlice(s),
         }
     },
     store(self: TokenPool_MirroredPolicy, b: c.Builder): void {
@@ -450,7 +450,7 @@ export const TokenPool_MirroredPolicy = {
             (s) => s.loadAddress(),
             (v,b) => b.storeAddress(v)
         ));
-        CursedSubjects.store(self.cursedSubjects, b);
+        CursePolicy.store(self.cursePolicy, b);
     },
     toCell(self: TokenPool_MirroredPolicy): c.Cell {
         return makeCellFrom<TokenPool_MirroredPolicy>(self, TokenPool_MirroredPolicy.store);
@@ -1236,7 +1236,6 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 /**
  > struct TokenPool_AdminConfig {
  >     ownable: Cell<Ownable2Step>
- >     rmnProxy: address
  >     dynamicConfig: Cell<TokenPool_DynamicConfig>
  >     jettonClient: JettonClient
  >     allowedFinalityConfig: uint32
@@ -1247,7 +1246,6 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 export interface TokenPool_AdminConfig {
     readonly $: 'TokenPool_AdminConfig'
     ownable: Ownable2Step
-    rmnProxy: c.Address
     dynamicConfig: TokenPool_DynamicConfig
     jettonClient: JettonClient
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
@@ -1258,7 +1256,6 @@ export interface TokenPool_AdminConfig {
 export const TokenPool_AdminConfig = {
     create(args: {
         ownable: Ownable2Step
-        rmnProxy: c.Address
         dynamicConfig: TokenPool_DynamicConfig
         jettonClient: JettonClient
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
@@ -1277,7 +1274,6 @@ export const TokenPool_AdminConfig = {
         return {
             $: 'TokenPool_AdminConfig',
             ownable: loadCellRef<Ownable2Step>(s, Ownable2Step.fromSlice),
-            rmnProxy: s.loadAddress(),
             dynamicConfig: loadCellRef<TokenPool_DynamicConfig>(s, TokenPool_DynamicConfig.fromSlice),
             jettonClient: JettonClient.fromSlice(s),
             allowedFinalityConfig: s.loadUintBig(32),
@@ -1287,7 +1283,6 @@ export const TokenPool_AdminConfig = {
     },
     store(self: TokenPool_AdminConfig, b: c.Builder): void {
         storeCellRef<Ownable2Step>(self.ownable, b, Ownable2Step.store);
-        b.storeAddress(self.rmnProxy);
         storeCellRef<TokenPool_DynamicConfig>(self.dynamicConfig, b, TokenPool_DynamicConfig.store);
         JettonClient.store(self.jettonClient, b);
         b.storeUint(self.allowedFinalityConfig, 32);
@@ -1941,92 +1936,6 @@ export const TokenPool_UpdateRampAccess = {
     },
     toCell(self: TokenPool_UpdateRampAccess): c.Cell {
         return makeCellFrom<TokenPool_UpdateRampAccess>(self, TokenPool_UpdateRampAccess.store);
-    }
-}
-
-/**
- > struct (0x9929b642) TokenPool_SetRMNProxy {
- >     queryId: uint64
- >     rmnProxy: address
- > }
- */
-export interface TokenPool_SetRMNProxy {
-    readonly $: 'TokenPool_SetRMNProxy'
-    queryId: uint64
-    rmnProxy: c.Address
-}
-
-export const TokenPool_SetRMNProxy = {
-    PREFIX: 0x9929b642,
-
-    create(args: {
-        queryId?: uint64
-        rmnProxy: c.Address
-    }): TokenPool_SetRMNProxy {
-        return {
-            $: 'TokenPool_SetRMNProxy',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_SetRMNProxy {
-        loadAndCheckPrefix32(s, 0x9929b642, 'TokenPool_SetRMNProxy');
-        return {
-            $: 'TokenPool_SetRMNProxy',
-            queryId: s.loadUintBig(64),
-            rmnProxy: s.loadAddress(),
-        }
-    },
-    store(self: TokenPool_SetRMNProxy, b: c.Builder): void {
-        b.storeUint(0x9929b642, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.rmnProxy);
-    },
-    toCell(self: TokenPool_SetRMNProxy): c.Cell {
-        return makeCellFrom<TokenPool_SetRMNProxy>(self, TokenPool_SetRMNProxy.store);
-    }
-}
-
-/**
- > struct (0x9da4da09) TokenPool_SetCursedSubjects {
- >     queryId: uint64
- >     cursedSubjects: CursedSubjects
- > }
- */
-export interface TokenPool_SetCursedSubjects {
-    readonly $: 'TokenPool_SetCursedSubjects'
-    queryId: uint64
-    cursedSubjects: CursedSubjects
-}
-
-export const TokenPool_SetCursedSubjects = {
-    PREFIX: 0x9da4da09,
-
-    create(args: {
-        queryId?: uint64
-        cursedSubjects: CursedSubjects
-    }): TokenPool_SetCursedSubjects {
-        return {
-            $: 'TokenPool_SetCursedSubjects',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_SetCursedSubjects {
-        loadAndCheckPrefix32(s, 0x9da4da09, 'TokenPool_SetCursedSubjects');
-        return {
-            $: 'TokenPool_SetCursedSubjects',
-            queryId: s.loadUintBig(64),
-            cursedSubjects: CursedSubjects.fromSlice(s),
-        }
-    },
-    store(self: TokenPool_SetCursedSubjects, b: c.Builder): void {
-        b.storeUint(0x9da4da09, 32);
-        b.storeUint(self.queryId, 64);
-        CursedSubjects.store(self.cursedSubjects, b);
-    },
-    toCell(self: TokenPool_SetCursedSubjects): c.Cell {
-        return makeCellFrom<TokenPool_SetCursedSubjects>(self, TokenPool_SetCursedSubjects.store);
     }
 }
 
@@ -3272,49 +3181,6 @@ export const TokenPool_RateLimitConfiguredNotification = {
 }
 
 /**
- > struct (0x15800161) TokenPool_CursedSubjectsSet {
- >     queryId: uint64
- >     cursedSubjects: CursedSubjects
- > }
- */
-export interface TokenPool_CursedSubjectsSet {
-    readonly $: 'TokenPool_CursedSubjectsSet'
-    queryId: uint64
-    cursedSubjects: CursedSubjects
-}
-
-export const TokenPool_CursedSubjectsSet = {
-    PREFIX: 0x15800161,
-
-    create(args: {
-        queryId?: uint64
-        cursedSubjects: CursedSubjects
-    }): TokenPool_CursedSubjectsSet {
-        return {
-            $: 'TokenPool_CursedSubjectsSet',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_CursedSubjectsSet {
-        loadAndCheckPrefix32(s, 0x15800161, 'TokenPool_CursedSubjectsSet');
-        return {
-            $: 'TokenPool_CursedSubjectsSet',
-            queryId: s.loadUintBig(64),
-            cursedSubjects: CursedSubjects.fromSlice(s),
-        }
-    },
-    store(self: TokenPool_CursedSubjectsSet, b: c.Builder): void {
-        b.storeUint(0x15800161, 32);
-        b.storeUint(self.queryId, 64);
-        CursedSubjects.store(self.cursedSubjects, b);
-    },
-    toCell(self: TokenPool_CursedSubjectsSet): c.Cell {
-        return makeCellFrom<TokenPool_CursedSubjectsSet>(self, TokenPool_CursedSubjectsSet.store);
-    }
-}
-
-/**
  > struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
  >     queryId: uint64
  > }
@@ -4039,6 +3905,130 @@ export const CursedSubjects = {
 }
 
 /**
+ > struct CursePolicy {
+ >     rbac: Cell<AccessControl_Data>
+ >     cursedSubjects: CursedSubjects
+ > }
+ */
+export interface CursePolicy {
+    readonly $: 'CursePolicy'
+    rbac: AccessControl_Data
+    cursedSubjects: CursedSubjects
+}
+
+export const CursePolicy = {
+    create(args: {
+        rbac: AccessControl_Data
+        cursedSubjects: CursedSubjects
+    }): CursePolicy {
+        return {
+            $: 'CursePolicy',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy {
+        return {
+            $: 'CursePolicy',
+            rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
+            cursedSubjects: CursedSubjects.fromSlice(s),
+        }
+    },
+    store(self: CursePolicy, b: c.Builder): void {
+        storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
+        CursedSubjects.store(self.cursedSubjects, b);
+    },
+    toCell(self: CursePolicy): c.Cell {
+        return makeCellFrom<CursePolicy>(self, CursePolicy.store);
+    }
+}
+
+/**
+ > struct (0xf3388046) CursePolicy_Curse {
+ >     queryId: uint64
+ >     subjects: SnakedCell<uint128>
+ > }
+ */
+export interface CursePolicy_Curse {
+    readonly $: 'CursePolicy_Curse'
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+export const CursePolicy_Curse = {
+    PREFIX: 0xf3388046,
+
+    create(args: {
+        queryId?: uint64
+        subjects: SnakedCell<uint128>
+    }): CursePolicy_Curse {
+        return {
+            $: 'CursePolicy_Curse',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy_Curse {
+        loadAndCheckPrefix32(s, 0xf3388046, 'CursePolicy_Curse');
+        return {
+            $: 'CursePolicy_Curse',
+            queryId: s.loadUintBig(64),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
+        }
+    },
+    store(self: CursePolicy_Curse, b: c.Builder): void {
+        b.storeUint(0xf3388046, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
+    },
+    toCell(self: CursePolicy_Curse): c.Cell {
+        return makeCellFrom<CursePolicy_Curse>(self, CursePolicy_Curse.store);
+    }
+}
+
+/**
+ > struct (0x3f153a31) CursePolicy_Uncurse {
+ >     queryId: uint64
+ >     subjects: SnakedCell<uint128>
+ > }
+ */
+export interface CursePolicy_Uncurse {
+    readonly $: 'CursePolicy_Uncurse'
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+export const CursePolicy_Uncurse = {
+    PREFIX: 0x3f153a31,
+
+    create(args: {
+        queryId?: uint64
+        subjects: SnakedCell<uint128>
+    }): CursePolicy_Uncurse {
+        return {
+            $: 'CursePolicy_Uncurse',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy_Uncurse {
+        loadAndCheckPrefix32(s, 0x3f153a31, 'CursePolicy_Uncurse');
+        return {
+            $: 'CursePolicy_Uncurse',
+            queryId: s.loadUintBig(64),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
+        }
+    },
+    store(self: CursePolicy_Uncurse, b: c.Builder): void {
+        b.storeUint(0x3f153a31, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
+    },
+    toCell(self: CursePolicy_Uncurse): c.Cell {
+        return makeCellFrom<CursePolicy_Uncurse>(self, CursePolicy_Uncurse.store);
+    }
+}
+
+/**
  > struct RateLimiter_Config {
  >     isEnabled: bool
  >     capacity: uint120
@@ -4437,6 +4427,235 @@ export const JettonWithdrawable_Withdraw = {
     }
 }
 
+/**
+ > struct (0x95cd540f) AccessControl_GrantRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ > }
+ */
+export interface AccessControl_GrantRole {
+    readonly $: 'AccessControl_GrantRole'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+}
+
+export const AccessControl_GrantRole = {
+    PREFIX: 0x95cd540f,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }): AccessControl_GrantRole {
+        return {
+            $: 'AccessControl_GrantRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_GrantRole {
+        loadAndCheckPrefix32(s, 0x95cd540f, 'AccessControl_GrantRole');
+        return {
+            $: 'AccessControl_GrantRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_GrantRole, b: c.Builder): void {
+        b.storeUint(0x95cd540f, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+    },
+    toCell(self: AccessControl_GrantRole): c.Cell {
+        return makeCellFrom<AccessControl_GrantRole>(self, AccessControl_GrantRole.store);
+    }
+}
+
+/**
+ > struct (0x969b0db9) AccessControl_RevokeRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ > }
+ */
+export interface AccessControl_RevokeRole {
+    readonly $: 'AccessControl_RevokeRole'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+}
+
+export const AccessControl_RevokeRole = {
+    PREFIX: 0x969b0db9,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }): AccessControl_RevokeRole {
+        return {
+            $: 'AccessControl_RevokeRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RevokeRole {
+        loadAndCheckPrefix32(s, 0x969b0db9, 'AccessControl_RevokeRole');
+        return {
+            $: 'AccessControl_RevokeRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RevokeRole, b: c.Builder): void {
+        b.storeUint(0x969b0db9, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+    },
+    toCell(self: AccessControl_RevokeRole): c.Cell {
+        return makeCellFrom<AccessControl_RevokeRole>(self, AccessControl_RevokeRole.store);
+    }
+}
+
+/**
+ > struct (0x39452c46) AccessControl_RenounceRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     callerConfirmation: address
+ > }
+ */
+export interface AccessControl_RenounceRole {
+    readonly $: 'AccessControl_RenounceRole'
+    queryId: uint64
+    role: uint256
+    callerConfirmation: c.Address
+}
+
+export const AccessControl_RenounceRole = {
+    PREFIX: 0x39452c46,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }): AccessControl_RenounceRole {
+        return {
+            $: 'AccessControl_RenounceRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RenounceRole {
+        loadAndCheckPrefix32(s, 0x39452c46, 'AccessControl_RenounceRole');
+        return {
+            $: 'AccessControl_RenounceRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            callerConfirmation: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RenounceRole, b: c.Builder): void {
+        b.storeUint(0x39452c46, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.callerConfirmation);
+    },
+    toCell(self: AccessControl_RenounceRole): c.Cell {
+        return makeCellFrom<AccessControl_RenounceRole>(self, AccessControl_RenounceRole.store);
+    }
+}
+
+/**
+ > struct AccessControl_Data {
+ >     roles: map<uint256, Cell<AccessControl_RoleData>>
+ > }
+ */
+export interface AccessControl_Data {
+    readonly $: 'AccessControl_Data'
+    roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
+}
+
+export const AccessControl_Data = {
+    create(args: {
+        roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
+    }): AccessControl_Data {
+        return {
+            $: 'AccessControl_Data',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_Data {
+        return {
+            $: 'AccessControl_Data',
+            roles: dictToMap(c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                        ), s)),
+        }
+    },
+    store(self: AccessControl_Data, b: c.Builder): void {
+        b.storeDict<uint256, AccessControl_RoleData>(mapToDict(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                        (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                        (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                    )), c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+        ));
+    },
+    toCell(self: AccessControl_Data): c.Cell {
+        return makeCellFrom<AccessControl_Data>(self, AccessControl_Data.store);
+    }
+}
+
+/**
+ > struct AccessControl_RoleData {
+ >     adminRole: uint256
+ >     membersLen: uint64
+ >     hasRole: map<address, bool>
+ > }
+ */
+export interface AccessControl_RoleData {
+    readonly $: 'AccessControl_RoleData'
+    adminRole: uint256
+    membersLen: uint64
+    hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
+}
+
+export const AccessControl_RoleData = {
+    create(args: {
+        adminRole: uint256
+        membersLen: uint64
+        hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
+    }): AccessControl_RoleData {
+        return {
+            $: 'AccessControl_RoleData',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleData {
+        return {
+            $: 'AccessControl_RoleData',
+            adminRole: s.loadUintBig(256),
+            membersLen: s.loadUintBig(64),
+            hasRole: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
+        }
+    },
+    store(self: AccessControl_RoleData, b: c.Builder): void {
+        b.storeUint(self.adminRole, 256);
+        b.storeUint(self.membersLen, 64);
+        b.storeDict<c.Address, boolean>(mapToDict(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+    },
+    toCell(self: AccessControl_RoleData): c.Cell {
+        return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class TokenPool
 //
@@ -4476,7 +4695,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECOgEAAY4AART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBIC4vAgEgCAkCASAaGwIBIAoLAgEgFBUCASAMDQIBSBITAgFmDg8CAUgQEQALoF4QP8vCAAuhxhA/y8IAC6V1CB/l4QALpyMIH+XhAAypX4QP8vAADKrQhA/y8AIBbhYXAgEgGBkAC6dRCB/l4QALpFEIH+XhAA2sPkIH+XhAAA2sgMIH+XhAAgEgHB0CASAoKQIBIB4fAgEgJicCASAgIQIBYiQlAAyqh4QP8vACASAiIwALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYKisCAnUsLQAMqXqED/LwAAyqtoQP8vAAC6OuED/LwgALohoQP8vCAgEgMDECASAyMwANtH2wgf5eEAANt9zwgf5eEAANtI2wgf5eEAIBIDQ1AgFqNjcCASA4OQALpV8IH+XhAAunAwgf5eEADaxrwgf5eEAADaw4wgf5eEA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECOAEAAYAAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBIC4vAgEgCAkCASAaGwIBIAoLAgEgFBUCASAMDQIBSBITAgFmDg8CAUgQEQALoF4QP8vCAAuhxhA/y8IAC6V1CB/l4QALpyMIH+XhAAypX4QP8vAADKrQhA/y8AIBbhYXAgEgGBkAC6dRCB/l4QALpFEIH+XhAA2sPkIH+XhAAA2sgMIH+XhAAgEgHB0CASAoKQIBIB4fAgEgJicCASAgIQIBYiQlAAyqh4QP8vACASAiIwALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYKisCAnUsLQAMqXqED/LwAAyqtoQP8vAAC6OuED/LwgALohoQP8vCAA277nhA/y8IAgEgMDEADbSNsIH+XhACASAyMwIBajQ1AgEgNjcAC6VfCB/l4QALpwMIH+XhAA2sa8IH+XhAAA2sOMIH+XhA');
 
     static Errors = {
     }
@@ -4693,18 +4912,42 @@ export class TokenPool implements c.Contract {
         return TokenPool_UpdateRampAccess.toCell(TokenPool_UpdateRampAccess.create(body));
     }
 
-    static createCellOfTokenPoolSetRMNProxy(body: {
+    static createCellOfCursePolicyCurse(body: {
         queryId?: uint64
-        rmnProxy: c.Address
+        subjects: SnakedCell<uint128>
     }) {
-        return TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body));
+        return CursePolicy_Curse.toCell(CursePolicy_Curse.create(body));
     }
 
-    static createCellOfTokenPoolSetCursedSubjects(body: {
+    static createCellOfCursePolicyUncurse(body: {
         queryId?: uint64
-        cursedSubjects: CursedSubjects
+        subjects: SnakedCell<uint128>
     }) {
-        return TokenPool_SetCursedSubjects.toCell(TokenPool_SetCursedSubjects.create(body));
+        return CursePolicy_Uncurse.toCell(CursePolicy_Uncurse.create(body));
+    }
+
+    static createCellOfAccessControlGrantRole(body: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }) {
+        return AccessControl_GrantRole.toCell(AccessControl_GrantRole.create(body));
+    }
+
+    static createCellOfAccessControlRevokeRole(body: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }) {
+        return AccessControl_RevokeRole.toCell(AccessControl_RevokeRole.create(body));
+    }
+
+    static createCellOfAccessControlRenounceRole(body: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }) {
+        return AccessControl_RenounceRole.toCell(AccessControl_RenounceRole.create(body));
     }
 
     static createCellOfJettonWithdrawableWithdraw(body: {
@@ -4988,24 +5231,60 @@ export class TokenPool implements c.Contract {
         });
     }
 
-    async sendTokenPoolSetRMNProxy(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCursePolicyCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        rmnProxy: c.Address
+        subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenPool_SetRMNProxy.toCell(TokenPool_SetRMNProxy.create(body)),
+            body: CursePolicy_Curse.toCell(CursePolicy_Curse.create(body)),
             ...extraOptions
         });
     }
 
-    async sendTokenPoolSetCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendCursePolicyUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        cursedSubjects: CursedSubjects
+        subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenPool_SetCursedSubjects.toCell(TokenPool_SetCursedSubjects.create(body)),
+            body: CursePolicy_Uncurse.toCell(CursePolicy_Uncurse.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendAccessControlGrantRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: AccessControl_GrantRole.toCell(AccessControl_GrantRole.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendAccessControlRevokeRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: AccessControl_RevokeRole.toCell(AccessControl_RevokeRole.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendAccessControlRenounceRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: AccessControl_RenounceRole.toCell(AccessControl_RenounceRole.create(body)),
             ...extraOptions
         });
     }
@@ -5077,11 +5356,6 @@ export class TokenPool implements c.Contract {
         return r.readNullable<c.Address>(
             (r) => r.readSlice().loadAddress()
         );
-    }
-
-    async getRMNProxy(provider: ContractProvider): Promise<c.Address> {
-        const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
-        return r.readSlice().loadAddress();
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {
@@ -5199,11 +5473,10 @@ export class TokenPool implements c.Contract {
     }
 
     async getAdminConfig(provider: ContractProvider): Promise<TokenPool_AdminConfig> {
-        const r = StackReader.fromGetMethod(8, await provider.get('getAdminConfig', []));
+        const r = StackReader.fromGetMethod(7, await provider.get('getAdminConfig', []));
         return ({
             $: 'TokenPool_AdminConfig',
             ownable: r.readCellRef<Ownable2Step>(Ownable2Step.fromSlice),
-            rmnProxy: r.readSlice().loadAddress(),
             dynamicConfig: r.readCellRef<TokenPool_DynamicConfig>(TokenPool_DynamicConfig.fromSlice),
             jettonClient: ({
                 $: 'JettonClient',
@@ -5221,7 +5494,7 @@ export class TokenPool implements c.Contract {
     }
 
     async getMirroredPolicy(provider: ContractProvider): Promise<TokenPool_MirroredPolicy> {
-        const r = StackReader.fromGetMethod(3, await provider.get('getMirroredPolicy', []));
+        const r = StackReader.fromGetMethod(4, await provider.get('getMirroredPolicy', []));
         return ({
             $: 'TokenPool_MirroredPolicy',
             onRamps: dictToMap(r.readDictionary<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
@@ -5232,12 +5505,16 @@ export class TokenPool implements c.Contract {
                             (s) => s.loadAddress(),
                             (v,b) => b.storeAddress(v)
                         ))),
-            cursedSubjects: ({
-                $: 'CursedSubjects',
-                data: dictToSet(r.readDictionary<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                                    (s) => [],
-                                    (v,b) => { {} }
-                                ))),
+            cursePolicy: ({
+                $: 'CursePolicy',
+                rbac: r.readCellRef<AccessControl_Data>(AccessControl_Data.fromSlice),
+                cursedSubjects: ({
+                    $: 'CursedSubjects',
+                    data: dictToSet(r.readDictionary<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                                            (s) => [],
+                                            (v,b) => { {} }
+                                        ))),
+                }),
             }),
         });
     }

@@ -8,7 +8,7 @@ import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
 
 import { contractCode } from '../../../wrappers/codeLoader'
-import { createRMNAccessControl } from '../../../wrappers/ccip/Router'
+import { createCursePolicy, createRMNAccessControl } from '../../../wrappers/ccip/Router'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
@@ -148,8 +148,7 @@ async function deployRouterInstance(
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
       admin: rt.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-      rbac: createRMNAccessControl(deployer.address),
-      cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+      policy: createCursePolicy(deployer.address),
       forwardUpdates: new Set(),
     }),
   })
@@ -523,8 +522,7 @@ export async function deployRouterContract(
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
       admin: rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
-      rbac: createRMNAccessControl(owner.address),
-      cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+      policy: createCursePolicy(owner.address),
       forwardUpdates: new Set(),
     }),
   })
