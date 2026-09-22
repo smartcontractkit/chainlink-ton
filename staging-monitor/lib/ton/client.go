@@ -71,7 +71,7 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 			NetworkGlobalID: lib.TONNetworkGlobalIDTestnet,
 			Workchain:       0,
 		}
-		w, err := wallet.FromSeed(client, strings.Fields(walletKey), v5r1Config)
+		w, err := wallet.FromSeedWithOptions(client, strings.Fields(walletKey), v5r1Config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create TON wallet: %w", err)
 		}
@@ -200,7 +200,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	chainID := strconv.FormatUint(c.chainSel, 10)
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return c.client.WithRetry(lib.TONClientRetries), nil
+		return c.client.WithRetryTimeout(lib.TONClientRetries, lib.TONClientRetryTimeout), nil
 	}
 
 	lp, err := tonlogpoller.NewServiceWith(ctx, lggr, chainID, clientProvider,

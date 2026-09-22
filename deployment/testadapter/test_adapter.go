@@ -1239,6 +1239,7 @@ var (
 // TON blockchain polling configuration
 const (
 	clientRetries       = 3                      // Number of retries for TON client operations
+	retryTimeout        = 500 * time.Millisecond // How often to retry TON client operations
 	queryInterval       = 500 * time.Millisecond // How often to query logpoller for new events
 	progressLogInterval = 5 * time.Second        // How often to log "still waiting" progress updates
 )
@@ -1254,7 +1255,7 @@ func setupLogPoller(
 ) tonlogpoller.Service {
 	chainID := strconv.FormatUint(tonChain.Selector, 10)
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return tonChain.Client.WithRetry(clientRetries), nil
+		return tonChain.Client.WithRetryTimeout(clientRetries, retryTimeout), nil
 	}
 
 	// Create logpoller with in-memory stores for testing

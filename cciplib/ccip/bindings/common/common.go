@@ -658,7 +658,7 @@ func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
 		if err != nil {
 			return fmt.Errorf("failed to begin parsing lisp_list element cell: %w", err)
 		}
-		if err := tlb.LoadFromCell(&elem, elemSlice); err != nil {
+		if err = tlb.LoadFromCell(&elem, elemSlice); err != nil {
 			return fmt.Errorf("failed to decode lisp_list element: %w", err)
 		}
 		result = append(result, &elem)

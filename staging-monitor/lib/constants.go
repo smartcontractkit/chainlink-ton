@@ -21,6 +21,7 @@ const (
 	TONNetworkGlobalIDTestnet int32  = -3                      // TON testnet network ID
 	TONDefaultGasLimit        int64  = 200_000                 // Destination gas limit (EVM gas units) for messages sent from TON to EVM
 	TONClientRetries          int    = 3                       // Number of retries for TON client operations
+	TONClientRetryTimeout            = 500 * time.Millisecond  // Delay between TON client retries
 	TONTxBatchSize            uint32 = 100                     // Number of transactions to fetch per batch
 	TONPollInterval                  = 2500 * time.Millisecond // How often to poll for new TON blocks
 )
