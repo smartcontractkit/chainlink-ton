@@ -5,10 +5,6 @@ go 1.26.6
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
 
-	github.com/smartcontractkit/chainlink-ton => ../
-	github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
-	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
-
 	// Pin ugorji/go/codec to v1.2.12: chainlink-evm's generated codec files
 	// (internal_types_codecgen.go) use codec1978.GenVersion/GenHelper which were
 	// removed in v1.3.x. MVS resolves to v1.3.1 (latest), breaking the build.
@@ -32,9 +28,9 @@ require (
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260713161920-de075095648b
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.20.1-0.20260701185448-696c075849ea
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.9
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260713162202-124316cd10ff
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260917154632-2b04f920494a
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260520103847-15ca4de9dba9
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260922203501-3239df776ea5
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922203501-3239df776ea5
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260922203501-3239df776ea5
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260901155807-d65832e2f181
 	github.com/smartcontractkit/chainlink/v2 v2.62.0
 	github.com/smartcontractkit/cld-changesets v0.8.2

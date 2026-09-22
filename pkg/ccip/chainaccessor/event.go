@@ -174,7 +174,11 @@ func cellPayload(c *cell.Cell) ccipocr3.Bytes {
 	if c == nil {
 		return nil
 	}
-	data := c.BeginParse().MustLoadSlice(c.BitsSize())
+	s, err := c.BeginParse()
+	if err != nil {
+		return nil
+	}
+	data := s.MustLoadSlice(c.BitsSize())
 	if len(data) == 0 {
 		return nil
 	}

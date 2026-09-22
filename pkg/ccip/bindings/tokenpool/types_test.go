@@ -90,7 +90,7 @@ func TestCursedSubjects_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded CursedSubjects
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 
 	_, ok := decoded.Data.Get(*tlbe.NewUint128(big.NewInt(7)))
 	require.True(t, ok)
@@ -116,7 +116,7 @@ func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded remotePoolsHolder
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 	require.Len(t, decoded.RemotePools.AsMap(), 1)
 
 	got, ok := decoded.RemotePools.Get(*tlbe.NewUint256(big.NewInt(5)))
@@ -138,7 +138,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded DynamicConfig
-	require.NoError(t, tlb.LoadFromCell(&decoded, c.BeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 	require.Len(t, decoded.AllowedDepositNamespaces.AsMap(), 2)
 	_, ok := decoded.AllowedDepositNamespaces.Get(7)
 	require.True(t, ok)
@@ -151,6 +151,6 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var decodedEmpty DynamicConfig
-	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.BeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.MustBeginParse()))
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
 }

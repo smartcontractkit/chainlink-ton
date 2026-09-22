@@ -5,11 +5,7 @@ go 1.26.6
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
-	github.com/smartcontractkit/chainlink-ton => ../
-
-	// TMP: remove in follow up PR
-	github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
-	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+// TMP: remove in follow up PR
 )
 
 require (
@@ -21,8 +17,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260901160800-24d6097dd0fe
 	github.com/smartcontractkit/chainlink-deployments-framework v0.116.1
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.16.6
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260713162202-124316cd10ff
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260922203501-3239df776ea5
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260922203501-3239df776ea5
 	github.com/xssnick/tonutils-go v1.14.1
 )
 
@@ -197,7 +193,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/metering/go v0.0.0-20260710151514-27b5a126dabe // indirect
 	github.com/smartcontractkit/chainlink-protos/node-platform v0.0.0-20260709145319-7782fb89eb16 // indirect
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20260630144638-b69f16bdddd8 // indirect
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260917154632-2b04f920494a // indirect
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922203501-3239df776ea5 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20251014143056-a0c6328c91e9 // indirect
 	github.com/smartcontractkit/freeport v0.1.3-0.20250828155247-add56fa28aad // indirect
 	github.com/smartcontractkit/go-daml v0.0.0-20260615231356-88c6ee9b5774 // indirect

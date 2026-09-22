@@ -35,7 +35,7 @@ func TestUpdateFeeTokens_TLBEncodeDecode(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded UpdateFeeTokens
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.LoadFromCell(&decoded, c.MustBeginParse())
 	require.NoError(t, err)
 
 	// Re-encode the decoded value and compare cell hashes for a strict round-trip.
@@ -72,7 +72,7 @@ func TestUpdateFeeTokens_EmptyAdd(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded UpdateFeeTokens
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.LoadFromCell(&decoded, c.MustBeginParse())
 	require.NoError(t, err)
 
 	require.NotNil(t, decoded.Add)
@@ -102,7 +102,7 @@ func TestUpdateFeeTokens_WithRemove(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded UpdateFeeTokens
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	err = tlb.LoadFromCell(&decoded, c.MustBeginParse())
 	require.NoError(t, err)
 
 	reencoded, err := tlb.ToCell(decoded)
