@@ -3808,7 +3808,7 @@ export const CursePolicy = {
 }
 
 /**
- > struct (0xf3388046) CursePolicy_Curse {
+ > struct (0x7a0927b6) CursePolicy_Curse {
  >     queryId: uint64
  >     subjects: SnakedCell<uint128>
  > }
@@ -3820,7 +3820,7 @@ export interface CursePolicy_Curse {
 }
 
 export const CursePolicy_Curse = {
-    PREFIX: 0xf3388046,
+    PREFIX: 0x7a0927b6,
 
     create(args: {
         queryId?: uint64
@@ -3833,7 +3833,7 @@ export const CursePolicy_Curse = {
         }
     },
     fromSlice(s: c.Slice): CursePolicy_Curse {
-        loadAndCheckPrefix32(s, 0xf3388046, 'CursePolicy_Curse');
+        loadAndCheckPrefix32(s, 0x7a0927b6, 'CursePolicy_Curse');
         return {
             $: 'CursePolicy_Curse',
             queryId: s.loadUintBig(64),
@@ -3841,7 +3841,7 @@ export const CursePolicy_Curse = {
         }
     },
     store(self: CursePolicy_Curse, b: c.Builder): void {
-        b.storeUint(0xf3388046, 32);
+        b.storeUint(0x7a0927b6, 32);
         b.storeUint(self.queryId, 64);
         storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
     },
@@ -3851,7 +3851,7 @@ export const CursePolicy_Curse = {
 }
 
 /**
- > struct (0x3f153a31) CursePolicy_Uncurse {
+ > struct (0x631b64f6) CursePolicy_Uncurse {
  >     queryId: uint64
  >     subjects: SnakedCell<uint128>
  > }
@@ -3863,7 +3863,7 @@ export interface CursePolicy_Uncurse {
 }
 
 export const CursePolicy_Uncurse = {
-    PREFIX: 0x3f153a31,
+    PREFIX: 0x631b64f6,
 
     create(args: {
         queryId?: uint64
@@ -3876,7 +3876,7 @@ export const CursePolicy_Uncurse = {
         }
     },
     fromSlice(s: c.Slice): CursePolicy_Uncurse {
-        loadAndCheckPrefix32(s, 0x3f153a31, 'CursePolicy_Uncurse');
+        loadAndCheckPrefix32(s, 0x631b64f6, 'CursePolicy_Uncurse');
         return {
             $: 'CursePolicy_Uncurse',
             queryId: s.loadUintBig(64),
@@ -3884,7 +3884,7 @@ export const CursePolicy_Uncurse = {
         }
     },
     store(self: CursePolicy_Uncurse, b: c.Builder): void {
-        b.storeUint(0x3f153a31, 32);
+        b.storeUint(0x631b64f6, 32);
         b.storeUint(self.queryId, 64);
         storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
     },

@@ -33,12 +33,12 @@ struct CursePolicy {
     cursedSubjects: CursedSubjects;
 }
 
-struct (0xf3388046) CursePolicy_Curse {
+struct (0x7a0927b6) CursePolicy_Curse {
     queryId: uint64;
     subjects: SnakedCell<uint128>;
 }
 
-struct (0x3f153a31) CursePolicy_Uncurse {
+struct (0x631b64f6) CursePolicy_Uncurse {
     queryId: uint64;
     subjects: SnakedCell<uint128>;
 }

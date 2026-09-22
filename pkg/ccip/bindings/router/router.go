@@ -187,14 +187,14 @@ type CCIPSendNACK struct {
 
 // CursePolicyCurse censors subjects under the shared local curse policy.
 type CursePolicyCurse struct {
-	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic                  `tlb:"#7a0927b6" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
 // CursePolicyUncurse removes subjects under the shared local curse policy.
 type CursePolicyUncurse struct {
-	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic                  `tlb:"#631b64f6" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
