@@ -345,7 +345,7 @@ func describeBody(body *cell.Cell, verbose bool) lib.MessageInfo {
 	}
 	if !verbose {
 		var opcode uint64
-		opcode, err = slice.LoadUInt(32)
+		opcode, err = slice.PreloadUInt(32)
 		if err == nil {
 			return NewSimpleInfoUnknown(fmt.Sprintf("opcode: 0x %x", opcode))
 		}
