@@ -71,7 +71,7 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 			NetworkGlobalID: lib.TONNetworkGlobalIDTestnet,
 			Workchain:       0,
 		}
-		w, err := wallet.FromSeedWithOptions(client, strings.Fields(walletKey), v5r1Config)
+		w, err := wallet.FromSeed(client, strings.Fields(walletKey), v5r1Config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create TON wallet: %w", err)
 		}
@@ -200,7 +200,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	chainID := strconv.FormatUint(c.chainSel, 10)
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return c.client.WithRetryTimeout(lib.TONClientRetries, lib.TONClientRetryTimeout), nil
+		return c.client.WithRetry(lib.TONClientRetries), nil
 	}
 
 	lp, err := tonlogpoller.NewServiceWith(ctx, lggr, chainID, clientProvider,
@@ -280,11 +280,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 				// Decode and match data if expectedData provided
 				if expectedData != "" && event.TypedData.Message.Data != nil {
-					dataSlice, err := event.TypedData.Message.Data.BeginParse()
-					if err != nil {
-						lggr.Warnw("Failed to begin parsing data cell", "error", err)
-						continue
-					}
+					dataSlice := event.TypedData.Message.Data.BeginParse()
 					if dataSlice.BitsLeft() > 0 {
 						dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
 						if err == nil {
