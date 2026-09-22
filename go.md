@@ -94,23 +94,6 @@ flowchart LR
 ```mermaid
 flowchart LR
 
-go: downloading github.com/jmank88/gomods v0.1.6
-go: downloading golang.org/x/mod v0.38.0
-found 7 go.mod files:
-	./go.mod
-	cciplib/go.mod
-	deployment/go.mod
-	devenv/go.mod
-	integration-tests/go.mod
-	staging-monitor/go.mod
-	tools/tonapiwaitlint/go.mod
-.$ go mod graph
-cciplib$ go mod graph
-deployment$ go mod graph
-devenv$ go mod graph
-integration-tests$ go mod graph
-staging-monitor$ go mod graph
-tools/tonapiwaitlint$ go mod graph
 	ccip-contract-examples/chains/evm --> chainlink-ccip
 	click ccip-contract-examples/chains/evm href "https://github.com/smartcontractkit/ccip-contract-examples"
 	ccip-owner-contracts
