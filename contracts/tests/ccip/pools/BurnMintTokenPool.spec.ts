@@ -2,6 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
+import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import {
   Ownable2Step,
@@ -116,7 +117,6 @@ describe('BurnMintTokenPool', () => {
           poolData: TokenPool_Data.create({
             adminConfig: TokenPool_AdminConfig.create({
               ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-              rmnProxy: deployer.address,
               dynamicConfig: TokenPool_DynamicConfig.create({
                 router: deployer.address,
                 rateLimitAdmin: null,
@@ -131,9 +131,7 @@ describe('BurnMintTokenPool', () => {
               advancedPoolHooks: null,
             }),
             localPolicy: TokenPool_LocalPolicy.create({
-              cursedSubjects: CursedSubjects.create({
-                data: new Set(),
-              }),
+              cursePolicy: createCursePolicy(deployer.address),
             }),
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),

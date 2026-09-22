@@ -56,7 +56,7 @@ describe('Router.cursing', () => {
 
     // Curse the lane
     {
-      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
@@ -91,7 +91,7 @@ describe('Router.cursing', () => {
 
     // Uncurse the lane
     {
-      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
@@ -130,7 +130,7 @@ describe('Router.cursing', () => {
 
   it('rejects LockOrBurn through the executor failure channel while cursed', async () => {
     const remoteChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+    await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
       queryId: 10n,
       subjects: [remoteChainSelector],
     })
@@ -172,7 +172,7 @@ describe('Router.cursing', () => {
 
   it('rejects ReleaseOrMint back to the OffRamp while the source lane is cursed', async () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+    await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
       queryId: 20n,
       subjects: [sourceChainSelector],
     })
@@ -289,7 +289,7 @@ describe('Router.cursing', () => {
   it('router respect global cursing', async () => {
     // Curse all lanes
     {
-      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
@@ -310,7 +310,7 @@ describe('Router.cursing', () => {
 
     // Uncurse all lanes
     {
-      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })

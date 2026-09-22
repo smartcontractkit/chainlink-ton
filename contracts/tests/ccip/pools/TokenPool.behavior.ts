@@ -296,40 +296,6 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
     })
 
-    it('allows the owner to disable RMN proxy updates with addr_none', async () => {
-      const ctx = await setup()
-
-      await ctx.pool.sendTokenPoolSetRMNProxy(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 903n,
-        rmnProxy: ctx.unauthorized.address,
-      })
-
-      const disable = await ctx.pool.sendTokenPoolSetRMNProxy(
-        ctx.deployer.getSender(),
-        toNano('0.2'),
-        { queryId: 904n, rmnProxy: null },
-      )
-      expect(disable.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-
-      const update = await ctx.pool.sendTokenPoolSetCursedSubjects(
-        ctx.unauthorized.getSender(),
-        toNano('0.2'),
-        {
-          queryId: 905n,
-          cursedSubjects: CursedSubjects.create({ data: new Set([ctx.remoteChainSelector]) }),
-        },
-      )
-      expect(update.transactions).toHaveTransaction({
-        from: ctx.unauthorized.address,
-        to: ctx.pool.address,
-        success: false,
-      })
-    })
-
     it('removes configured chain via applyChainUpdates', async () => {
       const ctx = await setup()
       const result = await ctx.pool.sendTokenPoolApplyChainUpdates(
