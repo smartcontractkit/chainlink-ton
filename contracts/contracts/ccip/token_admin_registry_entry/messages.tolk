@@ -15,8 +15,8 @@ struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
 
 fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
     return
-        + ton("0.002")
-        + ton("0.019")
+        + grams("0.002")
+        + grams("0.019")
         + responseHandlerCost;
 }
 

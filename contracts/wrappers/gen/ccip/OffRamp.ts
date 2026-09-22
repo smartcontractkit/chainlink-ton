@@ -1227,10 +1227,9 @@ export const Utils_Error = {
  */
 export type SnakedCell<T> = T[]
 
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
     if (v.length === 0) {
-        b.storeRef(c.Cell.EMPTY);
-        return;
+        return c.Cell.EMPTY;
     }
     const cells: c.Builder[] = [];
     let builder = c.beginCell();
@@ -1249,7 +1248,11 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
         cells[i].storeRef(current);
         current = cells[i].endCell();
     }
-    b.storeRef(current);
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
 }
 
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
@@ -3121,25 +3124,25 @@ export const DeployableHashes = {
 /**
  > struct Config {
  >     chainSelector: uint64
- >     tokenAdminRegistry: address
  >     feeQuoter: address
  >     permissionlessExecutionThresholdSeconds: uint32
+ >     tokenAdminRegistry: address
  > }
  */
 export interface Config {
     readonly $: 'Config'
     chainSelector: uint64
-    tokenAdminRegistry: c.Address
     feeQuoter: c.Address
     permissionlessExecutionThresholdSeconds: uint32
+    tokenAdminRegistry: c.Address
 }
 
 export const Config = {
     create(args: {
         chainSelector: uint64
-        tokenAdminRegistry: c.Address
         feeQuoter: c.Address
         permissionlessExecutionThresholdSeconds: uint32
+        tokenAdminRegistry: c.Address
     }): Config {
         return {
             $: 'Config',
@@ -3150,16 +3153,16 @@ export const Config = {
         return {
             $: 'Config',
             chainSelector: s.loadUintBig(64),
-            tokenAdminRegistry: s.loadAddress(),
             feeQuoter: s.loadAddress(),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
+            tokenAdminRegistry: s.loadAddress(),
         }
     },
     store(self: Config, b: c.Builder): void {
         b.storeUint(self.chainSelector, 64);
-        b.storeAddress(self.tokenAdminRegistry);
         b.storeAddress(self.feeQuoter);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
+        b.storeAddress(self.tokenAdminRegistry);
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
@@ -4871,9 +4874,9 @@ export class OffRamp implements c.Contract {
         return ({
             $: 'Config',
             chainSelector: r.readBigInt(),
-            tokenAdminRegistry: r.readSlice().loadAddress(),
             feeQuoter: r.readSlice().loadAddress(),
             permissionlessExecutionThresholdSeconds: r.readBigInt(),
+            tokenAdminRegistry: r.readSlice().loadAddress(),
         });
     }
 

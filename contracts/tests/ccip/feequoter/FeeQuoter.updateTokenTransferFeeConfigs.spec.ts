@@ -422,11 +422,10 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
     })
   })
 
-  it('should handle updates for non-existent destination chain gracefully', async () => {
+  it('should reject updates for non-existent destination chains', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN.token
     const nonExistentChainSelector = 99999n
 
-    // This should not fail, but the config won't be added because the dest chain doesn't exist
     const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
       setup.acc.owner.getSender(),
       toNano('1'),
@@ -443,10 +442,68 @@ describe('FeeQuoter UpdateTokenTransferFeeConfigs', () => {
       },
     )
 
-    // The transaction should succeed but nothing should be updated
     expect(result.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
-      success: true,
+      success: false,
+      exitCode: feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnknownDestChainSelector'],
+    })
+  })
+
+  it('should reject disabled token transfer fee configs', async () => {
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
+        updates: new Map([
+          [
+            ChainSelectors.testnet.evm,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([
+                [
+                  FeeQuoterSetup.CUSTOM_TOKEN.token,
+                  { ...sampleTokenTransferFeeConfig, isEnabled: false },
+                ],
+              ]),
+              remove: [],
+            }),
+          ],
+        ]),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: false,
+      exitCode: feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenTransferConfigMustBeEnabled'],
+    })
+  })
+
+  it('should reject a bytes overhead below the pool default', async () => {
+    const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      setup.acc.owner.getSender(),
+      toNano('1'),
+      {
+        updates: new Map([
+          [
+            ChainSelectors.testnet.evm,
+            feeQuoter.UpdateTokenTransferFeeConfig.create({
+              add: new Map([
+                [
+                  FeeQuoterSetup.CUSTOM_TOKEN.token,
+                  { ...sampleTokenTransferFeeConfig, destBytesOverhead: 31n },
+                ],
+              ]),
+              remove: [],
+            }),
+          ],
+        ]),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: false,
+      exitCode: feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidDestBytesOverhead'],
     })
   })
 

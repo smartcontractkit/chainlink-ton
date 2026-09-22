@@ -11,7 +11,7 @@ import "../token_admin_registry_entry/messages"
 import "../token_admin_registry_entry/storage"
 import "../token_admin_registry_entry/types"
 
-tolk 1.4.1
+tolk 1.4.2
 
 /// Root contract for the sharded token-admin registry. It owns deployment
 /// configuration for deterministic entries and is the future replacement for
@@ -123,7 +123,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         // Covers Deployable initialization and the event self-message below.
         // The former Router flow only initialized the shard; this path also
         // emits the initial administrator-proposal event atomically.
-        value: ton("0.05"),
+        value: grams("0.05"),
         dest: entryAddress,
         body: Deployable_InitializeAndSend {
             stateInit: {
@@ -141,7 +141,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // The entry emits the initial proposal event after its state is
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
-                value: ton("0.015"),
+                value: grams("0.015"),
                 body: TokenAdminRegistryEntry_RegistrationInitialized {
                     queryId: msg.queryId,
                 }.toCell(),
@@ -162,7 +162,7 @@ fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdmin
     );
     val proposeMsg = createMessage({
         bounce: false,
-        value: ton("0.015"),
+        value: grams("0.015"),
         dest: entryAddress,
         body: TokenAdminRegistryEntry_ProposeAdministrator {
             queryId: msg.queryId,
@@ -183,7 +183,7 @@ fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Tr
     );
     createMessage({
         bounce: false,
-        value: ton("0.015"),
+        value: grams("0.015"),
         dest: entryAddress,
         body: TokenAdminRegistryEntry_TransferAdminRole {
             queryId: msg.queryId,
@@ -201,7 +201,7 @@ fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Acce
     );
     createMessage({
         bounce: false,
-        value: ton("0.015"),
+        value: grams("0.015"),
         dest: entryAddress,
         body: TokenAdminRegistryEntry_AcceptAdminRole {
             queryId: msg.queryId,

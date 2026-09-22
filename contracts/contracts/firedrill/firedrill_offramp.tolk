@@ -1,4 +1,4 @@
-tolk 1.4.1
+tolk 1.4.2
 
 contract FiredrillOffRamp {
 	author: "SmartContract Chainlink Limited SEZC"
@@ -112,9 +112,9 @@ get fun config(): Config {
 	val st = lazy FiredrillOffRamp_Storage.load();
 	return {
 		chainSelector: st.chainSelector,
-		tokenAdminRegistry: st.controlAddress,
 		feeQuoter: st.controlAddress,
 		permissionlessExecutionThresholdSeconds: 10,
+		tokenAdminRegistry: st.controlAddress,
 	};
 }
 
