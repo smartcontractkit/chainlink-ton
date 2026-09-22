@@ -88,54 +88,19 @@ var GetSupportedChains = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	}),
 })
 
-// GetOnRamp gets the onRamp address for a given remote chain selector.
+// GetRMNProxy gets the RMN proxy address, or nil when proxy updates are disabled.
 //
-// On-chain: get fun onRamp(remoteChainSelector: uint64): address?
-var GetOnRamp = tvm.Getter[uint64, *address.Address]{
-	Name: "onRamp",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
-		isNil, err := r.IsNil(0)
-		if err != nil {
-			return nil, fmt.Errorf("error checking IsNil(0) - onRamp: %w", err)
-		}
-		if isNil {
-			return nil, nil
-		}
-		addrSlice, err := r.Slice(0)
-		if err != nil {
-			return nil, fmt.Errorf("error getting Slice(0) - onRamp: %w", err)
-		}
-		return addrSlice.LoadAddr()
-	}),
-}
-
-// GetOffRamp gets the offRamp address for a given remote chain selector.
-//
-// On-chain: get fun offRamp(remoteChainSelector: uint64): address?
-var GetOffRamp = tvm.Getter[uint64, *address.Address]{
-	Name: "offRamp",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
-		isNil, err := r.IsNil(0)
-		if err != nil {
-			return nil, fmt.Errorf("error checking IsNil(0) - offRamp: %w", err)
-		}
-		if isNil {
-			return nil, nil
-		}
-		addrSlice, err := r.Slice(0)
-		if err != nil {
-			return nil, fmt.Errorf("error getting Slice(0) - offRamp: %w", err)
-		}
-		return addrSlice.LoadAddr()
-	}),
-}
-
-// GetRMNProxy gets the RMN proxy address.
-//
-// On-chain: get fun getRMNProxy(): address
+// On-chain: get fun getRMNProxy(): address?
 var GetRMNProxy = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 	Name: "getRMNProxy",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
+		isNil, err := r.IsNil(0)
+		if err != nil {
+			return nil, fmt.Errorf("error checking IsNil(0) - getRMNProxy: %w", err)
+		}
+		if isNil {
+			return nil, nil
+		}
 		addrSlice, err := r.Slice(0)
 		if err != nil {
 			return nil, fmt.Errorf("error getting Slice(0) - getRMNProxy: %w", err)
@@ -212,20 +177,19 @@ var GetDynamicConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[DynamicConfig]{
 			cfg.FeeAdmin = addr
 		}
 
-		// Decode the allowedDepositNamespaces dictionary (map<uint32,bool>).
+		// Decode the allowedDepositNamespaces dictionary (map<uint32,()> - a unit
+		// value set; presence of a key means the namespace is allowed).
 		dictCell, err := r.Cell(3) //nolint:mnd // index 3 for the 4th return value (allowedDepositNamespaces)
 		if err != nil {
 			return cfg, fmt.Errorf("error getting Cell(3) - allowedDepositNamespaces: %w", err)
 		}
-		if dictCell == nil {
-			cfg.AllowedDepositNamespaces = tlbe.NewEmptyDict[uint32, bool]()
-		} else {
-			dict := dictCell.AsDict(32) // uint32 keys
-			depositNamespaces, err := tlbe.NewDictFromDictionary[uint32, bool](dict)
-			if err != nil {
-				return cfg, fmt.Errorf("error decoding allowedDepositNamespaces dict: %w", err)
-			}
-			cfg.AllowedDepositNamespaces = depositNamespaces
+		var dict *cell.Dictionary
+		if dictCell != nil {
+			dict = dictCell.AsDict(32) // uint32 keys
+		}
+		cfg.AllowedDepositNamespaces, err = tlbe.NewDictFromDictionary[uint32, struct{}](dict)
+		if err != nil {
+			return cfg, fmt.Errorf("error converting dict to tlbe.Dict - allowedDepositNamespaces: %w", err)
 		}
 
 		return cfg, nil
@@ -437,26 +401,6 @@ var GetAdminConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[AdminConfig]{
 		}
 
 		return cfg, nil
-	}),
-})
-
-// GetMirroredPolicy gets the mirrored policy (onRamps, offRamps, cursedSubjects).
-//
-// On-chain: fun TokenPool<T>.getMirroredPolicy(self): TokenPool_MirroredPolicy
-var GetMirroredPolicy = tvm.NewNoArgsGetter(tvm.NoArgsOpts[MirroredPolicy]{
-	Name: "getMirroredPolicy",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (MirroredPolicy, error) {
-		c, err := r.Cell(0)
-		if err != nil {
-			return MirroredPolicy{}, fmt.Errorf("error getting Cell(0) - mirroredPolicy: %w", err)
-		}
-
-		var mp MirroredPolicy
-		if err := tlb.LoadFromCell(&mp, c.BeginParse()); err != nil {
-			return MirroredPolicy{}, fmt.Errorf("error decoding MirroredPolicy: %w", err)
-		}
-
-		return mp, nil
 	}),
 })
 

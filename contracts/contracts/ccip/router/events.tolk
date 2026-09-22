@@ -34,3 +34,14 @@ struct MessageToOffRampBounced {
     offRamp: address,
     execId: uint192,
 }
+
+/// Emitted when a `Router_WithdrawToTokenPool` jetton transfer bounces back. The send cannot
+/// proceed and the executor is waiting, so this is emitted for observability until the failure
+/// is propagated to the OnRamp.
+const TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC = "TokenPoolWithdrawBounced".crc32();
+struct TokenPoolWithdrawBounced {
+    wallet: address,
+    tokenPool: address,
+    queryId: uint64,
+    exitCode: int32,
+}

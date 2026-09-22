@@ -4,6 +4,9 @@ go 1.26.6
 
 replace github.com/smartcontractkit/chainlink-ton => ../
 
+// TMP: remove in follow up PR
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
+
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/gagliardetto/binary v0.8.0

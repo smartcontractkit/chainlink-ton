@@ -22,7 +22,7 @@ import { generateMockTonAddress } from '../../../src/utils'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { ChainSelectors } from '../../utils/Selectors'
-import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.spec'
+import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.Setup'
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({

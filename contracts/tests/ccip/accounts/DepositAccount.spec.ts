@@ -9,6 +9,7 @@ import {
   DepositAccount_InMessageForward,
   DepositAccount_Reply,
 } from '../../../wrappers/gen/ccip/DepositAccount'
+import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 
 describe('DepositAccount (default forward hook, off-ramp role)', () => {
   let blockchain: Blockchain
@@ -45,15 +46,17 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       forwardPayload: ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
     })
 
-  // Build a boxed Jetton `TransferNotificationForRecipient`-shaped body carried by a real wallet.
+  // Build a boxed Jetton `TransferNotificationForRecipient` body as a real wallet would send it
+  // (the forward payload is boxed as a maybe_ref; here empty — no CCIPSend carried).
   const buildNotificationBody = (queryId: bigint, amount: bigint, to: Address) =>
-    beginCell()
-      .storeUint(0x7362d09c, 32) // TransferNotificationForRecipient
-      .storeUint(queryId, 64)
-      .storeCoins(amount)
-      .storeAddress(to)
-      .storeMaybeRef(null)
-      .endCell()
+    TransferNotificationForRecipient.toCell(
+      TransferNotificationForRecipient.create({
+        queryId,
+        jettonAmount: amount,
+        transferInitiator: to,
+        forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
+      }),
+    )
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
