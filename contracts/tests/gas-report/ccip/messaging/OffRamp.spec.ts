@@ -10,6 +10,7 @@ import {
 } from '@ton/sandbox'
 import { toNano, Cell, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
+import { createRMNAccessControl } from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import { FeeQuoter } from '../../../../wrappers/gen/ccip/FeeQuoter'
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
@@ -115,8 +116,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
           admin: rt.Ownable2Step.create({ owner: deployer.address }),
-          curseAdmins: new Set([deployer.address]),
-          uncurseAdmins: new Set([deployer.address]),
+          rbac: createRMNAccessControl(deployer.address),
           cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
           forwardUpdates: new Set(),
         }),

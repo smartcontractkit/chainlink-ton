@@ -234,14 +234,6 @@ class StackReader {
     readCellRef<T>(loadFn_T: LoadCallback<T>): T {
         return loadFn_T(this.readCell().beginParse());
     }
-
-    readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
-        if (this.tuple[0].type === 'null') {
-            this.tuple.shift();
-            return c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
-        }
-        return c.Dictionary.loadDirect<K, V>(keySerializer, valueSerializer, this.readCell());
-    }
 }
 
 // ————————————————————————————————————————————
@@ -653,6 +645,341 @@ export const Ownable2Step_OwnershipTransferred = {
     },
     toCell(self: Ownable2Step_OwnershipTransferred): c.Cell {
         return makeCellFrom<Ownable2Step_OwnershipTransferred>(self, Ownable2Step_OwnershipTransferred.store);
+    }
+}
+
+/**
+ > struct (0x95cd540f) AccessControl_GrantRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ > }
+ */
+export interface AccessControl_GrantRole {
+    readonly $: 'AccessControl_GrantRole'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+}
+
+export const AccessControl_GrantRole = {
+    PREFIX: 0x95cd540f,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }): AccessControl_GrantRole {
+        return {
+            $: 'AccessControl_GrantRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_GrantRole {
+        loadAndCheckPrefix32(s, 0x95cd540f, 'AccessControl_GrantRole');
+        return {
+            $: 'AccessControl_GrantRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_GrantRole, b: c.Builder): void {
+        b.storeUint(0x95cd540f, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+    },
+    toCell(self: AccessControl_GrantRole): c.Cell {
+        return makeCellFrom<AccessControl_GrantRole>(self, AccessControl_GrantRole.store);
+    }
+}
+
+/**
+ > struct (0x969b0db9) AccessControl_RevokeRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ > }
+ */
+export interface AccessControl_RevokeRole {
+    readonly $: 'AccessControl_RevokeRole'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+}
+
+export const AccessControl_RevokeRole = {
+    PREFIX: 0x969b0db9,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }): AccessControl_RevokeRole {
+        return {
+            $: 'AccessControl_RevokeRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RevokeRole {
+        loadAndCheckPrefix32(s, 0x969b0db9, 'AccessControl_RevokeRole');
+        return {
+            $: 'AccessControl_RevokeRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RevokeRole, b: c.Builder): void {
+        b.storeUint(0x969b0db9, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+    },
+    toCell(self: AccessControl_RevokeRole): c.Cell {
+        return makeCellFrom<AccessControl_RevokeRole>(self, AccessControl_RevokeRole.store);
+    }
+}
+
+/**
+ > struct (0x39452c46) AccessControl_RenounceRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     callerConfirmation: address
+ > }
+ */
+export interface AccessControl_RenounceRole {
+    readonly $: 'AccessControl_RenounceRole'
+    queryId: uint64
+    role: uint256
+    callerConfirmation: c.Address
+}
+
+export const AccessControl_RenounceRole = {
+    PREFIX: 0x39452c46,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }): AccessControl_RenounceRole {
+        return {
+            $: 'AccessControl_RenounceRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RenounceRole {
+        loadAndCheckPrefix32(s, 0x39452c46, 'AccessControl_RenounceRole');
+        return {
+            $: 'AccessControl_RenounceRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            callerConfirmation: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RenounceRole, b: c.Builder): void {
+        b.storeUint(0x39452c46, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.callerConfirmation);
+    },
+    toCell(self: AccessControl_RenounceRole): c.Cell {
+        return makeCellFrom<AccessControl_RenounceRole>(self, AccessControl_RenounceRole.store);
+    }
+}
+
+/**
+ > struct (0xcf3ca837) AccessControl_RoleGranted {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ >     sender: address
+ > }
+ */
+export interface AccessControl_RoleGranted {
+    readonly $: 'AccessControl_RoleGranted'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+    sender: c.Address
+}
+
+export const AccessControl_RoleGranted = {
+    PREFIX: 0xcf3ca837,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+        sender: c.Address
+    }): AccessControl_RoleGranted {
+        return {
+            $: 'AccessControl_RoleGranted',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleGranted {
+        loadAndCheckPrefix32(s, 0xcf3ca837, 'AccessControl_RoleGranted');
+        return {
+            $: 'AccessControl_RoleGranted',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+            sender: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RoleGranted, b: c.Builder): void {
+        b.storeUint(0xcf3ca837, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+        b.storeAddress(self.sender);
+    },
+    toCell(self: AccessControl_RoleGranted): c.Cell {
+        return makeCellFrom<AccessControl_RoleGranted>(self, AccessControl_RoleGranted.store);
+    }
+}
+
+/**
+ > struct (0x990fe1c7) AccessControl_RoleRevoked {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ >     sender: address
+ > }
+ */
+export interface AccessControl_RoleRevoked {
+    readonly $: 'AccessControl_RoleRevoked'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+    sender: c.Address
+}
+
+export const AccessControl_RoleRevoked = {
+    PREFIX: 0x990fe1c7,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+        sender: c.Address
+    }): AccessControl_RoleRevoked {
+        return {
+            $: 'AccessControl_RoleRevoked',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleRevoked {
+        loadAndCheckPrefix32(s, 0x990fe1c7, 'AccessControl_RoleRevoked');
+        return {
+            $: 'AccessControl_RoleRevoked',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+            sender: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RoleRevoked, b: c.Builder): void {
+        b.storeUint(0x990fe1c7, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+        b.storeAddress(self.sender);
+    },
+    toCell(self: AccessControl_RoleRevoked): c.Cell {
+        return makeCellFrom<AccessControl_RoleRevoked>(self, AccessControl_RoleRevoked.store);
+    }
+}
+
+/**
+ > struct AccessControl_Data {
+ >     roles: map<uint256, Cell<AccessControl_RoleData>>
+ > }
+ */
+export interface AccessControl_Data {
+    readonly $: 'AccessControl_Data'
+    roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
+}
+
+export const AccessControl_Data = {
+    create(args: {
+        roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
+    }): AccessControl_Data {
+        return {
+            $: 'AccessControl_Data',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_Data {
+        return {
+            $: 'AccessControl_Data',
+            roles: dictToMap(c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                        ), s)),
+        }
+    },
+    store(self: AccessControl_Data, b: c.Builder): void {
+        b.storeDict<uint256, AccessControl_RoleData>(mapToDict(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                        (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                        (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                    )), c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+        ));
+    },
+    toCell(self: AccessControl_Data): c.Cell {
+        return makeCellFrom<AccessControl_Data>(self, AccessControl_Data.store);
+    }
+}
+
+/**
+ > struct AccessControl_RoleData {
+ >     adminRole: uint256
+ >     membersLen: uint64
+ >     hasRole: map<address, bool>
+ > }
+ */
+export interface AccessControl_RoleData {
+    readonly $: 'AccessControl_RoleData'
+    adminRole: uint256
+    membersLen: uint64
+    hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
+}
+
+export const AccessControl_RoleData = {
+    create(args: {
+        adminRole: uint256
+        membersLen: uint64
+        hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
+    }): AccessControl_RoleData {
+        return {
+            $: 'AccessControl_RoleData',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleData {
+        return {
+            $: 'AccessControl_RoleData',
+            adminRole: s.loadUintBig(256),
+            membersLen: s.loadUintBig(64),
+            hasRole: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
+        }
+    },
+    store(self: AccessControl_RoleData, b: c.Builder): void {
+        b.storeUint(self.adminRole, 256);
+        b.storeUint(self.membersLen, 64);
+        b.storeDict<c.Address, boolean>(mapToDict(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+    },
+    toCell(self: AccessControl_RoleData): c.Cell {
+        return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
     }
 }
 
@@ -1999,110 +2326,6 @@ export const Router_RMNRemoteUncurse = {
 }
 
 /**
- > struct (0x13f63121) Router_RMNRemoteSetCurseAdmins {
- >     queryId: uint64
- >     admins: map<address, ()>
- > }
- */
-export interface Router_RMNRemoteSetCurseAdmins {
-    readonly $: 'Router_RMNRemoteSetCurseAdmins'
-    queryId: uint64
-    admins: Set<c.Address>
-}
-
-export const Router_RMNRemoteSetCurseAdmins = {
-    PREFIX: 0x13f63121,
-
-    create(args: {
-        queryId?: uint64
-        admins: Set<c.Address>
-    }): Router_RMNRemoteSetCurseAdmins {
-        return {
-            $: 'Router_RMNRemoteSetCurseAdmins',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_RMNRemoteSetCurseAdmins {
-        loadAndCheckPrefix32(s, 0x13f63121, 'Router_RMNRemoteSetCurseAdmins');
-        return {
-            $: 'Router_RMNRemoteSetCurseAdmins',
-            queryId: s.loadUintBig(64),
-            admins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-        }
-    },
-    store(self: Router_RMNRemoteSetCurseAdmins, b: c.Builder): void {
-        b.storeUint(0x13f63121, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeDict<c.Address, []>(setToDict(self.admins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: Router_RMNRemoteSetCurseAdmins): c.Cell {
-        return makeCellFrom<Router_RMNRemoteSetCurseAdmins>(self, Router_RMNRemoteSetCurseAdmins.store);
-    }
-}
-
-/**
- > struct (0x8720d17e) Router_RMNRemoteSetUncurseAdmins {
- >     queryId: uint64
- >     admins: map<address, ()>
- > }
- */
-export interface Router_RMNRemoteSetUncurseAdmins {
-    readonly $: 'Router_RMNRemoteSetUncurseAdmins'
-    queryId: uint64
-    admins: Set<c.Address>
-}
-
-export const Router_RMNRemoteSetUncurseAdmins = {
-    PREFIX: 0x8720d17e,
-
-    create(args: {
-        queryId?: uint64
-        admins: Set<c.Address>
-    }): Router_RMNRemoteSetUncurseAdmins {
-        return {
-            $: 'Router_RMNRemoteSetUncurseAdmins',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_RMNRemoteSetUncurseAdmins {
-        loadAndCheckPrefix32(s, 0x8720d17e, 'Router_RMNRemoteSetUncurseAdmins');
-        return {
-            $: 'Router_RMNRemoteSetUncurseAdmins',
-            queryId: s.loadUintBig(64),
-            admins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-        }
-    },
-    store(self: Router_RMNRemoteSetUncurseAdmins, b: c.Builder): void {
-        b.storeUint(0x8720d17e, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeDict<c.Address, []>(setToDict(self.admins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: Router_RMNRemoteSetUncurseAdmins): c.Cell {
-        return makeCellFrom<Router_RMNRemoteSetUncurseAdmins>(self, Router_RMNRemoteSetUncurseAdmins.store);
-    }
-}
-
-/**
  > struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
  >     queryId: uint64
  >     subject: uint128
@@ -2651,8 +2874,7 @@ export const Router_MessageValidationFailed = {
 /**
  > struct RMNRemote {
  >     admin: Ownable2Step
- >     curseAdmins: map<address, ()>
- >     uncurseAdmins: map<address, ()>
+ >     rbac: Cell<AccessControl_Data>
  >     cursedSubjects: CursedSubjects
  >     forwardUpdates: map<address, ()>
  > }
@@ -2660,8 +2882,7 @@ export const Router_MessageValidationFailed = {
 export interface RMNRemote {
     readonly $: 'RMNRemote'
     admin: Ownable2Step
-    curseAdmins: Set<c.Address> /* = [] as map<address, ()> */
-    uncurseAdmins: Set<c.Address> /* = [] as map<address, ()> */
+    rbac: AccessControl_Data
     cursedSubjects: CursedSubjects
     forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
 }
@@ -2669,8 +2890,7 @@ export interface RMNRemote {
 export const RMNRemote = {
     create(args: {
         admin: Ownable2Step
-        curseAdmins: Set<c.Address> /* = [] as map<address, ()> */
-        uncurseAdmins: Set<c.Address> /* = [] as map<address, ()> */
+        rbac: AccessControl_Data
         cursedSubjects: CursedSubjects
         forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
     }): RMNRemote {
@@ -2683,14 +2903,7 @@ export const RMNRemote = {
         return {
             $: 'RMNRemote',
             admin: Ownable2Step.fromSlice(s),
-            curseAdmins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-            uncurseAdmins: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
+            rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
             cursedSubjects: CursedSubjects.fromSlice(s),
             forwardUpdates: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                             (s) => [],
@@ -2700,20 +2913,7 @@ export const RMNRemote = {
     },
     store(self: RMNRemote, b: c.Builder): void {
         Ownable2Step.store(self.admin, b);
-        b.storeDict<c.Address, []>(setToDict(self.curseAdmins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-        b.storeDict<c.Address, []>(setToDict(self.uncurseAdmins, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
+        storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
         CursedSubjects.store(self.cursedSubjects, b);
         b.storeDict<c.Address, []>(setToDict(self.forwardUpdates, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                         (s) => [],
@@ -3514,12 +3714,14 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
         'Utils_Error.InvalidData': 13500,
         'Upgradeable_Error.VersionMismatch': 19900,
+        'AccessControl_Error.UnauthorizedAccount': 47400,
+        'AccessControl_Error.BadConfirmation': 47401,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -3668,18 +3870,28 @@ export class Router implements c.Contract {
         return Router_RMNRemoteUncurse.toCell(Router_RMNRemoteUncurse.create(body));
     }
 
-    static createCellOfRouterRMNRemoteSetCurseAdmins(body: {
+    static createCellOfAccessControlGrantRole(body: {
         queryId?: uint64
-        admins: Set<c.Address>
+        role: uint256
+        account: c.Address
     }) {
-        return Router_RMNRemoteSetCurseAdmins.toCell(Router_RMNRemoteSetCurseAdmins.create(body));
+        return AccessControl_GrantRole.toCell(AccessControl_GrantRole.create(body));
     }
 
-    static createCellOfRouterRMNRemoteSetUncurseAdmins(body: {
+    static createCellOfAccessControlRevokeRole(body: {
         queryId?: uint64
-        admins: Set<c.Address>
+        role: uint256
+        account: c.Address
     }) {
-        return Router_RMNRemoteSetUncurseAdmins.toCell(Router_RMNRemoteSetUncurseAdmins.create(body));
+        return AccessControl_RevokeRole.toCell(AccessControl_RevokeRole.create(body));
+    }
+
+    static createCellOfAccessControlRenounceRole(body: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }) {
+        return AccessControl_RenounceRole.toCell(AccessControl_RenounceRole.create(body));
     }
 
     static createCellOfRouterRMNRemoteVerifyNotCursed(body: {
@@ -3897,24 +4109,38 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterRMNRemoteSetCurseAdmins(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendAccessControlGrantRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        admins: Set<c.Address>
+        role: uint256
+        account: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_RMNRemoteSetCurseAdmins.toCell(Router_RMNRemoteSetCurseAdmins.create(body)),
+            body: AccessControl_GrantRole.toCell(AccessControl_GrantRole.create(body)),
             ...extraOptions
         });
     }
 
-    async sendRouterRMNRemoteSetUncurseAdmins(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendAccessControlRevokeRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        admins: Set<c.Address>
+        role: uint256
+        account: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_RMNRemoteSetUncurseAdmins.toCell(Router_RMNRemoteSetUncurseAdmins.create(body)),
+            body: AccessControl_RevokeRole.toCell(AccessControl_RevokeRole.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendAccessControlRenounceRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: AccessControl_RenounceRole.toCell(AccessControl_RenounceRole.create(body)),
             ...extraOptions
         });
     }
@@ -4051,20 +4277,21 @@ export class Router implements c.Contract {
         );
     }
 
-    async getRmnCurseAdmins(provider: ContractProvider): Promise<Set<c.Address>> {
-        const r = StackReader.fromGetMethod(1, await provider.get('rmn_curseAdmins', []));
-        return dictToSet(r.readDictionary<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                    (s) => [],
-                    (v,b) => { {} }
-                )));
+    async getRmnHasRole(provider: ContractProvider, role: uint256, account: c.Address): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_hasRole', [
+            { type: 'int', value: role },
+            { type: 'slice', cell: makeCellFrom<c.Address>(account,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return r.readBoolean();
     }
 
-    async getRmnUncurseAdmins(provider: ContractProvider): Promise<Set<c.Address>> {
-        const r = StackReader.fromGetMethod(1, await provider.get('rmn_uncurseAdmins', []));
-        return dictToSet(r.readDictionary<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                    (s) => [],
-                    (v,b) => { {} }
-                )));
+    async getRmnGetRoleAdmin(provider: ContractProvider, role: uint256): Promise<uint256> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_getRoleAdmin', [
+            { type: 'int', value: role },
+        ]));
+        return r.readBigInt();
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

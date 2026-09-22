@@ -7,7 +7,12 @@ import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import { ccipSendCost, RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
+import {
+  ccipSendCost,
+  CURSE_ROLE,
+  RMNREMOTE_GLOBAL_CURSE_SUBJECT,
+  UNCURSE_ROLE,
+} from '../../../wrappers/ccip/Router'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -175,27 +180,42 @@ describe('Router.cursing', () => {
   it('separates curse and uncurse callers', async () => {
     const subject = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
-    const unauthorizedSet = await router.sendRouterRMNRemoteSetCurseAdmins(
+    const unauthorizedGrant = await router.sendAccessControlGrantRole(
       sender.getSender(),
       toNano('1'),
-      { queryId: 0n, admins: new Set([sender.address]) },
+      { queryId: 0n, role: CURSE_ROLE, account: sender.address },
     )
-    expect(unauthorizedSet.transactions).toHaveTransaction({
+    expect(unauthorizedGrant.transactions).toHaveTransaction({
       from: sender.address,
       to: router.address,
       success: false,
     })
 
-    const setCurseAdmins = await router.sendRouterRMNRemoteSetCurseAdmins(
+    const grantCurseRole = await router.sendAccessControlGrantRole(
       deployer.getSender(),
       toNano('1'),
-      { queryId: 0n, admins: new Set([fastCurser.address]) },
+      { queryId: 0n, role: CURSE_ROLE, account: fastCurser.address },
     )
-    expect(setCurseAdmins.transactions).toHaveTransaction({
+    expect(grantCurseRole.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
       success: true,
     })
+
+    const revokeDeployerCurseRole = await router.sendAccessControlRevokeRole(
+      deployer.getSender(),
+      toNano('1'),
+      { queryId: 0n, role: CURSE_ROLE, account: deployer.address },
+    )
+    expect(revokeDeployerCurseRole.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+
+    expect(await router.getRmnHasRole(CURSE_ROLE, fastCurser.address)).toBe(true)
+    expect(await router.getRmnHasRole(CURSE_ROLE, deployer.address)).toBe(false)
+    expect(await router.getRmnHasRole(UNCURSE_ROLE, fastCurser.address)).toBe(false)
 
     // The emergency caller can pause, but cannot reopen a lane.
     const curse = await router.sendRouterRMNRemoteCurse(fastCurser.getSender(), toNano('1'), {

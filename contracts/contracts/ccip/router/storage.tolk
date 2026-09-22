@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/access/ownable_2step"
+import "../../lib/access/access_control"
 import "../../ccip/rmn_remote/lib"
 import "types"
 
 struct RMNRemote {
-    // The RMN admin is the high-security governance authority that manages
-    // the operation-specific caller lists below.
+    // Retained for compatibility with the existing RMN ownership interface.
     admin: Ownable2Step;
-    // Curse and uncurse deliberately have separate authorization domains.
-    // In production the UltraFastCurse timelock is expected to be a curse
-    // admin only; normal RMN governance controls uncurse access.
-    curseAdmins: map<address, ()> = [];
-    uncurseAdmins: map<address, ()> = [];
+    // The audited AccessControl component manages the operation-specific
+    // CURSE_ROLE and UNCURSE_ROLE memberships.
+    rbac: Cell<AccessControl_Data>;
     cursedSubjects: CursedSubjects;
     forwardUpdates: map<address, ()> = [];
 }

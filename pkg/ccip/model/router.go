@@ -27,6 +27,7 @@ type RouterStorage struct {
 
 type RMNRemote struct {
 	Admin          Ownable2Step       `json:"admin"`
+	Roles          *cell.Dictionary   `json:"-"`
 	CursedSubjects []*big.Int         `json:"cursedSubjects"`
 	ForwardUpdates []*address.Address `json:"forwardUpdates"`
 }
@@ -137,6 +138,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		).
 		WithWrapperNative(raw.WrappedNative).
 		WithRMNRemote(raw.RMNRemote.Admin.Owner, raw.RMNRemote.Admin.PendingOwner)
+	b.storage.RMNRemote.Roles = raw.RMNRemote.RBAC.Roles
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
 	if err != nil {
@@ -180,6 +182,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 	if err != nil {
 		return fmt.Errorf("error while loading RMNRemote.ForwardUpdates: %w", err)
 	}
+
 	for _, fu := range forwardUpdates {
 		var forwardUpdate common.AddressWrap
 		if err2 := tlb.LoadFromCell(&forwardUpdate, fu.Key); err2 != nil {
@@ -226,6 +229,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 				Owner:        s.RMNRemote.Admin.Owner,
 				PendingOwner: s.RMNRemote.Admin.PendingOwner,
 			},
+			RBAC: router.AccessControlData{Roles: s.RMNRemote.Roles},
 		},
 	}
 

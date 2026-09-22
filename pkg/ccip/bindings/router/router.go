@@ -16,14 +16,17 @@ import (
 )
 
 var (
-	OpcodeApplyRampUpdates   = tvm.MustExtractMagic(reflect.TypeFor[ApplyRampUpdates]())
-	OpcodeCCIPSend           = tvm.MustExtractMagic(reflect.TypeFor[CCIPSend]())
-	OpcodeRouteMessage       = tvm.MustExtractMagic(reflect.TypeFor[RouteMessage]())
-	OpcodeCCIPReceiveConfirm = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
-	OpcodeMessageSent        = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
-	OpcodeMessageRejected    = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
-	OpcodeRMNRemoteCurse     = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
-	OpcodeRMNRemoteUncurse   = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
+	OpcodeApplyRampUpdates          = tvm.MustExtractMagic(reflect.TypeFor[ApplyRampUpdates]())
+	OpcodeCCIPSend                  = tvm.MustExtractMagic(reflect.TypeFor[CCIPSend]())
+	OpcodeRouteMessage              = tvm.MustExtractMagic(reflect.TypeFor[RouteMessage]())
+	OpcodeCCIPReceiveConfirm        = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
+	OpcodeMessageSent               = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
+	OpcodeMessageRejected           = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
+	OpcodeRMNRemoteCurse            = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
+	OpcodeRMNRemoteUncurse          = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
+	OpcodeAccessControlGrantRole    = tvm.MustExtractMagic(reflect.TypeFor[AccessControlGrantRole]())
+	OpcodeAccessControlRevokeRole   = tvm.MustExtractMagic(reflect.TypeFor[AccessControlRevokeRole]())
+	OpcodeAccessControlRenounceRole = tvm.MustExtractMagic(reflect.TypeFor[AccessControlRenounceRole]())
 )
 
 const (
@@ -68,8 +71,21 @@ type Storage struct {
 
 type RMNRemote struct {
 	Admin          ownable2step.Storage `tlb:"."`
+	RBAC           AccessControlData    `tlb:"^"`
 	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
+}
+
+// AccessControlData is the audited shared access-control storage composed by
+// RMNRemote. Role values are stored by reference in the roles dictionary.
+type AccessControlData struct {
+	Roles *cell.Dictionary `tlb:"dict 256"`
+}
+
+type AccessControlRoleData struct {
+	AdminRole  *big.Int         `tlb:"## 256"`
+	MembersLen uint64           `tlb:"## 64"`
+	HasRole    *cell.Dictionary `tlb:"dict 267"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakedCell encoding.
@@ -176,6 +192,27 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
+type AccessControlGrantRole struct {
+	_       tlb.Magic        `tlb:"#95cd540f" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Role    *big.Int         `tlb:"## 256"`
+	Account *address.Address `tlb:"addr"`
+}
+
+type AccessControlRevokeRole struct {
+	_       tlb.Magic        `tlb:"#969b0db9" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Role    *big.Int         `tlb:"## 256"`
+	Account *address.Address `tlb:"addr"`
+}
+
+type AccessControlRenounceRole struct {
+	_                  tlb.Magic        `tlb:"#39452c46" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID            uint64           `tlb:"## 64"`
+	Role               *big.Int         `tlb:"## 256"`
+	CallerConfirmation *address.Address `tlb:"addr"`
+}
+
 type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#af7a9ac6" json:"-"` //nolint:revive // Ignore opcode tag
 	Content *codec.MessageEnvelope[T] `tlb:"."`
@@ -192,6 +229,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
+	AccessControlGrantRole{},
+	AccessControlRevokeRole{},
+	AccessControlRenounceRole{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})
