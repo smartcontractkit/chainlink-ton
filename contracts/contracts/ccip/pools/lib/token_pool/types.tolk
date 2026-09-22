@@ -30,21 +30,14 @@ struct TokenPool_DynamicConfig {
     /// @dev This field is part of dynamic config so it can be updated without redeploying the
     ///      pool. Only namespaces whose deployable code is registered (see `TokenPool_AdminConfig`)
     ///      are meaningful.
-    allowedDepositNamespaces: map<uint32, bool> = [];
+    allowedDepositNamespaces: map<uint32, ()> = [];
 }
 
-struct TokenPool_MirroredPolicy {
-    onRamps: map<uint64, address> = [];
-    offRamps: map<uint64, address> = [];
-    // Unlike ramp access, this policy is local to the pool and is never
-    // mirrored from Router.
+struct TokenPool_LocalPolicy {
+    // Independently managed pool-local RMN policy. This is intentionally not a
+    // mirror of the Router's cursed subjects: the pool owner may configure a
+    // distinct RMN proxy, or disable proxy updates by setting it to addr_none.
     cursePolicy: CursePolicy;
-}
-
-struct TokenPool_RampUpdate {
-    remoteChainSelector: uint64;
-    onRamp: address? = null;
-    offRamp: address? = null;
 }
 
 struct TokenPool_RateLimiterPair {

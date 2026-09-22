@@ -47,51 +47,29 @@ const (
 // --- Data types (no opcodes) ---
 
 // DynamicConfig holds the router and admin addresses for the pool.
-type DynamicConfig struct {
-	Router                   *address.Address         `tlb:"addr"`
-	RateLimitAdmin           *address.Address         `tlb:"addr"`
-	FeeAdmin                 *address.Address         `tlb:"addr"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, bool] `tlb:"."`
-}
-
-// MirroredPolicy holds mirrored ramp access and the pool's independent local
-// curse policy. Curse configuration is deliberately not mirrored from Router.
 //
-// Dict fields use *cell.Dictionary rather than *tlbe.Dict: tonutils-go's tlb
-// encoder (used to build init data for contract deploys, see
-// deployment/utils/operation/deploy_ton_contract.go) type-asserts "dict N"
-// fields directly to *cell.Dictionary and panics on any other type.
-type MirroredPolicy struct {
-	OnRamps     *cell.Dictionary `tlb:"dict 64"`
-	OffRamps    *cell.Dictionary `tlb:"dict 64"`
-	CursePolicy CursePolicy      `tlb:"."`
+// AllowedDepositNamespaces is a unit-value set (map<uint32,()> on-chain): a key
+// is present if the corresponding deployable namespace is allowed as a deposit source.
+type DynamicConfig struct {
+	Router                   *address.Address             `tlb:"addr"`
+	RateLimitAdmin           *address.Address             `tlb:"addr"`
+	FeeAdmin                 *address.Address             `tlb:"addr"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
-type CursePolicy struct {
-	RBAC           AccessControlData `tlb:"^"`
-	CursedSubjects CursedSubjects    `tlb:"."`
+// LocalPolicy holds the pool's independently managed RMN policy. It is
+// intentionally not a mirror of the Router's cursed subjects: the pool owner may
+// configure a distinct RMN proxy, or disable proxy updates by setting it to
+// addr_none. Ramp access is no longer pool state: the Router is the only entry
+// point of every pool (TokenPool.onlyRouter).
+type LocalPolicy struct {
+	CursedSubjects CursedSubjects `tlb:"."`
 }
 
-type AccessControlData struct {
-	Roles *cell.Dictionary `tlb:"dict 256"`
-}
-
-type AccessControlRoleData struct {
-	AdminRole  *big.Int         `tlb:"## 256"`
-	MembersLen uint64           `tlb:"## 64"`
-	HasRole    *cell.Dictionary `tlb:"dict 267"`
-}
-
-// CursedSubjects represents the set of cursed subjects (uint128 keys with empty values).
+// CursedSubjects represents the set of cursed subjects (uint128 keys with empty
+// values), i.e. map<uint128, ()> on-chain.
 type CursedSubjects struct {
-	Data *cell.Dictionary `tlb:"dict 128"`
-}
-
-// RampUpdate represents a single ramp access update for a remote chain.
-type RampUpdate struct {
-	RemoteChainSelector uint64           `tlb:"## 64"`
-	OnRamp              *address.Address `tlb:"addr"`
-	OffRamp             *address.Address `tlb:"addr"`
+	Data *tlbe.Dict[tlbe.Uint128, struct{}] `tlb:"."`
 }
 
 // RateLimitConfig represents a rate limiter configuration.
@@ -136,10 +114,10 @@ type ChainUpdate struct {
 
 // RemoteChainConfig holds the configuration for a remote chain.
 type RemoteChainConfig struct {
-	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress]  `tlb:"^"`
-	RemotePools              *tlbe.Dict[*tlbe.Uint256, *cell.Cell] `tlb:"."`
-	RateLimiters             RateLimiterPair                       `tlb:"^"`
-	FastFinalityRateLimiters RateLimiterPair                       `tlb:"^"`
+	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress] `tlb:"^"`
+	RemotePools              *tlbe.Dict[tlbe.Uint256, *cell.Cell] `tlb:"."`
+	RateLimiters             RateLimiterPair                      `tlb:"^"`
+	FastFinalityRateLimiters RateLimiterPair                      `tlb:"^"`
 }
 
 // RateLimitConfigArgs holds arguments for setting rate limit configs.
@@ -267,6 +245,7 @@ type JettonClient struct {
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
 	Ownable               ownable2step.Storage `tlb:"^"`
+	RMNProxy              *address.Address     `tlb:"addr"`
 	DynamicConfig         DynamicConfig        `tlb:"^"`
 	JettonClient          JettonClient         `tlb:"."`
 	AllowedFinalityConfig uint32               `tlb:"## 32"`
@@ -275,11 +254,11 @@ type AdminConfig struct {
 }
 
 // Storage represents the TokenPool_Data storage layout shared by every TokenPool
-// implementation (Mock, BurnMint, LockRelease, ...), each of which wraps it as
+// implementation (BurnMint, LockRelease, ...), each of which wraps it as
 // `poolData: Cell<TokenPool_Data>` alongside its own pool-specific fields.
 type Storage struct {
 	AdminConfig             AdminConfig      `tlb:"^"`
-	MirroredPolicy          MirroredPolicy   `tlb:"^"`
+	LocalPolicy             LocalPolicy      `tlb:"^"`
 	TokenDecimals           uint8            `tlb:"## 8"`
 	RemoteChainConfigs      *cell.Dictionary `tlb:"dict 64"`
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
@@ -336,16 +315,16 @@ type SetAdvancedPoolHooks struct {
 
 // SetDeployableCode sets the Compiled Deployable code used to derive source-chain deposit accounts.
 type SetDeployableCode struct {
-	_              tlb.Magic  `tlb:"#6c2a91e4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_              tlb.Magic  `tlb:"#3868e309" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
 	DeployableCode *cell.Cell `tlb:"maybe ^"`
 }
 
 // SetAllowedDepositNamespaces sets the Deployables namespaces the pool accepts as deposit sources.
 type SetAllowedDepositNamespaces struct {
-	_                        tlb.Magic                `tlb:"#1f8e33c2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                  uint64                   `tlb:"## 64"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, bool] `tlb:"."`
+	_                        tlb.Magic                    `tlb:"#84384142" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                  uint64                       `tlb:"## 64"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
@@ -363,30 +342,18 @@ type ApplyTokenTransferFeeConfigUpdates struct {
 	DisableChainSelectors common.SnakedCell[ChainSelector]              `tlb:"^"`
 }
 
-// UpdateRampAccess updates ramp access for chains.
-type UpdateRampAccess struct {
-	_       tlb.Magic                     `tlb:"#e30764be" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64                        `tlb:"## 64"`
-	Updates common.SnakedCell[RampUpdate] `tlb:"^"`
+// SetRMNProxy sets the RMN proxy address.
+type SetRMNProxy struct {
+	_        tlb.Magic        `tlb:"#9929b642" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID  uint64           `tlb:"## 64"`
+	RMNProxy *address.Address `tlb:"addr"`
 }
 
-// CursePolicyCurse adds subjects to this pool's local curse policy.
-type CursePolicyCurse struct {
-	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive
-	QueryID  uint64                     `tlb:"## 64"`
-	Subjects common.SnakedCell[Subject] `tlb:"^"`
-}
-
-// CursePolicyUncurse removes subjects from this pool's local curse policy.
-type CursePolicyUncurse struct {
-	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive
-	QueryID  uint64                     `tlb:"## 64"`
-	Subjects common.SnakedCell[Subject] `tlb:"^"`
-}
-
-// Subject is a uint128 curse subject encoded in a SnakedCell.
-type Subject struct {
-	Value *big.Int `tlb:"## 128"`
+// SetCursedSubjects sets the cursed subjects list.
+type SetCursedSubjects struct {
+	_              tlb.Magic      `tlb:"#9da4da09" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64         `tlb:"## 64"`
+	CursedSubjects CursedSubjects `tlb:"."`
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens.
@@ -644,17 +611,25 @@ type ChainUpdatesApplied struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// RampAccessUpdatesApplied is replied on UpdateRampAccess to confirm the tx and return excess.
-type RampAccessUpdatesApplied struct {
-	_       tlb.Magic `tlb:"#d7f5c563" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
-}
-
 // FeeConfigApplied is replied on ApplyTokenTransferFeeConfigUpdates to confirm the tx
 // and return excess.
 type FeeConfigApplied struct {
 	_       tlb.Magic `tlb:"#28cbcc64" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
+}
+
+// RMNProxySet confirms the RMN proxy was set.
+type RMNProxySet struct {
+	_        tlb.Magic        `tlb:"#e5d08b2e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID  uint64           `tlb:"## 64"`
+	RMNProxy *address.Address `tlb:"addr"`
+}
+
+// CursedSubjectsSet confirms the cursed subjects were set.
+type CursedSubjectsSet struct {
+	_              tlb.Magic      `tlb:"#15800161" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64         `tlb:"## 64"`
+	CursedSubjects CursedSubjects `tlb:"."`
 }
 
 // AdvancedPoolHooksSet confirms the advanced pool hooks were set.
@@ -666,14 +641,14 @@ type AdvancedPoolHooksSet struct {
 
 // DeployableCodeSet confirms the deployable code was set.
 type DeployableCodeSet struct {
-	_              tlb.Magic  `tlb:"#09d4a7b1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_              tlb.Magic  `tlb:"#89d602e5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
 	DeployableCode *cell.Cell `tlb:"maybe ^"`
 }
 
 // AllowedDepositNamespacesSet confirms the allowed deposit namespaces were set.
 type AllowedDepositNamespacesSet struct {
-	_       tlb.Magic `tlb:"#7a53c9f4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#c1ffe3a6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
@@ -732,13 +707,6 @@ type RemotePoolRemoved struct {
 // RateLimitConfigured is emitted when rate limits are configured.
 type RateLimitConfigured struct {
 	Args RateLimitConfigArgs `tlb:"."`
-}
-
-// RampAccessUpdated is emitted when ramp access is updated.
-type RampAccessUpdated struct {
-	RemoteChainSelector uint64           `tlb:"## 64"`
-	OnRamp              *address.Address `tlb:"addr"`
-	OffRamp             *address.Address `tlb:"addr"`
 }
 
 // OutboundRateLimitConsumed is emitted when outbound rate-limit capacity is consumed.
@@ -826,9 +794,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetAllowedDepositNamespaces{},
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
-	UpdateRampAccess{},
-	CursePolicyCurse{},
-	CursePolicyUncurse{},
+	SetRMNProxy{},
+	SetCursedSubjects{},
 	JettonWithdrawableWithdraw{},
 	LockOrBurn{},
 	ReleaseOrMint{},
@@ -854,11 +821,12 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	FinalityConfigSet{},
 	DynamicConfigSet{},
 	RateLimitConfiguredNotification{},
+	RMNProxySet{},
+	CursedSubjectsSet{},
 	AdvancedPoolHooksSet{},
 	DeployableCodeSet{},
 	AllowedDepositNamespacesSet{},
 	ChainUpdatesApplied{},
-	RampAccessUpdatesApplied{},
 	FeeConfigApplied{},
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
 	// GetCCVs (registered above) is reused for the pool→hooks hop.
@@ -875,7 +843,6 @@ const (
 	TopicRemotePoolAdded                       = "TokenPool_RemotePoolAdded"
 	TopicRemotePoolRemoved                     = "TokenPool_RemotePoolRemoved"
 	TopicDynamicConfigSet                      = "TokenPool_DynamicConfigSet"
-	TopicRampAccessUpdated                     = "TokenPool_RampAccessUpdated"
 	TopicFinalityConfigSet                     = "TokenPool_FinalityConfigSet"
 	TopicRateLimitConfigured                   = "TokenPool_RateLimitConfigured"
 	TopicOutboundRateLimitConsumed             = "TokenPool_OutboundRateLimitConsumed"

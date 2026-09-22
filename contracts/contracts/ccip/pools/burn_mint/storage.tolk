@@ -40,9 +40,7 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
                 advancedPoolHooks: createAddressNone() as address,
                 deployableCode: config.deployableCode,
             }.toCell(),
-            mirroredPolicy: TokenPool_MirroredPolicy {
-                onRamps: createEmptyMap(),
-                offRamps: createEmptyMap(),
+            localPolicy: TokenPool_LocalPolicy {
                 cursePolicy: CursePolicy.init(config.owner, config.owner, config.owner),
             }.toCell(),
             tokenDecimals: config.tokenDecimals,

@@ -2,7 +2,6 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
 import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
-import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import { JettonMinter, JettonSender, JettonWallet } from '../../../wrappers/examples/jetton'
 import {
   CrossChainAddress,
@@ -12,7 +11,7 @@ import {
   TokenPool_Data,
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
-  TokenPool_MirroredPolicy,
+  TokenPool_LocalPolicy,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
   TokenPool_LockOrBurn,
@@ -23,7 +22,6 @@ import {
   TokenPool_LockOrBurnPrepared,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_RateLimitConfigPair,
-  TokenPool_RampUpdate,
   TokenPool_ChainUpdate,
   Ownable2Step,
   TokenPool_TransferDetails,
@@ -118,11 +116,12 @@ describe('LockReleaseTokenPool', () => {
           poolData: TokenPool_Data.create({
             adminConfig: TokenPool_AdminConfig.create({
               ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
               dynamicConfig: TokenPool_DynamicConfig.create({
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Map(),
+                allowedDepositNamespaces: new Set(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: jettonMinter.address,
@@ -131,10 +130,10 @@ describe('LockReleaseTokenPool', () => {
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
             }),
-            mirroredPolicy: TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
-              cursePolicy: createCursePolicy(deployer.address),
+            localPolicy: TokenPool_LocalPolicy.create({
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),
@@ -185,27 +184,6 @@ describe('LockReleaseTokenPool', () => {
       success: true,
     })
 
-    const updateRampAccess = await lockReleasePool.sendTokenPoolUpdateRampAccess(
-      deployer.getSender(),
-      toNano('0.2'),
-      {
-        queryId: 2n,
-        updates: [
-          TokenPool_RampUpdate.create({
-            remoteChainSelector,
-            onRamp: deployer.address,
-            offRamp: offRamp.address,
-          }),
-        ],
-      },
-    )
-
-    expect(updateRampAccess.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: lockReleasePool.address,
-      success: true,
-    })
-
     const mintToOnRamp = await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
       message: {
@@ -250,6 +228,7 @@ describe('LockReleaseTokenPool', () => {
     'LockReleaseTokenPool',
     async () => ({
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized: recipient,
@@ -295,6 +274,7 @@ describe('LockReleaseTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized: recipient,
@@ -684,7 +664,7 @@ describe('LockReleaseTokenPool', () => {
 
   it('reverts releaseOrMint when requested amount exceeds pool liquidity', async () => {
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 46n,
@@ -709,7 +689,7 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: lockReleasePool.address,
       success: false,
     })
@@ -724,7 +704,7 @@ describe('LockReleaseTokenPool', () => {
     expect(before.inbound.tokens).toEqual(toNano('100'))
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 77n,
@@ -863,7 +843,7 @@ describe('LockReleaseTokenPool', () => {
     })
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 22n,
@@ -888,7 +868,7 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: lockReleasePool.address,
       success: true,
     })
@@ -940,7 +920,7 @@ describe('LockReleaseTokenPool', () => {
     })
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.4'),
       {
         queryId: 223n,
@@ -987,12 +967,12 @@ describe('LockReleaseTokenPool', () => {
   })
 
   it('mirrors cursed state locally and blocks release while cursed', async () => {
-    const curseUpdate = await lockReleasePool.sendCursePolicyCurse(
+    const curseUpdate = await lockReleasePool.sendTokenPoolSetCursedSubjects(
       deployer.getSender(),
       toNano('0.2'),
       {
         queryId: 901n,
-        subjects: [remoteChainSelector],
+        cursedSubjects: CursedSubjects.create({ data: new Set([remoteChainSelector]) }),
       },
     )
 
@@ -1005,7 +985,7 @@ describe('LockReleaseTokenPool', () => {
     expect(await lockReleasePool.getVerifyNotCursed(remoteChainSelector)).toBe(false)
 
     const result = await lockReleasePool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.3'),
       {
         queryId: 33n,
@@ -1030,7 +1010,7 @@ describe('LockReleaseTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: lockReleasePool.address,
       success: false,
     })

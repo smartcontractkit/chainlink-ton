@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -20,6 +21,8 @@ import (
 	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
+	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
@@ -268,4 +271,35 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, config)
 	require.Len(t, config.Signers.AsMap(), 1, "Config should have 1 signer in total after setConfig")
+
+	// Reconfigure again, this time through the public deployer API
+	proposerRef, err := datastore_utils.FindAndFormatRef(env.DataStore, datastore.AddressRef{
+		ChainSelector: chainSelector,
+		Type:          datastore.ContractType(ccipdutils.ProposerManyChainMultisig),
+		Qualifier:     qualifier,
+	}, chainSelector, datastore_utils.FullRef)
+	require.NoError(t, err, "Failed to resolve proposer MCMS ref")
+
+	output, err = ccipddeploy.UpdateMCMSConfig(dReg, mcmsRegistry).Apply(env, ccipddeploy.UpdateMCMSConfigInput{
+		AdapterVersion: semver.MustParse("1.6.0"),
+		Chains: map[uint64]ccipddeploy.UpdateMCMSConfigInputPerChain{
+			chainSelector: {
+				MCMConfig:    TestMCMSConfig2,
+				MCMContracts: []datastore.AddressRef{proposerRef},
+			},
+		},
+		MCMS: ccipdmcms.Input{
+			OverridePreviousRoot: false,
+			ValidUntil:           3759765795,
+			TimelockAction:       mcmstypes.TimelockActionSchedule,
+			Qualifier:            qualifier,
+			Description:          "update mcms config via deployer API",
+		},
+	})
+	require.NoError(t, err, "Failed to update MCMS config through deployer API")
+
+	config, err = tvm.CallGetterLatest(ctx, chain.Client, mcmsAddr, mcms.GetConfig)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	require.Len(t, config.Signers.AsMap(), 2, "Config should have 2 signers in total after deployer API reconfiguration")
 }

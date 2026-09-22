@@ -397,11 +397,14 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 						Owner:        owner,
 						PendingOwner: nil,
 					},
+					RMNProxy: owner,
 					DynamicConfig: tokenpool.DynamicConfig{
-						Router:                   &routerAddr,
-						RateLimitAdmin:           rateLimitAdmin,
-						FeeAdmin:                 feeAdmin,
-						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, bool](),
+						Router:         &routerAddr,
+						RateLimitAdmin: rateLimitAdmin,
+						FeeAdmin:       feeAdmin,
+						// Unit-value set (map<uint32,()>); an empty dict serializes as an
+						// empty map. Must be non-nil: the tlb:"." tag errors on a nil dict.
+						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
 					},
 					JettonClient: tokenpool.JettonClient{
 						MasterAddress:    tokenAddr,
@@ -410,12 +413,13 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					AllowedFinalityConfig: allowedFinality,
 					AdvancedPoolHooks:     nil,
 				},
-				MirroredPolicy: tokenpool.MirroredPolicy{
-					// nil dicts serialize as an empty map (a single "no entries" bit), matching
-					// the Tolk contract's createEmptyMap() default.
-					OnRamps:        nil,
-					OffRamps:       nil,
-					CursePolicy: mustTokenPoolCursePolicy(owner),
+				LocalPolicy: tokenpool.LocalPolicy{
+					// An empty dict serializes as an empty map (a single "no entries"
+					// bit), matching the Tolk contract's createEmptyMap() default.
+					// Must be non-nil: the tlb:"." tag errors on a nil dict.
+					CursedSubjects: tokenpool.CursedSubjects{
+						Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
+					},
 				},
 				TokenDecimals:           defaultJettonDecimals,
 				RemoteChainConfigs:      nil,
@@ -509,9 +513,9 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("retrieve Deployable code for TokenAdminRegistry entry: %w", err)
 			}
 
-			// The OffRamp always comes from the datastore: it is the contract that sends
-			// TokenPool_ReleaseOrMint to the pool, so it must be registered as the pool's
-			// trusted offRamp (see applyRampAccessUpdates below).
+			// The OffRamp is registered in the Router's offRamps map by the lane's
+			// ApplyRampUpdates sequence; the Router forwards ReleaseOrMint to the pool,
+			// so the pool itself no longer tracks per-lane ramps.
 			stateCCIP, loadErr := tonstate.LoadCCIPOnChainStateUsingDataStore(input.ExistingDataStore, input.ChainSelector)
 			if loadErr != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON CCIP state for chain %d: %w", input.ChainSelector, loadErr)
@@ -526,14 +530,6 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			} else {
 				r := stateCCIP.TokenAdminRegistry
 				registryAddr = &r
-			}
-
-			var offRampAddr *address.Address
-			if !stateCCIP.OffRamp.IsAddrNone() {
-				o := stateCCIP.OffRamp
-				offRampAddr = &o
-			} else if len(input.RemoteChains) > 0 {
-				return sequences.OnChainOutput{}, fmt.Errorf("no OffRamp address found in the datastore for chain %d: the token pool would reject inbound ReleaseOrMint with TokenPool_Error.Unauthorized", input.ChainSelector)
 			}
 
 			body := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.RegisterToken{
@@ -590,14 +586,6 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 			// Configure the pool's remote-chain token addresses.
 			if err := applyRemoteChainUpdates(b, dp, poolAddr, input.RemoteChains); err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure remote chains on token pool at %s: %w", poolAddr.String(), err)
-			}
-
-			// Register the Router as the pool's trusted onRamp and the OffRamp as its trusted
-			// offRamp for every remote chain being wired up.
-			// TODO This should be changed in the contracts flow so that the onramp is the one calling instead of the Router
-			routerAddr := stateCCIP.Router
-			if err := applyRampAccessUpdates(b, dp, poolAddr, &routerAddr, offRampAddr, input.RemoteChains); err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to configure ramp access on token pool at %s: %w", poolAddr.String(), err)
 			}
 
 			return sequences.OnChainOutput{}, nil
@@ -693,55 +681,6 @@ func applyRemoteChainUpdates(
 	})
 
 	_, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
-		Messages: []opston.InternalMessage[any]{
-			{
-				Bounce:  true,
-				DstAddr: poolAddr,
-				Amount:  tlb.MustFromTON("0.1"),
-				Body:    body,
-			},
-		},
-	})
-	return err
-}
-
-// applyRampAccessUpdates registers onRamp/offRamp as the trusted local ramps for every
-// remote chain in remoteChains, via TokenPool_UpdateRampAccess. It is a no-op when no
-// remote chains are provided. Without this, the pool's mirroredPolicy.onRamps/offRamps
-// maps stay empty and TokenPool.ensureOutboundAccess/ensureInboundAccess (entrypoint.tolk)
-// reject LockOrBurn/ReleaseOrMint with TokenPool_Error.Unauthorized.
-func applyRampAccessUpdates(
-	b cldf_ops.Bundle,
-	dp *dep.DependencyProvider,
-	poolAddr *address.Address,
-	onRamp *address.Address,
-	offRamp *address.Address,
-	remoteChains map[uint64]tokensapi.RemoteChainConfig[[]byte, string],
-) error {
-	if len(remoteChains) == 0 {
-		return nil
-	}
-
-	updates := make(common.SnakedCell[tokenpool.RampUpdate], 0, len(remoteChains))
-	for remoteSelector := range remoteChains {
-		updates = append(updates, tokenpool.RampUpdate{
-			RemoteChainSelector: remoteSelector,
-			OnRamp:              onRamp,
-			OffRamp:             offRamp,
-		})
-	}
-
-	queryID, err := ton_tvm.RandomQueryID()
-	if err != nil {
-		return fmt.Errorf("failed to generate query id for ramp access update: %w", err)
-	}
-
-	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseTokenPool, tokenpool.UpdateRampAccess{
-		QueryID: queryID,
-		Updates: updates,
-	})
-
-	_, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 		Messages: []opston.InternalMessage[any]{
 			{
 				Bounce:  true,
@@ -850,40 +789,6 @@ func buildOffchainJettonContent(symbol string) *cell.Cell {
 		}
 	}
 	return b.EndCell()
-}
-
-// mustTokenPoolCursePolicy mirrors CursePolicy.init in Tolk. Pools have a
-// local policy: the pool owner is the default admin and initially holds both
-// emergency roles.
-func mustTokenPoolCursePolicy(owner *address.Address) tokenpool.CursePolicy {
-	roles := cell.NewDict(256)
-	for _, role := range []string{
-		"0",
-		"b3c5b7cb9096e539f419cdc795a52c8cbe8dfbc9e27f70077d0b9749efe27fc5",
-		"19331e9591f40b6bd5c2716faeab95f6a63184877fab2619bf484155c597abf0",
-	} {
-		roleID, ok := new(big.Int).SetString(role, 16)
-		if !ok {
-			panic("invalid curse-policy role")
-		}
-		members := cell.NewDict(267)
-		if err := members.Set(cell.BeginCell().MustStoreAddr(owner).EndCell(), cell.BeginCell().MustStoreUInt(1, 1).EndCell()); err != nil {
-			panic(err)
-		}
-		roleData, err := tlb.ToCell(tokenpool.AccessControlRoleData{
-			AdminRole: big.NewInt(0), MembersLen: 1, HasRole: members,
-		})
-		if err != nil {
-			panic(err)
-		}
-		if err := roles.Set(cell.BeginCell().MustStoreBigUInt(roleID, 256).EndCell(), cell.BeginCell().MustStoreRef(roleData).EndCell()); err != nil {
-			panic(err)
-		}
-	}
-	return tokenpool.CursePolicy{
-		RBAC:           tokenpool.AccessControlData{Roles: roles},
-		CursedSubjects: tokenpool.CursedSubjects{Data: nil},
-	}
 }
 
 // Parses the address, if the string is empty returns a non initialized address

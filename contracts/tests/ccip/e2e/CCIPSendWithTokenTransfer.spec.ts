@@ -21,7 +21,6 @@ import * as jw from '../../../wrappers/jetton/JettonWallet'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup } from '../router/Router.Setup'
-import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -154,11 +153,12 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 owner: deployer.address,
                 pendingOwner: null,
               }),
+              rmnProxy: deployer.address,
               dynamicConfig: tp.TokenPool_DynamicConfig.create({
                 router: router.address,
                 rateLimitAdmin: deployer.address,
                 feeAdmin: deployer.address,
-                allowedDepositNamespaces: new Map(),
+                allowedDepositNamespaces: new Set(),
               }),
               jettonClient: tp.JettonClient.create({
                 masterAddress: minter.address,
@@ -166,10 +166,10 @@ describe('CCIPSend with token transfer (e2e)', () => {
               }),
               advancedPoolHooks: null,
             }),
-            mirroredPolicy: tp.TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
-              cursePolicy: createCursePolicy(deployer.address),
+            localPolicy: tp.TokenPool_LocalPolicy.create({
+              cursedSubjects: tp.CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
             tokenDecimals: 0n,
             remoteChainConfigs: new Map(),
@@ -218,29 +218,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
     )
 
     expect(chainUpdateResult.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: tokenPool.address,
-      success: true,
-    })
-
-    // Register the Router as the authorized caller for lock/burn on this chain.
-    // The Router forwards Router_LockOrBurn on behalf of the OnRamp, so it's the
-    // sender the pool sees for TokenPool_LockOrBurn.
-    const rampAccessResult = await tokenPool.sendTokenPoolUpdateRampAccess(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        updates: [
-          tp.TokenPool_RampUpdate.create({
-            remoteChainSelector: DestChainSelector,
-            onRamp: router.address,
-            offRamp: null,
-          }),
-        ],
-      },
-    )
-
-    expect(rampAccessResult.transactions).toHaveTransaction({
       from: deployer.address,
       to: tokenPool.address,
       success: true,

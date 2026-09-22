@@ -7,12 +7,7 @@ import * as coverage from '../../coverage/coverage'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
-import {
-  ccipSendCost,
-  CURSE_ROLE,
-  RMNREMOTE_GLOBAL_CURSE_SUBJECT,
-  UNCURSE_ROLE,
-} from '../../../wrappers/ccip/Router'
+import { ccipSendCost, RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -21,10 +16,10 @@ describe('Router.cursing', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
-  let fastCurser: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<TreasuryContract>
   let onRamp: SandboxContract<TreasuryContract>
+  let offRamp: SandboxContract<TreasuryContract>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -41,11 +36,11 @@ describe('Router.cursing', () => {
     }
     feeQuoter = await blockchain.treasury('feeQuoter')
     onRamp = await blockchain.treasury('onRamp')
-    fastCurser = await blockchain.treasury('fastCurser')
+    offRamp = await blockchain.treasury('offRamp')
   })
 
   beforeEach(async () => {
-    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp }))
+    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp, offRamp }))
   })
 
   it('router respects cursing', async () => {
@@ -61,7 +56,7 @@ describe('Router.cursing', () => {
 
     // Curse the lane
     {
-      const result = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
@@ -96,7 +91,7 @@ describe('Router.cursing', () => {
 
     // Uncurse the lane
     {
-      const result = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
@@ -133,10 +128,168 @@ describe('Router.cursing', () => {
     }
   })
 
+  it('rejects LockOrBurn through the executor failure channel while cursed', async () => {
+    const remoteChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      queryId: 10n,
+      subjects: [remoteChainSelector],
+    })
+
+    const result = await router.sendRouterLockOrBurn(onRamp.getSender(), toNano('1'), {
+      queryID: 11n,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_LockOrBurnInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 11n,
+          details: rt.TokenPool_TransferDetails.create({
+            originalSender: sender.address,
+            remoteChainSelector,
+            receiver: EVM_ADDRESS,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+      }),
+      executorAddress: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      success: true,
+      op: 0xb76e3a84, // Router_TokenPoolLockOrBurnFailed
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: router.address,
+      to: deployer.address,
+    })
+  })
+
+  it('rejects ReleaseOrMint back to the OffRamp while the source lane is cursed', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      queryId: 20n,
+      subjects: [sourceChainSelector],
+    })
+
+    const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
+      queryID: 21n,
+      sourceChainSelector,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_ReleaseOrMintInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 21n,
+          details: rt.TokenPool_TransferDetails.create({
+            originalSender: EVM_ADDRESS,
+            remoteChainSelector: sourceChainSelector,
+            receiver: sender.address,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+        sourcePoolAddress: EVM_ADDRESS,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: offRamp.address,
+      success: true,
+      op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: router.address,
+      to: deployer.address,
+    })
+  })
+
+  it('rejects a ReleaseOrMint relay from an unregistered OffRamp', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+
+    const result = await router.sendRouterRelayReleaseOrMint(sender.getSender(), toNano('1'), {
+      queryID: 30n,
+      sourceChainSelector,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_ReleaseOrMintInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 30n,
+          details: rt.TokenPool_TransferDetails.create({
+            originalSender: EVM_ADDRESS,
+            remoteChainSelector: sourceChainSelector,
+            receiver: sender.address,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+        sourcePoolAddress: EVM_ADDRESS,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOffRamp'],
+    })
+  })
+
+  it('rejects a ReleaseOrMint relay whose request selector mismatches the source chain', async () => {
+    const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
+
+    const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
+      queryID: 31n,
+      sourceChainSelector,
+      tokenPool: deployer.address,
+      request: rt.TokenPool_ReleaseOrMintInV1.create({
+        transfer: rt.TokenPool_Transfer.create({
+          id: 31n,
+          details: rt.TokenPool_TransferDetails.create({
+            // Mismatched remote chain selector.
+            originalSender: EVM_ADDRESS,
+            remoteChainSelector: sourceChainSelector + 1n,
+            receiver: sender.address,
+            amount: 1n,
+            localToken: sender.address,
+          }),
+        }),
+        sourcePoolAddress: EVM_ADDRESS,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: sender.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SourceChainSelectorMismatch'],
+    })
+  })
+
   it('router respect global cursing', async () => {
     // Curse all lanes
     {
-      const result = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
@@ -157,7 +310,7 @@ describe('Router.cursing', () => {
 
     // Uncurse all lanes
     {
-      const result = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
+      const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
         queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
@@ -175,95 +328,6 @@ describe('Router.cursing', () => {
       const cursedSubjects = await router.getCursedSubjects()
       expect(cursedSubjects).toEqual([])
     }
-  })
-
-  it('separates curse and uncurse callers', async () => {
-    const subject = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-
-    const unauthorizedGrant = await router.sendAccessControlGrantRole(
-      sender.getSender(),
-      toNano('1'),
-      { queryId: 0n, role: CURSE_ROLE, account: sender.address },
-    )
-    expect(unauthorizedGrant.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: false,
-    })
-
-    const grantCurseRole = await router.sendAccessControlGrantRole(
-      deployer.getSender(),
-      toNano('1'),
-      { queryId: 0n, role: CURSE_ROLE, account: fastCurser.address },
-    )
-    expect(grantCurseRole.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-
-    const revokeDeployerCurseRole = await router.sendAccessControlRevokeRole(
-      deployer.getSender(),
-      toNano('1'),
-      { queryId: 0n, role: CURSE_ROLE, account: deployer.address },
-    )
-    expect(revokeDeployerCurseRole.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-
-    expect(await router.getRmnHasRole(CURSE_ROLE, fastCurser.address)).toBe(true)
-    expect(await router.getRmnHasRole(CURSE_ROLE, deployer.address)).toBe(false)
-    expect(await router.getRmnHasRole(UNCURSE_ROLE, fastCurser.address)).toBe(false)
-
-    // The emergency caller can pause, but cannot reopen a lane.
-    const curse = await router.sendCursePolicyCurse(fastCurser.getSender(), toNano('1'), {
-      queryId: 0n,
-      subjects: [subject],
-    })
-    expect(curse.transactions).toHaveTransaction({
-      from: fastCurser.address,
-      to: router.address,
-      success: true,
-    })
-
-    const fastUncurse = await router.sendCursePolicyUncurse(
-      fastCurser.getSender(),
-      toNano('1'),
-      {
-        queryId: 0n,
-        subjects: [subject],
-      },
-    )
-    expect(fastUncurse.transactions).toHaveTransaction({
-      from: fastCurser.address,
-      to: router.address,
-      success: false,
-    })
-
-    // The normal RMN administrator retains recovery authority but is no
-    // longer a curse caller once the emergency set is installed.
-    const normalCurse = await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
-      queryId: 0n,
-      subjects: [subject],
-    })
-    expect(normalCurse.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: false,
-    })
-
-    const uncurse = await router.sendCursePolicyUncurse(deployer.getSender(), toNano('1'), {
-      queryId: 0n,
-      subjects: [subject],
-    })
-    expect(uncurse.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-    await verifyNotCursed(router, deployer, true)
   })
 
   afterAll(async () => {

@@ -2,7 +2,6 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import {
   Ownable2Step,
@@ -12,7 +11,6 @@ import {
   TokenPool,
   TokenPool_Data,
   TokenPool_AdminConfig,
-  TokenPool_RampUpdate,
   TokenPool_RateLimitConfigPair,
   TokenPool_ChainUpdate,
   TokenPool_LockOrBurn,
@@ -22,26 +20,30 @@ import {
   TokenPool_LockOrBurnForwardPayload,
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnOutV1,
+  TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintFinished,
-  TokenPool_MirroredPolicy,
+  TokenPool_LocalPolicy,
   TokenPool_DynamicConfig,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
   TokenPool_TokenTransferFeeConfig,
   TokenPool_TokenTransferFeeConfigArgs,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { TokenPool_LockOrBurnWithdraw } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
-import { BurnMintTokenPool, JettonClient } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import {
+  JettonClient,
+  BurnMintTokenPool,
+  BurnMintTokenPool_BurnContext,
+} from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMinter'
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
-import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
-import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
-import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
+import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
 // from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
@@ -50,7 +52,7 @@ function buildForgedCCTReturnExcessesBack(poolAddress: Address): Cell {
     CCT_ReturnExcessesBack.create({
       queryId: 999n,
       initiator: poolAddress,
-      forwardPayload: beginCell().storeUint(0xba302a47, 32).endCell(),
+      forwardPayload: beginCell().storeUint(BurnMintTokenPool_BurnContext.PREFIX, 32).endCell(),
     }),
   )
 }
@@ -114,11 +116,12 @@ describe('BurnMintTokenPool', () => {
           poolData: TokenPool_Data.create({
             adminConfig: TokenPool_AdminConfig.create({
               ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              rmnProxy: deployer.address,
               dynamicConfig: TokenPool_DynamicConfig.create({
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Map(),
+                allowedDepositNamespaces: new Set(),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: cctMinter.address,
@@ -127,10 +130,10 @@ describe('BurnMintTokenPool', () => {
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
             }),
-            mirroredPolicy: TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
-              cursePolicy: createCursePolicy(deployer.address),
+            localPolicy: TokenPool_LocalPolicy.create({
+              cursedSubjects: CursedSubjects.create({
+                data: new Set(),
+              }),
             }),
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),
@@ -181,17 +184,6 @@ describe('BurnMintTokenPool', () => {
         success: true,
       })
     }
-
-    await burnMintPool.sendTokenPoolUpdateRampAccess(deployer.getSender(), toNano('0.2'), {
-      queryId: 2n,
-      updates: [
-        TokenPool_RampUpdate.create({
-          remoteChainSelector,
-          onRamp: deployer.address,
-          offRamp: offRamp.address,
-        }),
-      ],
-    })
 
     // Mint user-side test balance before handing minter admin to the pool.
     const mintToOnRamp = await cctMinterRuntime.sendMint(deployer.getSender(), {
@@ -265,6 +257,7 @@ describe('BurnMintTokenPool', () => {
 
   runTokenPoolBehaviorTests('BurnMintTokenPool', async () => ({
     pool,
+    blockchain,
     deployer,
     offRamp,
     altOffRamp: deployer,
@@ -308,6 +301,7 @@ describe('BurnMintTokenPool', () => {
 
     return {
       pool,
+      blockchain,
       deployer,
       offRamp,
       unauthorized,
@@ -755,7 +749,7 @@ describe('BurnMintTokenPool', () => {
 
   it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.6'),
       {
         queryId: 22n,
@@ -780,7 +774,7 @@ describe('BurnMintTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: burnMintPool.address,
       success: true,
     })
@@ -806,7 +800,7 @@ describe('BurnMintTokenPool', () => {
 
   it('mints on releaseOrMint with null replyTo without emitting response message', async () => {
     const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      offRamp.getSender(),
+      deployer.getSender(),
       toNano('0.6'),
       {
         queryId: 305n,
@@ -831,7 +825,7 @@ describe('BurnMintTokenPool', () => {
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: deployer.address,
       to: burnMintPool.address,
       success: true,
     })
