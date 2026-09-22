@@ -160,6 +160,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
@@ -530,6 +532,49 @@ export const TokenPool_LockOrBurnFinished = {
     },
     toCell(self: TokenPool_LockOrBurnFinished): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFinished>(self, TokenPool_LockOrBurnFinished.store);
+    }
+}
+
+/**
+ > struct (0x3476ea72) TokenPool_LockOrBurnFailure {
+ >     queryId: uint64
+ >     errorCode: uint16
+ > }
+ */
+export interface TokenPool_LockOrBurnFailure {
+    readonly $: 'TokenPool_LockOrBurnFailure'
+    queryId: uint64
+    errorCode: uint16
+}
+
+export const TokenPool_LockOrBurnFailure = {
+    PREFIX: 0x3476ea72,
+
+    create(args: {
+        queryId?: uint64
+        errorCode: uint16
+    }): TokenPool_LockOrBurnFailure {
+        return {
+            $: 'TokenPool_LockOrBurnFailure',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnFailure {
+        loadAndCheckPrefix32(s, 0x3476ea72, 'TokenPool_LockOrBurnFailure');
+        return {
+            $: 'TokenPool_LockOrBurnFailure',
+            queryId: s.loadUintBig(64),
+            errorCode: s.loadUintBig(16),
+        }
+    },
+    store(self: TokenPool_LockOrBurnFailure, b: c.Builder): void {
+        b.storeUint(0x3476ea72, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.errorCode, 16);
+    },
+    toCell(self: TokenPool_LockOrBurnFailure): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnFailure>(self, TokenPool_LockOrBurnFailure.store);
     }
 }
 
@@ -1440,6 +1485,54 @@ export const Router_WithdrawRequest = {
 }
 
 /**
+ > struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
+ >     queryID: uint64
+ >     tokenPool: address
+ >     exitCode: int32
+ > }
+ */
+export interface Router_TokenPoolLockOrBurnFailed {
+    readonly $: 'Router_TokenPoolLockOrBurnFailed'
+    queryID: uint64
+    tokenPool: c.Address
+    exitCode: int32
+}
+
+export const Router_TokenPoolLockOrBurnFailed = {
+    PREFIX: 0xb76e3a84,
+
+    create(args: {
+        queryID?: uint64
+        tokenPool: c.Address
+        exitCode: int32
+    }): Router_TokenPoolLockOrBurnFailed {
+        return {
+            $: 'Router_TokenPoolLockOrBurnFailed',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_TokenPoolLockOrBurnFailed {
+        loadAndCheckPrefix32(s, 0xb76e3a84, 'Router_TokenPoolLockOrBurnFailed');
+        return {
+            $: 'Router_TokenPoolLockOrBurnFailed',
+            queryID: s.loadUintBig(64),
+            tokenPool: s.loadAddress(),
+            exitCode: s.loadIntBig(32),
+        }
+    },
+    store(self: Router_TokenPoolLockOrBurnFailed, b: c.Builder): void {
+        b.storeUint(0xb76e3a84, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeAddress(self.tokenPool);
+        b.storeInt(self.exitCode, 32);
+    },
+    toCell(self: Router_TokenPoolLockOrBurnFailed): c.Cell {
+        return makeCellFrom<Router_TokenPoolLockOrBurnFailed>(self, Router_TokenPoolLockOrBurnFailed.store);
+    }
+}
+
+/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice
@@ -2289,7 +2382,7 @@ export const CCIPSendExecutor_Execute = {
 }
 
 /**
- > enum CCIPSendExecutor_Error { 6 variants }
+ > enum CCIPSendExecutor_Error { 7 variants }
  */
 export type CCIPSendExecutor_Error = bigint
 
@@ -2300,6 +2393,7 @@ export const CCIPSendExecutor_Error = {
     InsufficientFee: 17803n,
     FeeQuoterBounce: 17804n,
     TokenNotEnabled: 17805n,
+    TokenPoolBounce: 17806n,
 
     fromSlice(s: c.Slice): CCIPSendExecutor_Error {
         return s.loadUintBig(15);
@@ -2351,7 +2445,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2362,6 +2456,7 @@ export class CCIPSendExecutor implements c.Contract {
         'CCIPSendExecutor_Error.InsufficientFee': 17803,
         'CCIPSendExecutor_Error.FeeQuoterBounce': 17804,
         'CCIPSendExecutor_Error.TokenNotEnabled': 17805,
+        'CCIPSendExecutor_Error.TokenPoolBounce': 17806,
     }
 
     readonly address: c.Address
@@ -2444,6 +2539,21 @@ export class CCIPSendExecutor implements c.Contract {
         destTokenAmount: coins
     }) {
         return TokenPool_LockOrBurnFinished.toCell(TokenPool_LockOrBurnFinished.create(body));
+    }
+
+    static createCellOfTokenPoolLockOrBurnFailure(body: {
+        queryId?: uint64
+        errorCode: uint16
+    }) {
+        return TokenPool_LockOrBurnFailure.toCell(TokenPool_LockOrBurnFailure.create(body));
+    }
+
+    static createCellOfRouterTokenPoolLockOrBurnFailed(body: {
+        queryID?: uint64
+        tokenPool: c.Address
+        exitCode: int32
+    }) {
+        return Router_TokenPoolLockOrBurnFailed.toCell(Router_TokenPoolLockOrBurnFailed.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -2533,6 +2643,29 @@ export class CCIPSendExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_LockOrBurnFinished.toCell(TokenPool_LockOrBurnFinished.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolLockOrBurnFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        errorCode: uint16
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_LockOrBurnFailure.toCell(TokenPool_LockOrBurnFailure.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendRouterTokenPoolLockOrBurnFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryID?: uint64
+        tokenPool: c.Address
+        exitCode: int32
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_TokenPoolLockOrBurnFailed.toCell(Router_TokenPoolLockOrBurnFailed.create(body)),
             ...extraOptions
         });
     }

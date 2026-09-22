@@ -6,6 +6,9 @@ replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
 	github.com/smartcontractkit/chainlink-ton => ../
+
+	// TMP: remove in follow up PR
+	github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 

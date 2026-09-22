@@ -12,6 +12,8 @@ import (
 	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+
 	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdseq "github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -25,6 +27,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	mcmsbind "github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	timelockbind "github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
@@ -258,11 +261,67 @@ func (a *TonDeployAdapter) GrantAdminRoleToTimelock() *cldfops.Sequence[ccipddep
 func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.UpdateMCMSConfigInputPerChainWithSelector, ccipdseq.OnChainOutput, cldfchain.BlockChains] {
 	return cldfops.NewSequence(
 		"ton/sequences/ccip/tooling-api/update-mcms-config",
-		semver.MustParse("1.0.0"),
-		"On TON, updating MCM config is a no-op",
+		semver.MustParse("1.1.0"),
+		"Updates the config of the given MCMS contracts, sending setConfig directly when the deployer owns them or planning an MCMS batch otherwise",
 		func(b cldfops.Bundle, chains cldfchain.BlockChains, in ccipddeploy.UpdateMCMSConfigInputPerChainWithSelector) (output ccipdseq.OnChainOutput, err error) {
-			// TODO: update config on chain by calling appropriate entry points on the contracts
+			chain, ok := chains.TonChains()[in.ChainSelector]
+			if !ok {
+				return ccipdseq.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found in environment", in.ChainSelector)
+			}
 
-			return output, nil
+			dp, err := dep.NewDependencyProvider(
+				dep.Provide(chain),
+			)
+			if err != nil {
+				return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+			}
+
+			sender := chain.Wallet.WalletAddress()
+			_inputMCMS := opsmcms.NewSendOrPlanInput(mcmstypes.ChainSelector(in.ChainSelector))
+
+			for _, contractRef := range in.MCMContracts {
+				//nolint:govet // allow shadowing
+				contractAddr, err := utils.ToTONAddress(contractRef)
+				if err != nil {
+					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve MCMS contract address: %w", err)
+				}
+
+				// setConfig is an Ownable2Step-gated entrypoint, so read the current owner to decide
+				// whether the deployer can send the message directly or must propose it via MCMS.
+				owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, mcmsbind.GetOwner)
+				if err != nil {
+					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to get owner of MCMS contract %s: %w", contractRef.Address, err)
+				}
+
+				// Always plan the setConfig message: SendOrPlan decides whether it is sent directly
+				// (deployer is owner) or batched for MCMS execution.
+				r, err := cldfops.ExecuteOperation(b, opsmcms.SetConfig, dp, opsmcms.SetConfigInput{
+					Bounce:    true,
+					DstAddr:   contractAddr,
+					Amount:    tlb.MustFromTON("0.5"), // TODO: make dynamic based on input
+					Config:    &in.MCMConfig,
+					ClearRoot: false,
+					Plan:      true,
+				})
+				if err != nil {
+					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build setConfig message for MCMS contract %s: %w", contractRef.Address, err)
+				}
+
+				plan := !sender.Equals(owner) // plan if the deployer is not the owner
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []opsmcms.OperationMetadata{
+					{
+						ContractType:     contractRef.Type.String(),
+						ContractTypeFull: bindings.TypeMCMS,
+						Tags:             []string{"MCMS", "setConfig"},
+					},
+				})
+			}
+
+			r, err := cldfops.ExecuteOperation(b, opsmcms.SendOrPlan, dp, _inputMCMS)
+			if err != nil {
+				return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to send or plan MCMS setConfig messages: %w", err)
+			}
+
+			return r.Output, nil
 		})
 }

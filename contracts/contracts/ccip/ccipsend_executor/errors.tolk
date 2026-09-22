@@ -8,4 +8,5 @@ enum CCIPSendExecutor_Error {
     InsufficientFee
     FeeQuoterBounce
     TokenNotEnabled
+    TokenPoolBounce
 }
