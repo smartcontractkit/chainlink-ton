@@ -2,10 +2,7 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 
 go 1.26.6
 
-replace github.com/smartcontractkit/chainlink-ton => ../
-
 // TMP: remove in follow up PR
-replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
@@ -18,8 +15,8 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260910195529-801eb99e80b2
 	github.com/smartcontractkit/chainlink-deployments-framework v0.116.1
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.20.0
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260713162202-124316cd10ff
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260917154632-2b04f920494a
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260922203501-3239df776ea5
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922203501-3239df776ea5
 	github.com/smartcontractkit/mcms v0.52.0
 	github.com/stretchr/testify v1.12.1
 	github.com/xssnick/tonutils-go v1.14.1

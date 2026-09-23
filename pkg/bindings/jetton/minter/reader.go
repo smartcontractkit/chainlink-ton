@@ -17,7 +17,7 @@ var GetWalletAddress = tvm.Getter[*address.Address, *address.Address]{
 	Name: "get_wallet_address",
 	Encoder: tvm.NewArgsEncoder(func(addr *address.Address) ([]any, error) {
 		// Encode address as a cell slice (as expected by the contract)
-		addrSlice := cell.BeginCell().MustStoreAddr(addr).EndCell().BeginParse()
+		addrSlice := cell.BeginCell().MustStoreAddr(addr).ToSlice()
 		return []any{addrSlice}, nil
 	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {

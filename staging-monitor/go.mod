@@ -2,12 +2,6 @@ module github.com/smartcontractkit/chainlink-ton/staging-monitor
 
 go 1.26.6
 
-replace github.com/smartcontractkit/chainlink-ton => ../
-
-replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
-
-replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
-
 require (
 	github.com/ethereum/go-ethereum v1.17.4
 	github.com/joho/godotenv v1.5.1
@@ -16,9 +10,9 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260901160800-24d6097dd0fe
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260910195529-801eb99e80b2
 	github.com/smartcontractkit/chainlink-deployments-framework v0.116.1
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260713162202-124316cd10ff
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260917154632-2b04f920494a
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260922203501-3239df776ea5
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922203501-3239df776ea5
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260922203501-3239df776ea5
 	github.com/xssnick/tonutils-go v1.14.1
 )
 

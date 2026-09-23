@@ -107,6 +107,9 @@ func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
+// LoadFromCell implements the tlb.Unmarshaler interface: the signature must
+// stay (*cell.Slice) so tlb reflection can parse structs holding
+// CrossChainAddress fields.
 func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	if s.BitsLeft() < 8 {
 		return errors.New("crosschain address is too short")
@@ -236,7 +239,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 				break // move to next cell, do not decode this ref
 			}
 			var v T
-			if err := tlb.LoadFromCell(&v, ref.BeginParse()); err != nil {
+			if err := tlb.Parse(&v, ref); err != nil {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
@@ -357,10 +360,13 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
 		}
 
-		s := curr.BeginParse()
+		s, err := curr.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+		}
 		for s.BitsLeft() > 0 {
 			var v T
-			if err := tlb.LoadFromCell(&v, s); err != nil {
+			if err = tlb.LoadFromCell(&v, s); err != nil {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
@@ -372,7 +378,6 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 		}
 		// Use slice's remaining refs (after element refs are consumed), not cell's original refs.
 		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
-		var err error
 		curr, err = loadChainRef(s)
 		if err != nil {
 			return nil, err
@@ -456,9 +461,13 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
 		}
 
-		s := curr.BeginParse()
+		s, err := curr.BeginParse()
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
+		}
 		for s.BitsLeft() > 0 {
-			part, err := s.LoadSlice(s.BitsLeft())
+			var part []byte
+			part, err = s.LoadSlice(s.BitsLeft())
 			if err != nil {
 				return nil, fmt.Errorf("failed to load bytes: %w", err)
 			}
@@ -472,7 +481,6 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			result = append(result, part...)
 		}
 
-		var err error
 		curr, err = loadChainRef(s)
 		if err != nil {
 			return nil, err
@@ -646,7 +654,11 @@ func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
 
 		var elem T
 		// T must implement tlb.Unmarshaler; use tlb.LoadFromCell which checks for the interface
-		if err := tlb.LoadFromCell(&elem, elemCell.BeginParse()); err != nil {
+		elemSlice, err := elemCell.BeginParse()
+		if err != nil {
+			return fmt.Errorf("failed to begin parsing lisp_list element cell: %w", err)
+		}
+		if err = tlb.LoadFromCell(&elem, elemSlice); err != nil {
 			return fmt.Errorf("failed to decode lisp_list element: %w", err)
 		}
 		result = append(result, &elem)
@@ -654,7 +666,10 @@ func (l *LispList[T]) LoadFromCell(s *cell.Slice) error {
 			return fmt.Errorf("lisp_list length %d exceeds maximum of %d", len(result), MaxArrayLength)
 		}
 
-		curr = next.BeginParse()
+		curr, err = next.BeginParse()
+		if err != nil {
+			return fmt.Errorf("failed to begin parsing lisp_list chain cell: %w", err)
+		}
 	}
 
 	// Elements were collected in reverse order (deepest first); reverse to restore original order.
