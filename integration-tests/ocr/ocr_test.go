@@ -74,7 +74,7 @@ func TestTransmitterLocal(t *testing.T) {
 				connectionPool, err := tonchainpkg.CreateLiteserverConnectionPool(t.Context(), tonChain.URL)
 				require.NoError(t, err, "failed to create connection pool from URL")
 
-				client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetry()
+				client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetryTimeout(0, 0)
 
 				recipients[i] = w.Address()
 				amounts[i] = tlb.FromNanoTON(initialAmount)

@@ -12,7 +12,7 @@ in
         alejandra
 
         # Go 1.26 + tools
-        go_1_26
+        go_1_27
         gopls
         delve
         golangci-lint
@@ -23,7 +23,7 @@ in
         # TS/Node set of tools for changesets
         nodejs_24
         (yarn.override {nodejs = nodejs_24;})
-        (pnpm.override {nodejs = nodejs_24;})
+        (pnpm.override {nodejs-slim = nodejs_24;})
         typescript
         typescript-language-server
         # Required dependency for @ledgerhq/hw-transport-node-hid -> usb

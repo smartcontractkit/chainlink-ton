@@ -29,7 +29,7 @@ func NewExitCodeInSet[E ~int32](ec E, set []E) (E, error) {
 // - Tact documentation: https://docs.tact-lang.org/book/exit-codes/
 // - TON documentation:  https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes
 //
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode
 type ExitCode int32
 
 var ExitCodeCodec ExitCodeCodecInt[ExitCode] = ExitCode(-1)

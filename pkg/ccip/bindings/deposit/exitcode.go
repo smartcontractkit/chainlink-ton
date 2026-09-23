@@ -2,7 +2,7 @@ package deposit
 
 import "github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 type ExitCode tvm.ExitCode
 
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))

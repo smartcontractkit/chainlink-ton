@@ -63,7 +63,7 @@ func VerifyAllCountLogs(indexedCells []*cell.Cell, expectedCount int) error {
 	// parse all events and track counters
 	for i, cell := range indexedCells {
 		var event counter.CountIncreased
-		err := tlb.LoadFromCell(&event, cell.BeginParse(), true)
+		err := tlb.LoadFromCell(&event, cell.MustBeginParse(), true)
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
 		}
