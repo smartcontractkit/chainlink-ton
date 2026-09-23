@@ -4,6 +4,8 @@ go 1.26.6
 
 replace github.com/smartcontractkit/chainlink-ton => ../
 
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
+
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/gagliardetto/binary v0.8.0
