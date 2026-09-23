@@ -2,7 +2,7 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 
 go 1.26.6
 
-// TMP: remove in follow up PR
+replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
@@ -19,14 +19,14 @@ require (
 	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922203501-3239df776ea5
 	github.com/smartcontractkit/mcms v0.52.0
 	github.com/stretchr/testify v1.12.1
-	github.com/xssnick/tonutils-go v1.14.1
+	github.com/xssnick/tonutils-go v1.18.0
 	golang.org/x/sync v0.22.0
 	google.golang.org/grpc v1.83.2
 )
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
-	filippo.io/edwards25519 v1.1.1 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -171,6 +171,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
+	github.com/pierrec/lz4/v4 v4.1.27 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
@@ -182,7 +183,6 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/smartcontractkit/chainlink-aptos v0.0.0-20260428085939-5c70de12dbfc // indirect
 	github.com/smartcontractkit/chainlink-canton v0.0.0-20260615233851-4e78e7c23a58 // indirect
