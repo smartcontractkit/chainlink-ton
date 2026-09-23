@@ -48,11 +48,11 @@ func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccou
 
 func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option wallet.Option) (*wallet.Wallet, error) {
 	seed := wallet.NewSeed()
-	w, err := wallet.FromSeed(client, seed, version)
+	w, err := wallet.FromSeedWithOptions(client, seed, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
 	}
-	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
+	pw, perr := wallet.FromPrivateKeyWithOptions(w.PrivateKey(), version, wallet.WithAPI(client), option)
 	if perr != nil {
 		return nil, fmt.Errorf("failed to generate random wallet: %w", perr)
 	}

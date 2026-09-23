@@ -4,7 +4,7 @@
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
 in
-  pkgs.buildGo126Module rec {
+  pkgs.buildGo127Module rec {
     pname = "oplint";
     version = "1.0.0";
 
