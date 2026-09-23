@@ -540,6 +540,8 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to generate lockbox grant query id: %w", err)
 			}
+
+			//nolint:govet // allow shadowing
 			if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{

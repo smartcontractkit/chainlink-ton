@@ -27,6 +27,14 @@ func TestNewCCIPContractProvider_Local(t *testing.T) {
 	require.NotNil(t, codeProvider)
 
 	for _, ct := range bindings.AllContractTypes {
+		// LockReleaseTokenPool was removed from the contracts in favour of the
+		// lockbox variant, but this module is still pinned to an older published
+		// chainlink-ton commit whose AllContractTypes lists it.
+		// TODO(tonutils-upgrade): drop this skip once the pin is bumped past the
+		// lockbox-only commit.
+		if ct.SimpleName == "LockReleaseTokenPool" {
+			continue
+		}
 		t.Run(ct.SimpleName, func(t *testing.T) {
 			meta := opston.ContractMetadata{
 				Package: utils.ContractsVersionLocal,
