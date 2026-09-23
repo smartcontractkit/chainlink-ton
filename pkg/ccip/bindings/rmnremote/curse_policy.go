@@ -1,6 +1,3 @@
-// Package rmnremote mirrors contracts/contracts/ccip/rmn_remote/lib.tolk: the
-// role-backed curse policy that both the Router and every TokenPool compose
-// into their own storage.
 package rmnremote
 
 import (
