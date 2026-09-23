@@ -499,7 +499,7 @@ func (a *TONAdapter) startMonitor(t *testing.T, offRamp address.Address, filter 
 	require.NoError(t, err)
 	receiver, err := a.getAddress("Receiver")
 	require.NoError(t, err)
-	tokenPool, err := a.getAddress(datastore.ContractType(bindings.ShortLockReleaseTokenPool))
+	tokenPool, err := a.getAddress(datastore.ContractType(bindings.ShortLockReleaseLockboxTokenPool))
 	require.NoError(t, err)
 
 	ctx, cancelCtx := context.WithCancel(t.Context())
