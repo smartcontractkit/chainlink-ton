@@ -499,7 +499,7 @@ var ManyChainMultiSigDomainSeparatorMetadata = sha256.Sum256([]byte("MANY_CHAIN_
 // Minimum value required for the execute call (fails with Error.InsufficientValue)
 var ExecMinValue = tlb.MustFromTON("0.012")
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
