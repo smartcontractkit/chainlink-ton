@@ -28,6 +28,16 @@ jobs:
           nix develop .#contracts -c yarn build
         working-directory: contracts
 
+      - name: Diagnose deployment module resolution
+        working-directory: deployment
+        run: |
+          pwd
+          git rev-parse HEAD
+          go env GOMOD GOWORK GOFLAGS
+          go list -m -json github.com/smartcontractkit/chainlink-ton
+          ls -la ../pkg/ccip/bindings/rmnremote
+          go list -json github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote
+
       - name: Run build
         run: nix develop -c go build -v ./...
         working-directory: deployment
