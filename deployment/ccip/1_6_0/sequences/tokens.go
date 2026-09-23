@@ -62,6 +62,14 @@ const (
 	// across reruns of the deployment pipeline.
 	jettonLockBoxID = 1
 
+	// typeJettonLockBox mirrors bindings.TypeJettonLockBox from the root module
+	// (pkg/bindings/index.go). The deployment module is still pinned to a published
+	// chainlink-ton commit predating that constant, and the pin cannot be bumped yet
+	// because cldf/mcms are still built against tonutils-go v1.14.1.
+	// TODO(tonutils-upgrade): use bindings.TypeJettonLockBox once this module is
+	// re-pinned and rebased onto tonutils-go v1.18.
+	typeJettonLockBox ton_tvm.FullyQualifiedName = "link.chain.ton.ccip.pool.JettonLockBox"
+
 	// defaultJettonMintCoin is the TON value attached to a MintNewJettons message; it must
 	// cover the forwarded amount plus gas for deploying the recipient's jetton wallet.
 	defaultJettonMintCoin = "0.1"
@@ -344,7 +352,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				Package: a.Package,
 				Contracts: []ton_tvm.FullyQualifiedName{
 					bindings.TypeLockReleaseLockboxTokenPool,
-					bindings.TypeJettonLockBox,
+					typeJettonLockBox,
 					bindings.TypeJettonWallet,
 					bindings.TypeDepositAccount,
 				},
@@ -362,11 +370,11 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			}
 			compiled.Metadata.ID = bindings.TypeLockReleaseLockboxTokenPool
 
-			compiledLockBox, ok := compiledContracts[bindings.TypeJettonLockBox]
+			compiledLockBox, ok := compiledContracts[typeJettonLockBox]
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf(
 					"jetton lockbox contract not found in compiled contracts package under %q",
-					bindings.TypeJettonLockBox,
+					typeJettonLockBox,
 				)
 			}
 
