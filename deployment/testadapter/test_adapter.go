@@ -1238,8 +1238,10 @@ var (
 
 // TON blockchain polling configuration
 const (
-	clientRetries       = 3                      // Number of retries for TON client operations
-	retryTimeout        = 500 * time.Millisecond // How often to retry TON client operations
+	clientRetries = 3 // Number of retries for TON client operations
+	// retryTimeout is 0: no per-attempt timeout, matching the pre-v1.18
+	// WithRetry(n) behavior (see PR review discussion).
+	retryTimeout        = 0
 	queryInterval       = 500 * time.Millisecond // How often to query logpoller for new events
 	progressLogInterval = 5 * time.Second        // How often to log "still waiting" progress updates
 )
