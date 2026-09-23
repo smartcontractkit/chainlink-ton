@@ -37,6 +37,7 @@ import (
 	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
@@ -391,13 +392,20 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// contracts/contracts/ccip/pools/lib/token_pool/entrypoint.tolk and the e2e test
 			// setup in contracts/tests/ccip/e2e/CCIPSendWithTokenTransfer.spec.ts); remote
 			// chain configs are populated later via ApplyChainUpdates.
+			// Pools are deployed with their own curse policy: the pool owner is
+			// the default admin and holds both curse roles, matching
+			// `CursePolicy.init(owner, owner, owner)` in the pool's Storage.init.
+			poolRBAC, err := rmnremote.NewAccessControlData(owner, owner, owner)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to build pool curse policy roles: %w", err)
+			}
+
 			poolData := tokenpool.Storage{
 				AdminConfig: tokenpool.AdminConfig{
 					Ownable: ownable2step.Storage{
 						Owner:        owner,
 						PendingOwner: nil,
 					},
-					RMNProxy: owner,
 					DynamicConfig: tokenpool.DynamicConfig{
 						Router:         &routerAddr,
 						RateLimitAdmin: rateLimitAdmin,
@@ -414,11 +422,14 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					AdvancedPoolHooks:     nil,
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
-					// An empty dict serializes as an empty map (a single "no entries"
-					// bit), matching the Tolk contract's createEmptyMap() default.
-					// Must be non-nil: the tlb:"." tag errors on a nil dict.
-					CursedSubjects: tokenpool.CursedSubjects{
-						Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
+					CursePolicy: tokenpool.CursePolicy{
+						RBAC: poolRBAC,
+						// An empty dict serializes as an empty map (a single "no entries"
+						// bit), matching the Tolk contract's createEmptyMap() default.
+						// Must be non-nil: the tlb:"." tag errors on a nil dict.
+						CursedSubjects: tokenpool.CursedSubjects{
+							Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
+						},
 					},
 				},
 				TokenDecimals:           defaultJettonDecimals,

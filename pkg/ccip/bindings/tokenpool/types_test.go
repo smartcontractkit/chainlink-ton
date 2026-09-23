@@ -1,6 +1,7 @@
 package tokenpool
 
 import (
+	"encoding/hex"
 	"math/big"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
@@ -153,4 +155,39 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	var decodedEmpty DynamicConfig
 	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.BeginParse()))
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
+}
+
+// TestRemoteChainConfig_RemotePools_Encoding pins the `Cell<CrossChainAddress>`
+// layout of `remotePools: map<uint256, Cell<CrossChainAddress>>`: the leaf holds
+// a reference to the address body, not its bits.
+//
+// Ground truth produced by the contract's own generated codec
+// (contracts/wrappers/gen/ccip/pools/TokenPool.ts: CrossChainAddress + the
+// storeCellRef dictionary value used for remotePools).
+func TestRemoteChainConfig_RemotePools_Encoding(t *testing.T) {
+	const wantHash = "29aad32bd1e8ede0571ea6d8cdb528d5cdf37589f19f591b39a36fac5fc4727a"
+
+	pools := tlbe.NewEmptyDict[tlbe.Uint256, RemotePoolRef]()
+	pools.Set(*tlbe.NewUint256(big.NewInt(5)), RemotePoolRef{
+		Address: common.CrossChainAddress{0x01, 0x02, 0x03, 0x04},
+	})
+	pools.Set(*tlbe.NewUint256(big.NewInt(9)), RemotePoolRef{
+		Address: common.CrossChainAddress{0xaa, 0xbb},
+	})
+
+	encoded, err := tlb.ToCell(struct {
+		RemotePools *tlbe.Dict[tlbe.Uint256, RemotePoolRef] `tlb:"."`
+	}{pools})
+	require.NoError(t, err)
+	require.Equal(t, wantHash, hex.EncodeToString(encoded.Hash()))
+
+	var decoded struct {
+		RemotePools *tlbe.Dict[tlbe.Uint256, RemotePoolRef] `tlb:"."`
+	}
+	require.NoError(t, tlb.LoadFromCell(&decoded, encoded.BeginParse()))
+	require.Len(t, decoded.RemotePools.AsMap(), 2)
+
+	got, ok := decoded.RemotePools.Get(*tlbe.NewUint256(big.NewInt(5)))
+	require.True(t, ok)
+	require.Equal(t, common.CrossChainAddress{0x01, 0x02, 0x03, 0x04}, got.Address)
 }

@@ -110,14 +110,14 @@ fun onInternalMessage(in: InMessage) {
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must hold the RMN curse role.
-        CursePolicy_Curse => {
+        Router_RMNRemoteCurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
-        CursePolicy_Uncurse => {
+        Router_RMNRemoteUncurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
@@ -680,7 +680,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
 Handles RMNRemote curse operations by adding specified cursed subjects
 and propagating updates to cached OffRamp contracts.
 */
-fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: CursePolicy_Curse) {
+fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
     var subjects = msg.subjects.iter();
     while (!subjects.empty()) {
         val subject = subjects.next();
@@ -722,7 +722,7 @@ fun requireRMNUncurseAdmin(rmn: RMNRemote, sender: address) {
 Handles RMNRemote uncurse operations by removing specified cursed subjects
 and propagating updates to cached OffRamp contracts.
 */
-fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: CursePolicy_Uncurse) {
+fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse) {
     var subjects = msg.subjects.iter();
     while (!subjects.empty()) {
         val subject = subjects.next();

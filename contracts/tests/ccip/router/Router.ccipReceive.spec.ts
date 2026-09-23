@@ -121,7 +121,7 @@ describe('Router', () => {
   })
 
   it('should reject routeMessage while the source chain is cursed', async () => {
-    await router.sendCursePolicyCurse(deployer.getSender(), toNano('1'), {
+    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
       queryId: 4n,
       subjects: [any2tvmMessage.sourceChainSelector],
     })

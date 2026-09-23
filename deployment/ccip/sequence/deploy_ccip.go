@@ -2,13 +2,10 @@ package sequence
 
 import (
 	"fmt"
-	"math/big"
-
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
@@ -29,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 )
@@ -97,9 +95,11 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	routerAddress := stateCCIP.Router
 	if routerAddress.IsAddrNone() {
-		rbac, err := rmnAccessControl(chain.WalletAddress)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
+		// The Router has no init message, so its initial RMN roles are built
+		// here: the deployer is the default admin and holds both curse roles.
+		rbac, rbacErr := rmnremote.NewAccessControlData(chain.WalletAddress, chain.WalletAddress, chain.WalletAddress)
+		if rbacErr != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("build RMN access control: %w", rbacErr)
 		}
 		routerStorage := router.Storage{
 			ID: in.CCIPConfig.RouterParams.ID,
@@ -113,7 +113,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 					Owner:        chain.WalletAddress,
 					PendingOwner: address.NewAddressNone(),
 				},
-				Policy: router.CursePolicy{RBAC: rbac, CursedSubjects: nil},
+				Policy:         router.CursePolicy{RBAC: rbac, CursedSubjects: nil},
 				ForwardUpdates: nil,
 			},
 			OnRamps:  nil, // set afterward
@@ -285,36 +285,4 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	return sequences.OnChainOutput{
 		Addresses: addresses,
 	}, nil
-}
-
-func rmnAccessControl(admin *address.Address) (router.AccessControlData, error) {
-	roles := cell.NewDict(256)
-	for _, role := range []string{
-		"0",
-		"b3c5b7cb9096e539f419cdc795a52c8cbe8dfbc9e27f70077d0b9749efe27fc5", // CURSE_ROLE
-		"19331e9591f40b6bd5c2716faeab95f6a63184877fab2619bf484155c597abf0", // UNCURSE_ROLE
-	} {
-		roleID, ok := new(big.Int).SetString(role, 16)
-		if !ok {
-			return router.AccessControlData{}, fmt.Errorf("parse RMN role %q", role)
-		}
-		members := cell.NewDict(267)
-		if err := members.Set(cell.BeginCell().MustStoreAddr(admin).EndCell(), cell.BeginCell().MustStoreUInt(1, 1).EndCell()); err != nil {
-			return router.AccessControlData{}, fmt.Errorf("encode RMN role member: %w", err)
-		}
-		roleData, err := tlb.ToCell(router.AccessControlRoleData{
-			AdminRole:  big.NewInt(0),
-			MembersLen: 1,
-			HasRole:    members,
-		})
-		if err != nil {
-			return router.AccessControlData{}, fmt.Errorf("encode RMN role data: %w", err)
-		}
-		// AccessControl_Data stores each role value as Cell<RoleData>, so the
-		// dictionary value itself contains a reference to the serialized role.
-		if err := roles.Set(cell.BeginCell().MustStoreBigUInt(roleID, 256).EndCell(), cell.BeginCell().MustStoreRef(roleData).EndCell()); err != nil {
-			return router.AccessControlData{}, fmt.Errorf("encode RMN role: %w", err)
-		}
-	}
-	return router.AccessControlData{Roles: roles}, nil
 }

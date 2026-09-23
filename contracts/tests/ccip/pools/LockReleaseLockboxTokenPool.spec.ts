@@ -962,7 +962,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
   describe('cursed state', () => {
     it('should apply local cursed state and block release while cursed', async () => {
-      const curseUpdate = await lockReleaseLockboxPool.sendCursePolicyCurse(
+      const curseUpdate = await lockReleaseLockboxPool.sendTokenPoolCurse(
         deployer.getSender(),
         toNano('0.2'),
         {

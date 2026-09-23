@@ -33,16 +33,6 @@ struct CursePolicy {
     cursedSubjects: CursedSubjects;
 }
 
-struct (0x7a0927b6) CursePolicy_Curse {
-    queryId: uint64;
-    subjects: SnakedCell<uint128>;
-}
-
-struct (0x631b64f6) CursePolicy_Uncurse {
-    queryId: uint64;
-    subjects: SnakedCell<uint128>;
-}
-
 fun CursePolicy.hookTrait__AccessControl(self): AccessControl<null?> {
     return AccessControl<null?> { data: AccessControl_Data.fromCell(self.rbac), context: null, hooks: null };
 }
@@ -53,6 +43,24 @@ fun CursePolicy.requireCurseRole(self, sender: address) {
 
 fun CursePolicy.requireUncurseRole(self, sender: address) {
     self.hookTrait__AccessControl().requireRole(UNCURSE_ROLE, sender);
+}
+
+/// Curses every subject in `subjects`. Callers that need per-subject side
+/// effects (events, forwarding) should iterate themselves and call
+/// `cursedSubjects.curse` directly.
+fun CursePolicy.curseAll(mutate self, subjects: SnakedCell<uint128>) {
+    var it = subjects.iter();
+    while (!it.empty()) {
+        self.cursedSubjects.curse(it.next());
+    }
+}
+
+/// Uncurses every subject in `subjects`. See `curseAll` for the per-subject case.
+fun CursePolicy.uncurseAll(mutate self, subjects: SnakedCell<uint128>) {
+    var it = subjects.iter();
+    while (!it.empty()) {
+        self.cursedSubjects.uncurse(it.next());
+    }
 }
 
 fun CursePolicy.init(admin: address, curser: address, uncurser: address): CursePolicy {

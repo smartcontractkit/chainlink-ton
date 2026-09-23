@@ -47,7 +47,6 @@ var (
 	GetTokenDecimals           = tokenpool.GetTokenDecimals
 	GetIsSupportedChain        = tokenpool.GetIsSupportedChain
 	GetSupportedChains         = tokenpool.GetSupportedChains
-	GetRMNProxy                = tokenpool.GetRMNProxy
 	GetVerifyNotCursed         = tokenpool.GetVerifyNotCursed
 	GetDynamicConfig           = tokenpool.GetDynamicConfig
 	GetAllowedFinalityConfig   = tokenpool.GetAllowedFinalityConfig

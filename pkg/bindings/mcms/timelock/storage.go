@@ -22,7 +22,7 @@ func EmptyDataFrom(id uint32) Data {
 			OpPendingCalls:        tlbe.NewEmptyDict[tlbe.Uint256, bool](),
 		},
 		RBAC: rbac.Data{
-			Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleData](),
+			Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef](),
 		},
 	}
 }

@@ -10,7 +10,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
@@ -26,10 +28,12 @@ type RouterStorage struct {
 }
 
 type RMNRemote struct {
-	Admin          Ownable2Step       `json:"admin"`
-	Roles          *cell.Dictionary   `json:"-"`
-	CursedSubjects []*big.Int         `json:"cursedSubjects"`
-	ForwardUpdates []*address.Address `json:"forwardUpdates"`
+	Admin Ownable2Step `json:"admin"`
+	// Roles carries the RMN CursePolicy's AccessControl storage verbatim so that
+	// a round-trip through this model does not drop role assignments.
+	Roles          *tlbe.Dict[tlbe.Uint256, rbac.RoleRef] `json:"-"`
+	CursedSubjects []*big.Int                             `json:"cursedSubjects"`
+	ForwardUpdates []*address.Address                     `json:"forwardUpdates"`
 }
 
 // ---------- Builder ----------
@@ -229,7 +233,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 				Owner:        s.RMNRemote.Admin.Owner,
 				PendingOwner: s.RMNRemote.Admin.PendingOwner,
 			},
-			Policy: router.CursePolicy{RBAC: router.AccessControlData{Roles: s.RMNRemote.Roles}},
+			Policy: router.CursePolicy{RBAC: rbac.Data{Roles: s.RMNRemote.Roles}},
 		},
 	}
 

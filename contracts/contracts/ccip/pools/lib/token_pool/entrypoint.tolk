@@ -252,7 +252,6 @@ fun TokenPool<T>.getTokenDecimals(self): uint8 {
     return self.data.tokenDecimals;
 }
 
-@inline
 /// Gets the pools dynamic configuration.
 @inline
 fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
@@ -619,6 +618,22 @@ fun TokenPool<T>.applyChainUpdates(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold `CURSE_ROLE`.
+fun TokenPool<T>.curse(mutate self, sender: address, subjects: SnakedCell<uint128>) {
+    var localPolicy = self.data.localPolicy.load();
+    localPolicy.cursePolicy.requireCurseRole(sender);
+    localPolicy.cursePolicy.curseAll(subjects);
+    self.data.localPolicy = localPolicy.toCell();
+}
+
+/// Uncurses `subjects` in the pool-local `CursePolicy`. Sender must hold `UNCURSE_ROLE`.
+fun TokenPool<T>.uncurse(mutate self, sender: address, subjects: SnakedCell<uint128>) {
+    var localPolicy = self.data.localPolicy.load();
+    localPolicy.cursePolicy.requireUncurseRole(sender);
+    localPolicy.cursePolicy.uncurseAll(subjects);
+    self.data.localPolicy = localPolicy.toCell();
+}
+
 fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address, value: coins, body: slice) {
     var policy = self.data.localPolicy.load();
     var rbac = policy.cursePolicy.hookTrait__AccessControl();
@@ -695,19 +710,11 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_ApplyTokenTransferFeeConfigUpdates => {
             self.applyTokenTransferFeeConfigUpdates(msgSender, msg.queryId, msg.updates, msg.disableChainSelectors);
         }
-        CursePolicy_Curse => {
-            var policy = self.data.localPolicy.load();
-            policy.cursePolicy.requireCurseRole(msgSender);
-            var subjects = msg.subjects.iter();
-            while (!subjects.empty()) { policy.cursePolicy.cursedSubjects.curse(subjects.next()); }
-            self.data.localPolicy = policy.toCell();
+        TokenPool_Curse => {
+            self.curse(msgSender, msg.subjects);
         }
-        CursePolicy_Uncurse => {
-            var policy = self.data.localPolicy.load();
-            policy.cursePolicy.requireUncurseRole(msgSender);
-            var subjects = msg.subjects.iter();
-            while (!subjects.empty()) { policy.cursePolicy.cursedSubjects.uncurse(subjects.next()); }
-            self.data.localPolicy = policy.toCell();
+        TokenPool_Uncurse => {
+            self.uncurse(msgSender, msg.subjects);
         }
         AccessControl_GrantRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
         AccessControl_RevokeRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
@@ -1927,16 +1934,6 @@ fun TokenPool<T>.onlyOwnerOrRateLimitAdmin(self, sender: address) {
     };
     assert(
         sender == ownable.owner || senderIsRateLimitAdmin(),
-        TokenPool_Error.Unauthorized
-    );
-}
-
-/// Checks whether the msg.sender is either the owner or the RMN proxy.
-fun TokenPool<T>.onlyOwnerOrRMNProxy(self, sender: address) {
-    val adminConfig = lazy self.data.adminConfig.load();
-    val ownable = lazy adminConfig.ownable.load();
-    assert(
-        sender == ownable.owner,
         TokenPool_Error.Unauthorized
     );
 }

@@ -52,11 +52,6 @@ get fun isSupportedChain(remoteChainSelector: uint64): bool {
     throw 0xFFFF;
 }
 
-/// Matches Go binding GetRMNProxy (Name: "getRMNProxy").
-get fun getRMNProxy(): address? {
-    throw 0xFFFF;
-}
-
 /// Matches Go binding GetVerifyNotCursed (Name: "verifyNotCursed").
 get fun verifyNotCursed(subject: uint128): bool {
     throw 0xFFFF;

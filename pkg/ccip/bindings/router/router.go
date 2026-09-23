@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
@@ -22,14 +23,11 @@ var (
 	OpcodeCCIPReceiveConfirm        = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
 	OpcodeMessageSent               = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
 	OpcodeMessageRejected           = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
-	OpcodeCursePolicyCurse          = tvm.MustExtractMagic(reflect.TypeFor[CursePolicyCurse]())
-	OpcodeCursePolicyUncurse        = tvm.MustExtractMagic(reflect.TypeFor[CursePolicyUncurse]())
-	// Deprecated aliases retained for existing deployment callers.
-	OpcodeRMNRemoteCurse            = OpcodeCursePolicyCurse
-	OpcodeRMNRemoteUncurse          = OpcodeCursePolicyUncurse
-	OpcodeAccessControlGrantRole    = tvm.MustExtractMagic(reflect.TypeFor[AccessControlGrantRole]())
-	OpcodeAccessControlRevokeRole   = tvm.MustExtractMagic(reflect.TypeFor[AccessControlRevokeRole]())
-	OpcodeAccessControlRenounceRole = tvm.MustExtractMagic(reflect.TypeFor[AccessControlRenounceRole]())
+	OpcodeRMNRemoteCurse            = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
+	OpcodeRMNRemoteUncurse          = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
+	OpcodeAccessControlGrantRole    = tvm.MustExtractMagic(reflect.TypeFor[rbac.GrantRole]())
+	OpcodeAccessControlRevokeRole   = tvm.MustExtractMagic(reflect.TypeFor[rbac.RevokeRole]())
+	OpcodeAccessControlRenounceRole = tvm.MustExtractMagic(reflect.TypeFor[rbac.RenounceRole]())
 )
 
 const (
@@ -78,21 +76,12 @@ type RMNRemote struct {
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
 }
 
+// CursePolicy is the role-backed curse policy composed by both the Router and
+// every TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse
+// them, and both roles are administered by `DEFAULT_ADMIN_ROLE`.
 type CursePolicy struct {
-	RBAC           AccessControlData `tlb:"^"`
-	CursedSubjects *cell.Dictionary  `tlb:"dict 128"`
-}
-
-// AccessControlData is the audited shared access-control storage composed by
-// RMNRemote. Role values are stored by reference in the roles dictionary.
-type AccessControlData struct {
-	Roles *cell.Dictionary `tlb:"dict 256"`
-}
-
-type AccessControlRoleData struct {
-	AdminRole  *big.Int         `tlb:"## 256"`
-	MembersLen uint64           `tlb:"## 64"`
-	HasRole    *cell.Dictionary `tlb:"dict 267"`
+	RBAC           rbac.Data        `tlb:"^"`
+	CursedSubjects *cell.Dictionary `tlb:"dict 128"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakedCell encoding.
@@ -185,44 +174,20 @@ type CCIPSendNACK struct {
 	Error   *big.Int  `tlb:"## 256"`
 }
 
-// CursePolicyCurse censors subjects under the shared local curse policy.
-type CursePolicyCurse struct {
-	_        tlb.Magic                  `tlb:"#7a0927b6" json:"-"` //nolint:revive // Ignore opcode tag
+// RMNRemoteCurse message type for cursing subjects on the router. The handler
+// applies the subjects to the Router's stored CursePolicy.
+type RMNRemoteCurse struct {
+	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-// CursePolicyUncurse removes subjects under the shared local curse policy.
-type CursePolicyUncurse struct {
-	_        tlb.Magic                  `tlb:"#631b64f6" json:"-"` //nolint:revive // Ignore opcode tag
+// RMNRemoteUncurse message type for uncursing subjects on the router. The handler
+// removes the subjects from the Router's stored CursePolicy.
+type RMNRemoteUncurse struct {
+	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
-}
-
-// Deprecated: use CursePolicyCurse.
-type RMNRemoteCurse = CursePolicyCurse
-// Deprecated: use CursePolicyUncurse.
-type RMNRemoteUncurse = CursePolicyUncurse
-
-type AccessControlGrantRole struct {
-	_       tlb.Magic        `tlb:"#95cd540f" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64           `tlb:"## 64"`
-	Role    *big.Int         `tlb:"## 256"`
-	Account *address.Address `tlb:"addr"`
-}
-
-type AccessControlRevokeRole struct {
-	_       tlb.Magic        `tlb:"#969b0db9" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64           `tlb:"## 64"`
-	Role    *big.Int         `tlb:"## 256"`
-	Account *address.Address `tlb:"addr"`
-}
-
-type AccessControlRenounceRole struct {
-	_                  tlb.Magic        `tlb:"#39452c46" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID            uint64           `tlb:"## 64"`
-	Role               *big.Int         `tlb:"## 256"`
-	CallerConfirmation *address.Address `tlb:"addr"`
 }
 
 type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
@@ -239,11 +204,11 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPSendNACK{},
 	MessageSent{},
 	MessageRejected{},
-	CursePolicyCurse{},
-	CursePolicyUncurse{},
-	AccessControlGrantRole{},
-	AccessControlRevokeRole{},
-	AccessControlRenounceRole{},
+	RMNRemoteCurse{},
+	RMNRemoteUncurse{},
+	rbac.GrantRole{},
+	rbac.RevokeRole{},
+	rbac.RenounceRole{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})

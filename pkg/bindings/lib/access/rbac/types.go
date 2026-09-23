@@ -136,7 +136,11 @@ var TLBs = tvm.MustNewTLBMap([]any{
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {
 	// Roles mapping
-	Roles *tlbe.Dict[tlbe.Uint256, RoleData] `tlb:"."`
+	Roles *tlbe.Dict[tlbe.Uint256, RoleRef] `tlb:"."`
+}
+
+type RoleRef struct {
+	Role RoleData `tlb:"^"`
 }
 
 // Internal storage struct for role data

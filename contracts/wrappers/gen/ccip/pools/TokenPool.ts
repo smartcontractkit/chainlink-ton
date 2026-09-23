@@ -1842,6 +1842,92 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
 }
 
 /**
+ > struct (0xfdd0edc0) TokenPool_Curse {
+ >     queryId: uint64
+ >     subjects: SnakedCell<uint128>
+ > }
+ */
+export interface TokenPool_Curse {
+    readonly $: 'TokenPool_Curse'
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+export const TokenPool_Curse = {
+    PREFIX: 0xfdd0edc0,
+
+    create(args: {
+        queryId?: uint64
+        subjects: SnakedCell<uint128>
+    }): TokenPool_Curse {
+        return {
+            $: 'TokenPool_Curse',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Curse {
+        loadAndCheckPrefix32(s, 0xfdd0edc0, 'TokenPool_Curse');
+        return {
+            $: 'TokenPool_Curse',
+            queryId: s.loadUintBig(64),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
+        }
+    },
+    store(self: TokenPool_Curse, b: c.Builder): void {
+        b.storeUint(0xfdd0edc0, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
+    },
+    toCell(self: TokenPool_Curse): c.Cell {
+        return makeCellFrom<TokenPool_Curse>(self, TokenPool_Curse.store);
+    }
+}
+
+/**
+ > struct (0x61cf16f1) TokenPool_Uncurse {
+ >     queryId: uint64
+ >     subjects: SnakedCell<uint128>
+ > }
+ */
+export interface TokenPool_Uncurse {
+    readonly $: 'TokenPool_Uncurse'
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+export const TokenPool_Uncurse = {
+    PREFIX: 0x61cf16f1,
+
+    create(args: {
+        queryId?: uint64
+        subjects: SnakedCell<uint128>
+    }): TokenPool_Uncurse {
+        return {
+            $: 'TokenPool_Uncurse',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Uncurse {
+        loadAndCheckPrefix32(s, 0x61cf16f1, 'TokenPool_Uncurse');
+        return {
+            $: 'TokenPool_Uncurse',
+            queryId: s.loadUintBig(64),
+            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
+        }
+    },
+    store(self: TokenPool_Uncurse, b: c.Builder): void {
+        b.storeUint(0x61cf16f1, 32);
+        b.storeUint(self.queryId, 64);
+        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
+    },
+    toCell(self: TokenPool_Uncurse): c.Cell {
+        return makeCellFrom<TokenPool_Uncurse>(self, TokenPool_Uncurse.store);
+    }
+}
+
+/**
  > struct (0xfa7da444) TokenPool_LockOrBurn {
  >     queryId: uint64
  >     request: Cell<TokenPool_LockOrBurnInV1>
@@ -3083,49 +3169,6 @@ export const TokenPool_RateLimitConfiguredNotification = {
 }
 
 /**
- > struct (0x15800161) TokenPool_CursedSubjectsSet {
- >     queryId: uint64
- >     cursedSubjects: CursedSubjects
- > }
- */
-export interface TokenPool_CursedSubjectsSet {
-    readonly $: 'TokenPool_CursedSubjectsSet'
-    queryId: uint64
-    cursedSubjects: CursedSubjects
-}
-
-export const TokenPool_CursedSubjectsSet = {
-    PREFIX: 0x15800161,
-
-    create(args: {
-        queryId?: uint64
-        cursedSubjects: CursedSubjects
-    }): TokenPool_CursedSubjectsSet {
-        return {
-            $: 'TokenPool_CursedSubjectsSet',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_CursedSubjectsSet {
-        loadAndCheckPrefix32(s, 0x15800161, 'TokenPool_CursedSubjectsSet');
-        return {
-            $: 'TokenPool_CursedSubjectsSet',
-            queryId: s.loadUintBig(64),
-            cursedSubjects: CursedSubjects.fromSlice(s),
-        }
-    },
-    store(self: TokenPool_CursedSubjectsSet, b: c.Builder): void {
-        b.storeUint(0x15800161, 32);
-        b.storeUint(self.queryId, 64);
-        CursedSubjects.store(self.cursedSubjects, b);
-    },
-    toCell(self: TokenPool_CursedSubjectsSet): c.Cell {
-        return makeCellFrom<TokenPool_CursedSubjectsSet>(self, TokenPool_CursedSubjectsSet.store);
-    }
-}
-
-/**
  > struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
  >     queryId: uint64
  > }
@@ -3808,92 +3851,6 @@ export const CursePolicy = {
 }
 
 /**
- > struct (0x7a0927b6) CursePolicy_Curse {
- >     queryId: uint64
- >     subjects: SnakedCell<uint128>
- > }
- */
-export interface CursePolicy_Curse {
-    readonly $: 'CursePolicy_Curse'
-    queryId: uint64
-    subjects: SnakedCell<uint128>
-}
-
-export const CursePolicy_Curse = {
-    PREFIX: 0x7a0927b6,
-
-    create(args: {
-        queryId?: uint64
-        subjects: SnakedCell<uint128>
-    }): CursePolicy_Curse {
-        return {
-            $: 'CursePolicy_Curse',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): CursePolicy_Curse {
-        loadAndCheckPrefix32(s, 0x7a0927b6, 'CursePolicy_Curse');
-        return {
-            $: 'CursePolicy_Curse',
-            queryId: s.loadUintBig(64),
-            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
-        }
-    },
-    store(self: CursePolicy_Curse, b: c.Builder): void {
-        b.storeUint(0x7a0927b6, 32);
-        b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
-    },
-    toCell(self: CursePolicy_Curse): c.Cell {
-        return makeCellFrom<CursePolicy_Curse>(self, CursePolicy_Curse.store);
-    }
-}
-
-/**
- > struct (0x631b64f6) CursePolicy_Uncurse {
- >     queryId: uint64
- >     subjects: SnakedCell<uint128>
- > }
- */
-export interface CursePolicy_Uncurse {
-    readonly $: 'CursePolicy_Uncurse'
-    queryId: uint64
-    subjects: SnakedCell<uint128>
-}
-
-export const CursePolicy_Uncurse = {
-    PREFIX: 0x631b64f6,
-
-    create(args: {
-        queryId?: uint64
-        subjects: SnakedCell<uint128>
-    }): CursePolicy_Uncurse {
-        return {
-            $: 'CursePolicy_Uncurse',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): CursePolicy_Uncurse {
-        loadAndCheckPrefix32(s, 0x631b64f6, 'CursePolicy_Uncurse');
-        return {
-            $: 'CursePolicy_Uncurse',
-            queryId: s.loadUintBig(64),
-            subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
-        }
-    },
-    store(self: CursePolicy_Uncurse, b: c.Builder): void {
-        b.storeUint(0x631b64f6, 32);
-        b.storeUint(self.queryId, 64);
-        storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
-    },
-    toCell(self: CursePolicy_Uncurse): c.Cell {
-        return makeCellFrom<CursePolicy_Uncurse>(self, CursePolicy_Uncurse.store);
-    }
-}
-
-/**
  > struct RateLimiter_Config {
  >     isEnabled: bool
  >     capacity: uint120
@@ -4560,7 +4517,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECNAEAAWgAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICgpAgEgCAkCASAWFwIBIAoLAgEgEhMCASAMDQIBSBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAAypX4QP8vAADKrQhA/y8AIBbhQVAA2wHyED/LwgAAunUQgf5eEAC6RRCB/l4QIBIBgZAgEgJCUCASAaGwIBICIjAgEgHB0CAWIgIQAMqoeED/LwAgEgHh8AC6Y7CB/l4QALpQsIH+XhAAuh+hA/y8IAC6B+ED/LwgANr0VCB/l4QAANrONCB/l4QAIBWCYnAA2yuuED/LwgAAypeoQP8vAADKq2hA/y8AIBICorAgEgLC0ADbR9sIH+XhAADbfc8IH+XhAADbSNsIH+XhACASAuLwIBajAxAgEgMjMAC6VfCB/l4QALpwMIH+XhAA2sa8IH+XhAAA2sOMIH+XhA');
+    static CodeCell = c.Cell.fromBase64('te6ccgECMgEAAVoAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICgpAgEgCAkCASAWFwIBIAoLAgEgEhMCASAMDQIBSBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAAypX4QP8vAADKrQhA/y8AIBbhQVAA2wHyED/LwgAAunUQgf5eEAC6RRCB/l4QIBIBgZAgEgJCUCASAaGwIBICIjAgEgHB0CAWIgIQAMqoeED/LwAgEgHh8AC6Y7CB/l4QALpQsIH+XhAAuh+hA/y8IAC6B+ED/LwgANr0VCB/l4QAANrONCB/l4QAIBWCYnAA2yuuED/LwgAAypeoQP8vAADKq2hA/y8AANu+54QP8vCAIBICorAA20jbCB/l4QAgEgLC0CAWouLwIBIDAxAAulXwgf5eEAC6cDCB/l4QANrGvCB/l4QAANrDjCB/l4QA==');
 
     static Errors = {
     }
@@ -4770,18 +4727,18 @@ export class TokenPool implements c.Contract {
         return TokenPool_ApplyTokenTransferFeeConfigUpdates.toCell(TokenPool_ApplyTokenTransferFeeConfigUpdates.create(body));
     }
 
-    static createCellOfCursePolicyCurse(body: {
+    static createCellOfTokenPoolCurse(body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }) {
-        return CursePolicy_Curse.toCell(CursePolicy_Curse.create(body));
+        return TokenPool_Curse.toCell(TokenPool_Curse.create(body));
     }
 
-    static createCellOfCursePolicyUncurse(body: {
+    static createCellOfTokenPoolUncurse(body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }) {
-        return CursePolicy_Uncurse.toCell(CursePolicy_Uncurse.create(body));
+        return TokenPool_Uncurse.toCell(TokenPool_Uncurse.create(body));
     }
 
     static createCellOfAccessControlGrantRole(body: {
@@ -5078,24 +5035,24 @@ export class TokenPool implements c.Contract {
         });
     }
 
-    async sendCursePolicyCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenPoolCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: CursePolicy_Curse.toCell(CursePolicy_Curse.create(body)),
+            body: TokenPool_Curse.toCell(TokenPool_Curse.create(body)),
             ...extraOptions
         });
     }
 
-    async sendCursePolicyUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenPoolUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: CursePolicy_Uncurse.toCell(CursePolicy_Uncurse.create(body)),
+            body: TokenPool_Uncurse.toCell(TokenPool_Uncurse.create(body)),
             ...extraOptions
         });
     }
@@ -5185,13 +5142,6 @@ export class TokenPool implements c.Contract {
             { type: 'int', value: remoteChainSelector },
         ]));
         return r.readBoolean();
-    }
-
-    async getRMNProxy(provider: ContractProvider): Promise<c.Address | null> {
-        const r = StackReader.fromGetMethod(1, await provider.get('getRMNProxy', []));
-        return r.readNullable<c.Address>(
-            (r) => r.readSlice().loadAddress()
-        );
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {
