@@ -66,7 +66,7 @@ type Storage struct {
 // FACILITY_ID = 450, base error = 45000.
 type ExitCode tvm.ExitCode
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
 	ExitCodeUnexpectedBurnBounce ExitCode = iota + 45000 // Facility ID 450 * 100

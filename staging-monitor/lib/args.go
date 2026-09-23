@@ -11,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 

@@ -126,7 +126,7 @@ func TestAddLanes(t *testing.T) {
 
 	// TON <> EVM lanes
 	lanesRegistry := lanes.GetLaneAdapterRegistry()
-	out, err = lanes.ConnectChains(lanesRegistry, mcmsRegistry).Apply(env, lanes.ConnectChainsConfig{
+	out, err = lanes.ConnectChains(lanesRegistry, mcmsRegistry, nil).Apply(env, lanes.ConnectChainsConfig{
 		Lanes: []lanes.LaneConfig{
 			{
 				Version: toolingAPIVersion,
