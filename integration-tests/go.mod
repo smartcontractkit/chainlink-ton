@@ -28,12 +28,12 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260921174556-538f4bf0cb6f
 	github.com/smartcontractkit/chainlink-common/keystore v1.3.1-0.20260923164324-86cd57d9fdbd
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
-	github.com/smartcontractkit/chainlink-deployments-framework v0.123.4-0.20260923142704-3cb309458285
+	github.com/smartcontractkit/chainlink-deployments-framework v0.123.4-0.20260924110352-f78730763e23
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260713161920-de075095648b
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.20.1-0.20260701185448-696c075849ea
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.9
-	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260922223831-267f1979d206
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922223831-267f1979d206
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260923220748-d8bac63fa0a7
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260923220748-d8bac63fa0a7
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260922223831-267f1979d206
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260901155807-d65832e2f181
 	github.com/smartcontractkit/chainlink/v2 v2.66.0-rc.0
