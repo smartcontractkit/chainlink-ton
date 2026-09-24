@@ -129,7 +129,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		c, err := cell.FromBOC(encoded)
 		require.NoError(t, err)
 		var onChainReport ocr.ExecuteReport
-		require.NoError(t, tlb.LoadFromCell(&onChainReport, c.BeginParse()))
+		require.NoError(t, tlb.Parse(&onChainReport, c))
 		assert.Empty(t, onChainReport.OffChainTokenData)
 	})
 
