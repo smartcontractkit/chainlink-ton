@@ -11,14 +11,18 @@ in
         # nix tooling
         alejandra
 
-        # Go 1.26 + tools
+        # Go 1.27 + tools
         go_1_27
         gopls
         delve
         golangci-lint
         tonapiwaitlint.golangci-lint-ton
         gotools
-        go-mockery
+        # go-mockery built with go1.27: nixpkgs builds it with go1.26, which
+        # cannot parse packages requiring go 1.27 (e.g. cldf main since #1188)
+        # — mockery regen in check-tidy fails with "package requires newer Go
+        # version go1.27 (application built with go1.26)".
+        (go-mockery.override {buildGoModule = buildGo127Module;})
 
         # TS/Node set of tools for changesets
         nodejs_24
