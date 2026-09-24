@@ -484,6 +484,33 @@ describe('OffRamp - Execute', () => {
       )
     })
 
+    it('should succeed when tokenless report uses empty outer list [] for offchainTokenData', async () => {
+      // A tokenless report may be encoded with offchainTokenData as `[]`
+      // (empty outer list) instead of the legacy `[[]]` (one empty inner list).
+      // The contract must accept both shapes for backwards compatibility.
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      await setup.setupAndCommitMessage(message)
+
+      const report = setup.createExecuteReport([message], undefined, [])
+      const result = await setup.executeReport(report)
+
+      // Message should be successfully processed to the receiver
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          messageId: message.header.messageId,
+          state: of.ExecutionState.Success,
+        },
+      )
+    })
+
     it('should succeed with big source CrossChainAddress', async () => {
       const bigSourceAddress = codec
         .encode(Buffer.from('a'.repeat(64), 'hex'))

@@ -765,13 +765,22 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     // Validate offchainTokenData shape: it must have one entry per message.
     // TON currently supports one message with at most one token transfer.
+    // A tokenless report may be encoded as either:
+    //   - `[]` (empty outer list), or
+    //   - `[[]]` (one empty per-message list, the legacy shape).
+    // Both are accepted for backwards compatibility with older encoders.
     var offchainTokenData = report.offchainTokenData;
-    val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
     val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
     if (hasTokens) {
+        val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
         assert(!offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
     } else {
-        assert(offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+        // Tokenless: accept `[]` (empty outer list) and `[[]]` (one empty inner list).
+        // Reject any non-empty inner list or more than one outer entry.
+        if (!offchainTokenData.isEmpty()) {
+            val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+            assert(offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+        }
     }
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
@@ -939,7 +948,16 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     // TODO: this hides the validation error that caused the message to fail.
     try {
-        val offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+        val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
+        // A tokenless report may have offchainTokenData as `[]` (empty outer
+        // list) or `[[]]` (one empty inner list). Only extract the per-message
+        // list when there are tokens or the outer list is non-empty; when
+        // tokenless with an empty outer list, getTokenTransfer returns null
+        // without inspecting offchainTokenData.
+        var offchainTokenDataForTTOfMessage = [] as lisp_list<cell>;
+        if (hasTokens || !msg.offchainTokenData.isEmpty()) {
+            offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+        }
         initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
         initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride, offchainTokenDataForTTOfMessage);
     } catch {
