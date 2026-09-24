@@ -69,7 +69,11 @@ func TestDataMatchesContractAndRoundTrips(t *testing.T) {
 	}
 
 	var decoded rbac.Data
-	if err := tlb.LoadFromCell(&decoded, encoded.BeginParse()); err != nil {
+	slice, err := encoded.BeginParse()
+	if err != nil {
+		t.Fatalf("begin parse: %v", err)
+	}
+	if err := tlb.LoadFromCell(&decoded, slice); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if got := decoded.Roles.Len(); got != 3 {

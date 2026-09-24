@@ -141,7 +141,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			raw.Ownable.PendingOwner,
 		).
 		WithWrapperNative(raw.WrappedNative).
-		WithRMNRemote(raw.RMNRemote.Admin.Owner, raw.RMNRemote.Admin.PendingOwner)
+		WithRMNRemote(raw.RMNRemote.Policy.Admin.Owner, raw.RMNRemote.Policy.Admin.PendingOwner)
 	b.storage.RMNRemote.Roles = raw.RMNRemote.Policy.RBAC.Roles
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
@@ -229,11 +229,13 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 		},
 		WrappedNative: s.WrappedNative,
 		RMNRemote: router.RMNRemote{
-			Admin: ownable2step.Storage{
-				Owner:        s.RMNRemote.Admin.Owner,
-				PendingOwner: s.RMNRemote.Admin.PendingOwner,
+			Policy: router.CursePolicy{
+				Admin: ownable2step.Storage{
+					Owner:        s.RMNRemote.Admin.Owner,
+					PendingOwner: s.RMNRemote.Admin.PendingOwner,
+				},
+				RBAC: rbac.Data{Roles: s.RMNRemote.Roles},
 			},
-			Policy: router.CursePolicy{RBAC: rbac.Data{Roles: s.RMNRemote.Roles}},
 		},
 	}
 

@@ -184,7 +184,9 @@ func TestRemoteChainConfig_RemotePools_Encoding(t *testing.T) {
 	var decoded struct {
 		RemotePools *tlbe.Dict[tlbe.Uint256, RemotePoolRef] `tlb:"."`
 	}
-	require.NoError(t, tlb.LoadFromCell(&decoded, encoded.BeginParse()))
+	slice, err := encoded.BeginParse()
+	require.NoError(t, err)
+	require.NoError(t, tlb.LoadFromCell(&decoded, slice))
 	require.Len(t, decoded.RemotePools.AsMap(), 2)
 
 	got, ok := decoded.RemotePools.Get(*tlbe.NewUint256(big.NewInt(5)))

@@ -67,12 +67,17 @@ type LocalPolicy struct {
 	CursePolicy CursePolicy `tlb:"."`
 }
 
-// CursePolicy is the role-backed curse policy composed by both the Router and
-// every TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse
-// them, and both roles are administered by `DEFAULT_ADMIN_ROLE`.
+// CursePolicy is the curse policy embedded by both the Router and every
+// TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse them,
+// and both roles are administered by `DEFAULT_ADMIN_ROLE`. Admin is an implicit
+// bearer of all three and is separate from the pool owner.
+//
+// Curse enforcement is centralized in the Router; pool-local policies are not
+// propagated and exist for spec compliance and for operators running their own.
 type CursePolicy struct {
-	RBAC           rbac.Data      `tlb:"^"`
-	CursedSubjects CursedSubjects `tlb:"."`
+	Admin          ownable2step.Storage `tlb:"."`
+	RBAC           rbac.Data            `tlb:"^"`
+	CursedSubjects CursedSubjects       `tlb:"."`
 }
 
 // CursedSubjects represents the set of cursed subjects (uint128 keys with empty

@@ -71,17 +71,18 @@ type Storage struct {
 }
 
 type RMNRemote struct {
-	Admin          ownable2step.Storage `tlb:"."`
-	Policy         CursePolicy          `tlb:"."`
-	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
+	Policy         CursePolicy      `tlb:"."`
+	ForwardUpdates *cell.Dictionary `tlb:"dict 267"`
 }
 
-// CursePolicy is the role-backed curse policy composed by both the Router and
-// every TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse
-// them, and both roles are administered by `DEFAULT_ADMIN_ROLE`.
+// CursePolicy is the curse policy embedded by both the Router and every
+// TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse them,
+// and both roles are administered by `DEFAULT_ADMIN_ROLE`. Admin is an implicit
+// bearer of all three and is separate from the host contract's owner.
 type CursePolicy struct {
-	RBAC           rbac.Data        `tlb:"^"`
-	CursedSubjects *cell.Dictionary `tlb:"dict 128"`
+	Admin          ownable2step.Storage `tlb:"."`
+	RBAC           rbac.Data            `tlb:"^"`
+	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakedCell encoding.
