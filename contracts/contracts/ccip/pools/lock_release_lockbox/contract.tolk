@@ -39,7 +39,8 @@ contract LockReleaseLockboxTokenPool {
 
     forceAbiExport: (
         LockReleaseLockboxTokenPool_LockContext,
-        LockReleaseLockboxTokenPool_ReleaseContext
+        LockReleaseLockboxTokenPool_ReleaseContext,
+        AccessControl_InMessage
     )
 }
 

@@ -386,7 +386,7 @@ type Uncurse struct {
 // with the pool's own top-level messages.
 type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#2e7a1790" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	Content *codec.MessageEnvelope[T] `tlb:"."`
+	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens.

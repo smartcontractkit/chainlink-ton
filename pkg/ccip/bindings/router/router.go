@@ -201,7 +201,7 @@ type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 // Router's own top-level messages.
 type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#f9123a10" json:"-"` //nolint:revive // Ignore opcode tag
-	Content *codec.MessageEnvelope[T] `tlb:"."`
+	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

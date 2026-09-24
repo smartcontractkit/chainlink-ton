@@ -19,16 +19,6 @@ struct OffRampRemoved {
     offRampRemoved: address;
 }
 
-const CURSED_TOPIC: int = "Cursed".crc32();
-struct Cursed {
-    subject: uint128;
-}
-
-const UNCURSED_TOPIC: int = "Uncursed".crc32();
-struct Uncursed {
-    subject: uint128;
-}
-
 const MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC = "MessageToOffRampBounced".crc32();
 struct MessageToOffRampBounced {
     offRamp: address,

@@ -724,7 +724,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_Uncurse => {
             self.uncurse(msgSender, msg.subjects);
         }
-        TokenPool_RMNAccessControlMessage => { self.onCursePolicyAccessControlMessage(msgSender, msg.content); }
+        TokenPool_RMNAccessControlMessage => { self.onCursePolicyAccessControlMessage(msgSender, msg.content.beginParse()); }
         TokenPool_RMNOwnableMessage => { self.onCursePolicyOwnableMessage(msgSender, msg.content); }
         JettonWithdrawable_Withdraw => {
             self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);

@@ -99,7 +99,14 @@ fun CursePolicy.onOwnableMessage(mutate self, sender: address, body: slice): boo
 fun CursePolicy.curseAll(mutate self, subjects: SnakedCell<uint128>) {
     var it = subjects.iter();
     while (!it.empty()) {
-        self.cursedSubjects.curse(it.next());
+        val subject = it.next();
+        self.cursedSubjects.curse(subject);
+        emit(
+            CURSED_TOPIC,
+            Cursed {
+                subject,
+            }
+        )
     }
 }
 
@@ -107,7 +114,14 @@ fun CursePolicy.curseAll(mutate self, subjects: SnakedCell<uint128>) {
 fun CursePolicy.uncurseAll(mutate self, subjects: SnakedCell<uint128>) {
     var it = subjects.iter();
     while (!it.empty()) {
-        self.cursedSubjects.uncurse(it.next());
+        val subject = it.next();
+        self.cursedSubjects.uncurse(subject);
+        emit(
+            UNCURSED_TOPIC,
+            Uncursed {
+                subject,
+            }
+        )
     }
 }
 
@@ -140,4 +154,13 @@ fun CursedSubjects.isCursed(self, subject: uint128) {
     return self.data.exists(subject);
 }
 
+const CURSED_TOPIC: int = "Cursed".crc32();
+struct Cursed {
+    subject: uint128;
+}
+
+const UNCURSED_TOPIC: int = "Uncursed".crc32();
+struct Uncursed {
+    subject: uint128;
+}
 

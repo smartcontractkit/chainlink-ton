@@ -122,7 +122,7 @@ func (a *TonCurseAdapter) canAct(
 	chain cldfton.Chain,
 	routerAddr *address.Address,
 	sender *address.Address,
-	uncurse bool,
+	curse bool,
 ) (bool, error) {
 	tv, err := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, common.GetTypeAndVersion)
 	if err != nil {
@@ -141,9 +141,9 @@ func (a *TonCurseAdapter) canAct(
 		return sender.Equals(owner), nil
 	}
 
-	getter := router.GetRMNCanCurse
-	if uncurse {
-		getter = router.GetRMNCanUncurse
+	getter := router.GetRMNCanUncurse
+	if curse {
+		getter = router.GetRMNCanCurse
 	}
 	can, err := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, getter, sender)
 	if err != nil {
@@ -159,27 +159,35 @@ func (a *TonCurseAdapter) planCurse(
 	chain cldfton.Chain,
 	in api.CurseInput,
 	routerAddr *address.Address,
-	uncurse bool,
+	curse bool,
 ) (bool, error) {
 	wallet := chain.Wallet.Address()
 	sender, err := a.effectiveSender(in.ChainSelector, in.MCMSQualifier, wallet)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to resolve effective sender: %w", err)
 	}
 
-	authorized, err := a.canAct(ctx, chain, routerAddr, sender, uncurse)
+	authorized, err := a.canAct(ctx, chain, routerAddr, sender, curse)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check curse/uncurse authorization: %w", err)
 	}
 	if !authorized {
-		action := "curse"
-		if uncurse {
-			action = "uncurse"
+		action := "uncurse"
+		if curse {
+			action = "curse"
 		}
+
+		// Best-effort: surface the RMN owner so the error points at who can
+		// actually authorize this, instead of just saying who can't.
+		ownerHint := ""
+		if owner, ownerErr := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, router.GetRMNOwner); ownerErr == nil {
+			ownerHint = fmt.Sprintf("; the RMN owner is %s", owner)
+		}
+
 		return false, fmt.Errorf(
-			"%s may not %s on router %s: it is neither the RMN owner nor a role holder; "+
+			"%s may not %s on router %s: it is neither the RMN owner nor a role holder%s; "+
 				"set the MCMS qualifier to a suite that holds the role (got %q)",
-			sender, action, routerAddr, in.MCMSQualifier)
+			sender, action, routerAddr, ownerHint, in.MCMSQualifier)
 	}
 
 	return !wallet.Equals(sender), nil
@@ -381,7 +389,7 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 			// Get router address from chain state
 			routerAddr := stateCCIP.Router
 
-			plan, err := a.planCurse(b.GetContext(), chain, in, &routerAddr, false)
+			plan, err := a.planCurse(b.GetContext(), chain, in, &routerAddr, true)
 			if err != nil {
 				return sequences.OnChainOutput{}, err
 			}
@@ -464,7 +472,7 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 			// Get router address from chain state
 			routerAddr := stateCCIP.Router
 
-			plan, err := a.planCurse(b.GetContext(), chain, in, &routerAddr, true)
+			plan, err := a.planCurse(b.GetContext(), chain, in, &routerAddr, false)
 			if err != nil {
 				return sequences.OnChainOutput{}, err
 			}

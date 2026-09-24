@@ -20,9 +20,6 @@ export const RMNREMOTE_GLOBAL_CURSE_SUBJECT = 0x01000000000000000000000000000001
 export const CURSE_ROLE = 0xb3c5b7cb9096e539f419cdc795a52c8cbe8dfbc9e27f70077d0b9749efe27fc5n
 export const UNCURSE_ROLE = 0x19331e9591f40b6bd5c2716faeab95f6a63184877fab2619bf484155c597abf0n
 
-// The Router has no init message, so deployment tooling constructs its initial
-// AccessControl data directly. The RMN administrator starts as the default
-// admin and retains both legacy operation permissions.
 export function createRMNAccessControl(admin: Address) {
   const roleData = () =>
     rt.AccessControl_RoleData.create({

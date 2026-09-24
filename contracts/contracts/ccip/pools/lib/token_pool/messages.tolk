@@ -103,7 +103,7 @@ struct (0x72b535a5) TokenPool_RMNOwnableMessage {
 /// pool-local curse policy do not collide with the pool's own top-level
 /// messages.
 struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
-    content: RemainingBitsAndRefs; // AccessControl_InMessage
+    content: Cell<AccessControl_InMessage>;
 }
 
 /// Lock tokens into the pool or burn the tokens.

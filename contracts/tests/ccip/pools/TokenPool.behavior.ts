@@ -2,6 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import {
+  AccessControl_GrantRole,
   CrossChainAddress,
   CursedSubjects,
   TokenPool,
@@ -306,10 +307,16 @@ export function runTokenPoolBehaviorTests(
     // DEFAULT_ADMIN and can delegate CURSE_ROLE.
     it('lets the owner grant CURSE_ROLE to a delegate', async () => {
       const ctx = await setup()
-      const granted = await ctx.pool.sendAccessControlGrantRole(
+      const granted = await ctx.pool.sendTokenPoolRMNAccessControlMessage(
         ctx.deployer.getSender(),
         toNano('0.2'),
-        { queryId: 905n, role: CURSE_ROLE, account: ctx.unauthorized.address },
+        {
+          content: AccessControl_GrantRole.create({
+            queryId: 905n,
+            role: CURSE_ROLE,
+            account: ctx.unauthorized.address,
+          }),
+        },
       )
       expect(granted.transactions).toHaveTransaction({
         from: ctx.deployer.address,
@@ -347,10 +354,16 @@ export function runTokenPoolBehaviorTests(
 
     it('rejects a role grant from a non-owner', async () => {
       const ctx = await setup()
-      const result = await ctx.pool.sendAccessControlGrantRole(
+      const result = await ctx.pool.sendTokenPoolRMNAccessControlMessage(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
-        { queryId: 908n, role: CURSE_ROLE, account: ctx.unauthorized.address },
+        {
+          content: AccessControl_GrantRole.create({
+            queryId: 908n,
+            role: CURSE_ROLE,
+            account: ctx.unauthorized.address,
+          }),
+        },
       )
       expect(result.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,

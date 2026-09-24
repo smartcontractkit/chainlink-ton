@@ -37,7 +37,7 @@ contract Router {
 
     storage: Storage
     incomingMessages: Router_InMsg | Ownable2Step_Messages
-    forceAbiExport: (Router_MessageValidationFailed_Any, Router_MessageValidated_Any)
+    forceAbiExport: (Router_MessageValidationFailed_Any, Router_MessageValidated_Any, AccessControl_InMessage)
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -144,7 +144,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must hold the appropriate RMN role (checked in AccessControl struct)
         Router_RMNAccessControlMessage => {
-            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, msg.content);
+            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, msg.content.beginParse());
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
@@ -670,17 +670,7 @@ Handles RMNRemote curse operations by adding specified cursed subjects
 and propagating updates to cached OffRamp contracts.
 */
 fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
-    var subjects = msg.subjects.iter();
-    while (!subjects.empty()) {
-        val subject = subjects.next();
-        rmn.policy.cursedSubjects.curse(subject);
-        emit(
-            CURSED_TOPIC,
-            Cursed {
-                subject,
-            }
-        )
-    }
+    rmn.policy.curseAll(msg.subjects);
     st.rmnRemote = rmn.toCell();
     st.store();
 
@@ -712,17 +702,7 @@ Handles RMNRemote uncurse operations by removing specified cursed subjects
 and propagating updates to cached OffRamp contracts.
 */
 fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse) {
-    var subjects = msg.subjects.iter();
-    while (!subjects.empty()) {
-        val subject = subjects.next();
-        rmn.policy.cursedSubjects.uncurse(subject);
-        emit(
-            UNCURSED_TOPIC,
-            Uncursed {
-                subject,
-            }
-        )
-    }
+    rmn.policy.uncurseAll(msg.subjects);
     st.rmnRemote = rmn.toCell();
     st.store();
 

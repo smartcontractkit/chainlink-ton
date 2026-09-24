@@ -40,7 +40,8 @@ contract BurnMintTokenPool {
 
     forceAbiExport: (
         BurnMintTokenPool_BurnContext,
-        BurnMintTokenPool_MintContext
+        BurnMintTokenPool_MintContext,
+        AccessControl_InMessage
     )
 }
 

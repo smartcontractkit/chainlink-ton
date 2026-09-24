@@ -419,10 +419,12 @@ func TestFastCurseTON(t *testing.T) {
 							Bounce:  true,
 							DstAddr: &routerAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body: tvmcodec.MustWrapMessage[any](bindings.PkgCCIP+".Router", rbac.GrantRole{
-								QueryID: 1,
-								Role:    tlbe.NewUint256(rmnremote.CurseRole),
-								Account: ufcTimelock,
+							Body: tvmcodec.MustWrapMessage[any](bindings.PkgCCIP+".Router", router.RMNAccessControlMessage[rbac.GrantRole]{
+								Content: tvmcodec.MustWrapMessage[rbac.GrantRole](bindings.TypeRBAC, rbac.GrantRole{
+									QueryID: 1,
+									Role:    tlbe.NewUint256(rmnremote.CurseRole),
+									Account: ufcTimelock,
+								}),
 							}),
 						},
 					},

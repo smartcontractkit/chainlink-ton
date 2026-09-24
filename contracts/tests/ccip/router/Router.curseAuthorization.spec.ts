@@ -85,6 +85,38 @@ describe('Router.cursing - authorization', () => {
     })
   }
 
+  // RBAC changes on the RMN curse policy are wrapped in Router_RMNAccessControlMessage
+  // so they don't collide with the Router's own top-level AccessControl messages.
+  async function grantRole(
+    router: SandboxContract<rt.Router>,
+    via: ReturnType<SandboxContract<TreasuryContract>['getSender']>,
+    body: { queryId: bigint; role: bigint; account: Address },
+  ) {
+    return router.sendRouterRMNAccessControlMessage(via, toNano('1'), {
+      content: rt.AccessControl_GrantRole.create(body),
+    })
+  }
+
+  async function revokeRole(
+    router: SandboxContract<rt.Router>,
+    via: ReturnType<SandboxContract<TreasuryContract>['getSender']>,
+    body: { queryId: bigint; role: bigint; account: Address },
+  ) {
+    return router.sendRouterRMNAccessControlMessage(via, toNano('1'), {
+      content: rt.AccessControl_RevokeRole.create(body),
+    })
+  }
+
+  async function renounceRole(
+    router: SandboxContract<rt.Router>,
+    via: ReturnType<SandboxContract<TreasuryContract>['getSender']>,
+    body: { queryId: bigint; role: bigint; callerConfirmation: Address },
+  ) {
+    return router.sendRouterRMNAccessControlMessage(via, toNano('1'), {
+      content: rt.AccessControl_RenounceRole.create(body),
+    })
+  }
+
   function expectAccepted(
     result: Awaited<ReturnType<typeof curse>>,
     router: SandboxContract<rt.Router>,
@@ -151,7 +183,7 @@ describe('Router.cursing - authorization', () => {
     })
 
     it('lets a role holder renounce', async () => {
-      const result = await router.sendAccessControlRenounceRole(curser.getSender(), toNano('1'), {
+      const result = await renounceRole(router, curser.getSender(), {
         queryId: 0n,
         role: CURSE_ROLE,
         callerConfirmation: curser.address,
@@ -162,7 +194,7 @@ describe('Router.cursing - authorization', () => {
     })
 
     it('lets an explicit DEFAULT_ADMIN holder grant a role', async () => {
-      const result = await router.sendAccessControlGrantRole(admin.getSender(), toNano('1'), {
+      const result = await grantRole(router, admin.getSender(), {
         queryId: 0n,
         role: CURSE_ROLE,
         account: stranger.address,
@@ -173,7 +205,7 @@ describe('Router.cursing - authorization', () => {
 
     it('rejects a grant from an account that administers nothing', async () => {
       expectRejected(
-        await router.sendAccessControlGrantRole(curser.getSender(), toNano('1'), {
+        await grantRole(router, curser.getSender(), {
           queryId: 0n,
           role: CURSE_ROLE,
           account: stranger.address,
@@ -219,7 +251,7 @@ describe('Router.cursing - authorization', () => {
     // The UltraFastCurse rollout in one test: the RMN owner grants CURSE_ROLE
     // to a fast curser, which can then curse but never uncurse.
     it('lets the RMN owner grant CURSE_ROLE, and revoke it again', async () => {
-      const granted = await router.sendAccessControlGrantRole(rmnOwner.getSender(), toNano('1'), {
+      const granted = await grantRole(router, rmnOwner.getSender(), {
         queryId: 0n,
         role: CURSE_ROLE,
         account: curser.address,
@@ -232,7 +264,7 @@ describe('Router.cursing - authorization', () => {
       expectAccepted(await curse(router, curser), router, curser.address)
       expectRejected(await uncurse(router, curser), router, curser.address)
 
-      const revoked = await router.sendAccessControlRevokeRole(rmnOwner.getSender(), toNano('1'), {
+      const revoked = await revokeRole(router, rmnOwner.getSender(), {
         queryId: 0n,
         role: CURSE_ROLE,
         account: curser.address,
@@ -249,7 +281,7 @@ describe('Router.cursing - authorization', () => {
     const router = await deploy(createSplitCursePolicy(rmnOwner.address, { admin: admin.address }))
 
     expectAccepted(
-      await router.sendAccessControlRevokeRole(rmnOwner.getSender(), toNano('1'), {
+      await revokeRole(router, rmnOwner.getSender(), {
         queryId: 0n,
         role: DEFAULT_ADMIN_ROLE,
         account: admin.address,
@@ -260,7 +292,7 @@ describe('Router.cursing - authorization', () => {
     expect(await router.getRmnHasRole(DEFAULT_ADMIN_ROLE, admin.address)).toBe(false)
 
     expectAccepted(
-      await router.sendAccessControlGrantRole(rmnOwner.getSender(), toNano('1'), {
+      await grantRole(router, rmnOwner.getSender(), {
         queryId: 0n,
         role: CURSE_ROLE,
         account: curser.address,
