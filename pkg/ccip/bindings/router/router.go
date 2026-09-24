@@ -196,6 +196,14 @@ type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 	Content *codec.MessageEnvelope[T] `tlb:"."`
 }
 
+// RMNAccessControlMessage wraps the standard AccessControl role management
+// messages so RBAC changes on the RMN curse policy do not collide with the
+// Router's own top-level messages.
+type RMNAccessControlMessage[T rbac.InMessage | any] struct {
+	_       tlb.Magic                 `tlb:"#f9123a10" json:"-"` //nolint:revive // Ignore opcode tag
+	Content *codec.MessageEnvelope[T] `tlb:"."`
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
@@ -207,9 +215,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
-	rbac.GrantRole{},
-	rbac.RevokeRole{},
-	rbac.RenounceRole{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
+	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
+	RMNAccessControlMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})

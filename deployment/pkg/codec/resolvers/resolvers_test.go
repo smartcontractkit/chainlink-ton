@@ -552,9 +552,10 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 		{
 			// Pins the message shape the chainlink-deployments UltraFastCurse
 			// rollout pipeline builds: grant CURSE_ROLE on the Router to the
-			// UltraFastCurse timelock. The Router registers the AccessControl
-			// opcodes in its own TLB map, so no dedicated sequence is needed.
-			name: "should resolve rbac.GrantRole(CURSE_ROLE) msg on the Router",
+			// UltraFastCurse timelock. RBAC changes on the RMN curse policy are
+			// wrapped in RMNAccessControlMessage so they don't collide with the
+			// Router's own top-level messages.
+			name: "should resolve router.RMNAccessControlMessage[GrantRole](CURSE_ROLE) msg on the Router",
 			input: map[string]any{
 				"messages": []any{
 					map[string]any{
@@ -565,16 +566,26 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
 								"contract": bindings.TypeRouter,
-								"type":     "GrantRole",
-								"opcode":   "0x95cd540f",
+								"type":     "RMNAccessControlMessage",
+								"opcode":   "0xf9123a10",
 								"payload": map[string]any{
-									"QueryID": float64(42),
-									"Role":    curseRoleHex,
-									"Account": map[string]any{
-										"resolver": "codec.resolvers.address-ref-to-ton-addr",
+									"Content": map[string]any{
+										"resolver": "codec.resolvers.msg-envelope",
 										"data": map[string]any{
-											"type":      bindings.ShortTimelock,
-											"qualifier": "UltraFastCurse",
+											"contract": bindings.TypeRBAC,
+											"type":     "GrantRole",
+											"opcode":   "0x95cd540f",
+											"payload": map[string]any{
+												"QueryID": float64(42),
+												"Role":    curseRoleHex,
+												"Account": map[string]any{
+													"resolver": "codec.resolvers.address-ref-to-ton-addr",
+													"data": map[string]any{
+														"type":      bindings.ShortTimelock,
+														"qualifier": "UltraFastCurse",
+													},
+												},
+											},
 										},
 									},
 								},
@@ -593,14 +604,24 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: bindings.TypeRouter,
-								Opcode:   0x95cd540f,
-								TypeName: "GrantRole",
-								GoType:   reflect.TypeFor[*rbac.GrantRole](),
+								Opcode:   0xf9123a10,
+								TypeName: "RMNAccessControlMessage",
+								GoType:   reflect.TypeFor[*router.RMNAccessControlMessage[rbac.GrantRole]](),
 							},
-							Value: &rbac.GrantRole{
-								QueryID: 42,
-								Role:    tlbe.NewUint256(rmnremote.CurseRole),
-								Account: address.MustParseAddr(ultraFastCurseTimelock),
+							Value: router.RMNAccessControlMessage[rbac.GrantRole]{
+								Content: &codec.MessageEnvelope[rbac.GrantRole]{
+									Metadata: codec.MessageMeta{
+										Contract: bindings.TypeRBAC,
+										Opcode:   0x95cd540f,
+										TypeName: "GrantRole",
+										GoType:   reflect.TypeFor[rbac.GrantRole](),
+									},
+									Value: rbac.GrantRole{
+										QueryID: 42,
+										Role:    tlbe.NewUint256(rmnremote.CurseRole),
+										Account: address.MustParseAddr(ultraFastCurseTimelock),
+									},
+								},
 							},
 						},
 					},

@@ -13,6 +13,12 @@ import (
 
 // --- Messages - incoming ---
 
+type InMessage interface {
+	GrantRole |
+		RevokeRole |
+		RenounceRole
+}
+
 // @dev Grants `role` to `account`.
 //
 // If `account` had not been already granted `role`, emits a {AccessControl_RoleGranted} event.

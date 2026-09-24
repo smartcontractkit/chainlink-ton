@@ -23,11 +23,7 @@ type RouterSetupOptionsCommon = {
   router?: SandboxContract<rt.Router>
   tokenAdminRegistry?: Address
   skipRouterOnRampConfig?: boolean
-  /// Owner of the Router's embedded RMNRemote. Implicitly holds every curse
-  /// role; defaults to the deployer.
   rmnOwner?: Address
-  /// Explicit curse-role members. Defaults to the deployer holding all three,
-  /// which keeps the legacy single-admin tests working.
   cursePolicy?: rt.CursePolicy
 }
 type RouterSetupOverrides = Partial<{
@@ -489,8 +485,6 @@ export async function deployRouterContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
   codeOverride?: Cell,
-  // Owner of the embedded RMNRemote. Distinct from the contract owner in
-  // production: it gates cursing, not upgrades. Defaults to `owner`.
   rmnOwner?: Address,
 ) {
   const code = codeOverride ?? (await contractCode.ccip.local('Router'))
@@ -544,7 +538,6 @@ export async function deployRouterContract(
     }),
   })
 
-  // TODO: use deployable to make deterministic?
   const contract = blockchain.openContract(
     rt.Router.fromStorage(data, { overrideContractCode: code }),
   )

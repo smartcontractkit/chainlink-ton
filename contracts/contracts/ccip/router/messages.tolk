@@ -28,7 +28,7 @@ type Router_InMsg =
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
     | Router_RMNRemoteUncurse
-    | AccessControl_InMessage
+    | Router_RMNAccessControlMessage
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
@@ -135,6 +135,12 @@ struct (0x8ae25114) Router_MessageRejected {
 
 struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
+}
+
+/// Wraps the standard `AccessControl` messages so RBAC changes on the RMN
+/// curse policy do not collide with the Router's own top-level messages.
+struct (0xf9123a10) Router_RMNAccessControlMessage {
+    content: RemainingBitsAndRefs; // AccessControl_InMessage
 }
 
 struct (0x78d0f21e) Router_CCIPSendACK {

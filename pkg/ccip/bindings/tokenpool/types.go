@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	pkgtlbe "github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
@@ -378,6 +379,14 @@ type Uncurse struct {
 	_        tlb.Magic                  `tlb:"#61cf16f1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
+}
+
+// RMNAccessControlMessage wraps the standard AccessControl role management
+// messages so RBAC changes on the pool-local curse policy do not collide
+// with the pool's own top-level messages.
+type RMNAccessControlMessage[T rbac.InMessage | any] struct {
+	_       tlb.Magic                 `tlb:"#2e7a1790" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Content *codec.MessageEnvelope[T] `tlb:"."`
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens.
@@ -806,9 +815,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyTokenTransferFeeConfigUpdates{},
 	Curse{},
 	Uncurse{},
-	rbac.GrantRole{},
-	rbac.RevokeRole{},
-	rbac.RenounceRole{},
+	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
+	RMNAccessControlMessage[any]{Content: nil},
 	JettonWithdrawableWithdraw{},
 	LockOrBurn{},
 	ReleaseOrMint{},

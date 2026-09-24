@@ -636,7 +636,7 @@ fun TokenPool<T>.uncurse(mutate self, sender: address, subjects: SnakedCell<uint
     self.data.localPolicy = localPolicy.toCell();
 }
 
-fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address, value: coins, body: slice) {
+fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address, body: slice) {
     var policy = self.data.localPolicy.load();
     policy.cursePolicy.onAccessControlMessage(sender, body);
     self.data.localPolicy = policy.toCell();
@@ -724,9 +724,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_Uncurse => {
             self.uncurse(msgSender, msg.subjects);
         }
-        AccessControl_GrantRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
-        AccessControl_RevokeRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
-        AccessControl_RenounceRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
+        TokenPool_RMNAccessControlMessage => { self.onCursePolicyAccessControlMessage(msgSender, msg.content); }
         TokenPool_RMNOwnableMessage => { self.onCursePolicyOwnableMessage(msgSender, msg.content); }
         JettonWithdrawable_Withdraw => {
             self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);

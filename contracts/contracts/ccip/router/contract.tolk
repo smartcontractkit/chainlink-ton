@@ -41,8 +41,6 @@ contract Router {
 }
 
 fun requireSupportedVersion(version: slice) {
-    // The 1.6.0 release and the interim 1.6.1 Router share the persisted
-    // RMNRemote layout represented by Router_Storage_V1_6_1 below.
     assert (
         version.bitsEqual("1.6.0".literalSlice())
     ) throw Upgradeable_Error.VersionMismatch;
@@ -122,16 +120,6 @@ fun onInternalMessage(in: InMessage) {
             requireRMNUncurseAdmin(rmn, in.senderAddress);
             onRMNRemoteUncurse(st, rmn, msg);
         }
-        // Standard audited AccessControl role management messages.
-        AccessControl_GrantRole => {
-            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, in.body);
-        }
-        AccessControl_RevokeRole => {
-            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, in.body);
-        }
-        AccessControl_RenounceRole => {
-            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, in.body);
-        }
         Router_RMNRemoteVerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
             val reply = createMessage({
@@ -153,6 +141,10 @@ fun onInternalMessage(in: InMessage) {
                 return;
             }
             throw 0xFFFF;
+        }
+        // Sender must hold the appropriate RMN role (checked in AccessControl struct)
+        Router_RMNAccessControlMessage => {
+            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, msg.content);
         }
         // Sender must be owner
         Withdrawable_Withdraw => {

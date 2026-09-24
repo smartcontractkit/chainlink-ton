@@ -405,8 +405,6 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 						Router:         &routerAddr,
 						RateLimitAdmin: rateLimitAdmin,
 						FeeAdmin:       feeAdmin,
-						// Unit-value set (map<uint32,()>); an empty dict serializes as an
-						// empty map. Must be non-nil: the tlb:"." tag errors on a nil dict.
 						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
 					},
 					JettonClient: tokenpool.JettonClient{
@@ -418,16 +416,11 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
 					CursePolicy: tokenpool.CursePolicy{
-						// Curse administrator for the pool-local policy; defaults to
-						// the pool owner.
 						Admin: ownable2step.Storage{
 							Owner:        owner,
 							PendingOwner: address.NewAddressNone(),
 						},
 						RBAC: rmnremote.EmptyAccessControlData(),
-						// An empty dict serializes as an empty map (a single "no entries"
-						// bit), matching the Tolk contract's createEmptyMap() default.
-						// Must be non-nil: the tlb:"." tag errors on a nil dict.
 						CursedSubjects: tokenpool.CursedSubjects{
 							Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
 						},

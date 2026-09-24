@@ -99,6 +99,13 @@ struct (0x72b535a5) TokenPool_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
+/// Wraps the standard `AccessControl` messages so RBAC changes on the
+/// pool-local curse policy do not collide with the pool's own top-level
+/// messages.
+struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
+    content: RemainingBitsAndRefs; // AccessControl_InMessage
+}
+
 /// Lock tokens into the pool or burn the tokens.
 /// @param lockOrBurnIn Encoded data fields for the processing of tokens on the source chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
@@ -284,7 +291,7 @@ type TokenPool_InMessage =
     | TokenPool_Curse
     | TokenPool_Uncurse
     | TokenPool_RMNOwnableMessage
-    | AccessControl_InMessage
+    | TokenPool_RMNAccessControlMessage
     | JettonWithdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {

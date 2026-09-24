@@ -29,8 +29,6 @@ type RouterStorage struct {
 
 type RMNRemote struct {
 	Admin Ownable2Step `json:"admin"`
-	// Roles carries the RMN CursePolicy's AccessControl storage verbatim so that
-	// a round-trip through this model does not drop role assignments.
 	Roles          *tlbe.Dict[tlbe.Uint256, rbac.RoleRef] `json:"-"`
 	CursedSubjects []*big.Int                             `json:"cursedSubjects"`
 	ForwardUpdates []*address.Address                     `json:"forwardUpdates"`

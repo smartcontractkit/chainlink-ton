@@ -19,7 +19,6 @@ const UNCURSE_ROLE = 0x19331e9591f40b6bd5c2716faeab95f6a63184877fab2619bf484155c
 /// that can by itself curse/uncurse and grant/revoke roles.
 /// It is never written into `rbac`, that way revoking the last
 /// explicit `DEFAULT_ADMIN_ROLE` member cannot lock the policy.
-
 struct CursePolicy {
     admin: Ownable2Step;
     rbac: Cell<AccessControl_Data>;

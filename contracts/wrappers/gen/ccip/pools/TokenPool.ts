@@ -1965,6 +1965,43 @@ export const TokenPool_RMNOwnableMessage = {
 }
 
 /**
+ > struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
+ >     content: RemainingBitsAndRefs
+ > }
+ */
+export interface TokenPool_RMNAccessControlMessage {
+    readonly $: 'TokenPool_RMNAccessControlMessage'
+    content: RemainingBitsAndRefs
+}
+
+export const TokenPool_RMNAccessControlMessage = {
+    PREFIX: 0x2e7a1790,
+
+    create(args: {
+        content: RemainingBitsAndRefs
+    }): TokenPool_RMNAccessControlMessage {
+        return {
+            $: 'TokenPool_RMNAccessControlMessage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_RMNAccessControlMessage {
+        loadAndCheckPrefix32(s, 0x2e7a1790, 'TokenPool_RMNAccessControlMessage');
+        return {
+            $: 'TokenPool_RMNAccessControlMessage',
+            content: loadTolkRemaining(s),
+        }
+    },
+    store(self: TokenPool_RMNAccessControlMessage, b: c.Builder): void {
+        b.storeUint(0x2e7a1790, 32);
+        storeTolkRemaining(self.content, b);
+    },
+    toCell(self: TokenPool_RMNAccessControlMessage): c.Cell {
+        return makeCellFrom<TokenPool_RMNAccessControlMessage>(self, TokenPool_RMNAccessControlMessage.store);
+    }
+}
+
+/**
  > struct (0xfa7da444) TokenPool_LockOrBurn {
  >     queryId: uint64
  >     request: Cell<TokenPool_LockOrBurnInV1>
@@ -3808,48 +3845,6 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 
 /**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
- > }
- */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: Set<uint128> /* = [] as map<uint128, ()> */
-}
-
-export const CursedSubjects = {
-    create(args: {
-        data: Set<uint128> /* = [] as map<uint128, ()> */
-    }): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-        }
-    },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
-    }
-}
-
-/**
  > struct CursePolicy {
  >     admin: Ownable2Step
  >     rbac: Cell<AccessControl_Data>
@@ -3889,6 +3884,48 @@ export const CursePolicy = {
     },
     toCell(self: CursePolicy): c.Cell {
         return makeCellFrom<CursePolicy>(self, CursePolicy.store);
+    }
+}
+
+/**
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
+ > }
+ */
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: Set<uint128> /* = [] as map<uint128, ()> */
+}
+
+export const CursedSubjects = {
+    create(args: {
+        data: Set<uint128> /* = [] as map<uint128, ()> */
+    }): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+        }
+    },
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
     }
 }
 
@@ -4202,150 +4239,6 @@ export const Ownable2Step = {
     },
     toCell(self: Ownable2Step): c.Cell {
         return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
-    }
-}
-
-/**
- > struct (0x95cd540f) AccessControl_GrantRole {
- >     queryId: uint64
- >     role: uint256
- >     account: address
- > }
- */
-export interface AccessControl_GrantRole {
-    readonly $: 'AccessControl_GrantRole'
-    queryId: uint64
-    role: uint256
-    account: c.Address
-}
-
-export const AccessControl_GrantRole = {
-    PREFIX: 0x95cd540f,
-
-    create(args: {
-        queryId?: uint64
-        role: uint256
-        account: c.Address
-    }): AccessControl_GrantRole {
-        return {
-            $: 'AccessControl_GrantRole',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): AccessControl_GrantRole {
-        loadAndCheckPrefix32(s, 0x95cd540f, 'AccessControl_GrantRole');
-        return {
-            $: 'AccessControl_GrantRole',
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            account: s.loadAddress(),
-        }
-    },
-    store(self: AccessControl_GrantRole, b: c.Builder): void {
-        b.storeUint(0x95cd540f, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeUint(self.role, 256);
-        b.storeAddress(self.account);
-    },
-    toCell(self: AccessControl_GrantRole): c.Cell {
-        return makeCellFrom<AccessControl_GrantRole>(self, AccessControl_GrantRole.store);
-    }
-}
-
-/**
- > struct (0x969b0db9) AccessControl_RevokeRole {
- >     queryId: uint64
- >     role: uint256
- >     account: address
- > }
- */
-export interface AccessControl_RevokeRole {
-    readonly $: 'AccessControl_RevokeRole'
-    queryId: uint64
-    role: uint256
-    account: c.Address
-}
-
-export const AccessControl_RevokeRole = {
-    PREFIX: 0x969b0db9,
-
-    create(args: {
-        queryId?: uint64
-        role: uint256
-        account: c.Address
-    }): AccessControl_RevokeRole {
-        return {
-            $: 'AccessControl_RevokeRole',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): AccessControl_RevokeRole {
-        loadAndCheckPrefix32(s, 0x969b0db9, 'AccessControl_RevokeRole');
-        return {
-            $: 'AccessControl_RevokeRole',
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            account: s.loadAddress(),
-        }
-    },
-    store(self: AccessControl_RevokeRole, b: c.Builder): void {
-        b.storeUint(0x969b0db9, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeUint(self.role, 256);
-        b.storeAddress(self.account);
-    },
-    toCell(self: AccessControl_RevokeRole): c.Cell {
-        return makeCellFrom<AccessControl_RevokeRole>(self, AccessControl_RevokeRole.store);
-    }
-}
-
-/**
- > struct (0x39452c46) AccessControl_RenounceRole {
- >     queryId: uint64
- >     role: uint256
- >     callerConfirmation: address
- > }
- */
-export interface AccessControl_RenounceRole {
-    readonly $: 'AccessControl_RenounceRole'
-    queryId: uint64
-    role: uint256
-    callerConfirmation: c.Address
-}
-
-export const AccessControl_RenounceRole = {
-    PREFIX: 0x39452c46,
-
-    create(args: {
-        queryId?: uint64
-        role: uint256
-        callerConfirmation: c.Address
-    }): AccessControl_RenounceRole {
-        return {
-            $: 'AccessControl_RenounceRole',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): AccessControl_RenounceRole {
-        loadAndCheckPrefix32(s, 0x39452c46, 'AccessControl_RenounceRole');
-        return {
-            $: 'AccessControl_RenounceRole',
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            callerConfirmation: s.loadAddress(),
-        }
-    },
-    store(self: AccessControl_RenounceRole, b: c.Builder): void {
-        b.storeUint(0x39452c46, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeUint(self.role, 256);
-        b.storeAddress(self.callerConfirmation);
-    },
-    toCell(self: AccessControl_RenounceRole): c.Cell {
-        return makeCellFrom<AccessControl_RenounceRole>(self, AccessControl_RenounceRole.store);
     }
 }
 
@@ -4789,28 +4682,10 @@ export class TokenPool implements c.Contract {
         return TokenPool_RMNOwnableMessage.toCell(TokenPool_RMNOwnableMessage.create(body));
     }
 
-    static createCellOfAccessControlGrantRole(body: {
-        queryId?: uint64
-        role: uint256
-        account: c.Address
+    static createCellOfTokenPoolRMNAccessControlMessage(body: {
+        content: RemainingBitsAndRefs
     }) {
-        return AccessControl_GrantRole.toCell(AccessControl_GrantRole.create(body));
-    }
-
-    static createCellOfAccessControlRevokeRole(body: {
-        queryId?: uint64
-        role: uint256
-        account: c.Address
-    }) {
-        return AccessControl_RevokeRole.toCell(AccessControl_RevokeRole.create(body));
-    }
-
-    static createCellOfAccessControlRenounceRole(body: {
-        queryId?: uint64
-        role: uint256
-        callerConfirmation: c.Address
-    }) {
-        return AccessControl_RenounceRole.toCell(AccessControl_RenounceRole.create(body));
+        return TokenPool_RMNAccessControlMessage.toCell(TokenPool_RMNAccessControlMessage.create(body));
     }
 
     static createCellOfJettonWithdrawableWithdraw(body: {
@@ -5115,38 +4990,12 @@ export class TokenPool implements c.Contract {
         });
     }
 
-    async sendAccessControlGrantRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        role: uint256
-        account: c.Address
+    async sendTokenPoolRMNAccessControlMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        content: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: AccessControl_GrantRole.toCell(AccessControl_GrantRole.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendAccessControlRevokeRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        role: uint256
-        account: c.Address
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: AccessControl_RevokeRole.toCell(AccessControl_RevokeRole.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendAccessControlRenounceRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        role: uint256
-        callerConfirmation: c.Address
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: AccessControl_RenounceRole.toCell(AccessControl_RenounceRole.create(body)),
+            body: TokenPool_RMNAccessControlMessage.toCell(TokenPool_RMNAccessControlMessage.create(body)),
             ...extraOptions
         });
     }
