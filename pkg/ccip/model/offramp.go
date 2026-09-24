@@ -19,15 +19,25 @@ import (
 // ---------- OffRamp Model Struct Definitions ----------
 
 type OffRampStorage struct {
-	ID                                      uint32                       `json:"id"`
-	Ownable                                 Ownable2Step                 `json:"ownable"`
-	StaticConfig                            StaticConfig                 `json:"staticConfig"`
-	FeeQuoter                               *address.Address             `json:"feeQuoter"`
-	OCR3Base                                OCR3Base                     `json:"ocr3Base"`
-	CursedSubjects                          []*big.Int                   `json:"cursedSubjects"`
-	PermissionlessExecutionThresholdSeconds uint32                       `json:"PermissionlessExecutionThresholdSeconds"`
-	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
-	LatestPriceSequenceNumber               uint64                       `json:"LatestPriceSequenceNumber"`
+	ID                        uint32                       `json:"id"`
+	Ownable                   Ownable2Step                 `json:"ownable"`
+	Config                    StorageConfig                `json:"config"`
+	OCR3Base                  OCR3Base                     `json:"ocr3Base"`
+	CursedSubjects            []*big.Int                   `json:"cursedSubjects"`
+	SourceChainConfigs        map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
+	LatestPriceSequenceNumber uint64                       `json:"LatestPriceSequenceNumber"`
+}
+
+type StorageConfig struct {
+	StaticConfig  StaticConfig  `json:"staticConfig"`
+	DynamicConfig DynamicConfig `json:"dynamicConfig"`
+}
+
+type DynamicConfig struct {
+	FeeQuoter                               *address.Address `json:"feeQuoter"`
+	PermissionlessExecutionThresholdSeconds uint32           `json:"PermissionlessExecutionThresholdSeconds"`
+	MinGasLimit                             tlb.Coins        `json:"minGasLimit"`
+	MinTTGasLimit                           tlb.Coins        `json:"minTTGasLimit"`
 }
 
 type StaticConfig struct {
@@ -99,7 +109,7 @@ func (b *OffRampStorageBuilder) WithFeeQuoter(fq *address.Address) *OffRampStora
 	if b.err != nil {
 		return b
 	}
-	b.storage.FeeQuoter = fq
+	b.storage.Config.DynamicConfig.FeeQuoter = fq
 	return b
 }
 
@@ -107,7 +117,7 @@ func (b *OffRampStorageBuilder) WithRMNRouter(router *address.Address) *OffRampS
 	if b.err != nil {
 		return b
 	}
-	b.storage.StaticConfig.RMNRouter = router
+	b.storage.Config.StaticConfig.RMNRouter = router
 	return b
 }
 
@@ -115,7 +125,23 @@ func (b *OffRampStorageBuilder) WithTokenAdminRegistry(tokenAdminRegistry *addre
 	if b.err != nil {
 		return b
 	}
-	b.storage.StaticConfig.TokenAdminRegistry = tokenAdminRegistry
+	b.storage.Config.StaticConfig.TokenAdminRegistry = tokenAdminRegistry
+	return b
+}
+
+func (b *OffRampStorageBuilder) WithMinGasLimit(minGasLimit tlb.Coins) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.Config.DynamicConfig.MinGasLimit = minGasLimit
+	return b
+}
+
+func (b *OffRampStorageBuilder) WithMinTTGasLimit(minTTGasLimit tlb.Coins) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.Config.DynamicConfig.MinTTGasLimit = minTTGasLimit
 	return b
 }
 
@@ -156,7 +182,7 @@ func (b *OffRampStorageBuilder) WithChainSelector(selector uint64) *OffRampStora
 	if b.err != nil {
 		return b
 	}
-	b.storage.StaticConfig.ChainSelector = selector
+	b.storage.Config.StaticConfig.ChainSelector = selector
 	return b
 }
 
@@ -164,7 +190,7 @@ func (b *OffRampStorageBuilder) WithPermissionlessExecutionThresholdSeconds(v ui
 	if b.err != nil {
 		return b
 	}
-	b.storage.PermissionlessExecutionThresholdSeconds = v
+	b.storage.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds = v
 	return b
 }
 
@@ -201,13 +227,15 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 			raw.Ownable.Owner,
 			raw.Ownable.PendingOwner,
 		).
-		WithFeeQuoter(raw.FeeQuoter).
-		WithChainSelector(raw.StaticConfig.ChainSelector).
-		WithPermissionlessExecutionThresholdSeconds(raw.PermissionlessExecutionThresholdSeconds).
+		WithFeeQuoter(raw.Config.DynamicConfig.FeeQuoter).
+		WithChainSelector(raw.Config.StaticConfig.ChainSelector).
+		WithPermissionlessExecutionThresholdSeconds(raw.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds).
+		WithMinGasLimit(raw.Config.DynamicConfig.MinGasLimit).
+		WithMinTTGasLimit(raw.Config.DynamicConfig.MinTTGasLimit).
 		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
 
-	b = b.WithRMNRouter(raw.StaticConfig.RMNRouter).
-		WithTokenAdminRegistry(raw.StaticConfig.TokenAdminRegistry)
+	b = b.WithRMNRouter(raw.Config.StaticConfig.RMNRouter).
+		WithTokenAdminRegistry(raw.Config.StaticConfig.TokenAdminRegistry)
 
 	// OCR3Base
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
@@ -457,14 +485,20 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
-		FeeQuoter:                               s.FeeQuoter,
-		PermissionlessExecutionThresholdSeconds: s.PermissionlessExecutionThresholdSeconds,
-		LatestPriceSequenceNumber:               s.LatestPriceSequenceNumber,
-		StaticConfig: offramp.StaticConfig{
-			RMNRouter:          s.StaticConfig.RMNRouter,
-			TokenAdminRegistry: s.StaticConfig.TokenAdminRegistry,
-			ChainSelector:      s.StaticConfig.ChainSelector,
+		Config: offramp.StorageConfig{
+			StaticConfig: offramp.StaticConfig{
+				RMNRouter:          s.Config.StaticConfig.RMNRouter,
+				TokenAdminRegistry: s.Config.StaticConfig.TokenAdminRegistry,
+				ChainSelector:      s.Config.StaticConfig.ChainSelector,
+			},
+			DynamicConfig: offramp.DynamicConfig{
+				FeeQuoter:                               s.Config.DynamicConfig.FeeQuoter,
+				PermissionlessExecutionThresholdSeconds: s.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds,
+				MinGasLimit:                             s.Config.DynamicConfig.MinGasLimit,
+				MinTTGasLimit:                           s.Config.DynamicConfig.MinTTGasLimit,
+			},
 		},
+		LatestPriceSequenceNumber: s.LatestPriceSequenceNumber,
 		OCR3Base: offramp.OCR3Base{
 			ChainID: chainIDU8,
 			Commit:  commitOCR3Config,

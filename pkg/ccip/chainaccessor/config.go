@@ -133,7 +133,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		return ccipocr3.OfframpConfig{}, fmt.Errorf("convert fee quoter address: %w", err)
 	}
 
-	// TokenAdminRegistry is only returned by new contracts (4-element config
+	// TokenAdminRegistry is only returned by new contracts (4+ element config
 	// stack). Old contracts leave it nil; preserve the legacy behavior of
 	// passing nil downstream rather than erroring.
 	var tokenAdminRegistryBytes []byte

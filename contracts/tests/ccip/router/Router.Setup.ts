@@ -13,6 +13,7 @@ import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
+import { DEFAULT_MIN_GASLIMIT, DEFAULT_MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 
@@ -382,13 +383,19 @@ async function deployOffRampInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    staticConfig: of.OffRamp_StaticConfig.create({
-      rmnRouter: router,
-      tokenAdminRegistry,
-      chainSelector: ChainSelectors.testnet.ton,
+    config: of.OffRamp_StorageConfig.create({
+      staticConfig: of.OffRamp_StaticConfig.create({
+        rmnRouter: router,
+        tokenAdminRegistry,
+        chainSelector: ChainSelectors.testnet.ton,
+      }),
+      dynamicConfig: of.OffRamp_DynamicConfig.create({
+        feeQuoter,
+        permissionlessExecutionThresholdSeconds: 0n,
+        minGasLimit: DEFAULT_MIN_GASLIMIT,
+        minTTGasLimit: DEFAULT_MIN_TT_GASLIMIT,
+      }),
     }),
-    feeQuoter,
-    permissionlessExecutionThresholdSeconds: 0n,
     latestPriceSequenceNumber: 0n,
     ocr3Base: of.OCR3Base.create({
       chainId: 1n,

@@ -13,8 +13,10 @@ struct ExecutionReport {
     sourceChainSelector: uint64;
     messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
     // Offchain token data for every message and token transfer in the report.
-    // An empty list when the report carries no token transfers; otherwise each
-    // outer entry is a message and each inner entry is that message's token-data blob.
+    // A tokenless report may use either `[]` (empty outer list) or `[[]]` (one
+    // empty per-message list); both are accepted. When there are token
+    // transfers, each outer entry is a message and each inner entry is that
+    // message's token-data blob.
     // WARNING: offchainTokenData is untrusted data.
     offchainTokenData: lisp_list<lisp_list<cell>>;
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
@@ -94,6 +96,25 @@ struct DeployableHashes {
     deployer: uint256;
 }
 
+struct OffRamp_DynamicConfig {
+    feeQuoter: address
+    permissionlessExecutionThresholdSeconds: uint32
+    minGasLimit: coins
+    minTTGasLimit: coins
+}
+
+// Config is the backwards-compatible struct returned by the config() getter.
+//
+// Field order matches the TVM stack returned by the getter:
+//   0: chainSelector
+//   1: feeQuoter
+//   2: permissionlessExecutionThresholdSeconds
+//   3: tokenAdminRegistry (appended for backwards compat; old contracts return 3 elements)
+//   4: minGasLimit         (appended by this PR; old contracts return 4 elements)
+//   5: minTTGasLimit       (appended by this PR; old contracts return 5 elements)
+//
+// New fields are appended at the end so old contracts and old Go readers remain
+// compatible — they simply read fewer stack elements.
 struct Config {
     // -- Static config
     chainSelector: uint64
@@ -108,6 +129,10 @@ struct Config {
     // -- Static config (appended for backwards compatibility; old contracts
     // return a 3-element stack and omit this field)
     tokenAdminRegistry: address
+    // -- Dynamic config (appended by this PR; old contracts return a 4-element
+    // stack and omit these fields)
+    minGasLimit: coins
+    minTTGasLimit: coins
 }
 
 // Kept in a reference because three full-width values would overflow the
@@ -116,6 +141,15 @@ struct OffRamp_StaticConfig {
     rmnRouter: address;
     tokenAdminRegistry: address;
     chainSelector: uint64;
+}
+
+// Combines the static and dynamic config into a single cell so the OffRamp root
+// Storage struct stays within the TVM 4-ref serialization limit. The dynamic
+// config is itself kept in a reference because inlining it would overflow the
+// 1023-bit limit of this struct.
+struct OffRamp_StorageConfig {
+    staticConfig: OffRamp_StaticConfig;
+    dynamicConfig: Cell<OffRamp_DynamicConfig>;
 }
 
 struct SourceChainConfig {

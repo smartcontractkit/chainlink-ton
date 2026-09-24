@@ -74,12 +74,13 @@ var (
 		ChainFamilySelector:             config.TVMFamilySelector,
 		EnforceOutOfOrder:               false,
 		DefaultTokenFeeUSDCents:         0,
-		// Must be >= MIN_TT_GASLIMIT (ton("0.15") = 150_000_000 nanoTON) on the TON OffRamp.
+		// Must be >= the OffRamp's minTTGasLimit (config.DefaultOffRampMinTTGasLimit).
 		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
-		DefaultTxGasLimit:           1,
-		GasMultiplierWeiPerEth:      0,
-		GasPriceStalenessThreshold:  0,
-		NetworkFeeUSDCents:          0,
+		// Set to the OffRamp's minGasLimit to verify the minimum is sufficient.
+		DefaultTxGasLimit:          config.DefaultOffRampMinGasLimitNanoTON,
+		GasMultiplierWeiPerEth:     0,
+		GasPriceStalenessThreshold: 0,
+		NetworkFeeUSDCents:         0,
 	}
 )
 
@@ -116,6 +117,8 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				Coin:                             "0.05",
 				ChainSelector:                    chain.Selector,
 				PermissionlessExecutionThreshold: 0,
+				MinGasLimit:                      config.DefaultOffRampMinGasLimit,
+				MinTTGasLimit:                    config.DefaultOffRampMinTTGasLimit,
 			},
 			OnRampParams: config.OnRampParams{
 				ID:            idForContracts,

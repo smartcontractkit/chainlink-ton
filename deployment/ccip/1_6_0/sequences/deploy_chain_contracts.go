@@ -243,6 +243,8 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				Coin:                             defaultCCIPContractCoin,
 				ChainSelector:                    cfg.ChainSelector,
 				PermissionlessExecutionThreshold: cfg.PermissionLessExecutionThresholdSeconds,
+				MinGasLimit:                      ccipConfig.DefaultOffRampMinGasLimit,
+				MinTTGasLimit:                    ccipConfig.DefaultOffRampMinTTGasLimit,
 			},
 			OnRampParams: ccipConfig.OnRampParams{
 				ID:            contractID,
