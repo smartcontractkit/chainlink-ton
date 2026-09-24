@@ -9,7 +9,6 @@ import (
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 
-	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
@@ -374,9 +373,9 @@ func TestFastCurseTON(t *testing.T) {
 		// 1. Deploy the UltraFastCurse suite. No dedicated sequence: the generic
 		// DeployMCMS changeset is parameterized by qualifier.
 		signers := cldftesthelpers.SingleGroupMCMS(t)
-		mcmsOut, err := ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
+		mcmsOut, err := deployops.DeployMCMS(dReg, mcmsRegistry).Apply(env, deployops.MCMSDeploymentConfig{
 			AdapterVersion: toolingAPIVersion,
-			Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
+			Chains: map[uint64]deployops.MCMSDeploymentConfigPerChain{
 				tonChainSelector: {
 					Proposer:  signers,
 					Canceller: signers,
@@ -461,7 +460,7 @@ func TestFastCurseTON(t *testing.T) {
 				MCMS: mcms.Input{
 					Qualifier:      ufcQualifier,
 					TimelockAction: mcmstypes.TimelockActionSchedule,
-					ValidUntil:     uint32(time.Now().Add(time.Hour).Unix()),
+					ValidUntil:     uint32(time.Now().Add(time.Hour).Unix()), //nolint:gosec // bounded future timestamp, fits in uint32
 					Description:    "ultra fast curse",
 				},
 			}),
@@ -480,7 +479,7 @@ func TestFastCurseTON(t *testing.T) {
 			MCMS: mcms.Input{
 				Qualifier:      ufcQualifier,
 				TimelockAction: mcmstypes.TimelockActionSchedule,
-				ValidUntil:     uint32(time.Now().Add(time.Hour).Unix()),
+				ValidUntil:     uint32(time.Now().Add(time.Hour).Unix()), //nolint:gosec // bounded future timestamp, fits in uint32
 			},
 		})
 		require.ErrorContains(t, err, "may not uncurse")

@@ -28,7 +28,7 @@ type RouterStorage struct {
 }
 
 type RMNRemote struct {
-	Admin Ownable2Step `json:"admin"`
+	Admin          Ownable2Step                           `json:"admin"`
 	Roles          *tlbe.Dict[tlbe.Uint256, rbac.RoleRef] `json:"-"`
 	CursedSubjects []*big.Int                             `json:"cursedSubjects"`
 	ForwardUpdates []*address.Address                     `json:"forwardUpdates"`
