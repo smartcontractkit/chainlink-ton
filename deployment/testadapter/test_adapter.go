@@ -386,7 +386,11 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 
 	if debugMode {
 		cancel := a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
-			s := msg.InternalMsg.Body.BeginParse()
+			s, errP := msg.InternalMsg.Body.BeginParse()
+			if errP != nil {
+				fmt.Printf("Failed to begin parsing message body: %v\n", errP)
+				return false
+			}
 			if s.BitsLeft() == 0 {
 				return false
 			}
@@ -467,7 +471,11 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 
 func (a *TONAdapter) startExecuteMonitor(t *testing.T, offRamp address.Address) func() {
 	return a.startMonitor(t, offRamp, func(msg tracetracking.ReceivedMessage) bool {
-		s := msg.InternalMsg.Body.BeginParse()
+		s, errP := msg.InternalMsg.Body.BeginParse()
+		if errP != nil {
+			fmt.Printf("Failed to begin parsing message body: %v\n", errP)
+			return false
+		}
 		if s.BitsLeft() == 0 {
 			return false
 		}
@@ -712,7 +720,10 @@ func successfullJettonTransfer(minterAuthority, jettonMinter, receiverWallet *ad
 			if !current.InternalMsg.SrcAddr.Equals(msg.Src) || !current.InternalMsg.DstAddr.Equals(msg.Dst) {
 				return false
 			}
-			s := current.InternalMsg.Body.BeginParse()
+			s, err := current.InternalMsg.Body.BeginParse()
+			if err != nil {
+				return false
+			}
 			op, err := s.LoadUInt(32)
 			if err != nil {
 				return false
@@ -1187,7 +1198,12 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 
 			// Add this message to the queue for further processing
 			messagesToProcess = append(messagesToProcess, outMsg)
-			opcode, err := outMsg.InternalMsg.Body.BeginParse().LoadUInt(32)
+			s, err := outMsg.InternalMsg.Body.BeginParse()
+			if err != nil {
+				l.Errorf("failed to begin parse: %v", err)
+				continue
+			}
+			opcode, err := s.LoadUInt(32)
 			if err == nil && opcode == onramp.OpcodeOnRampExecutorFinishedSuccessfully {
 				commitMessage = outMsg
 			}
@@ -1208,7 +1224,7 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 		return nil, 0, fmt.Errorf("unexpected event topic %#x for CCIPMessageSent", topic)
 	}
 	var event onramp.CCIPMessageSent
-	if err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse()); err != nil {
+	if err := tlb.Parse(&event, extMsg.Body); err != nil {
 		l.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
 		return nil, 0, err
 	}
@@ -1222,7 +1238,10 @@ var (
 
 // TON blockchain polling configuration
 const (
-	clientRetries       = 3                      // Number of retries for TON client operations
+	clientRetries = 3 // Number of retries for TON client operations
+	// retryTimeout is 0: no per-attempt timeout, matching the pre-v1.18
+	// WithRetry(n) behavior (see PR review discussion).
+	retryTimeout        = 0
 	queryInterval       = 500 * time.Millisecond // How often to query logpoller for new events
 	progressLogInterval = 5 * time.Second        // How often to log "still waiting" progress updates
 )
@@ -1238,7 +1257,7 @@ func setupLogPoller(
 ) tonlogpoller.Service {
 	chainID := strconv.FormatUint(tonChain.Selector, 10)
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return tonChain.Client.WithRetry(clientRetries), nil
+		return tonChain.Client.WithRetryTimeout(clientRetries, retryTimeout), nil
 	}
 
 	// Create logpoller with in-memory stores for testing

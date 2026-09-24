@@ -48,11 +48,15 @@ contract Storage  ──load──▶ TokenPool<Storage>{ data, context: Storage
 
 ### 3.1 Deliberate divergences from EVM (correct for TVM)
 
-1. **Mirrored policy, not synchronous calls.** EVM calls `Router`/`RMN` inline.
-   TON cannot return synchronously, so the pool keeps **local mirrors** of
-   onRamp/offRamp authorization and RMN cursed-subjects, pushed asynchronously by
-   trusted senders (analogous to `OffRamp_UpdateCursedSubjects`). Read on the hot
-   path; never queried live. (`TokenPool_MirroredPolicy` in `types.tolk`.)
+1. **Router chokepoint, local RMN policy.** EVM calls `Router`/`RMN` inline; on TON
+   the `Router` is the pool's **sole** entrypoint (`TokenPool.onlyRouter`) for both
+   directions — outbound `LockOrBurn` and inbound `ReleaseOrMint` (the latter relayed
+   by the Router via `RelayReleaseOrMint`, which also routes pool rejections to the
+   OffRamp's failure rail). This keeps pool decommission O(1): revoking the Router's
+   deployable code disables every pool without touching the OffRamp's allowed list.
+   The pool keeps only a **local** mirror of RMN cursed-subjects, pushed asynchronously
+   by the RMN proxy (`TokenPool_LocalPolicy` in `types.tolk`). Read on the hot path;
+   never queried live.
 2. **Per-operation async state machines.** Each cross-chain op is keyed by
    `queryId` in a pending map; the pool replies only after positive confirmation
    (`ReturnExcessesBack` / lockbox callbacks). "Confirmation-before-reply."

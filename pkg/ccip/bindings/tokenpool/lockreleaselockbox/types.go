@@ -58,7 +58,7 @@ type Storage struct {
 // FACILITY_ID = 209, base error = 20900.
 type ExitCode tvm.ExitCode
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
 	ExitCodeLockboxNotConfigured ExitCode = iota + 20900 // Facility ID 209 * 100

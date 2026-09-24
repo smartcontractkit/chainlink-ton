@@ -120,6 +120,30 @@ describe('Router', () => {
     })
   })
 
+  it('should reject routeMessage while the source chain is cursed', async () => {
+    await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
+      queryId: 4n,
+      subjects: [any2tvmMessage.sourceChainSelector],
+    })
+
+    const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
+      message: any2tvmMessage,
+      execId: genExecID({
+        sourceChainSelector: any2tvmMessage.sourceChainSelector,
+        messageID: 4n,
+      }),
+      receiver: receiver.address,
+      gasLimit: toNano('0.5'),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SubjectCursed'],
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(

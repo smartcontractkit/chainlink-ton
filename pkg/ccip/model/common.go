@@ -24,7 +24,7 @@ func FromBindingDataHex[B any, M Mapper[B]](m M, dataHex string) error {
 	}
 
 	var raw B
-	if err := tlb.LoadFromCell(&raw, root.BeginParse()); err != nil {
+	if err := tlb.Parse(&raw, root); err != nil {
 		return fmt.Errorf("decode TL-B object: %w", err)
 	}
 

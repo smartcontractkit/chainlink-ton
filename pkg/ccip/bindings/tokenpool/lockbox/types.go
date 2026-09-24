@@ -84,7 +84,7 @@ type WithdrawFailed struct {
 // FACILITY_ID = 567, base error = 56700.
 type ExitCode tvm.ExitCode
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
 	TokenAmountCannotBeZero ExitCode = iota + 56700 // Facility ID 567 * 100

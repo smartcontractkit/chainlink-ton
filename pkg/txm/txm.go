@@ -15,10 +15,10 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
-
+	"github.com/smartcontractkit/chainlink-common/pkg/timeutil"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
@@ -46,7 +46,7 @@ var _ TxManager = (*Txm)(nil)
 
 type Txm struct {
 	logger   logger.Logger
-	keystore loop.Keystore
+	keystore core.Keystore
 	config   Config
 	chainID  string
 	metrics  *txmMetrics
@@ -54,7 +54,7 @@ type Txm struct {
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
 	broadcastChan  chan *Tx
 	accountStore   *AccountStore
-	starter        commonutils.StartStopOnce
+	starter        services.StateMachine
 	done           sync.WaitGroup
 	stop           services.StopChan
 }
@@ -73,7 +73,7 @@ type Request struct {
 func New(
 	lggr logger.Logger,
 	chainID string,
-	keystore loop.Keystore,
+	keystore core.Keystore,
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error),
 	config Config,
 ) (*Txm, error) {
@@ -181,7 +181,7 @@ func (t *Txm) Enqueue(request Request) error {
 		if !transmitterAccount.IsActive || transmitterAccount.State == nil {
 			return fmt.Errorf("failed to get account status: account.IsActive: %v, account.State == nil: %v", transmitterAccount.IsActive, transmitterAccount.State == nil)
 		}
-		maxAmount, err := request.Amount.Add(walletGas(request))
+		maxAmount, err := request.Amount.Add(*walletGas(request))
 		if err != nil {
 			return fmt.Errorf("failed to add wallet gas: %w", err)
 		}
@@ -234,7 +234,7 @@ func (t *Txm) broadcastLoop() {
 
 			var st tlb.StateInit
 			if tx.StateInit != nil {
-				err := tlb.LoadFromCell(&st, tx.StateInit.BeginParse())
+				err := tlb.Parse(&st, tx.StateInit)
 				if err != nil {
 					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
 					continue
@@ -485,7 +485,7 @@ func (t *Txm) confirmLoop() {
 			remaining := pollDuration - time.Since(start)
 			if remaining > 0 {
 				// reset tick for the remaining time
-				tick = time.After(commonutils.WithJitter(remaining))
+				tick = time.After(timeutil.JitterPct(0.1).Apply(remaining))
 			} else {
 				// reset tick to fire immediately
 				tick = time.After(0)
