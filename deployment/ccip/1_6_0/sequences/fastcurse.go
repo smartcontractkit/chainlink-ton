@@ -177,8 +177,6 @@ func (a *TonCurseAdapter) planCurse(
 			action = "curse"
 		}
 
-		// Best-effort: surface the RMN owner so the error points at who can
-		// actually authorize this, instead of just saying who can't.
 		ownerHint := ""
 		if owner, ownerErr := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, router.GetRMNOwner); ownerErr == nil {
 			ownerHint = fmt.Sprintf("; the RMN owner is %s", owner)
