@@ -26,9 +26,38 @@ const (
 	AptosFamilySelector uint32 = 0xac77ffec
 	TVMFamilySelector   uint32 = 0x647e2ba9
 
-	// DefaultTokenDestGasOverheadTON is the minimum nanoTON budget we must send
-	// for Any2TON token transfers so OffRamp.onReleaseOrMint does not reject them.
-	DefaultTokenDestGasOverheadTON uint32 = 250_000_000
+	// DefaultTokenDestGasOverheadTON is the nanoTON budget the FeeQuoter assigns
+	// for Any2TON token transfers. It must be >= the OffRamp's minTTGasLimit
+	// (DefaultOffRampMinTTGasLimit), which is seeded into the dynamic config
+	// during migration and can be updated via OffRamp_SetDynamicConfig.
+	// In tests we set it equal to the floor to verify the minimum is sufficient.
+	DefaultTokenDestGasOverheadTON uint32 = 200_000_000
+
+	// DefaultTxGasLimitTON is the nanoTON gas limit the FeeQuoter assigns to a
+	// tx by default. It must be >= the OffRamp's minGasLimit
+	// (DefaultOffRampMinGasLimit), which is seeded into the dynamic config
+	// during migration and can be updated via OffRamp_SetDynamicConfig.
+	// The production lane default sits above the floor for safety margin.
+	DefaultTxGasLimitTON uint32 = 100_000_000
+
+	// DefaultOffRampMinGasLimit is the default minimum gas limit (in TON) for
+	// message execution on the OffRamp. It is seeded into the OffRamp dynamic
+	// config at deployment / migration time. DefaultTxGasLimitTON must be >= this.
+	DefaultOffRampMinGasLimit = "0.025"
+
+	// DefaultOffRampMinGasLimitNanoTON is DefaultOffRampMinGasLimit expressed in
+	// nanoTON (uint32), for use in FeeQuoter configs that require a numeric value.
+	// Tests set the FeeQuoter's DefaultTxGasLimit to this to verify the OffRamp
+	// minimum is sufficient.
+	DefaultOffRampMinGasLimitNanoTON uint32 = 25_000_000
+
+	// DefaultOffRampMinTTGasLimit is the default minimum gas limit (in TON) for
+	// token transfers on the OffRamp. It must be >= LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
+	// (ton("0.2") = 200_000_000 nanoTON), which is the value the LockRelease_LockBox
+	// pool needs to deploy its off-ramp account. It is seeded into the OffRamp dynamic
+	// config at deployment / migration time.
+	// DefaultTokenDestGasOverheadTON must be >= this.
+	DefaultOffRampMinTTGasLimit = "0.2"
 )
 
 // ConnectionConfig defines how a chain should connect with other chains.

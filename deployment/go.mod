@@ -3,6 +3,7 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 go 1.27.1
 
 // TMP: remove in follow up PR
+replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
