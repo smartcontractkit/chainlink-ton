@@ -18,8 +18,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
@@ -58,6 +60,13 @@ type Bar struct {
 	_   tlb.Magic `tlb:"#00000002" json:"-"` //nolint:revive // Ignore opcode tag
 	Val *big.Int  `tlb:"## 32"`
 }
+
+// The UltraFastCurse MCMS suite's timelock, i.e. the account that holds
+// CURSE_ROLE on the Router once the rollout is complete.
+const ultraFastCurseTimelock = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqtv8"
+
+// curseRoleHex is how a CLD pipeline yaml spells rmnremote.CurseRole.
+var curseRoleHex = "0x" + rmnremote.CurseRole.Text(16)
 
 func TestResolvingSendMessagesInputs(t *testing.T) {
 	testCases := []struct {
@@ -540,6 +549,65 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 				Plan: false,
 			},
 		},
+		{
+			// Pins the message shape the chainlink-deployments UltraFastCurse
+			// rollout pipeline builds: grant CURSE_ROLE on the Router to the
+			// UltraFastCurse timelock. The Router registers the AccessControl
+			// opcodes in its own TLB map, so no dedicated sequence is needed.
+			name: "should resolve rbac.GrantRole(CURSE_ROLE) msg on the Router",
+			input: map[string]any{
+				"messages": []any{
+					map[string]any{
+						"bounce":  true,
+						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001").String(),
+						"amount":  "100000000",
+						"body": map[string]any{
+							"resolver": "codec.resolvers.msg-envelope",
+							"data": map[string]any{
+								"contract": bindings.TypeRouter,
+								"type":     "GrantRole",
+								"opcode":   "0x95cd540f",
+								"payload": map[string]any{
+									"QueryID": float64(42),
+									"Role":    curseRoleHex,
+									"Account": map[string]any{
+										"resolver": "codec.resolvers.address-ref-to-ton-addr",
+										"data": map[string]any{
+											"type":      bindings.ShortTimelock,
+											"qualifier": "UltraFastCurse",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"plan": true,
+			},
+			want: opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
+						Amount:  tlb.MustFromTON("0.1"),
+						Body: &codec.MessageEnvelope[any]{
+							Metadata: codec.MessageMeta{
+								Contract: bindings.TypeRouter,
+								Opcode:   0x95cd540f,
+								TypeName: "GrantRole",
+								GoType:   reflect.TypeFor[*rbac.GrantRole](),
+							},
+							Value: &rbac.GrantRole{
+								QueryID: 42,
+								Role:    tlbe.NewUint256(rmnremote.CurseRole),
+								Account: address.MustParseAddr(ultraFastCurseTimelock),
+							},
+						},
+					},
+				},
+				Plan: true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -550,6 +618,14 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 				Address:       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 				ChainSelector: selector,
 				Qualifier:     "RMNMCMS",
+				Type:          bindings.ShortTimelock,
+				Version:       semver.MustParse("1.0.0"),
+			})
+			require.NoError(t, err)
+			err = ds.AddressRefStore.Add(cldfds.AddressRef{
+				Address:       ultraFastCurseTimelock,
+				ChainSelector: selector,
+				Qualifier:     "UltraFastCurse",
 				Type:          bindings.ShortTimelock,
 				Version:       semver.MustParse("1.0.0"),
 			})

@@ -1,9 +1,11 @@
 package sequences
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/samber/lo"
@@ -12,16 +14,19 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
+	ccipds "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
+	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
@@ -29,6 +34,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/smartcontractkit/mcms/types"
 )
@@ -37,6 +43,9 @@ import (
 type TonCurseAdapter struct {
 	routerAddressCache map[uint64]address.Address
 	onRampAddressCache map[uint64]address.Address
+	// env is retained so the curse authority (the executing timelock, when the
+	// caller asked for a proposal) can be resolved from the datastore.
+	env *cldf.Environment
 }
 
 // CurseAdapter interface implementation
@@ -73,7 +82,107 @@ func (a *TonCurseAdapter) Initialize(e cldf.Environment, selector uint64) error 
 		return fmt.Errorf("onRamp address is not set for chain selector %d", selector)
 	}
 	a.onRampAddressCache[selector] = tonState.OnRamp
+
+	a.env = &e
 	return nil
+}
+
+// curseAuthorityVersion is the first Router release where curse authority is a
+// role rather than plain RMN ownership. Older Routers only expose rmn_owner.
+var curseAuthorityVersion = semver.MustParse("1.7.0")
+
+// effectiveSender is the address that will actually deliver the message: the
+// deployer key on a direct send, or the executing timelock when the caller
+// selected an MCMS suite.
+func (a *TonCurseAdapter) effectiveSender(selector uint64, qualifier string, wallet *address.Address) (*address.Address, error) {
+	if qualifier == "" {
+		return wallet, nil
+	}
+	if a.env == nil {
+		return nil, errors.New("adapter not initialized: no environment to resolve the MCMS qualifier against")
+	}
+	ref, err := (&MCMSReaderAdapter{}).GetTimelockRef(*a.env, selector, ccipdmcms.Input{Qualifier: qualifier})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get timelock ref for qualifier %q on chain %d: %w", qualifier, selector, err)
+	}
+	addr, err := ccipds.FindAndFormatRef(a.env.DataStore, ref, selector, utils.ToTONAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve timelock address for qualifier %q on chain %d: %w", qualifier, selector, err)
+	}
+	return addr, nil
+}
+
+// canAct reports whether `sender` may curse (uncurse when `uncurse` is set) on
+// the Router. Router 1.7.0 split curse authority into CURSE_ROLE/UNCURSE_ROLE
+// with the RMN owner as an implicit bearer of both, which rmn_canCurse and
+// rmn_canUncurse account for. The same adapter serves not-yet-upgraded Routers,
+// where those getters do not exist and the RMN owner is the sole authority.
+func (a *TonCurseAdapter) canAct(
+	ctx context.Context,
+	chain cldfton.Chain,
+	routerAddr *address.Address,
+	sender *address.Address,
+	uncurse bool,
+) (bool, error) {
+	tv, err := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, common.GetTypeAndVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to get router typeAndVersion: %w", err)
+	}
+	version, err := semver.NewVersion(strings.TrimSpace(tv.Version))
+	if err != nil {
+		return false, fmt.Errorf("failed to parse router version %q: %w", tv.Version, err)
+	}
+
+	if version.LessThan(curseAuthorityVersion) {
+		owner, ownerErr := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, router.GetRMNOwner)
+		if ownerErr != nil {
+			return false, fmt.Errorf("failed to get router rmn owner: %w", ownerErr)
+		}
+		return sender.Equals(owner), nil
+	}
+
+	getter := router.GetRMNCanCurse
+	if uncurse {
+		getter = router.GetRMNCanUncurse
+	}
+	can, err := tvm.CallGetterLatest(ctx, chain.Client, routerAddr, getter, sender)
+	if err != nil {
+		return false, fmt.Errorf("failed to get %s: %w", getter.Name, err)
+	}
+	return can, nil
+}
+
+// planCurse decides between a direct send and an MCMS proposal, and fails fast
+// when the resulting message would revert for lack of authority.
+func (a *TonCurseAdapter) planCurse(
+	ctx context.Context,
+	chain cldfton.Chain,
+	in api.CurseInput,
+	routerAddr *address.Address,
+	uncurse bool,
+) (bool, error) {
+	wallet := chain.Wallet.Address()
+	sender, err := a.effectiveSender(in.ChainSelector, in.MCMSQualifier, wallet)
+	if err != nil {
+		return false, err
+	}
+
+	authorized, err := a.canAct(ctx, chain, routerAddr, sender, uncurse)
+	if err != nil {
+		return false, err
+	}
+	if !authorized {
+		action := "curse"
+		if uncurse {
+			action = "uncurse"
+		}
+		return false, fmt.Errorf(
+			"%s may not %s on router %s: it is neither the RMN owner nor a role holder; "+
+				"set the MCMS qualifier to a suite that holds the role (got %q)",
+			sender, action, routerAddr, in.MCMSQualifier)
+	}
+
+	return !wallet.Equals(sender), nil
 }
 
 // IsSubjectCursedOnChain checks if a subject is cursed on a specific chain.
@@ -272,16 +381,10 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 			// Get router address from chain state
 			routerAddr := stateCCIP.Router
 
-			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
-			ctx := b.GetContext()
-			sender := chain.Wallet.Address()
-
-			owner, err := tvm.CallGetterLatest(ctx, chain.Client, &routerAddr, ownable2step.GetOwner)
+			plan, err := a.planCurse(b.GetContext(), chain, in, &routerAddr, false)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, err
 			}
-
-			plan := !sender.Equals(owner) // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
@@ -361,16 +464,10 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 			// Get router address from chain state
 			routerAddr := stateCCIP.Router
 
-			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
-			ctx := b.GetContext()
-			sender := chain.Wallet.Address()
-
-			owner, err := tvm.CallGetterLatest(ctx, chain.Client, &routerAddr, ownable2step.GetOwner)
+			plan, err := a.planCurse(b.GetContext(), chain, in, &routerAddr, true)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, err
 			}
-
-			plan := !sender.Equals(owner) // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{

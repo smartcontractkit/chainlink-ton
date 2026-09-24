@@ -48,7 +48,7 @@ func (r *MCMSReaderAdapter) GetChainMetadata(e cldf.Environment, cs uint64, inpu
 // GetTimelockRef returns the timelock contract address reference for a given MCMS input.
 func (r *MCMSReaderAdapter) GetTimelockRef(e cldf.Environment, cs uint64, input ccipdmcms.Input) (cldfds.AddressRef, error) {
 	t := ccipdutils.RBACTimelock
-	qualifier, version, err := parseQualifierVersion(input.Qualifier)
+	qualifier, version, err := parseQualifierVersion(defaultQualifier(input.Qualifier))
 	if err != nil {
 		return cldfds.AddressRef{}, fmt.Errorf("failed to parse timelock qualifier %q: %w", input.Qualifier, err)
 	}
@@ -77,7 +77,7 @@ func (r *MCMSReaderAdapter) GetMCMSRef(e cldf.Environment, cs uint64, input ccip
 		return cldfds.AddressRef{}, fmt.Errorf("unsupported timelock action type: %s", input.TimelockAction)
 	}
 
-	qualifier, version, err := parseQualifierVersion(input.Qualifier)
+	qualifier, version, err := parseQualifierVersion(defaultQualifier(input.Qualifier))
 	if err != nil {
 		return cldfds.AddressRef{}, fmt.Errorf("failed to parse MCMS qualifier %q: %w", input.Qualifier, err)
 	}
@@ -90,13 +90,22 @@ func (r *MCMSReaderAdapter) GetMCMSRef(e cldf.Environment, cs uint64, input ccip
 	return ref, nil
 }
 
+// defaultQualifier resolves an unset qualifier to the CLL suite, matching the
+// EVM reader. Several MCMS suites (CLLCCIP, RMNMCMS, FINANCE_MCMS,
+// UltraFastCurse) coexist per chain, so an unqualified lookup would otherwise
+// pick whichever happened to carry the highest version.
+func defaultQualifier(qualifier string) string {
+	if strings.TrimSpace(qualifier) == "" {
+		return ccipdutils.CLLQualifier
+	}
+	return qualifier
+}
+
 func getAddressRef(input cldfds.AddressRefStore, cs uint64, t cldf.ContractType, qualifier string, version *semver.Version) cldfds.AddressRef {
 	var filters = []cldfds.FilterFunc[cldfds.AddressRefKey, cldfds.AddressRef]{
 		cldfds.AddressRefByChainSelector(cs),
 		cldfds.AddressRefByType(cldfds.ContractType(t)),
-	}
-	if qualifier != "" {
-		filters = append(filters, cldfds.AddressRefByQualifier(qualifier))
+		cldfds.AddressRefByQualifier(qualifier),
 	}
 	if version != nil {
 		filters = append(filters, cldfds.AddressRefByVersion(version))

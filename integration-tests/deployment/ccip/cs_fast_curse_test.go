@@ -9,13 +9,22 @@ import (
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 
+	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldftesthelpers "github.com/smartcontractkit/chainlink-deployments-framework/engine/cld/mcms/proposalutils/testhelpers"
+	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	_ "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/v1_6_0/sequences"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
@@ -25,8 +34,17 @@ import (
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
+	tonchangesets "github.com/smartcontractkit/chainlink-ton/deployment/pkg/changesets"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	tvmcodec "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
@@ -341,5 +359,140 @@ func TestFastCurseTON(t *testing.T) {
 
 			t.Log("Successfully uncursed multiple subjects")
 		})
+	})
+
+	// UltraFastCurse: a second, 1-of-N MCMS suite with a zero timelock delay
+	// holds CURSE_ROLE so a chain can be cursed fast, while uncursing stays with
+	// the RMN owner.
+	t.Run("UltraFastCurse", func(t *testing.T) {
+		ufcQualifier := "UltraFastCurse"
+		ctx := t.Context()
+		adapter := &sequences.TonCurseAdapter{}
+		require.NoError(t, adapter.Initialize(env, tonChainSelector))
+		evmSubject := adapter.SelectorToSubject(evmSelector)
+
+		// 1. Deploy the UltraFastCurse suite. No dedicated sequence: the generic
+		// DeployMCMS changeset is parameterized by qualifier.
+		signers := cldftesthelpers.SingleGroupMCMS(t)
+		mcmsOut, err := ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
+			AdapterVersion: toolingAPIVersion,
+			Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
+				tonChainSelector: {
+					Proposer:  signers,
+					Canceller: signers,
+					Bypasser:  signers,
+					// Zero delay is the point of the suite.
+					TimelockMinDelay: big.NewInt(0),
+					ContractVersion:  version,
+					Qualifier:        &ufcQualifier,
+				},
+			},
+		})
+		require.NoError(t, err, "Failed to deploy the UltraFastCurse MCMS suite")
+		require.NoError(t, mcmsOut.DataStore.Merge(env.DataStore))
+		env.DataStore = mcmsOut.DataStore.Seal()
+
+		ufcTimelock, err := datastore_utils.FindAndFormatRef(env.DataStore, datastore.AddressRef{
+			ChainSelector: tonChainSelector,
+			Type:          datastore.ContractType(ccipdutils.RBACTimelock),
+			Qualifier:     ufcQualifier,
+		}, tonChainSelector, deployutils.ToTONAddress)
+		require.NoError(t, err, "Failed to resolve the UltraFastCurse timelock")
+
+		canCurse, err := tvm.CallGetterLatest(ctx, tonChain.Client, &routerAddr, router.GetRMNCanCurse, ufcTimelock)
+		require.NoError(t, err)
+		require.False(t, canCurse, "the UltraFastCurse timelock should hold no curse authority yet")
+
+		// commonchangeset.ApplyChangesets rebuilds the operations bundle without
+		// an operation registry, so restore it before running a generic sequence.
+		env.OperationsBundle.OperationRegistry = tonops.Registry
+
+		// 2. Grant CURSE_ROLE. The deployer is the RMN owner here, so this is a
+		// direct send; in production it is an RMNMCMS proposal built from the
+		// same message by ton_ops_any_sequence.
+		_, err = tonchangesets.NewOpsAnySequence(bindings.Registry, nil).Apply(env, tonchangesets.OpsAnySequence{
+			AnySequenceIn: opston.AnySequenceInput{
+				Defs: []cldfops.Definition{opston.SendMessages.Def()},
+				Inputs: []any{opston.SendMessagesInput{
+					Messages: []opston.InternalMessage[any]{
+						{
+							Bounce:  true,
+							DstAddr: &routerAddr,
+							Amount:  tlb.MustFromTON("0.1"),
+							Body: tvmcodec.MustWrapMessage[any](bindings.PkgCCIP+".Router", rbac.GrantRole{
+								QueryID: 1,
+								Role:    tlbe.NewUint256(rmnremote.CurseRole),
+								Account: ufcTimelock,
+							}),
+						},
+					},
+				}},
+			},
+			Options: opsmcms.TimelockOpts{ChainSelector: mcmstypes.ChainSelector(tonChainSelector)},
+		})
+		require.NoError(t, err, "Failed to grant CURSE_ROLE to the UltraFastCurse timelock")
+
+		canCurse, err = tvm.CallGetterLatest(ctx, tonChain.Client, &routerAddr, router.GetRMNCanCurse, ufcTimelock)
+		require.NoError(t, err)
+		require.True(t, canCurse, "the UltraFastCurse timelock should be able to curse")
+
+		canUncurse, err := tvm.CallGetterLatest(ctx, tonChain.Client, &routerAddr, router.GetRMNCanUncurse, ufcTimelock)
+		require.NoError(t, err)
+		require.False(t, canUncurse, "the UltraFastCurse timelock must not be able to uncurse")
+
+		curseAction := []fastcurse.CurseActionInput{
+			{
+				IsGlobalCurse:        false,
+				ChainSelector:        tonChainSelector,
+				SubjectChainSelector: evmSelector,
+				Version:              toolingAPIVersion,
+			},
+		}
+		reg := fastcurse.GetCurseRegistry()
+
+		// 3. Curse through the UltraFastCurse suite. ApplyChangesets signs and
+		// executes the resulting proposal.
+		env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+			commonchangeset.Configure(fastcurse.CurseChangeset(reg, mcmsRegistry), fastcurse.RMNCurseConfig{
+				CurseActions:              curseAction,
+				AllowAsymmetricLaneCurses: true,
+				MCMS: mcms.Input{
+					Qualifier:      ufcQualifier,
+					TimelockAction: mcmstypes.TimelockActionSchedule,
+					ValidUntil:     uint32(time.Now().Add(time.Hour).Unix()),
+					Description:    "ultra fast curse",
+				},
+			}),
+		})
+		require.NoError(t, err, "Failed to curse through the UltraFastCurse suite")
+
+		isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
+		require.NoError(t, err)
+		require.True(t, isCursed, "EVM subject should be cursed through the UltraFastCurse suite")
+
+		// 4. The same suite must not be able to lift the curse; the sequence
+		// fails fast rather than producing a proposal that would revert.
+		_, err = fastcurse.UncurseChangeset(reg, mcmsRegistry).Apply(env, fastcurse.RMNCurseConfig{
+			CurseActions:              curseAction,
+			AllowAsymmetricLaneCurses: true,
+			MCMS: mcms.Input{
+				Qualifier:      ufcQualifier,
+				TimelockAction: mcmstypes.TimelockActionSchedule,
+				ValidUntil:     uint32(time.Now().Add(time.Hour).Unix()),
+			},
+		})
+		require.ErrorContains(t, err, "may not uncurse")
+
+		// 5. The legacy path still works: the RMN owner uncurses directly.
+		_, err = fastcurse.UncurseChangeset(reg, mcmsRegistry).Apply(env, fastcurse.RMNCurseConfig{
+			CurseActions:              curseAction,
+			AllowAsymmetricLaneCurses: true,
+			MCMS:                      mcms.Input{},
+		})
+		require.NoError(t, err, "the legacy uncurse path must keep working")
+
+		isCursed, err = adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
+		require.NoError(t, err)
+		require.False(t, isCursed, "EVM subject should be uncursed through the legacy path")
 	})
 }

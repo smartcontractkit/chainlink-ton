@@ -95,12 +95,9 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	routerAddress := stateCCIP.Router
 	if routerAddress.IsAddrNone() {
-		// The Router has no init message, so its initial RMN roles are built
-		// here: the deployer is the default admin and holds both curse roles.
-		rbac, rbacErr := rmnremote.NewAccessControlData(chain.WalletAddress, chain.WalletAddress, chain.WalletAddress)
-		if rbacErr != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("build RMN access control: %w", rbacErr)
-		}
+		// The Router has no init message, so its curse policy is built here. It
+		// starts unseeded: the RMN admin below is an implicit bearer of every
+		// curse role. CURSE_ROLE is granted to an UltraFastCurse timelock later.
 		routerStorage := router.Storage{
 			ID: in.CCIPConfig.RouterParams.ID,
 			Ownable: ownable2step.Storage{
@@ -109,11 +106,14 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 			WrappedNative: tvm.TonTokenAddr,
 			RMNRemote: router.RMNRemote{
-				Admin: ownable2step.Storage{
-					Owner:        chain.WalletAddress,
-					PendingOwner: address.NewAddressNone(),
+				Policy: router.CursePolicy{
+					Admin: ownable2step.Storage{
+						Owner:        chain.WalletAddress,
+						PendingOwner: address.NewAddressNone(),
+					},
+					RBAC:           rmnremote.EmptyAccessControlData(),
+					CursedSubjects: nil,
 				},
-				Policy:         router.CursePolicy{RBAC: rbac, CursedSubjects: nil},
 				ForwardUpdates: nil,
 			},
 			OnRamps:  nil, // set afterward

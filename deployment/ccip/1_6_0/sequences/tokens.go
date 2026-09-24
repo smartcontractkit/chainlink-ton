@@ -392,14 +392,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// contracts/contracts/ccip/pools/lib/token_pool/entrypoint.tolk and the e2e test
 			// setup in contracts/tests/ccip/e2e/CCIPSendWithTokenTransfer.spec.ts); remote
 			// chain configs are populated later via ApplyChainUpdates.
-			// Pools are deployed with their own curse policy: the pool owner is
-			// the default admin and holds both curse roles, matching
-			// `CursePolicy.init(owner, owner, owner)` in the pool's Storage.init.
-			poolRBAC, err := rmnremote.NewAccessControlData(owner, owner, owner)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to build pool curse policy roles: %w", err)
-			}
-
+			// Pools are deployed with an unseeded curse policy, matching
+			// `CursePolicy.empty()` in the pool's Storage.init: the pool owner is
+			// an implicit bearer of both curse roles.
 			poolData := tokenpool.Storage{
 				AdminConfig: tokenpool.AdminConfig{
 					Ownable: ownable2step.Storage{
@@ -423,7 +418,13 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
 					CursePolicy: tokenpool.CursePolicy{
-						RBAC: poolRBAC,
+						// Curse administrator for the pool-local policy; defaults to
+						// the pool owner.
+						Admin: ownable2step.Storage{
+							Owner:        owner,
+							PendingOwner: address.NewAddressNone(),
+						},
+						RBAC: rmnremote.EmptyAccessControlData(),
 						// An empty dict serializes as an empty map (a single "no entries"
 						// bit), matching the Tolk contract's createEmptyMap() default.
 						// Must be non-nil: the tlb:"." tag errors on a nil dict.

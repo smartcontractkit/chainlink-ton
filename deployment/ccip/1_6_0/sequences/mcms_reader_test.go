@@ -88,7 +88,41 @@ func TestGetAddressRefUsesHighestVersionWhenQualifierDoesNotSpecifyVersion(t *te
 	require.Equal(t, "version-004", ref.Address)
 }
 
-func TestGetAddressRefDoesNotFilterQualifierWhenEmpty(t *testing.T) {
+func TestGetTimelockRefDefaultsToCLLQualifier(t *testing.T) {
+	selector := uint64(123)
+	v003 := semver.MustParse("0.0.3")
+	v004 := semver.MustParse("0.0.4")
+	refs := []cldfds.AddressRef{
+		{
+			ChainSelector: selector,
+			Type:          cldfds.ContractType(ccipdutils.RBACTimelock),
+			Version:       v004,
+			Qualifier:     "UltraFastCurse",
+			Address:       "ufc-qualifier-version-004",
+		},
+		{
+			ChainSelector: selector,
+			Type:          cldfds.ContractType(ccipdutils.RBACTimelock),
+			Version:       v003,
+			Qualifier:     ccipdutils.CLLQualifier,
+			Address:       "cll-qualifier-version-003",
+		},
+	}
+
+	// The CLL suite wins despite its lower version: an unset qualifier must not
+	// silently resolve to whichever suite happens to be newest.
+	require.Equal(t, ccipdutils.CLLQualifier, defaultQualifier(""))
+	require.Equal(t, ccipdutils.CLLQualifier, defaultQualifier("  "))
+	require.Equal(t, "UltraFastCurse", defaultQualifier("UltraFastCurse"))
+
+	ref := getAddressRef(addressRefStore(t, refs), selector, ccipdutils.RBACTimelock, defaultQualifier(""), nil)
+	require.Equal(t, "cll-qualifier-version-003", ref.Address)
+
+	ref = getAddressRef(addressRefStore(t, refs), selector, ccipdutils.RBACTimelock, defaultQualifier("UltraFastCurse"), nil)
+	require.Equal(t, "ufc-qualifier-version-004", ref.Address)
+}
+
+func TestGetAddressRefFiltersOnTheEmptyQualifier(t *testing.T) {
 	selector := uint64(123)
 	v003 := semver.MustParse("0.0.3")
 	v004 := semver.MustParse("0.0.4")
@@ -111,7 +145,7 @@ func TestGetAddressRefDoesNotFilterQualifierWhenEmpty(t *testing.T) {
 
 	ref := getAddressRef(addressRefStore(t, refs), selector, ccipdutils.RBACTimelock, "", nil)
 
-	require.Equal(t, "cll-qualifier-version-004", ref.Address)
+	require.Equal(t, "empty-qualifier-version-003", ref.Address)
 }
 
 func TestGetAddressRefReturnsEmptyWhenSpecifiedVersionDoesNotMatch(t *testing.T) {
