@@ -347,7 +347,7 @@ type Data struct {
 	// Minimum delay for operations in seconds
 	MinDelay uint32 `tlb:"## 32"`
 	// Map of operation id to timestamp
-	Timestamps *tlbe.Dict[*tlbe.Uint256, uint64] `tlb:"."`
+	Timestamps *tlbe.Dict[tlbe.Uint256, uint64] `tlb:"."`
 
 	// Number of fn selectors blocked by the contract.
 	BlockedFnSelectorsLen uint32 `tlb:"## 32"`
@@ -397,7 +397,7 @@ type OpPendingInfo struct {
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *tlbe.Uint256 `tlb:"."`
 	// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
-	OpPendingCalls *tlbe.Dict[*tlbe.Uint256, bool] `tlb:"."`
+	OpPendingCalls *tlbe.Dict[tlbe.Uint256, bool] `tlb:"."`
 }
 
 // --- Constants ---
@@ -447,7 +447,7 @@ const (
 // Minimum value required for the schedule call (fails with Error.InsufficientValue)
 var ScheduleCallMinValue = tlb.MustFromTON("0.012")
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))

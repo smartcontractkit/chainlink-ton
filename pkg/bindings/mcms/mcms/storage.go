@@ -18,13 +18,13 @@ func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 			PendingOwner: nil,
 		},
 		Oracle:  owner,
-		Signers: tlbe.NewEmptyDict[*tlbe.Uint160, Signer](),
+		Signers: tlbe.NewEmptyDict[tlbe.Uint160, Signer](),
 		Config: Config{
 			Signers:      tlbe.NewEmptyDict[uint8, Signer](),
 			GroupQuorums: tlbe.NewEmptyDict[uint8, uint8](),
 			GroupParents: tlbe.NewEmptyDict[uint8, uint8](),
 		},
-		SeenSignedHashes: tlbe.NewEmptyDict[*tlbe.Uint256, bool](),
+		SeenSignedHashes: tlbe.NewEmptyDict[tlbe.Uint256, bool](),
 		RootInfo: RootInfo{
 			ExpiringRootAndOpCount: ExpiringRootAndOpCount{
 				Root:       tlbe.NewUint256(big.NewInt(0)),

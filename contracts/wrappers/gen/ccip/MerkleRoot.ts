@@ -177,10 +177,9 @@ type uint256 = bigint
  */
 export type SnakedCell<T> = T[]
 
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
     if (v.length === 0) {
-        b.storeRef(c.Cell.EMPTY);
-        return;
+        return c.Cell.EMPTY;
     }
     const cells: c.Builder[] = [];
     let builder = c.beginCell();
@@ -199,7 +198,11 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
         cells[i].storeRef(current);
         current = cells[i].endCell();
     }
-    b.storeRef(current);
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
 }
 
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {

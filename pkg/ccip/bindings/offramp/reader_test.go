@@ -17,7 +17,7 @@ func addrSlice(t *testing.T, addr *address.Address) *cell.Slice {
 	t.Helper()
 	b := cell.BeginCell()
 	require.NoError(t, b.StoreAddr(addr))
-	return b.EndCell().BeginParse()
+	return b.EndCell().MustBeginParse()
 }
 
 // TestGetConfig_NewContract verifies the decoder correctly reads the 6-element

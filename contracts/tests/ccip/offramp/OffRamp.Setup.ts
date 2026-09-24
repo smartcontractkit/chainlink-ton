@@ -23,7 +23,6 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as OCR3Logs from '../../../wrappers/libraries/ocr/Logs'
 import * as deployable from '../../../wrappers/libraries/Deployable'
-import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.execute.spec'
 import { ChainSelectors } from '../../utils/Selectors'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
 
@@ -37,6 +36,8 @@ import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
+
+export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
@@ -948,7 +949,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
                 router: this.router.address,
                 rateLimitAdmin: this.deployer.address,
                 feeAdmin: this.deployer.address,
-                allowedDepositNamespaces: new Map(),
+                allowedDepositNamespaces: new Set(),
               }),
               jettonClient: tp.JettonClient.create({
                 masterAddress: token,
@@ -956,12 +957,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
               }),
               allowedFinalityConfig: 0n,
             }),
-            mirroredPolicy: tp.TokenPool_MirroredPolicy.create({
-              onRamps: new Map(),
-              offRamps: new Map(),
-              cursedSubjects: tp.CursedSubjects.create({
-                data: new Set(),
-              }),
+            localPolicy: tp.TokenPool_LocalPolicy.create({
+              cursedSubjects: tp.CursedSubjects.create({ data: new Set() }),
             }),
             tokenDecimals,
             remoteChainConfigs: new Map(),
@@ -1010,27 +1007,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     )
 
     expect(chainUpdateResult.transactions).toHaveTransaction({
-      from: this.deployer.address,
-      to: tokenPool.address,
-      success: true,
-    })
-
-    // Register the OffRamp as the authorized inbound caller (offRamp) for the chain.
-    const rampAccessResult = await tokenPool.sendTokenPoolUpdateRampAccess(
-      this.deployer.getSender(),
-      toNano('0.05'),
-      {
-        updates: [
-          tp.TokenPool_RampUpdate.create({
-            remoteChainSelector,
-            onRamp: null,
-            offRamp: this.offRamp.address,
-          }),
-        ],
-      },
-    )
-
-    expect(rampAccessResult.transactions).toHaveTransaction({
       from: this.deployer.address,
       to: tokenPool.address,
       success: true,

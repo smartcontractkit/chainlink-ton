@@ -57,7 +57,7 @@ func TestCrossChainAddress_LoadFromCell(t *testing.T) {
 
 			c := builder.EndCell()
 			var addr CrossChainAddress
-			err = addr.LoadFromCell(c.BeginParse())
+			err = tlb.Parse(&addr, c)
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -76,7 +76,7 @@ func TestCrossChainAddress_RoundTrip_Empty(t *testing.T) {
 	require.NoError(t, err)
 
 	var restored CrossChainAddress
-	err = restored.LoadFromCell(c.BeginParse())
+	err = tlb.Parse(&restored, c)
 	require.NoError(t, err)
 	require.Empty(t, restored)
 }
@@ -89,7 +89,7 @@ func TestCrossChainAddress_RoundTrip(t *testing.T) {
 	require.Equal(t, uint(56), c.BitsSize(), "CrossChainAddress should be 56 bits (7 bytes)")
 
 	var restored CrossChainAddress
-	err = restored.LoadFromCell(c.BeginParse())
+	err = tlb.Parse(&restored, c)
 	require.NoError(t, err)
 
 	require.Equal(t, original, restored)
@@ -111,7 +111,7 @@ func TestLispList_RoundTrip(t *testing.T) {
 	require.Equal(t, uint(1), c.RefsNum(), "the list is stored as a cell reference")
 
 	var restored listContainer
-	err = tlb.LoadFromCell(&restored, c.BeginParse())
+	err = tlb.LoadFromCell(&restored, c.MustBeginParse())
 	require.NoError(t, err)
 	require.Equal(t, original.List, restored.List)
 }
@@ -247,7 +247,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 			require.NoError(t, err, "ToCell should succeed - depth limits enforced during LoadFromCell")
 
 			var output SnakeRef[SnakeBytes]
-			err = tlb.LoadFromCell(&output, c.BeginParse())
+			err = tlb.Parse(&output, c)
 			require.NoError(t, err)
 			require.Len(t, tt.input, len(output), "array count mismatch")
 
@@ -271,7 +271,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 
 		// Verify unpacking works correctly
 		var output SnakeRef[SnakeBytes]
-		err = tlb.LoadFromCell(&output, c.BeginParse())
+		err = tlb.Parse(&output, c)
 		require.NoError(t, err)
 		require.Len(t, arrays, len(output))
 
@@ -295,7 +295,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 
 		// Verify unpacking works correctly
 		var output SnakeRef[SnakeBytes]
-		err = tlb.LoadFromCell(&output, c.BeginParse())
+		err = tlb.Parse(&output, c)
 		require.NoError(t, err)
 		require.Len(t, arrays, len(output))
 
@@ -320,7 +320,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 		require.NoError(t, err)
 
 		var output SnakeRef[SnakeBytes]
-		err = tlb.LoadFromCell(&output, c.BeginParse())
+		err = tlb.Parse(&output, c)
 		require.NoError(t, err)
 		require.Equal(t, arrays, output)
 	})
@@ -518,7 +518,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 				builder := cell.BeginCell()
 				addr := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
 				_ = builder.StoreSlice(addr, uint(len(addr))*8)
-				return builder.EndCell().BeginParse()
+				return builder.ToSlice()
 			},
 			expectErr: "",
 		},
@@ -526,7 +526,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 			name: "empty address",
 			setupFunc: func() *cell.Slice {
 				builder := cell.BeginCell()
-				return builder.EndCell().BeginParse()
+				return builder.ToSlice()
 			},
 			expectErr: "crosschain address is empty",
 		},
@@ -536,7 +536,7 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 				builder := cell.BeginCell()
 				addr := make([]byte, 65)
 				_ = builder.StoreSlice(addr, uint(len(addr))*8)
-				return builder.EndCell().BeginParse()
+				return builder.ToSlice()
 			},
 			expectErr: "exceeds maximum of 64 bytes",
 		},

@@ -17,6 +17,7 @@ import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
@@ -24,11 +25,13 @@ import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
-import { OffRampWithTokenPoolTestSetup } from './OffRamp.Setup'
+import {
+  OffRampWithTokenPoolTestSetup,
+  PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
+} from './OffRamp.Setup'
 import { EXECUTE_COST, DEFAULT_MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
-export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Execute', () => {
   let blockchain: Blockchain
   let setup: s.OffRampTestSetup
@@ -1851,7 +1854,7 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 3. ReceiveExecutor -> OffRamp (ReleaseOrMint) -> TokenPool
+      // 3. ReceiveExecutor -> OffRamp (ReleaseOrMint) -> Router (relay) -> TokenPool
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: setup.offRamp.address,
@@ -1860,6 +1863,12 @@ describe('OffRamp - Execute', () => {
       })
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
+        to: setup.router.address,
+        op: rt.Router_RelayReleaseOrMint.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: true,
@@ -1912,6 +1921,29 @@ describe('OffRamp - Execute', () => {
       // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
+    it('rejects a Router_TokenPoolReleaseOrMintFailed from a non-router sender', async () => {
+      await setup.setupSourceChainConfig()
+
+      const result = await setup.offRamp.sendRouterTokenPoolReleaseOrMintFailed(
+        setup.deployer.getSender(),
+        toNano('0.5'),
+        {
+          queryID: 1n,
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          replyTo: setup.deployer.address,
+          tokenPool: setup.tokenPool.address,
+          exitCode: 0n,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.deployer.address,
+        to: setup.offRamp.address,
+        success: false,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.Unauthorized'],
+      })
+    })
+
     it('forwards a non-empty offchainTokenData cell to the token pool', async () => {
       const message = setup.createTestMessageWithToken()
       // Non-empty per-token offchain data blob. The OffRamp must forward it
@@ -1938,10 +1970,10 @@ describe('OffRamp - Execute', () => {
       )
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
 
-      // OffRamp -> TokenPool: the offchain data must survive the whole
-      // OffRamp -> ReceiveExecutor -> OffRamp -> TokenPool hop.
+      // Router -> TokenPool: the offchain data must survive the whole
+      // OffRamp -> ReceiveExecutor -> OffRamp -> Router -> TokenPool hop.
       const releaseOrMintTx = findTransaction(result.transactions, {
-        from: setup.offRamp.address,
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: true,
@@ -1964,8 +1996,10 @@ describe('OffRamp - Execute', () => {
       const result = await setup.executeReport(report)
 
       // Token transfer should still complete and notify success.
+      // The Router is the pool's only inbound entrypoint, so the pool hop
+      // originates from the Router relay.
       expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: true,
@@ -2069,11 +2103,19 @@ describe('OffRamp - Execute', () => {
       const result = await setup.executeReport(report)
 
       // The token pool should reject the releaseOrMint (rate limit exceeded).
+      // The Router holds the pool bounce and reports it to the OffRamp, which
+      // is the executor's only authority and forwards the failure.
       expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.offRamp.address,
+        op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
+        success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
@@ -2108,6 +2150,7 @@ describe('OffRamp - Execute', () => {
       // First execution fails due to rate limit.
       const firstResult = await setup.executeReport(report)
       expect(firstResult.transactions).toHaveTransaction({
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: false,
@@ -2188,7 +2231,7 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 3. ReceiveExecutor -> OffRamp (ReleaseOrMint) -> TokenPool
+      // 3. ReceiveExecutor -> OffRamp (ReleaseOrMint) -> Router (relay) -> TokenPool
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: setup.offRamp.address,
@@ -2197,6 +2240,12 @@ describe('OffRamp - Execute', () => {
       })
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
+        to: setup.router.address,
+        op: rt.Router_RelayReleaseOrMint.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: true,
@@ -2307,11 +2356,19 @@ describe('OffRamp - Execute', () => {
       const result = await setup.executeReport(report)
 
       // The token pool should reject the releaseOrMint (rate limit exceeded).
+      // The Router holds the pool bounce and reports it to the OffRamp, which
+      // is the executor's only authority and forwards the failure.
       expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.offRamp.address,
+        op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
+        success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
@@ -2347,6 +2404,7 @@ describe('OffRamp - Execute', () => {
       // First execution fails due to rate limit.
       const firstResult = await setup.executeReport(report)
       expect(firstResult.transactions).toHaveTransaction({
+        from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: false,

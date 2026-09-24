@@ -273,13 +273,13 @@ type Data struct {
 
 	// Signers is used to easily validate the existence of the signer by its public key. We still
 	// have signers stored in config in order to easily deactivate them when a new config is set.
-	Signers *tlbe.Dict[*tlbe.Uint160, Signer] `tlb:"."` // exists if the public key is a signer
+	Signers *tlbe.Dict[tlbe.Uint160, Signer] `tlb:"."` // exists if the public key is a signer
 
 	// The current configuration of the contract
 	Config Config `tlb:"^"` // @dev split out as cell to avoid size limits
 
 	// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
-	SeenSignedHashes *tlbe.Dict[*tlbe.Uint256, bool] `tlb:"."`
+	SeenSignedHashes *tlbe.Dict[tlbe.Uint256, bool] `tlb:"."`
 
 	// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
 	RootInfo RootInfo `tlb:"^"`
@@ -499,7 +499,7 @@ var ManyChainMultiSigDomainSeparatorMetadata = sha256.Sum256([]byte("MANY_CHAIN_
 // Minimum value required for the execute call (fails with Error.InsufficientValue)
 var ExecMinValue = tlb.MustFromTON("0.012")
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))

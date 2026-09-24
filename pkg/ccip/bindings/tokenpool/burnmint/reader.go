@@ -20,8 +20,6 @@ var (
 	GetTokenDecimals           = tokenpool.GetTokenDecimals
 	GetIsSupportedChain        = tokenpool.GetIsSupportedChain
 	GetSupportedChains         = tokenpool.GetSupportedChains
-	GetOnRamp                  = tokenpool.GetOnRamp
-	GetOffRamp                 = tokenpool.GetOffRamp
 	GetRMNProxy                = tokenpool.GetRMNProxy
 	GetVerifyNotCursed         = tokenpool.GetVerifyNotCursed
 	GetDynamicConfig           = tokenpool.GetDynamicConfig
@@ -34,7 +32,6 @@ var (
 	GetCurrentRateLimiterState = tokenpool.GetCurrentRateLimiterState
 	GetCursedSubjects          = tokenpool.GetCursedSubjects
 	GetAdminConfig             = tokenpool.GetAdminConfig
-	GetMirroredPolicy          = tokenpool.GetMirroredPolicy
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
 	GetCCVAmount               = tokenpool.GetCCVAmount

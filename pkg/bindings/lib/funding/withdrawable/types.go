@@ -24,7 +24,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Withdraw{},
 })
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))

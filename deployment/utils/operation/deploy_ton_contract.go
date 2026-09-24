@@ -148,7 +148,7 @@ func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployCo
 	}
 
 	// Check balance before deploying
-	if balance.Compare(&value) < 0 {
+	if balance.Compare(value) < 0 {
 		return output, fmt.Errorf("insufficient account balance to deploy: balance %s, required value %s", balance.String(), value.String())
 	}
 

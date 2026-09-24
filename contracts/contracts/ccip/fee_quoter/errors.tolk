@@ -21,13 +21,18 @@ enum FeeQuoter_Error {
     TokenNotSupported
     UnknownDestChainSelector
     InsufficientFee
+    // Deprecated: retained to preserve the numeric values of subsequent public errors.
     TokenTransfersNotSupported
     UnauthorizedPriceUpdater
-    ExecutionCostOverflow // Unreachable
-    PremiumFeeOverflow // Unreachable
-    DataAvailabilityCostOverflow // Unreachable
-    FeeCalculationOverflow // Unreachable
+    ExecutionCostOverflow
+    PremiumFeeOverflow
+    // Deprecated: retained to preserve the numeric values of subsequent public errors.
+    DataAvailabilityCostOverflow
+    FeeCalculationOverflow
     TokenPriceTooLow
     FeeOverflow
     MessageFeeTooHigh
+    TokenTransferConfigMustBeEnabled
+    InvalidDestBytesOverhead
+    InvalidSVMExtraArgsWritableBitmap
 }
