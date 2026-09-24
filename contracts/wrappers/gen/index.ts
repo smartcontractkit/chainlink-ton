@@ -12,7 +12,6 @@ import { Receiver } from './ccip/Receiver';
 
 import { TokenPool } from './ccip/pools/TokenPool'
 import { BurnMintTokenPool } from './ccip/pools/BurnMintTokenPool'
-import { LockReleaseTokenPool } from './ccip/pools/LockReleaseTokenPool'
 import { LockReleaseLockboxTokenPool } from './ccip/pools/LockReleaseLockboxTokenPool'
 
 import { TestMsgHasher } from './test/TestMsgHasher'
@@ -36,7 +35,6 @@ export function setupGenBindings() {
     const TokenPools = [
       TokenPool,
       BurnMintTokenPool,
-      LockReleaseTokenPool,
       LockReleaseLockboxTokenPool,
     ]
 
