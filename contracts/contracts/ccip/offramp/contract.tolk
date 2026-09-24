@@ -48,11 +48,6 @@ contract OffRamp {
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("5");
 
-// TBD: These two fields should be configurable
-const MIN_GASLIMIT = grams("0.025");
-// LockRelase_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
-const MIN_TT_GASLIMIT = grams("0.15"); 
-
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     
@@ -102,7 +97,7 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
-            assert(in.senderAddress == st.staticConfig.load().rmnRouter, OffRamp_Error.Unauthorized);
+            assert(in.senderAddress == st.config.load().staticConfig.rmnRouter, OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
@@ -277,15 +272,21 @@ fun migrate(storage: cell, version: slice): cell {
     return Storage {
         id: old.id,
         ownable: old.ownable,
-        staticConfig: OffRamp_StaticConfig {
-            rmnRouter: oldDeployables.rmnRouter,
-            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
-            chainSelector: old.chainSelector,
+        config: OffRamp_StorageConfig {
+            staticConfig: OffRamp_StaticConfig {
+                rmnRouter: oldDeployables.rmnRouter,
+                tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+                chainSelector: old.chainSelector,
+            },
+            dynamicConfig: OffRamp_DynamicConfig {
+                feeQuoter: old.feeQuoter,
+                permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
+                minGasLimit: ton("0.025"),
+                minTTGasLimit: ton("0.2"),
+            }.toCell(),
         }.toCell(),
-        feeQuoter: old.feeQuoter,
         ocr3Base: old.ocr3Base,
         cursedSubjects: old.cursedSubjects,
-        permissionlessExecutionThresholdSeconds: old.permissionlessExecutionThresholdSeconds,
         sourceChainConfigs: old.sourceChainConfigs,
         latestPriceSequenceNumber: old.latestPriceSequenceNumber,
     }.toCell();
@@ -460,7 +461,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
-    if (msg.effectiveGasLimit < MIN_GASLIMIT) {
+    if (msg.effectiveGasLimit < st.config.load().dynamicConfig.load().minGasLimit) {
         return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
@@ -524,7 +525,7 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 // `sendExecutor`; relay rejections and pool bounces come back to us as
 // Router_TokenPoolReleaseOrMintFailed.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
-    if (msg.destGasAmount < MIN_TT_GASLIMIT) {
+    if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
         return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
@@ -671,7 +672,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                 val updatePricesMsg = createMessage({
                     bounce: true,
                     value: FeeQuoter_Costs.updatePrices(),
-                    dest: st.feeQuoter,
+                    dest: st.config.load().dynamicConfig.load().feeQuoter,
                     body: FeeQuoter_UpdatePrices {
                         updates: report.priceUpdates!.load(),
                         sendExcessesTo: sender,
@@ -784,14 +785,14 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
     val metadataHash = Any2TVMMessageV1Metadata {
         sourceChainSelector: report.sourceChainSelector,
-        destChainSelector: st.staticConfig.load().chainSelector,
+        destChainSelector: st.config.load().staticConfig.chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
     // the st.chainSelector as the destChainSelector.
-    assert(message.header.destChainSelector == st.staticConfig.load().chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
+    assert(message.header.destChainSelector == st.config.load().staticConfig.chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
     // been committed for the report source chain selector this will be caught by the root verification.
@@ -815,7 +816,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             queryId,
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash,
-            permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+            permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.load().permissionlessExecutionThresholdSeconds,
             gasOverride,
             offchainTokenData: report.offchainTokenData,
         },
@@ -981,7 +982,7 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         tokenData = userTokenData;
     }
 
-    val staticConfig = st.staticConfig.load();
+    val staticConfig = st.config.load().staticConfig;
     val registryAddress = TokenAdminRegistryEntry.deriveAddress(
         deployerCode(),
         tokenTransfer.token,
@@ -1103,13 +1104,13 @@ fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
 
     // NOTE: address now is guaranteed to be non-zero, address? allows zero
 
-    st.feeQuoter = msg.feeQuoter;
-    st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;
+    var config = st.config.load();
+    config.dynamicConfig = msg.config.toCell();
+    st.config = config.toCell();
     st.store();
 
     emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
-        feeQuoter: msg.feeQuoter,
-        permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds,
+        config: msg.config,
     });
 }
 
@@ -1131,11 +1132,14 @@ get fun ocr3Config(): OCR3Base {
 
 get fun config(): Config {
     val st = lazy Storage.load();
+    val dynamicConfig = st.config.load().dynamicConfig.load();
     return {
-        chainSelector: st.staticConfig.load().chainSelector,
-        feeQuoter: st.feeQuoter,
-        permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
-        tokenAdminRegistry: st.staticConfig.load().tokenAdminRegistry,
+        chainSelector: st.config.load().staticConfig.chainSelector,
+        feeQuoter: dynamicConfig.feeQuoter,
+        permissionlessExecutionThresholdSeconds: dynamicConfig.permissionlessExecutionThresholdSeconds,
+        tokenAdminRegistry: st.config.load().staticConfig.tokenAdminRegistry,
+        minGasLimit: dynamicConfig.minGasLimit,
+        minTTGasLimit: dynamicConfig.minTTGasLimit,
     }
 }
 
@@ -1169,7 +1173,7 @@ get fun deployableHashes() : DeployableHashes {
 
 get fun rmnRouter(): address {
     val st = lazy Storage.load();
-    return st.staticConfig.load().rmnRouter;
+    return st.config.load().staticConfig.rmnRouter;
 }
 
 /// Gets the current owner of the contract.

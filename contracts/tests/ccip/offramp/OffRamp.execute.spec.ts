@@ -29,7 +29,7 @@ import {
   OffRampWithTokenPoolTestSetup,
   PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
 } from './OffRamp.Setup'
-import { EXECUTE_COST, MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
+import { EXECUTE_COST, DEFAULT_MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 describe('OffRamp - Execute', () => {
@@ -2559,15 +2559,15 @@ describe('OffRamp - Execute', () => {
     })
 
     it('fails manual execute when token gas override is non-zero but lower than destGasAmount', async () => {
-      // Create a message with a destGasAmount below MIN_TT_GASLIMIT so that the
+      // Create a message with a destGasAmount below minTTGasLimit so that the
       // first DON execution fails (token transfer gas too low).
-      const destGasAmount = MIN_TT_GASLIMIT - 1n
+      const destGasAmount = DEFAULT_MIN_TT_GASLIMIT - 1n
       const message = setup.createTestMessageWithToken({ destGasAmount })
 
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
 
-      // 1. Regular execution: destGasAmount (0.001) is below MIN_TT_GASLIMIT,
+      // 1. Regular execution: destGasAmount (0.001) is below minTTGasLimit,
       //    so the message should fail.
       const firstResult = await setup.executeReport(report)
       assertLog(
@@ -2640,8 +2640,8 @@ describe('OffRamp - Execute', () => {
       })
     })
 
-    it('blocks token transfers with gas below MIN_TT_GASLIMIT and allows retry above it', async () => {
-      // Create a message with a destGasAmount below MIN_TT_GASLIMIT (0.025 TON).
+    it('blocks token transfers with gas below minTTGasLimit and allows retry above it', async () => {
+      // Create a message with a destGasAmount below minTTGasLimit (0.025 TON).
       const message = setup.createTestMessageWithToken({
         destGasAmount: toNano('0.001'),
       })
@@ -2649,7 +2649,7 @@ describe('OffRamp - Execute', () => {
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
 
-      // 1. Regular execution: destGasAmount (0.001) is below MIN_TT_GASLIMIT,
+      // 1. Regular execution: destGasAmount (0.001) is below minTTGasLimit,
       //    so the message should fail.
       const firstResult = await setup.executeReport(report)
       assertLog(
@@ -2668,7 +2668,7 @@ describe('OffRamp - Execute', () => {
       warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
 
       // 2. Manual exec with a tokenGasOverride slightly higher than destGasAmount
-      //    but still below MIN_TT_GASLIMIT — should still fail.
+      //    but still below minTTGasLimit — should still fail.
       const lowOverrideResult = await setup.manualExecuteReport(
         report,
         { tokenGasOverrides: [toNano('0.01')] },
@@ -2686,10 +2686,10 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // 3. Manual exec with a tokenGasOverride above MIN_TT_GASLIMIT — should succeed.
+      // 3. Manual exec with a tokenGasOverride above minTTGasLimit — should succeed.
       const successResult = await setup.manualExecuteReport(
         report,
-        { tokenGasOverrides: [MIN_TT_GASLIMIT] },
+        { tokenGasOverrides: [DEFAULT_MIN_TT_GASLIMIT] },
         true,
       )
       expect(successResult.transactions).toHaveTransaction({
