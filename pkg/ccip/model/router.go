@@ -45,7 +45,13 @@ type RouterStorageBuilder struct {
 // and initialized maps.
 func NewRouterStorageBuilder() *RouterStorageBuilder {
 	return &RouterStorageBuilder{
-		storage: RouterStorage{OnRamps: make(map[uint64]*address.Address), OffRamps: make(map[uint64]*address.Address)},
+		storage: RouterStorage{
+			OnRamps:  make(map[uint64]*address.Address),
+			OffRamps: make(map[uint64]*address.Address),
+			RMNRemote: RMNRemote{
+				Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef](),
+			},
+		},
 	}
 }
 
