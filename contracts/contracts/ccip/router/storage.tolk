@@ -4,9 +4,8 @@ import "../../ccip/rmn_remote/lib"
 import "types"
 
 struct RMNRemote {
-    // Retained for compatibility with the existing RMN ownership interface.
-    admin: Ownable2Step;
-    // Local role-backed policy; it is not shared with TokenPools.
+    // Authoritative curse policy for the lane. TokenPools embed the same struct
+    // but their copies are independent; nothing is mirrored between them.
     policy: CursePolicy;
     forwardUpdates: map<address, ()> = [];
 }

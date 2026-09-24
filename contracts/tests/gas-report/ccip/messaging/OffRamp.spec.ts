@@ -115,7 +115,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
         onRamps: new Map(),
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
-          admin: rt.Ownable2Step.create({ owner: deployer.address }),
           policy: createCursePolicy(deployer.address),
           forwardUpdates: new Set(),
         }),

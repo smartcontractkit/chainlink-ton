@@ -109,7 +109,6 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       offRamps: new Map(),
       onRamps: new Map(),
       rmnRemote: rt.RMNRemote.create({
-        admin: rt.Ownable2Step.create({ owner: deployer.address }),
         policy: createCursePolicy(deployer.address),
         forwardUpdates: new Set(),
       }),

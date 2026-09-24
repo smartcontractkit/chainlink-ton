@@ -93,6 +93,12 @@ struct (0x61cf16f1) TokenPool_Uncurse {
     subjects: SnakedCell<uint128>;
 }
 
+/// Wraps the standard `Ownable2Step` messages so transfers of the curse
+/// administrator do not collide with transfers of pool ownership.
+struct (0x72b535a5) TokenPool_RMNOwnableMessage {
+    content: RemainingBitsAndRefs; // Ownable2Step_Messages
+}
+
 /// Lock tokens into the pool or burn the tokens.
 /// @param lockOrBurnIn Encoded data fields for the processing of tokens on the source chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
@@ -277,6 +283,7 @@ type TokenPool_InMessage =
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_Curse
     | TokenPool_Uncurse
+    | TokenPool_RMNOwnableMessage
     | AccessControl_InMessage
     | JettonWithdrawable_Withdraw;
 

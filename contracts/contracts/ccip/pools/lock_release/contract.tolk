@@ -24,6 +24,7 @@ import "../lib/token_pool/events"
 import "messages"
 import "types"
 import "storage"
+import "../../../lib/access/access_control"
 
 contract LockReleaseTokenPool {
     author: "SmartContract Chainlink Limited SEZC"
@@ -443,6 +444,33 @@ get fun verifyNotCursed(subject: uint128): bool {
 
 get fun owner(): address {
     return Storage.load().poolData.load().adminConfig.load().ownable.load().get_owner();
+}
+
+/// Curse administrator for the pool-local policy, distinct from `owner()`.
+get fun rmn_owner(): address {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.admin.get_owner();
+}
+
+get fun rmn_pendingOwner(): address? {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.admin.get_pendingOwner();
+}
+
+get fun rmn_hasRole(role: uint256, account: address): bool {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.hookTrait__AccessControl().hasRole(role, account);
+}
+
+get fun rmn_getRoleAdmin(role: uint256): uint256 {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.hookTrait__AccessControl().getRoleAdmin(role);
+}
+
+/// Effective curse authority. `rmn_hasRole` under-reports: the policy admin is
+/// an implicit role bearer.
+get fun rmn_canCurse(account: address): bool {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.canCurse(account);
+}
+
+get fun rmn_canUncurse(account: address): bool {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.canUncurse(account);
 }
 
 get fun pendingOwner(): address? {

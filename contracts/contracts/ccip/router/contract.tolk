@@ -44,8 +44,7 @@ fun requireSupportedVersion(version: slice) {
     // The 1.6.0 release and the interim 1.6.1 Router share the persisted
     // RMNRemote layout represented by Router_Storage_V1_6_1 below.
     assert (
-        version.bitsEqual("1.6.0".literalSlice()) ||
-        version.bitsEqual("1.6.1".literalSlice())
+        version.bitsEqual("1.6.0".literalSlice())
     ) throw Upgradeable_Error.VersionMismatch;
 }
 
@@ -147,7 +146,7 @@ fun onInternalMessage(in: InMessage) {
         Router_RMNOwnableMessage => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
-            val handled = rmn.admin.onInternalMessage(in.senderAddress, msg.content);
+            val handled = rmn.policy.onOwnableMessage(in.senderAddress, msg.content);
             if (handled) {
                 st.rmnRemote = rmn.toCell();
                 st.store();
@@ -268,9 +267,7 @@ fun onInternalMessage(in: InMessage) {
 fun onRMNAccessControlMessage(sender: address, value: coins, body: slice) {
     var st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    var rbac = rmn.policy.hookTrait__AccessControl();
-    rbac.onInternalMessage(sender, value, body);
-    rmn.policy.rbac = rbac.data.toCell();
+    rmn.policy.onAccessControlMessage(sender, body);
     st.rmnRemote = rmn.toCell();
     st.store();
 }
@@ -920,12 +917,11 @@ fun sendReleaseOrMintRelayFailure(
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
-    val old = Router_Storage_V1_6_1.fromCell(storage);
+    val old = Router_Storage_V1_6_0.fromCell(storage);
     val oldRMN = old.rmnRemote.load();
-    val rmnOwner = oldRMN.admin.get_owner();
-    // Preserve the legacy RMN administrator's capabilities and make it the
-    // standard AccessControl administrator for future role management.
-    var policy = CursePolicy.init(rmnOwner, rmnOwner, rmnOwner);
+    // The policy starts unseeded: the legacy RMN administrator keeps curse,
+    // uncurse and role management as the implicit bearer of all three roles.
+    var policy = CursePolicy.empty(oldRMN.admin);
     policy.cursedSubjects = oldRMN.cursedSubjects;
     return Storage {
         id: old.id,
@@ -934,7 +930,6 @@ fun migrate(storage: cell, version: slice): cell {
         onRamps: old.onRamps,
         offRamps: old.offRamps,
         rmnRemote: RMNRemote {
-            admin: oldRMN.admin,
             policy,
             forwardUpdates: oldRMN.forwardUpdates,
         }.toCell(),
@@ -943,19 +938,19 @@ fun migrate(storage: cell, version: slice): cell {
 
 // Persisted RMNRemote layout before curse and uncurse callers were separated.
 // Keep this local to the migration boundary.
-struct Router_RMNRemote_V1_6_1 {
+struct Router_RMNRemote_V1_6_0 {
     admin: Ownable2Step;
     cursedSubjects: CursedSubjects;
     forwardUpdates: map<address, ()> = [];
 }
 
-struct Router_Storage_V1_6_1 {
+struct Router_Storage_V1_6_0 {
     id: uint32;
     ownable: Ownable2Step;
     wrappedNative: address;
     onRamps: map<uint64, address> = [];
     offRamps: map<uint64, address> = [];
-    rmnRemote: Cell<Router_RMNRemote_V1_6_1>;
+    rmnRemote: Cell<Router_RMNRemote_V1_6_0>;
 }
 
 @method_id(1001)
@@ -985,16 +980,17 @@ get fun pendingOwner(): address? {
     return st.ownable.get_pendingOwner();
 }
 
-/// Gets the current owner of the contract.
+/// Gets the current RMN curse administrator. Distinct from `owner()`, which
+/// governs the Router contract itself.
 get fun rmn_owner(): address {
     val st: Storage = lazy Storage.load();
-    return st.rmnRemote.load().admin.get_owner();
+    return st.rmnRemote.load().policy.admin.get_owner();
 }
 
 /// Gets the pending owner of the contract, if any.
 get fun rmn_pendingOwner(): address? {
     val st = lazy Storage.load();
-    return st.rmnRemote.load().admin.get_pendingOwner();
+    return st.rmnRemote.load().policy.admin.get_pendingOwner();
 }
 
 get fun rmn_hasRole(role: uint256, account: address): bool {
@@ -1003,6 +999,16 @@ get fun rmn_hasRole(role: uint256, account: address): bool {
 
 get fun rmn_getRoleAdmin(role: uint256): uint256 {
     return Storage.load().rmnRemote.load().policy.hookTrait__AccessControl().getRoleAdmin(role);
+}
+
+/// Effective curse authority. `rmn_hasRole` alone under-reports, because the
+/// RMN owner is an implicit role bearer; tooling must read these instead.
+get fun rmn_canCurse(account: address): bool {
+    return Storage.load().rmnRemote.load().policy.canCurse(account);
+}
+
+get fun rmn_canUncurse(account: address): bool {
+    return Storage.load().rmnRemote.load().policy.canUncurse(account);
 }
 
 get fun typeAndVersion(): (slice, slice) {

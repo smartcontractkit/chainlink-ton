@@ -8,7 +8,7 @@ import {
   AccountState,
 } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { createCursePolicy } from '../../../wrappers/ccip/Router'
+import { createCursePolicy, createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 import { KeyPair } from '@ton/crypto'
 
 import {
@@ -273,7 +273,6 @@ export class OffRampTestSetup {
         onRamps: new Map(),
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
-          admin: rt.Ownable2Step.create({ owner: this.deployer.address }),
           policy: createCursePolicy(this.deployer.address),
           forwardUpdates: new Set(),
         }),
@@ -948,7 +947,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
               allowedFinalityConfig: 0n,
             }),
             localPolicy: tp.TokenPool_LocalPolicy.create({
-              cursePolicy: createCursePolicy(this.deployer.address),
+              cursePolicy: createEmptyCursePolicy(this.deployer.address),
             }),
             tokenDecimals,
             remoteChainConfigs: new Map(),

@@ -2,7 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, Dictionary, toNano } from '@ton/core'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
-import { createCursePolicy } from '../../../wrappers/ccip/Router'
+import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 import {
   CrossChainAddress,
   CursedSubjects,
@@ -163,7 +163,7 @@ describe('LockReleaseLockboxTokenPool', () => {
               advancedPoolHooks: null,
             }),
             localPolicy: TokenPool_LocalPolicy.create({
-              cursePolicy: createCursePolicy(deployer.address),
+              cursePolicy: createEmptyCursePolicy(deployer.address),
             }),
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),

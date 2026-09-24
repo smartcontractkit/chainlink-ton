@@ -17,6 +17,11 @@ import {
   TokenPool_Transfer,
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
+import {
+  Ownable2Step_AcceptOwnership,
+  Ownable2Step_TransferOwnership,
+} from '../../../wrappers/gen/ccip/Router'
 
 export type TokenPoolBehaviorContext = {
   pool: SandboxContract<TokenPool>
@@ -294,6 +299,112 @@ export function runTokenPoolBehaviorTests(
         subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
+    })
+
+    // The pool's curse policy is defence in depth and off the fast-curse path,
+    // but it shares the Router's authorization model: the owner is an implicit
+    // DEFAULT_ADMIN and can delegate CURSE_ROLE.
+    it('lets the owner grant CURSE_ROLE to a delegate', async () => {
+      const ctx = await setup()
+      const granted = await ctx.pool.sendAccessControlGrantRole(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 905n, role: CURSE_ROLE, account: ctx.unauthorized.address },
+      )
+      expect(granted.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const cursed = await ctx.pool.sendTokenPoolCurse(
+        ctx.unauthorized.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 906n,
+          subjects: [ctx.remoteChainSelector],
+        },
+      )
+      expect(cursed.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+      expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
+
+      // CURSE_ROLE alone does not confer the power to lift a curse.
+      const uncursed = await ctx.pool.sendTokenPoolUncurse(
+        ctx.unauthorized.getSender(),
+        toNano('0.2'),
+        { queryId: 907n, subjects: [ctx.remoteChainSelector] },
+      )
+      expect(uncursed.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+    })
+
+    it('rejects a role grant from a non-owner', async () => {
+      const ctx = await setup()
+      const result = await ctx.pool.sendAccessControlGrantRole(
+        ctx.unauthorized.getSender(),
+        toNano('0.2'),
+        { queryId: 908n, role: CURSE_ROLE, account: ctx.unauthorized.address },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+    })
+
+    // Curse administration is independent of pool ownership: transferring the
+    // administrator away strips the owner of curse authority and leaves pool
+    // ownership untouched.
+    it('separates the curse administrator from the pool owner', async () => {
+      const ctx = await setup()
+      const newAdmin = ctx.unauthorized
+
+      expect(await ctx.pool.getRmnOwner()).toEqualAddress(ctx.deployer.address)
+
+      await ctx.pool.sendTokenPoolRMNOwnableMessage(ctx.deployer.getSender(), toNano('0.2'), {
+        content: Ownable2Step_TransferOwnership.toCell(
+          Ownable2Step_TransferOwnership.create({ queryId: 910n, newOwner: newAdmin.address }),
+        ).asSlice(),
+      })
+      await ctx.pool.sendTokenPoolRMNOwnableMessage(newAdmin.getSender(), toNano('0.2'), {
+        content: Ownable2Step_AcceptOwnership.toCell(
+          Ownable2Step_AcceptOwnership.create({ queryId: 911n }),
+        ).asSlice(),
+      })
+
+      expect(await ctx.pool.getRmnOwner()).toEqualAddress(newAdmin.address)
+      expect(await ctx.pool.getOwner()).toEqualAddress(ctx.deployer.address)
+      expect(await ctx.pool.getRmnCanCurse(newAdmin.address)).toBe(true)
+      expect(await ctx.pool.getRmnCanCurse(ctx.deployer.address)).toBe(false)
+
+      const byOwner = await ctx.pool.sendTokenPoolCurse(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 912n,
+        subjects: [ctx.remoteChainSelector],
+      })
+      expect(byOwner.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+      expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
+
+      const byAdmin = await ctx.pool.sendTokenPoolCurse(newAdmin.getSender(), toNano('0.2'), {
+        queryId: 913n,
+        subjects: [ctx.remoteChainSelector],
+      })
+      expect(byAdmin.transactions).toHaveTransaction({
+        from: newAdmin.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+      expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
     })
 
     it('removes configured chain via applyChainUpdates', async () => {

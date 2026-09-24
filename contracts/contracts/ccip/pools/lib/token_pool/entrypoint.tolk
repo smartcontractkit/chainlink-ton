@@ -618,7 +618,8 @@ fun TokenPool<T>.applyChainUpdates(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold `CURSE_ROLE`.
+/// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold
+/// `CURSE_ROLE` or be the policy admin, which is not the pool owner.
 fun TokenPool<T>.curse(mutate self, sender: address, subjects: SnakedCell<uint128>) {
     var localPolicy = self.data.localPolicy.load();
     localPolicy.cursePolicy.requireCurseRole(sender);
@@ -626,7 +627,8 @@ fun TokenPool<T>.curse(mutate self, sender: address, subjects: SnakedCell<uint12
     self.data.localPolicy = localPolicy.toCell();
 }
 
-/// Uncurses `subjects` in the pool-local `CursePolicy`. Sender must hold `UNCURSE_ROLE`.
+/// Uncurses `subjects` in the pool-local `CursePolicy`. Sender must hold
+/// `UNCURSE_ROLE` or be the policy admin.
 fun TokenPool<T>.uncurse(mutate self, sender: address, subjects: SnakedCell<uint128>) {
     var localPolicy = self.data.localPolicy.load();
     localPolicy.cursePolicy.requireUncurseRole(sender);
@@ -636,9 +638,15 @@ fun TokenPool<T>.uncurse(mutate self, sender: address, subjects: SnakedCell<uint
 
 fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address, value: coins, body: slice) {
     var policy = self.data.localPolicy.load();
-    var rbac = policy.cursePolicy.hookTrait__AccessControl();
-    rbac.onInternalMessage(sender, value, body);
-    policy.cursePolicy.rbac = rbac.data.toCell();
+    policy.cursePolicy.onAccessControlMessage(sender, body);
+    self.data.localPolicy = policy.toCell();
+}
+
+/// Two-step transfer of the pool's curse administrator. Wrapped in its own
+/// message because the pool's `Ownable2Step` already claims the bare opcodes.
+fun TokenPool<T>.onCursePolicyOwnableMessage(mutate self, sender: address, body: slice) {
+    var policy = self.data.localPolicy.load();
+    assert(policy.cursePolicy.onOwnableMessage(sender, body)) throw 0xFFFF;
     self.data.localPolicy = policy.toCell();
 }
 
@@ -719,6 +727,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         AccessControl_GrantRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
         AccessControl_RevokeRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
         AccessControl_RenounceRole => { self.onCursePolicyAccessControlMessage(msgSender, msgValue, msgBody); }
+        TokenPool_RMNOwnableMessage => { self.onCursePolicyOwnableMessage(msgSender, msg.content); }
         JettonWithdrawable_Withdraw => {
             self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);
         }

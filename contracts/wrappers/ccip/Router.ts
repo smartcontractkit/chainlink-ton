@@ -39,9 +39,58 @@ export function createRMNAccessControl(admin: Address) {
   })
 }
 
+// Seeds every role to `admin` and makes it the policy administrator.
 export function createCursePolicy(admin: Address): rt.CursePolicy {
   return rt.CursePolicy.create({
+    admin: rmnAdmin(admin),
     rbac: createRMNAccessControl(admin),
+    cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+  })
+}
+
+function rmnAdmin(owner: Address): rt.Ownable2Step {
+  return rt.Ownable2Step.create({ owner, pendingOwner: null })
+}
+
+// Mirrors `CursePolicy.newWithAdmin()` on-chain: no explicit role members.
+// `admin` is an implicit bearer of DEFAULT_ADMIN_ROLE, CURSE_ROLE and
+// UNCURSE_ROLE.
+export function createEmptyCursePolicy(admin: Address): rt.CursePolicy {
+  return rt.CursePolicy.create({
+    admin: rmnAdmin(admin),
+    rbac: rt.AccessControl_Data.create({ roles: new Map() }),
+    cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+  })
+}
+
+// A policy with the three roles held by distinct accounts. Only useful for
+// tests: production policies are seeded empty and grant CURSE_ROLE afterwards.
+export function createSplitCursePolicy(
+  rmnAdminAddress: Address,
+  members: {
+    admin?: Address
+    curser?: Address
+    uncurser?: Address
+  },
+): rt.CursePolicy {
+  const roles = new Map<bigint, rt.AccessControl_RoleData>()
+  const add = (role: bigint, account?: Address) => {
+    if (account === undefined) return
+    roles.set(
+      role,
+      rt.AccessControl_RoleData.create({
+        adminRole: 0n,
+        membersLen: 1n,
+        hasRole: new Map([[account, true]]),
+      }),
+    )
+  }
+  add(0n, members.admin)
+  add(CURSE_ROLE, members.curser)
+  add(UNCURSE_ROLE, members.uncurser)
+  return rt.CursePolicy.create({
+    admin: rmnAdmin(rmnAdminAddress),
+    rbac: rt.AccessControl_Data.create({ roles }),
     cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
   })
 }

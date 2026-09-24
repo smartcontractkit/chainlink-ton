@@ -39,6 +39,7 @@ enum BurnMintTokenPool_Error {
 // TODO: remove?
 struct BurnMintTokenPool_InitConfig {
     owner: address;
+    rmnAdmin: address;
     jettonClient: JettonClient;
     offRampAccountCode: cell;
     tokenDecimals: uint8;

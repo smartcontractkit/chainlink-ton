@@ -29,6 +29,7 @@ enum LockRelease_Error {
 // TODO: remove?
 struct LockReleaseTokenPool_InitConfig {
     owner: address;
+    rmnAdmin: address;
     jettonClient: JettonClient;
     offRampAccountCode: cell;
     tokenDecimals: uint8;

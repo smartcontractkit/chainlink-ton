@@ -44,7 +44,7 @@ fun Storage.init(config: LockReleaseTokenPool_InitConfig): Storage {
                 deployableCode: config.deployableCode,
             }.toCell(),
             localPolicy: TokenPool_LocalPolicy {
-                cursePolicy: CursePolicy.init(config.owner, config.owner, config.owner),
+                cursePolicy: CursePolicy.newWithAdmin(config.rmnAdmin),
             }.toCell(),
             tokenDecimals: config.tokenDecimals,
             remoteChainConfigs: createEmptyMap(),

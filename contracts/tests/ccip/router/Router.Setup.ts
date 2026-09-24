@@ -23,6 +23,12 @@ type RouterSetupOptionsCommon = {
   router?: SandboxContract<rt.Router>
   tokenAdminRegistry?: Address
   skipRouterOnRampConfig?: boolean
+  /// Owner of the Router's embedded RMNRemote. Implicitly holds every curse
+  /// role; defaults to the deployer.
+  rmnOwner?: Address
+  /// Explicit curse-role members. Defaults to the deployer holding all three,
+  /// which keeps the legacy single-admin tests working.
+  cursePolicy?: rt.CursePolicy
 }
 type RouterSetupOverrides = Partial<{
   feeQuoter: SandboxContract<fq.FeeQuoter> | SandboxContract<TreasuryContract>
@@ -79,7 +85,12 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
   const libs = beginCell().storeDictDirect(_libs).endCell()
   blockchain.libs = libs
-  const router = opts.router ?? (await deployRouterInstance(blockchain, deployer))
+  const router =
+    opts.router ??
+    (await deployRouterInstance(blockchain, deployer, {
+      rmnOwner: opts.rmnOwner,
+      cursePolicy: opts.cursePolicy,
+    }))
   const feeQuoter = opts.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
   const tokenAdminRegistry = opts.tokenAdminRegistry ?? deployer.address
   const onRamp =
@@ -135,7 +146,9 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
 async function deployRouterInstance(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
+  rmn?: { rmnOwner?: Address; cursePolicy?: rt.CursePolicy },
 ) {
+  const rmnOwner = rmn?.rmnOwner ?? deployer.address
   const routerCode = await contractCode.ccip.local('Router')
   const data = rt.Storage.create({
     id: generateRandomContractId(),
@@ -147,8 +160,7 @@ async function deployRouterInstance(
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
-      admin: rt.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-      policy: createCursePolicy(deployer.address),
+      policy: rmn?.cursePolicy ?? createCursePolicy(rmnOwner),
       forwardUpdates: new Set(),
     }),
   })
@@ -477,6 +489,9 @@ export async function deployRouterContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
   codeOverride?: Cell,
+  // Owner of the embedded RMNRemote. Distinct from the contract owner in
+  // production: it gates cursing, not upgrades. Defaults to `owner`.
+  rmnOwner?: Address,
 ) {
   const code = codeOverride ?? (await contractCode.ccip.local('Router'))
 
@@ -484,7 +499,10 @@ export async function deployRouterContract(
   // the operation-specific caller sets. Build that exact layout when the
   // upgrade test deploys a historical code cell.
   if (codeOverride) {
-    const rmnAdmin = rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null })
+    const rmnAdmin = rt.Ownable2Step.create({
+      owner: rmnOwner ?? owner.address,
+      pendingOwner: null,
+    })
     const legacyRMN = beginCell()
     rt.Ownable2Step.store(rmnAdmin, legacyRMN)
     rt.CursedSubjects.store(rt.CursedSubjects.create({ data: new Set() }), legacyRMN)
@@ -521,7 +539,6 @@ export async function deployRouterContract(
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
-      admin: rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
       policy: createCursePolicy(owner.address),
       forwardUpdates: new Set(),
     }),

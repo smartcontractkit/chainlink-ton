@@ -6,7 +6,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import { WRAPPED_NATIVE } from '../../../src/utils'
-import { createCursePolicy } from '../../../wrappers/ccip/Router'
+import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
@@ -167,7 +167,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
               advancedPoolHooks: null,
             }),
             localPolicy: tp.TokenPool_LocalPolicy.create({
-              cursePolicy: createCursePolicy(deployer.address),
+              cursePolicy: createEmptyCursePolicy(deployer.address),
             }),
             tokenDecimals: 0n,
             remoteChainConfigs: new Map(),
