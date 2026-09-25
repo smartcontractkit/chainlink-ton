@@ -49,11 +49,11 @@ type goldenMessage struct {
 		Nonce               string `json:"nonce"`
 		OnRamp              string `json:"onRamp"`
 	} `json:"header"`
-	Sender       string                 `json:"sender"`
-	Data         string                 `json:"data"`
-	Receiver     string                 `json:"receiver"`
-	GasLimit     string                 `json:"gasLimit"`
-	TokenAmounts []goldenTokenTransfer  `json:"tokenAmounts"`
+	Sender       string                `json:"sender"`
+	Data         string                `json:"data"`
+	Receiver     string                `json:"receiver"`
+	GasLimit     string                `json:"gasLimit"`
+	TokenAmounts []goldenTokenTransfer `json:"tokenAmounts"`
 }
 
 // goldenCase mirrors one entry of the golden file's cases array.
@@ -112,7 +112,7 @@ func goldenCaseToMessage(t *testing.T, c goldenCase) ccipocr3.Message {
 	messageIDFill := messageIDInt.FillBytes(messageID[:])
 	copy(messageID[:], messageIDFill)
 
-	var tokenAmounts []ccipocr3.RampTokenAmount
+	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(msg.TokenAmounts))
 	for _, tt := range msg.TokenAmounts {
 		ttTokenAddr, err := address.ParseAddr(tt.Token)
 		require.NoError(t, err)
@@ -427,9 +427,9 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 						SourceChainSelector: msg.Header.SourceChainSelector,
 						Messages:            []ccipocr3.Message{msg},
 						// One blob per token; nil is only valid for tokenless messages.
-						OffchainTokenData:   nil,
-						Proofs:              []ccipocr3.Bytes32{},
-						ProofFlagBits:       ccipocr3.BigInt{Int: big.NewInt(0)},
+						OffchainTokenData: nil,
+						Proofs:            []ccipocr3.Bytes32{},
+						ProofFlagBits:     ccipocr3.BigInt{Int: big.NewInt(0)},
 					}},
 				}
 				if len(msg.TokenAmounts) != 0 {
