@@ -94,13 +94,20 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
-    // Initialize AccessControl roles
+    // Initialize AccessControl roles.
+    // @dev Pass `returnExcess = false` so each reply is sent with a fixed gas budget
+    // (SEND_MODE_PAY_FEES_SEPARATELY) instead of carrying all remaining inbound value.
+    // With the default `returnExcess = true`, the first reply would consume the whole
+    // init message value, leaving nothing for the remaining actions (role-admin +
+    // grant + reserve + Initialized reply) and aborting the action phase with
+    // `no_funds` — which rolls back the storage writes, leaving the lockbox
+    // uninitialized when it is deployed via a combined deploy+init message.
     var rbac = hookTrait__AccessControl(st);
-    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
-    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE);
+    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, false);
+    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, false);
 
     val adminAddress = msg.admin != null ? msg.admin! : sender;
-    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress);
+    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, false);
 
     // TODO: add operators on init
     // var oo = operators.iter();
@@ -115,9 +122,12 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
     reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
 
     // Notify sender that initialization is complete.
+    // @dev Fixed gas budget + pay-fees-separately (see the RBAC calls above): carrying all
+    // remaining value here leaves the lockbox without its rent/working balance and, in a
+    // combined deploy+init, drains the value the reserve action needs.
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
-        value: 0,
+        value: calculateGasFeeFor(FEE_SIZE_SMALL),
         dest: sender,
         body: JettonLockBox_Initialized {
             queryId: msg.queryId,
@@ -126,7 +136,7 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
             admin: adminAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Handles jetton transfer notifications — treats them as deposits.
