@@ -87,7 +87,10 @@ func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 
 	// Notice: nil Body is allowed (empty message)
 	if im.Body != nil {
-		// recursive for nested envelopes
+		// Recursive for nested envelopes. The registry here only has to be the base registry:
+		// every envelope pins itself to its own metadata.contractVersion inside LoadDecoded, and
+		// each nested envelope does the same, so a message tree may mix interface versions.
+		// See cciplib/ccip/bindings/README.md.
 		err := im.Body.LoadDecoded(bindings.Registry)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load message body envelope: %w", err)

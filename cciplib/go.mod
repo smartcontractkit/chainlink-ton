@@ -3,6 +3,7 @@ module github.com/smartcontractkit/chainlink-ton/cciplib
 go 1.27.1
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/block-vision/sui-go-sdk v1.2.1
 	github.com/ethereum/go-ethereum v1.17.2
 	github.com/gagliardetto/solana-go v1.13.0
