@@ -141,7 +141,16 @@ var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
 	return m
 }()
 
-// Map of TLBs keyed by contract type
+// Registry maps TL-B types keyed by contract type.
+//
+// The unversioned entries below always resolve the CURRENT interface, so existing consumers of
+// Lookup / LoadDecoded are unaffected by interface versioning. Historical interfaces are registered
+// alongside them as version-qualified keys (see VersionedInterfaces and
+// tvm.ContractTLBRegistry.LookupVersion), which lets a message authored against an older interface
+// still be encoded correctly:
+//
+//	bindings.Registry.LookupVersion(bindings.TypeOnRamp, 0x82901c45, *semver.MustParse("1.6.0"))
+//	bindings.Registry.ForVersion(semver.MustParse("1.6.0")) // registry pinned to one version
 var Registry = tvm.ContractTLBRegistry{
 	// Libs and traits
 	TypeOwnable:            ownable2step.TLBs,
@@ -170,4 +179,11 @@ var Registry = tvm.ContractTLBRegistry{
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,
 	TypeJettonMinter: minter.TLBs,
+}
+
+// init adds the historical interfaces declared in VersionedInterfaces as version-qualified keys.
+// The unversioned (current) entries above are left untouched, so version-unaware consumers keep
+// working unchanged.
+func init() {
+	Registry.WithInterfaceVersions(VersionedInterfaces)
 }

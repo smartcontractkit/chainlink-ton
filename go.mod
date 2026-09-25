@@ -145,6 +145,9 @@ require (
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d
 
+// TMP: remove in follow up PR (mirrors ac825839 "Add ./cciplib local replace")
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
+
 tool (
 	github.com/jmank88/gomods
 	github.com/jmank88/modgraph

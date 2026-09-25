@@ -12,7 +12,12 @@ import (
 // --- Constants ---
 
 // OperatorRole is the RBAC role required to operate the lockbox.
-const OperatorRole = 1735955001 // crc32("OPERATOR_ROLE")
+//
+// It MUST match the Tolk contract constant in
+// contracts/contracts/ccip/pools/lockbox/types.tolk (`"OPERATOR_ROLE".crc32()`).
+// Keep in sync with the jest helper
+// contracts/tests/ccip/helpers/lockbox.ts (OPERATOR_ROLE_VALUE).
+const OperatorRole = 2725715204 // crc32("OPERATOR_ROLE")
 
 // Deposits the token into the lockbox.
 type Deposit struct {

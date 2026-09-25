@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/samber/lo"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -20,6 +21,11 @@ import (
 type MessageMeta struct {
 	Contract tvm.FullyQualifiedName
 	Opcode   uint64
+
+	// ContractVersion optionally pins the interface version used to decode Payload/Cell. It is
+	// persisted, so an envelope round-trips against the interface it was authored for. When nil,
+	// the current interface is used. See cciplib/ccip/bindings/README.md.
+	ContractVersion *semver.Version
 
 	// Go runtime type information
 	TypeName string
@@ -97,10 +103,11 @@ func (m MessageMeta) QualifiedKey() string {
 
 // messageJSON is the JSON representation of a MessageEnvelope, used in marshaling/unmarshaling.
 type messageJSON struct {
-	Contract tvm.FullyQualifiedName `json:"contract"`
-	Type     string                 `json:"type"`
-	Opcode   string                 `json:"opcode"`
-	Payload  json.RawMessage        `json:"payload"`
+	Contract        tvm.FullyQualifiedName `json:"contract"`
+	Type            string                 `json:"type"`
+	Opcode          string                 `json:"opcode"`
+	ContractVersion *semver.Version        `json:"contractVersion,omitempty"`
+	Payload         json.RawMessage        `json:"payload"`
 }
 
 // MessageEnvelope is the JSON-friendly representation of a TL-B message.
@@ -150,10 +157,11 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	}
 
 	out := messageJSON{
-		Contract: e.Metadata.Contract,
-		Type:     e.Metadata.TypeName,
-		Opcode:   fmt.Sprintf("0x%08x", e.Metadata.Opcode),
-		Payload:  payload,
+		Contract:        e.Metadata.Contract,
+		Type:            e.Metadata.TypeName,
+		Opcode:          fmt.Sprintf("0x%08x", e.Metadata.Opcode),
+		ContractVersion: e.Metadata.ContractVersion,
+		Payload:         payload,
 	}
 
 	return json.Marshal(out)
@@ -193,9 +201,10 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid opcode format %s: %w", raw.Opcode, err)
 	}
 	e.Metadata = MessageMeta{
-		Contract: raw.Contract,
-		TypeName: raw.Type,
-		Opcode:   opcode,
+		Contract:        raw.Contract,
+		TypeName:        raw.Type,
+		Opcode:          opcode,
+		ContractVersion: raw.ContractVersion,
 	}
 	e.Payload = payload
 	e.Cell = nil
@@ -225,9 +234,30 @@ func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
 	return err
 }
 
-// LoadFromRegistry attempts to populate the Value T field from the Payload or Cell using the provided registry.
+// registryForVersion pins a registry to an interface version when one is given. A nil version
+// leaves the registry untouched (current interface). This is the single place version selection
+// is applied, so every LoadDecoded caller (the msg-envelope resolver, InternalMessage.ToMessage,
+// and nested envelope loading) honours the version recorded on the envelope.
+func registryForVersion(r tvm.ContractTLBRegistry, version *semver.Version) (tvm.ContractTLBRegistry, error) {
+	if version == nil {
+		return r, nil
+	}
+
+	return r.ForVersion(*version)
+}
+
+// LoadDecoded attempts to populate the Value T field from the Payload or Cell using the provided registry.
+//
+// When the envelope carries a contractVersion, the registry is pinned to that interface version first,
+// so a payload authored against an older interface decodes with that interface rather than the current
+// one — and, on TON's positional TL-B, is not silently decoded as the wrong cell.
 func (e *MessageEnvelope[T]) LoadDecoded(r tvm.ContractTLBRegistry) error {
-	val, err := e.decode(r)
+	pinned, err := registryForVersion(r, e.Metadata.ContractVersion)
+	if err != nil {
+		return fmt.Errorf("failed to pin registry to interface version %s: %w", e.Metadata.ContractVersion, err)
+	}
+
+	val, err := e.decode(pinned)
 	if err != nil {
 		return fmt.Errorf("failed to load message from registry: %w", err)
 	}
