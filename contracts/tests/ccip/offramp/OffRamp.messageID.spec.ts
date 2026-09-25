@@ -4,24 +4,60 @@ import '@ton/test-utils'
 import * as fs from 'fs'
 import * as path from 'path'
 import { bigIntToUint8Array } from '../../../src/utils'
+import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.Setup'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 
-// Single source of truth for the expected MessageID of the fixed message below, shared
-// with the Go implementation (cciplib/ccip/codec/msghasher_test.go).
+// Single source of truth for the expected MessageIDs of the fixed messages below, shared
+// with the Go implementation (cciplib/ccip/codec/msghasher_test.go). Golden values are
+// anchored to the TypeScript/Tolk implementations, which match the on-chain OffRamp leaf
+// recomputation from the execute report.
 const ANY2TVM_MESSAGE_ID_GOLDEN_PATH = path.join(
   __dirname,
   '../../../../testdata/golden/any2tvm_message_id.json',
 )
 
-function loadAny2TVMMessageIDGolden(): bigint {
-  const golden = JSON.parse(fs.readFileSync(ANY2TVM_MESSAGE_ID_GOLDEN_PATH, 'utf-8')) as {
-    messageId: string
+interface GoldenTokenTransfer {
+  sourcePoolAddress: string
+  token: string
+  destGasAmount: string
+  extraData: string | null
+  amount: string
+}
+
+interface GoldenCase {
+  name: string
+  message: {
+    header: {
+      messageId: string
+      sourceChainSelector: string
+      destChainSelector: string
+      sequenceNumber: string
+      nonce: string
+      onRamp: string
+    }
+    sender: string
+    data: string
+    receiver: string
+    gasLimit: string
+    tokenAmounts: GoldenTokenTransfer[] | null
   }
-  return BigInt(golden.messageId)
+  expectedMessageId: string
+}
+
+function loadAny2TVMMessageIDGoldenCases(): GoldenCase[] {
+  const golden = JSON.parse(fs.readFileSync(ANY2TVM_MESSAGE_ID_GOLDEN_PATH, 'utf-8')) as {
+    cases: GoldenCase[]
+  }
+  return golden.cases
+}
+
+// 0x-prefixed hex -> Buffer
+function hexToBuffer(hex: string): Buffer {
+  return Buffer.from(hex.replace(/^0x/, ''), 'hex')
 }
 
 describe('OffRamp - Message ID', () => {
@@ -43,54 +79,90 @@ describe('OffRamp - Message ID', () => {
     })
   })
 
-  it('generateMessageId matches the on-chain msg_hasher implementation and the Go implementation', async () => {
-    // Create the exact same message as in the Go test for cross-language compatibility
-    const rampMessageHeader = of.RampMessageHeader.create({
-      messageId: 1n,
-      sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: ChainSelectors.testnet.ton,
-      sequenceNumber: 1n,
-      nonce: 0n,
-    })
+  it('generateMessageId matches the on-chain msg_hasher implementation and the Go implementation for all golden cases', async () => {
+    for (const goldenCase of loadAny2TVMMessageIDGoldenCases()) {
+      const msg = goldenCase.message
+      const header = msg.header
 
-    const message = of.Any2TVMRampMessage.create({
-      header: rampMessageHeader,
-      sender: EVM_SENDER_ADDRESS_TEST,
-      data: Cell.EMPTY,
-      receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
-      gasLimit: 100000000n,
-      tokenAmounts: null,
-    })
+      // Create the same message as in the Go test for cross-language compatibility
+      const rampMessageHeader = of.RampMessageHeader.create({
+        messageId: BigInt(header.messageId),
+        sourceChainSelector: BigInt(header.sourceChainSelector),
+        destChainSelector: BigInt(header.destChainSelector),
+        sequenceNumber: BigInt(header.sequenceNumber),
+        nonce: BigInt(header.nonce),
+      })
 
-    const metadataHash = getMetadataHash(
-      ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-      ChainSelectors.testnet.ton,
-      EVM_ONRAMP_ADDRESS_TEST,
-    )
+      const tokenAmounts = msg.tokenAmounts
+        ? msg.tokenAmounts.map((tt) =>
+            of.Any2TVMTokenTransfer.create({
+              sourcePoolAddress: CrossChainAddressCodec.FromBuffer(
+                hexToBuffer(tt.sourcePoolAddress),
+              ),
+              token: Address.parse(tt.token),
+              destGasAmount: BigInt(tt.destGasAmount),
+              // null extraData serializes as Maybe=0, matching the on-chain `cell?`
+              // and the Go execute codec's nil cell for empty destPoolData.
+              extraData:
+                tt.extraData === null
+                  ? null
+                  : beginCell().storeBuffer(hexToBuffer(tt.extraData)).endCell(),
+              amount: BigInt(tt.amount),
+            }),
+          )
+        : null
 
-    // Local TypeScript calculation, independent of the contract
-    const localMessageId = generateMessageID(message, metadataHash)
+      const message = of.Any2TVMRampMessage.create({
+        header: rampMessageHeader,
+        sender: EVM_SENDER_ADDRESS_TEST,
+        data: Cell.EMPTY,
+        receiver: Address.parse(msg.receiver),
+        gasLimit: BigInt(msg.gasLimit),
+        tokenAmounts,
+      })
 
-    // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
-    // Any2TVMRampMessage.generateMessageId from ccip/offramp/types.tolk)
-    const onChainMessage = tmh.Any2TVMRampMessage.create({
-      header: tmh.RampMessageHeader.create(rampMessageHeader),
-      sender: tmh.CrossChainAddress.fromSlice(
-        of.CrossChainAddress.toCell(message.sender).beginParse(),
-      ),
-      data: message.data,
-      receiver: message.receiver,
-      gasLimit: message.gasLimit,
-      tokenAmounts: null,
-    })
-    const onChainMessageId = await msgHasher.getAny2TVMRampMessageID(onChainMessage, metadataHash)
+      const metadataHash = getMetadataHash(
+        BigInt(header.sourceChainSelector),
+        BigInt(header.destChainSelector),
+        EVM_ONRAMP_ADDRESS_TEST,
+      )
 
-    const golden = loadAny2TVMMessageIDGolden()
+      // Local TypeScript calculation, independent of the contract
+      const localMessageId = generateMessageID(message, metadataHash)
 
-    // Both the TypeScript and Tolk implementations must agree with each other, and
-    // with the golden value also checked by cciplib/ccip/codec/msghasher_test.go
-    expect(onChainMessageId).toBe(golden)
-    expect(localMessageId).toBe(golden)
+      // On-chain calculation via the real Tolk implementation (msg_hasher.tolk wraps
+      // Any2TVMRampMessage.generateMessageId from ccip/offramp/types.tolk)
+      const onChainMessage = tmh.Any2TVMRampMessage.create({
+        header: tmh.RampMessageHeader.create(rampMessageHeader),
+        sender: tmh.CrossChainAddress.fromSlice(
+          of.CrossChainAddress.toCell(message.sender).beginParse(),
+        ),
+        data: message.data,
+        receiver: message.receiver,
+        gasLimit: message.gasLimit,
+        tokenAmounts: tokenAmounts
+          ? tokenAmounts.map((tt) =>
+              tmh.Any2TVMTokenTransfer.create({
+                sourcePoolAddress: tmh.CrossChainAddress.fromSlice(
+                  of.CrossChainAddress.toCell(tt.sourcePoolAddress).beginParse(),
+                ),
+                token: tt.token,
+                destGasAmount: tt.destGasAmount,
+                extraData: tt.extraData,
+                amount: tt.amount,
+              }),
+            )
+          : null,
+      })
+      const onChainMessageId = await msgHasher.getAny2TVMRampMessageID(onChainMessage, metadataHash)
+
+      const expected = BigInt(goldenCase.expectedMessageId)
+
+      // Both the TypeScript and Tolk implementations must agree with each other, and
+      // with the golden value also checked by cciplib/ccip/codec/msghasher_test.go
+      expect(onChainMessageId).toBe(expected)
+      expect(localMessageId).toBe(expected)
+    }
   })
 
   it('getMetadataHash matches the on-chain msg_hasher implementation', async () => {

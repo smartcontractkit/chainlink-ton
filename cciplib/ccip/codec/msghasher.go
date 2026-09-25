@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -33,48 +32,9 @@ func NewMessageHasherV1(lg logger.Logger, extraDataCodec ccipocr3.ExtraDataCodec
 }
 
 func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipocr3.Bytes32, error) {
-	var tokenAmounts []ocr.Any2TVMTokenTransfer
-	if len(msg.TokenAmounts) != 0 {
-		tokenAmounts = make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
-		for _, tokenAmount := range msg.TokenAmounts {
-			if tokenAmount.Amount.IsEmpty() {
-				return [32]byte{}, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
-			}
-
-			if tokenAmount.Amount.Sign() < 0 {
-				return [32]byte{}, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
-			}
-
-			if len(tokenAmount.DestTokenAddress) != 36 {
-				return [32]byte{}, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
-			}
-
-			destExecDataDecodedMap, err := m.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, msg.Header.SourceChainSelector)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("failed to decode dest exec data: %w", err)
-			}
-
-			destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("extract dest gas amount: %w", err)
-			}
-
-			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
-
-			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("pack extra data: %w", err)
-			}
-
-			destPoolTonAddr := AddressBytesToTONAddressWithBurning(tokenAmount.DestTokenAddress)
-			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
-				SourcePoolAddress: poolAddrCell,
-				ExtraData:         extraData,
-				DestPoolAddress:   destPoolTonAddr,
-				Amount:            tokenAmount.Amount.Int,
-				DestGasAmount:     destGasAmount,
-			})
-		}
+	tokenAmounts, err := buildAny2TVMTokenAmounts(msg, msg.Header.SourceChainSelector, m.extraDataCodec)
+	if err != nil {
+		return [32]byte{}, err
 	}
 
 	header := ocr.RampMessageHeader{
@@ -86,7 +46,6 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	}
 
 	receiver := AddressBytesToTONAddressWithBurning(msg.Receiver)
-	var err error
 	var gasLimit *big.Int
 	var extraArgsDecodeMap map[string]any
 	if len(msg.ExtraArgs) == 0 {
@@ -134,7 +93,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	}
 
 	var tokenCell *cell.Cell
-	if len(msg.TokenAmounts) != 0 {
+	if tokenAmounts != nil {
 		tokenCell, err = common.SnakedCell[ocr.Any2TVMTokenTransfer](tokenAmounts).ToCell()
 		if err != nil {
 			return [32]byte{}, fmt.Errorf("pack token amounts to cell: %w", err)
