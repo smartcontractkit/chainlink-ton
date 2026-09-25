@@ -30,6 +30,12 @@ type UpdateAllowlists = cciplibonramp.UpdateAllowlists
 type UpdateDestChainConfig = cciplibonramp.UpdateDestChainConfig
 type UpdateDestChainConfigsMessage = cciplibonramp.UpdateDestChainConfigsMessage
 
+// Deprecated: legacy 1.6.x OnRamp message kept for TLBMap/Registry compatibility.
+type UpdateSendExecutorMessage = cciplibonramp.UpdateSendExecutorMessage //nolint:staticcheck // re-export of a deprecated type is intentional
+
 const OpcodeOnRampExecutorFinishedSuccessfully = cciplibonramp.OpcodeOnRampExecutorFinishedSuccessfully
+
+// Deprecated: legacy 1.6.x OnRamp opcode.
+const OpcodeUpdateSendExecutor = cciplibonramp.OpcodeUpdateSendExecutor
 
 var GetDynamicConfig = cciplibonramp.GetDynamicConfig

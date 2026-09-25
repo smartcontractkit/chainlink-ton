@@ -145,6 +145,11 @@ require (
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d
 
+// TODO: remove temp replace
+// Needed so the resurrected OnRamp UpdateSendExecutorMessage in cciplib is picked
+// up by the root module's TLBMap/Registry.
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
+
 tool (
 	github.com/jmank88/gomods
 	github.com/jmank88/modgraph

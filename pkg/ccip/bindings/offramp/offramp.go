@@ -167,6 +167,20 @@ type SetDynamicConfig struct {
 	Config  DynamicConfig `tlb:"."`
 }
 
+// UpdateDeployables is the legacy (contracts 1.6.x) OffRamp message that updates
+// the deployable code cells stored on the contract.
+//
+// Deprecated: This message was removed from the contracts in favour of inlining
+// subcontract code (see #873). It is kept here only so that TLBMap/Registry can
+// still decode and encode it for older on-chain contracts. Remove once proper
+// contract versioning replaces this stop-gap.
+type UpdateDeployables struct {
+	_                   tlb.Magic  `tlb:"#a015e0e2" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID             uint64     `tlb:"## 64"`
+	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
+	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPReceiveV2{},
 	SetOCR3Config{},
@@ -174,6 +188,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Commit{},
 	Execute{},
 	SetDynamicConfig{},
+	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
 
 var (
