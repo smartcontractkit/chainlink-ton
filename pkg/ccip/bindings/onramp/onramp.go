@@ -31,7 +31,7 @@ type UpdateDestChainConfig = cciplibonramp.UpdateDestChainConfig
 type UpdateDestChainConfigsMessage = cciplibonramp.UpdateDestChainConfigsMessage
 
 // Deprecated: legacy 1.6.x OnRamp message kept for TLBMap/Registry compatibility.
-type UpdateSendExecutorMessage = cciplibonramp.UpdateSendExecutorMessage
+type UpdateSendExecutorMessage = cciplibonramp.UpdateSendExecutorMessage //nolint:staticcheck // re-export of a deprecated type is intentional
 
 const OpcodeOnRampExecutorFinishedSuccessfully = cciplibonramp.OpcodeOnRampExecutorFinishedSuccessfully
 
