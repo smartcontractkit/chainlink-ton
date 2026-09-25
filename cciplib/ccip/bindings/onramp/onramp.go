@@ -23,6 +23,7 @@ const (
 	OpcodeSetDynamicConfig                   = 0xa178c62e
 	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
+	OpcodeUpdateSendExecutor                 = 0x82901c45
 	OpcodeWithdrawFeeTokens                  = 0x7052dc75
 )
 
@@ -179,6 +180,18 @@ type SetDynamicConfigMessage struct {
 	Config DynamicConfig `tlb:"."`
 }
 
+// UpdateSendExecutorMessage is the legacy (contracts 1.6.x) OnRamp message that
+// replaces the CCIPSendExecutor's deployable code.
+//
+// Deprecated: This message was removed from the contracts in favour of inlining
+// subcontract code (see #873). It is kept here only so that TLBMap/Registry can
+// still decode and encode it for older on-chain contracts. Remove once proper
+// contract versioning replaces this stop-gap.
+type UpdateSendExecutorMessage struct {
+	_    tlb.Magic  `tlb:"#82901c45" json:"-"` //nolint:revive // Ignore opcode tag
+	Code *cell.Cell `tlb:"^"`                  // New executor code
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateAllowlists{},
 	Send{},
@@ -186,6 +199,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	ExecutorFinishedWithError{},
 	SetDynamicConfigMessage{},
 	UpdateDestChainConfigsMessage{},
+	UpdateSendExecutorMessage{},
 	WithdrawFeeTokens{},
 }).MustWithStorageType(Storage{})
 
