@@ -24,6 +24,7 @@ import "../lib/token_pool/errors"
 import "messages"
 import "types"
 import "storage"
+import "../../../lib/access/access_control"
 
 /// @notice Burn-Mint Token Pool implementation for CCIP.
 /// Burns jettons on the source chain and mints them on the destination chain.
@@ -39,7 +40,8 @@ contract BurnMintTokenPool {
 
     forceAbiExport: (
         BurnMintTokenPool_BurnContext,
-        BurnMintTokenPool_MintContext
+        BurnMintTokenPool_MintContext,
+        AccessControl_InMessage
     )
 }
 
@@ -472,16 +474,39 @@ get fun isSupportedChain(remoteChainSelector: uint64): bool {
     return Storage.load().poolData.load().remoteChainConfigs.get(remoteChainSelector).isFound;
 }
 
-get fun getRMNProxy(): address? {
-    return Storage.load().poolData.load().adminConfig.load().rmnProxy;
-}
-
 get fun verifyNotCursed(subject: uint128): bool {
-    return !Storage.load().poolData.load().localPolicy.load().cursedSubjects.isCursed(subject);
+    return !Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.isCursed(subject);
 }
 
 get fun owner(): address {
     return Storage.load().poolData.load().adminConfig.load().ownable.load().owner;
+}
+
+/// Curse administrator for the pool-local policy, distinct from `owner()`.
+get fun rmn_owner(): address {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.admin.get_owner();
+}
+
+get fun rmn_pendingOwner(): address? {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.admin.get_pendingOwner();
+}
+
+get fun rmn_hasRole(role: uint256, account: address): bool {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.hookTrait__AccessControl().hasRole(role, account);
+}
+
+get fun rmn_getRoleAdmin(role: uint256): uint256 {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.hookTrait__AccessControl().getRoleAdmin(role);
+}
+
+/// Effective curse authority. `rmn_hasRole` under-reports: the policy admin is
+/// an implicit role bearer.
+get fun rmn_canCurse(account: address): bool {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.canCurse(account);
+}
+
+get fun rmn_canUncurse(account: address): bool {
+    return Storage.load().poolData.load().localPolicy.load().cursePolicy.canUncurse(account);
 }
 
 /// Returns the outbound and inbound rate limiter state for the given remote chain at the time of the call.

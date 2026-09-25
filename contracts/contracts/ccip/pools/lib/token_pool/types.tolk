@@ -34,10 +34,15 @@ struct TokenPool_DynamicConfig {
 }
 
 struct TokenPool_LocalPolicy {
-    // Independently managed pool-local RMN policy. This is intentionally not a
-    // mirror of the Router's cursed subjects: the pool owner may configure a
-    // distinct RMN proxy, or disable proxy updates by setting it to addr_none.
-    cursedSubjects: CursedSubjects;
+    // Pool-local curse policy, administered independently of the pool owner.
+    //
+    // In practice CCIP will not propagate curses here: self-serve pools cannot
+    // be enumerated, so there is no way to fan a curse out to every pool.
+    // Enforcement is centralized in the Router instead — lock-or-burn and
+    // release-or-mint always arrive via the Router, which checks its own policy
+    // first. This copy exists to satisfy the RMN spec and to let a pool
+    // operator run a policy of its own; it is never a mirror of the Router's.
+    cursePolicy: CursePolicy;
 }
 
 struct TokenPool_RateLimiterPair {

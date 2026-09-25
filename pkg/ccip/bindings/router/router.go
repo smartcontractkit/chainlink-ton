@@ -11,19 +11,23 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
 var (
-	OpcodeApplyRampUpdates   = tvm.MustExtractMagic(reflect.TypeFor[ApplyRampUpdates]())
-	OpcodeCCIPSend           = tvm.MustExtractMagic(reflect.TypeFor[CCIPSend]())
-	OpcodeRouteMessage       = tvm.MustExtractMagic(reflect.TypeFor[RouteMessage]())
-	OpcodeCCIPReceiveConfirm = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
-	OpcodeMessageSent        = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
-	OpcodeMessageRejected    = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
-	OpcodeRMNRemoteCurse     = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
-	OpcodeRMNRemoteUncurse   = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
+	OpcodeApplyRampUpdates          = tvm.MustExtractMagic(reflect.TypeFor[ApplyRampUpdates]())
+	OpcodeCCIPSend                  = tvm.MustExtractMagic(reflect.TypeFor[CCIPSend]())
+	OpcodeRouteMessage              = tvm.MustExtractMagic(reflect.TypeFor[RouteMessage]())
+	OpcodeCCIPReceiveConfirm        = tvm.MustExtractMagic(reflect.TypeFor[CCIPReceiveConfirm]())
+	OpcodeMessageSent               = tvm.MustExtractMagic(reflect.TypeFor[MessageSent]())
+	OpcodeMessageRejected           = tvm.MustExtractMagic(reflect.TypeFor[MessageRejected]())
+	OpcodeRMNRemoteCurse            = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteCurse]())
+	OpcodeRMNRemoteUncurse          = tvm.MustExtractMagic(reflect.TypeFor[RMNRemoteUncurse]())
+	OpcodeAccessControlGrantRole    = tvm.MustExtractMagic(reflect.TypeFor[rbac.GrantRole]())
+	OpcodeAccessControlRevokeRole   = tvm.MustExtractMagic(reflect.TypeFor[rbac.RevokeRole]())
+	OpcodeAccessControlRenounceRole = tvm.MustExtractMagic(reflect.TypeFor[rbac.RenounceRole]())
 )
 
 const (
@@ -67,9 +71,18 @@ type Storage struct {
 }
 
 type RMNRemote struct {
+	Policy         CursePolicy      `tlb:"."`
+	ForwardUpdates *cell.Dictionary `tlb:"dict 267"`
+}
+
+// CursePolicy is the curse policy embedded by both the Router and every
+// TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse them,
+// and both roles are administered by `DEFAULT_ADMIN_ROLE`. Admin is an implicit
+// bearer of all three and is separate from the host contract's owner.
+type CursePolicy struct {
 	Admin          ownable2step.Storage `tlb:"."`
+	RBAC           rbac.Data            `tlb:"^"`
 	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
-	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakedCell encoding.
@@ -162,14 +175,16 @@ type CCIPSendNACK struct {
 	Error   *big.Int  `tlb:"## 256"`
 }
 
-// RMNRemoteCurse message type for cursing subjects on the router.
+// RMNRemoteCurse message type for cursing subjects on the router. The handler
+// applies the subjects to the Router's stored CursePolicy.
 type RMNRemoteCurse struct {
 	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-// RMNRemoteUncurse message type for uncursing subjects on the router.
+// RMNRemoteUncurse message type for uncursing subjects on the router. The handler
+// removes the subjects from the Router's stored CursePolicy.
 type RMNRemoteUncurse struct {
 	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                     `tlb:"## 64"`
@@ -179,6 +194,14 @@ type RMNRemoteUncurse struct {
 type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#af7a9ac6" json:"-"` //nolint:revive // Ignore opcode tag
 	Content *codec.MessageEnvelope[T] `tlb:"."`
+}
+
+// RMNAccessControlMessage wraps the standard AccessControl role management
+// messages so RBAC changes on the RMN curse policy do not collide with the
+// Router's own top-level messages.
+type RMNAccessControlMessage[T rbac.InMessage | any] struct {
+	_       tlb.Magic                 `tlb:"#f9123a10" json:"-"` //nolint:revive // Ignore opcode tag
+	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -194,4 +217,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	RMNRemoteUncurse{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
+	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
+	RMNAccessControlMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})

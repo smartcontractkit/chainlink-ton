@@ -13,6 +13,12 @@ import (
 
 // --- Messages - incoming ---
 
+type InMessage interface {
+	GrantRole |
+		RevokeRole |
+		RenounceRole
+}
+
 // @dev Grants `role` to `account`.
 //
 // If `account` had not been already granted `role`, emits a {AccessControl_RoleGranted} event.
@@ -136,7 +142,11 @@ var TLBs = tvm.MustNewTLBMap([]any{
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {
 	// Roles mapping
-	Roles *tlbe.Dict[tlbe.Uint256, RoleData] `tlb:"."`
+	Roles *tlbe.Dict[tlbe.Uint256, RoleRef] `tlb:"."`
+}
+
+type RoleRef struct {
+	Role RoleData `tlb:"^"`
 }
 
 // Internal storage struct for role data

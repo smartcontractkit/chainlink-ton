@@ -654,6 +654,374 @@ export const Ownable2Step_OwnershipTransferred = {
 }
 
 /**
+ > struct (0x95cd540f) AccessControl_GrantRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ > }
+ */
+export interface AccessControl_GrantRole {
+    readonly $: 'AccessControl_GrantRole'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+}
+
+export const AccessControl_GrantRole = {
+    PREFIX: 0x95cd540f,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }): AccessControl_GrantRole {
+        return {
+            $: 'AccessControl_GrantRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_GrantRole {
+        loadAndCheckPrefix32(s, 0x95cd540f, 'AccessControl_GrantRole');
+        return {
+            $: 'AccessControl_GrantRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_GrantRole, b: c.Builder): void {
+        b.storeUint(0x95cd540f, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+    },
+    toCell(self: AccessControl_GrantRole): c.Cell {
+        return makeCellFrom<AccessControl_GrantRole>(self, AccessControl_GrantRole.store);
+    }
+}
+
+/**
+ > struct (0x969b0db9) AccessControl_RevokeRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ > }
+ */
+export interface AccessControl_RevokeRole {
+    readonly $: 'AccessControl_RevokeRole'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+}
+
+export const AccessControl_RevokeRole = {
+    PREFIX: 0x969b0db9,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+    }): AccessControl_RevokeRole {
+        return {
+            $: 'AccessControl_RevokeRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RevokeRole {
+        loadAndCheckPrefix32(s, 0x969b0db9, 'AccessControl_RevokeRole');
+        return {
+            $: 'AccessControl_RevokeRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RevokeRole, b: c.Builder): void {
+        b.storeUint(0x969b0db9, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+    },
+    toCell(self: AccessControl_RevokeRole): c.Cell {
+        return makeCellFrom<AccessControl_RevokeRole>(self, AccessControl_RevokeRole.store);
+    }
+}
+
+/**
+ > struct (0x39452c46) AccessControl_RenounceRole {
+ >     queryId: uint64
+ >     role: uint256
+ >     callerConfirmation: address
+ > }
+ */
+export interface AccessControl_RenounceRole {
+    readonly $: 'AccessControl_RenounceRole'
+    queryId: uint64
+    role: uint256
+    callerConfirmation: c.Address
+}
+
+export const AccessControl_RenounceRole = {
+    PREFIX: 0x39452c46,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        callerConfirmation: c.Address
+    }): AccessControl_RenounceRole {
+        return {
+            $: 'AccessControl_RenounceRole',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RenounceRole {
+        loadAndCheckPrefix32(s, 0x39452c46, 'AccessControl_RenounceRole');
+        return {
+            $: 'AccessControl_RenounceRole',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            callerConfirmation: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RenounceRole, b: c.Builder): void {
+        b.storeUint(0x39452c46, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.callerConfirmation);
+    },
+    toCell(self: AccessControl_RenounceRole): c.Cell {
+        return makeCellFrom<AccessControl_RenounceRole>(self, AccessControl_RenounceRole.store);
+    }
+}
+
+/**
+ > type AccessControl_InMessage = AccessControl_GrantRole | AccessControl_RevokeRole | AccessControl_RenounceRole
+ */
+export type AccessControl_InMessage =
+    | AccessControl_GrantRole
+    | AccessControl_RevokeRole
+    | AccessControl_RenounceRole
+
+export const AccessControl_InMessage = {
+    fromSlice(s: c.Slice): AccessControl_InMessage {
+        return lookupPrefix(s, 0x95cd540f, 32) ? AccessControl_GrantRole.fromSlice(s) :
+            lookupPrefix(s, 0x969b0db9, 32) ? AccessControl_RevokeRole.fromSlice(s) :
+            lookupPrefix(s, 0x39452c46, 32) ? AccessControl_RenounceRole.fromSlice(s) :
+            throwNonePrefixMatch('AccessControl_InMessage');
+    },
+    store(self: AccessControl_InMessage, b: c.Builder): void {
+        switch (self.$) {
+            case 'AccessControl_GrantRole':
+                AccessControl_GrantRole.store(self, b);
+                break;
+            case 'AccessControl_RevokeRole':
+                AccessControl_RevokeRole.store(self, b);
+                break;
+            case 'AccessControl_RenounceRole':
+                AccessControl_RenounceRole.store(self, b);
+                break;
+        }
+    },
+    toCell(self: AccessControl_InMessage): c.Cell {
+        return makeCellFrom<AccessControl_InMessage>(self, AccessControl_InMessage.store);
+    }
+}
+
+/**
+ > struct (0xcf3ca837) AccessControl_RoleGranted {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ >     sender: address
+ > }
+ */
+export interface AccessControl_RoleGranted {
+    readonly $: 'AccessControl_RoleGranted'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+    sender: c.Address
+}
+
+export const AccessControl_RoleGranted = {
+    PREFIX: 0xcf3ca837,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+        sender: c.Address
+    }): AccessControl_RoleGranted {
+        return {
+            $: 'AccessControl_RoleGranted',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleGranted {
+        loadAndCheckPrefix32(s, 0xcf3ca837, 'AccessControl_RoleGranted');
+        return {
+            $: 'AccessControl_RoleGranted',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+            sender: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RoleGranted, b: c.Builder): void {
+        b.storeUint(0xcf3ca837, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+        b.storeAddress(self.sender);
+    },
+    toCell(self: AccessControl_RoleGranted): c.Cell {
+        return makeCellFrom<AccessControl_RoleGranted>(self, AccessControl_RoleGranted.store);
+    }
+}
+
+/**
+ > struct (0x990fe1c7) AccessControl_RoleRevoked {
+ >     queryId: uint64
+ >     role: uint256
+ >     account: address
+ >     sender: address
+ > }
+ */
+export interface AccessControl_RoleRevoked {
+    readonly $: 'AccessControl_RoleRevoked'
+    queryId: uint64
+    role: uint256
+    account: c.Address
+    sender: c.Address
+}
+
+export const AccessControl_RoleRevoked = {
+    PREFIX: 0x990fe1c7,
+
+    create(args: {
+        queryId?: uint64
+        role: uint256
+        account: c.Address
+        sender: c.Address
+    }): AccessControl_RoleRevoked {
+        return {
+            $: 'AccessControl_RoleRevoked',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleRevoked {
+        loadAndCheckPrefix32(s, 0x990fe1c7, 'AccessControl_RoleRevoked');
+        return {
+            $: 'AccessControl_RoleRevoked',
+            queryId: s.loadUintBig(64),
+            role: s.loadUintBig(256),
+            account: s.loadAddress(),
+            sender: s.loadAddress(),
+        }
+    },
+    store(self: AccessControl_RoleRevoked, b: c.Builder): void {
+        b.storeUint(0x990fe1c7, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.role, 256);
+        b.storeAddress(self.account);
+        b.storeAddress(self.sender);
+    },
+    toCell(self: AccessControl_RoleRevoked): c.Cell {
+        return makeCellFrom<AccessControl_RoleRevoked>(self, AccessControl_RoleRevoked.store);
+    }
+}
+
+/**
+ > struct AccessControl_Data {
+ >     roles: map<uint256, Cell<AccessControl_RoleData>>
+ > }
+ */
+export interface AccessControl_Data {
+    readonly $: 'AccessControl_Data'
+    roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
+}
+
+export const AccessControl_Data = {
+    create(args: {
+        roles: Map<uint256, AccessControl_RoleData> /* = [] as map<uint256, Cell<AccessControl_RoleData>> */
+    }): AccessControl_Data {
+        return {
+            $: 'AccessControl_Data',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_Data {
+        return {
+            $: 'AccessControl_Data',
+            roles: dictToMap(c.Dictionary.load<uint256, AccessControl_RoleData>(c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                        ), s)),
+        }
+    },
+    store(self: AccessControl_Data, b: c.Builder): void {
+        b.storeDict<uint256, AccessControl_RoleData>(mapToDict(self.roles, c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+                        (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+                        (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+                    )), c.Dictionary.Keys.BigUint(256), createDictionaryValue<AccessControl_RoleData>(
+            (s) => loadCellRef<AccessControl_RoleData>(s, AccessControl_RoleData.fromSlice),
+            (v,b) => storeCellRef<AccessControl_RoleData>(v, b, AccessControl_RoleData.store)
+        ));
+    },
+    toCell(self: AccessControl_Data): c.Cell {
+        return makeCellFrom<AccessControl_Data>(self, AccessControl_Data.store);
+    }
+}
+
+/**
+ > struct AccessControl_RoleData {
+ >     adminRole: uint256
+ >     membersLen: uint64
+ >     hasRole: map<address, bool>
+ > }
+ */
+export interface AccessControl_RoleData {
+    readonly $: 'AccessControl_RoleData'
+    adminRole: uint256
+    membersLen: uint64
+    hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
+}
+
+export const AccessControl_RoleData = {
+    create(args: {
+        adminRole: uint256
+        membersLen: uint64
+        hasRole: Map<c.Address, boolean> /* = [] as map<address, bool> */
+    }): AccessControl_RoleData {
+        return {
+            $: 'AccessControl_RoleData',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AccessControl_RoleData {
+        return {
+            $: 'AccessControl_RoleData',
+            adminRole: s.loadUintBig(256),
+            membersLen: s.loadUintBig(64),
+            hasRole: dictToMap(c.Dictionary.load<c.Address, boolean>(c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool(), s)),
+        }
+    },
+    store(self: AccessControl_RoleData, b: c.Builder): void {
+        b.storeUint(self.adminRole, 256);
+        b.storeUint(self.membersLen, 64);
+        b.storeDict<c.Address, boolean>(mapToDict(self.hasRole, c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool()), c.Dictionary.Keys.Address(), c.Dictionary.Values.Bool());
+    },
+    toCell(self: AccessControl_RoleData): c.Cell {
+        return makeCellFrom<AccessControl_RoleData>(self, AccessControl_RoleData.store);
+    }
+}
+
+/**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
  >     queryId: uint64
  >     code: cell
@@ -974,48 +1342,6 @@ export const Receiver_CCIPReceiveV2 = {
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
         return makeCellFrom<Receiver_CCIPReceiveV2>(self, Receiver_CCIPReceiveV2.store);
-    }
-}
-
-/**
- > struct CursedSubjects {
- >     data: map<uint128, ()>
- > }
- */
-export interface CursedSubjects {
-    readonly $: 'CursedSubjects'
-    data: Set<uint128> /* = [] as map<uint128, ()> */
-}
-
-export const CursedSubjects = {
-    create(args: {
-        data: Set<uint128> /* = [] as map<uint128, ()> */
-    }): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CursedSubjects {
-        return {
-            $: 'CursedSubjects',
-            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-        }
-    },
-    store(self: CursedSubjects, b: c.Builder): void {
-        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: CursedSubjects): c.Cell {
-        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
     }
 }
 
@@ -1565,6 +1891,157 @@ export const ReceiveExecutorId = {
     },
     toCell(self: ReceiveExecutorId): c.Cell {
         return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    }
+}
+
+/**
+ > struct CursePolicy {
+ >     admin: Ownable2Step
+ >     rbac: Cell<AccessControl_Data>
+ >     cursedSubjects: CursedSubjects
+ > }
+ */
+export interface CursePolicy {
+    readonly $: 'CursePolicy'
+    admin: Ownable2Step
+    rbac: AccessControl_Data
+    cursedSubjects: CursedSubjects
+}
+
+export const CursePolicy = {
+    create(args: {
+        admin: Ownable2Step
+        rbac: AccessControl_Data
+        cursedSubjects: CursedSubjects
+    }): CursePolicy {
+        return {
+            $: 'CursePolicy',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursePolicy {
+        return {
+            $: 'CursePolicy',
+            admin: Ownable2Step.fromSlice(s),
+            rbac: loadCellRef<AccessControl_Data>(s, AccessControl_Data.fromSlice),
+            cursedSubjects: CursedSubjects.fromSlice(s),
+        }
+    },
+    store(self: CursePolicy, b: c.Builder): void {
+        Ownable2Step.store(self.admin, b);
+        storeCellRef<AccessControl_Data>(self.rbac, b, AccessControl_Data.store);
+        CursedSubjects.store(self.cursedSubjects, b);
+    },
+    toCell(self: CursePolicy): c.Cell {
+        return makeCellFrom<CursePolicy>(self, CursePolicy.store);
+    }
+}
+
+/**
+ > struct CursedSubjects {
+ >     data: map<uint128, ()>
+ > }
+ */
+export interface CursedSubjects {
+    readonly $: 'CursedSubjects'
+    data: Set<uint128> /* = [] as map<uint128, ()> */
+}
+
+export const CursedSubjects = {
+    create(args: {
+        data: Set<uint128> /* = [] as map<uint128, ()> */
+    }): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CursedSubjects {
+        return {
+            $: 'CursedSubjects',
+            data: dictToSet(c.Dictionary.load<uint128, []>(c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
+        }
+    },
+    store(self: CursedSubjects, b: c.Builder): void {
+        b.storeDict<uint128, []>(setToDict(self.data, c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(128), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
+    },
+    toCell(self: CursedSubjects): c.Cell {
+        return makeCellFrom<CursedSubjects>(self, CursedSubjects.store);
+    }
+}
+
+/**
+ > struct Cursed {
+ >     subject: uint128
+ > }
+ */
+export interface Cursed {
+    readonly $: 'Cursed'
+    subject: uint128
+}
+
+export const Cursed = {
+    create(args: {
+        subject: uint128
+    }): Cursed {
+        return {
+            $: 'Cursed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Cursed {
+        return {
+            $: 'Cursed',
+            subject: s.loadUintBig(128),
+        }
+    },
+    store(self: Cursed, b: c.Builder): void {
+        b.storeUint(self.subject, 128);
+    },
+    toCell(self: Cursed): c.Cell {
+        return makeCellFrom<Cursed>(self, Cursed.store);
+    }
+}
+
+/**
+ > struct Uncursed {
+ >     subject: uint128
+ > }
+ */
+export interface Uncursed {
+    readonly $: 'Uncursed'
+    subject: uint128
+}
+
+export const Uncursed = {
+    create(args: {
+        subject: uint128
+    }): Uncursed {
+        return {
+            $: 'Uncursed',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Uncursed {
+        return {
+            $: 'Uncursed',
+            subject: s.loadUintBig(128),
+        }
+    },
+    store(self: Uncursed, b: c.Builder): void {
+        b.storeUint(self.subject, 128);
+    },
+    toCell(self: Uncursed): c.Cell {
+        return makeCellFrom<Uncursed>(self, Uncursed.store);
     }
 }
 
@@ -2825,6 +3302,43 @@ export const Router_RMNOwnableMessage = {
 }
 
 /**
+ > struct (0xf9123a10) Router_RMNAccessControlMessage {
+ >     content: Cell<AccessControl_InMessage>
+ > }
+ */
+export interface Router_RMNAccessControlMessage {
+    readonly $: 'Router_RMNAccessControlMessage'
+    content: AccessControl_InMessage
+}
+
+export const Router_RMNAccessControlMessage = {
+    PREFIX: 0xf9123a10,
+
+    create(args: {
+        content: AccessControl_InMessage
+    }): Router_RMNAccessControlMessage {
+        return {
+            $: 'Router_RMNAccessControlMessage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_RMNAccessControlMessage {
+        loadAndCheckPrefix32(s, 0xf9123a10, 'Router_RMNAccessControlMessage');
+        return {
+            $: 'Router_RMNAccessControlMessage',
+            content: loadCellRef<AccessControl_InMessage>(s, AccessControl_InMessage.fromSlice),
+        }
+    },
+    store(self: Router_RMNAccessControlMessage, b: c.Builder): void {
+        b.storeUint(0xf9123a10, 32);
+        storeCellRef<AccessControl_InMessage>(self.content, b, AccessControl_InMessage.store);
+    },
+    toCell(self: Router_RMNAccessControlMessage): c.Cell {
+        return makeCellFrom<Router_RMNAccessControlMessage>(self, Router_RMNAccessControlMessage.store);
+    }
+}
+
+/**
  > struct (0x78d0f21e) Router_CCIPSendACK {
  >     queryID: uint64
  >     messageId: uint256
@@ -3312,22 +3826,19 @@ export const Router_TokenPoolReleaseOrMintFailed = {
 
 /**
  > struct RMNRemote {
- >     admin: Ownable2Step
- >     cursedSubjects: CursedSubjects
+ >     policy: CursePolicy
  >     forwardUpdates: map<address, ()>
  > }
  */
 export interface RMNRemote {
     readonly $: 'RMNRemote'
-    admin: Ownable2Step
-    cursedSubjects: CursedSubjects
+    policy: CursePolicy
     forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
 }
 
 export const RMNRemote = {
     create(args: {
-        admin: Ownable2Step
-        cursedSubjects: CursedSubjects
+        policy: CursePolicy
         forwardUpdates: Set<c.Address> /* = [] as map<address, ()> */
     }): RMNRemote {
         return {
@@ -3338,8 +3849,7 @@ export const RMNRemote = {
     fromSlice(s: c.Slice): RMNRemote {
         return {
             $: 'RMNRemote',
-            admin: Ownable2Step.fromSlice(s),
-            cursedSubjects: CursedSubjects.fromSlice(s),
+            policy: CursePolicy.fromSlice(s),
             forwardUpdates: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                             (s) => [],
                             (v,b) => { {} }
@@ -3347,8 +3857,7 @@ export const RMNRemote = {
         }
     },
     store(self: RMNRemote, b: c.Builder): void {
-        Ownable2Step.store(self.admin, b);
-        CursedSubjects.store(self.cursedSubjects, b);
+        CursePolicy.store(self.policy, b);
         b.storeDict<c.Address, []>(setToDict(self.forwardUpdates, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                         (s) => [],
                         (v,b) => { {} }
@@ -3553,72 +4062,6 @@ export const OffRampRemoved = {
 }
 
 /**
- > struct Cursed {
- >     subject: uint128
- > }
- */
-export interface Cursed {
-    readonly $: 'Cursed'
-    subject: uint128
-}
-
-export const Cursed = {
-    create(args: {
-        subject: uint128
-    }): Cursed {
-        return {
-            $: 'Cursed',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Cursed {
-        return {
-            $: 'Cursed',
-            subject: s.loadUintBig(128),
-        }
-    },
-    store(self: Cursed, b: c.Builder): void {
-        b.storeUint(self.subject, 128);
-    },
-    toCell(self: Cursed): c.Cell {
-        return makeCellFrom<Cursed>(self, Cursed.store);
-    }
-}
-
-/**
- > struct Uncursed {
- >     subject: uint128
- > }
- */
-export interface Uncursed {
-    readonly $: 'Uncursed'
-    subject: uint128
-}
-
-export const Uncursed = {
-    create(args: {
-        subject: uint128
-    }): Uncursed {
-        return {
-            $: 'Uncursed',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Uncursed {
-        return {
-            $: 'Uncursed',
-            subject: s.loadUintBig(128),
-        }
-    },
-    store(self: Uncursed, b: c.Builder): void {
-        b.storeUint(self.subject, 128);
-    },
-    toCell(self: Uncursed): c.Cell {
-        return makeCellFrom<Uncursed>(self, Uncursed.store);
-    }
-}
-
-/**
  > struct MessageToOffRampBounced {
  >     offRamp: address
  >     execId: uint192
@@ -3744,12 +4187,14 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
         'Utils_Error.InvalidData': 13500,
         'Upgradeable_Error.VersionMismatch': 19900,
+        'AccessControl_Error.UnauthorizedAccount': 47400,
+        'AccessControl_Error.BadConfirmation': 47401,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -3897,6 +4342,12 @@ export class Router implements c.Contract {
         subjects: SnakedCell<uint128>
     }) {
         return Router_RMNRemoteUncurse.toCell(Router_RMNRemoteUncurse.create(body));
+    }
+
+    static createCellOfRouterRMNAccessControlMessage(body: {
+        content: AccessControl_InMessage
+    }) {
+        return Router_RMNAccessControlMessage.toCell(Router_RMNAccessControlMessage.create(body));
     }
 
     static createCellOfRouterRMNRemoteVerifyNotCursed(body: {
@@ -4125,6 +4576,16 @@ export class Router implements c.Contract {
         });
     }
 
+    async sendRouterRMNAccessControlMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        content: AccessControl_InMessage
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_RMNAccessControlMessage.toCell(Router_RMNAccessControlMessage.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendRouterRMNRemoteVerifyNotCursed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         subject: uint128
@@ -4270,6 +4731,41 @@ export class Router implements c.Contract {
         return r.readNullable<c.Address>(
             (r) => r.readSlice().loadAddress()
         );
+    }
+
+    async getRmnHasRole(provider: ContractProvider, role: uint256, account: c.Address): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_hasRole', [
+            { type: 'int', value: role },
+            { type: 'slice', cell: makeCellFrom<c.Address>(account,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return r.readBoolean();
+    }
+
+    async getRmnGetRoleAdmin(provider: ContractProvider, role: uint256): Promise<uint256> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_getRoleAdmin', [
+            { type: 'int', value: role },
+        ]));
+        return r.readBigInt();
+    }
+
+    async getRmnCanCurse(provider: ContractProvider, account: c.Address): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_canCurse', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(account,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return r.readBoolean();
+    }
+
+    async getRmnCanUncurse(provider: ContractProvider, account: c.Address): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('rmn_canUncurse', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(account,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return r.readBoolean();
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

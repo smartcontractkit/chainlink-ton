@@ -2,6 +2,7 @@
 import "types"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable";
+import "../../lib/access/access_control";
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
@@ -12,6 +13,7 @@ import "../offramp/messages"
 import "../onramp/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../rmn_remote/lib"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -26,6 +28,7 @@ type Router_InMsg =
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
     | Router_RMNRemoteUncurse
+    | Router_RMNAccessControlMessage
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
@@ -132,6 +135,12 @@ struct (0x8ae25114) Router_MessageRejected {
 
 struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
+}
+
+/// Wraps the standard `AccessControl` messages so RBAC changes on the RMN
+/// curse policy do not collide with the Router's own top-level messages.
+struct (0xf9123a10) Router_RMNAccessControlMessage {
+    content: Cell<AccessControl_InMessage>;
 }
 
 struct (0x78d0f21e) Router_CCIPSendACK {

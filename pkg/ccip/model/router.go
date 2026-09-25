@@ -10,7 +10,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
@@ -26,9 +28,10 @@ type RouterStorage struct {
 }
 
 type RMNRemote struct {
-	Admin          Ownable2Step       `json:"admin"`
-	CursedSubjects []*big.Int         `json:"cursedSubjects"`
-	ForwardUpdates []*address.Address `json:"forwardUpdates"`
+	Admin          Ownable2Step                           `json:"admin"`
+	Roles          *tlbe.Dict[tlbe.Uint256, rbac.RoleRef] `json:"-"`
+	CursedSubjects []*big.Int                             `json:"cursedSubjects"`
+	ForwardUpdates []*address.Address                     `json:"forwardUpdates"`
 }
 
 // ---------- Builder ----------
@@ -42,7 +45,13 @@ type RouterStorageBuilder struct {
 // and initialized maps.
 func NewRouterStorageBuilder() *RouterStorageBuilder {
 	return &RouterStorageBuilder{
-		storage: RouterStorage{OnRamps: make(map[uint64]*address.Address), OffRamps: make(map[uint64]*address.Address)},
+		storage: RouterStorage{
+			OnRamps:  make(map[uint64]*address.Address),
+			OffRamps: make(map[uint64]*address.Address),
+			RMNRemote: RMNRemote{
+				Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef](),
+			},
+		},
 	}
 }
 
@@ -136,7 +145,8 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			raw.Ownable.PendingOwner,
 		).
 		WithWrapperNative(raw.WrappedNative).
-		WithRMNRemote(raw.RMNRemote.Admin.Owner, raw.RMNRemote.Admin.PendingOwner)
+		WithRMNRemote(raw.RMNRemote.Policy.Admin.Owner, raw.RMNRemote.Policy.Admin.PendingOwner)
+	b.storage.RMNRemote.Roles = raw.RMNRemote.Policy.RBAC.Roles
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
 	if err != nil {
@@ -180,6 +190,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 	if err != nil {
 		return fmt.Errorf("error while loading RMNRemote.ForwardUpdates: %w", err)
 	}
+
 	for _, fu := range forwardUpdates {
 		var forwardUpdate common.AddressWrap
 		if err2 := tlb.LoadFromCell(&forwardUpdate, fu.Key); err2 != nil {
@@ -190,7 +201,7 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 	}
 
 	// RMNRemote.CursedSubjects
-	cursedSubjects, err := raw.RMNRemote.CursedSubjects.LoadAll()
+	cursedSubjects, err := raw.RMNRemote.Policy.CursedSubjects.LoadAll()
 	if err != nil {
 		return fmt.Errorf("error while loading RMNRemote.CursedSubjects: %w", err)
 	}
@@ -222,9 +233,12 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 		},
 		WrappedNative: s.WrappedNative,
 		RMNRemote: router.RMNRemote{
-			Admin: ownable2step.Storage{
-				Owner:        s.RMNRemote.Admin.Owner,
-				PendingOwner: s.RMNRemote.Admin.PendingOwner,
+			Policy: router.CursePolicy{
+				Admin: ownable2step.Storage{
+					Owner:        s.RMNRemote.Admin.Owner,
+					PendingOwner: s.RMNRemote.Admin.PendingOwner,
+				},
+				RBAC: rbac.Data{Roles: s.RMNRemote.Roles},
 			},
 		},
 	}
@@ -281,9 +295,9 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	}
 
 	// RMNRemote.CursedObjects
-	st.RMNRemote.CursedSubjects = cell.NewDict(128)
+	st.RMNRemote.Policy.CursedSubjects = cell.NewDict(128)
 	for _, co := range s.RMNRemote.CursedSubjects {
-		if err := st.RMNRemote.CursedSubjects.Set(
+		if err := st.RMNRemote.Policy.CursedSubjects.Set(
 			cell.BeginCell().MustStoreBigUInt(co, 128).EndCell(),
 			tvm.EmptyCell,
 		); err != nil {

@@ -33,6 +33,8 @@ import (
 
 var unsupported = []uint64{
 	0xaf7a9ac6,           // router.RMNOwnableMessage, nested message envelope with generic parameter - not supported by current generator
+	0xf9123a10,           // router.RMNAccessControlMessage, nested message envelope with generic parameter - not supported by current generator
+	0x2e7a1790,           // tokenpool.RMNAccessControlMessage, nested message envelope with generic parameter - not supported by current generator
 	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }
 

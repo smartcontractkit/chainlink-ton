@@ -12,7 +12,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	pkgtlbe "github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
@@ -58,12 +60,25 @@ type DynamicConfig struct {
 }
 
 // LocalPolicy holds the pool's independently managed RMN policy. It is
-// intentionally not a mirror of the Router's cursed subjects: the pool owner may
-// configure a distinct RMN proxy, or disable proxy updates by setting it to
-// addr_none. Ramp access is no longer pool state: the Router is the only entry
-// point of every pool (TokenPool.onlyRouter).
+// intentionally not a mirror of the Router's cursed subjects: cursing is
+// governed by the pool's own role-backed CursePolicy. Ramp access is no longer
+// pool state: the Router is the only entry point of every pool
+// (TokenPool.onlyRouter).
 type LocalPolicy struct {
-	CursedSubjects CursedSubjects `tlb:"."`
+	CursePolicy CursePolicy `tlb:"."`
+}
+
+// CursePolicy is the curse policy embedded by both the Router and every
+// TokenPool. `CURSE_ROLE` may curse subjects, `UNCURSE_ROLE` may uncurse them,
+// and both roles are administered by `DEFAULT_ADMIN_ROLE`. Admin is an implicit
+// bearer of all three and is separate from the pool owner.
+//
+// Curse enforcement is centralized in the Router; pool-local policies are not
+// propagated and exist for spec compliance and for operators running their own.
+type CursePolicy struct {
+	Admin          ownable2step.Storage `tlb:"."`
+	RBAC           rbac.Data            `tlb:"^"`
+	CursedSubjects CursedSubjects       `tlb:"."`
 }
 
 // CursedSubjects represents the set of cursed subjects (uint128 keys with empty
@@ -112,12 +127,16 @@ type ChainUpdate struct {
 	RateLimitConfigs    RateLimitConfigPair                         `tlb:"^"`
 }
 
+type RemotePoolRef struct {
+	Address common.CrossChainAddress `tlb:"^"`
+}
+
 // RemoteChainConfig holds the configuration for a remote chain.
 type RemoteChainConfig struct {
-	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress] `tlb:"^"`
-	RemotePools              *tlbe.Dict[tlbe.Uint256, *cell.Cell] `tlb:"."`
-	RateLimiters             RateLimiterPair                      `tlb:"^"`
-	FastFinalityRateLimiters RateLimiterPair                      `tlb:"^"`
+	RemoteTokenAddress       *tlbe.Cell[common.CrossChainAddress]    `tlb:"^"`
+	RemotePools              *tlbe.Dict[tlbe.Uint256, RemotePoolRef] `tlb:"."`
+	RateLimiters             RateLimiterPair                         `tlb:"^"`
+	FastFinalityRateLimiters RateLimiterPair                         `tlb:"^"`
 }
 
 // RateLimitConfigArgs holds arguments for setting rate limit configs.
@@ -245,7 +264,6 @@ type JettonClient struct {
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
 	Ownable               ownable2step.Storage `tlb:"^"`
-	RMNProxy              *address.Address     `tlb:"addr"`
 	DynamicConfig         DynamicConfig        `tlb:"^"`
 	JettonClient          JettonClient         `tlb:"."`
 	AllowedFinalityConfig uint32               `tlb:"## 32"`
@@ -342,18 +360,33 @@ type ApplyTokenTransferFeeConfigUpdates struct {
 	DisableChainSelectors common.SnakedCell[ChainSelector]              `tlb:"^"`
 }
 
-// SetRMNProxy sets the RMN proxy address.
-type SetRMNProxy struct {
-	_        tlb.Magic        `tlb:"#9929b642" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID  uint64           `tlb:"## 64"`
-	RMNProxy *address.Address `tlb:"addr"`
+// Subject is a wrapper for uint128 to support SnakedCell encoding.
+type Subject struct {
+	Value *big.Int `tlb:"## 128"`
 }
 
-// SetCursedSubjects sets the cursed subjects list.
-type SetCursedSubjects struct {
-	_              tlb.Magic      `tlb:"#9da4da09" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64         `tlb:"## 64"`
-	CursedSubjects CursedSubjects `tlb:"."`
+// Curse adds the given subjects to the pool-local curse policy. The sender must
+// hold `CURSE_ROLE`.
+type Curse struct {
+	_        tlb.Magic                  `tlb:"#fdd0edc0" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID  uint64                     `tlb:"## 64"`
+	Subjects common.SnakedCell[Subject] `tlb:"^"`
+}
+
+// Uncurse removes the given subjects from the pool-local curse policy. The
+// sender must hold `UNCURSE_ROLE`.
+type Uncurse struct {
+	_        tlb.Magic                  `tlb:"#61cf16f1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID  uint64                     `tlb:"## 64"`
+	Subjects common.SnakedCell[Subject] `tlb:"^"`
+}
+
+// RMNAccessControlMessage wraps the standard AccessControl role management
+// messages so RBAC changes on the pool-local curse policy do not collide
+// with the pool's own top-level messages.
+type RMNAccessControlMessage[T rbac.InMessage | any] struct {
+	_       tlb.Magic                 `tlb:"#2e7a1790" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens.
@@ -618,20 +651,6 @@ type FeeConfigApplied struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// RMNProxySet confirms the RMN proxy was set.
-type RMNProxySet struct {
-	_        tlb.Magic        `tlb:"#e5d08b2e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID  uint64           `tlb:"## 64"`
-	RMNProxy *address.Address `tlb:"addr"`
-}
-
-// CursedSubjectsSet confirms the cursed subjects were set.
-type CursedSubjectsSet struct {
-	_              tlb.Magic      `tlb:"#15800161" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64         `tlb:"## 64"`
-	CursedSubjects CursedSubjects `tlb:"."`
-}
-
 // AdvancedPoolHooksSet confirms the advanced pool hooks were set.
 type AdvancedPoolHooksSet struct {
 	_                 tlb.Magic        `tlb:"#3c869d80" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -794,8 +813,10 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetAllowedDepositNamespaces{},
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
-	SetRMNProxy{},
-	SetCursedSubjects{},
+	Curse{},
+	Uncurse{},
+	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
+	RMNAccessControlMessage[any]{Content: nil},
 	JettonWithdrawableWithdraw{},
 	LockOrBurn{},
 	ReleaseOrMint{},
@@ -821,8 +842,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	FinalityConfigSet{},
 	DynamicConfigSet{},
 	RateLimitConfiguredNotification{},
-	RMNProxySet{},
-	CursedSubjectsSet{},
+	rbac.RoleGranted{},
+	rbac.RoleRevoked{},
+	rbac.RoleAdminChanged{},
 	AdvancedPoolHooksSet{},
 	DeployableCodeSet{},
 	AllowedDepositNamespacesSet{},

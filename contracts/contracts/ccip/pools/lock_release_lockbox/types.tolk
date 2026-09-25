@@ -36,11 +36,11 @@ enum LockReleaseLockBoxTokenPool_Error {
 // TODO: remove?
 struct LockReleaseLockboxTokenPool_InitConfig {
     owner: address;
+    rmnAdmin: address;
     jettonClient: JettonClient;
     offRampAccountCode: cell;
     tokenDecimals: uint8;
     router: address;
-    rmnProxy: address;
     lockbox: address;
     /// Deployables code for deriving source-chain deposit accounts (OnRampAccount).
     deployableCode: cell? = null;

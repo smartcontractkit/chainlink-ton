@@ -4,8 +4,9 @@ import "../../ccip/rmn_remote/lib"
 import "types"
 
 struct RMNRemote {
-    admin: Ownable2Step;
-    cursedSubjects: CursedSubjects;
+    // Authoritative curse policy for the lane. TokenPools embed the same struct
+    // but their copies are independent; nothing is mirrored between them.
+    policy: CursePolicy;
     forwardUpdates: map<address, ()> = [];
 }
 

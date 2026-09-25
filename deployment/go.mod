@@ -3,6 +3,8 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 go 1.27.1
 
 // TMP: remove in follow up PR
+replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
+
 replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 )
@@ -95,6 +95,9 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	routerAddress := stateCCIP.Router
 	if routerAddress.IsAddrNone() {
+		// The Router has no init message, so its curse policy is built here. It
+		// starts unseeded: the RMN admin below is an implicit bearer of every
+		// curse role. CURSE_ROLE is granted to an UltraFastCurse timelock later.
 		routerStorage := router.Storage{
 			ID: in.CCIPConfig.RouterParams.ID,
 			Ownable: ownable2step.Storage{
@@ -103,11 +106,14 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 			WrappedNative: tvm.TonTokenAddr,
 			RMNRemote: router.RMNRemote{
-				Admin: ownable2step.Storage{
-					Owner:        chain.WalletAddress,
-					PendingOwner: address.NewAddressNone(),
+				Policy: router.CursePolicy{
+					Admin: ownable2step.Storage{
+						Owner:        chain.WalletAddress,
+						PendingOwner: address.NewAddressNone(),
+					},
+					RBAC:           rmnremote.EmptyAccessControlData(),
+					CursedSubjects: nil,
 				},
-				CursedSubjects: nil,
 				ForwardUpdates: nil,
 			},
 			OnRamps:  nil, // set afterward

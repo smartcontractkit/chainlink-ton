@@ -30,7 +30,6 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
                     owner: config.owner,
                     pendingOwner: null,
                 }.toCell(),
-                rmnProxy: config.rmnProxy,
                 dynamicConfig: TokenPool_DynamicConfig {
                     router: config.router,
                     rateLimitAdmin: null,
@@ -42,9 +41,7 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
                 deployableCode: config.deployableCode,
             }.toCell(),
             localPolicy: TokenPool_LocalPolicy {
-                cursedSubjects: CursedSubjects {
-                    data: createEmptyMap(),
-                },
+                cursePolicy: CursePolicy.newWithAdmin(config.rmnAdmin),
             }.toCell(),
             tokenDecimals: config.tokenDecimals,
             remoteChainConfigs: createEmptyMap(),

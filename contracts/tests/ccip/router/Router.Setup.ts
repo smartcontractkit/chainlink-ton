@@ -1,4 +1,4 @@
-import { Dictionary, beginCell, toNano, Cell, Address } from '@ton/core'
+import { Dictionary, beginCell, toNano, Cell, Address, contractAddress } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { assertLog } from '../../Logs'
@@ -8,6 +8,7 @@ import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
 
 import { contractCode } from '../../../wrappers/codeLoader'
+import { createCursePolicy, createRMNAccessControl } from '../../../wrappers/ccip/Router'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
@@ -23,6 +24,8 @@ type RouterSetupOptionsCommon = {
   router?: SandboxContract<rt.Router>
   tokenAdminRegistry?: Address
   skipRouterOnRampConfig?: boolean
+  rmnOwner?: Address
+  cursePolicy?: rt.CursePolicy
 }
 type RouterSetupOverrides = Partial<{
   feeQuoter: SandboxContract<fq.FeeQuoter> | SandboxContract<TreasuryContract>
@@ -79,7 +82,12 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
   const libs = beginCell().storeDictDirect(_libs).endCell()
   blockchain.libs = libs
-  const router = opts.router ?? (await deployRouterInstance(blockchain, deployer))
+  const router =
+    opts.router ??
+    (await deployRouterInstance(blockchain, deployer, {
+      rmnOwner: opts.rmnOwner,
+      cursePolicy: opts.cursePolicy,
+    }))
   const feeQuoter = opts.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
   const tokenAdminRegistry = opts.tokenAdminRegistry ?? deployer.address
   const onRamp =
@@ -135,7 +143,9 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
 async function deployRouterInstance(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
+  rmn?: { rmnOwner?: Address; cursePolicy?: rt.CursePolicy },
 ) {
+  const rmnOwner = rmn?.rmnOwner ?? deployer.address
   const routerCode = await contractCode.ccip.local('Router')
   const data = rt.Storage.create({
     id: generateRandomContractId(),
@@ -147,8 +157,7 @@ async function deployRouterInstance(
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
-      admin: rt.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-      cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+      policy: rmn?.cursePolicy ?? createCursePolicy(rmnOwner),
       forwardUpdates: new Set(),
     }),
   })
@@ -483,8 +492,45 @@ export async function deployRouterContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
   codeOverride?: Cell,
+  rmnOwner?: Address,
 ) {
   const code = codeOverride ?? (await contractCode.ccip.local('Router'))
+
+  // Previous Router releases stored a single RMN admin and did not contain
+  // the operation-specific caller sets. Build that exact layout when the
+  // upgrade test deploys a historical code cell.
+  if (codeOverride) {
+    const rmnAdmin = rt.Ownable2Step.create({
+      owner: rmnOwner ?? owner.address,
+      pendingOwner: null,
+    })
+    const legacyRMN = beginCell()
+    rt.Ownable2Step.store(rmnAdmin, legacyRMN)
+    rt.CursedSubjects.store(rt.CursedSubjects.create({ data: new Set() }), legacyRMN)
+    legacyRMN.storeDict(null)
+
+    const data = beginCell()
+    data.storeUint(generateRandomContractId(), 32)
+    rt.Ownable2Step.store(
+      rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
+      data,
+    )
+    data.storeAddress(WRAPPED_NATIVE)
+    data.storeDict(null)
+    data.storeDict(null)
+    data.storeRef(legacyRMN.endCell())
+    const init = { code, data: data.endCell() }
+    const contract = blockchain.openContract(rt.Router.fromAddress(contractAddress(0, init)))
+    const deployer = await blockchain.treasury('deployer')
+    await deployer.send({
+      to: contract.address,
+      value: toNano('1'),
+      init,
+      body: beginCell().endCell(),
+    })
+    return contract
+  }
+
   const data = rt.Storage.create({
     id: generateRandomContractId(),
     ownable: rt.Ownable2Step.create({
@@ -494,13 +540,11 @@ export async function deployRouterContract(
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
-      admin: rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
-      cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
+      policy: createCursePolicy(owner.address),
       forwardUpdates: new Set(),
     }),
   })
 
-  // TODO: use deployable to make deterministic?
   const contract = blockchain.openContract(
     rt.Router.fromStorage(data, { overrideContractCode: code }),
   )

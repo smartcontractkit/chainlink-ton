@@ -11,10 +11,35 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 )
 
 var GetRMNOwner = ownable2step.MakeGetOwner("rmn")
 var GetRMNPendingOwner = ownable2step.MakeGetPendingOwner("rmn")
+
+// Raw AccessControl view of the RMN curse policy. Note that these under-report
+// authority: the RMN owner is an implicit bearer of every curse role without
+// holding an explicit role entry. Use GetRMNCanCurse / GetRMNCanUncurse to
+// answer "may this account curse?".
+var (
+	GetRMNHasRole    = rbac.MakeGetHasRole("rmn")
+	GetRMNRoleAdmin  = rbac.MakeGetRoleAdmin("rmn")
+	GetRMNCanCurse   = makeCanGetter("rmn_canCurse")
+	GetRMNCanUncurse = makeCanGetter("rmn_canUncurse")
+)
+
+func makeCanGetter(name string) tvm.Getter[*address.Address, bool] {
+	return tvm.Getter[*address.Address, bool]{
+		Name: name,
+		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
+			v, err := r.Int(0)
+			if err != nil {
+				return false, fmt.Errorf("failed to parse %s result: %w", name, err)
+			}
+			return v.Cmp(big.NewInt(0)) != 0, nil
+		}),
+	}
+}
 
 // GetOwner gets the owner of the Router contract
 var GetOwner = ownable2step.GetOwner

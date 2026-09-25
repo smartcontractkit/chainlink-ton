@@ -14,15 +14,28 @@ import (
 // GetHasRole checks whether an account has a specific role.
 //
 // On-chain: get fun hasRole(role: uint256, account: address): bool
-var GetHasRole = tvm.Getter[HasRoleArgs, bool]{
-	Name: "hasRole",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("error decoding hasRole result: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
-	}),
+var GetHasRole = MakeGetHasRole()
+
+// MakeGetHasRole creates a hasRole getter for an AccessControl instance
+// embedded under a getter prefix, e.g. MakeGetHasRole("rmn") -> rmn_hasRole.
+func MakeGetHasRole(prefix ...string) tvm.Getter[HasRoleArgs, bool] {
+	return tvm.Getter[HasRoleArgs, bool]{
+		Name: prefixGetter("hasRole", prefix...),
+		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
+			v, err := r.Int(0)
+			if err != nil {
+				return false, fmt.Errorf("error decoding hasRole result: %w", err)
+			}
+			return v.Cmp(big.NewInt(0)) != 0, nil
+		}),
+	}
+}
+
+func prefixGetter(name string, prefix ...string) string {
+	if len(prefix) == 0 || prefix[0] == "" {
+		return name
+	}
+	return prefix[0] + "_" + name
 }
 
 // HasRoleArgs holds the arguments for the hasRole getter.
@@ -34,15 +47,21 @@ type HasRoleArgs struct {
 // GetRoleAdmin gets the admin role for a given role.
 //
 // On-chain: get fun getRoleAdmin(role: uint256): uint256
-var GetRoleAdmin = tvm.Getter[*big.Int, *big.Int]{
-	Name: "getRoleAdmin",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return nil, fmt.Errorf("error decoding getRoleAdmin result: %w", err)
-		}
-		return v, nil
-	}),
+var GetRoleAdmin = MakeGetRoleAdmin()
+
+// MakeGetRoleAdmin creates a getRoleAdmin getter for an AccessControl instance
+// embedded under a getter prefix. See MakeGetHasRole.
+func MakeGetRoleAdmin(prefix ...string) tvm.Getter[*big.Int, *big.Int] {
+	return tvm.Getter[*big.Int, *big.Int]{
+		Name: prefixGetter("getRoleAdmin", prefix...),
+		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
+			v, err := r.Int(0)
+			if err != nil {
+				return nil, fmt.Errorf("error decoding getRoleAdmin result: %w", err)
+			}
+			return v, nil
+		}),
+	}
 }
 
 // GetRoleMemberCount gets the number of members with a specific role.

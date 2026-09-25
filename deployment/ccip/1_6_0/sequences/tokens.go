@@ -37,6 +37,7 @@ import (
 	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
@@ -391,19 +392,19 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// contracts/contracts/ccip/pools/lib/token_pool/entrypoint.tolk and the e2e test
 			// setup in contracts/tests/ccip/e2e/CCIPSendWithTokenTransfer.spec.ts); remote
 			// chain configs are populated later via ApplyChainUpdates.
+			// Pools are deployed with an unseeded curse policy, matching
+			// `CursePolicy.empty()` in the pool's Storage.init: the pool owner is
+			// an implicit bearer of both curse roles.
 			poolData := tokenpool.Storage{
 				AdminConfig: tokenpool.AdminConfig{
 					Ownable: ownable2step.Storage{
 						Owner:        owner,
 						PendingOwner: nil,
 					},
-					RMNProxy: owner,
 					DynamicConfig: tokenpool.DynamicConfig{
-						Router:         &routerAddr,
-						RateLimitAdmin: rateLimitAdmin,
-						FeeAdmin:       feeAdmin,
-						// Unit-value set (map<uint32,()>); an empty dict serializes as an
-						// empty map. Must be non-nil: the tlb:"." tag errors on a nil dict.
+						Router:                   &routerAddr,
+						RateLimitAdmin:           rateLimitAdmin,
+						FeeAdmin:                 feeAdmin,
 						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
 					},
 					JettonClient: tokenpool.JettonClient{
@@ -414,11 +415,15 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					AdvancedPoolHooks:     nil,
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
-					// An empty dict serializes as an empty map (a single "no entries"
-					// bit), matching the Tolk contract's createEmptyMap() default.
-					// Must be non-nil: the tlb:"." tag errors on a nil dict.
-					CursedSubjects: tokenpool.CursedSubjects{
-						Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
+					CursePolicy: tokenpool.CursePolicy{
+						Admin: ownable2step.Storage{
+							Owner:        owner,
+							PendingOwner: address.NewAddressNone(),
+						},
+						RBAC: rmnremote.EmptyAccessControlData(),
+						CursedSubjects: tokenpool.CursedSubjects{
+							Data: tlbe.NewEmptyDict[tlbe.Uint128, struct{}](),
+						},
 					},
 				},
 				TokenDecimals:           defaultJettonDecimals,

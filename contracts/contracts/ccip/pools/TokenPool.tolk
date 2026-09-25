@@ -52,11 +52,6 @@ get fun isSupportedChain(remoteChainSelector: uint64): bool {
     throw 0xFFFF;
 }
 
-/// Matches Go binding GetRMNProxy (Name: "getRMNProxy").
-get fun getRMNProxy(): address? {
-    throw 0xFFFF;
-}
-
 /// Matches Go binding GetVerifyNotCursed (Name: "verifyNotCursed").
 get fun verifyNotCursed(subject: uint128): bool {
     throw 0xFFFF;
@@ -67,6 +62,33 @@ get fun owner(): address {
 }
 
 get fun pendingOwner(): address? {
+    throw 0xFFFF;
+}
+
+/// Curse administrator for the pool-local policy, distinct from `owner`.
+get fun rmn_owner(): address {
+    throw 0xFFFF;
+}
+
+get fun rmn_pendingOwner(): address? {
+    throw 0xFFFF;
+}
+
+get fun rmn_hasRole(role: uint256, account: address): bool {
+    throw 0xFFFF;
+}
+
+get fun rmn_getRoleAdmin(role: uint256): uint256 {
+    throw 0xFFFF;
+}
+
+/// Effective curse authority. `rmn_hasRole` under-reports: the policy admin is
+/// an implicit role bearer.
+get fun rmn_canCurse(account: address): bool {
+    throw 0xFFFF;
+}
+
+get fun rmn_canUncurse(account: address): bool {
     throw 0xFFFF;
 }
 
