@@ -660,6 +660,40 @@ describe('LockReleaseTokenPool', () => {
       expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
       expect(await poolWallet.getJettonBalance()).toEqual(0n)
     })
+
+    it('caps the custody return at the inbound value so deposits cannot drain the pool (48c6cbfb)', async () => {
+      const onRampWallet = await userWallet(jettonSender.address)
+      const poolWallet = await userWallet(lockReleasePool.address)
+
+      // A malformed payload carrying only a small forward value. The best-effort return must be
+      // funded strictly from this inbound value — never from the pool's own balance — so anyone
+      // can repeatedly deposit jettons without draining the pool's TON.
+      const inboundValue = toNano('0.05')
+
+      const result = await jettonSender.sendJettonsExtended(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 88n,
+          amount: toNano('1'),
+          destination: lockReleasePool.address,
+          customPayload: beginCell().storeBit(1).endCell(),
+          forwardTonAmount: inboundValue,
+          forwardPayload: beginCell().storeUint(0, 32).endCell(),
+        },
+      })
+
+      // Custody is still returned (nothing parked in the pool)…
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleasePool.address,
+        to: poolWallet.address,
+        success: true,
+        op: 0x0f8a7ea5, // AskToTransfer
+        // …but capped below the old fixed 0.1 TON, i.e. it never exceeds the inbound value.
+        value: (value) => value !== undefined && value > 0n && value < toNano('0.1'),
+      })
+      expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
+      expect(await poolWallet.getJettonBalance()).toEqual(0n)
+    })
   })
 
   it('reverts releaseOrMint when requested amount exceeds pool liquidity', async () => {

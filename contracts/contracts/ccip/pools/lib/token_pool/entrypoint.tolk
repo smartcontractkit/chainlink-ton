@@ -37,9 +37,10 @@ import "../rate_limiter"
 /// 0.000567 tokens.
 /// In the case of a burnMint pool on chain A, these funds are burned in the pool on chain A.
 /// In the case of a lockRelease pool on chain A, these funds accumulate in the pool on chain A.
-/// TON value needed to return Jettons after a recoverable transfer failure.
-/// Any value left from the inbound notification is forwarded with the failure
-/// notification after the pool's pre-message balance has been reserved.
+/// Preferred TON value for returning Jettons after a recoverable failure. The actual
+/// value is always capped by the inbound notification's remaining value, so a return is
+/// funded strictly from that inbound value and never from the pool's pre-existing balance
+/// (otherwise anyone could drain the pool by repeatedly depositing jettons).
 const TokenPool_RETURN_TRANSFER_VALUE = grams("0.1");
 
 struct TokenPool<T> {
@@ -1572,8 +1573,9 @@ fun TokenPool<T>.onLockOrBurnTransfer(
         }
     } catch {
         // A malformed payload has no reliable reply target, but custody can
-        // still be returned to a valid pool wallet.
-        TokenPool<T>.returnTransfer(sender, msg);
+        // still be returned to a valid pool wallet. Capping the return at the inbound value
+        // keeps an unauthenticated sender from draining the pool's own balance.
+        TokenPool<T>.returnTransfer(sender, msg, msgValue);
     }
 }
 
@@ -1713,14 +1715,26 @@ fun TokenPool<T>.notifyLockOrBurnFailure(
 /// Keep the pool's balance from before the inbound Jetton notification, then
 /// allow recovery messages to carry only the notification's remaining value.
 fun TokenPool<T>.reserveLockOrBurnFailureValue(self, msgValue: coins): void {
-    // Storage accounting can leave a minimally funded pool with less balance
-    // than the forwarded value. Saturate rather than throwing before recovery.
+    reserveGramsOnBalance(poolBalanceBeforeMessage(msgValue), RESERVE_MODE_AT_MOST);
+}
+
+/// The pool's TON balance as it was before the inbound Jetton notification arrived,
+/// including any storage debt, i.e. the amount that must never be spent on
+/// recovery messages. Storage accounting can leave a minimally funded pool with
+/// less balance than the forwarded value, so saturate rather than throwing.
+fun poolBalanceBeforeMessage(msgValue: coins): coins {
     val originalBalance = contract.getOriginalBalance();
     val balanceBeforeMessage = originalBalance > msgValue
         ? originalBalance - msgValue
         : 0 as coins;
-    val toLeaveOnBalance = balanceBeforeMessage + contract.getStorageDuePayment();
-    reserveGramsOnBalance(toLeaveOnBalance, RESERVE_MODE_AT_MOST);
+    return balanceBeforeMessage + contract.getStorageDuePayment();
+}
+
+/// Caps a best-effort return transfer at the value the failing operation itself supplied, so
+/// repeated (permissionless) deposits can never drain the pool's own TON balance: the return
+/// is at most what the sender attached, and the pool never spends more than it received.
+fun returnTransferValue(inboundValue: coins): coins {
+    return inboundValue < TokenPool_RETURN_TRANSFER_VALUE ? inboundValue : TokenPool_RETURN_TRANSFER_VALUE;
 }
 
 /// Returns custody to the sender and notifies the original requester of a failed transfer.
@@ -1732,12 +1746,16 @@ fun TokenPool<T>.failLockOrBurnTransfer(
     errorCode: uint16,
     msgValue: coins,
 ): void {
-    TokenPool<T>.returnTransfer(sender, msg);
+    // Cap the return at the inbound value so it cannot drain the pool's own balance; the
+    // failure notification then carries whatever remains after reserving the pool balance.
+    TokenPool<T>.returnTransfer(sender, msg, msgValue);
     self.notifyLockOrBurnFailure(msgValue, forwardPayload, errorCode);
 }
 
 /// Returns jettons to the original sender after a failed lock (deposit) operation.
 /// @dev Sends AskToTransfer to the pool's jetton wallet with original sender as recipient.
+/// @dev Only invoked while unwinding one of the pool's own bounced messages (not permissionless),
+///      so it uses the fixed return value rather than an inbound-value budget.
 fun TokenPool<T>.returnTransferLocked(self, forwardPayload: TokenPool_LockOrBurnForwardPayload) {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
@@ -1759,7 +1777,9 @@ fun TokenPool<T>.returnTransferLocked(self, forwardPayload: TokenPool_LockOrBurn
     returnTransfer.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
 }
 
-fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRecipient): void {
+/// @param inboundValue TON attached to the failing notification (the return is capped at it so
+///        a permissionless deposit can never drain the pool's own balance).
+fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRecipient, inboundValue: coins): void {
     // Only valid for a real inbound transfer (initiator + wallet set, amount > 0).
     if (msg.transferInitiator == null) {
         return; // nothing to do, no one to return to
@@ -1768,7 +1788,7 @@ fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRec
     // Send back tokens; direct transfers to the pool are not supported.
     val returnTransfer = createMessage({
         bounce: BounceMode.NoBounce,
-        value: TokenPool_RETURN_TRANSFER_VALUE,
+        value: returnTransferValue(inboundValue),
         dest: sender, // wallet address which sent us the transfer notification (our wallet)
         body: AskToTransfer {
             queryId: msg.queryId,

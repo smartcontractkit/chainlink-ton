@@ -183,7 +183,9 @@ fun onDepositWithTransferNotification(
         });
         reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     } catch (errorCode) {
-        TokenPool<void>.returnTransfer(sender, msg);
+        // Cap the return at the inbound value so an unsolicited deposit cannot drain the
+        // lockbox's own balance.
+        TokenPool<void>.returnTransfer(sender, msg, msgValue);
         // TODO: should we notify deposit failed?
     }
 }
