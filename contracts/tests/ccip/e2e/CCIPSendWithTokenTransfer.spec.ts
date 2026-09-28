@@ -186,7 +186,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: jettonLockBox.address,
-          offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
         },
         { overrideContractCode: lockReleaseTokenPoolCode },
       ),
