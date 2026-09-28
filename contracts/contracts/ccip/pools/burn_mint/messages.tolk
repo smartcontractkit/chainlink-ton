@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/messages"
+import "../../../lib/deployable/types"
 import "../lib/token_pool/messages"
 import "../../cct/messages"
 import "../../accounts/deposit/messages"
@@ -24,5 +25,5 @@ type BurnMintTokenPool_BouncedMessage =
     | AskToTransfer
     | CCT_AskToBurn
     | MintNewJettons
-    | DepositAccount_Init
+    | Deployable_InitializeAndSend
     | TokenPool_GetCCVs;

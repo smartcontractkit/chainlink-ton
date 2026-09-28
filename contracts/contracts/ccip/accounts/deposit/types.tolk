@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
+import "../../../lib/deployable/namespace"
+
 /// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
 const MIN_GRAM_TO_RESERVE: int = grams("0.05");
 
@@ -25,7 +27,8 @@ const DepositAccount_FACILITY_ID = DepositAccount_FACILITY_NAME.crc32() % 640 + 
 
 /// Error codes for DepositAccount.
 enum DepositAccount_Error {
-    /// Thrown when a non-owner attempts to initialize the account.
+    /// Thrown when a non-owner attempts to (re-)deploy the account via
+    /// `Deployable_InitializeAndSend`.
     OnlyOwner = DepositAccount_FACILITY_ID * 100
     /// Thrown when a non-beneficiary attempts to withdraw jettons.
     OnlyBeneficiary
@@ -33,25 +36,41 @@ enum DepositAccount_Error {
     /// sender of the `DepositAccount_Withdraw`). Required so a bounced withdraw can be correlated
     /// back to and notify the requester.
     OnlySendExcessesToSender
+    /// Thrown when `DepositAccount_Init` is not sent by the account itself: the init is replayed
+    /// as a self-message by `Deployable_InitializeAndSend`.
+    OnlySelf
 }
 
-/// Computes the deterministic address of a DepositAccount given its config.
-/// @dev Token-agnostic: the address depends only on (code, owner, proxy, beneficiaries), so a user
-///      has one account across all tokens; the wallet boundary is enforced at the pool/authorizer.
+/// Computes the deterministic address of a DepositAccount deployed via the Deployable pattern.
+///
+/// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner, id), so
+///      a user has one account across all tokens; the wallet boundary is enforced at the
+///      pool/authorizer. The account's config (proxy, beneficiaries) is NOT part of the address
+///      — it is installed atomically at deployment, and since re-deploys are idempotent (see
+///      `DepositAccount.onDeployableInitializeAndSend`), the first deployment's config is the
+///      one that sticks: always derive and deploy with the same config.
 fun calcAddressOfDepositAccount(
-    code: cell,
+    deployableCode: cell,
     owner: address,
     proxy: address,
     beneficiaries: map<address, ()>,
 ): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
-            code,
-            data: DepositAccount_Data {
+            code: deployableCode,
+            data: NamespacedDeployableData<DepositAccount_DeploymentID>({
+                namespace: DeployableNamespace_DepositAccount,
                 owner,
-                proxy,
-                beneficiaries,
-            }.toCell(),
+                id: DepositAccount_DeploymentID {
+                    proxy,
+                    beneficiaries,
+                },
+            }),
         },
     };
+}
+
+struct DepositAccount_DeploymentID {
+    proxy: address;
+    beneficiaries: map<address, ()>;
 }

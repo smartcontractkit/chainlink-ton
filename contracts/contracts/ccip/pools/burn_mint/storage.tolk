@@ -6,11 +6,10 @@ import "../lib/token_pool/types"
 
 import "types"
 
-/// @notice Pool storage: common pool data + OffRampAccount deployment state.
+/// @notice Pool storage: common pool data. The off-ramp DepositAccount is deployed via the
+/// Deployable pattern (its code is pinned in the pool's compiled code, not stored per-instance).
 struct Storage {
     poolData: Cell<TokenPool_Data>;
-    /// Compiled code cell of the OffRampAccount contract (deployed per mint operation).
-    offRampAccountCode: cell;
 }
 
 fun Storage.load(): Storage {
@@ -47,6 +46,5 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
             remoteChainConfigs: createEmptyMap(),
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
-        offRampAccountCode: config.offRampAccountCode,
     };
 }

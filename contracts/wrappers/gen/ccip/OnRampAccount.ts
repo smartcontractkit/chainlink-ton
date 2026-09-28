@@ -217,6 +217,44 @@ export const ExtraCurrenciesMap = {
 }
 
 /**
+ > struct ContractState {
+ >     code: cell
+ >     data: cell
+ > }
+ */
+export interface ContractState {
+    readonly $: 'ContractState'
+    code: c.Cell
+    data: c.Cell
+}
+
+export const ContractState = {
+    create(args: {
+        code: c.Cell
+        data: c.Cell
+    }): ContractState {
+        return {
+            $: 'ContractState',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ContractState {
+        return {
+            $: 'ContractState',
+            code: s.loadRef(),
+            data: s.loadRef(),
+        }
+    },
+    store(self: ContractState, b: c.Builder): void {
+        b.storeRef(self.code);
+        b.storeRef(self.data);
+    },
+    toCell(self: ContractState): c.Cell {
+        return makeCellFrom<ContractState>(self, ContractState.store);
+    }
+}
+
+/**
  > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
 export type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -641,6 +679,86 @@ export const DepositAccount_WithdrawFailed = {
     }
 }
 
+/**
+ > struct (0xb0ec5157) Deployable_InitializeAndSend {
+ >     stateInit: ContractState
+ >     selfMessage: Deployable_Message
+ > }
+ */
+export interface Deployable_InitializeAndSend {
+    readonly $: 'Deployable_InitializeAndSend'
+    stateInit: ContractState
+    selfMessage: Deployable_Message
+}
+
+export const Deployable_InitializeAndSend = {
+    PREFIX: 0xb0ec5157,
+
+    create(args: {
+        stateInit: ContractState
+        selfMessage: Deployable_Message
+    }): Deployable_InitializeAndSend {
+        return {
+            $: 'Deployable_InitializeAndSend',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Deployable_InitializeAndSend {
+        loadAndCheckPrefix32(s, 0xb0ec5157, 'Deployable_InitializeAndSend');
+        return {
+            $: 'Deployable_InitializeAndSend',
+            stateInit: ContractState.fromSlice(s),
+            selfMessage: Deployable_Message.fromSlice(s),
+        }
+    },
+    store(self: Deployable_InitializeAndSend, b: c.Builder): void {
+        b.storeUint(0xb0ec5157, 32);
+        ContractState.store(self.stateInit, b);
+        Deployable_Message.store(self.selfMessage, b);
+    },
+    toCell(self: Deployable_InitializeAndSend): c.Cell {
+        return makeCellFrom<Deployable_InitializeAndSend>(self, Deployable_InitializeAndSend.store);
+    }
+}
+
+/**
+ > struct Deployable_Message {
+ >     value: coins
+ >     body: cell
+ > }
+ */
+export interface Deployable_Message {
+    readonly $: 'Deployable_Message'
+    value: coins
+    body: c.Cell
+}
+
+export const Deployable_Message = {
+    create(args: {
+        value: coins
+        body: c.Cell
+    }): Deployable_Message {
+        return {
+            $: 'Deployable_Message',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Deployable_Message {
+        return {
+            $: 'Deployable_Message',
+            value: s.loadCoins(),
+            body: s.loadRef(),
+        }
+    },
+    store(self: Deployable_Message, b: c.Builder): void {
+        b.storeCoins(self.value);
+        b.storeRef(self.body);
+    },
+    toCell(self: Deployable_Message): c.Cell {
+        return makeCellFrom<Deployable_Message>(self, Deployable_Message.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class OnRampAccount
 //
@@ -680,12 +798,13 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECHQEAA4kAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASATFAIBIAYHAKnZydHQLhgEqTN1nhgEi4cUuIHCOqg21gcBscHBwcZGfIHxT9SxNnhZ+oAv0BfSkpMH0qCXoAAP0BZ2TkZ8KECn0pQQhSjbZdZ4XHZZ/9KWZkwCB9gEAgEgCAkCASANDgH3T4kY417UTQ+kj6SPQE0W1tbZLwAgBwgQCE+JIpUYlUQZgFB0QUUG0T8AebAcj6UvpS9ADJ7VTgXwPg7UTQ+kj6SPQE0W1tbZLwAgBwgQCE+JL4l/iS+Jf4mPiTJ/g6+JT4lVYRyM7JEK4QrRCsEKtWElVg8ANsYQPI+lKAoCASALDAAkEvpS9ADJ7VSRMOCEDwHHAPL0AJ8Ol8IAdDXLCObFoTk8r/TPzH6ADH6UDH0BCFumDEgxwCSMG3gktHQ4iBus5PIzsmSMG3iIG6SW3/g0MjOycjPhQgS+lJxzwtuzMmAQPsAf4ADDO2i7fs4BtcsI0SFECyYbHHTP/QF8ASOR9csIMm2iJSOIDA3L1F/UX9Rf1F/UX9Rf1F/UX8HEFYQRRA0QTDwBtsx4Wxx0z/6SNdMLFFMUUxRTFFMUUxRTFFMUUxVMPAF4n+ACASAPEAIBIBESAHUI8MAlSdus8MAkXDimVR7qStVIyvacOCCAM0UUzzHBfL0yM+FCBP6UoIQ2gRjDM8Ljss/9ADJgED7AIADZDU1NgHDAJUjbrPDAJFw4pQEA9qA4GwzNDQiggDNFQOBAQv0Cm+hMRLy9CLQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwggDNFiFus5UDxwXDAJMxMnDiEvL0yM+FiPpSz4QQc/oCcc8LZczJgFD7AIACTDk5OQTDAJUkbrPDAJFw4pZHZVUD2rHgNDc3OAXI+lJQBPoCFPQAUAX6AhTLP8sfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAIf+BfC3CACASAVFgIBSBscAgEgFxgCAUgZGgBrtivxoUtjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6Fye3KTC2uCCxsbe6tzpBFqYFxiXGEQABu1xRBAEOUUBBCB935QkAALsaFgQFagABuzQjtRND6SDH6SDH0BYAARtdE9qJofSQYQABe0A32omh9JBj9JBhA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIAEABB0AART/APSkE/S88sgLAQIBYgIDAgLMBAUCASAWFwIBIAYHAgHUFBUCASAICQIBIA4PAfdPiRjjjtRND6SPpI9ATRbW1tbZLwAgBwgQCE+JIqUZpUQakQWAZQMwdEFA7wCJsByPpS+lL0AMntVOBfA+DtRND6SPpI9ATRbW1tbZLwAgBwgQCE+JL4l/iS+Jf4mPiTJ/g6+JT4lVYSyM7JEK8QrhCtEKwQq1YTVWDwA4CgIBIAsMADBscQPI+lIS+lL0AMntVJEw4IQPAccA8vQAnw6XwgB0NcsI5sWhOTyv9M/MfoAMfpQMfQEIW6YMSDHAJIwbeCS0dDiIG6zk8jOyZIwbeIgbpJbf+DQyM7JyM+FCBL6UnHPC27MyYBA+wB/gATM7aLt+zgG1ywjRIUQLJhscdM/9AXwBOMOf4A0A/tcsIMm2iJSOH2xx0z/6SNdMLVFNUU1RTVFNUU1RTVFNUU1RTUQ08AWOVNcsJYdiiryOJTA3VhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhBQd/AH2zHhbHHUMdQx+gAx10yCAM0UUyzHBfL00NcsI0SFECzyv9M/9AXwBuICASAQEQIBIBITAI0I8MAlShus8MAkXDimVR8uixVIyzacOCCAM0X+CgUxwUT8vSCCvrwgIAQ+wLIz4UIUsD6UoIQ2gRjDM8Ljss/9ADJgED7AIADXDU1NjbDAJUibrPDAJFw4pNY2oDgNTZbNCOCAM0VA4EBC/QKb6ExEvL0INDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQTHBcMAkzEzcOIT8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAHcI8MAlSdus8MAkXDimVR8uixVIyvacOAyggr68ICAEPsCyM+FCFLA+lKCENoEYwzPC47LP/QAyYBA+wCAAlQ5OTk5A8MAlSNus8MAkXDilkV2UEPaseAzNzc4BMj6UlAH+gIU9AAB+gISyz8Tyx8SzMnIz4UIEvpSghC0/lwMzwuOzMmAQPsAf4ABPNcsJ/////Tyv9dM0NcsIHxT9Syf0z/6APpI+lD0BPoA8Al/4F8McIACzDk6OjoEwwCVJW6zwwCRcOKYSHYQNVUS2sDgNTg4ODjIz5A+KfqWJc8LPwH6Ahb6UlIg+lT0AFAE+gIUzsnIz4UIE/pSghClG2y6zwuOE8s/EvpSzMmAQPsAgAgEgGBkCAUgeHwIBIBobAgFIHB0Aa7Yr8aFLY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhcntykwtrggsbG3urc6QRamBcYlxhEAAbtcUQQBDlFAQQgfd+UJAAC7GhYEBWoAAbs0I7UTQ+kgx+kgx9AWAAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
         'DepositAccount_Error.OnlyBeneficiary': 52501,
         'DepositAccount_Error.OnlySendExcessesToSender': 52502,
+        'DepositAccount_Error.OnlySelf': 52503,
     }
 
     readonly address: c.Address
@@ -728,6 +847,13 @@ export class OnRampAccount implements c.Contract {
         return DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body));
     }
 
+    static createCellOfDeployableInitializeAndSend(body: {
+        stateInit: ContractState
+        selfMessage: Deployable_Message
+    }) {
+        return Deployable_InitializeAndSend.toCell(Deployable_InitializeAndSend.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -763,6 +889,17 @@ export class OnRampAccount implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendDeployableInitializeAndSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        stateInit: ContractState
+        selfMessage: Deployable_Message
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Deployable_InitializeAndSend.toCell(Deployable_InitializeAndSend.create(body)),
             ...extraOptions
         });
     }
