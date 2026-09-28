@@ -20,6 +20,7 @@ struct (0x6890a205) DepositAccount_Init {
 }
 
 /// Reply message on successful initialization
+/// TODO rename to `DepositAccount_Initialized`
 struct (0xda04630c) DepositAccount_Reply {
     queryId: uint64;
     forwardPayload: cell?;

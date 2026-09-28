@@ -8,6 +8,8 @@ import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../common/types"
+import "../accounts/deposit/types"
+import "../accounts/deposit/messages"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
@@ -35,6 +37,9 @@ type Router_InMsg =
     | Router_LockOrBurn
     | Router_RelayReleaseOrMint
     | Router_RMNOwnableMessage
+    | Router_GetOnRampAccount
+    | DepositAccount_Reply
+    | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;
 
 type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
@@ -48,8 +53,7 @@ type Router_BouncedMessage =
 
 type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
-    | TokenPool_ReleaseOrMint
-    | AskToTransfer;
+    | TokenPool_ReleaseOrMint;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -85,11 +89,29 @@ struct (0x19f0098f) Router_WithdrawToTokenPool {
 }
 
 struct Router_WithdrawRequest {
-    /// Derived by SendExecutor
-    routerWalletAddress: address;
+    /// Jetton wallet of the sender's deposit account, derived by the SendExecutor
+    /// (RequestWalletAddress with `ownerAddress` = the deposit account).
+    accountWalletAddress: address;
+    /// The sender's per-user deposit account the withdraw is forwarded to.
+    depositAccount: address;
     amount: coins;
     tokenPool: address;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+}
+
+/// Permissionless: deploys (or re-confirms) the sender's per-user onramp account.
+/// The account is a Deployable-namespaced OnRampAccount owned by the Router, keyed by the
+/// sender's address. The Router answers with Router_UseOnRampAccount once the account
+/// confirms initialization (DepositAccount_Reply).
+struct (0x0e24d5ba) Router_GetOnRampAccount {
+    queryId: uint64;
+}
+
+/// Sent to a user once their onramp account confirmed initialization: `account` is the
+/// address the user must send jettons to (via its jetton wallet).
+struct (0xf28658e0) Router_UseOnRampAccount {
+    queryId: uint64;
+    account: address;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -292,6 +314,13 @@ fun Router_Costs.routeMessage(): int {
 fun Router_Costs.receiveConfirm(): int {
     val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
+}
+
+// Minimum value for calling Router_DeployDepositAccount: covers the Router's own compute,
+// the Deployable_Initialize + DepositAccount_Init forwards, the account's init compute and
+// storage, and the DepositAccount_Reply -> Router_UseDepositAccount round-trip.
+fun Router_Costs.GetDepositAccount(): int {
+    return grams("0.002"); // TODO
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");
