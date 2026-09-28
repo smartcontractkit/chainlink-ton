@@ -43,34 +43,25 @@ enum DepositAccount_Error {
 
 /// Computes the deterministic address of a DepositAccount deployed via the Deployable pattern.
 ///
-/// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner, id), so
+/// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner (tokenPool), id (receiver)), so
 ///      a user has one account across all tokens; the wallet boundary is enforced at the
-///      pool/authorizer. The account's config (proxy, beneficiaries) is NOT part of the address
+///      pool/authorizer. The account's config (beneficiaries) is NOT part of the address
 ///      — it is installed atomically at deployment, and since re-deploys are idempotent (see
 ///      `DepositAccount.onDeployableInitializeAndSend`), the first deployment's config is the
 ///      one that sticks: always derive and deploy with the same config.
 fun calcAddressOfDepositAccount(
     deployableCode: cell,
     owner: address,
-    proxy: address,
-    beneficiaries: map<address, ()>,
+    receiver: address,
 ): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
             code: deployableCode,
-            data: NamespacedDeployableData<DepositAccount_DeploymentID>({
+            data: NamespacedDeployableData<address>({
                 namespace: DeployableNamespace_DepositAccount,
                 owner,
-                id: DepositAccount_DeploymentID {
-                    proxy,
-                    beneficiaries,
-                },
+                id: receiver,
             }),
         },
     };
-}
-
-struct DepositAccount_DeploymentID {
-    proxy: address;
-    beneficiaries: map<address, ()>;
 }

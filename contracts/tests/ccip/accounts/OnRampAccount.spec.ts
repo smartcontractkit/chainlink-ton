@@ -104,12 +104,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
           owner: owner(),
           id: Deployable.builder.data.namespaced.encode({
             namespace: NameSpace.CCIPNamespace.OnRampAccount,
-            id: da.DepositAccount_DeploymentID.toCell(
-              da.DepositAccount_DeploymentID.create({
-                proxy: proxy(),
-                beneficiaries: beneficiaries(),
-              }),
-            ).asBuilder(),
+            id: beginCell().storeAddress(user.address),
           }),
         },
         deployableCode,

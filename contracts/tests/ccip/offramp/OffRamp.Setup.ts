@@ -1104,12 +1104,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     const depositAccount = NameSpace.deriveAddress(
       opt.token?.tokenPool ?? this.tokenPool.address,
       NameSpace.CCIPNamespace.DepositAccount,
-      da.DepositAccount_DeploymentID.toCell(
-        da.DepositAccount_DeploymentID.create({
-          proxy: opt.token?.tokenPool ?? this.tokenPool.address,
-          beneficiaries: new Set([opt.receiver ?? this.receiver.address]),
-        }),
-      ).asBuilder(),
+      beginCell().storeAddress(opt.receiver ?? this.receiver.address),
       this.code.deployable,
     )
     const wallet = this.blockchain.openContract(

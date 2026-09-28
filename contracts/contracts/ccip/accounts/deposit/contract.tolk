@@ -27,7 +27,6 @@ contract DepositAccount {
         | DepositAccount_InMessage
     outgoingMessages:
         | DepositAccount_OutMessage
-    forceAbiExport: DepositAccount_DeploymentID
 }
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
