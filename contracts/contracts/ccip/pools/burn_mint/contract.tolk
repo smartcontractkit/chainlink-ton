@@ -315,8 +315,7 @@ fun deployOffRampAccountWithMint(
     val oaa = calcAddressOfDepositAccount(
         deployableCode(),
         poolAddr, // owner = pool (inits the account)
-        poolAddr, // proxy = pool
-        beneficiaries,
+        recipient,
     );
 
     val deploy = createMessage({
@@ -362,13 +361,10 @@ fun onDepositAccountReply(
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        mintRecipient
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
 
@@ -435,13 +431,10 @@ fun onDepositAccountForwardNotification(
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        mintRecipient,
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
 

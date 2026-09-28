@@ -114,8 +114,7 @@ fun deployOffRampAccountWithRelease(
     val oaa = calcAddressOfDepositAccount(
         deployableCode(),
         poolAddr, // owner = pool (deploys the account)
-        poolAddr, // proxy = pool
-        beneficiaries,
+        recipient,
     );
 
     val deploy = createMessage({
@@ -163,13 +162,10 @@ fun onDepositAccountReply(
     // Validate sender: derive expected account address and verify. Owner = proxy = pool,
     // beneficiary = the final recipient.
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(details.receiver, ());
     val expectedOaa = calcAddressOfDepositAccount(
         deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        details.receiver,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
 
@@ -443,13 +439,10 @@ fun onDepositAccountForwardNotification(
     val releaseRecipient = getReleaseRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(releaseRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
         deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        releaseRecipient,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 

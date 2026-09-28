@@ -52,12 +52,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           owner: owner(),
           id: Deployable.builder.data.namespaced.encode({
             namespace: NameSpace.CCIPNamespace.DepositAccount,
-            id: da.DepositAccount_DeploymentID.toCell(
-              da.DepositAccount_DeploymentID.create({
-                proxy: proxy.address,
-                beneficiaries: new Set([recipient.address]),
-              }),
-            ).asBuilder(),
+            id: beginCell().storeAddress(recipient.address),
           }),
         },
         code.deployable,

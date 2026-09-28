@@ -307,53 +307,6 @@ export const DepositAccount_Data = {
 }
 
 /**
- > struct DepositAccount_DeploymentID {
- >     proxy: address
- >     beneficiaries: map<address, ()>
- > }
- */
-export interface DepositAccount_DeploymentID {
-    readonly $: 'DepositAccount_DeploymentID'
-    proxy: c.Address
-    beneficiaries: Set<c.Address>
-}
-
-export const DepositAccount_DeploymentID = {
-    create(args: {
-        proxy: c.Address
-        beneficiaries: Set<c.Address>
-    }): DepositAccount_DeploymentID {
-        return {
-            $: 'DepositAccount_DeploymentID',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): DepositAccount_DeploymentID {
-        return {
-            $: 'DepositAccount_DeploymentID',
-            proxy: s.loadAddress(),
-            beneficiaries: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                            (s) => [],
-                            (v,b) => { {} }
-                        ), s)),
-        }
-    },
-    store(self: DepositAccount_DeploymentID, b: c.Builder): void {
-        b.storeAddress(self.proxy);
-        b.storeDict<c.Address, []>(setToDict(self.beneficiaries, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-                        (s) => [],
-                        (v,b) => { {} }
-                    )), c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
-            (s) => [],
-            (v,b) => { {} }
-        ));
-    },
-    toCell(self: DepositAccount_DeploymentID): c.Cell {
-        return makeCellFrom<DepositAccount_DeploymentID>(self, DepositAccount_DeploymentID.store);
-    }
-}
-
-/**
  > struct (0x6890a205) DepositAccount_Init {
  >     queryId: uint64
  >     forwardPayload: cell?
