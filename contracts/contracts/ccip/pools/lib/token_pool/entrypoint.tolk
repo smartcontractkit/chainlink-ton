@@ -774,19 +774,22 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, bouncedBo
             // at entry), so no PreflightCheckFinished/Failed callback will arrive. Treat the bounce as
             // a failed check: refund the outbound capacity consumed at admission and notify the
             // requester, instead of leaving the transfer (and its rate limit) stuck.
-            if (msg.replyPayload != null) {
-                val fwdp = (msg.replyPayload! as Cell<TokenPool_LockOrBurnForwardPayload>).load();
-                self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckBounced as uint16);
-            }
+            // Our send sites always embed the forward payload (RichBounce, value 0); a null payload
+            // is only reachable via a forged/corrupt bounce, so assert rather than silently
+            // swallowing it (which would misreport the bounce as handled).
+            assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
+            val fwdp = (msg.replyPayload! as Cell<TokenPool_LockOrBurnForwardPayload>).load();
+            self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckBounced as uint16);
             return true;
         }
         TokenPool_PostflightCheck => {
             // Same as preflight, for the inbound release/mint leg: refund the inbound capacity and
             // reply with a failure.
-            if (msg.replyPayload != null) {
-                val fwdp = (msg.replyPayload! as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
-                self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.PostflightCheckBounced as uint16);
-            }
+            // Same forged-bounce rationale as the preflight arm above: assert instead of
+            // silently swallowing a null payload.
+            assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
+            val fwdp = (msg.replyPayload! as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
+            self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.PostflightCheckBounced as uint16);
             return true;
         }
         else => {
