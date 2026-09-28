@@ -841,7 +841,7 @@ func disabledRateLimitConfigPair() tokenpool.RateLimitConfigPair {
 // emptyRBACData returns RBAC data with no roles set, matching the lockbox's
 // pre-init state. Init fills the roles in.
 func emptyRBACData() rbac.Data {
-	return rbac.Data{Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleData]()}
+	return rbac.Data{Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef]()}
 }
 
 // TODO: ManualRegistration is a no-op for the minimal skeleton.
