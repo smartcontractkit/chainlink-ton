@@ -611,6 +611,56 @@ describe('JettonLockBox', () => {
       expect(wallet).toEqualAddress(lockboxWallet.address)
     })
 
+    it('should reject init from an address other than the bound initializer (224853f4)', async () => {
+      // Bind `deployer` as the initializer at construction, as a real deployment would.
+      const boundLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 3n,
+            initializer: deployer.address,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      const boundWalletAddress = await jettonMinter.getWalletAddress(boundLockbox.address)
+
+      await boundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+
+      // An attacker front-runs the intended deployer's init: rejected, ownership not granted.
+      const attackerResult = await boundLockbox.sendJettonLockBoxInit(
+        operator.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 600n,
+          minterAddress: jettonMinter.address,
+          walletAddress: boundWalletAddress,
+          admin: operator.address,
+        },
+      )
+      expect(attackerResult.transactions).toHaveTransaction({
+        from: operator.address,
+        to: boundLockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.UnauthorizedInitializer'],
+      })
+
+      // The bound initializer can still initialize normally afterwards.
+      const ownerResult = await boundLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.2'), {
+        queryId: 601n,
+        minterAddress: jettonMinter.address,
+        walletAddress: boundWalletAddress,
+        admin: deployer.address,
+      })
+      expect(ownerResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: boundLockbox.address,
+        success: true,
+      })
+    })
+
     it('should reject operations on uninitialized contract', async () => {
       // Deploy a fresh lockbox but DON'T init it
       const freshLockbox = blockchain.openContract(

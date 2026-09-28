@@ -95,6 +95,7 @@ const (
 	ContractAlreadyInitialized
 	ContractNotInitialized
 	MissingOrMalformedForwardPayload
+	UnauthorizedInitializer
 )
 
 // New converts an ExitCode to a tvm.ExitCode.
@@ -106,7 +107,10 @@ func (e ExitCode) New() tvm.ExitCode {
 
 // Storage represents the JettonLockBox contract storage.
 type Storage struct {
-	ID            uint64           `tlb:"## 64"`
+	ID uint64 `tlb:"## 64"`
+	// Initializer is the address bound at deployment that is allowed to initialize the
+	// lockbox. Nil when unbound (legacy/tests), in which case the first caller binds itself.
+	Initializer   *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
 	WalletAddress *address.Address `tlb:"addr"`
 	RBAC          rbac.Data        `tlb:"."`

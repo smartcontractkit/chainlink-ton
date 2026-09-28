@@ -14,11 +14,12 @@ func _() {
 	_ = x[ContractAlreadyInitialized-56703]
 	_ = x[ContractNotInitialized-56704]
 	_ = x[MissingOrMalformedForwardPayload-56705]
+	_ = x[UnauthorizedInitializer-56706]
 }
 
-const _ExitCode_name = "TokenAmountCannotBeZeroRecipientCannotBeZeroAddressUnsupportedTokenContractAlreadyInitializedContractNotInitializedMissingOrMalformedForwardPayload"
+const _ExitCode_name = "TokenAmountCannotBeZeroRecipientCannotBeZeroAddressUnsupportedTokenContractAlreadyInitializedContractNotInitializedMissingOrMalformedForwardPayloadUnauthorizedInitializer"
 
-var _ExitCode_index = [...]uint8{0, 23, 51, 67, 93, 115, 147}
+var _ExitCode_index = [...]uint8{0, 23, 51, 67, 93, 115, 147, 170}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 56700

@@ -78,12 +78,18 @@ fun onInternalMessage(in: InMessage) {
 // --- Handlers ---
 
 /// One-time initialization: sets jetton addresses and grants admin role.
-/// @dev Anyone can call this (only the first call succeeds). The pool is expected to send the Init message
-/// during deployment (with stateInit), so in practice only the deployer can reach the uninitialized contract.
-/// TODO: fixme
-/// @bug There is no ownership check — if the deployment address is guessable, anyone can frontrun.
+/// @dev The deployer binds itself as the authorized initializer at construction (stateInit).
+/// When such a binding is present only that address may initialize; when it is absent
+/// (legacy/tests) the first caller binds itself, preserving the old behaviour.
 fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
     assert(!st.isInitialized(), JettonLockBox_Error.ContractAlreadyInitialized);
+
+    // Prevent front-running: only the deployer bound at construction may initialize. When no
+    // initializer was bound we adopt the caller so the lockbox can never be left uninitializable.
+    if (st.initializer == null) {
+        st.initializer = sender;
+    }
+    assert(sender == st.initializer!, JettonLockBox_Error.UnauthorizedInitializer);
 
     // Validate addresses are not zero
     assert(msg.minterAddress != createAddressNone(), JettonLockBox_Error.UnsupportedToken);

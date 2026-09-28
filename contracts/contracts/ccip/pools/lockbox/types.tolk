@@ -29,11 +29,18 @@ enum JettonLockBox_Error {
     ContractNotInitialized // 56704
     /// Thrown when the forward payload is missing or malformed during a deposit.
     MissingOrMalformedForwardPayload // 56705
+    /// Thrown when a caller other than the bound initializer tries to initialize the lockbox.
+    UnauthorizedInitializer // 56706
 }
 
 /// Lockbox storage: tracks the supported jetton and RBAC state.
 struct Storage {
     id: uint64;
+
+    /// Address allowed to initialize this lockbox. Set at deployment (stateInit)
+    /// so an arbitrary caller cannot front-run `onInit` and claim ownership of an
+    /// uninitialized lockbox. When left null (e.g. tests), the first caller binds it.
+    initializer: address? = null;
 
     /// Minter address of the token this lockbox holds.
     minterAddress: address;
