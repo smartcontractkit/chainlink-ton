@@ -96,6 +96,12 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs) {
 }
 
 fun replyPreflight(msg: TokenPool_PreflightCheck) {
+    // id == 255 => reject at entry (throw), so the request bounces back to the pool and its
+    // base onBouncedMessage must refund the outbound rate limit + send LockOrBurnFailure.
+    if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_BOUNCE_ID) {
+        throw 0xFFFF;
+    }
+
     val queryId = msg.queryId;
     val fwd = msg.replyPayload!;
 
@@ -122,6 +128,12 @@ fun replyPreflight(msg: TokenPool_PreflightCheck) {
 }
 
 fun replyPostflight(msg: TokenPool_PostflightCheck) {
+    // id == 255 => reject at entry (throw); the base onBouncedMessage must refund the inbound
+    // rate limit + send ReleaseOrMintFailure (see replyPreflight).
+    if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_BOUNCE_ID) {
+        throw 0xFFFF;
+    }
+
     val queryId = msg.queryId;
     val fwd: cell = msg.replyPayload!;
 

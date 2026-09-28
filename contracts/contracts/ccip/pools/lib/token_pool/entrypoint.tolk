@@ -769,6 +769,26 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, bouncedBo
             self.onGetCCVsBounced(msg, rich.exitCode);
             return true;
         }
+        TokenPool_PreflightCheck => {
+            // The hooks contract bounced our async preflight request (e.g. it is undeployed or threw
+            // at entry), so no PreflightCheckFinished/Failed callback will arrive. Treat the bounce as
+            // a failed check: refund the outbound capacity consumed at admission and notify the
+            // requester, instead of leaving the transfer (and its rate limit) stuck.
+            if (msg.replyPayload != null) {
+                val fwdp = (msg.replyPayload! as Cell<TokenPool_LockOrBurnForwardPayload>).load();
+                self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckBounced as uint16);
+            }
+            return true;
+        }
+        TokenPool_PostflightCheck => {
+            // Same as preflight, for the inbound release/mint leg: refund the inbound capacity and
+            // reply with a failure.
+            if (msg.replyPayload != null) {
+                val fwdp = (msg.replyPayload! as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
+                self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.PostflightCheckBounced as uint16);
+            }
+            return true;
+        }
         else => {
             return false; // pool-specific message — let the concrete pool handle it
         }

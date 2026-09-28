@@ -32,4 +32,6 @@ enum TokenPool_Error {
     InvalidRequestedFinality // 51721
     RateLimitExceeded // 51722
     LockOrBurnWithdrawBounced // 51723
+    PreflightCheckBounced // 51724
+    PostflightCheckBounced // 51725
 }

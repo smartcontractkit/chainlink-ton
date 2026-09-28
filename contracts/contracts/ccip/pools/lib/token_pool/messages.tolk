@@ -302,9 +302,15 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
 /// Messages the base TokenPool library itself emits with a bounceable mode. The shared base
 /// `TokenPool<T>.onBouncedMessage` decodes this set so concrete pools don't each re-implement the
 /// recovery; a bounced body outside this set falls through to the pool's own bounce matcher.
+///
+/// The advanced-hooks requests are included because the pool emits them with `RichBounce`: if the
+/// hooks contract is undeployed or rejects at entry, the bounce must be unwound here (refund the
+/// rate limit consumed at admission + send the *Failure reply) rather than dropped.
 type TokenPool_BouncedMessage =
     | TokenPool_LockOrBurnWithdraw
-    | TokenPool_GetCCVs;
+    | TokenPool_GetCCVs
+    | TokenPool_PreflightCheck
+    | TokenPool_PostflightCheck;
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
