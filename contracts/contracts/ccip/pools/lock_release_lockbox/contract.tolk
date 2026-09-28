@@ -214,6 +214,16 @@ fun onBouncedMessage(in: InMessageBounced) {
             onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
+        // The lockbox rejected the withdraw request at entry, so no JettonLockBox_WithdrawFailed
+        // follows. Unwind the admitted release from the context we embedded in `extra.forwardPayload`.
+        JettonLockBox_Withdraw => {
+            assert(in.senderAddress == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+            assert(msg.extra != null) throw LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed;
+            val withdrawExtra = lazy msg.extra!.load();
+            assert(withdrawExtra.forwardPayload != null) throw LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed;
+            recoverReleaseFromLockboxContext(mutate st, withdrawExtra.forwardPayload!);
+            st.store();
+        }
     }
 }
 
@@ -377,13 +387,21 @@ fun onWithdrawFailed(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     // JettonLockBox_WithdrawFailed may or may not carry context depending on when it failed.
-    // If context is present, use it to send a failure reply to the original requester.
+    // If context is present, unwind the admitted release and reply with a failure.
     if (msg.context != null) {
-        val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.context!);
-        assert(msg.queryId == context.forwardPayload.load().requestMsg.load().queryId) throw 0xFFFF;
-        var pool = loadPool(st);
-        pool.sendReleaseOrMintFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16);
+        recoverReleaseFromLockboxContext(mutate st, msg.context!);
     }
+}
+
+/// Unwinds an admitted release whose lockbox withdraw did not complete
+fun recoverReleaseFromLockboxContext(
+    mutate st: Storage,
+    contextCell: cell,
+) {
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
+    var pool = loadPool(st);
+    pool.recoverReleaseOrMintFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16);
+    st.poolData = pool.data.toCell();
 }
 
 /// Handles ForwardNotification from DepositAccount after release (withdraw) completion.

@@ -18,4 +18,5 @@ type LockReleaseLockboxTokenPool_OutMessage =
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
     | AskToTransfer
-    | DepositAccount_Init;
+    | DepositAccount_Init
+    | JettonLockBox_Withdraw;

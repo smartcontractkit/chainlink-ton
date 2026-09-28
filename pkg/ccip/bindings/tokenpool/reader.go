@@ -288,29 +288,55 @@ type GetTokenTransferFeeConfigResult struct {
 var GetTokenTransferFeeConfig = tvm.Getter[uint64, GetTokenTransferFeeConfigResult]{
 	Name: "getTokenTransferFeeConfig",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (GetTokenTransferFeeConfigResult, error) {
-		// Check if result is null (config not found)
-		isNil, err := r.IsNil(0)
+		// Presence discriminator lives in the last of the 8 stack slots.
+		present, err := r.Int(7)
 		if err != nil {
-			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error checking IsNil(0): %w", err)
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading presence discriminator at slot 7: %w", err)
 		}
-		if isNil {
+		if present.Sign() == 0 {
 			return GetTokenTransferFeeConfigResult{IsFound: false}, nil
 		}
 
-		// Load the config from the cell
-		c, err := r.Cell(0)
+		destGasOverhead, err := r.Int(0)
 		if err != nil {
-			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error getting Cell(0): %w", err)
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading destGasOverhead at slot 0: %w", err)
 		}
-
-		var cfg TokenTransferFeeConfig
-		if err := tlb.LoadFromCell(&cfg, c.MustBeginParse()); err != nil {
-			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error decoding TokenTransferFeeConfig: %w", err)
+		destBytesOverhead, err := r.Int(1)
+		if err != nil {
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading destBytesOverhead at slot 1: %w", err)
+		}
+		finalityFeeUSDCents, err := r.Int(2)
+		if err != nil {
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading finalityFeeUSDCents at slot 2: %w", err)
+		}
+		fastFinalityFeeUSDCents, err := r.Int(3)
+		if err != nil {
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading fastFinalityFeeUSDCents at slot 3: %w", err)
+		}
+		finalityTransferFeeBps, err := r.Int(4)
+		if err != nil {
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading finalityTransferFeeBps at slot 4: %w", err)
+		}
+		fastFinalityTransferFeeBps, err := r.Int(5)
+		if err != nil {
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading fastFinalityTransferFeeBps at slot 5: %w", err)
+		}
+		isEnabled, err := r.Int(6)
+		if err != nil {
+			return GetTokenTransferFeeConfigResult{}, fmt.Errorf("error reading isEnabled at slot 6: %w", err)
 		}
 
 		return GetTokenTransferFeeConfigResult{
 			IsFound: true,
-			Config:  cfg,
+			Config: TokenTransferFeeConfig{
+				DestGasOverhead:            uint32(destGasOverhead.Uint64()),
+				DestBytesOverhead:          uint32(destBytesOverhead.Uint64()),
+				FinalityFeeUSDCents:        tlb.FromNanoTON(finalityFeeUSDCents),
+				FastFinalityFeeUSDCents:    tlb.FromNanoTON(fastFinalityFeeUSDCents),
+				FinalityTransferFeeBps:     uint16(finalityTransferFeeBps.Uint64()),
+				FastFinalityTransferFeeBps: uint16(fastFinalityTransferFeeBps.Uint64()),
+				IsEnabled:                  isEnabled.Sign() != 0,
+			},
 		}, nil
 	}),
 }
@@ -322,17 +348,28 @@ var GetTokenTransferFeeConfig = tvm.Getter[uint64, GetTokenTransferFeeConfigResu
 var GetCurrentRateLimiterState = tvm.Getter[GetCurrentRateLimiterStateArgs, RateLimiterPair]{
 	Name: "getCurrentRateLimiterState",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (RateLimiterPair, error) {
-		c, err := r.Cell(0)
+		outboundCell, err := r.Cell(0)
 		if err != nil {
-			return RateLimiterPair{}, fmt.Errorf("error getting Cell(0) - rateLimiterPair: %w", err)
+			return RateLimiterPair{}, fmt.Errorf("error getting Cell(0) - outbound bucket: %w", err)
+		}
+		var outbound RateLimiterTokenBucket
+		if err := tlb.LoadFromCell(&outbound, outboundCell.MustBeginParse()); err != nil {
+			return RateLimiterPair{}, fmt.Errorf("error decoding outbound RateLimiterTokenBucket: %w", err)
 		}
 
-		var pair RateLimiterPair
-		if err := tlb.LoadFromCell(&pair, c.MustBeginParse()); err != nil {
-			return RateLimiterPair{}, fmt.Errorf("error decoding RateLimiterPair: %w", err)
+		inboundCell, err := r.Cell(1)
+		if err != nil {
+			return RateLimiterPair{}, fmt.Errorf("error getting Cell(1) - inbound bucket: %w", err)
+		}
+		var inbound RateLimiterTokenBucket
+		if err := tlb.LoadFromCell(&inbound, inboundCell.MustBeginParse()); err != nil {
+			return RateLimiterPair{}, fmt.Errorf("error decoding inbound RateLimiterTokenBucket: %w", err)
 		}
 
-		return pair, nil
+		return RateLimiterPair{
+			Outbound: outbound,
+			Inbound:  inbound,
+		}, nil
 	}),
 }
 
