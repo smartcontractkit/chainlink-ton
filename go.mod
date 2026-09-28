@@ -16,7 +16,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260910195529-801eb99e80b2
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
 	github.com/smartcontractkit/chainlink-framework/metrics v0.0.0-20251210101658-1c5c8e4c4f15
-	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260922223831-267f1979d206
+	github.com/smartcontractkit/chainlink-ton/cciplib v0.1.1-0.20260925185547-7ea74de84cb2
 	github.com/smartcontractkit/libocr v0.0.0-20260810200708-618b5bf7f342
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -144,11 +144,6 @@ require (
 )
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d
-
-// TODO: remove temp replace
-// Needed so the resurrected OnRamp UpdateSendExecutorMessage in cciplib is picked
-// up by the root module's TLBMap/Registry.
-replace github.com/smartcontractkit/chainlink-ton/cciplib => ./cciplib
 
 tool (
 	github.com/jmank88/gomods
