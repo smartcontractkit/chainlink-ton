@@ -1109,6 +1109,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       this.blockchain.sender(this.tokenAdminRegistry),
       toNano('0.1'),
       {
+        minEntryVersion: 1n,
+        actor: this.tokenAdminRegistry,
         tokenPool: null,
       },
     )

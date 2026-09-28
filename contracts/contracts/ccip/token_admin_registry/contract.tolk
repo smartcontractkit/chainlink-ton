@@ -6,6 +6,7 @@ import "../../lib/utils"
 import "events"
 
 import "../../lib/access/ownable_2step"
+import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
 import "../token_admin_registry_entry/messages"
 import "../token_admin_registry_entry/storage"
@@ -16,8 +17,10 @@ tolk 1.4.2
 /// Root contract for the sharded token-admin registry. It owns deployment
 /// configuration for deterministic entries and is the future replacement for
 /// the Router's token-registry administration surface.
-// TODO: define a controlled shard code/storage migration protocol for a
-// deployed entry if an entry bug or storage-layout change requires one.
+///
+/// Entries are upgraded on demand to the entry code compiled into this
+/// contract: every request to an entry declares a minimum entry version, and a
+/// stale entry round-trips the request through the root to get the new code.
 contract TokenAdminRegistry {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.6.0"
@@ -25,10 +28,14 @@ contract TokenAdminRegistry {
 
     storage: TokenAdminRegistry_Storage
     incomingMessages: TokenAdminRegistry_InMessage | Ownable2Step_Messages
-    thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error
+    thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error | Upgradeable_Error
 }
 
 const CONTRACT_VERSION = "1.6.0".literalSlice();
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual(CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
@@ -41,15 +48,34 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_OverridePendingAdministrator => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            overridePendingAdministrator(st, msg);
+            requireForwardValue(in.valueCoins);
+            overridePendingAdministrator(msg);
         }
         TokenAdminRegistry_TransferAdminRole => {
-            val st = TokenAdminRegistry_Storage.load();
-            transferAdminRole(st, msg, in.senderAddress);
+            requireForwardValue(in.valueCoins);
+            transferAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_AcceptAdminRole => {
+            requireForwardValue(in.valueCoins);
+            acceptAdminRole(msg, in.senderAddress);
+        }
+        TokenAdminRegistry_SetPool => {
+            requireForwardValue(in.valueCoins);
+            setPool(msg, in.senderAddress);
+        }
+        TokenAdminRegistry_EntryUpgradeRequest => {
             val st = TokenAdminRegistry_Storage.load();
-            acceptAdminRole(st, msg, in.senderAddress);
+            requireEntrySender(st, msg.token, in.senderAddress);
+            sendUpgradeAndResume(in.senderAddress, msg.queryId, msg.pending);
+        }
+        TokenAdminRegistry_UpgradeEntry => {
+            assert(in.valueCoins >= TokenAdminRegistryEntry_UpgradeAndResume.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            sendUpgradeAndResume(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, null);
+        }
+        Upgradeable_Upgrade => {
+            val st = lazy TokenAdminRegistry_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Upgradeable{ migrate, version }.upgrade(msg);
         }
         TokenAdminRegistry_AdministratorTransferRequested => {
             val st = TokenAdminRegistry_Storage.load();
@@ -81,12 +107,40 @@ fun onInternalMessage(in: InMessage) {
 /// Every entry event is relayed through the root. The token in the payload is
 /// sufficient to recompute the only entry address that may send that event.
 fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
-    val expectedEntry = TokenAdminRegistryEntry.deriveAddress(
-        deployableCode(),
-        token,
-        contract.getAddress(),
-    ).calculateAddress();
+    val expectedEntry = entryAddress(token).calculateAddress();
     assert(sender == expectedEntry) throw TokenAdminRegistry_Error.UnauthorizedEntry;
+}
+
+fun entryAddress(token: address): AutoDeployAddress {
+    return TokenAdminRegistryEntry.deriveAddress(deployableCode(), token, contract.getAddress());
+}
+
+fun requireForwardValue(value: coins) {
+    assert(value >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+}
+
+/// Forwards to an entry carrying all value, so a stale entry can fund its
+/// upgrade round trip before handling the request.
+fun forwardToEntry(token: address, body: cell) {
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: entryAddress(token),
+        body,
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun sendUpgradeAndResume(dest: address, queryId: uint64, pending: Cell<TokenAdminRegistryEntry_Pending>?) {
+    createMessage({
+        bounce: true,
+        value: 0,
+        dest,
+        body: TokenAdminRegistryEntry_UpgradeAndResume {
+            queryId,
+            code: entryCode(),
+            pending,
+        },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
@@ -112,19 +166,13 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
     // Until then, the root owner is the trusted registration module.
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
 
-    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployableCode(),
-        msg.tokenAddress,
-        contract.getAddress(),
-    );
-
     val deployMsg = createMessage({
         bounce: false,
         // Covers Deployable initialization and the event self-message below.
         // The former Router flow only initialized the shard; this path also
         // emits the initial administrator-proposal event atomically.
         value: grams("0.05"),
-        dest: entryAddress,
+        dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {
             stateInit: {
                 code: entryCode(),
@@ -153,61 +201,42 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 
 /// Replaces an unaccepted administrator proposal. The shard enforces that no
 /// active administrator exists, so this cannot reclaim a configured token.
-fun overridePendingAdministrator(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_OverridePendingAdministrator) {
+fun overridePendingAdministrator(msg: TokenAdminRegistry_OverridePendingAdministrator) {
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
-    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployableCode(),
-        msg.tokenAddress,
-        contract.getAddress(),
-    );
-    val proposeMsg = createMessage({
-        bounce: false,
-        value: grams("0.015"),
-        dest: entryAddress,
-        body: TokenAdminRegistryEntry_ProposeAdministrator {
-            queryId: msg.queryId,
-            administrator: msg.administrator,
-        },
-    });
-    proposeMsg.send(SEND_MODE_REGULAR);
+    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_ProposeAdministrator {
+        queryId: msg.queryId,
+        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+        administrator: msg.administrator,
+    }.toCell());
 }
 
-/// The root is the only public ingress for administrator lifecycle changes.
-/// It derives the shard and forwards the original caller as `actor`; the entry
-/// remains responsible for checking its own active/pending administrator state.
-fun transferAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_TransferAdminRole, actor: address) {
-    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployableCode(),
-        msg.tokenAddress,
-        contract.getAddress(),
-    );
-    createMessage({
-        bounce: false,
-        value: grams("0.015"),
-        dest: entryAddress,
-        body: TokenAdminRegistryEntry_TransferAdminRole {
-            queryId: msg.queryId,
-            actor,
-            newAdministrator: msg.newAdministrator,
-        }.toCell(),
-    }).send(SEND_MODE_REGULAR);
+/// The root is the only public ingress for entry administration. It derives
+/// the shard and forwards the original caller as `actor`; the entry remains
+/// responsible for checking its own active/pending administrator state.
+fun transferAdminRole(msg: TokenAdminRegistry_TransferAdminRole, actor: address) {
+    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_TransferAdminRole {
+        queryId: msg.queryId,
+        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+        actor,
+        newAdministrator: msg.newAdministrator,
+    }.toCell());
 }
 
-fun acceptAdminRole(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_AcceptAdminRole, actor: address) {
-    val entryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployableCode(),
-        msg.tokenAddress,
-        contract.getAddress(),
-    );
-    createMessage({
-        bounce: false,
-        value: grams("0.015"),
-        dest: entryAddress,
-        body: TokenAdminRegistryEntry_AcceptAdminRole {
-            queryId: msg.queryId,
-            actor,
-        }.toCell(),
-    }).send(SEND_MODE_REGULAR);
+fun acceptAdminRole(msg: TokenAdminRegistry_AcceptAdminRole, actor: address) {
+    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_AcceptAdminRole {
+        queryId: msg.queryId,
+        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+        actor,
+    }.toCell());
+}
+
+fun setPool(msg: TokenAdminRegistry_SetPool, actor: address) {
+    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_SetPool {
+        queryId: msg.queryId,
+        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+        actor,
+        tokenPool: msg.tokenPool,
+    }.toCell());
 }
 
 import "../../../gen/Deployable.code"
@@ -232,6 +261,15 @@ get fun pendingOwner(): address? {
     val st = lazy TokenAdminRegistry_Storage.load();
     return st.ownable.get_pendingOwner();
 }
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell {
+    requireSupportedVersion(version);
+    return storage;
+}
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
 
 get fun typeAndVersion(): (slice, slice) {
     return (TokenAdminRegistry_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);

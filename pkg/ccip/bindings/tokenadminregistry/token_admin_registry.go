@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 )
 
@@ -18,6 +19,8 @@ var (
 	OpcodeOverridePendingAdministrator = tvm.MustExtractMagic(reflect.TypeFor[OverridePendingAdministrator]())
 	OpcodeTransferAdminRole            = tvm.MustExtractMagic(reflect.TypeFor[TransferAdminRole]())
 	OpcodeAcceptAdminRole              = tvm.MustExtractMagic(reflect.TypeFor[AcceptAdminRole]())
+	OpcodeSetPool                      = tvm.MustExtractMagic(reflect.TypeFor[SetPool]())
+	OpcodeUpgradeEntry                 = tvm.MustExtractMagic(reflect.TypeFor[UpgradeEntry]())
 )
 
 type Storage struct {
@@ -59,6 +62,32 @@ type AcceptAdminRole struct {
 	TokenAddress *address.Address `tlb:"addr"`
 }
 
+// crc32('TokenAdminRegistry_SetPool')
+// The root derives the token entry and forwards the sender as its actor.
+type SetPool struct {
+	_            tlb.Magic        `tlb:"#37bcaede" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID      uint64           `tlb:"## 64"`
+	TokenAddress *address.Address `tlb:"addr"`
+	TokenPool    *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_EntryUpgradeRequest')
+// Sent by a stale entry with the request it parked.
+type EntryUpgradeRequest struct {
+	_       tlb.Magic                       `tlb:"#55b8b654" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64                          `tlb:"## 64"`
+	Token   *address.Address                `tlb:"addr"`
+	Pending tokenadminregistryentry.Pending `tlb:"^"`
+}
+
+// crc32('TokenAdminRegistry_UpgradeEntry')
+// Permissionless: upgrades the derived entry to the root's entry code.
+type UpgradeEntry struct {
+	_            tlb.Magic        `tlb:"#4d52f09d" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID      uint64           `tlb:"## 64"`
+	TokenAddress *address.Address `tlb:"addr"`
+}
+
 // The following messages are sent by a deterministic entry to this root and
 // emitted externally after the root validates the entry address.
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
@@ -92,6 +121,10 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	OverridePendingAdministrator{},
 	TransferAdminRole{},
 	AcceptAdminRole{},
+	SetPool{},
+	EntryUpgradeRequest{},
+	UpgradeEntry{},
+	upgradeable.Upgrade{},
 	AdministratorTransferRequested{},
 	AdministratorTransferred{},
 	PoolSet{},

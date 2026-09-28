@@ -153,6 +153,12 @@ src = "contracts/ccip/token_admin_registry_entry/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.TokenAdminRegistryEntryV0]
+display-name = "link.chain.ton.ccip.test.TokenAdminRegistryEntryV0"
+src = "contracts/ccip/test/token_admin_registry_entry_v0/contract.tolk"
+domain = "test"
+depends = []
+
 [contracts.Timelock]
 display-name = "link.chain.ton.mcms.Timelock"
 src = "contracts/mcms/rbac_timelock.tolk"

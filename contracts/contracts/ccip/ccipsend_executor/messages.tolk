@@ -13,6 +13,7 @@ type CCIPSendExecutor_InMessage =
     | FeeQuoter_MessageValidated_Any
     | FeeQuoter_MessageValidationFailed_Any
     | TokenAdminRegistryEntry_ReturnTokenInfo
+    | TokenAdminRegistryEntry_TokenInfoUnavailable
     | ResponseWalletAddress
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished

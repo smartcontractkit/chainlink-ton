@@ -7,6 +7,7 @@ import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 
 import "../token_admin_registry_entry/messages"
+import "../token_admin_registry_entry/types"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../onramp/messages"
@@ -63,6 +64,12 @@ fun onInternalMessage(in: InMessage) {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
+        }
+        // Sender must be TokenRegistry
+        TokenAdminRegistryEntry_TokenInfoUnavailable => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            this.exitWithError(CCIPSendExecutor_Error.TokenInfoUnavailable as uint256);
         }
         // Sender must be minter
         ResponseWalletAddress => {
@@ -198,6 +205,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         dest: tokenRegistry.load(),
         body: TokenAdminRegistryEntry_GetTokenInfo {
             queryId: 0,
+            minEntryVersion: TokenAdminRegistryEntry_VERSION,
         }
     });
     queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);

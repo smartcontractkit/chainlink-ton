@@ -11,4 +11,5 @@ enum ReceiveExecutor_Error {
     TokenAdminRegistryUnexpectedResponse
     TokenPoolUnexpectedResponse
     TokenNotEnabledInTokenRegistry
+    TokenInfoUnavailable
 }
