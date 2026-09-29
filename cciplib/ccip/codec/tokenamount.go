@@ -47,8 +47,8 @@ func buildAny2TVMTokenTransfer(
 
 	poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
 
-	// Always pack, even for an empty byte slice: SnakeBytes.ToCell returns a
-	// non-nil empty cell, which serializes as a mandatory ref to an empty cell.
+	// Preserve empty ExtraData as nil so the optional cell serializes as absent;
+	// non-empty bytes are packed into a snake cell.
 	var extraData *cell.Cell
 	if len(tokenAmount.ExtraData) > 0 {
 		extraData, err = tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
