@@ -63,6 +63,18 @@ fun onInternalMessage(in: InMessage) {
             requireForwardValue(in.valueCoins);
             setPool(msg, in.senderAddress);
         }
+        TokenAdminRegistry_GetTokenInfo => {
+            forwardToEntry(msg.token, TokenAdminRegistryEntry_ResolveTokenInfo {
+                queryId: msg.queryId,
+                minEntryVersion: TokenAdminRegistryEntry_VERSION,
+                requester: in.senderAddress,
+            }.toCell());
+        }
+        TokenAdminRegistry_TokenInfoResolved => {
+            val st = TokenAdminRegistry_Storage.load();
+            requireEntrySender(st, msg.token, in.senderAddress);
+            returnTokenInfo(msg);
+        }
         TokenAdminRegistry_EntryUpgradeRequest => {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
@@ -125,7 +137,7 @@ fun forwardToEntry(token: address, body: cell) {
     createMessage({
         bounce: false,
         value: 0,
-        dest: entryAddress(token),
+        dest: entryAddress(token).calculateAddress(),
         body,
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -139,6 +151,22 @@ fun sendUpgradeAndResume(dest: address, queryId: uint64, pending: Cell<TokenAdmi
             queryId,
             code: entryCode(),
             pending,
+        },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun returnTokenInfo(msg: TokenAdminRegistry_TokenInfoResolved) {
+    val tokenInfo = msg.tokenInfo.load();
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: msg.requester,
+        body: TokenAdminRegistry_ReturnTokenInfo {
+            queryId: msg.queryId,
+            token: msg.token,
+            minterAddress: tokenInfo.minterAddress,
+            tokenPool: tokenInfo.tokenPool,
+            version: tokenInfo.version,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

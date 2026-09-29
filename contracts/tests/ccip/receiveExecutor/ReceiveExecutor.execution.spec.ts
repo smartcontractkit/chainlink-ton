@@ -334,17 +334,18 @@ describe('ReceiveExecutor - Execution', () => {
         from: executor.address,
         to: tokenAdminRegistry.address,
         success: true,
-        op: rx.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
+        op: rx.TokenAdminRegistry_GetTokenInfo.PREFIX,
       })
       return result
     }
 
     /** TokenAdminRegistry returns a token pool -> sends ReleaseOrMint. */
     async function returnTokenInfoWithPool(executor: SandboxContract<rx.ReceiveExecutor>) {
-      const result = await executor.sendTokenAdminRegistryEntryReturnTokenInfo(
+      const result = await executor.sendTokenAdminRegistryReturnTokenInfo(
         tokenAdminRegistry.getSender(),
         toNano('1'),
         {
+          token: messageWithTT.tokenAmounts![0].token,
           minterAddress: deployer.address,
           tokenPool: tokenPool.address,
           version: 1n,
@@ -410,10 +411,11 @@ describe('ReceiveExecutor - Execution', () => {
 
       it('should send NotifyFailure when TokenAdminRegistry returns no token pool', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryEntryReturnTokenInfo(
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
             version: 1n,
@@ -423,7 +425,7 @@ describe('ReceiveExecutor - Execution', () => {
           from: tokenAdminRegistry.address,
           to: receiveExecutorWithToken.address,
           success: true,
-          op: rx.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
+          op: rx.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
         })
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -435,10 +437,11 @@ describe('ReceiveExecutor - Execution', () => {
 
       it('should reject ReturnTokenInfo from non-tokenAdminRegistry', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryEntryReturnTokenInfo(
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
           nonOwner.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
             version: 1n,
@@ -453,10 +456,11 @@ describe('ReceiveExecutor - Execution', () => {
       })
 
       it('should reject ReturnTokenInfo when state is not TokenAdminRegistryQuery', async () => {
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryEntryReturnTokenInfo(
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
             version: 1n,
@@ -653,10 +657,11 @@ describe('ReceiveExecutor - Execution', () => {
       it('should re-query TokenAdminRegistry when retrying from TokenAdminRegistryQueryFailed', async () => {
         // First query fails because no token pool is returned.
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await receiveExecutorWithToken.sendTokenAdminRegistryEntryReturnTokenInfo(
+        await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
             version: 1n,
@@ -732,10 +737,11 @@ describe('ReceiveExecutor - Execution', () => {
         )
 
         // TokenAdminRegistry returns a token pool -> ReleaseOrMint.
-        const result = await receiveExecutorLowGas.sendTokenAdminRegistryEntryReturnTokenInfo(
+        const result = await receiveExecutorLowGas.sendTokenAdminRegistryReturnTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
             version: 1n,
@@ -782,10 +788,11 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        const result = await receiveExecutorHighGas.sendTokenAdminRegistryEntryReturnTokenInfo(
+        const result = await receiveExecutorHighGas.sendTokenAdminRegistryReturnTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
             version: 1n,
@@ -939,10 +946,11 @@ describe('ReceiveExecutor - Execution', () => {
       it('should retry both token transfer and execution when retrying from TokenAdminRegistryQueryFailed', async () => {
         // First query fails because no token pool is returned.
         await initExecuteQueriesRegistry(receiveExecutorPtt)
-        await receiveExecutorPtt.sendTokenAdminRegistryEntryReturnTokenInfo(
+        await receiveExecutorPtt.sendTokenAdminRegistryReturnTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
             version: 1n,

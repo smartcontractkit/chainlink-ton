@@ -12,8 +12,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
-// Version is TokenAdminRegistryEntry_VERSION: the entry version requesters
-// declare as the minimum they can consume.
+// Version is TokenAdminRegistryEntry_VERSION: the entry version the root
+// declares as the minimum in its messages to entries.
 const Version = 1
 
 var (
@@ -39,10 +39,20 @@ type AdminConfig struct {
 }
 
 // crc32('TokenAdminRegistryEntry_GetTokenInfo')
+// Public read answered by the entry's running code. CCIP resolves token info
+// through the root instead (tokenadminregistry.GetTokenInfo).
 type GetTokenInfo struct {
-	_               tlb.Magic `tlb:"#7aef4c2d" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID         uint64    `tlb:"## 64"`
-	MinEntryVersion uint16    `tlb:"## 16"`
+	_       tlb.Magic `tlb:"#7aef4c2d" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64    `tlb:"## 64"`
+}
+
+// crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
+// Sent by the root on behalf of Requester.
+type ResolveTokenInfo struct {
+	_               tlb.Magic        `tlb:"#4f60fff3" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID         uint64           `tlb:"## 64"`
+	MinEntryVersion uint16           `tlb:"## 16"`
+	Requester       *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
@@ -115,14 +125,9 @@ type ReturnTokenInfo struct {
 	Version       uint32           `tlb:"## 32"`
 }
 
-// crc32('TokenAdminRegistryEntry_TokenInfoUnavailable')
-type TokenInfoUnavailable struct {
-	_       tlb.Magic `tlb:"#30a47901" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID uint64    `tlb:"## 64"`
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	GetTokenInfo{},
+	ResolveTokenInfo{},
 	RegistrationInitialized{},
 	ProposeAdministrator{},
 	TransferAdminRole{},
@@ -131,5 +136,4 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	UpgradeAndResume{},
 	Resume{},
 	ReturnTokenInfo{},
-	TokenInfoUnavailable{},
 }).MustWithStorageType(Storage{})

@@ -8,6 +8,8 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_TransferAdminRole
     | TokenAdminRegistry_AcceptAdminRole
     | TokenAdminRegistry_SetPool
+    | TokenAdminRegistry_GetTokenInfo
+    | TokenAdminRegistry_TokenInfoResolved
     | TokenAdminRegistry_EntryUpgradeRequest
     | TokenAdminRegistry_UpgradeEntry
     | Upgradeable_Upgrade
@@ -57,6 +59,41 @@ struct (0x37bcaede) TokenAdminRegistry_SetPool {
     tokenAddress: address;
     /// A null pool delists the token from CCIP.
     tokenPool: address?;
+}
+
+/// CCIP read path: resolves the token info of the entry derived from `token`
+/// and replies TokenAdminRegistry_ReturnTokenInfo to the sender.
+// crc32('TokenAdminRegistry_GetTokenInfo')
+struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
+    queryId: uint64;
+    token: address;
+}
+
+/// Covers root -> entry -> root -> requester, a possible upgrade of a stale
+/// entry on the way, and the requester's handling of the reply.
+fun TokenAdminRegistry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
+    return grams("0.01") + TokenAdminRegistryEntry_UpgradeAndResume.cost() + responseHandlerCost;
+}
+
+/// Entry answer to TokenAdminRegistryEntry_ResolveTokenInfo, relayed to
+/// `requester` after the root validates the entry address.
+// crc32('TokenAdminRegistry_TokenInfoResolved')
+struct (0x8f422c44) TokenAdminRegistry_TokenInfoResolved {
+    queryId: uint64;
+    token: address;
+    requester: address;
+    tokenInfo: Cell<TokenRegistry_TokenInfo>;
+}
+
+// crc32('TokenAdminRegistry_ReturnTokenInfo')
+struct (0x8db6ef6c) TokenAdminRegistry_ReturnTokenInfo {
+    queryId: uint64;
+    token: address;
+    minterAddress: address;
+    /// A null pool means the token is delisted from CCIP.
+    tokenPool: address?;
+    /// Pool interface version.
+    version: uint32;
 }
 
 /// Sent by a stale entry with the request it parked. The root answers with its

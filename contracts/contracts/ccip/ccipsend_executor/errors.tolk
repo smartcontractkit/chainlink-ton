@@ -9,5 +9,4 @@ enum CCIPSendExecutor_Error {
     FeeQuoterBounce
     TokenNotEnabled
     TokenPoolBounce
-    TokenInfoUnavailable
 }

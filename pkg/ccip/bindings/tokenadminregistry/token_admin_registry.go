@@ -21,6 +21,8 @@ var (
 	OpcodeAcceptAdminRole              = tvm.MustExtractMagic(reflect.TypeFor[AcceptAdminRole]())
 	OpcodeSetPool                      = tvm.MustExtractMagic(reflect.TypeFor[SetPool]())
 	OpcodeUpgradeEntry                 = tvm.MustExtractMagic(reflect.TypeFor[UpgradeEntry]())
+	OpcodeGetTokenInfo                 = tvm.MustExtractMagic(reflect.TypeFor[GetTokenInfo]())
+	OpcodeReturnTokenInfo              = tvm.MustExtractMagic(reflect.TypeFor[ReturnTokenInfo]())
 )
 
 type Storage struct {
@@ -69,6 +71,34 @@ type SetPool struct {
 	QueryID      uint64           `tlb:"## 64"`
 	TokenAddress *address.Address `tlb:"addr"`
 	TokenPool    *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_GetTokenInfo')
+// CCIP read path: the root resolves the token's entry and replies ReturnTokenInfo.
+type GetTokenInfo struct {
+	_       tlb.Magic        `tlb:"#ec5f855e" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_TokenInfoResolved')
+// Entry answer relayed to Requester after the root validates the entry address.
+type TokenInfoResolved struct {
+	_         tlb.Magic                         `tlb:"#8f422c44" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID   uint64                            `tlb:"## 64"`
+	Token     *address.Address                  `tlb:"addr"`
+	Requester *address.Address                  `tlb:"addr"`
+	TokenInfo tokenadminregistryentry.TokenInfo `tlb:"^"`
+}
+
+// crc32('TokenAdminRegistry_ReturnTokenInfo')
+type ReturnTokenInfo struct {
+	_             tlb.Magic        `tlb:"#8db6ef6c" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID       uint64           `tlb:"## 64"`
+	Token         *address.Address `tlb:"addr"`
+	MinterAddress *address.Address `tlb:"addr"`
+	TokenPool     *address.Address `tlb:"addr"`
+	Version       uint32           `tlb:"## 32"`
 }
 
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
@@ -122,6 +152,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	TransferAdminRole{},
 	AcceptAdminRole{},
 	SetPool{},
+	GetTokenInfo{},
+	TokenInfoResolved{},
+	ReturnTokenInfo{},
 	EntryUpgradeRequest{},
 	UpgradeEntry{},
 	upgradeable.Upgrade{},

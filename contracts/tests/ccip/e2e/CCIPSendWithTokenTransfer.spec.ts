@@ -364,7 +364,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
         if (!x) return false
         return (
           exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).config.tokenRegistry?.equals(
-            tokenRegistry.address,
+            tokenAdminRegistry.address,
           ) ?? false
         )
       },
@@ -382,17 +382,29 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: fq.FeeQuoter_MessageValidated.PREFIX,
       success: true,
     })
-    // executor -> tokenRegistry and back
+    // executor -> TokenAdminRegistry -> entry -> TokenAdminRegistry -> executor
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
+      to: tokenAdminRegistry.address,
+      op: tar.TokenAdminRegistry_GetTokenInfo.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: tokenAdminRegistry.address,
       to: tokenRegistry.address,
-      op: tr.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
+      op: tr.TokenAdminRegistryEntry_ResolveTokenInfo.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: tokenRegistry.address,
+      to: tokenAdminRegistry.address,
+      op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: tokenAdminRegistry.address,
       to: executorAddress,
-      op: tr.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
+      op: tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
       success: true,
     })
     // executor -> onRamp (requests lock/burn)

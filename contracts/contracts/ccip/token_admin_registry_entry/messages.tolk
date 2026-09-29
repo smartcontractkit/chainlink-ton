@@ -2,6 +2,7 @@ import "types"
 
 type TokenAdminRegistryEntry_InMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
+    | TokenAdminRegistryEntry_ResolveTokenInfo
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_ProposeAdministrator
     | TokenAdminRegistryEntry_TransferAdminRole
@@ -10,19 +11,27 @@ type TokenAdminRegistryEntry_InMessage =
     | TokenAdminRegistryEntry_UpgradeAndResume
     | TokenAdminRegistryEntry_Resume;
 
+/// Public read answered by the running code. CCIP resolves token info through
+/// the root instead (TokenAdminRegistry_GetTokenInfo).
 // crc32('TokenAdminRegistryEntry_GetTokenInfo')
 struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
     queryId: uint64;
-    minEntryVersion: uint16;
 }
 
-/// Includes the worst case in which the entry must upgrade before replying.
 fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
     return
         + grams("0.002")
         + grams("0.019")
-        + TokenAdminRegistryEntry_UpgradeAndResume.cost()
         + responseHandlerCost;
+}
+
+/// Sent by the root on behalf of `requester`. The entry answers the root with
+/// TokenAdminRegistry_TokenInfoResolved.
+// crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
+struct (0x4f60fff3) TokenAdminRegistryEntry_ResolveTokenInfo {
+    queryId: uint64;
+    minEntryVersion: uint16;
+    requester: address;
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
@@ -83,19 +92,10 @@ struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
     pending: Cell<TokenAdminRegistryEntry_Pending>;
 }
 
-/// Stable reply ABI: future entry versions must answer in the format matching
-/// the requester's `minEntryVersion`.
 // crc32('TokenAdminRegistryEntry_ReturnTokenInfo')
 struct (0x0a58e678) TokenAdminRegistryEntry_ReturnTokenInfo {
     queryId: uint64;
     minterAddress: address
     tokenPool: address?
     version: uint32
-}
-
-/// Replied instead of ReturnTokenInfo when the root cannot provide an entry
-/// that satisfies the requested `minEntryVersion`.
-// crc32('TokenAdminRegistryEntry_TokenInfoUnavailable')
-struct (0x30a47901) TokenAdminRegistryEntry_TokenInfoUnavailable {
-    queryId: uint64;
 }

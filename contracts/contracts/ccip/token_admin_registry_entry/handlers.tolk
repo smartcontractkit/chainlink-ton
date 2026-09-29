@@ -15,7 +15,7 @@ struct TokenAdminRegistryEntry_Code {
 }
 
 /// `allowUpgrade` is false when replaying a parked request after an upgrade, so
-/// a root that cannot satisfy the requested version does not cause a loop.
+/// a root that cannot satisfy its own requested version does not cause a loop.
 fun TokenAdminRegistryEntry_dispatch(body: slice, sender: address, allowUpgrade: bool, code: TokenAdminRegistryEntry_Code): void {
     val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(body);
 
@@ -23,12 +23,12 @@ fun TokenAdminRegistryEntry_dispatch(body: slice, sender: address, allowUpgrade:
 
         // TODO: min value assertion throughout
         TokenAdminRegistryEntry_GetTokenInfo => {
-            if (!allowUpgrade && msg.minEntryVersion > code.entryVersion) {
-                replyTokenInfoUnavailable(msg.queryId, sender);
-                return;
-            }
+            onGetTokenInfo(msg, sender);
+        }
+        TokenAdminRegistryEntry_ResolveTokenInfo => {
+            requireRoot(sender);
             if (ensureVersion(msg.queryId, msg.minEntryVersion, sender, body, allowUpgrade, code)) {
-                onGetTokenInfo(msg, sender);
+                onResolveTokenInfo(msg, sender);
             }
         }
         TokenAdminRegistryEntry_RegistrationInitialized => {
@@ -121,12 +121,18 @@ fun onUpgradeAndResume(msg: TokenAdminRegistryEntry_UpgradeAndResume, upgradeabl
     }
 }
 
-fun replyTokenInfoUnavailable(queryId: uint64, sender: address) {
+fun onResolveTokenInfo(msg: TokenAdminRegistryEntry_ResolveTokenInfo, root: address) {
+    val st = TokenRegistry_Storage.load();
     createMessage({
         bounce: false,
         value: 0,
-        dest: sender,
-        body: TokenAdminRegistryEntry_TokenInfoUnavailable { queryId },
+        dest: root,
+        body: TokenAdminRegistry_TokenInfoResolved {
+            queryId: msg.queryId,
+            token: st.tokenAddress,
+            requester: msg.requester,
+            tokenInfo: st.tokenInfo.toCell(),
+        },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 

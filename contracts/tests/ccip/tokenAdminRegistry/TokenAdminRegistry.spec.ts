@@ -453,7 +453,80 @@ describe('TokenAdminRegistry', () => {
     expect(noOp.transactions).not.toHaveTransaction({ from: entry.address, to: registry.address })
   })
 
-  it('returns no pool for delisted entries while preserving token metadata', async () => {
+  const returnedTokenInfo = (result: { transactions: any[] }, requester: Address) => {
+    const reply = result.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src.equals(registry.address) &&
+        tx.inMessage.info.dest.equals(requester),
+    )
+    if (!reply?.inMessage) {
+      throw new Error('TokenAdminRegistry token info reply not found')
+    }
+    return tar.TokenAdminRegistry_ReturnTokenInfo.fromSlice(reply.inMessage.body.beginParse())
+  }
+
+  it('resolves token info through the root for CCIP reads', async () => {
+    await register()
+    const result = await registry.sendTokenAdminRegistryGetTokenInfo(
+      other.getSender(),
+      toNano('0.1'),
+      { queryId: 106n, token },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: registry.address,
+      to: entryFor().address,
+      op: tare.TokenAdminRegistryEntry_ResolveTokenInfo.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: entryFor().address,
+      to: registry.address,
+      op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
+      success: true,
+    })
+    expect(returnedTokenInfo(result, other.address)).toEqual(
+      tar.TokenAdminRegistry_ReturnTokenInfo.create({
+        queryId: 106n,
+        token,
+        minterAddress: token,
+        tokenPool: pool,
+        version: 1n,
+      }),
+    )
+  })
+
+  it('rejects resolved token info not sent by the deterministic entry', async () => {
+    await register()
+    const forged = await registry.sendTokenAdminRegistryTokenInfoResolved(
+      other.getSender(),
+      toNano('0.1'),
+      { token, requester: other.address, tokenInfo: tokenInfo(replacementPool) },
+    )
+    expect(forged.transactions).toHaveTransaction({
+      from: other.address,
+      to: registry.address,
+      success: false,
+      exitCode: tar.TokenAdminRegistry.Errors['TokenAdminRegistry_Error.UnauthorizedEntry'],
+    })
+  })
+
+  it('rejects root-only entry reads from other senders', async () => {
+    await register()
+    const direct = await entryFor().sendTokenAdminRegistryEntryResolveTokenInfo(
+      other.getSender(),
+      toNano('0.1'),
+      { minEntryVersion: 1n, requester: other.address },
+    )
+    expect(direct.transactions).toHaveTransaction({
+      from: other.address,
+      to: entryFor().address,
+      success: false,
+      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
+    })
+  })
+
+  it('returns no pool for delisted entries through the public entry read', async () => {
     await register()
     const entry = entryFor()
     await acceptAdminRole(administrator)
@@ -462,7 +535,7 @@ describe('TokenAdminRegistry', () => {
     const query = await entry.sendTokenAdminRegistryEntryGetTokenInfo(
       other.getSender(),
       toNano('0.05'),
-      { queryId: 105n, minEntryVersion: 1n },
+      { queryId: 105n },
     )
     expect(query.transactions).toHaveTransaction({
       from: entry.address,
@@ -563,14 +636,10 @@ describe('TokenAdminRegistry', () => {
       })
     }
 
-    const getTokenInfo = (
-      sender: SandboxContract<TreasuryContract>,
-      minEntryVersion = 1n,
-      value = toNano('0.1'),
-    ) =>
-      entryFor().sendTokenAdminRegistryEntryGetTokenInfo(sender.getSender(), value, {
+    const getTokenInfo = (sender: SandboxContract<TreasuryContract>, value = toNano('0.1')) =>
+      registry.sendTokenAdminRegistryGetTokenInfo(sender.getSender(), value, {
         queryId: 7n,
-        minEntryVersion,
+        token,
       })
 
     it('deploys entries with the root entry code at the current version', async () => {
@@ -610,12 +679,7 @@ describe('TokenAdminRegistry', () => {
       expectSelfHealed(result)
       expect(await entryCode_()).toEqual(entryCode)
       expect(await entryFor().getTokenInfo()).toEqual(tokenInfo())
-      expect(result.transactions).toHaveTransaction({
-        from: entryFor().address,
-        to: other.address,
-        op: tare.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
-        success: true,
-      })
+      expect(returnedTokenInfo(result, other.address).tokenPool).toEqual(pool)
     })
 
     it('upgrades a stale entry before applying each administrative operation', async () => {
@@ -665,12 +729,12 @@ describe('TokenAdminRegistry', () => {
       const entry = entryFor()
 
       const body = (queryId: bigint) =>
-        tare.TokenAdminRegistryEntry_GetTokenInfo.toCell(
-          tare.TokenAdminRegistryEntry_GetTokenInfo.create({ queryId, minEntryVersion: 1n }),
+        tar.TokenAdminRegistry_GetTokenInfo.toCell(
+          tar.TokenAdminRegistry_GetTokenInfo.create({ queryId, token }),
         )
       const result = await other.sendMessages([
-        internal({ to: entry.address, value: toNano('0.1'), body: body(1n) }),
-        internal({ to: entry.address, value: toNano('0.1'), body: body(2n) }),
+        internal({ to: registry.address, value: toNano('0.1'), body: body(1n) }),
+        internal({ to: registry.address, value: toNano('0.1'), body: body(2n) }),
       ])
 
       const upgrades = result.transactions.filter(
@@ -683,42 +747,16 @@ describe('TokenAdminRegistry', () => {
       const replies = result.transactions.filter(
         (tx) =>
           tx.inMessage?.info.type === 'internal' &&
-          tx.inMessage.info.src.equals(entry.address) &&
+          tx.inMessage.info.src.equals(registry.address) &&
           tx.inMessage.info.dest.equals(other.address),
       )
       expect(
         replies.map(
           (tx) =>
-            tare.TokenAdminRegistryEntry_ReturnTokenInfo.fromSlice(tx.inMessage!.body.beginParse())
+            tar.TokenAdminRegistry_ReturnTokenInfo.fromSlice(tx.inMessage!.body.beginParse())
               .queryId,
         ),
       ).toEqual([1n, 2n])
-      expect(await entryCode_()).toEqual(entryCode)
-    })
-
-    it('replies TokenInfoUnavailable when the root cannot satisfy the requested version', async () => {
-      await register()
-
-      const result = await getTokenInfo(other, 2n)
-      expectSelfHealed(result)
-      expect(result.transactions).toHaveTransaction({
-        from: entryFor().address,
-        to: other.address,
-        op: tare.TokenAdminRegistryEntry_TokenInfoUnavailable.PREFIX,
-        success: true,
-      })
-      expect(result.transactions).not.toHaveTransaction({
-        from: entryFor().address,
-        to: other.address,
-        op: tare.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
-      })
-      expect(
-        result.transactions.filter(
-          (tx) =>
-            tx.inMessage?.info.type === 'internal' &&
-            tx.inMessage.info.dest.equals(registry.address),
-        ),
-      ).toHaveLength(1)
       expect(await entryCode_()).toEqual(entryCode)
     })
 
@@ -840,15 +878,10 @@ describe('TokenAdminRegistry', () => {
       await register()
       await makeStale()
 
-      // TokenAdminRegistryEntry_GetTokenInfo.cost(0)
-      const result = await getTokenInfo(other, 1n, toNano('0.041'))
+      // TokenAdminRegistry_GetTokenInfo.cost(0)
+      const result = await getTokenInfo(other, toNano('0.03'))
       expectSelfHealed(result)
-      expect(result.transactions).toHaveTransaction({
-        from: entryFor().address,
-        to: other.address,
-        op: tare.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
-        success: true,
-      })
+      expect(returnedTokenInfo(result, other.address).tokenPool).toEqual(pool)
     })
   })
 })

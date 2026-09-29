@@ -149,13 +149,11 @@ export const UnsafeBodyNoRef = {
 /**
  > struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
  >     queryId: uint64
- >     minEntryVersion: uint16
  > }
  */
 export interface TokenAdminRegistryEntry_GetTokenInfo {
     readonly $: 'TokenAdminRegistryEntry_GetTokenInfo'
     queryId: uint64
-    minEntryVersion: uint16
 }
 
 export const TokenAdminRegistryEntry_GetTokenInfo = {
@@ -163,7 +161,6 @@ export const TokenAdminRegistryEntry_GetTokenInfo = {
 
     create(args: {
         queryId?: uint64
-        minEntryVersion: uint16
     }): TokenAdminRegistryEntry_GetTokenInfo {
         return {
             $: 'TokenAdminRegistryEntry_GetTokenInfo',
@@ -176,16 +173,62 @@ export const TokenAdminRegistryEntry_GetTokenInfo = {
         return {
             $: 'TokenAdminRegistryEntry_GetTokenInfo',
             queryId: s.loadUintBig(64),
-            minEntryVersion: s.loadUintBig(16),
         }
     },
     store(self: TokenAdminRegistryEntry_GetTokenInfo, b: c.Builder): void {
         b.storeUint(0x7aef4c2d, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.minEntryVersion, 16);
     },
     toCell(self: TokenAdminRegistryEntry_GetTokenInfo): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_GetTokenInfo>(self, TokenAdminRegistryEntry_GetTokenInfo.store);
+    }
+}
+
+/**
+ > struct (0x4f60fff3) TokenAdminRegistryEntry_ResolveTokenInfo {
+ >     queryId: uint64
+ >     minEntryVersion: uint16
+ >     requester: address
+ > }
+ */
+export interface TokenAdminRegistryEntry_ResolveTokenInfo {
+    readonly $: 'TokenAdminRegistryEntry_ResolveTokenInfo'
+    queryId: uint64
+    minEntryVersion: uint16
+    requester: c.Address
+}
+
+export const TokenAdminRegistryEntry_ResolveTokenInfo = {
+    PREFIX: 0x4f60fff3,
+
+    create(args: {
+        queryId?: uint64
+        minEntryVersion: uint16
+        requester: c.Address
+    }): TokenAdminRegistryEntry_ResolveTokenInfo {
+        return {
+            $: 'TokenAdminRegistryEntry_ResolveTokenInfo',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_ResolveTokenInfo {
+        loadAndCheckPrefix32(s, 0x4f60fff3, 'TokenAdminRegistryEntry_ResolveTokenInfo');
+        return {
+            $: 'TokenAdminRegistryEntry_ResolveTokenInfo',
+            queryId: s.loadUintBig(64),
+            minEntryVersion: s.loadUintBig(16),
+            requester: s.loadAddress(),
+        }
+    },
+    store(self: TokenAdminRegistryEntry_ResolveTokenInfo, b: c.Builder): void {
+        b.storeUint(0x4f60fff3, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.minEntryVersion, 16);
+        b.storeAddress(self.requester);
+    },
+    toCell(self: TokenAdminRegistryEntry_ResolveTokenInfo): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_ResolveTokenInfo>(self, TokenAdminRegistryEntry_ResolveTokenInfo.store);
     }
 }
 
@@ -570,44 +613,6 @@ export const TokenAdminRegistryEntry_ReturnTokenInfo = {
 }
 
 /**
- > struct (0x30a47901) TokenAdminRegistryEntry_TokenInfoUnavailable {
- >     queryId: uint64
- > }
- */
-export interface TokenAdminRegistryEntry_TokenInfoUnavailable {
-    readonly $: 'TokenAdminRegistryEntry_TokenInfoUnavailable'
-    queryId: uint64
-}
-
-export const TokenAdminRegistryEntry_TokenInfoUnavailable = {
-    PREFIX: 0x30a47901,
-
-    create(args: {
-        queryId?: uint64
-    }): TokenAdminRegistryEntry_TokenInfoUnavailable {
-        return {
-            $: 'TokenAdminRegistryEntry_TokenInfoUnavailable',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenAdminRegistryEntry_TokenInfoUnavailable {
-        loadAndCheckPrefix32(s, 0x30a47901, 'TokenAdminRegistryEntry_TokenInfoUnavailable');
-        return {
-            $: 'TokenAdminRegistryEntry_TokenInfoUnavailable',
-            queryId: s.loadUintBig(64),
-        }
-    },
-    store(self: TokenAdminRegistryEntry_TokenInfoUnavailable, b: c.Builder): void {
-        b.storeUint(0x30a47901, 32);
-        b.storeUint(self.queryId, 64);
-    },
-    toCell(self: TokenAdminRegistryEntry_TokenInfoUnavailable): c.Cell {
-        return makeCellFrom<TokenAdminRegistryEntry_TokenInfoUnavailable>(self, TokenAdminRegistryEntry_TokenInfoUnavailable.store);
-    }
-}
-
-/**
  > struct TokenRegistry_AdminConfig {
  >     tokenAdminRegistry: address
  >     administrator: address?
@@ -856,6 +861,59 @@ export const Upgradeable_UpgradedEvent = {
 }
 
 /**
+ > struct (0x8f422c44) TokenAdminRegistry_TokenInfoResolved {
+ >     queryId: uint64
+ >     token: address
+ >     requester: address
+ >     tokenInfo: Cell<TokenRegistry_TokenInfo>
+ > }
+ */
+export interface TokenAdminRegistry_TokenInfoResolved {
+    readonly $: 'TokenAdminRegistry_TokenInfoResolved'
+    queryId: uint64
+    token: c.Address
+    requester: c.Address
+    tokenInfo: TokenRegistry_TokenInfo
+}
+
+export const TokenAdminRegistry_TokenInfoResolved = {
+    PREFIX: 0x8f422c44,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        requester: c.Address
+        tokenInfo: TokenRegistry_TokenInfo
+    }): TokenAdminRegistry_TokenInfoResolved {
+        return {
+            $: 'TokenAdminRegistry_TokenInfoResolved',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_TokenInfoResolved {
+        loadAndCheckPrefix32(s, 0x8f422c44, 'TokenAdminRegistry_TokenInfoResolved');
+        return {
+            $: 'TokenAdminRegistry_TokenInfoResolved',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            requester: s.loadAddress(),
+            tokenInfo: loadCellRef<TokenRegistry_TokenInfo>(s, TokenRegistry_TokenInfo.fromSlice),
+        }
+    },
+    store(self: TokenAdminRegistry_TokenInfoResolved, b: c.Builder): void {
+        b.storeUint(0x8f422c44, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeAddress(self.requester);
+        storeCellRef<TokenRegistry_TokenInfo>(self.tokenInfo, b, TokenRegistry_TokenInfo.store);
+    },
+    toCell(self: TokenAdminRegistry_TokenInfoResolved): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_TokenInfoResolved>(self, TokenAdminRegistry_TokenInfoResolved.store);
+    }
+}
+
+/**
  > struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
  >     queryId: uint64
  >     token: address
@@ -942,7 +1000,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,
@@ -980,9 +1038,16 @@ export class TokenAdminRegistryEntry implements c.Contract {
 
     static createCellOfTokenAdminRegistryEntryGetTokenInfo(body: {
         queryId?: uint64
-        minEntryVersion: uint16
     }) {
         return TokenAdminRegistryEntry_GetTokenInfo.toCell(TokenAdminRegistryEntry_GetTokenInfo.create(body));
+    }
+
+    static createCellOfTokenAdminRegistryEntryResolveTokenInfo(body: {
+        queryId?: uint64
+        minEntryVersion: uint16
+        requester: c.Address
+    }) {
+        return TokenAdminRegistryEntry_ResolveTokenInfo.toCell(TokenAdminRegistryEntry_ResolveTokenInfo.create(body));
     }
 
     static createCellOfTokenAdminRegistryEntryRegistrationInitialized(body: {
@@ -1057,11 +1122,22 @@ export class TokenAdminRegistryEntry implements c.Contract {
 
     async sendTokenAdminRegistryEntryGetTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        minEntryVersion: uint16
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: TokenAdminRegistryEntry_GetTokenInfo.toCell(TokenAdminRegistryEntry_GetTokenInfo.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenAdminRegistryEntryResolveTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        minEntryVersion: uint16
+        requester: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenAdminRegistryEntry_ResolveTokenInfo.toCell(TokenAdminRegistryEntry_ResolveTokenInfo.create(body)),
             ...extraOptions
         });
     }

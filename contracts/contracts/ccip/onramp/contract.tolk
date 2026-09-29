@@ -11,7 +11,6 @@ import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
-import "../token_admin_registry_entry/types"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
@@ -286,14 +285,8 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     val config = st.config.load();
     val staticConfig = st.staticConfig.load();
     var tokenRegistry: address? = null;
-    val tokenAmounts = payload.msg.load().tokenAmounts;
-    if (!tokenAmounts.empty()) {
-        val token = tokenAmounts.iter().next().token;
-        tokenRegistry = TokenAdminRegistryEntry.deriveAddress(
-            deployableCode(),
-            token,
-            staticConfig.tokenAdminRegistry,
-        ).calculateAddress();
+    if (!payload.msg.load().tokenAmounts.empty()) {
+        tokenRegistry = staticConfig.tokenAdminRegistry;
     }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({

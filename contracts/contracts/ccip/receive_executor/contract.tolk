@@ -4,8 +4,7 @@ import "@stdlib/gas-payments"
 import "../../lib/utils"
 import "../offramp/types"
 import "../offramp/messages"
-import "../token_admin_registry_entry/messages"
-import "../token_admin_registry_entry/types"
+import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../common/types"
@@ -48,21 +47,13 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the TokenAdminRegistry
-        TokenAdminRegistryEntry_ReturnTokenInfo => {
+        TokenAdminRegistry_ReturnTokenInfo => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
             assert(in.senderAddress == ttInfo.tokenAdminRegistry, ReceiveExecutor_Error.Unauthorized);
+            assert(msg.token == ttInfo.transfer.load().token, ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
             onTokenAdminRegistryResponse(mutate st, msg, ttInfo);
-            st.store();
-        }
-        // Sender must be the TokenAdminRegistry
-        TokenAdminRegistryEntry_TokenInfoUnavailable => {
-            var st = ReceiveExecutor_Storage.load();
-            var ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
-            assert(in.senderAddress == ttInfo.tokenAdminRegistry, ReceiveExecutor_Error.Unauthorized);
-            failTokenAdminRegistryQuery(mutate st, ttInfo, ReceiveExecutor_Error.TokenInfoUnavailable);
             st.store();
         }
         // Sender must be the TokenPool
@@ -159,15 +150,15 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
             bounce: true,
             value: 0,
             dest: ttInfo.tokenAdminRegistry,
-            body: TokenAdminRegistryEntry_GetTokenInfo {
+            body: TokenAdminRegistry_GetTokenInfo {
                 queryId: 0,
-                minEntryVersion: TokenAdminRegistryEntry_VERSION,
+                token: ttInfo.transfer.load().token,
             }
         }
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistryEntry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     if (msg.tokenPool == null) {
         return failTokenAdminRegistryQuery(mutate st, ttInfo, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
     }
