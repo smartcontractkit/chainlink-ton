@@ -125,9 +125,8 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
             return match (ttInfo.state) {
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed => queryTokenAdminRegistry(mutate st, ttInfo),
-                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => {
-                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool);
-                }
+                // Re-query so a pool re-pointed in the TokenAdminRegistry since the failed attempt is used.
+                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
             }
