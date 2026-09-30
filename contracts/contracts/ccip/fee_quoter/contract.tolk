@@ -384,6 +384,7 @@ fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: Snake
     return (tokenCount, tokenTransferBytesOverhead);
 }
 
+// Returns (premiumFeeUsdWei, destGasOverhead, destBytesOverhead)
 fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount: TokenAmount): (int, int, int) {
     val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
     if (config == null) {
@@ -392,22 +393,22 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     }
 
     var premiumFeeUsdWei = 0;
-    if (config!.deciBps > 0) {
+    if (config.deciBps > 0) {
         val priceEntry = st.usdPerToken.get(tokenAmount.token);
         if (priceEntry.isFound) {
             val tokenPrice = priceEntry.loadValue();
             if (tokenPrice.value > 0) {
                 val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice.value, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
-                premiumFeeUsdWei = mustProd(tokenValueUsdWei, config!.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
+                premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
             }
         }
     }
 
-    val minFeeUsdWei = mustProd(config!.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
-    val maxFeeUsdWei = mustProd(config!.maxFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+    val minFeeUsdWei = mustProd(config.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+    val maxFeeUsdWei = mustProd(config.maxFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     premiumFeeUsdWei = min(max(premiumFeeUsdWei, minFeeUsdWei), maxFeeUsdWei);
 
-    return (premiumFeeUsdWei, config!.destGasOverhead, config!.destBytesOverhead);
+    return (premiumFeeUsdWei, config.destGasOverhead, config.destBytesOverhead);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256, tokenCount: int, tokenTransferBytesOverhead: int): (int, uint256) {
@@ -577,10 +578,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
             value: 0,
             dest: sender,
             body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
-                fee: {
-                    feeTokenAmount: fee.feeTokenAmount,
-                    feeValueJuels: fee.feeValueJuels,
-                },
+                fee,
                 msg: payload.msg,
                 context: payload.context,
             }
