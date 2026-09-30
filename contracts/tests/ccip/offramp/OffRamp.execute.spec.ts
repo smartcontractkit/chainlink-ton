@@ -798,6 +798,7 @@ describe('OffRamp - Execute', () => {
           message,
           execId: execId,
           effectiveGasLimit: setup.DEFAULT_GAS_LIMIT,
+          tokenAmounts: null,
         },
       )
 
@@ -2298,6 +2299,14 @@ describe('OffRamp - Execute', () => {
         from: setup.router.address,
         to: setup.receiver.address,
         success: true,
+        body: (body) => {
+          const { message: received } = tr.Receiver_CCIPReceiveV2.fromSlice(body!.beginParse())
+          return (
+            received.tokenAmounts?.length === 1 &&
+            received.tokenAmounts[0].amount === setup.DEFAULT_TOKEN_AMOUNT &&
+            received.tokenAmounts[0].token.equals(setup.token)
+          )
+        },
       })
 
       // 6. Receiver confirms back -> OffRamp (NotifySuccess) -> MerkleRoot

@@ -475,7 +475,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
                 sourceChainSelector: message.header.sourceChainSelector,
                 sender: CrossChainAddress.fromCell(message.sender),
                 data: message.data,
-                tokenAmounts: message.tokenAmounts,
+                tokenAmounts: msg.tokenAmounts,
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,

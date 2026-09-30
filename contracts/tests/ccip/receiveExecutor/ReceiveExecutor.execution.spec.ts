@@ -847,6 +847,49 @@ describe('ReceiveExecutor - Execution', () => {
         await transitionToPttExecute()
       })
 
+      it('should dispatch the pool destinationAmount instead of the source amount', async () => {
+        const sourceAmount = 10n ** 18n
+        const destinationAmount = 10n ** 9n
+        const token = (await blockchain.treasury('localToken')).address
+        messageWithTT = createTestMessageWithToken({
+          receiver: deployer.address,
+          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          amount: sourceAmount,
+          token,
+        })
+        receiveExecutorPtt = await setupTestReceiveExecutor(
+          blockchain,
+          deployer,
+          receiveExecutorCode,
+          messageWithTT,
+        )
+        defaultInitExecute = { ...defaultInitExecute, messageId: messageWithTT.header.messageId }
+
+        await initExecuteQueriesRegistry(receiveExecutorPtt)
+        await returnTokenInfoWithPool(receiveExecutorPtt)
+        const result = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
+          tokenPool.getSender(),
+          toNano('0.05'),
+          {
+            out: rx.TokenPool_ReleaseOrMintOutV1.create({ destinationAmount }),
+          },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+          body: (body) => {
+            const msg = of.OffRamp_DispatchValidated.fromSlice(body!.beginParse())
+            return (
+              msg.tokenAmounts?.length === 1 &&
+              msg.tokenAmounts[0].amount === destinationAmount &&
+              msg.tokenAmounts[0].token.equals(token)
+            )
+          },
+        })
+      })
+
       it('should send NotifySuccess on Confirm after PTT execution', async () => {
         await transitionToPttExecute()
         const result = await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveConfirm(
