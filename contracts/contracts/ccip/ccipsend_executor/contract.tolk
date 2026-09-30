@@ -191,7 +191,7 @@ fun depositAccountAddress(sender: address, router: address): address {
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
-    val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
+    val message = self.onrampSend.msg.load();
     val tokenAmounts = message.tokenAmounts;
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds);
@@ -346,7 +346,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdra
     // from our own state (the pool we routed the lockOrBurn to) rather than from the
     // pool's reply, so it stays trusted.
     val state = self.state.load();
-    val out = TokenPool_LockOrBurnOutV1.fromCell(msg.out);
+    val out = msg.out.load();
     val tokenTransfer = OnRamp_ExecutorTokenTransfer {
         sourcePoolAddress: state.tokenPool,
         amount: msg.destTokenAmount as uint256,
