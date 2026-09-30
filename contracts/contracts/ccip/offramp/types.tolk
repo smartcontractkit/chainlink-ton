@@ -183,18 +183,6 @@ fun SnakedCell<T>.asSingle(self): T? {
     return token
 }
 
-// Helper to extract the single item from a lisp_list<T>, and assert that there is only one
-fun lisp_list<T>.asSingle(mutate self): T? {
-    if (self.isEmpty()) {
-        return null;
-    }
-    val item = self.popHead();
-    if (!self.isEmpty()) {
-        return null
-    }
-    return item;
-}
-
 fun T?.unwrap(self, error: int): T {
     if (self == null) {
         throw error;

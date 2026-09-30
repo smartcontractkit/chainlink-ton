@@ -122,6 +122,7 @@ describe('OnRamp - Get Fee', () => {
           feeTokenAmount: 123456n,
           feeValueJuels: 12345n,
         }),
+        destGasOverheads: [],
         msg: ccipSend,
         context: or.OnRamp_GetValidatedFeeContext.toCell(
           or.OnRamp_GetValidatedFeeContext.create({
@@ -150,6 +151,7 @@ describe('OnRamp - Get Fee', () => {
           feeTokenAmount: 123456n,
           feeValueJuels: 12345n,
         }),
+        destGasOverheads: [],
         msg: ccipSend,
         context: or.OnRamp_GetValidatedFeeContext.toCell(
           or.OnRamp_GetValidatedFeeContext.create({

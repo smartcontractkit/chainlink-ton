@@ -340,6 +340,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: [90_000n],
         msg: tokenOnrampSend.msg,
       }),
     )
@@ -368,6 +369,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -393,6 +395,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -427,6 +430,7 @@ describe('SendExecutor - Unit tests', () => {
           feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -460,6 +464,7 @@ describe('SendExecutor - Unit tests', () => {
           feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -483,6 +488,7 @@ describe('SendExecutor - Unit tests', () => {
           feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -548,6 +554,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -567,6 +574,7 @@ describe('SendExecutor - Unit tests', () => {
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+          destGasOverheads: [],
           msg: onrampSend.msg,
         }),
       ),
@@ -594,6 +602,7 @@ describe('SendExecutor - Unit tests', () => {
           feeTokenAmount: onrampSend.metadata.value + CCISendCost,
           feeValueJuels: toNano('0.1'),
         }),
+        destGasOverheads: [],
         msg: onrampSend.msg,
       }),
     )
@@ -612,6 +621,7 @@ describe('SendExecutor - Unit tests', () => {
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+          destGasOverheads: [],
           msg: onrampSend.msg,
         }),
       ),
@@ -630,7 +640,7 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should handle bounced getValidatedFee', async () => {
-    const feeQuoterBouncer = await blockchain.openContract(
+    const feeQuoterBouncer = blockchain.openContract(
       bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
     )
     {

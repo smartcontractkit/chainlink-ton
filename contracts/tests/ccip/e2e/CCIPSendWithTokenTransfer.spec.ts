@@ -457,6 +457,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
     })
 
+    const { defaultTokenDestGasOverhead } = (await feeQuoter.getDestChainConfig(DestChainSelector))
+      .config
+
     // OnRamp emits the CCIPMessageSent log. Verify the token-transfer amount equals TOKEN_AMOUNT (wGRAM).
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
@@ -474,9 +477,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
               destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
               // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
               extraData: beginCell().storeUint(0, 256).endCell(),
-              // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
-              // Still a constant: the FeeQuoter does not report a per-token value yet.
-              destExecData: beginCell().storeUint(90000, 32).endCell(),
+              // The destination gas overhead billed by the FeeQuoter, encoded as a bare 32-bit integer.
+              destExecData: beginCell().storeUint(defaultTokenDestGasOverhead, 32).endCell(),
             },
           ],
           // The pool's lockOrBurn output reaches the event end to end.
