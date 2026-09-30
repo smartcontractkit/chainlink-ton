@@ -15,6 +15,8 @@ import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
 
+import "@stdlib/lisp-lists"
+
 tolk 1.4.2
 
 contract FeeQuoter {
@@ -246,10 +248,12 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
-    return calculateValidatedFee(msg).feeTokenAmount;
+    val (fee, _) = calculateValidatedFee(msg);
+    return fee.feeTokenAmount;
 }
 
-fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
+// @returns (fee, destGasOverheads)
+fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -292,16 +296,21 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     var premiumFeeUsdWei = 0;
     var tokenTransferGas = 0;
 
+    var destGasOverheads: lisp_list<uint32>? = null;
     var tokenAmountsIter = msg.tokenAmounts.iter();
     if (!tokenAmountsIter.empty()) {
+        var backwardsDestGasOverheads: lisp_list<uint32> = [];
         while (!tokenAmountsIter.empty()) {
             val tokenAmount = tokenAmountsIter.next();
 
-            val (tokenPremiumFeeUsdWei, tokenGas, _) = _tokenTransferFee(st, destChainConfig, tokenAmount);
+            val (tokenPremiumFeeUsdWei, destGasOverhead, _) = _tokenTransferFee(st, destChainConfig, tokenAmount);
+            val tokenGas= destGasOverhead as int;
 
             premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
             tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
+            backwardsDestGasOverheads.prependHead(tokenGas);
         }
+        destGasOverheads = backwardsDestGasOverheads.calculateReversed();
     } else {
         premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     }
@@ -326,10 +335,13 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     // Equivalent to processMessageArgs in Solidity FeeQuoter
     val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
 
-    return Fee {
-        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
-        feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
-    };
+    return (
+        Fee {
+            feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
+            feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
+        },
+        destGasOverheads
+    );
 }
 
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
@@ -385,7 +397,7 @@ fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: Snake
 }
 
 // Returns (premiumFeeUsdWei, destGasOverhead, destBytesOverhead)
-fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount: TokenAmount): (int, int, int) {
+fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount: TokenAmount): (int, uint32, uint32) {
     val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
     if (config == null) {
         val defaultPremiumFeeUsdWei = mustProd(destChainConfig.config.defaultTokenFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
@@ -570,7 +582,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val fee = calculateValidatedFee(msg);
+        val (fee, destGasOverheads) = calculateValidatedFee(msg);
 
         response = createMessage({
             bounce: true,
@@ -578,6 +590,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
             dest: sender,
             body: FeeQuoter_MessageValidated {
                 fee,
+                destGasOverheads,
                 msg: payload.msg,
                 context: payload.context,
             }

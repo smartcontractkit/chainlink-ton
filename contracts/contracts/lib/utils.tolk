@@ -277,3 +277,16 @@ fun Cell<T>?.loadOpt(self): T? {
     }
     return self.load();
 }
+
+// Helper to extract the single item from a lisp_list<T>
+// Returns null if the list is empty or contains more than one item.
+fun lisp_list<T>.asSingle(mutate self): T? {
+    if (self.isEmpty()) {
+        return null;
+    }
+    val item = self.popHead();
+    if (!self.isEmpty()) {
+        return null
+    }
+    return item;
+}

@@ -105,16 +105,6 @@ struct TVM2AnyTokenTransfer {
     destExecData: cell;
 }
 
-// The per-token gas the destination offRamp budgets for a single releaseOrMint and the
-// following transfer. Mirrors CCIP's default on the other chain families
-// (FeeQuoter.DEFAULT_TOKEN_DEST_GAS_OVERHEAD on EVM).
-//
-// TODO: replace with the per-token FeeQuoter_TokenTransferFeeConfig.destGasOverhead. The
-// FeeQuoter already holds that value, but its fee path still rejects token transfers
-// outright, so nothing can produce it yet; until then every token transfer reports this
-// constant.
-const DEFAULT_TOKEN_DEST_GAS_OVERHEAD: uint32 = 90000;
-
 // Packs a destination-chain gas amount into the layout the offchain codec expects for
 // destExecData: a bare 32-bit big-endian integer, with no length prefix or tag.
 fun encodeDestExecData(destGasAmount: uint32): cell {
