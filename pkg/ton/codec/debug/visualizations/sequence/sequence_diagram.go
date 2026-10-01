@@ -149,7 +149,7 @@ func (v *visualization) DescribeReceivedMessage(m *tt.ReceivedMessage, info lib.
 func (v *visualization) describeAddr(addr *address.Address) string {
 	addrStr := addr.String()
 	if name, exists := v.Actors[addrStr]; exists {
-		return name
+		return name + "<br/>(" + addr.String() + ")"
 	}
 	return addrStr
 }
@@ -179,7 +179,7 @@ func (v *visualization) describeInternalMsg(msg *tlb.InternalMessage, info lib.M
 
 func replaceAddresses(addressMap map[string]string, text string) string {
 	for oldAddr, newAddr := range addressMap {
-		text = strings.ReplaceAll(text, oldAddr, newAddr)
+		text = strings.ReplaceAll(text, oldAddr, oldAddr+" ("+newAddr+")")
 	}
 	return text
 }

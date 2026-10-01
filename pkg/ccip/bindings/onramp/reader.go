@@ -118,3 +118,27 @@ var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 		return lo.Map(selectors, func(x *big.Int, _ int) uint64 { return x.Uint64() }), nil
 	}),
 })
+
+// GetSendExecutorCode gets code of the send executor for the OnRamp contract
+var GetSendExecutorCode = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]byte]{
+	Name: sendExecutorCodeGetter,
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]byte, error) {
+		codeCell, err := r.Cell(0)
+		if err != nil {
+			return nil, err
+		}
+		return codeCell.ToBOC(), nil
+	}),
+})
+
+// GetSendExecutorCodeHash gets code of the send executor for the OnRamp contract
+var GetSendExecutorCodeHash = tvm.NewNoArgsGetter(tvm.NoArgsOpts[string]{
+	Name: sendExecutorCodeHashGetter,
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (string, error) {
+		codeHash, err := r.Int(0)
+		if err != nil {
+			return "", err
+		}
+		return codeHash.Text(16), nil
+	}),
+})

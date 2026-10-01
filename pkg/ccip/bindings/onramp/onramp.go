@@ -39,10 +39,12 @@ const (
 
 // Registry method names
 const (
-	destChainConfigGetter    = "destChainConfig"
-	dynamicConfigGetter      = "dynamicConfig"
-	staticConfigGetter       = "staticConfig"
-	destChainSelectorsGetter = "destChainSelectors"
+	destChainConfigGetter      = "destChainConfig"
+	dynamicConfigGetter        = "dynamicConfig"
+	staticConfigGetter         = "staticConfig"
+	destChainSelectorsGetter   = "destChainSelectors"
+	sendExecutorCodeGetter     = "sendExecutorCode"
+	sendExecutorCodeHashGetter = "sendExecutorCodeHash"
 )
 
 // CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
