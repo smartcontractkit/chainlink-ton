@@ -18,14 +18,14 @@ contract TokenAdminRegistryEntryUpgradeTarget {
 
 struct UpgradeTarget_Storage {
     previousStorage: cell
-    resumed: Cell<TokenAdminRegistryEntry_Pending>?
+    resumed: Cell<TokenAdminRegistryEntry_MessageFromRoot>?
 }
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_Resume.fromSlice(in.body);
     assert(in.senderAddress == contract.getAddress()) throw 0xFFFF;
     var st = UpgradeTarget_Storage.fromCell(contract.getData());
-    st.resumed = msg.pending;
+    st.resumed = msg.request;
     contract.setData(st.toCell());
 }
 
@@ -42,7 +42,7 @@ get fun previousStorage(): cell {
     return UpgradeTarget_Storage.fromCell(contract.getData()).previousStorage;
 }
 
-get fun resumed(): TokenAdminRegistryEntry_Pending? {
+get fun resumed(): TokenAdminRegistryEntry_MessageFromRoot? {
     val resumed = UpgradeTarget_Storage.fromCell(contract.getData()).resumed;
     return resumed == null ? null : resumed!.load();
 }

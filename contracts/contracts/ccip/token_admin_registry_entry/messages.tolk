@@ -2,14 +2,28 @@ import "types"
 
 type TokenAdminRegistryEntry_InMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
-    | TokenAdminRegistryEntry_ResolveTokenInfo
     | TokenAdminRegistryEntry_RegistrationInitialized
+    | TokenAdminRegistryEntry_MessageFromRoot
+    | TokenAdminRegistryEntry_UpgradeAndResume
+    | TokenAdminRegistryEntry_Resume;
+
+/// Messages the root sends wrapped in TokenAdminRegistryEntry_MessageFromRoot.
+type TokenAdminRegistryEntry_RootMessage =
+    | TokenAdminRegistryEntry_ResolveTokenInfo
     | TokenAdminRegistryEntry_ProposeAdministrator
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
-    | TokenAdminRegistryEntry_SetPool
-    | TokenAdminRegistryEntry_UpgradeAndResume
-    | TokenAdminRegistryEntry_Resume;
+    | TokenAdminRegistryEntry_SetPool;
+
+/// Envelope for every message the root sends to an entry. Its layout must
+/// never change: the entry checks `minEntryVersion` before loading `content`,
+/// so an older entry can defer and upgrade for messages it does not know.
+// crc32('TokenAdminRegistryEntry_MessageFromRoot')
+struct (0x558e7559) TokenAdminRegistryEntry_MessageFromRoot {
+    queryId: uint64;
+    minEntryVersion: uint16;
+    content: Cell<TokenAdminRegistryEntry_RootMessage>;
+}
 
 /// Public read answered by the running code. CCIP resolves token info through
 /// the root instead (TokenAdminRegistry_GetTokenInfo).
@@ -29,8 +43,6 @@ fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins
 /// TokenAdminRegistry_TokenInfoResolved.
 // crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
 struct (0x4f60fff3) TokenAdminRegistryEntry_ResolveTokenInfo {
-    queryId: uint64;
-    minEntryVersion: uint16;
     requester: address;
 }
 
@@ -41,14 +53,10 @@ struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
 }
 
 struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
-    queryId: uint64;
-    minEntryVersion: uint16;
     administrator: address
 }
 
 struct (0x8b1503cf) TokenAdminRegistryEntry_TransferAdminRole {
-    queryId: uint64;
-    minEntryVersion: uint16;
     /// Original sender of the root request. It is trusted only after the
     /// entry has verified that the immediate sender is the registry root.
     actor: address;
@@ -56,15 +64,11 @@ struct (0x8b1503cf) TokenAdminRegistryEntry_TransferAdminRole {
 }
 
 struct (0x39c6e872) TokenAdminRegistryEntry_AcceptAdminRole {
-    queryId: uint64;
-    minEntryVersion: uint16;
     /// Original sender of the root request. See TransferAdminRole.actor.
     actor: address;
 }
 
 struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
-    queryId: uint64;
-    minEntryVersion: uint16;
     /// Original sender of the root request. See TransferAdminRole.actor.
     actor: address;
     /// A null pool delists the token from CCIP.
@@ -72,12 +76,12 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
 }
 
 /// Sent by the root with its compiled-in entry code. The entry installs the
-/// code unless it is already running it, then resumes the pending request.
+/// code unless it is already running it, then resumes the deferred request.
 // crc32('TokenAdminRegistryEntry_UpgradeAndResume')
 struct (0x1fa23ab9) TokenAdminRegistryEntry_UpgradeAndResume {
     queryId: uint64;
     code: cell;
-    pending: Cell<TokenAdminRegistryEntry_Pending>?;
+    request: Cell<TokenAdminRegistryEntry_MessageFromRoot>?;
 }
 
 /// Worst-case cost of a stale entry round trip: entry -> root, root -> entry
@@ -86,11 +90,10 @@ fun TokenAdminRegistryEntry_UpgradeAndResume.cost(): coins {
     return grams("0.02");
 }
 
-/// Self-message that replays a pending request on the upgraded code.
+/// Self-message that replays a deferred request on the upgraded code.
 // crc32('TokenAdminRegistryEntry_Resume')
-const TokenAdminRegistryEntry_RESUME_OPCODE = 0x47d63a64;
 struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
-    pending: Cell<TokenAdminRegistryEntry_Pending>;
+    request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
 
 // crc32('TokenAdminRegistryEntry_ReturnTokenInfo')

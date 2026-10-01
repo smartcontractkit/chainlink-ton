@@ -392,7 +392,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: tokenAdminRegistry.address,
       to: tokenRegistry.address,
-      op: tr.TokenAdminRegistryEntry_ResolveTokenInfo.PREFIX,
+      op: tr.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({

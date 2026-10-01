@@ -28,13 +28,6 @@ fun TokenAdminRegistryEntry.deriveAddress(deployableCode: cell, tokenAddress: ad
 }
 
 /// Version of the entry code. Bump it whenever the entry code or its storage
-/// layout changes. Requesters declare the minimum version they can consume and
-/// a stale entry upgrades itself through the root before serving them.
+/// layout changes. The root declares it as the minimum in every message to an
+/// entry, and a stale entry upgrades itself through the root before handling it.
 const TokenAdminRegistryEntry_VERSION = 1;
-
-/// A request kept in flight while its entry is upgraded. It is never persisted.
-struct TokenAdminRegistryEntry_Pending {
-    /// Original sender of the pending request.
-    sender: address
-    body: cell
-}

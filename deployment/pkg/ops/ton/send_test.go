@@ -35,6 +35,10 @@ var unsupported = []uint64{
 	0xaf7a9ac6,           // router.RMNOwnableMessage, nested message envelope with generic parameter - not supported by current generator
 	0xf9123a10,           // router.RMNAccessControlMessage, nested message envelope with generic parameter - not supported by current generator
 	0x2e7a1790,           // tokenpool.RMNAccessControlMessage, nested message envelope with generic parameter - not supported by current generator
+	0x558e7559,           // tokenadminregistryentry.MessageFromRoot, nested message envelope with generic parameter - not supported by current generator
+	0x1fa23ab9,           // tokenadminregistryentry.UpgradeAndResume, embeds MessageFromRoot
+	0x47d63a64,           // tokenadminregistryentry.Resume, embeds MessageFromRoot
+	0x55b8b654,           // tokenadminregistry.EntryUpgradeRequest, embeds MessageFromRoot
 	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }
 

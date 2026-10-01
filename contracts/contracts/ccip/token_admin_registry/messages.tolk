@@ -102,7 +102,7 @@ struct (0x8db6ef6c) TokenAdminRegistry_ReturnTokenInfo {
 struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
     queryId: uint64;
     token: address;
-    pending: Cell<TokenAdminRegistryEntry_Pending>;
+    request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
 
 /// Permissionless: upgrades the derived entry to the root's entry code.

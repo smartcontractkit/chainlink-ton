@@ -64,11 +64,9 @@ fun onInternalMessage(in: InMessage) {
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
-            forwardToEntry(msg.token, TokenAdminRegistryEntry_ResolveTokenInfo {
-                queryId: msg.queryId,
-                minEntryVersion: TokenAdminRegistryEntry_VERSION,
+            forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_ResolveTokenInfo {
                 requester: in.senderAddress,
-            }.toCell());
+            });
         }
         TokenAdminRegistry_TokenInfoResolved => {
             val st = TokenAdminRegistry_Storage.load();
@@ -78,7 +76,7 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_EntryUpgradeRequest => {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
-            sendUpgradeAndResume(in.senderAddress, msg.queryId, msg.pending);
+            sendUpgradeAndResume(in.senderAddress, msg.queryId, msg.request);
         }
         TokenAdminRegistry_UpgradeEntry => {
             assert(in.valueCoins >= TokenAdminRegistryEntry_UpgradeAndResume.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
@@ -133,16 +131,20 @@ fun requireForwardValue(value: coins) {
 
 /// Forwards to an entry carrying all value, so a stale entry can fund its
 /// upgrade round trip before handling the request.
-fun forwardToEntry(token: address, body: cell) {
+fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryEntry_RootMessage) {
     createMessage({
         bounce: false,
         value: 0,
         dest: entryAddress(token).calculateAddress(),
-        body,
+        body: TokenAdminRegistryEntry_MessageFromRoot {
+            queryId,
+            minEntryVersion: TokenAdminRegistryEntry_VERSION,
+            content: content.toCell(),
+        },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun sendUpgradeAndResume(dest: address, queryId: uint64, pending: Cell<TokenAdminRegistryEntry_Pending>?) {
+fun sendUpgradeAndResume(dest: address, queryId: uint64, request: Cell<TokenAdminRegistryEntry_MessageFromRoot>?) {
     createMessage({
         bounce: true,
         value: 0,
@@ -150,7 +152,7 @@ fun sendUpgradeAndResume(dest: address, queryId: uint64, pending: Cell<TokenAdmi
         body: TokenAdminRegistryEntry_UpgradeAndResume {
             queryId,
             code: entryCode(),
-            pending,
+            request,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -231,40 +233,32 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 /// active administrator exists, so this cannot reclaim a configured token.
 fun overridePendingAdministrator(msg: TokenAdminRegistry_OverridePendingAdministrator) {
     assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
-    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_ProposeAdministrator {
-        queryId: msg.queryId,
-        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+    forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_ProposeAdministrator {
         administrator: msg.administrator,
-    }.toCell());
+    });
 }
 
 /// The root is the only public ingress for entry administration. It derives
 /// the shard and forwards the original caller as `actor`; the entry remains
 /// responsible for checking its own active/pending administrator state.
 fun transferAdminRole(msg: TokenAdminRegistry_TransferAdminRole, actor: address) {
-    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_TransferAdminRole {
-        queryId: msg.queryId,
-        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+    forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_TransferAdminRole {
         actor,
         newAdministrator: msg.newAdministrator,
-    }.toCell());
+    });
 }
 
 fun acceptAdminRole(msg: TokenAdminRegistry_AcceptAdminRole, actor: address) {
-    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_AcceptAdminRole {
-        queryId: msg.queryId,
-        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+    forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_AcceptAdminRole {
         actor,
-    }.toCell());
+    });
 }
 
 fun setPool(msg: TokenAdminRegistry_SetPool, actor: address) {
-    forwardToEntry(msg.tokenAddress, TokenAdminRegistryEntry_SetPool {
-        queryId: msg.queryId,
-        minEntryVersion: TokenAdminRegistryEntry_VERSION,
+    forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_SetPool {
         actor,
         tokenPool: msg.tokenPool,
-    }.toCell());
+    });
 }
 
 import "../../../gen/Deployable.code"

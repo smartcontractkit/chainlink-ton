@@ -1878,7 +1878,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.tokenAdminRegistry,
         to: entryAddress,
-        op: trg.TokenAdminRegistryEntry_ResolveTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
@@ -2267,7 +2267,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: setup.tokenAdminRegistry,
         to: entryAddress,
-        op: trg.TokenAdminRegistryEntry_ResolveTokenInfo.PREFIX,
+        op: trg.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({

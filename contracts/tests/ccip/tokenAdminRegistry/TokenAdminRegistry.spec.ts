@@ -356,10 +356,15 @@ describe('TokenAdminRegistry', () => {
     await register()
     const entry = entryFor()
 
-    const directAcceptance = await entry.sendTokenAdminRegistryEntryAcceptAdminRole(
+    const directAcceptance = await entry.sendTokenAdminRegistryEntryMessageFromRoot(
       administrator.getSender(),
       toNano('0.05'),
-      { minEntryVersion: 1n, actor: administrator.address },
+      {
+        minEntryVersion: 1n,
+        content: tare.TokenAdminRegistryEntry_AcceptAdminRole.create({
+          actor: administrator.address,
+        }),
+      },
     )
     expect(directAcceptance.transactions).toHaveTransaction({
       from: administrator.address,
@@ -477,7 +482,7 @@ describe('TokenAdminRegistry', () => {
     expect(result.transactions).toHaveTransaction({
       from: registry.address,
       to: entryFor().address,
-      op: tare.TokenAdminRegistryEntry_ResolveTokenInfo.PREFIX,
+      op: tare.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
@@ -514,10 +519,13 @@ describe('TokenAdminRegistry', () => {
 
   it('rejects root-only entry reads from other senders', async () => {
     await register()
-    const direct = await entryFor().sendTokenAdminRegistryEntryResolveTokenInfo(
+    const direct = await entryFor().sendTokenAdminRegistryEntryMessageFromRoot(
       other.getSender(),
       toNano('0.1'),
-      { minEntryVersion: 1n, requester: other.address },
+      {
+        minEntryVersion: 1n,
+        content: tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({ requester: other.address }),
+      },
     )
     expect(direct.transactions).toHaveTransaction({
       from: other.address,
@@ -599,13 +607,11 @@ describe('TokenAdminRegistry', () => {
     const asRoot = () => blockchain.sender(registry.address)
 
     const resolveTokenInfo = (minEntryVersion: bigint) =>
-      tare.TokenAdminRegistryEntry_ResolveTokenInfo.toCell(
-        tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({
-          queryId: 9n,
-          minEntryVersion,
-          requester: other.address,
-        }),
-      )
+      tare.TokenAdminRegistryEntry_MessageFromRoot.create({
+        queryId: 9n,
+        minEntryVersion,
+        content: tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({ requester: other.address }),
+      })
 
     it('deploys entries with the root entry code at the current version', async () => {
       await register()
@@ -640,15 +646,12 @@ describe('TokenAdminRegistry', () => {
       await register()
       const entry = entryFor()
       const storageBefore = (await accountState()).data
-      const pending = tare.TokenAdminRegistryEntry_Pending.create({
-        sender: registry.address,
-        body: resolveTokenInfo(1n),
-      })
+      const request = resolveTokenInfo(1n)
 
       const result = await entry.sendTokenAdminRegistryEntryUpgradeAndResume(
         asRoot(),
         toNano('0.1'),
-        { code: targetCode, pending },
+        { code: targetCode, request },
       )
       expect(result.transactions).toHaveTransaction({
         from: registry.address,
@@ -668,7 +671,7 @@ describe('TokenAdminRegistry', () => {
         target.TokenAdminRegistryEntryUpgradeTarget.fromAddress(entry.address),
       )
       expect(await upgraded.getPreviousStorage()).toEqual(storageBefore)
-      expect(await upgraded.getResumed()).toEqual(pending)
+      expect(await upgraded.getResumed()).toEqual(request)
     })
 
     it('resumes a pending request without reinstalling identical code', async () => {
@@ -678,13 +681,7 @@ describe('TokenAdminRegistry', () => {
       const result = await entry.sendTokenAdminRegistryEntryUpgradeAndResume(
         asRoot(),
         toNano('0.1'),
-        {
-          code: entryCode,
-          pending: tare.TokenAdminRegistryEntry_Pending.create({
-            sender: registry.address,
-            body: resolveTokenInfo(1n),
-          }),
-        },
+        { code: entryCode, request: resolveTokenInfo(1n) },
       )
       expect(result.transactions).toHaveTransaction({
         from: entry.address,
@@ -708,10 +705,10 @@ describe('TokenAdminRegistry', () => {
       await register()
       const entry = entryFor()
 
-      const result = await entry.sendTokenAdminRegistryEntryResolveTokenInfo(
+      const result = await entry.sendTokenAdminRegistryEntryMessageFromRoot(
         asRoot(),
         toNano('0.1'),
-        { queryId: 9n, minEntryVersion: 2n, requester: other.address },
+        resolveTokenInfo(2n),
       )
       expect(result.transactions).toHaveTransaction({
         from: entry.address,
@@ -779,21 +776,18 @@ describe('TokenAdminRegistry', () => {
     it('rejects upgrade and resume messages from untrusted senders', async () => {
       await register()
       const entry = entryFor()
-      const pending = tare.TokenAdminRegistryEntry_Pending.create({
-        sender: registry.address,
-        body: tare.TokenAdminRegistryEntry_SetPool.toCell(
-          tare.TokenAdminRegistryEntry_SetPool.create({
-            minEntryVersion: 1n,
-            actor: other.address,
-            tokenPool: replacementPool,
-          }),
-        ),
+      const request = tare.TokenAdminRegistryEntry_MessageFromRoot.create({
+        minEntryVersion: 1n,
+        content: tare.TokenAdminRegistryEntry_SetPool.create({
+          actor: other.address,
+          tokenPool: replacementPool,
+        }),
       })
 
       const upgrade = await entry.sendTokenAdminRegistryEntryUpgradeAndResume(
         other.getSender(),
         toNano('0.1'),
-        { code: targetCode, pending: null },
+        { code: targetCode, request: null },
       )
       expect(upgrade.transactions).toHaveTransaction({
         from: other.address,
@@ -805,7 +799,7 @@ describe('TokenAdminRegistry', () => {
       const resume = await entry.sendTokenAdminRegistryEntryResume(
         other.getSender(),
         toNano('0.1'),
-        { pending },
+        { request },
       )
       expect(resume.transactions).toHaveTransaction({
         from: other.address,
@@ -814,12 +808,12 @@ describe('TokenAdminRegistry', () => {
         exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
       })
 
-      const request = await registry.sendTokenAdminRegistryEntryUpgradeRequest(
+      const upgradeRequest = await registry.sendTokenAdminRegistryEntryUpgradeRequest(
         other.getSender(),
         toNano('0.1'),
-        { token, pending },
+        { token, request },
       )
-      expect(request.transactions).toHaveTransaction({
+      expect(upgradeRequest.transactions).toHaveTransaction({
         from: other.address,
         to: registry.address,
         success: false,

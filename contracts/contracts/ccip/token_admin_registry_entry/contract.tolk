@@ -17,81 +17,67 @@ contract TokenAdminRegistryEntry {
 
     storage: TokenRegistry_Storage
     incomingMessages: TokenAdminRegistryEntry_InMessage
+    forceAbiExport: (TokenAdminRegistryEntry_ResolveTokenInfo, TokenAdminRegistryEntry_ProposeAdministrator, TokenAdminRegistryEntry_TransferAdminRole, TokenAdminRegistryEntry_AcceptAdminRole, TokenAdminRegistryEntry_SetPool)
     thrownErrors: TokenAdminRegistryEntry_Error | Upgradeable_Error
 }
 
 const CONTRACT_VERSION = "1.6.0";
 
 fun onInternalMessage(in: InMessage) {
-    // Check for a Resume self-message before parsing the request
-    // and replace body and sender with the pending request and the original sender
-    val (body, sender, replay) = unwrapIfResume(in.body, in.senderAddress);
-    val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(body);
+    val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(in.body);
     match (msg) {
         // TODO: min value assertion throughout
         TokenAdminRegistryEntry_GetTokenInfo => {
-            onGetTokenInfo(msg, sender);
-        }
-        TokenAdminRegistryEntry_ResolveTokenInfo => {
-            requireRoot(sender);
-            if (ensureVersion(msg.queryId, msg.minEntryVersion, sender, body, replay)) {
-                onResolveTokenInfo(msg, sender);
-            }
+            onGetTokenInfo(msg, in.senderAddress);
         }
         TokenAdminRegistryEntry_RegistrationInitialized => {
-            onRegistrationInitialized(msg, sender);
+            onRegistrationInitialized(msg, in.senderAddress);
         }
-        TokenAdminRegistryEntry_ProposeAdministrator => {
-            requireRoot(sender);
-            if (ensureVersion(msg.queryId, msg.minEntryVersion, sender, body, replay)) {
-                onProposeAdministrator(msg);
-            }
-        }
-        TokenAdminRegistryEntry_TransferAdminRole => {
-            requireRoot(sender);
-            if (ensureVersion(msg.queryId, msg.minEntryVersion, sender, body, replay)) {
-                onTransferAdminRole(msg);
-            }
-        }
-        TokenAdminRegistryEntry_AcceptAdminRole => {
-            requireRoot(sender);
-            if (ensureVersion(msg.queryId, msg.minEntryVersion, sender, body, replay)) {
-                onAcceptAdminRole(msg);
-            }
-        }
-        TokenAdminRegistryEntry_SetPool => {
-            requireRoot(sender);
-            if (ensureVersion(msg.queryId, msg.minEntryVersion, sender, body, replay)) {
-                onSetPool(msg);
-            }
+        TokenAdminRegistryEntry_MessageFromRoot => {
+            requireRoot(in.senderAddress);
+            onMessageFromRoot(msg, false);
         }
         TokenAdminRegistryEntry_UpgradeAndResume => {
-            requireRoot(sender);
+            requireRoot(in.senderAddress);
             onUpgradeAndResume(msg);
         }
-        // A Resume nested inside a pending request.
         TokenAdminRegistryEntry_Resume => {
-            throw TokenAdminRegistryEntry_Error.Unauthorized;
+            assert(in.senderAddress == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
+            onMessageFromRoot(msg.request.load(), true);
         }
         else => {
-            assert (body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
 }
 
-/// Returns the request to handle, its sender, and whether it is a replay.
-///
-/// A Resume self-message replays a pending request on this code as if it came
-/// from its original sender; any other message is returned unchanged. Replays
-/// may not be deferred again, so a root that cannot satisfy its own requested
-/// version does not cause a loop.
-fun unwrapIfResume(body: slice, sender: address): (slice, address, bool) {
-    if (body.remainingBitsCount() < 32 || body.preloadUint(32) != TokenAdminRegistryEntry_RESUME_OPCODE) {
-        return (body, sender, false);
+/// Handles a message from the root once this code satisfies its
+/// `minEntryVersion`; otherwise defers it to the root for an upgrade. A replay
+/// of a Resume may not be deferred again, so a root that cannot satisfy its own
+/// requested version does not cause a loop.
+fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool) {
+    if (msg.minEntryVersion > TokenAdminRegistryEntry_VERSION) {
+        assert(!replay) throw TokenAdminRegistryEntry_Error.VersionUnavailable;
+        return deferToRoot(msg);
     }
-    assert(sender == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
-    val pending = TokenAdminRegistryEntry_Resume.fromSlice(body).pending.load();
-    return (pending.body.beginParse(), pending.sender, true);
+    val content = lazy msg.content.load();
+    match (content) {
+        TokenAdminRegistryEntry_ResolveTokenInfo => {
+            onResolveTokenInfo(msg.queryId, content);
+        }
+        TokenAdminRegistryEntry_ProposeAdministrator => {
+            onProposeAdministrator(msg.queryId, content);
+        }
+        TokenAdminRegistryEntry_TransferAdminRole => {
+            onTransferAdminRole(msg.queryId, content);
+        }
+        TokenAdminRegistryEntry_AcceptAdminRole => {
+            onAcceptAdminRole(msg.queryId, content);
+        }
+        TokenAdminRegistryEntry_SetPool => {
+            onSetPool(msg.queryId, content);
+        }
+    }
 }
 
 fun requireRoot(sender: address) {
@@ -99,41 +85,32 @@ fun requireRoot(sender: address) {
     assert(sender == st.adminConfig.load().tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
 }
 
-/// Returns true when this code satisfies `minEntryVersion`. Otherwise the
-/// request is deferred: it travels to the root, which answers with its
-/// entry code and the request to resume. All message value is carried.
-fun ensureVersion(queryId: uint64, minEntryVersion: int, sender: address, body: slice, replay: bool): bool {
-    if (minEntryVersion <= TokenAdminRegistryEntry_VERSION) {
-        return true;
-    }
-    assert(!replay) throw TokenAdminRegistryEntry_Error.VersionUnavailable;
+/// Sends the request to the root, which answers with its entry code and the
+/// request to resume. All message value is carried.
+fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
     val st = lazy TokenRegistry_Storage.load();
     createMessage({
         bounce: true,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistry_EntryUpgradeRequest {
-            queryId,
+            queryId: msg.queryId,
             token: st.tokenAddress,
-            pending: TokenAdminRegistryEntry_Pending {
-                sender,
-                body: beginCell().storeSlice(body).endCell(),
-            }.toCell(),
+            request: msg.toCell(),
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    return false;
 }
 
 /// The Resume self-message is queued before the code swap: after
 /// `Upgradeable.upgrade` switches c3, only method_id-pinned functions of the
 /// new code may be called. Resume then runs entirely on the new code.
 fun onUpgradeAndResume(msg: TokenAdminRegistryEntry_UpgradeAndResume) {
-    if (msg.pending != null) {
+    if (msg.request != null) {
         createMessage({
             bounce: false,
             value: 0,
             dest: contract.getAddress(),
-            body: TokenAdminRegistryEntry_Resume { pending: msg.pending! },
+            body: TokenAdminRegistryEntry_Resume { request: msg.request! },
         }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
     // Several requests may be deferred concurrently; only the first one upgrades.
@@ -142,14 +119,14 @@ fun onUpgradeAndResume(msg: TokenAdminRegistryEntry_UpgradeAndResume) {
     }
 }
 
-fun onResolveTokenInfo(msg: TokenAdminRegistryEntry_ResolveTokenInfo, root: address) {
+fun onResolveTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_ResolveTokenInfo) {
     val st = TokenRegistry_Storage.load();
     createMessage({
         bounce: false,
         value: 0,
-        dest: root,
+        dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistry_TokenInfoResolved {
-            queryId: msg.queryId,
+            queryId,
             token: st.tokenAddress,
             requester: msg.requester,
             tokenInfo: st.tokenInfo.toCell(),
@@ -168,7 +145,7 @@ fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitializ
     notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, null, adminConfig.pendingAdministrator);
 }
 
-fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator) {
+fun onProposeAdministrator(queryId: uint64, msg: TokenAdminRegistryEntry_ProposeAdministrator) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator == null) throw TokenAdminRegistryEntry_Error.AlreadyRegistered;
@@ -176,10 +153,10 @@ fun onProposeAdministrator(msg: TokenAdminRegistryEntry_ProposeAdministrator) {
     adminConfig.pendingAdministrator = msg.administrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, adminConfig.administrator, msg.administrator);
+    notifyAdministratorTransferRequested(queryId, st.tokenAddress, adminConfig.administrator, msg.administrator);
 }
 
-fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole) {
+fun onTransferAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_TransferAdminRole) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
@@ -187,10 +164,10 @@ fun onTransferAdminRole(msg: TokenAdminRegistryEntry_TransferAdminRole) {
     adminConfig.pendingAdministrator = msg.newAdministrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, currentAdministrator, msg.newAdministrator);
+    notifyAdministratorTransferRequested(queryId, st.tokenAddress, currentAdministrator, msg.newAdministrator);
 }
 
-fun onAcceptAdminRole(msg: TokenAdminRegistryEntry_AcceptAdminRole) {
+fun onAcceptAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_AcceptAdminRole) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.pendingAdministrator != null && msg.actor == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
@@ -198,10 +175,10 @@ fun onAcceptAdminRole(msg: TokenAdminRegistryEntry_AcceptAdminRole) {
     adminConfig.pendingAdministrator = null;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferred(msg.queryId, st.tokenAddress, msg.actor);
+    notifyAdministratorTransferred(queryId, st.tokenAddress, msg.actor);
 }
 
-fun onSetPool(msg: TokenAdminRegistryEntry_SetPool) {
+fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     var st = lazy TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
@@ -211,7 +188,7 @@ fun onSetPool(msg: TokenAdminRegistryEntry_SetPool) {
     st.store();
 
     if (!samePool(previousPool, msg.tokenPool)) {
-        notifyPoolSet(msg.queryId, st.tokenAddress, previousPool, msg.tokenPool);
+        notifyPoolSet(queryId, st.tokenAddress, previousPool, msg.tokenPool);
     }
 }
 

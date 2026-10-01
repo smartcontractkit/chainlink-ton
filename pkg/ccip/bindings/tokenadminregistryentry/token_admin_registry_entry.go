@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
 // Version is TokenAdminRegistryEntry_VERSION: the entry version the root
@@ -46,13 +47,29 @@ type GetTokenInfo struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
+// RootMessage is the set of messages the root sends wrapped in MessageFromRoot.
+type RootMessage interface {
+	ResolveTokenInfo |
+		ProposeAdministrator |
+		TransferAdminRole |
+		AcceptAdminRole |
+		SetPool
+}
+
+// crc32('TokenAdminRegistryEntry_MessageFromRoot')
+// Envelope for every message the root sends to an entry.
+type MessageFromRoot[T RootMessage | any] struct {
+	_               tlb.Magic                 `tlb:"#558e7559" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID         uint64                    `tlb:"## 64"`
+	MinEntryVersion uint16                    `tlb:"## 16"`
+	Content         *codec.MessageEnvelope[T] `tlb:"^"`
+}
+
 // crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
 // Sent by the root on behalf of Requester.
 type ResolveTokenInfo struct {
-	_               tlb.Magic        `tlb:"#4f60fff3" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID         uint64           `tlb:"## 64"`
-	MinEntryVersion uint16           `tlb:"## 16"`
-	Requester       *address.Address `tlb:"addr"`
+	_         tlb.Magic        `tlb:"#4f60fff3" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Requester *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
@@ -63,57 +80,43 @@ type RegistrationInitialized struct {
 
 // crc32('TokenAdminRegistryEntry_ProposeAdministrator')
 type ProposeAdministrator struct {
-	_               tlb.Magic        `tlb:"#6dcbe573" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID         uint64           `tlb:"## 64"`
-	MinEntryVersion uint16           `tlb:"## 16"`
-	Administrator   *address.Address `tlb:"addr"`
+	_             tlb.Magic        `tlb:"#6dcbe573" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Administrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_TransferAdminRole')
 type TransferAdminRole struct {
 	_                tlb.Magic        `tlb:"#8b1503cf" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID          uint64           `tlb:"## 64"`
-	MinEntryVersion  uint16           `tlb:"## 16"`
 	Actor            *address.Address `tlb:"addr"`
 	NewAdministrator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_AcceptAdminRole')
 type AcceptAdminRole struct {
-	_               tlb.Magic        `tlb:"#39c6e872" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID         uint64           `tlb:"## 64"`
-	MinEntryVersion uint16           `tlb:"## 16"`
-	Actor           *address.Address `tlb:"addr"`
+	_     tlb.Magic        `tlb:"#39c6e872" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Actor *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_SetPool')
 // Sent by the root, which forwards the original sender as Actor.
 type SetPool struct {
-	_               tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID         uint64           `tlb:"## 64"`
-	MinEntryVersion uint16           `tlb:"## 16"`
-	Actor           *address.Address `tlb:"addr"`
-	TokenPool       *address.Address `tlb:"addr"`
-}
-
-// Pending is a request kept in flight while its entry is upgraded.
-type Pending struct {
-	Sender *address.Address `tlb:"addr"`
-	Body   *cell.Cell       `tlb:"^"`
+	_         tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Actor     *address.Address `tlb:"addr"`
+	TokenPool *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_UpgradeAndResume')
 type UpgradeAndResume struct {
-	_       tlb.Magic  `tlb:"#1fa23ab9" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID uint64     `tlb:"## 64"`
-	Code    *cell.Cell `tlb:"^"`
-	Pending *Pending   `tlb:"maybe ^"`
+	_       tlb.Magic             `tlb:"#1fa23ab9" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64                `tlb:"## 64"`
+	Code    *cell.Cell            `tlb:"^"`
+	Request *MessageFromRoot[any] `tlb:"maybe ^"`
 }
 
 // crc32('TokenAdminRegistryEntry_Resume')
 type Resume struct {
-	_       tlb.Magic `tlb:"#47d63a64" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	Pending Pending   `tlb:"^"`
+	_       tlb.Magic            `tlb:"#47d63a64" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Request MessageFromRoot[any] `tlb:"^"`
 }
 
 // crc32('TokenAdminRegistryEntry_ReturnTokenInfo')
@@ -127,8 +130,9 @@ type ReturnTokenInfo struct {
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	GetTokenInfo{},
-	ResolveTokenInfo{},
 	RegistrationInitialized{},
+	MessageFromRoot[any]{Content: nil},
+	ResolveTokenInfo{},
 	ProposeAdministrator{},
 	TransferAdminRole{},
 	AcceptAdminRole{},
