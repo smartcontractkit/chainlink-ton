@@ -1,6 +1,17 @@
 import '@ton/test-utils'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, beginCell, toNano } from '@ton/core'
+import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import {
+  Address,
+  Cell,
+  CommonMessageInfoInternal,
+  Message,
+  beginCell,
+  toNano,
+  TransactionActionPhase,
+  TransactionComputeVm,
+  TransactionDescriptionGeneric,
+} from '@ton/core'
+import { findTransactionRequired } from '@ton/test-utils'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -227,22 +238,74 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
 
   it("low self message value can't drain balance", async () => {
     const MIN_GRAM_TO_RESERVE = toNano('0.05')
-    const initValue = toNano('0.01')
-    const extraForGasFees = toNano('0.01')
-    const deployValue = initValue + MIN_GRAM_TO_RESERVE + extraForGasFees
+    const MIN_GRAM_TO_INIT = toNano('0.01')
     const { depositAccount, res } = await deployViaDeployable(null, recipient, {
-      deploy: deployValue,
-      init: initValue,
+      deploy: MIN_GRAM_TO_RESERVE,
+      init: MIN_GRAM_TO_INIT,
     })
 
+    // Below the minimum, the account replies with a failure message instead of reserving.
     expect(res.transactions).toHaveTransaction({
       from: depositAccount.address,
       to: recipient.address,
       success: true,
+      op: da.DepositAccount_NotEnoughValue.PREFIX,
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: recipient.address,
+      op: da.DepositAccount_Reply.PREFIX,
     })
 
+    // The failure reply only carries the init message's remaining value (never the account
+    // balance), so the deploy funds can't be drained.
     const balance = (await blockchain.getContract(depositAccount.address)).balance
-    expect(balance).toBeGreaterThanOrEqual(MIN_GRAM_TO_RESERVE)
+    expect(balance).toBeGreaterThanOrEqual(MIN_GRAM_TO_INIT)
+  })
+
+  it('init below MIN_GRAM_TO_INIT + MIN_GRAM_TO_RESERVE replies DepositAccount_NotEnoughValue instead of reserving', async () => {
+    const MIN_GRAM_TO_RESERVE = toNano('0.05')
+    const MIN_GRAM_TO_INIT = toNano('0.01')
+
+    // Deploy with an init self-message below the minimum: the value check in `_onInit` catches it.
+    const initValue = MIN_GRAM_TO_INIT - 1n
+    const deployValue = MIN_GRAM_TO_RESERVE + initValue
+    const forwardPayload = beginCell().storeUint(0xdeadbeef, 32).endCell()
+    const { depositAccount, res } = await deployViaDeployable(forwardPayload, recipient, {
+      deploy: deployValue,
+      init: initValue,
+    })
+
+    // The init transaction completes successfully
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: depositAccount.address,
+      op: da.DepositAccount_Init.PREFIX,
+      success: true,
+    })
+
+    // The account replies to the owner with DepositAccount_NotEnoughValue, echoing the
+    // init's forwardPayload for correlation.
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: recipient.address,
+      success: true,
+      op: da.DepositAccount_NotEnoughValue.PREFIX,
+      body(body) {
+        if (!body) return false
+        const reply = da.DepositAccount_NotEnoughValue.fromSlice(body.beginParse())
+        return reply.forwardPayload?.equals(forwardPayload) === true
+      },
+    })
+
+    // No success reply is sent and nothing is reserved.
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: recipient.address,
+      op: da.DepositAccount_Reply.PREFIX,
+    })
+    const balance = (await blockchain.getContract(depositAccount.address)).balance
+    expect(balance).toBeLessThan(MIN_GRAM_TO_RESERVE)
   })
 
   it('forwards a jetton notification from any wallet to the proxy', async () => {

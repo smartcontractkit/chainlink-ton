@@ -75,6 +75,10 @@ fun onInternalMessage(in: InMessage): void {
             onDepositAccountReply(mutate st, in.senderAddress, msg);
             st.store();
         }
+        DepositAccount_NotEnoughValue => {
+            onDepositAccountInitFailed(mutate st, in.senderAddress, msg);
+            st.store();
+        }
         DepositAccount_ForwardNotification => {
             onDepositAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
@@ -131,7 +135,7 @@ fun deployOffRampAccountWithRelease(
                 }.toCell(),
             },
             selfMessage: Deployable_Message {
-                value: LockReleaseLockboxTokenPool_OFF_RAMP_ACCOUNT_INIT_VALUE, // TODO We need to assert that SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE covers the required init and reply costs
+                value: DepositAccount_MIN_GRAM_TO_INIT,
                 body: DepositAccount_Init {
                     queryId,
                     forwardPayload: context.toCell(),
@@ -139,6 +143,7 @@ fun deployOffRampAccountWithRelease(
             },
         },
     });
+    // TODO the value should be more than DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_MIN_GRAM_TO_RESERVE
     deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
@@ -250,6 +255,39 @@ fun onDepositAccountDeployBounced(
     assert(init.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
     val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(init.forwardPayload!);
     val operation = lazy context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16);
+}
+
+/// @notice Handles `DepositAccount_NotEnoughValue`: the account failed to initialize because the
+/// init self-message carried less than `MIN_GRAM_TO_INIT` (the account replies instead of
+/// bouncing, so the deployment does not surface as a `Deployable_InitializeAndSend` bounce).
+/// Same recovery as a bounced deployment: refund the rate limit and send a release failure reply
+/// so the sender can retry with enough value. The deployment is idempotent.
+fun onDepositAccountInitFailed(
+    mutate st: Storage,
+    sender: address,
+    msg: DepositAccount_NotEnoughValue,
+) {
+    assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
+    val contextCell = msg.forwardPayload;
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
+    val operation = lazy context.forwardPayload.load();
+    val requestIn = lazy operation.requestMsg.load().request.load();
+    val details = lazy requestIn.transfer.details.load();
+
+    // Validate sender: derive the expected account address and verify. Owner = proxy = pool,
+    // beneficiary = the final recipient.
+    val poolAddr = contract.getAddress();
+    val expectedOaa = calcAddressOfDepositAccount(
+        deployableCode(),
+        poolAddr, // owner = pool
+        details.receiver,
+    );
+    assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);

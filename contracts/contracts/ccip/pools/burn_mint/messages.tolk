@@ -13,6 +13,7 @@ type BurnMintTokenPool_InMessage =
     | BurnMintTokenPool_ClaimMinterAdmin
     | CCT_ReturnExcessesBack
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | DepositAccount_ForwardNotification;
 
 type BurnMintTokenPool_OutMessage =

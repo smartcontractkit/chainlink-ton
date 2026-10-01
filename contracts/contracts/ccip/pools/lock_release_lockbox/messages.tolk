@@ -12,6 +12,7 @@ type LockReleaseLockboxTokenPool_InMessage =
     | JettonLockBox_Deposited
     | JettonLockBox_WithdrawFailed
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | DepositAccount_ForwardNotification;
 
 type LockReleaseLockboxTokenPool_OutMessage =
