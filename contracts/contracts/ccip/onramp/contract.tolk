@@ -33,7 +33,7 @@ contract OnRamp {
 
     storage: OnRamp_Storage
     incomingMessages: OnRamp_InMessage | Ownable2Step_Messages
-    forceAbiExport: (TVM2AnyRampMessageV1Metadata, TVM2AnyRampMessageIDData, OnRamp_MessageValidated_Any, OnRamp_MessageValidationFailed_Any)
+    forceAbiExport: (TVM2AnyRampMessageV1Metadata, TVM2AnyRampMessageIDData, OnRamp_GetValidatedFeeContext)
     thrownErrors: OnRamp_Error | Upgradeable_Error | Ownable2Step_Error
 }
 
@@ -45,18 +45,18 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
         // Permissionless
-        OnRamp_GetValidatedFee_Any => {
+        OnRamp_GetValidatedFee => {
             onGetValidatedFee(msg, in.senderAddress)
         }
         // Sender must be the FeeQuoter
-        FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext> => {
+        FeeQuoter_MessageValidated => {
             val st = lazy OnRamp_Storage.load();
             val feeQuoterAddress = st.config.load().feeQuoter;
             assert (in.senderAddress == feeQuoterAddress, OnRamp_Error.Unauthorized);
             onMessageValidated(msg)
         }
         // Sender must be the FeeQuoter
-        FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext> => {
+        FeeQuoter_MessageValidationFailed => {
             val st = lazy OnRamp_Storage.load();
             val feeQuoterAddress = st.config.load().feeQuoter;
             assert (in.senderAddress == feeQuoterAddress, OnRamp_Error.Unauthorized);
@@ -161,7 +161,7 @@ fun onInternalMessage(in: InMessage) {
 //     Router    ->> OnRamp:    OnRamp_GetValidatedFee
 //     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated | FeeQuoter_MessageValidationFailed
-fun onGetValidatedFee(msg: OnRamp_GetValidatedFee_Any, sender: address) {
+fun onGetValidatedFee(msg: OnRamp_GetValidatedFee, sender: address) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
@@ -171,12 +171,12 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee_Any, sender: address) {
         bounce: true,
         value: 0,
         dest: feeQuoter,
-        body: FeeQuoter_GetValidatedFee<OnRamp_GetValidatedFeeContext> {
+        body: FeeQuoter_GetValidatedFee {
             msg: msg.ccipSend,
-            context: {
+            context: OnRamp_GetValidatedFeeContext {
                 onrampContext: sender,
                 userContext: msg.context
-            },
+            }.toCell(),
         }
     });
 
@@ -194,9 +194,10 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee_Any, sender: address) {
 //     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
 //     OnRamp    ->> Router:    OnRamp_MessageValidated
-fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>) {
-    val userContext = msg.context.userContext;
-    val userAddress = msg.context.onrampContext;
+fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
+    val context = OnRamp_GetValidatedFeeContext.fromCell(msg.context!);
+    val userContext = context.userContext;
+    val userAddress = context.onrampContext;
 
     val confirmation = createMessage({
         bounce: false,
@@ -224,9 +225,10 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
 //     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
 //     OnRamp    ->> Router:    OnRamp_MessageValidationFailed
-fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>) {
-    val userContext = msg.context.userContext;
-    val userAddress = msg.context.onrampContext;
+fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed) {
+    val context = OnRamp_GetValidatedFeeContext.fromCell(msg.context!);
+    val userContext = context.userContext;
+    val userAddress = context.onrampContext;
 
     val rejection = createMessage({
         bounce: false,
