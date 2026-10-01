@@ -368,38 +368,53 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
 }
 
 /// Deploys (or re-confirms) the sender's per-user deposit account: a Deployable-namespaced
-/// OnRampAccount owned by this Router and keyed by the sender's address. The account is
-/// initialized with `DepositAccount_Init` (owner = Router), so the default init accepts it and
-/// replies with `DepositAccount_Reply`, which the Router turns into `Router_UseDepositAccount`.
+/// OnRampAccount owned by this Router and keyed by the sender's address. The account is deployed
+/// with a two-message sequence — `Deployable_Initialize` installs the account's code/data, then
+/// `DepositAccount_Init` sent directly by the Router (its owner) activates it — so the default
+/// init accepts it and replies with `DepositAccount_Reply`, which the Router turns into
+/// `Router_UseOnRampAccount`.
 fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
-    // Install the OnRampAccount code/data via the Deployable pattern.
     var beneficiaries: map<address, ()> = [];
     // Both the Router and the sender can withdraw from the deposit account.
     beneficiaries.set(contract.getAddress(), ());
     beneficiaries.set(sender, ());
+    val oaa = onRampAccountAutodeployAddress(sender);
+
+    // 1. Install the account's code/data at the shell address. On a retry to an already-deployed
+    // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: onRampAccountAutodeployAddress(sender),
-        body: Deployable_InitializeAndSend {
+        value: DepositAccount_MIN_GRAM_TO_RESERVE,
+        dest: oaa,
+        body: Deployable_Initialize {
             stateInit: ContractState {
                 code: depositAccountCompiledCode(),
                 data: DepositAccount_Data {
                     owner: contract.getAddress(),
-                    proxy: contract.getAddress(),
+                    proxy: sender,
                     beneficiaries,
-                }.toCell(),
-            },
-            selfMessage: {
-                value: grams("0.1"), // TODO
-                body: DepositAccount_Init {
-                    queryId: msg.queryId,
-                    forwardPayload: sender.toCell(),
                 }.toCell(),
             },
         },
     });
-    deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+
+    // The remaining value should be at least DepositAccount_MIN_GRAM_TO_INIT
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+
+    // 2. Init the freshly installed account (processed right after the deploy). The account
+    // replies `DepositAccount_Reply` to the Router (its owner), which answers the user.
+    val init = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: oaa.calculateAddress(),
+        body: DepositAccount_Init {
+            queryId: msg.queryId,
+            forwardPayload: sender.toCell(),
+        },
+    });
+    // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
+    init.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles the account's `DepositAccount_Reply` (the "DeploymentConfirmed" leg): verifies the
@@ -430,6 +445,7 @@ fun onDepositAccountInitReply(msg: DepositAccount_Reply, sender: address) {
 ///      The message is only accepted from accounts whose data was installed by this Router
 ///      (owner = Router), and the event is informational — no state changes on this path.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
+    assert(sender == onRampAccountAddress(msg.proxy), Router_Error.SenderIsNotOnRampAccount);
     val ask = lazy msg.ask.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,

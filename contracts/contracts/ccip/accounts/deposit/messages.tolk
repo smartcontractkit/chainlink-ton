@@ -70,6 +70,10 @@ struct (0x1936d112) DepositAccount_Withdraw {
 /// funds could not be transferred out.
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
+    /// Required to verify the deposit account.
+    owner: address;
+    /// Required to verify the deposit account.
+    proxy: address;
     /// Jetton wallet the failed AskToTransfer was sent to.
     walletAddress: address;
     /// The bounced AskToTransfer (carries amount + recipient + the requester in `sendExcessesTo` for reconciliation).

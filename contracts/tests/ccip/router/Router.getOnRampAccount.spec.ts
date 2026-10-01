@@ -69,19 +69,19 @@ describe('Router.getOnRampAccount', () => {
       {},
     )
 
-    // Router -> account (Deployable_InitializeAndSend installs the OnRampAccount code/data; the
+    // Router -> account (Deployable_Initialize installs the OnRampAccount code/data; the
     // address carries a state init, so this deploys the Deployable shell).
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: accountAddress,
-      op: dep.opcodes.in.initializeAndSend,
+      op: dep.opcodes.in.initialize,
       deploy: true,
       success: true,
     })
 
-    // account -> account (DepositAccount_Init; sends init to itself to continue execution).
+    // Router -> account (DepositAccount_Init sent directly by the Router, the account's owner).
     expect(result.transactions).toHaveTransaction({
-      from: accountAddress,
+      from: router.address,
       to: accountAddress,
       op: deposit.DepositAccount_Init.PREFIX,
       success: true,
@@ -153,13 +153,19 @@ describe('Router.getOnRampAccount', () => {
       success: true,
     })
 
-    // Second call: the Deployable shell is already deployed and owned by the Router, so the
-    // re-initialize is accepted and the reply round-trip repeats.
+    // Second call: the retried Deployable_Initialize bounces off the already-upgraded account
+    // (unrecognized opcode), but the init still succeeds and the reply round-trip repeats.
     const second = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
       {},
     )
+    expect(second.transactions).toHaveTransaction({
+      from: router.address,
+      to: expectedAccountAddress(),
+      op: dep.opcodes.in.initialize,
+      success: false,
+    })
     expect(second.transactions).toHaveTransaction({
       to: sender.address,
       op: rt.Router_UseOnRampAccount.PREFIX,

@@ -318,7 +318,7 @@ fun Router_Costs.receiveConfirm(): int {
 }
 
 // Minimum value for calling Router_DeployDepositAccount: covers the Router's own compute,
-// the Deployable_Initialize + DepositAccount_Init forwards, the account's init compute and
+// the Deployable_Initialize + DepositAccount_Init messages, the account's init compute and
 // storage, and the DepositAccount_Reply -> Router_UseDepositAccount round-trip.
 fun Router_Costs.GetDepositAccount(): int {
     return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
