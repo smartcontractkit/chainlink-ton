@@ -44,19 +44,19 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_OverridePendingAdministrator => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            requireForwardValue(in.valueCoins);
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
             overridePendingAdministrator(msg);
         }
         TokenAdminRegistry_TransferAdminRole => {
-            requireForwardValue(in.valueCoins);
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
             transferAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_AcceptAdminRole => {
-            requireForwardValue(in.valueCoins);
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
             acceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_SetPool => {
-            requireForwardValue(in.valueCoins);
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
@@ -119,10 +119,6 @@ fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: a
 
 fun entryAddress(token: address): AutoDeployAddress {
     return TokenAdminRegistryEntry.deriveAddress(deployableCode(), token, contract.getAddress());
-}
-
-fun requireForwardValue(value: coins) {
-    assert(value >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
 }
 
 /// Forwards to an entry carrying all value, so a stale entry can fund its
