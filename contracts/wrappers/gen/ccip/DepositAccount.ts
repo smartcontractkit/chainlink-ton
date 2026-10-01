@@ -217,6 +217,44 @@ export const ExtraCurrenciesMap = {
 }
 
 /**
+ > struct ContractState {
+ >     code: cell
+ >     data: cell
+ > }
+ */
+export interface ContractState {
+    readonly $: 'ContractState'
+    code: c.Cell
+    data: c.Cell
+}
+
+export const ContractState = {
+    create(args: {
+        code: c.Cell
+        data: c.Cell
+    }): ContractState {
+        return {
+            $: 'ContractState',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ContractState {
+        return {
+            $: 'ContractState',
+            code: s.loadRef(),
+            data: s.loadRef(),
+        }
+    },
+    store(self: ContractState, b: c.Builder): void {
+        b.storeRef(self.code);
+        b.storeRef(self.data);
+    },
+    toCell(self: ContractState): c.Cell {
+        return makeCellFrom<ContractState>(self, ContractState.store);
+    }
+}
+
+/**
  > struct DepositAccount_Data {
  >     owner: address
  >     proxy: address
@@ -355,6 +393,51 @@ export const DepositAccount_Reply = {
     },
     toCell(self: DepositAccount_Reply): c.Cell {
         return makeCellFrom<DepositAccount_Reply>(self, DepositAccount_Reply.store);
+    }
+}
+
+/**
+ > struct (0x83462e93) DepositAccount_NotEnoughValue {
+ >     queryId: uint64
+ >     forwardPayload: cell?
+ > }
+ */
+export interface DepositAccount_NotEnoughValue {
+    readonly $: 'DepositAccount_NotEnoughValue'
+    queryId: uint64
+    forwardPayload: c.Cell | null
+}
+
+export const DepositAccount_NotEnoughValue = {
+    PREFIX: 0x83462e93,
+
+    create(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): DepositAccount_NotEnoughValue {
+        return {
+            $: 'DepositAccount_NotEnoughValue',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
+        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
+        return {
+            $: 'DepositAccount_NotEnoughValue',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
+        b.storeUint(0x83462e93, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
+        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
     }
 }
 
@@ -641,6 +724,86 @@ export const AskToTransfer = {
     }
 }
 
+/**
+ > struct (0xb0ec5157) Deployable_InitializeAndSend {
+ >     stateInit: ContractState
+ >     selfMessage: Deployable_Message
+ > }
+ */
+export interface Deployable_InitializeAndSend {
+    readonly $: 'Deployable_InitializeAndSend'
+    stateInit: ContractState
+    selfMessage: Deployable_Message
+}
+
+export const Deployable_InitializeAndSend = {
+    PREFIX: 0xb0ec5157,
+
+    create(args: {
+        stateInit: ContractState
+        selfMessage: Deployable_Message
+    }): Deployable_InitializeAndSend {
+        return {
+            $: 'Deployable_InitializeAndSend',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Deployable_InitializeAndSend {
+        loadAndCheckPrefix32(s, 0xb0ec5157, 'Deployable_InitializeAndSend');
+        return {
+            $: 'Deployable_InitializeAndSend',
+            stateInit: ContractState.fromSlice(s),
+            selfMessage: Deployable_Message.fromSlice(s),
+        }
+    },
+    store(self: Deployable_InitializeAndSend, b: c.Builder): void {
+        b.storeUint(0xb0ec5157, 32);
+        ContractState.store(self.stateInit, b);
+        Deployable_Message.store(self.selfMessage, b);
+    },
+    toCell(self: Deployable_InitializeAndSend): c.Cell {
+        return makeCellFrom<Deployable_InitializeAndSend>(self, Deployable_InitializeAndSend.store);
+    }
+}
+
+/**
+ > struct Deployable_Message {
+ >     value: coins
+ >     body: cell
+ > }
+ */
+export interface Deployable_Message {
+    readonly $: 'Deployable_Message'
+    value: coins
+    body: c.Cell
+}
+
+export const Deployable_Message = {
+    create(args: {
+        value: coins
+        body: c.Cell
+    }): Deployable_Message {
+        return {
+            $: 'Deployable_Message',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Deployable_Message {
+        return {
+            $: 'Deployable_Message',
+            value: s.loadCoins(),
+            body: s.loadRef(),
+        }
+    },
+    store(self: Deployable_Message, b: c.Builder): void {
+        b.storeCoins(self.value);
+        b.storeRef(self.body);
+    },
+    toCell(self: Deployable_Message): c.Cell {
+        return makeCellFrom<Deployable_Message>(self, Deployable_Message.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class DepositAccount
 //
@@ -680,12 +843,13 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECGwEAAzEAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAREgIBIAYHAgEgDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKAMM7aLt+zgG1ywjRIUQLJhscdM/9AXwAo5H1ywgybaIlI4gMDcvUX9Rf1F/UX9Rf1F/UX9RfwcQVhBFEDRBMPAE2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQAdQjwwCVJ26zwwCRcOKZVHupK1UjK9pw4IIAzRRTPMcF8vTIz4UIE/pSghDaBGMMzwuOyz/0AMmAQPsAgANkNTU2AcMAlSNus8MAkXDilAQD2oDgbDM0NCKCAM0VA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQPHBcMAkzEycOIS8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAgEgDxAAqUOTo6BcMAlSZus8MAkXDilxA4R1UG2sDgNjg4ODjIz5A+KfqWJs8LP1AF+gL6UlJg+lQS9AAB+gLOycjPhQgU+lKCEKUbbLrPC47LP/pSzMmAQPsAgAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAE81ywn////9PK/10zQ1ywgfFP1LJ/TP/oA+kj6UPQE+gDwBn/gXwtwgAgEgExQCAUgZGgIBIBUWAgFIFxgAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAG7NCO1E0PpIMfpIMfQFgABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIQEAA+MAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASAXGAIBIAYHALPZydHR0CYYBKkrdZ4YBIuHFMJDsIGqqJbWBwGpwcHBxkZ8gfFP1LEueFn4D9AQt9KSkQfSp6ACgCfQEKZ2TkZ8KECf0pQQhSjbZdZ4XHCeWfiX0pZmTAIH2AQCASAICQIBIBESAgEgCgsCASAPEAH3PiRjjNwbW1tbW0l7UTQ+kj6SPQE0fiSI1GTUZMJEI0QfEZUED1M3vAHmsj6UvpS9ADJ7VTgXwPgcG1tbW1tJe1E0PpI+kj0BNH4kviX+JL4l/iY+JMp+Dr4lPiVVhLIzskLERILChERCgkREAkQvxCuEJ0QvBCrEJpWE4AwBMztou37B9csI0SFECyZbHHTP/QFWPAC4w5/gDQA4VWDwAWxxA8j6UhL6UvQAye1UkTDghA8BxwDy9AH+1ywgybaIlI4fbIHTP/pI10wtUU1RTVFNUU1RTVFNUU1RTVFNRDTwBI5V1ywlh2KKvI4lMDc3VhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAH8AbbMeFscdQx1DH6ADHXTIIAzRRTPccF8vTQ1ywjRIUQLPK/0z/0BVjwBQ4AAuIATQkwwCVKW6zwwCRcOKZVH3LLVUzLdqA4IIAzRf4KBXHBRTy9FjwA4ACZDD4J28QgguThwC5jhvIz4UIUsD6UoIQg0Yuk88LjhLLP/QAyYBA+wDgggr68IBw+wLIz4UIUsD6UoIQ2gRjDM8LjhLLP/QAyYMG+wCACASATFAIBIBUWANcNTU2NsMAlSJus8MAkXDik1jagOA1Nls0I4IAzRUDgQEL9ApvoTES8vQg0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIIAzRYhbrOVBMcFwwCTMTNw4hPy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAANwkwwCVKG6zwwCRcOKZVH3LLVUzLNqA4GwT8AOAAlQ5OTk5A8MAlSNus8MAkXDilkV2UEPaseAzNzc4BMj6UlAH+gIU9AAB+gISyz8Tyx8SzMnIz4UIEvpSghC0/lwMzwuOzMmAQPsAf4ABPNcsJ/////Tyv9dM0NcsIHxT9Syf0z/6APpI+lD0BPoA8Ah/4F8McIAIBIBkaAgFIHyACASAbHAIBSB0eAG22K/GhU2NLc1lzG0MLS3Fzo3txcxsbS4FzCxsbe6tzoXIjK4N7m0uiCxsbe6tzpBFqYFxiXGEQABu1xRBAGaKUBBCB935QkAALsaFgQINgABuzQjtRND6SDH6SDH0BYAARtdE9qJofSQYQABe0A32omh9JBj9JBhA=');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
         'DepositAccount_Error.OnlyBeneficiary': 52501,
         'DepositAccount_Error.OnlySendExcessesToSender': 52502,
+        'DepositAccount_Error.OnlySelf': 52503,
     }
 
     readonly address: c.Address
@@ -728,6 +892,13 @@ export class DepositAccount implements c.Contract {
         return DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body));
     }
 
+    static createCellOfDeployableInitializeAndSend(body: {
+        stateInit: ContractState
+        selfMessage: Deployable_Message
+    }) {
+        return Deployable_InitializeAndSend.toCell(Deployable_InitializeAndSend.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -763,6 +934,17 @@ export class DepositAccount implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendDeployableInitializeAndSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        stateInit: ContractState
+        selfMessage: Deployable_Message
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Deployable_InitializeAndSend.toCell(Deployable_InitializeAndSend.create(body)),
             ...extraOptions
         });
     }

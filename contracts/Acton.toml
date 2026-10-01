@@ -121,13 +121,13 @@ depends = []
 display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.LockReleaseLockboxTokenPool]
 display-name = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
 src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.MockAdvancedPoolHooks]
 display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"

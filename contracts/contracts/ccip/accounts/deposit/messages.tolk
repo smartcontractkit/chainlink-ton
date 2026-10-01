@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
+import "../../../lib/deployable/types"
 
 /// Initialization message sent by the owner to activate the account.
 /// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
 ///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
 ///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
 ///      so one account per user serves any number of jettons.
+///      The message is only accepted from the account itself: it is replayed as a self-message
+///      by `Deployable_InitializeAndSend` (see `DepositAccount_InMessage`), which is the only
+///      path that can install the account's code/data.
 struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
@@ -16,6 +20,12 @@ struct (0x6890a205) DepositAccount_Init {
 
 /// Reply message on successful initialization
 struct (0xda04630c) DepositAccount_Reply {
+    queryId: uint64;
+    forwardPayload: cell?;
+}
+
+/// Reply message on failed initialization due to insufficient value.
+struct (0x83462e93) DepositAccount_NotEnoughValue {
     queryId: uint64;
     forwardPayload: cell?;
 }
@@ -70,13 +80,18 @@ type DepositAccount_BouncedMessage =
     | AskToTransfer;
 
 /// All recognized incoming message types.
+///
+/// `Deployable_InitializeAndSend` is the deployment entrypoint: the Deployable shell (whose
+/// address the account lives at).
 type DepositAccount_InMessage =
     | DepositAccount_Init
-    | DepositAccount_Withdraw;
+    | DepositAccount_Withdraw
+    | Deployable_InitializeAndSend;
 
 /// All outgoing message types this contract may produce.
 type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | DepositAccount_WithdrawFailed
     | AskToTransfer;

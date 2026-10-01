@@ -47,6 +47,7 @@ const CONTRACT_VERSION = "0.1.0".literalSlice();
 fun loadOnRampAccount(data: DepositAccount_Data): DepositAccount<void> {
     val hooks = DepositAccount_Hooks<void> {
         onInit: null,
+        onReInit: null,
         onWithdraw: null,
         onForwardNotification,
         onWithdrawBounced: null,

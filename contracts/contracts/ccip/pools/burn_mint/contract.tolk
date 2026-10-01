@@ -16,6 +16,11 @@ import "../../accounts/deposit/types"
 import "../../cct/messages"
 import "../../rmn_remote/lib"
 
+import "../../../lib/deployable/types"
+
+import "../../../../gen/Deployable.code"
+import "../../../../gen/DepositAccount.code"
+
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
@@ -70,6 +75,10 @@ fun onInternalMessage(in: InMessage) {
         }
         DepositAccount_Reply => {
             onDepositAccountReply(mutate st, in.senderAddress, msg);
+            st.store();
+        }
+        DepositAccount_NotEnoughValue => {
+            onDepositAccountInitFailed(mutate st, in.senderAddress, msg);
             st.store();
         }
         DepositAccount_ForwardNotification => {
@@ -152,10 +161,11 @@ fun onBouncedMessage(in: InMessageBounced) {
             pool.sendReleaseOrMintFailure(operation, BurnMintTokenPool_Error.UnexpectedMintBounce as uint16);
             st.store();
         }
-        // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
-        // reply with a failure so the sender can retry instead of the mint silently stalling.
-        DepositAccount_Init => {
-            onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
+        // The account rejected the deployment (e.g. could not fund its rent reserve). Refund the
+        // rate limit and reply with a failure so the sender can retry instead of the mint
+        // silently stalling.
+        Deployable_InitializeAndSend => {
+            onDepositAccountDeployBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
         // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
@@ -168,16 +178,48 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-/// @notice Handles a bounced `DepositAccount_Init`: refunds the inbound rate limit and sends a
-/// mint failure reply. The init carries the mint context in `forwardPayload`.
-fun onDepositAccountInitBounced(
+/// @notice Handles a bounced `Deployable_InitializeAndSend` (the DepositAccount deployment):
+/// refunds the inbound rate limit and sends a mint failure reply. The deployment carries the
+/// mint context in the self-message `DepositAccount_Init.forwardPayload`.
+fun onDepositAccountDeployBounced(
     mutate st: Storage,
     sender: address,
-    msg: DepositAccount_Init,
+    msg: Deployable_InitializeAndSend,
+) {
+    val init = lazy DepositAccount_Init.fromCell(msg.selfMessage.body);
+    assert(init.forwardPayload != null, BurnMintTokenPool_Error.OffRampAccountDeployFailed);
+    val context = BurnMintTokenPool_MintContext.fromCell(init.forwardPayload!);
+    val operation = lazy context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, BurnMintTokenPool_Error.OffRampAccountDeployFailed as uint16);
+}
+
+/// @notice Handles `DepositAccount_NotEnoughValue`: the account failed to initialize because the
+/// init self-message carried less than `MIN_GRAM_TO_INIT` (the account replies instead of
+/// bouncing, so the deployment does not surface as a `Deployable_InitializeAndSend` bounce).
+/// Same recovery as a bounced deployment: refund the rate limit and send a mint failure reply
+/// so the sender can retry with enough value. The deployment is idempotent.
+fun onDepositAccountInitFailed(
+    mutate st: Storage,
+    sender: address,
+    msg: DepositAccount_NotEnoughValue,
 ) {
     assert(msg.forwardPayload != null, BurnMintTokenPool_Error.OffRampAccountDeployFailed);
-    val context = BurnMintTokenPool_MintContext.fromCell(msg.forwardPayload!);
+    val context = BurnMintTokenPool_MintContext.fromCell(msg.forwardPayload);
     val operation = lazy context.forwardPayload.load();
+
+    // Validate sender: derive the expected account address from the mint recipient and verify.
+    val mintRecipient = getMintRecipientFromContext(msg.forwardPayload);
+    val poolAddr = contract.getAddress();
+    val expectedOaa = calcAddressOfDepositAccount(
+        deployableCode(),
+        poolAddr, // owner = pool
+        mintRecipient
+    );
+    assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.OffRampAccountDeployFailed);
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -283,8 +325,18 @@ fun onCCTReturnExcessesBack(
 }
 
 /// @notice Deploys a DepositAccount (off-ramp role) for mint operations.
-/// owner = pool (deploys and inits the account), proxy = pool, beneficiary = recipient
-/// (withdraws minted jettons).
+///
+/// The account is deployed via the Deployable pattern: the pool sends
+/// `Deployable_InitializeAndSend` to the account's deterministic shell address, which upgrades
+/// into the account by atomically installing the account's code/data and replaying
+/// `DepositAccount_Init` as a self-message (carrying the mint context as forward payload, so
+/// the account's `DepositAccount_Reply` back to the pool can be correlated to the mint).
+/// owner = pool (deploys the account and receives the Reply), proxy = pool,
+/// beneficiary = recipient (withdraws minted jettons).
+///
+/// @dev Idempotent: if the account is already deployed, the account itself handles the
+///      `Deployable_InitializeAndSend` (re-installing the same state and re-running the init),
+///      so a retried mint to the same recipient safely re-confirms the account.
 fun deployOffRampAccountWithMint(
     st: Storage,
     recipient: address,
@@ -295,21 +347,34 @@ fun deployOffRampAccountWithMint(
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(recipient, ());
     val oaa = calcAddressOfDepositAccount(
-        st.offRampAccountCode,
+        deployableCode(),
         poolAddr, // owner = pool (inits the account)
-        poolAddr, // proxy = pool
-        beneficiaries,
+        recipient,
     );
 
     val deploy = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: oaa,
-        body: DepositAccount_Init {
-            queryId,
-            forwardPayload: context.toCell(),
+        body: Deployable_InitializeAndSend {
+            stateInit: ContractState {
+                code: depositAccountCode(),
+                data: DepositAccount_Data {
+                    owner: poolAddr,
+                    proxy: poolAddr,
+                    beneficiaries,
+                }.toCell(),
+            },
+            selfMessage: Deployable_Message {
+                value: DepositAccount_MIN_GRAM_TO_INIT,
+                body: DepositAccount_Init {
+                    queryId,
+                    forwardPayload: context.toCell(),
+                }.toCell(),
+            },
         },
     });
+    // TODO the value should be more than DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_MIN_GRAM_TO_RESERVE
     deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
@@ -331,13 +396,10 @@ fun onDepositAccountReply(
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
-        st.offRampAccountCode,
+        deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        mintRecipient
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
 
@@ -404,13 +466,10 @@ fun onDepositAccountForwardNotification(
     val mintRecipient = getMintRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(mintRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
-        st.offRampAccountCode,
+        deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        mintRecipient,
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountNotification);
 
@@ -448,6 +507,16 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onWithdrawFeeTokens: null,
         },
     };
+}
+
+/* === Pinned dependency code (generated by acton build) === */
+
+fun deployableCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun depositAccountCode(): cell {
+    return depositAccountCompiledCode();
 }
 
 get fun typeAndVersion(): (slice, slice) {

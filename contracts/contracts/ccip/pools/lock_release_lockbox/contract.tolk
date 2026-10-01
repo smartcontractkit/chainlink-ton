@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.2
 
-import "@stdlib/lisp-lists"
-
 import "../../../lib/utils"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
@@ -13,6 +11,11 @@ import "../../common/types"
 import "../../accounts/deposit/messages"
 import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
+
+import "../../../lib/deployable/types"
+
+import "../../../../gen/Deployable.code"
+import "../../../../gen/DepositAccount.code"
 
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
@@ -72,6 +75,10 @@ fun onInternalMessage(in: InMessage): void {
             onDepositAccountReply(mutate st, in.senderAddress, msg);
             st.store();
         }
+        DepositAccount_NotEnoughValue => {
+            onDepositAccountInitFailed(mutate st, in.senderAddress, msg);
+            st.store();
+        }
         DepositAccount_ForwardNotification => {
             onDepositAccountForwardNotification(mutate st, in.senderAddress, msg);
             st.store();
@@ -86,8 +93,18 @@ fun onInternalMessage(in: InMessage): void {
 }
 
 /// Deploys a DepositAccount (off-ramp role) for release operations.
-/// owner = pool (deploys and inits the account), proxy = pool, beneficiary = recipient
-/// (can withdraw released jettons).
+///
+/// The account is deployed via the Deployable pattern: the pool sends
+/// `Deployable_InitializeAndSend` to the account's deterministic shell address, which upgrades
+/// into the account by atomically installing the account's code/data and replaying
+/// `DepositAccount_Init` as a self-message (carrying the release context as forward payload, so
+/// the account's `DepositAccount_Reply` back to the pool can be correlated to the release).
+/// owner = pool (deploys the account and receives the Reply), proxy = pool,
+/// beneficiary = recipient (can withdraw released jettons).
+///
+/// @dev Idempotent: if the account is already deployed, the account itself handles the
+///      `Deployable_InitializeAndSend` (re-installing the same state and re-running the init),
+///      so a retried release to the same recipient safely re-confirms the account.
 fun deployOffRampAccountWithRelease(
     st: Storage,
     recipient: address,
@@ -99,21 +116,34 @@ fun deployOffRampAccountWithRelease(
     beneficiaries.set(recipient, ());
 
     val oaa = calcAddressOfDepositAccount(
-        st.offRampAccountCode,
-        poolAddr, // owner = pool (inits the account)
-        poolAddr, // proxy = pool
-        beneficiaries,
+        deployableCode(),
+        poolAddr, // owner = pool (deploys the account)
+        recipient,
     );
 
     val deploy = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: oaa,
-        body: DepositAccount_Init {
-            queryId,
-            forwardPayload: context.toCell(),
+        body: Deployable_InitializeAndSend {
+            stateInit: ContractState {
+                code: depositAccountCode(),
+                data: DepositAccount_Data {
+                    owner: poolAddr,
+                    proxy: poolAddr,
+                    beneficiaries,
+                }.toCell(),
+            },
+            selfMessage: Deployable_Message {
+                value: DepositAccount_MIN_GRAM_TO_INIT,
+                body: DepositAccount_Init {
+                    queryId,
+                    forwardPayload: context.toCell(),
+                }.toCell(),
+            },
         },
     });
+    // TODO the value should be more than DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_MIN_GRAM_TO_RESERVE
     deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
@@ -137,13 +167,10 @@ fun onDepositAccountReply(
     // Validate sender: derive expected account address and verify. Owner = proxy = pool,
     // beneficiary = the final recipient.
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(details.receiver, ());
     val expectedOaa = calcAddressOfDepositAccount(
-        st.offRampAccountCode,
+        deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        details.receiver,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
 
@@ -199,10 +226,11 @@ fun onBouncedMessage(in: InMessageBounced) {
             onLockTransferBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
-        // The account rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
-        // reply with a failure so the sender can retry instead of the release silently stalling.
-        DepositAccount_Init => {
-            onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
+        // The account rejected the deployment (e.g. could not fund its rent reserve). Refund the
+        // rate limit and reply with a failure so the sender can retry instead of the release
+        // silently stalling.
+        Deployable_InitializeAndSend => {
+            onDepositAccountDeployBounced(mutate st, in.senderAddress, msg);
             st.store();
         }
         // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
@@ -215,16 +243,51 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-/// @notice Handles a bounced `DepositAccount_Init`: refunds the inbound rate limit and sends a
-/// release failure reply. The init carries the release context in `forwardPayload`.
-fun onDepositAccountInitBounced(
+/// @notice Handles a bounced `Deployable_InitializeAndSend` (the DepositAccount deployment):
+/// refunds the inbound rate limit and sends a release failure reply. The deployment carries the
+/// release context in the self-message `DepositAccount_Init.forwardPayload`.
+fun onDepositAccountDeployBounced(
     mutate st: Storage,
     sender: address,
-    msg: DepositAccount_Init,
+    msg: Deployable_InitializeAndSend,
+) {
+    val init = lazy DepositAccount_Init.fromCell(msg.selfMessage.body);
+    assert(init.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
+    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(init.forwardPayload!);
+    val operation = lazy context.forwardPayload.load();
+
+    var pool = loadPool(st);
+    pool.refundReleaseOrMintRateLimit(operation);
+    st.poolData = pool.data.toCell();
+    pool.sendReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16);
+}
+
+/// @notice Handles `DepositAccount_NotEnoughValue`: the account failed to initialize because the
+/// init self-message carried less than `MIN_GRAM_TO_INIT` (the account replies instead of
+/// bouncing, so the deployment does not surface as a `Deployable_InitializeAndSend` bounce).
+/// Same recovery as a bounced deployment: refund the rate limit and send a release failure reply
+/// so the sender can retry with enough value. The deployment is idempotent.
+fun onDepositAccountInitFailed(
+    mutate st: Storage,
+    sender: address,
+    msg: DepositAccount_NotEnoughValue,
 ) {
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
-    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
+    val contextCell = msg.forwardPayload;
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
     val operation = lazy context.forwardPayload.load();
+    val requestIn = lazy operation.requestMsg.load().request.load();
+    val details = lazy requestIn.transfer.details.load();
+
+    // Validate sender: derive the expected account address and verify. Owner = proxy = pool,
+    // beneficiary = the final recipient.
+    val poolAddr = contract.getAddress();
+    val expectedOaa = calcAddressOfDepositAccount(
+        deployableCode(),
+        poolAddr, // owner = pool
+        details.receiver,
+    );
+    assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
 
     var pool = loadPool(st);
     pool.refundReleaseOrMintRateLimit(operation);
@@ -414,13 +477,10 @@ fun onDepositAccountForwardNotification(
     val releaseRecipient = getReleaseRecipientFromContext(contextCell);
     val jettonClient = st.poolData.load().jettonClient();
     val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(releaseRecipient, ());
     val expectedOaa = calcAddressOfDepositAccount(
-        st.offRampAccountCode,
+        deployableCode(),
         poolAddr, // owner = pool
-        poolAddr, // proxy = pool
-        beneficiaries,
+        releaseRecipient,
     );
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
@@ -472,6 +532,14 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onWithdrawFeeTokens: null,
         },
     };
+}
+
+fun deployableCode(): cell {
+    return deployableCompiledCode();
+}
+
+fun depositAccountCode(): cell {
+    return depositAccountCompiledCode();
 }
 
 /* === Getters === */

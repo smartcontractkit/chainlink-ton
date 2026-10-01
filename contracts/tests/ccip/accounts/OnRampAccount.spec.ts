@@ -1,15 +1,13 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, beginCell, toNano } from '@ton/core'
-import {
-  OnRampAccount,
-  AskToTransfer,
-  ForwardPayloadRemainder,
-  DepositAccount_WithdrawFailed,
-} from '../../../wrappers/gen/ccip/OnRampAccount'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import { contractCode } from '../../../wrappers/codeLoader'
+import * as Deployable from '../../../wrappers/libraries/Deployable'
+import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import * as da from '../../../wrappers/gen/ccip/DepositAccount'
+import * as ora from '../../../wrappers/gen/ccip/OnRampAccount'
 
 describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   let blockchain: Blockchain
@@ -21,9 +19,9 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   let jettonMinter: SandboxContract<JettonMinter>
   let jettonWalletCode: Cell
 
-  let account: SandboxContract<OnRampAccount>
+  let account: SandboxContract<ora.OnRampAccount>
 
-  const owner = () => user.address
+  const owner = () => router.address
   const proxy = () => router.address
   const beneficiaries = () => new Set<Address>([user.address, router.address])
 
@@ -99,16 +97,50 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     )
     await jettonMinter.sendDeploy(deployer.getSender(), toNano('1'))
 
-    account = blockchain.openContract(
-      OnRampAccount.fromStorage({
-        owner: owner(),
-        proxy: proxy(),
-        beneficiaries: beneficiaries(),
-      }),
+    const deployableCode = await contractCode.ccip.local('Deployable')
+    const shell = blockchain.openContract(
+      Deployable.ContractClient.createFromConfig(
+        {
+          owner: owner(),
+          id: Deployable.builder.data.namespaced.encode({
+            namespace: NameSpace.CCIPNamespace.OnRampAccount,
+            id: beginCell().storeAddress(user.address),
+          }),
+        },
+        deployableCode,
+      ),
     )
-    await account.sendDeploy(deployer.getSender(), toNano('1'))
+    const result = await shell.sendInitializeAndSend(router.getSender(), toNano('0.5'), {
+      stateInit: {
+        code: ora.OnRampAccount.CodeCell,
+        data: ora.DepositAccount_Data.toCell(
+          ora.DepositAccount_Data.create({
+            owner: owner(),
+            proxy: proxy(),
+            beneficiaries: beneficiaries(),
+          }),
+        ),
+      },
+      selfMessage: {
+        value: toNano('0.2'),
+        body: ora.DepositAccount_Init.toCell(
+          ora.DepositAccount_Init.create({ queryId: 0n, forwardPayload: null }),
+        ),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: shell.address,
+      to: router.address,
+      success: true,
+      op: ora.DepositAccount_Reply.PREFIX,
+    })
+
+    account = blockchain.openContract(ora.OnRampAccount.fromAddress(shell.address))
   })
 
+  // A direct init from anyone (including the owner) is rejected: the init is only replayed as a
+  // self-message by `Deployable_InitializeAndSend`.
   const initAccount = async (via: SandboxContract<TreasuryContract>, queryId = 1n) => {
     return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
       queryId,
@@ -117,40 +149,35 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   }
 
   const buildAskToTransfer = (amount: bigint, recipient: Address, requester: Address) =>
-    AskToTransfer.create({
+    ora.AskToTransfer.create({
       queryId: 10n,
       jettonAmount: amount,
       transferRecipient: recipient,
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload: ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
+      forwardPayload: ora.ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
     })
 
-  it('deploys with owner and proxy (Router) and is not yet initialized', async () => {
+  it('deploys with owner and proxy (Router) and is initialized via the Deployable shell', async () => {
     expect((await account.getOwner()).equals(owner())).toBe(true)
     expect((await account.getProxy()).equals(proxy())).toBe(true)
   })
 
-  it('initializes only from owner', async () => {
-    const res = await initAccount(user)
-    expect(res.transactions).toHaveTransaction({
-      from: user.address,
-      to: account.address,
-      success: true,
-    })
+  it('rejects a direct init from anyone (init is self-only)', async () => {
+    // The init is replayed as a self-message by Deployable_InitializeAndSend, so a direct
+    // init from the owner (or anyone else) is rejected.
+    const badOwner = await initAccount(user)
+    expect(badOwner.transactions).toHaveTransaction({ to: account.address, success: false })
 
-    // The proxy (Router) is no longer allowed to init — only the owner may.
     const badProxy = await initAccount(router, 2n)
     expect(badProxy.transactions).toHaveTransaction({ to: account.address, success: false })
 
-    // Attacker can't init.
     const bad = await initAccount(attacker, 3n)
     expect(bad.transactions).toHaveTransaction({ to: account.address, success: false })
   })
 
   it('holds deposit-only jettons in its wallet when no forward payload is attached', async () => {
-    await initAccount(user)
     const acctWallet = await walletOf(account.address)
     await mintTo(user.address, toNano('5'))
 
@@ -161,7 +188,6 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   })
 
   it('forwards the CCIPSend message to the Router (proxy) without moving jettons', async () => {
-    await initAccount(user)
     const acctWallet = await walletOf(account.address)
     await mintTo(user.address, toNano('5'))
 
@@ -181,8 +207,6 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   })
 
   it('accepts a deposit notification with a CCIPSend from any wallet (token-agnostic)', async () => {
-    await initAccount(user)
-
     // The account does not gate on a trusted wallet: a notification carrying a CCIPSend is
     // forwarded to the Router regardless of sender (wallet/sender auth lives at the token handler).
     const res = await user.send({
@@ -209,7 +233,6 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   })
 
   it('lets the owner and Router (both beneficiaries) withdraw, and rejects everyone else', async () => {
-    await initAccount(user)
     const acctWallet = await walletOf(account.address)
     await mintTo(acctWallet.address, toNano('5'))
     const to = router.address
@@ -223,7 +246,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     expect(ownerRes.transactions).toHaveTransaction({
       from: account.address,
       to: acctWallet.address,
-      op: AskToTransfer.PREFIX,
+      op: ora.AskToTransfer.PREFIX,
     })
 
     // Router (proxy / beneficiary) can withdraw.
@@ -235,7 +258,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     expect(benRes.transactions).toHaveTransaction({
       from: account.address,
       to: acctWallet.address,
-      op: AskToTransfer.PREFIX,
+      op: ora.AskToTransfer.PREFIX,
     })
 
     // Attacker (non-beneficiary) cannot.
@@ -256,7 +279,6 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
   })
 
   it('notifies the requester (sendExcessesTo) when a withdraw AskToTransfer bounces', async () => {
-    await initAccount(user)
     const acctWallet = await walletOf(account.address)
     await mintTo(acctWallet.address, toNano('1'))
     const to = user.address // recipient
@@ -274,7 +296,7 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     expect(res.transactions).toHaveTransaction({
       from: account.address,
       to: acctWallet.address,
-      op: AskToTransfer.PREFIX,
+      op: ora.AskToTransfer.PREFIX,
     })
     expect(res.transactions).toHaveTransaction({
       to: account.address,
@@ -288,10 +310,10 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
       from: account.address,
       to: router.address,
       success: true,
-      op: DepositAccount_WithdrawFailed.PREFIX,
+      op: ora.DepositAccount_WithdrawFailed.PREFIX,
       body(body) {
         if (!body) return false
-        const wf = DepositAccount_WithdrawFailed.fromSlice(body.beginParse())
+        const wf = ora.DepositAccount_WithdrawFailed.fromSlice(body.beginParse())
         return wf.queryId === 10n && wf.ask.sendExcessesTo?.equals(router.address) === true
       },
     })
