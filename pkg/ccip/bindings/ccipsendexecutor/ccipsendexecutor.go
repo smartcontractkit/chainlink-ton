@@ -85,7 +85,8 @@ type StateOnGoingFeeValidation struct {
 }
 
 type StateTokenRegistryAccess struct {
-	Fee feequoter.Fee `tlb:"."`
+	Fee   feequoter.Fee    `tlb:"."`
+	Token *address.Address `tlb:"addr"`
 }
 
 type StateTokenTransfer struct {

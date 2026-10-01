@@ -256,12 +256,10 @@ fun notifyRoot(body: cell) {
     }).send(SEND_MODE_REGULAR);
 }
 
-/// The storage layout is unchanged since 1.6.0, so reinstalling code of the
-/// same layout is an identity migration.
+// Implement when upgrading the contract
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual(CONTRACT_VERSION.literalSlice())) throw Upgradeable_Error.VersionMismatch;
-    return storage;
+    throw Upgradeable_Error.VersionMismatch
 }
 
 @method_id(1001)

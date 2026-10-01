@@ -33,10 +33,6 @@ contract TokenAdminRegistry {
 
 const CONTRACT_VERSION = "1.6.0".literalSlice();
 
-fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual(CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
-}
-
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
     match (msg) {
@@ -284,10 +280,10 @@ get fun pendingOwner(): address? {
     return st.ownable.get_pendingOwner();
 }
 
+// Implement on future versions to upgrade this contract to
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    requireSupportedVersion(version);
-    return storage;
+    throw Upgradeable_Error.VersionMismatch
 }
 
 @method_id(1001)

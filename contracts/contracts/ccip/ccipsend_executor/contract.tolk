@@ -62,7 +62,7 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_ReturnTokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-            assert(msg.token == this.onrampSend.msg.load().tokenAmounts.iter().next().token, CCIPSendExecutor_Error.Unauthorized);
+            assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
         // Sender must be minter
@@ -190,6 +190,11 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
      }
 
     // Else if there are token transfers continue querying the TokenAdminRegistry
+    val tokenAmount = tokenAmounts.asSingle();
+    if (tokenAmount == null) {
+        self.exitWithError(CCIPSendExecutor_Error.UnsupportedNumberOfTokens as uint256);
+        return;
+    }
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
     //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
@@ -199,7 +204,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         dest: tokenRegistry.load(),
         body: TokenAdminRegistry_GetTokenInfo {
             queryId: 0,
-            token: tokenAmounts.iter().next().token,
+            token: tokenAmount.token,
         }
     });
     queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -209,6 +214,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             fee: msg.fee,
+            token: tokenAmount.token,
         }.toCell(),
     };
     newState.store();

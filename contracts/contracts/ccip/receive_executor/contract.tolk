@@ -160,16 +160,12 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     if (msg.tokenPool == null) {
-        return failTokenAdminRegistryQuery(mutate st, ttInfo, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
+        val rampMsg = lazy st.message.load();
+        ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
+        st.state.tokenTransfer = ttInfo.toCell();
+        return endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
     }
     releaseOrMint(mutate st, ttInfo, msg.tokenPool!);
-}
-
-fun failTokenAdminRegistryQuery(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, error: ReceiveExecutor_Error) {
-    val rampMsg = lazy st.message.load();
-    ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
-    st.state.tokenTransfer = ttInfo.toCell();
-    endExecutionWithFailure(mutate st, rampMsg.header, error);
 }
 
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
