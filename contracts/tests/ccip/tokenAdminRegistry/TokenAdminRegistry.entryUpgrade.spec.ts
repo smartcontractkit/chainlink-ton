@@ -8,7 +8,7 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as target from '../../../wrappers/gen/test/TokenAdminRegistryEntryUpgradeTarget'
-import { ENTRY_VERSION } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { Costs, ENTRY_VERSION } from '../../../wrappers/ccip/TokenAdminRegistry'
 import {
   EntryErrors,
   Fixture,
@@ -223,7 +223,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
   it('lets anyone push the root entry code to an entry', async () => {
     const underfunded = await fx.registry.sendTokenAdminRegistryUpgradeEntry(
       fx.other.getSender(),
-      toNano('0.005'),
+      Costs.upgrade - 1n,
       { tokenAddress: fx.token },
     )
     expectRootFailure(

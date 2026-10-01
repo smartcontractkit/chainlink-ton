@@ -1,0 +1,342 @@
+{
+  "RegisterToken": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_RegisterToken",
+        "valueIn": "0.057",
+        "gasUsed": 6705,
+        "computeFee": "0.000447001",
+        "fwdFees": "0.001268201",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "Deployable_InitializeAndSend",
+        "valueIn": "0.052731799",
+        "gasUsed": 2749,
+        "computeFee": "0.000183268",
+        "fwdFees": "0.000079734",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_RegistrationInitialized",
+        "valueIn": "0.006",
+        "gasUsed": 4396,
+        "computeFee": "0.000293068",
+        "fwdFees": "0.000115468",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "TokenAdminRegistry_AdministratorTransferRequested",
+        "valueIn": "0.003884532",
+        "gasUsed": 5405,
+        "computeFee": "0.000360334",
+        "fwdFees": "0.000115468",
+        "success": true
+      }
+    ],
+    "value": "57000000",
+    "budget": "17000000",
+    "totalFee": "2862542",
+    "rootDelta": "5961729",
+    "entryDelta": "48175729",
+    "returned": "0"
+  },
+  "GetTokenInfo": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_GetTokenInfo",
+        "valueIn": "0.008",
+        "gasUsed": 5560,
+        "computeFee": "0.000370668",
+        "fwdFees": "0.000111068",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_MessageFromRoot",
+        "valueIn": "0.007518264",
+        "gasUsed": 5256,
+        "computeFee": "0.000350401",
+        "fwdFees": "0.000159734",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "TokenAdminRegistryEntry_TokenInfo",
+        "valueIn": "0.007008129",
+        "gasUsed": 5192,
+        "computeFee": "0.000346134",
+        "fwdFees": "0.000135268",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Initiator",
+        "op": "TokenAdminRegistry_TokenInfo",
+        "valueIn": "0.006526727",
+        "gasUsed": 309,
+        "computeFee": "0.000020601",
+        "fwdFees": "0",
+        "success": true
+      }
+    ],
+    "value": "8000000",
+    "budget": "8000000",
+    "totalFee": "1493874",
+    "rootDelta": "0",
+    "entryDelta": "0",
+    "returned": "6526727"
+  },
+  "GetTokenInfo unregistered": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_GetTokenInfo",
+        "valueIn": "0.008",
+        "gasUsed": 5560,
+        "computeFee": "0.000370668",
+        "fwdFees": "0.000111068",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_MessageFromRoot",
+        "valueIn": "0.007518264",
+        "gasUsed": 0,
+        "computeFee": "0",
+        "fwdFees": "0",
+        "success": false
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "0xfffffffe",
+        "valueIn": "0.007378063",
+        "gasUsed": 3490,
+        "computeFee": "0.000232668",
+        "fwdFees": "0.000097534",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Initiator",
+        "op": "TokenAdminRegistry_GetTokenInfoFailed",
+        "valueIn": "0.007047861",
+        "gasUsed": 309,
+        "computeFee": "0.000020601",
+        "fwdFees": "0",
+        "success": true
+      }
+    ],
+    "value": "8000000",
+    "budget": "8000000",
+    "totalFee": "972741",
+    "rootDelta": "0",
+    "entryDelta": "0",
+    "returned": "7047861"
+  },
+  "OverridePendingAdministrator": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_OverridePendingAdministrator",
+        "valueIn": "0.01",
+        "gasUsed": 5461,
+        "computeFee": "0.000364068",
+        "fwdFees": "0.000093268",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_MessageFromRoot",
+        "valueIn": "0.009542664",
+        "gasUsed": 6873,
+        "computeFee": "0.000458201",
+        "fwdFees": "0.000115468",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "TokenAdminRegistry_AdministratorTransferRequested",
+        "valueIn": "0.003884532",
+        "gasUsed": 5405,
+        "computeFee": "0.000360334",
+        "fwdFees": "0.000115468",
+        "success": true
+      }
+    ],
+    "value": "10000000",
+    "budget": "10000000",
+    "totalFee": "1506807",
+    "rootDelta": "3408730",
+    "entryDelta": "5084463",
+    "returned": "0"
+  },
+  "AcceptAdminRole": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_AcceptAdminRole",
+        "valueIn": "0.01",
+        "gasUsed": 5180,
+        "computeFee": "0.000345334",
+        "fwdFees": "0.000093268",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_MessageFromRoot",
+        "valueIn": "0.009561398",
+        "gasUsed": 7182,
+        "computeFee": "0.000478801",
+        "fwdFees": "0.000115334",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "TokenAdminRegistry_AdministratorTransferred",
+        "valueIn": "0.003884666",
+        "gasUsed": 5392,
+        "computeFee": "0.000359468",
+        "fwdFees": "0.000115334",
+        "success": true
+      }
+    ],
+    "value": "10000000",
+    "budget": "10000000",
+    "totalFee": "1507539",
+    "rootDelta": "3409864",
+    "entryDelta": "5082597",
+    "returned": "0"
+  },
+  "TransferAdminRole": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_TransferAdminRole",
+        "valueIn": "0.01",
+        "gasUsed": 5147,
+        "computeFee": "0.000343134",
+        "fwdFees": "0.000111068",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_MessageFromRoot",
+        "valueIn": "0.009545798",
+        "gasUsed": 7083,
+        "computeFee": "0.000472201",
+        "fwdFees": "0.000133134",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "TokenAdminRegistry_AdministratorTransferRequested",
+        "valueIn": "0.003866866",
+        "gasUsed": 5405,
+        "computeFee": "0.000360334",
+        "fwdFees": "0.000133134",
+        "success": true
+      }
+    ],
+    "value": "10000000",
+    "budget": "10000000",
+    "totalFee": "1553005",
+    "rootDelta": "3373398",
+    "entryDelta": "5073597",
+    "returned": "0"
+  },
+  "SetPool": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_SetPool",
+        "valueIn": "0.01",
+        "gasUsed": 5612,
+        "computeFee": "0.000374134",
+        "fwdFees": "0.000111068",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "TokenAdminRegistryEntry_MessageFromRoot",
+        "valueIn": "0.009514798",
+        "gasUsed": 7047,
+        "computeFee": "0.000469801",
+        "fwdFees": "0.000133134",
+        "success": true
+      },
+      {
+        "from": "Entry",
+        "to": "Root",
+        "op": "TokenAdminRegistry_PoolSet",
+        "valueIn": "0.003866866",
+        "gasUsed": 5519,
+        "computeFee": "0.000367934",
+        "fwdFees": "0.000133134",
+        "success": true
+      }
+    ],
+    "value": "10000000",
+    "budget": "10000000",
+    "totalFee": "1589205",
+    "rootDelta": "3365798",
+    "entryDelta": "5044997",
+    "returned": "0"
+  },
+  "UpgradeEntry": {
+    "rows": [
+      {
+        "from": "Initiator",
+        "to": "Root",
+        "op": "TokenAdminRegistry_UpgradeEntry",
+        "valueIn": "0.01",
+        "gasUsed": 4068,
+        "computeFee": "0.000271201",
+        "fwdFees": "0.000961201",
+        "success": true
+      },
+      {
+        "from": "Root",
+        "to": "Entry",
+        "op": "Upgradeable_Upgrade",
+        "valueIn": "0.008767598",
+        "gasUsed": 1812,
+        "computeFee": "0.000120801",
+        "fwdFees": "0",
+        "success": true
+      }
+    ],
+    "value": "10000000",
+    "budget": "10000000",
+    "totalFee": "1353203",
+    "rootDelta": "0",
+    "entryDelta": "8646797",
+    "returned": "0"
+  }
+}

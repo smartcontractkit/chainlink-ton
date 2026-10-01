@@ -30,6 +30,11 @@ struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
     administrator: address;
 }
 
+/// Root execution (~0.0004 TON measured) and the entry deployment.
+fun TokenAdminRegistry_RegisterToken.cost(): coins {
+    return grams("0.003") + TokenAdminRegistryEntry_deployCost();
+}
+
 // Replaces a proposal only while the entry has no active administrator.
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 struct (0xfddaa034) TokenAdminRegistry_OverridePendingAdministrator {
@@ -75,10 +80,11 @@ struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
     token: address;
 }
 
-/// Covers root -> entry -> root -> requester, a possible upgrade of a stale
-/// entry on the way, and the requester's handling of the reply.
-fun TokenAdminRegistry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
-    return grams("0.01") + TokenAdminRegistryEntry_upgradeRoundTripCost() + responseHandlerCost;
+/// Value a requester attaches: root -> entry -> root -> requester (~0.0015
+/// TON measured). The unspent value is returned with the reply. See
+/// TokenAdminRegistry_forwardCost for stale entries.
+fun TokenAdminRegistry_GetTokenInfo.cost(): coins {
+    return grams("0.008");
 }
 
 // crc32('TokenAdminRegistry_TokenInfo')
@@ -116,10 +122,16 @@ struct (0x4d52f09d) TokenAdminRegistry_UpgradeEntry {
     tokenAddress: address;
 }
 
-/// Minimum value for requests the root forwards to an entry. Covers the entry
-/// operation and a possible upgrade of a stale entry on the way.
+/// Minimum value for administration requests the root forwards to an entry:
+/// root and entry execution (~0.001 TON measured) and the event relay.
+/// Unspent value stays on the entry.
+///
+/// No entry predates the root's entry code yet, so this and the GetTokenInfo
+/// cost exclude the stale-entry round trip (entry -> root, then Upgrade and
+/// Resume). When a new entry version and its `migrate` are implemented, add
+/// TokenAdminRegistryEntry_upgradeCost() and the measured round-trip fees here.
 fun TokenAdminRegistry_forwardCost(): coins {
-    return grams("0.015") + TokenAdminRegistryEntry_upgradeRoundTripCost();
+    return grams("0.006") + TokenAdminRegistryEntry_relayEventCost();
 }
 
 /// Sent by a deterministic entry to the root and emitted by the root after the
