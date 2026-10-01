@@ -11,11 +11,6 @@ const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
 const BurnMintTokenPool_BURN_VALUE = grams("0.05");
 const BurnMintTokenPool_MINT_VALUE = grams("0.1");
 
-/// Value the Deployable shell attaches to the replayed `DepositAccount_Init` self-message: funds
-/// the account's init compute and the `DepositAccount_Reply` leg back to the pool (which carries
-/// the remaining value on to the mint continuation).
-const BurnMintTokenPool_OFF_RAMP_ACCOUNT_INIT_VALUE = grams("0.1");
-
 /// Context carried by the CCT burn path (burn only). Stores the pool's own jetton
 /// wallet address (the burn source) and the full forward payload for finalization.
 struct (0xba302a47) BurnMintTokenPool_BurnContext {

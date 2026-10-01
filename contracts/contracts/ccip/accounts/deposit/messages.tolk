@@ -24,6 +24,12 @@ struct (0xda04630c) DepositAccount_Reply {
     forwardPayload: cell?;
 }
 
+/// Reply message on failed initialization due to insufficient value.
+struct (0x83462e93) DepositAccount_NotEnoughValue {
+    queryId: uint64;
+    forwardPayload: cell?;
+}
+
 /// Forwarded notification sent to the proxy on messages from specific jetton wallet.
 /// @dev Carries the full original in-message metadata so the proxy (e.g, TP, Router, etc.) can verify everything.
 struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
@@ -86,5 +92,6 @@ type DepositAccount_InMessage =
 type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | DepositAccount_WithdrawFailed
     | AskToTransfer;

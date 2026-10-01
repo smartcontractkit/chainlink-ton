@@ -3,7 +3,8 @@
 import "../../../lib/deployable/namespace"
 
 /// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
-const MIN_GRAM_TO_RESERVE: int = grams("0.05");
+const DepositAccount_MIN_GRAM_TO_RESERVE: int = grams("0.05");
+const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.01") // extra for gas fees // TODO  update with real value
 
 /// Runtime data stored by each DepositAccount instance.
 ///

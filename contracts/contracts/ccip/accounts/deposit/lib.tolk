@@ -39,11 +39,11 @@ struct DepositAccount_Hooks<T> {
     /// Called on `DepositAccount_Init`. When null, the default init runs (self-only — the init
     /// is replayed as a self-message by `Deployable_InitializeAndSend` — reserves rent, replies
     /// to the owner).
-    onInit: ((DepositAccount_Context<T>, address, DepositAccount_Init) -> void)?;
+    onInit: ((DepositAccount_Context<T>, address, DepositAccount_Init, coins) -> void)?;
     /// Called on a re-deploy: a `Deployable_InitializeAndSend` arriving at an already deployed DepositAccount
     /// When null, the default re-init replies to the owner with `DepositAccount_Reply`, echoing the
     /// self-message init's `queryId`/`forwardPayload`.
-    onReInit: ((DepositAccount_Context<T>, address, DepositAccount_Init) -> void)?;
+    onReInit: ((DepositAccount_Context<T>, address, DepositAccount_Init, coins) -> void)?;
     /// Called on `DepositAccount_Withdraw`. When null, the default withdraw runs (beneficiary
     /// check + AskToTransfer to the wallet).
     onWithdraw: ((DepositAccount_Context<T>, address, DepositAccount_Withdraw) -> void)?;
@@ -116,13 +116,13 @@ fun DepositAccount<T>.onInternalMessage(
 
     match (msg) {
         DepositAccount_Init => {
-            self.onInit(msgSender, msg);
+            self.onInit(msgSender, msg, msgValue);
         }
         DepositAccount_Withdraw => {
             self.onWithdraw(msgSender, msg);
         }
         Deployable_InitializeAndSend => {
-            self.onDeployableInitializeAndSend(msgSender, msg);
+            self.onDeployableInitializeAndSend(msgSender, msg, msgValue);
         }
         else => {
             // Any message that is not a recognized DepositAccount message is handed to the
@@ -147,16 +147,63 @@ fun DepositAccount<T>.onInit(
     mutate self,
     sender: address,
     msg: DepositAccount_Init,
+    msgValue: coins,
 ) {
     if (self.hooks != null && self.hooks.onInit != null) {
-        self.hooks.onInit(self.context(), sender, msg);
+        self.hooks.onInit(self.context(), sender, msg, msgValue);
 
         return;
     }
 
     assert(sender == contract.getAddress(), DepositAccount_Error.OnlySelf);
+    self._onInit(msg, msgValue);
+}
 
-    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+/// Re-confirms an already-initialized account on a re-deploy: a `Deployable_InitializeAndSend`
+/// arriving after the account was upgraded from its Deployable shell (see
+/// `onDeployableInitializeAndSend`). Wires the `onReInit` hook when one is set; otherwise the
+/// default replies to the owner with `DepositAccount_Reply`, echoing the self-message init's
+/// `queryId`/`forwardPayload` so the owner can correlate the re-deploy back to the operation
+/// that triggered it.
+fun DepositAccount<T>.onReInit(
+    mutate self,
+    sender: address,
+    msg: DepositAccount_Init,
+    msgValue: coins,
+) {
+    if (self.hooks != null && self.hooks.onReInit != null) {
+        self.hooks.onReInit(self.context(), sender, msg, msgValue);
+
+        return;
+    }
+
+    self._onInit(msg, msgValue);
+}
+
+
+fun DepositAccount<T>._onInit(
+    mutate self,
+    msg: DepositAccount_Init,
+    msgValue: coins,
+) {
+    // `contract.getOriginalBalance()` (TVM `BALANCE`) is the balance at the start of the compute
+    // phase, (balance + inbound message's value)
+    if (contract.getOriginalBalance() < DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT) {
+        val reply = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: self.data.owner,
+            body: DepositAccount_NotEnoughValue {
+                queryId: msg.queryId,
+                forwardPayload: msg.forwardPayload,
+            },
+        });
+        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
+    }
+
+
+    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
 
     // Send Reply to the owner so it knows the account is ready.
     val reply = createMessage({
@@ -168,8 +215,8 @@ fun DepositAccount<T>.onInit(
             forwardPayload: msg.forwardPayload,
         },
     });
-    // TODO send with carry all balance instead?
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // SAFETY: reserveGramsOnBalance is called before
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Handles a `Deployable_InitializeAndSend` arriving at an already-upgraded account (a re-deploy).
@@ -190,43 +237,12 @@ fun DepositAccount<T>.onDeployableInitializeAndSend(
     mutate self,
     sender: address,
     msg: Deployable_InitializeAndSend,
+    msgValue: coins,
 ) {
     assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
 
     val init = lazy DepositAccount_Init.fromCell(msg.selfMessage.body);
-    self.onReInit(sender, init);
-}
-
-/// Re-confirms an already-initialized account on a re-deploy: a `Deployable_InitializeAndSend`
-/// arriving after the account was upgraded from its Deployable shell (see
-/// `onDeployableInitializeAndSend`). Wires the `onReInit` hook when one is set; otherwise the
-/// default replies to the owner with `DepositAccount_Reply`, echoing the self-message init's
-/// `queryId`/`forwardPayload` so the owner can correlate the re-deploy back to the operation
-/// that triggered it.
-fun DepositAccount<T>.onReInit(
-    mutate self,
-    sender: address,
-    msg: DepositAccount_Init,
-) {
-    if (self.hooks != null && self.hooks.onReInit != null) {
-        self.hooks.onReInit(self.context(), sender, msg);
-
-        return;
-    }
-
-    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
-
-    // Send Reply to the owner so it knows the account is ready (already initialized).
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: self.data.owner,
-        body: DepositAccount_Reply {
-            queryId: msg.queryId,
-            forwardPayload: msg.forwardPayload,
-        },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    self.onReInit(sender, init, msgValue);
 }
 
 /// Allows a beneficiary to withdraw jettons from this account's wallet.

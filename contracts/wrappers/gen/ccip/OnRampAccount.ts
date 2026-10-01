@@ -484,6 +484,51 @@ export const DepositAccount_Reply = {
 }
 
 /**
+ > struct (0x83462e93) DepositAccount_NotEnoughValue {
+ >     queryId: uint64
+ >     forwardPayload: cell?
+ > }
+ */
+export interface DepositAccount_NotEnoughValue {
+    readonly $: 'DepositAccount_NotEnoughValue'
+    queryId: uint64
+    forwardPayload: c.Cell | null
+}
+
+export const DepositAccount_NotEnoughValue = {
+    PREFIX: 0x83462e93,
+
+    create(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): DepositAccount_NotEnoughValue {
+        return {
+            $: 'DepositAccount_NotEnoughValue',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
+        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
+        return {
+            $: 'DepositAccount_NotEnoughValue',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
+        b.storeUint(0x83462e93, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
+        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
+    }
+}
+
+/**
  > struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
  >     message: Cell<DepositAccount_InMessageForward>
  > }
@@ -798,7 +843,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class OnRampAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECIAEABB0AART/APSkE/S88sgLAQIBYgIDAgLMBAUCASAWFwIBIAYHAgHUFBUCASAICQIBIA4PAfdPiRjjjtRND6SPpI9ATRbW1tbZLwAgBwgQCE+JIqUZpUQakQWAZQMwdEFA7wCJsByPpS+lL0AMntVOBfA+DtRND6SPpI9ATRbW1tbZLwAgBwgQCE+JL4l/iS+Jf4mPiTJ/g6+JT4lVYSyM7JEK8QrhCtEKwQq1YTVWDwA4CgIBIAsMADBscQPI+lIS+lL0AMntVJEw4IQPAccA8vQAnw6XwgB0NcsI5sWhOTyv9M/MfoAMfpQMfQEIW6YMSDHAJIwbeCS0dDiIG6zk8jOyZIwbeIgbpJbf+DQyM7JyM+FCBL6UnHPC27MyYBA+wB/gATM7aLt+zgG1ywjRIUQLJhscdM/9AXwBOMOf4A0A/tcsIMm2iJSOH2xx0z/6SNdMLVFNUU1RTVFNUU1RTVFNUU1RTUQ08AWOVNcsJYdiiryOJTA3VhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhAHVhBQd/AH2zHhbHHUMdQx+gAx10yCAM0UUyzHBfL00NcsI0SFECzyv9M/9AXwBuICASAQEQIBIBITAI0I8MAlShus8MAkXDimVR8uixVIyzacOCCAM0X+CgUxwUT8vSCCvrwgIAQ+wLIz4UIUsD6UoIQ2gRjDM8Ljss/9ADJgED7AIADXDU1NjbDAJUibrPDAJFw4pNY2oDgNTZbNCOCAM0VA4EBC/QKb6ExEvL0INDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQTHBcMAkzEzcOIT8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAHcI8MAlSdus8MAkXDimVR8uixVIyvacOAyggr68ICAEPsCyM+FCFLA+lKCENoEYwzPC47LP/QAyYBA+wCAAlQ5OTk5A8MAlSNus8MAkXDilkV2UEPaseAzNzc4BMj6UlAH+gIU9AAB+gISyz8Tyx8SzMnIz4UIEvpSghC0/lwMzwuOzMmAQPsAf4ABPNcsJ/////Tyv9dM0NcsIHxT9Syf0z/6APpI+lD0BPoA8Al/4F8McIACzDk6OjoEwwCVJW6zwwCRcOKYSHYQNVUS2sDgNTg4ODjIz5A+KfqWJc8LPwH6Ahb6UlIg+lT0AFAE+gIUzsnIz4UIE/pSghClG2y6zwuOE8s/EvpSzMmAQPsAgAgEgGBkCAUgeHwIBIBobAgFIHB0Aa7Yr8aFLY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhcntykwtrggsbG3urc6QRamBcYlxhEAAbtcUQQBDlFAQQgfd+UJAAC7GhYEBWoAAbs0I7UTQ+kgx+kgx9AWAAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIwEABDUAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASAZGgIBIAYHAgFIFRYCASAICQIBIA8QAfdPiRjjjtRND6SPpI9ATRbW1tbZLwAgBwgQCE+JIqUZpUQakQWAZQMwdEFA7wCZsByPpS+lL0AMntVOBfA+DtRND6SPpI9ATRbW1tbZLwAgBwgQCE+JL4l/iS+Jf4mPiTJ/g6+JT4lVYSyM7JEK8QrhCtEKwQq1YTVWDwA4CgIBIAsMADBscQPI+lIS+lL0AMntVJEw4IQPAccA8vQAnw6XwgB0NcsI5sWhOTyv9M/MfoAMfpQMfQEIW6YMSDHAJIwbeCS0dDiIG6zk8jOyZIwbeIgbpJbf+DQyM7JyM+FCBL6UnHPC27MyYBA+wB/gATM7aLt+wfXLCNEhRAsmWxx0z/0BVjwBOMOf4A0B/tcsIMm2iJSOH2yB0z/6SNdMLVFNUU1RTVFNUU1RTVFNUU1RTUQ08AaOVdcsJYdiiryOJTA3N1YQB1YQB1YQB1YQB1YQB1YQB1YQB1YQB1YQB1YQB/AI2zHhbHHUMdQx+gAx10yCAM0UUz3HBfL00NcsI0SFECzyv9M/9AVY8AcOAALiAgEgERICASATFABNCTDAJUpbrPDAJFw4plUfcstVTMt2oDgggDNF/goFccFFPL0WPAFgAJkMPgnbxCCC5OHALmOG8jPhQhSwPpSghCDRi6TzwuOEss/9ADJgED7AOCCCvrwgHD7AsjPhQhSwPpSghDaBGMMzwuOEss/9ADJgwb7AIADXDU1NjbDAJUibrPDAJFw4pNY2oDgNTZbNCOCAM0VA4EBC/QKb6ExEvL0INDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQTHBcMAkzEzcOIT8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgADcJMMAlShus8MAkXDimVR9yy1VMyzagOBsE/AFgAgEgFxgAs0OTo6OgTDAJUlbrPDAJFw4phIdhA1VRLawOA1ODg4OMjPkD4p+pYlzws/AfoCFvpSUiD6VPQAUAT6AhTOycjPhQgT+lKCEKUbbLrPC44Tyz8S+lLMyYBA+wCACVDk5OTkDwwCVI26zwwCRcOKWRXZQQ9qx4DM3NzgEyPpSUAf6AhT0AAH6AhLLPxPLHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAE81ywn////9PK/10zQ1ywgfFP1LJ/TP/oA+kj6UPQE+gDwCn/gXwxwgAgEgGxwCAUghIgIBIB0eAgFIHyAAa7Yr8aFLY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhcntykwtrggsbG3urc6QRamBcYlxhEAAbtcUQQBDlFAQQgfd+UJAAC7GhYEBWoAAbs0I7UTQ+kgx+kgx9AWAAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
