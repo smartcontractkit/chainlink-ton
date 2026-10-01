@@ -13,6 +13,7 @@ import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { ChainSelectors } from '../../utils/Selectors'
 import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { findTransactionRequired } from '@ton/test-utils'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -152,10 +153,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // Should return failure - destination chain not configured
@@ -169,9 +170,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -199,10 +200,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // Should return failure - destination chain not configured
@@ -216,9 +217,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -265,10 +266,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // should return failure - destination chain not configured
@@ -282,9 +283,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -312,10 +313,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // should return failure - destination chain not configured
@@ -329,9 +330,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -824,7 +825,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts with empty extra args', async () => {
-      const message = feeQuoterManual.FeeQuoter_GetValidatedFee_Any.toCell({
+      const message = feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
@@ -918,7 +919,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts with empty extra args', async () => {
-      const message = feeQuoterManual.FeeQuoter_GetValidatedFee_Any.toCell({
+      const message = feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,

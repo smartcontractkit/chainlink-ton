@@ -78,7 +78,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
-        FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
+        FeeQuoter_GetValidatedFee => {
             assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw FeeQuoter_Error.InsufficientFee;
             handleGetValidatedFee(msg, in.senderAddress)
         }
@@ -566,8 +566,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
     }
 }
 
-
-fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
@@ -577,7 +576,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
             bounce: true,
             value: 0,
             dest: sender,
-            body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
+            body: FeeQuoter_MessageValidated {
                 fee,
                 msg: payload.msg,
                 context: payload.context,
@@ -588,7 +587,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
             bounce: true,
             value: 0,
             dest: sender,
-            body: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> {
+            body: FeeQuoter_MessageValidationFailed {
                 msg: payload.msg,
                 error: e,
                 context: payload.context,

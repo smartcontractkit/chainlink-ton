@@ -386,11 +386,6 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 
 /**
- > type RemainingBitsOrRef<T> = T
- */
-export type RemainingBitsOrRef<T> = T
-
-/**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
  >     queryId: uint64
  >     destination: address
@@ -1629,87 +1624,146 @@ export const OnRamp_Send = {
 }
 
 /**
- > struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
+ > struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
  >     ccipSend: Cell<Router_CCIPSend>
- >     context: T
+ >     context: cell?
  > }
  */
-export interface OnRamp_GetValidatedFee<T> {
+export interface OnRamp_GetValidatedFee {
     readonly $: 'OnRamp_GetValidatedFee'
     ccipSend: Router_CCIPSend
-    context: T
+    context: c.Cell | null /* = null */
 }
 
 export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
-    create<T>(args: {
+    create(args: {
         ccipSend: Router_CCIPSend
-        context: T
-    }): OnRamp_GetValidatedFee<T> {
+        context?: c.Cell | null /* = null */
+    }): OnRamp_GetValidatedFee {
         return {
             $: 'OnRamp_GetValidatedFee',
+            context: null,
             ...args
         }
     },
+    fromSlice(s: c.Slice): OnRamp_GetValidatedFee {
+        loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
+        return {
+            $: 'OnRamp_GetValidatedFee',
+            ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OnRamp_GetValidatedFee, b: c.Builder): void {
+        b.storeUint(0x9c2ccc7e, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OnRamp_GetValidatedFee): c.Cell {
+        return makeCellFrom<OnRamp_GetValidatedFee>(self, OnRamp_GetValidatedFee.store);
+    }
 }
 
 /**
- > struct (0x2afb11bd) OnRamp_MessageValidated<T> {
+ > struct (0x2afb11bd) OnRamp_MessageValidated {
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
- >     context: T
+ >     context: cell?
  > }
  */
-export interface OnRamp_MessageValidated<T> {
+export interface OnRamp_MessageValidated {
     readonly $: 'OnRamp_MessageValidated'
     fee: coins
     msg: Router_CCIPSend
-    context: T
+    context: c.Cell | null
 }
 
 export const OnRamp_MessageValidated = {
     PREFIX: 0x2afb11bd,
 
-    create<T>(args: {
+    create(args: {
         fee: coins
         msg: Router_CCIPSend
-        context: T
-    }): OnRamp_MessageValidated<T> {
+        context: c.Cell | null
+    }): OnRamp_MessageValidated {
         return {
             $: 'OnRamp_MessageValidated',
             ...args
         }
     },
+    fromSlice(s: c.Slice): OnRamp_MessageValidated {
+        loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
+        return {
+            $: 'OnRamp_MessageValidated',
+            fee: s.loadCoins(),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OnRamp_MessageValidated, b: c.Builder): void {
+        b.storeUint(0x2afb11bd, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OnRamp_MessageValidated): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidated>(self, OnRamp_MessageValidated.store);
+    }
 }
 
 /**
- > struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
+ > struct (0xac1dd12e) OnRamp_MessageValidationFailed {
  >     error: uint256
  >     msg: Cell<Router_CCIPSend>
- >     context: T
+ >     context: cell?
  > }
  */
-export interface OnRamp_MessageValidationFailed<T> {
+export interface OnRamp_MessageValidationFailed {
     readonly $: 'OnRamp_MessageValidationFailed'
     error: uint256
     msg: Router_CCIPSend
-    context: T
+    context: c.Cell | null
 }
 
 export const OnRamp_MessageValidationFailed = {
     PREFIX: 0xac1dd12e,
 
-    create<T>(args: {
+    create(args: {
         error: uint256
         msg: Router_CCIPSend
-        context: T
-    }): OnRamp_MessageValidationFailed<T> {
+        context: c.Cell | null
+    }): OnRamp_MessageValidationFailed {
         return {
             $: 'OnRamp_MessageValidationFailed',
             ...args
         }
     },
+    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed {
+        loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
+        return {
+            $: 'OnRamp_MessageValidationFailed',
+            error: s.loadUintBig(256),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OnRamp_MessageValidationFailed, b: c.Builder): void {
+        b.storeUint(0xac1dd12e, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OnRamp_MessageValidationFailed): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidationFailed>(self, OnRamp_MessageValidationFailed.store);
+    }
 }
 
 /**
@@ -2584,88 +2638,6 @@ export const OffRamps = {
 }
 
 /**
- > type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
- */
-export type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
-
-export const Router_GetValidatedFee_Any = {
-    fromSlice(s: c.Slice): Router_GetValidatedFee_Any {
-        return (() => {
-            loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee');
-            return {
-                $: 'Router_GetValidatedFee',
-                ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: loadTolkRemaining(s),
-            }
-        })();
-    },
-    store(self: Router_GetValidatedFee_Any, b: c.Builder): void {
-        b.storeUint(0x4dd6aa82, 32);
-        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
-        storeTolkRemaining(self.context, b);
-    },
-    toCell(self: Router_GetValidatedFee_Any): c.Cell {
-        return makeCellFrom<Router_GetValidatedFee_Any>(self, Router_GetValidatedFee_Any.store);
-    }
-}
-
-/**
- > type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
- */
-export type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
-
-export const OnRamp_MessageValidated_GetValidatedFeeContext = {
-    fromSlice(s: c.Slice): OnRamp_MessageValidated_GetValidatedFeeContext {
-        return (() => {
-            loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
-            return {
-                $: 'OnRamp_MessageValidated',
-                fee: s.loadCoins(),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: Router_GetValidatedFeeContext.fromSlice(s),
-            }
-        })();
-    },
-    store(self: OnRamp_MessageValidated_GetValidatedFeeContext, b: c.Builder): void {
-        b.storeUint(0x2afb11bd, 32);
-        b.storeCoins(self.fee);
-        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
-        Router_GetValidatedFeeContext.store(self.context, b);
-    },
-    toCell(self: OnRamp_MessageValidated_GetValidatedFeeContext): c.Cell {
-        return makeCellFrom<OnRamp_MessageValidated_GetValidatedFeeContext>(self, OnRamp_MessageValidated_GetValidatedFeeContext.store);
-    }
-}
-
-/**
- > type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
- */
-export type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
-
-export const OnRamp_MessageValidationFailed_GetValidatedFeeContext = {
-    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed_GetValidatedFeeContext {
-        return (() => {
-            loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
-            return {
-                $: 'OnRamp_MessageValidationFailed',
-                error: s.loadUintBig(256),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: Router_GetValidatedFeeContext.fromSlice(s),
-            }
-        })();
-    },
-    store(self: OnRamp_MessageValidationFailed_GetValidatedFeeContext, b: c.Builder): void {
-        b.storeUint(0xac1dd12e, 32);
-        b.storeUint(self.error, 256);
-        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
-        Router_GetValidatedFeeContext.store(self.context, b);
-    },
-    toCell(self: OnRamp_MessageValidationFailed_GetValidatedFeeContext): c.Cell {
-        return makeCellFrom<OnRamp_MessageValidationFailed_GetValidatedFeeContext>(self, OnRamp_MessageValidationFailed_GetValidatedFeeContext.store);
-    }
-}
-
-/**
  > struct (0x7db6745d) Router_ApplyRampUpdates {
  >     queryId: uint64
  >     onRampUpdates: OnRamps?
@@ -3425,29 +3397,90 @@ export const Router_CCIPSendNACK = {
 }
 
 /**
- > struct (0x4dd6aa82) Router_GetValidatedFee<T> {
+ > struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
  >     ccipSend: Cell<Router_CCIPSend>
- >     context: T
+ >     context: RemainingBitsAndRefs
  > }
  */
-export interface Router_GetValidatedFee<T> {
-    readonly $: 'Router_GetValidatedFee'
+export interface Router_GetValidatedFee_V1 {
+    readonly $: 'Router_GetValidatedFee_V1'
     ccipSend: Router_CCIPSend
-    context: T
+    context: RemainingBitsAndRefs
 }
 
-export const Router_GetValidatedFee = {
+export const Router_GetValidatedFee_V1 = {
     PREFIX: 0x4dd6aa82,
 
-    create<T>(args: {
+    create(args: {
         ccipSend: Router_CCIPSend
-        context: T
-    }): Router_GetValidatedFee<T> {
+        context: RemainingBitsAndRefs
+    }): Router_GetValidatedFee_V1 {
         return {
-            $: 'Router_GetValidatedFee',
+            $: 'Router_GetValidatedFee_V1',
             ...args
         }
     },
+    fromSlice(s: c.Slice): Router_GetValidatedFee_V1 {
+        loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee_V1');
+        return {
+            $: 'Router_GetValidatedFee_V1',
+            ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: loadTolkRemaining(s),
+        }
+    },
+    store(self: Router_GetValidatedFee_V1, b: c.Builder): void {
+        b.storeUint(0x4dd6aa82, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: Router_GetValidatedFee_V1): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee_V1>(self, Router_GetValidatedFee_V1.store);
+    }
+}
+
+/**
+ > struct (0x657ef7ec) Router_GetValidatedFee {
+ >     ccipSend: Cell<Router_CCIPSend>
+ >     context: cell?
+ > }
+ */
+export interface Router_GetValidatedFee {
+    readonly $: 'Router_GetValidatedFee'
+    ccipSend: Router_CCIPSend
+    context: c.Cell | null /* = null */
+}
+
+export const Router_GetValidatedFee = {
+    PREFIX: 0x657ef7ec,
+
+    create(args: {
+        ccipSend: Router_CCIPSend
+        context?: c.Cell | null /* = null */
+    }): Router_GetValidatedFee {
+        return {
+            $: 'Router_GetValidatedFee',
+            context: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_GetValidatedFee {
+        loadAndCheckPrefix32(s, 0x657ef7ec, 'Router_GetValidatedFee');
+        return {
+            $: 'Router_GetValidatedFee',
+            ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_GetValidatedFee, b: c.Builder): void {
+        b.storeUint(0x657ef7ec, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_GetValidatedFee): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee>(self, Router_GetValidatedFee.store);
+    }
 }
 
 /**
@@ -3569,19 +3602,22 @@ export const Router_RelayReleaseOrMint = {
 /**
  > struct Router_GetValidatedFeeContext {
  >     routerContext: address
- >     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>
+ >     oldContextVersion: bool
+ >     userContext: cell?
  > }
  */
 export interface Router_GetValidatedFeeContext {
     readonly $: 'Router_GetValidatedFeeContext'
     routerContext: c.Address
-    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>
+    oldContextVersion: boolean
+    userContext: c.Cell | null
 }
 
 export const Router_GetValidatedFeeContext = {
     create(args: {
         routerContext: c.Address
-        userContext: RemainingBitsOrRef<RemainingBitsAndRefs>
+        oldContextVersion: boolean
+        userContext: c.Cell | null
     }): Router_GetValidatedFeeContext {
         return {
             $: 'Router_GetValidatedFeeContext',
@@ -3592,12 +3628,16 @@ export const Router_GetValidatedFeeContext = {
         return {
             $: 'Router_GetValidatedFeeContext',
             routerContext: s.loadAddress(),
-            userContext: loadTolkRemaining(s),
+            oldContextVersion: s.loadBoolean(),
+            userContext: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetValidatedFeeContext, b: c.Builder): void {
         b.storeAddress(self.routerContext);
-        storeTolkRemaining(self.userContext, b);
+        b.storeBit(self.oldContextVersion);
+        storeTolkNullable<c.Cell>(self.userContext, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: Router_GetValidatedFeeContext): c.Cell {
         return makeCellFrom<Router_GetValidatedFeeContext>(self, Router_GetValidatedFeeContext.store);
@@ -3605,117 +3645,195 @@ export const Router_GetValidatedFeeContext = {
 }
 
 /**
- > type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
+ > struct (0x9e2155ec) Router_MessageValidated_V1 {
+ >     fee: coins
+ >     msg: Cell<Router_CCIPSend>
+ >     context: RemainingBitsAndRefs
+ > }
  */
-export type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
+export interface Router_MessageValidated_V1 {
+    readonly $: 'Router_MessageValidated_V1'
+    fee: coins
+    msg: Router_CCIPSend
+    context: RemainingBitsAndRefs
+}
 
-export const Router_MessageValidated_Any = {
-    fromSlice(s: c.Slice): Router_MessageValidated_Any {
-        return (() => {
-            loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated');
-            return {
-                $: 'Router_MessageValidated',
-                fee: s.loadCoins(),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: loadTolkRemaining(s),
-            }
-        })();
+export const Router_MessageValidated_V1 = {
+    PREFIX: 0x9e2155ec,
+
+    create(args: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: RemainingBitsAndRefs
+    }): Router_MessageValidated_V1 {
+        return {
+            $: 'Router_MessageValidated_V1',
+            ...args
+        }
     },
-    store(self: Router_MessageValidated_Any, b: c.Builder): void {
+    fromSlice(s: c.Slice): Router_MessageValidated_V1 {
+        loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated_V1');
+        return {
+            $: 'Router_MessageValidated_V1',
+            fee: s.loadCoins(),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: loadTolkRemaining(s),
+        }
+    },
+    store(self: Router_MessageValidated_V1, b: c.Builder): void {
         b.storeUint(0x9e2155ec, 32);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidated_Any): c.Cell {
-        return makeCellFrom<Router_MessageValidated_Any>(self, Router_MessageValidated_Any.store);
+    toCell(self: Router_MessageValidated_V1): c.Cell {
+        return makeCellFrom<Router_MessageValidated_V1>(self, Router_MessageValidated_V1.store);
     }
 }
 
 /**
- > struct (0x9e2155ec) Router_MessageValidated<T> {
- >     fee: coins
+ > struct (0xec23c562) Router_MessageValidationFailed_V1 {
+ >     error: uint256
  >     msg: Cell<Router_CCIPSend>
- >     context: RemainingBitsOrRef<T>
+ >     context: RemainingBitsAndRefs
  > }
  */
-export interface Router_MessageValidated<T> {
-    readonly $: 'Router_MessageValidated'
-    fee: coins
+export interface Router_MessageValidationFailed_V1 {
+    readonly $: 'Router_MessageValidationFailed_V1'
+    error: uint256
     msg: Router_CCIPSend
-    context: RemainingBitsOrRef<T>
+    context: RemainingBitsAndRefs
 }
 
-export const Router_MessageValidated = {
-    PREFIX: 0x9e2155ec,
+export const Router_MessageValidationFailed_V1 = {
+    PREFIX: 0xec23c562,
 
-    create<T>(args: {
-        fee: coins
+    create(args: {
+        error: uint256
         msg: Router_CCIPSend
-        context: RemainingBitsOrRef<T>
-    }): Router_MessageValidated<T> {
+        context: RemainingBitsAndRefs
+    }): Router_MessageValidationFailed_V1 {
         return {
-            $: 'Router_MessageValidated',
+            $: 'Router_MessageValidationFailed_V1',
             ...args
         }
     },
-}
-
-/**
- > type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
- */
-export type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
-
-export const Router_MessageValidationFailed_Any = {
-    fromSlice(s: c.Slice): Router_MessageValidationFailed_Any {
-        return (() => {
-            loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed');
-            return {
-                $: 'Router_MessageValidationFailed',
-                error: s.loadUintBig(256),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: loadTolkRemaining(s),
-            }
-        })();
+    fromSlice(s: c.Slice): Router_MessageValidationFailed_V1 {
+        loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed_V1');
+        return {
+            $: 'Router_MessageValidationFailed_V1',
+            error: s.loadUintBig(256),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: loadTolkRemaining(s),
+        }
     },
-    store(self: Router_MessageValidationFailed_Any, b: c.Builder): void {
+    store(self: Router_MessageValidationFailed_V1, b: c.Builder): void {
         b.storeUint(0xec23c562, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidationFailed_Any): c.Cell {
-        return makeCellFrom<Router_MessageValidationFailed_Any>(self, Router_MessageValidationFailed_Any.store);
+    toCell(self: Router_MessageValidationFailed_V1): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed_V1>(self, Router_MessageValidationFailed_V1.store);
     }
 }
 
 /**
- > struct (0xec23c562) Router_MessageValidationFailed<T> {
- >     error: uint256
+ > struct (0x97ca8bd8) Router_MessageValidated {
+ >     fee: coins
  >     msg: Cell<Router_CCIPSend>
- >     context: RemainingBitsOrRef<T>
+ >     context: cell?
  > }
  */
-export interface Router_MessageValidationFailed<T> {
+export interface Router_MessageValidated {
+    readonly $: 'Router_MessageValidated'
+    fee: coins
+    msg: Router_CCIPSend
+    context: c.Cell | null
+}
+
+export const Router_MessageValidated = {
+    PREFIX: 0x97ca8bd8,
+
+    create(args: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }): Router_MessageValidated {
+        return {
+            $: 'Router_MessageValidated',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_MessageValidated {
+        loadAndCheckPrefix32(s, 0x97ca8bd8, 'Router_MessageValidated');
+        return {
+            $: 'Router_MessageValidated',
+            fee: s.loadCoins(),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_MessageValidated, b: c.Builder): void {
+        b.storeUint(0x97ca8bd8, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_MessageValidated): c.Cell {
+        return makeCellFrom<Router_MessageValidated>(self, Router_MessageValidated.store);
+    }
+}
+
+/**
+ > struct (0xe32e5616) Router_MessageValidationFailed {
+ >     error: uint256
+ >     msg: Cell<Router_CCIPSend>
+ >     context: cell?
+ > }
+ */
+export interface Router_MessageValidationFailed {
     readonly $: 'Router_MessageValidationFailed'
     error: uint256
     msg: Router_CCIPSend
-    context: RemainingBitsOrRef<T>
+    context: c.Cell | null
 }
 
 export const Router_MessageValidationFailed = {
-    PREFIX: 0xec23c562,
+    PREFIX: 0xe32e5616,
 
-    create<T>(args: {
+    create(args: {
         error: uint256
         msg: Router_CCIPSend
-        context: RemainingBitsOrRef<T>
-    }): Router_MessageValidationFailed<T> {
+        context: c.Cell | null
+    }): Router_MessageValidationFailed {
         return {
             $: 'Router_MessageValidationFailed',
             ...args
         }
     },
+    fromSlice(s: c.Slice): Router_MessageValidationFailed {
+        loadAndCheckPrefix32(s, 0xe32e5616, 'Router_MessageValidationFailed');
+        return {
+            $: 'Router_MessageValidationFailed',
+            error: s.loadUintBig(256),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_MessageValidationFailed, b: c.Builder): void {
+        b.storeUint(0xe32e5616, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_MessageValidationFailed): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed>(self, Router_MessageValidationFailed.store);
+    }
 }
 
 /**
@@ -4187,7 +4305,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -4276,16 +4394,34 @@ export class Router implements c.Contract {
         return Router_ApplyRampUpdates.toCell(Router_ApplyRampUpdates.create(body));
     }
 
-    static createCellOfRouterGetValidatedFeeAny(body: Router_GetValidatedFee_Any) {
-        return Router_GetValidatedFee_Any.toCell(body);
+    static createCellOfRouterGetValidatedFeeV1(body: {
+        ccipSend: Router_CCIPSend
+        context: RemainingBitsAndRefs
+    }) {
+        return Router_GetValidatedFee_V1.toCell(Router_GetValidatedFee_V1.create(body));
     }
 
-    static createCellOfOnRampMessageValidatedGetValidatedFeeContext(body: OnRamp_MessageValidated_GetValidatedFeeContext) {
-        return OnRamp_MessageValidated_GetValidatedFeeContext.toCell(body);
+    static createCellOfRouterGetValidatedFee(body: {
+        ccipSend: Router_CCIPSend
+        context?: c.Cell | null /* = null */
+    }) {
+        return Router_GetValidatedFee.toCell(Router_GetValidatedFee.create(body));
     }
 
-    static createCellOfOnRampMessageValidationFailedGetValidatedFeeContext(body: OnRamp_MessageValidationFailed_GetValidatedFeeContext) {
-        return OnRamp_MessageValidationFailed_GetValidatedFeeContext.toCell(body);
+    static createCellOfOnRampMessageValidated(body: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }) {
+        return OnRamp_MessageValidated.toCell(OnRamp_MessageValidated.create(body));
+    }
+
+    static createCellOfOnRampMessageValidationFailed(body: {
+        error: uint256
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }) {
+        return OnRamp_MessageValidationFailed.toCell(OnRamp_MessageValidationFailed.create(body));
     }
 
     static createCellOfRouterRouteMessage(body: {
@@ -4468,26 +4604,48 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFeeV1(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        ccipSend: Router_CCIPSend
+        context: RemainingBitsAndRefs
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_GetValidatedFee_Any.toCell(body),
+            body: Router_GetValidatedFee_V1.toCell(Router_GetValidatedFee_V1.create(body)),
             ...extraOptions
         });
     }
 
-    async sendOnRampMessageValidatedGetValidatedFeeContext(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_MessageValidated_GetValidatedFeeContext, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFee(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        ccipSend: Router_CCIPSend
+        context?: c.Cell | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: OnRamp_MessageValidated_GetValidatedFeeContext.toCell(body),
+            body: Router_GetValidatedFee.toCell(Router_GetValidatedFee.create(body)),
             ...extraOptions
         });
     }
 
-    async sendOnRampMessageValidationFailedGetValidatedFeeContext(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_MessageValidationFailed_GetValidatedFeeContext, extraOptions?: ExtraSendOptions) {
+    async sendOnRampMessageValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: OnRamp_MessageValidationFailed_GetValidatedFeeContext.toCell(body),
+            body: OnRamp_MessageValidated.toCell(OnRamp_MessageValidated.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOnRampMessageValidationFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        error: uint256
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OnRamp_MessageValidationFailed.toCell(OnRamp_MessageValidationFailed.create(body)),
             ...extraOptions
         });
     }
