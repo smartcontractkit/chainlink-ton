@@ -50,6 +50,25 @@ struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
     queryId: uint64;
 }
 
+/// Entry execution (~0.0003 TON measured) and the event relay.
+fun TokenAdminRegistryEntry_RegistrationInitialized.cost(): coins {
+    return grams("0.002") + TokenAdminRegistryEntry_relayEventCost();
+}
+
+/// Value an entry attaches to an event it sends to the root to be emitted:
+/// its forward fee and the root's execution and emit (~0.0006 TON measured).
+/// Unspent value stays on the root.
+fun TokenAdminRegistryEntry_relayEventCost(): coins {
+    return grams("0.004");
+}
+
+/// Value the root deploys an entry with: the deploy forward fee and Deployable
+/// initialization (~0.0016 TON measured), the RegistrationInitialized
+/// self-message, and a 0.04 TON storage fee reserve that stays on the entry.
+fun TokenAdminRegistryEntry_deployCost(): coins {
+    return grams("0.04") + grams("0.008") + TokenAdminRegistryEntry_RegistrationInitialized.cost();
+}
+
 struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
     administrator: address
 }
@@ -73,15 +92,13 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     tokenPool: address?
 }
 
-/// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
+/// Value the root attaches to an Upgradeable_Upgrade sent to an entry. Today
+/// the entry already runs the root's entry code and skips the reinstall
+/// (~0.0014 TON measured, mostly the code forward fee). Re-measure with a real
+/// code install, `migrate` and Upgradeable_UpgradedEvent when shipping a new
+/// entry version.
 fun TokenAdminRegistryEntry_upgradeCost(): coins {
     return grams("0.01");
-}
-
-/// Worst-case cost of a stale entry round trip: entry -> root, then root ->
-/// entry with the Upgradeable_Upgrade and the Resume.
-fun TokenAdminRegistryEntry_upgradeRoundTripCost(): coins {
-    return grams("0.02");
 }
 
 /// Sent by the root right after an Upgradeable_Upgrade to replay a deferred request. TON
