@@ -257,6 +257,7 @@ fun Router_Costs.CCIPSend(): int {
         + grams("0.001") // computeFee
         + grams("0.019") // CCIPSend fwdFee
         + OnRamp_Costs.Send()
+        // TODO add TokenTransfer costs
         ;
 }
 
@@ -320,7 +321,7 @@ fun Router_Costs.receiveConfirm(): int {
 // the Deployable_Initialize + DepositAccount_Init forwards, the account's init compute and
 // storage, and the DepositAccount_Reply -> Router_UseDepositAccount round-trip.
 fun Router_Costs.GetDepositAccount(): int {
-    return grams("0.002"); // TODO
+    return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");
