@@ -17,7 +17,7 @@ contract TokenAdminRegistryEntry {
 
     storage: TokenRegistry_Storage
     incomingMessages: TokenAdminRegistryEntry_InMessage
-    forceAbiExport: (TokenAdminRegistryEntry_ResolveTokenInfo, TokenAdminRegistryEntry_ProposeAdministrator, TokenAdminRegistryEntry_TransferAdminRole, TokenAdminRegistryEntry_AcceptAdminRole, TokenAdminRegistryEntry_SetPool)
+    forceAbiExport: (TokenAdminRegistryEntry_GetTokenInfo, TokenAdminRegistryEntry_ProposeAdministrator, TokenAdminRegistryEntry_TransferAdminRole, TokenAdminRegistryEntry_AcceptAdminRole, TokenAdminRegistryEntry_SetPool)
     thrownErrors: TokenAdminRegistryEntry_Error | Upgradeable_Error
 }
 
@@ -27,9 +27,6 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(in.body);
     match (msg) {
         // TODO: min value assertion throughout
-        TokenAdminRegistryEntry_GetTokenInfo => {
-            onGetTokenInfo(msg, in.senderAddress);
-        }
         TokenAdminRegistryEntry_RegistrationInitialized => {
             onRegistrationInitialized(msg, in.senderAddress);
         }
@@ -62,8 +59,8 @@ fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool
     }
     val content = lazy msg.content.load();
     match (content) {
-        TokenAdminRegistryEntry_ResolveTokenInfo => {
-            onResolveTokenInfo(msg.queryId, content);
+        TokenAdminRegistryEntry_GetTokenInfo => {
+            onGetTokenInfo(msg.queryId, content);
         }
         TokenAdminRegistryEntry_ProposeAdministrator => {
             onProposeAdministrator(msg.queryId, content);
@@ -108,13 +105,13 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     }
 }
 
-fun onResolveTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_ResolveTokenInfo) {
+fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
     val st = TokenRegistry_Storage.load();
     createMessage({
         bounce: false,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
-        body: TokenAdminRegistry_TokenInfoResolved {
+        body: TokenAdminRegistryEntry_TokenInfo {
             queryId,
             token: st.tokenAddress,
             requester: msg.requester,
@@ -188,22 +185,6 @@ fun samePool(left: address?, right: address?): bool {
         return false;
     }
     return left! == right!;
-}
-
-fun onGetTokenInfo(msg: TokenAdminRegistryEntry_GetTokenInfo, sender: address) {
-    val st = TokenRegistry_Storage.load();
-    val response = createMessage({
-        dest: sender,
-        value: 0,
-        bounce: false,
-        body: TokenAdminRegistryEntry_ReturnTokenInfo {
-            queryId: msg.queryId,
-            minterAddress: st.tokenInfo.minterAddress,
-            tokenPool: st.tokenInfo.tokenPool,
-            version: st.tokenInfo.version,
-        }
-    });
-    response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun notifyAdministratorTransferRequested(queryId: uint64, token: address, currentAdministrator: address?, newAdministrator: address?) {

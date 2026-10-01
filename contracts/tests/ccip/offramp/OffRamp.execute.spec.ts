@@ -1884,13 +1884,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: entryAddress,
         to: setup.tokenAdminRegistry,
-        op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
+        op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: setup.tokenAdminRegistry,
         to: executorAddress,
-        op: tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
+        op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
         success: true,
       })
 
@@ -2273,13 +2273,13 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: entryAddress,
         to: setup.tokenAdminRegistry,
-        op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
+        op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
         from: setup.tokenAdminRegistry,
         to: executorAddress,
-        op: tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
+        op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
         success: true,
       })
 

@@ -406,13 +406,13 @@ describe('CCIPSend with token transfer (e2e)', () => {
     expect(result.transactions).toHaveTransaction({
       from: tokenRegistry.address,
       to: tokenAdminRegistry.address,
-      op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
+      op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: tokenAdminRegistry.address,
       to: executorAddress,
-      op: tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
+      op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
       success: true,
     })
     // executor -> onRamp (requests lock/burn)

@@ -341,7 +341,7 @@ describe('ReceiveExecutor - Execution', () => {
 
     /** TokenAdminRegistry returns a token pool -> sends ReleaseOrMint. */
     async function returnTokenInfoWithPool(executor: SandboxContract<rx.ReceiveExecutor>) {
-      const result = await executor.sendTokenAdminRegistryReturnTokenInfo(
+      const result = await executor.sendTokenAdminRegistryTokenInfo(
         tokenAdminRegistry.getSender(),
         toNano('1'),
         {
@@ -411,7 +411,7 @@ describe('ReceiveExecutor - Execution', () => {
 
       it('should send NotifyFailure when TokenAdminRegistry returns no token pool', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
@@ -425,7 +425,7 @@ describe('ReceiveExecutor - Execution', () => {
           from: tokenAdminRegistry.address,
           to: receiveExecutorWithToken.address,
           success: true,
-          op: rx.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
+          op: rx.TokenAdminRegistry_TokenInfo.PREFIX,
         })
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -471,9 +471,9 @@ describe('ReceiveExecutor - Execution', () => {
         )
       })
 
-      it('should reject ReturnTokenInfo from non-tokenAdminRegistry', async () => {
+      it('should reject TokenInfo from non-tokenAdminRegistry', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
           nonOwner.getSender(),
           toNano('0.05'),
           {
@@ -491,8 +491,8 @@ describe('ReceiveExecutor - Execution', () => {
         )
       })
 
-      it('should reject ReturnTokenInfo when state is not TokenAdminRegistryQuery', async () => {
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
+      it('should reject TokenInfo when state is not TokenAdminRegistryQuery', async () => {
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
@@ -693,7 +693,7 @@ describe('ReceiveExecutor - Execution', () => {
       it('should re-query TokenAdminRegistry when retrying from TokenAdminRegistryQueryFailed', async () => {
         // First query fails because no token pool is returned.
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(
+        await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
@@ -773,7 +773,7 @@ describe('ReceiveExecutor - Execution', () => {
         )
 
         // TokenAdminRegistry returns a token pool -> ReleaseOrMint.
-        const result = await receiveExecutorLowGas.sendTokenAdminRegistryReturnTokenInfo(
+        const result = await receiveExecutorLowGas.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
@@ -824,7 +824,7 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        const result = await receiveExecutorHighGas.sendTokenAdminRegistryReturnTokenInfo(
+        const result = await receiveExecutorHighGas.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {
@@ -982,7 +982,7 @@ describe('ReceiveExecutor - Execution', () => {
       it('should retry both token transfer and execution when retrying from TokenAdminRegistryQueryFailed', async () => {
         // First query fails because no token pool is returned.
         await initExecuteQueriesRegistry(receiveExecutorPtt)
-        await receiveExecutorPtt.sendTokenAdminRegistryReturnTokenInfo(
+        await receiveExecutorPtt.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('0.05'),
           {

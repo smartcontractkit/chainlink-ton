@@ -129,7 +129,7 @@ describe('TokenAdminRegistry - Opcodes', () => {
       'TokenAdminRegistry_AcceptAdminRole',
       'TokenAdminRegistry_SetPool',
       'TokenAdminRegistry_GetTokenInfo',
-      'TokenAdminRegistry_TokenInfoResolved',
+      'TokenAdminRegistryEntry_TokenInfo',
       'TokenAdminRegistry_EntryUpgradeRequest',
       'TokenAdminRegistry_UpgradeEntry',
       'TokenAdminRegistry_AdministratorTransferRequested',
@@ -142,9 +142,7 @@ describe('TokenAdminRegistry - Opcodes', () => {
   })
 
   it('should match out opcodes', () => {
-    expect(tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX).toBe(
-      crc32('TokenAdminRegistry_ReturnTokenInfo'),
-    )
+    expect(tar.TokenAdminRegistry_TokenInfo.PREFIX).toBe(crc32('TokenAdminRegistry_TokenInfo'))
   })
 })
 

@@ -39,17 +39,9 @@ type AdminConfig struct {
 	PendingAdministrator *address.Address `tlb:"addr"`
 }
 
-// crc32('TokenAdminRegistryEntry_GetTokenInfo')
-// Public read answered by the entry's running code. CCIP resolves token info
-// through the root instead (tokenadminregistry.GetTokenInfo).
-type GetTokenInfo struct {
-	_       tlb.Magic `tlb:"#7aef4c2d" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID uint64    `tlb:"## 64"`
-}
-
 // RootMessage is the set of messages the root sends wrapped in MessageFromRoot.
 type RootMessage interface {
-	ResolveTokenInfo |
+	GetTokenInfo |
 		ProposeAdministrator |
 		TransferAdminRole |
 		AcceptAdminRole |
@@ -65,12 +57,23 @@ type MessageFromRoot[T RootMessage | any] struct {
 	Content         *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
-// crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
+// crc32('TokenAdminRegistryEntry_GetTokenInfo')
 // Sent by the root on behalf of Requester.
-type ResolveTokenInfo struct {
-	_         tlb.Magic        `tlb:"#4f60fff3" json:"-"` //nolint:revive // used by tlb reflection for encoding
+type GetTokenInfo struct {
+	_         tlb.Magic        `tlb:"#7aef4c2d" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	Token     *address.Address `tlb:"addr"`
 	Requester *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistryEntry_TokenInfo')
+// Entry answer relayed to Requester after the root validates the entry address.
+// Named TokenInfoResponse because TokenInfo is the stored token info struct.
+type TokenInfoResponse struct {
+	_         tlb.Magic        `tlb:"#4e1c9ad5" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID   uint64           `tlb:"## 64"`
+	Token     *address.Address `tlb:"addr"`
+	Requester *address.Address `tlb:"addr"`
+	TokenInfo TokenInfo        `tlb:"^"`
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
@@ -113,25 +116,15 @@ type Resume struct {
 	Request MessageFromRoot[any] `tlb:"^"`
 }
 
-// crc32('TokenAdminRegistryEntry_ReturnTokenInfo')
-type ReturnTokenInfo struct {
-	_             tlb.Magic        `tlb:"#0a58e678" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID       uint64           `tlb:"## 64"`
-	MinterAddress *address.Address `tlb:"addr"`
-	TokenPool     *address.Address `tlb:"addr"`
-	Version       uint32           `tlb:"## 32"`
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
-	GetTokenInfo{},
 	RegistrationInitialized{},
 	MessageFromRoot[any]{Content: nil},
-	ResolveTokenInfo{},
+	GetTokenInfo{},
+	TokenInfoResponse{},
 	ProposeAdministrator{},
 	TransferAdminRole{},
 	AcceptAdminRole{},
 	SetPool{},
 	upgradeable.Upgrade{},
 	Resume{},
-	ReturnTokenInfo{},
 }).MustWithStorageType(Storage{})

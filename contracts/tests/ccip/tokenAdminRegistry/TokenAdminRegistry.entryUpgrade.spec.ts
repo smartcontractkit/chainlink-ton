@@ -48,7 +48,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
 
   const resolveTokenInfo = (minEntryVersion: bigint) =>
     messageFromRoot(
-      tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({
+      tare.TokenAdminRegistryEntry_GetTokenInfo.create({
         token: fx.token,
         requester: fx.other.address,
       }),

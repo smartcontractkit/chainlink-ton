@@ -2,7 +2,6 @@ import "types"
 import "../../lib/versioning/upgradeable"
 
 type TokenAdminRegistryEntry_InMessage =
-    | TokenAdminRegistryEntry_GetTokenInfo
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_MessageFromRoot
     | Upgradeable_Upgrade
@@ -10,7 +9,7 @@ type TokenAdminRegistryEntry_InMessage =
 
 /// Messages the root sends wrapped in TokenAdminRegistryEntry_MessageFromRoot.
 type TokenAdminRegistryEntry_RootMessage =
-    | TokenAdminRegistryEntry_ResolveTokenInfo
+    | TokenAdminRegistryEntry_GetTokenInfo
     | TokenAdminRegistryEntry_ProposeAdministrator
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
@@ -26,27 +25,23 @@ struct (0x558e7559) TokenAdminRegistryEntry_MessageFromRoot {
     content: Cell<TokenAdminRegistryEntry_RootMessage>;
 }
 
-/// Public read answered by the running code. CCIP resolves token info through
-/// the root instead (TokenAdminRegistry_GetTokenInfo).
+/// Sent by the root on behalf of `requester`. The entry answers the root with
+/// TokenAdminRegistryEntry_TokenInfo.
 // crc32('TokenAdminRegistryEntry_GetTokenInfo')
 struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
-    queryId: uint64;
-}
-
-fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
-    return
-        + grams("0.002")
-        + grams("0.019")
-        + responseHandlerCost;
-}
-
-/// Sent by the root on behalf of `requester`. The entry answers the root with
-/// TokenAdminRegistry_TokenInfoResolved.
-// crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
-struct (0x4f60fff3) TokenAdminRegistryEntry_ResolveTokenInfo {
     /// Lets the root report an unregistered token from a bounce.
     token: address;
     requester: address;
+}
+
+/// Entry answer to TokenAdminRegistryEntry_GetTokenInfo, relayed to
+/// `requester` after the root validates the entry address.
+// crc32('TokenAdminRegistryEntry_TokenInfo')
+struct (0x4e1c9ad5) TokenAdminRegistryEntry_TokenInfo {
+    queryId: uint64;
+    token: address;
+    requester: address;
+    tokenInfo: Cell<TokenRegistry_TokenInfo>;
 }
 
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
@@ -95,12 +90,4 @@ fun TokenAdminRegistryEntry_upgradeRoundTripCost(): coins {
 // crc32('TokenAdminRegistryEntry_Resume')
 struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
-}
-
-// crc32('TokenAdminRegistryEntry_ReturnTokenInfo')
-struct (0x0a58e678) TokenAdminRegistryEntry_ReturnTokenInfo {
-    queryId: uint64;
-    minterAddress: address
-    tokenPool: address?
-    version: uint32
 }

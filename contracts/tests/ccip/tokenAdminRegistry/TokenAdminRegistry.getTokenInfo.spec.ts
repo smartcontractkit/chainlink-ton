@@ -57,16 +57,16 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     expect(result.transactions).toHaveTransaction({
       from: entryAddress(fx),
       to: fx.registry.address,
-      op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
+      op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: fx.registry.address,
       to: fx.other.address,
-      op: tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX,
+      op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
     })
     expect(returnedTokenInfo(fx, result, fx.other.address)).toEqual(
-      tar.TokenAdminRegistry_ReturnTokenInfo.create({
+      tar.TokenAdminRegistry_TokenInfo.create({
         queryId: 106n,
         token: fx.token,
         minterAddress: fx.token,
@@ -105,13 +105,13 @@ describe('TokenAdminRegistry - Get Token Info', () => {
   })
 
   it('relays resolved token info from the deterministic entry', async () => {
-    const result = await fx.registry.sendTokenAdminRegistryTokenInfoResolved(
+    const result = await fx.registry.sendTokenAdminRegistryEntryTokenInfo(
       asEntry(fx),
       toNano('0.05'),
       { queryId: 3n, token: fx.token, requester: fx.other.address, tokenInfo: tokenInfo(fx) },
     )
     expect(returnedTokenInfo(fx, result, fx.other.address)).toEqual(
-      tar.TokenAdminRegistry_ReturnTokenInfo.create({
+      tar.TokenAdminRegistry_TokenInfo.create({
         queryId: 3n,
         token: fx.token,
         minterAddress: fx.token,
@@ -129,7 +129,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       tokenInfo: tokenInfo(fx, fx.replacementPool),
     }
 
-    const fromAccount = await fx.registry.sendTokenAdminRegistryTokenInfoResolved(
+    const fromAccount = await fx.registry.sendTokenAdminRegistryEntryTokenInfo(
       fx.other.getSender(),
       toNano('0.1'),
       forged,
@@ -141,7 +141,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       RegistryErrors['TokenAdminRegistry_Error.UnauthorizedEntry'],
     )
 
-    const fromOtherEntry = await fx.registry.sendTokenAdminRegistryTokenInfoResolved(
+    const fromOtherEntry = await fx.registry.sendTokenAdminRegistryEntryTokenInfo(
       asEntry(fx, fx.otherToken),
       toNano('0.1'),
       forged,
@@ -160,7 +160,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       fx.other.getSender(),
       toNano('0.1'),
       messageFromRoot(
-        tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({
+        tare.TokenAdminRegistryEntry_GetTokenInfo.create({
           token: fx.token,
           requester: fx.other.address,
         }),
@@ -172,37 +172,6 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       success: false,
       exitCode: EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized'],
     })
-  })
-
-  it('answers public reads directly from the entry', async () => {
-    await registerAndAccept(fx)
-    await setPool(fx, fx.administrator, null)
-    const entry = entryFor(fx)
-
-    const result = await entry.sendTokenAdminRegistryEntryGetTokenInfo(
-      fx.other.getSender(),
-      toNano('0.05'),
-      { queryId: 105n },
-    )
-    const reply = result.transactions.find(
-      (tx) =>
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src.equals(entry.address) &&
-        tx.inMessage.info.dest.equals(fx.other.address),
-    )
-    if (!reply?.inMessage) {
-      throw new Error('TokenAdminRegistryEntry token info reply not found')
-    }
-    expect(
-      tare.TokenAdminRegistryEntry_ReturnTokenInfo.fromSlice(reply.inMessage.body.beginParse()),
-    ).toEqual(
-      tare.TokenAdminRegistryEntry_ReturnTokenInfo.create({
-        queryId: 105n,
-        minterAddress: fx.token,
-        tokenPool: null,
-        version: 1n,
-      }),
-    )
   })
 
   afterAll(async () => {

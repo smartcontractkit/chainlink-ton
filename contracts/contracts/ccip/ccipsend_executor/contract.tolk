@@ -59,7 +59,7 @@ fun onInternalMessage(in: InMessage) {
             this.onMessageValidationFailed(msg);
         }
         // Sender must be the TokenAdminRegistry
-        TokenAdminRegistry_ReturnTokenInfo => {
+        TokenAdminRegistry_TokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
@@ -227,7 +227,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     newState.store();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistry_ReturnTokenInfo) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistry_TokenInfo) {
     val state = self.state.load();
     assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
 

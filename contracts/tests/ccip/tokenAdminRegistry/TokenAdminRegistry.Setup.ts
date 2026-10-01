@@ -286,7 +286,7 @@ function replyTo(fx: Fixture, result: Result, requester: Address) {
 }
 
 export function returnedTokenInfo(fx: Fixture, result: Result, requester: Address) {
-  return tar.TokenAdminRegistry_ReturnTokenInfo.fromSlice(replyTo(fx, result, requester))
+  return tar.TokenAdminRegistry_TokenInfo.fromSlice(replyTo(fx, result, requester))
 }
 
 export function failedTokenInfo(fx: Fixture, result: Result, requester: Address) {

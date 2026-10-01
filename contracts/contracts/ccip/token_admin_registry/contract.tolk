@@ -61,15 +61,15 @@ fun onInternalMessage(in: InMessage) {
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
-            forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_ResolveTokenInfo {
+            forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_GetTokenInfo {
                 token: msg.token,
                 requester: in.senderAddress,
             });
         }
-        TokenAdminRegistry_TokenInfoResolved => {
+        TokenAdminRegistryEntry_TokenInfo => {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
-            returnTokenInfo(msg);
+            relayTokenInfo(msg);
         }
         TokenAdminRegistry_EntryUpgradeRequest => {
             val st = TokenAdminRegistry_Storage.load();
@@ -126,7 +126,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         TokenAdminRegistryEntry_Resume => bounced.request.load(),
     };
     val content = request.content.load();
-    if (content is TokenAdminRegistryEntry_ResolveTokenInfo) {
+    if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         createMessage({
             bounce: false,
             value: 0,
@@ -168,7 +168,7 @@ fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryE
 /// Requests whose sender waits for an answer bounce back in full, so the root
 /// can report a failure to the requester (see onBouncedMessage).
 fun bounceModeFor(content: TokenAdminRegistryEntry_RootMessage): BounceMode {
-    if (content is TokenAdminRegistryEntry_ResolveTokenInfo) {
+    if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         return BounceMode.RichBounce;
     }
     return BounceMode.NoBounce;
@@ -200,13 +200,13 @@ fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
     }).send(mode);
 }
 
-fun returnTokenInfo(msg: TokenAdminRegistry_TokenInfoResolved) {
+fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
     val tokenInfo = msg.tokenInfo.load();
     createMessage({
         bounce: false,
         value: 0,
         dest: msg.requester,
-        body: TokenAdminRegistry_ReturnTokenInfo {
+        body: TokenAdminRegistry_TokenInfo {
             queryId: msg.queryId,
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,

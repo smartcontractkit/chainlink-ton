@@ -64,10 +64,9 @@ describe('TokenAdminRegistryEntry - Opcodes', () => {
   it('should match in opcodes', () => {
     const names = [
       'TokenAdminRegistryEntry_MessageFromRoot',
-      'TokenAdminRegistryEntry_GetTokenInfo',
       'TokenAdminRegistryEntry_RegistrationInitialized',
       'TokenAdminRegistryEntry_Resume',
-      'TokenAdminRegistryEntry_ResolveTokenInfo',
+      'TokenAdminRegistryEntry_GetTokenInfo',
       'TokenAdminRegistryEntry_ProposeAdministrator',
       'TokenAdminRegistryEntry_TransferAdminRole',
       'TokenAdminRegistryEntry_AcceptAdminRole',
@@ -76,12 +75,6 @@ describe('TokenAdminRegistryEntry - Opcodes', () => {
     for (const name of names) {
       expect(tare[name].PREFIX).toBe(crc32(name))
     }
-  })
-
-  it('should match out opcodes', () => {
-    expect(tare.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX).toBe(
-      crc32('TokenAdminRegistryEntry_ReturnTokenInfo'),
-    )
   })
 })
 

@@ -47,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the TokenAdminRegistry
-        TokenAdminRegistry_ReturnTokenInfo => {
+        TokenAdminRegistry_TokenInfo => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
@@ -168,7 +168,7 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_TokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     if (msg.tokenPool == null) {
         return onTokenNotEnabled(mutate st, ttInfo);
     }
