@@ -386,7 +386,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
                 code: depositAccountCompiledCode(),
                 data: DepositAccount_Data {
                     owner: contract.getAddress(),
-                    proxy: contract.getAddress(),
+                    proxy: sender,
                     beneficiaries,
                 }.toCell(),
             },
@@ -430,6 +430,7 @@ fun onDepositAccountInitReply(msg: DepositAccount_Reply, sender: address) {
 ///      The message is only accepted from accounts whose data was installed by this Router
 ///      (owner = Router), and the event is informational — no state changes on this path.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
+    assert(sender == onRampAccountAddress(msg.proxy), Router_Error.SenderIsNotOnRampAccount);
     val ask = lazy msg.ask.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
