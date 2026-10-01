@@ -102,7 +102,7 @@ type ReturnTokenInfo struct {
 }
 
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
-// Sent by a stale entry with the request it parked.
+// Sent by a stale entry with the request it deferred.
 type EntryUpgradeRequest struct {
 	_       tlb.Magic                       `tlb:"#55b8b654" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID uint64                          `tlb:"## 64"`

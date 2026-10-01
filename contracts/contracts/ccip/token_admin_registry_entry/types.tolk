@@ -34,7 +34,7 @@ const TokenAdminRegistryEntry_VERSION = 1;
 
 /// A request kept in flight while its entry is upgraded. It is never persisted.
 struct TokenAdminRegistryEntry_Pending {
-    /// Original sender of the parked request.
+    /// Original sender of the pending request.
     sender: address
     body: cell
 }

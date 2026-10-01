@@ -96,7 +96,7 @@ struct (0x8db6ef6c) TokenAdminRegistry_ReturnTokenInfo {
     version: uint32;
 }
 
-/// Sent by a stale entry with the request it parked. The root answers with its
+/// Sent by a stale entry with the request it deferred. The root answers with its
 /// compiled-in entry code and the request to resume.
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
 struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {

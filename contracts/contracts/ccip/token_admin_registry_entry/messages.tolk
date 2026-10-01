@@ -72,7 +72,7 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
 }
 
 /// Sent by the root with its compiled-in entry code. The entry installs the
-/// code unless it is already running it, then resumes the parked request.
+/// code unless it is already running it, then resumes the pending request.
 // crc32('TokenAdminRegistryEntry_UpgradeAndResume')
 struct (0x1fa23ab9) TokenAdminRegistryEntry_UpgradeAndResume {
     queryId: uint64;
@@ -86,8 +86,9 @@ fun TokenAdminRegistryEntry_UpgradeAndResume.cost(): coins {
     return grams("0.02");
 }
 
-/// Self-message that replays a parked request on the upgraded code.
+/// Self-message that replays a pending request on the upgraded code.
 // crc32('TokenAdminRegistryEntry_Resume')
+const TokenAdminRegistryEntry_RESUME_OPCODE = 0x47d63a64;
 struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
     pending: Cell<TokenAdminRegistryEntry_Pending>;
 }
