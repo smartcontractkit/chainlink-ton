@@ -7,9 +7,9 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
@@ -69,6 +69,7 @@ type MessageFromRoot[T RootMessage | any] struct {
 // Sent by the root on behalf of Requester.
 type ResolveTokenInfo struct {
 	_         tlb.Magic        `tlb:"#4f60fff3" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Token     *address.Address `tlb:"addr"`
 	Requester *address.Address `tlb:"addr"`
 }
 
@@ -105,15 +106,8 @@ type SetPool struct {
 	TokenPool *address.Address `tlb:"addr"`
 }
 
-// crc32('TokenAdminRegistryEntry_UpgradeAndResume')
-type UpgradeAndResume struct {
-	_       tlb.Magic             `tlb:"#1fa23ab9" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID uint64                `tlb:"## 64"`
-	Code    *cell.Cell            `tlb:"^"`
-	Request *MessageFromRoot[any] `tlb:"maybe ^"`
-}
-
 // crc32('TokenAdminRegistryEntry_Resume')
+// Sent by the root right after an Upgrade to replay a deferred request.
 type Resume struct {
 	_       tlb.Magic            `tlb:"#47d63a64" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	Request MessageFromRoot[any] `tlb:"^"`
@@ -137,7 +131,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	TransferAdminRole{},
 	AcceptAdminRole{},
 	SetPool{},
-	UpgradeAndResume{},
+	upgradeable.Upgrade{},
 	Resume{},
 	ReturnTokenInfo{},
 }).MustWithStorageType(Storage{})

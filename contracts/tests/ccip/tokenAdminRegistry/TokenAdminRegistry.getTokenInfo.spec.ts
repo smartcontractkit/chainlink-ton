@@ -16,6 +16,7 @@ import {
   entryAddress,
   entryFor,
   expectRootFailure,
+  failedTokenInfo,
   messageFromRoot,
   registerAndAccept,
   registerToken,
@@ -72,6 +73,26 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         tokenPool: fx.pool,
         version: 1n,
       }),
+    )
+  })
+
+  it('notifies the requester when the token is not registered', async () => {
+    const result = await getTokenInfo(107n)
+
+    expect(result.transactions).toHaveTransaction({
+      from: fx.registry.address,
+      to: entryAddress(fx),
+      op: tare.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
+      aborted: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: entryAddress(fx),
+      to: fx.registry.address,
+      inMessageBounced: true,
+      success: true,
+    })
+    expect(failedTokenInfo(fx, result, fx.other.address)).toEqual(
+      tar.TokenAdminRegistry_GetTokenInfoFailed.create({ queryId: 107n, token: fx.token }),
     )
   })
 
@@ -139,7 +160,10 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       fx.other.getSender(),
       toNano('0.1'),
       messageFromRoot(
-        tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({ requester: fx.other.address }),
+        tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({
+          token: fx.token,
+          requester: fx.other.address,
+        }),
       ),
     )
     expect(result.transactions).toHaveTransaction({

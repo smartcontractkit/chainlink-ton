@@ -32,6 +32,7 @@ contract TokenAdminRegistry {
 }
 
 const CONTRACT_VERSION = "1.6.0".literalSlice();
+const RICH_BOUNCE_PREFIX = 0xfffffffe;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
@@ -61,6 +62,7 @@ fun onInternalMessage(in: InMessage) {
         }
         TokenAdminRegistry_GetTokenInfo => {
             forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_ResolveTokenInfo {
+                token: msg.token,
                 requester: in.senderAddress,
             });
         }
@@ -72,11 +74,11 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_EntryUpgradeRequest => {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
-            sendUpgradeAndResume(in.senderAddress, msg.queryId, msg.request);
+            upgradeAndResume(in.senderAddress, msg.queryId, msg.request);
         }
         TokenAdminRegistry_UpgradeEntry => {
-            assert(in.valueCoins >= TokenAdminRegistryEntry_UpgradeAndResume.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
-            sendUpgradeAndResume(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, null);
+            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            sendUpgrade(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         Upgradeable_Upgrade => {
             val st = lazy TokenAdminRegistry_Storage.load();
@@ -110,6 +112,33 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+/// Only requests whose sender waits for an answer use rich bounces, either on
+/// the first forward or on a Resume; other bounces just return their value to
+/// the root. A first forward bounces when the token was never registered.
+fun onBouncedMessage(in: InMessageBounced) {
+    if (in.bouncedBody.preloadUint(32) != RICH_BOUNCE_PREFIX) {
+        return;
+    }
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = TokenAdminRegistry_BouncedEntryMessage.fromCell(rich.originalBody);
+    val request = match (bounced) {
+        TokenAdminRegistryEntry_MessageFromRoot => bounced,
+        TokenAdminRegistryEntry_Resume => bounced.request.load(),
+    };
+    val content = request.content.load();
+    if (content is TokenAdminRegistryEntry_ResolveTokenInfo) {
+        createMessage({
+            bounce: false,
+            value: 0,
+            dest: content.requester,
+            body: TokenAdminRegistry_GetTokenInfoFailed {
+                queryId: request.queryId,
+                token: content.token,
+            },
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }
+}
+
 /// Every entry event is relayed through the root. The token in the payload is
 /// sufficient to recompute the only entry address that may send that event.
 fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
@@ -125,7 +154,7 @@ fun entryAddress(token: address): AutoDeployAddress {
 /// upgrade round trip before handling the request.
 fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryEntry_RootMessage) {
     createMessage({
-        bounce: false,
+        bounce: bounceModeFor(content),
         value: 0,
         dest: entryAddress(token).calculateAddress(),
         body: TokenAdminRegistryEntry_MessageFromRoot {
@@ -136,17 +165,39 @@ fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryE
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun sendUpgradeAndResume(dest: address, queryId: uint64, request: Cell<TokenAdminRegistryEntry_MessageFromRoot>?) {
+/// Requests whose sender waits for an answer bounce back in full, so the root
+/// can report a failure to the requester (see onBouncedMessage).
+fun bounceModeFor(content: TokenAdminRegistryEntry_RootMessage): BounceMode {
+    if (content is TokenAdminRegistryEntry_ResolveTokenInfo) {
+        return BounceMode.RichBounce;
+    }
+    return BounceMode.NoBounce;
+}
+
+/// Answers a stale entry with an Upgradeable_Upgrade followed by the deferred request as a
+/// Resume. TON delivers both in order, and the entry will not defer a Resume
+/// again, so a failed upgrade bounces the request instead of looping.
+fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRegistryEntry_MessageFromRoot>) {
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    sendUpgrade(entry, queryId, TokenAdminRegistryEntry_upgradeCost(), SEND_MODE_REGULAR);
+    createMessage({
+        bounce: bounceModeFor(request.load().content.load()),
+        value: 0,
+        dest: entry,
+        body: TokenAdminRegistryEntry_Resume { request },
+    }).send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
+fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
     createMessage({
         bounce: true,
-        value: 0,
+        value,
         dest,
-        body: TokenAdminRegistryEntry_UpgradeAndResume {
+        body: Upgradeable_Upgrade {
             queryId,
             code: entryCode(),
-            request,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(mode);
 }
 
 fun returnTokenInfo(msg: TokenAdminRegistry_TokenInfoResolved) {

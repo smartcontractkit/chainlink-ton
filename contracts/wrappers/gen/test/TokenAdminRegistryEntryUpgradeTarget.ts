@@ -274,11 +274,13 @@ export const TokenAdminRegistryEntry_MessageFromRoot = {
 
 /**
  > struct (0x4f60fff3) TokenAdminRegistryEntry_ResolveTokenInfo {
+ >     token: address
  >     requester: address
  > }
  */
 export interface TokenAdminRegistryEntry_ResolveTokenInfo {
     readonly $: 'TokenAdminRegistryEntry_ResolveTokenInfo'
+    token: c.Address
     requester: c.Address
 }
 
@@ -286,6 +288,7 @@ export const TokenAdminRegistryEntry_ResolveTokenInfo = {
     PREFIX: 0x4f60fff3,
 
     create(args: {
+        token: c.Address
         requester: c.Address
     }): TokenAdminRegistryEntry_ResolveTokenInfo {
         return {
@@ -297,11 +300,13 @@ export const TokenAdminRegistryEntry_ResolveTokenInfo = {
         loadAndCheckPrefix32(s, 0x4f60fff3, 'TokenAdminRegistryEntry_ResolveTokenInfo');
         return {
             $: 'TokenAdminRegistryEntry_ResolveTokenInfo',
+            token: s.loadAddress(),
             requester: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_ResolveTokenInfo, b: c.Builder): void {
         b.storeUint(0x4f60fff3, 32);
+        b.storeAddress(self.token);
         b.storeAddress(self.requester);
     },
     toCell(self: TokenAdminRegistryEntry_ResolveTokenInfo): c.Cell {
@@ -543,7 +548,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntryUpgradeTarget implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAqgABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAFXT8SPkgQgf8SXwUY4L5enaiaGp6AhjogOuWER9Y6ZJ5X+umAORmegBk9qpAgOj0gYHAC0gU28AYtTEuNi4wjHBfL0bQHIzPQAyYAAPItTIuMC4wiAAFb5T/2omhqegIY6MAFG/ocdqJoahj6AmiQN0qYNra2uEcJ6GuWEVY51WZ5X+mf6YfqaMCAQnFA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAxAABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAInT8SPkgdqJoanoCGOiQaH0kGP0oGP0kGOmPmOpowgf8SQFofSR9KBj9KBjoiWOC+XoA65YRH1jpknlf66YA5GZ6AGT2qkCA6PSBgcALSBTbwBi1MS42LjCMcF8vRtAcjM9ADJgAA8i1Mi4wLjCIAAVvlP/aiaGp6AhjowAUb+hx2omhqGPoCaJA3Spg2tra4Rwnoa5YRVjnVZnlf6Z/ph+powIBCcU');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,

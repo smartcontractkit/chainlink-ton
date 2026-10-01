@@ -9,6 +9,7 @@ import "types"
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
     | TokenAdminRegistry_ReturnTokenInfo
+    | TokenAdminRegistry_GetTokenInfoFailed
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
     | ReceiveExecutor_ReleaseOrMintFailed

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../token_admin_registry_entry/messages"
 import "../../token_admin_registry_entry/types"
+import "../../token_admin_registry_entry/storage"
 import "../../../lib/versioning/upgradeable"
 
 tolk 1.4.2
@@ -23,8 +24,9 @@ struct UpgradeTarget_Storage {
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_Resume.fromSlice(in.body);
-    assert(in.senderAddress == contract.getAddress()) throw 0xFFFF;
     var st = UpgradeTarget_Storage.fromCell(contract.getData());
+    val previous = TokenRegistry_Storage.fromCell(st.previousStorage);
+    assert(in.senderAddress == previous.adminConfig.load().tokenAdminRegistry) throw 0xFFFF;
     st.resumed = msg.request;
     contract.setData(st.toCell());
 }

@@ -101,6 +101,14 @@ type ReturnTokenInfo struct {
 	Version       uint32           `tlb:"## 32"`
 }
 
+// crc32('TokenAdminRegistry_GetTokenInfoFailed')
+// Sent to the GetTokenInfo requester when the token is not registered.
+type GetTokenInfoFailed struct {
+	_       tlb.Magic        `tlb:"#e533c614" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+}
+
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
 // Sent by a stale entry with the request it deferred.
 type EntryUpgradeRequest struct {
@@ -155,6 +163,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	GetTokenInfo{},
 	TokenInfoResolved{},
 	ReturnTokenInfo{},
+	GetTokenInfoFailed{},
 	EntryUpgradeRequest{},
 	UpgradeEntry{},
 	upgradeable.Upgrade{},

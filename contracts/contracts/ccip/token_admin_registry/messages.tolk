@@ -17,6 +17,11 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_AdministratorTransferred
     | TokenAdminRegistry_PoolSet;
 
+/// Root messages to an entry that may come back as rich bounces.
+type TokenAdminRegistry_BouncedEntryMessage =
+    | TokenAdminRegistryEntry_MessageFromRoot
+    | TokenAdminRegistryEntry_Resume;
+
 // crc32('TokenAdminRegistry_RegisterToken')
 struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
     queryId: uint64;
@@ -62,7 +67,8 @@ struct (0x37bcaede) TokenAdminRegistry_SetPool {
 }
 
 /// CCIP read path: resolves the token info of the entry derived from `token`
-/// and replies TokenAdminRegistry_ReturnTokenInfo to the sender.
+/// and replies TokenAdminRegistry_ReturnTokenInfo to the sender, or
+/// TokenAdminRegistry_GetTokenInfoFailed if the token is not registered.
 // crc32('TokenAdminRegistry_GetTokenInfo')
 struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
     queryId: uint64;
@@ -72,7 +78,7 @@ struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
 /// Covers root -> entry -> root -> requester, a possible upgrade of a stale
 /// entry on the way, and the requester's handling of the reply.
 fun TokenAdminRegistry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
-    return grams("0.01") + TokenAdminRegistryEntry_UpgradeAndResume.cost() + responseHandlerCost;
+    return grams("0.01") + TokenAdminRegistryEntry_upgradeRoundTripCost() + responseHandlerCost;
 }
 
 /// Entry answer to TokenAdminRegistryEntry_ResolveTokenInfo, relayed to
@@ -96,8 +102,16 @@ struct (0x8db6ef6c) TokenAdminRegistry_ReturnTokenInfo {
     version: uint32;
 }
 
-/// Sent by a stale entry with the request it deferred. The root answers with its
-/// compiled-in entry code and the request to resume.
+/// Sent to the GetTokenInfo requester when the entry could not answer, which
+/// means the token was never registered.
+// crc32('TokenAdminRegistry_GetTokenInfoFailed')
+struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
+    queryId: uint64;
+    token: address;
+}
+
+/// Sent by a stale entry with the request it deferred. The root answers with an
+/// Upgrade to its compiled-in entry code, then the request as a Resume.
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
 struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
     queryId: uint64;
@@ -115,7 +129,7 @@ struct (0x4d52f09d) TokenAdminRegistry_UpgradeEntry {
 /// Minimum value for requests the root forwards to an entry. Covers the entry
 /// operation and a possible upgrade of a stale entry on the way.
 fun TokenAdminRegistry_forwardCost(): coins {
-    return grams("0.015") + TokenAdminRegistryEntry_UpgradeAndResume.cost();
+    return grams("0.015") + TokenAdminRegistryEntry_upgradeRoundTripCost();
 }
 
 /// Sent by a deterministic entry to the root and emitted by the root after the

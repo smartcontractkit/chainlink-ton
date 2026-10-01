@@ -435,6 +435,42 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should send NotifyFailure when TokenAdminRegistry reports the token is not registered', async () => {
+        await initExecuteQueriesRegistry(receiveExecutorWithToken)
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryGetTokenInfoFailed(
+          tokenAdminRegistry.getSender(),
+          toNano('0.05'),
+          { token: messageWithTT.tokenAmounts![0].token },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: tokenAdminRegistry.address,
+          to: receiveExecutorWithToken.address,
+          success: true,
+          op: rx.TokenAdminRegistry_GetTokenInfoFailed.PREFIX,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+        })
+      })
+
+      it('should reject GetTokenInfoFailed from non-tokenAdminRegistry', async () => {
+        await initExecuteQueriesRegistry(receiveExecutorWithToken)
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryGetTokenInfoFailed(
+          nonOwner.getSender(),
+          toNano('0.05'),
+          { token: messageWithTT.tokenAmounts![0].token },
+        )
+        expectFailedTransaction(
+          result,
+          nonOwner.address,
+          receiveExecutorWithToken.address,
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+        )
+      })
+
       it('should reject ReturnTokenInfo from non-tokenAdminRegistry', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendTokenAdminRegistryReturnTokenInfo(

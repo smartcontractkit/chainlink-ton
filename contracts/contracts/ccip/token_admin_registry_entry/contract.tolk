@@ -37,12 +37,12 @@ fun onInternalMessage(in: InMessage) {
             requireRoot(in.senderAddress);
             onMessageFromRoot(msg, false);
         }
-        TokenAdminRegistryEntry_UpgradeAndResume => {
+        Upgradeable_Upgrade => {
             requireRoot(in.senderAddress);
-            onUpgradeAndResume(msg);
+            onUpgrade(msg);
         }
         TokenAdminRegistryEntry_Resume => {
-            assert(in.senderAddress == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
+            requireRoot(in.senderAddress);
             onMessageFromRoot(msg.request.load(), true);
         }
         else => {
@@ -52,9 +52,9 @@ fun onInternalMessage(in: InMessage) {
 }
 
 /// Handles a message from the root once this code satisfies its
-/// `minEntryVersion`; otherwise defers it to the root for an upgrade. A replay
-/// of a Resume may not be deferred again, so a root that cannot satisfy its own
-/// requested version does not cause a loop.
+/// `minEntryVersion`; otherwise defers it to the root for an upgrade. A Resume
+/// may not be deferred again, so a failed upgrade or a root that cannot satisfy
+/// its own requested version does not cause a loop.
 fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool) {
     if (msg.minEntryVersion > TokenAdminRegistryEntry_VERSION) {
         assert(!replay) throw TokenAdminRegistryEntry_Error.VersionUnavailable;
@@ -101,21 +101,10 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// The Resume self-message is queued before the code swap: after
-/// `Upgradeable.upgrade` switches c3, only method_id-pinned functions of the
-/// new code may be called. Resume then runs entirely on the new code.
-fun onUpgradeAndResume(msg: TokenAdminRegistryEntry_UpgradeAndResume) {
-    if (msg.request != null) {
-        createMessage({
-            bounce: false,
-            value: 0,
-            dest: contract.getAddress(),
-            body: TokenAdminRegistryEntry_Resume { request: msg.request! },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
-    // Several requests may be deferred concurrently; only the first one upgrades.
+/// Several requests may be deferred concurrently; only the first one upgrades.
+fun onUpgrade(msg: Upgradeable_Upgrade) {
     if (!contract.getCode().hashEqual(msg.code)) {
-        Upgradeable { migrate, version }.upgrade(Upgradeable_Upgrade { queryId: msg.queryId, code: msg.code });
+        Upgradeable { migrate, version }.upgrade(msg);
     }
 }
 

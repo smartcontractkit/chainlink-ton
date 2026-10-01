@@ -1,10 +1,11 @@
 import "types"
+import "../../lib/versioning/upgradeable"
 
 type TokenAdminRegistryEntry_InMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_MessageFromRoot
-    | TokenAdminRegistryEntry_UpgradeAndResume
+    | Upgradeable_Upgrade
     | TokenAdminRegistryEntry_Resume;
 
 /// Messages the root sends wrapped in TokenAdminRegistryEntry_MessageFromRoot.
@@ -43,6 +44,8 @@ fun TokenAdminRegistryEntry_GetTokenInfo.cost(responseHandlerCost: coins): coins
 /// TokenAdminRegistry_TokenInfoResolved.
 // crc32('TokenAdminRegistryEntry_ResolveTokenInfo')
 struct (0x4f60fff3) TokenAdminRegistryEntry_ResolveTokenInfo {
+    /// Lets the root report an unregistered token from a bounce.
+    token: address;
     requester: address;
 }
 
@@ -75,22 +78,20 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     tokenPool: address?
 }
 
-/// Sent by the root with its compiled-in entry code. The entry installs the
-/// code unless it is already running it, then resumes the deferred request.
-// crc32('TokenAdminRegistryEntry_UpgradeAndResume')
-struct (0x1fa23ab9) TokenAdminRegistryEntry_UpgradeAndResume {
-    queryId: uint64;
-    code: cell;
-    request: Cell<TokenAdminRegistryEntry_MessageFromRoot>?;
+/// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
+fun TokenAdminRegistryEntry_upgradeCost(): coins {
+    return grams("0.01");
 }
 
-/// Worst-case cost of a stale entry round trip: entry -> root, root -> entry
-/// carrying the entry code, the upgrade itself and the self-sent Resume.
-fun TokenAdminRegistryEntry_UpgradeAndResume.cost(): coins {
+/// Worst-case cost of a stale entry round trip: entry -> root, then root ->
+/// entry with the Upgradeable_Upgrade and the Resume.
+fun TokenAdminRegistryEntry_upgradeRoundTripCost(): coins {
     return grams("0.02");
 }
 
-/// Self-message that replays a deferred request on the upgraded code.
+/// Sent by the root right after an Upgradeable_Upgrade to replay a deferred request. TON
+/// delivers both in order, so the request runs on the upgraded code. Its layout
+/// must never change: an entry whose upgrade failed must still parse it.
 // crc32('TokenAdminRegistryEntry_Resume')
 struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;

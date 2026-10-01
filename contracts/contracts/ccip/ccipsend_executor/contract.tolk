@@ -65,6 +65,13 @@ fun onInternalMessage(in: InMessage) {
             assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
+        // Sender must be the TokenAdminRegistry
+        TokenAdminRegistry_GetTokenInfoFailed => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
+            this.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256);
+        }
         // Sender must be minter
         ResponseWalletAddress => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.load();

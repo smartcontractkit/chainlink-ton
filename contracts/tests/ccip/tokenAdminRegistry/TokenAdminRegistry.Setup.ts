@@ -272,7 +272,7 @@ export function rootEvent(fx: Fixture, result: Result, topic: number) {
   return events[0]
 }
 
-export function returnedTokenInfo(fx: Fixture, result: Result, requester: Address) {
+function replyTo(fx: Fixture, result: Result, requester: Address) {
   const reply = result.transactions.find(
     (tx) =>
       tx.inMessage?.info.type === 'internal' &&
@@ -282,7 +282,15 @@ export function returnedTokenInfo(fx: Fixture, result: Result, requester: Addres
   if (!reply?.inMessage) {
     throw new Error('TokenAdminRegistry token info reply not found')
   }
-  return tar.TokenAdminRegistry_ReturnTokenInfo.fromSlice(reply.inMessage.body.beginParse())
+  return reply.inMessage.body.beginParse()
+}
+
+export function returnedTokenInfo(fx: Fixture, result: Result, requester: Address) {
+  return tar.TokenAdminRegistry_ReturnTokenInfo.fromSlice(replyTo(fx, result, requester))
+}
+
+export function failedTokenInfo(fx: Fixture, result: Result, requester: Address) {
+  return tar.TokenAdminRegistry_GetTokenInfoFailed.fromSlice(replyTo(fx, result, requester))
 }
 
 export const messageFromRoot = (

@@ -56,6 +56,16 @@ fun onInternalMessage(in: InMessage) {
             onTokenAdminRegistryResponse(mutate st, msg, ttInfo);
             st.store();
         }
+        // Sender must be the TokenAdminRegistry
+        TokenAdminRegistry_GetTokenInfoFailed => {
+            var st = ReceiveExecutor_Storage.load();
+            val ttInfo = st.state.tokenTransfer.loadOpt();
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
+            assert(in.senderAddress == ttInfo.tokenAdminRegistry, ReceiveExecutor_Error.Unauthorized);
+            assert(msg.token == ttInfo.transfer.load().token, ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
+            onTokenNotEnabled(mutate st, ttInfo);
+            st.store();
+        }
         // Sender must be the TokenPool
         TokenPool_ReleaseOrMintFinished => {
             var st = ReceiveExecutor_Storage.load();
@@ -160,12 +170,16 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_ReturnTokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     if (msg.tokenPool == null) {
-        val rampMsg = lazy st.message.load();
-        ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
-        st.state.tokenTransfer = ttInfo.toCell();
-        return endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
+        return onTokenNotEnabled(mutate st, ttInfo);
     }
     releaseOrMint(mutate st, ttInfo, msg.tokenPool!);
+}
+
+fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+    val rampMsg = lazy st.message.load();
+    ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
+    st.state.tokenTransfer = ttInfo.toCell();
+    endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
 }
 
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
