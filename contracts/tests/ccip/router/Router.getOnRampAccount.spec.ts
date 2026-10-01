@@ -131,7 +131,7 @@ describe('Router.getOnRampAccount', () => {
       deposit.DepositAccount.fromAddress(expectedAccountAddress()),
     )
     expect((await account.getOwner()).equals(router.address)).toBe(true)
-    expect((await account.getProxy()).equals(router.address)).toBe(true)
+    expect((await account.getProxy()).equals(sender.address)).toBe(true)
     const beneficiaries = await account.getBeneficiaries()
     expect(beneficiaries.size).toBe(2)
     const beneficiaryStrings = new Set(
