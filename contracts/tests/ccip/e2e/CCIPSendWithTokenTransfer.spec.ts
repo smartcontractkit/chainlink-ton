@@ -288,6 +288,46 @@ describe('CCIPSend with token transfer (e2e)', () => {
   })
 
   it('propagates a token-transfer-initiated CCIP send end to end', async () => {
+    // Register a per-token TokenTransferFeeConfig whose destGasOverhead differs from the lane
+    // default: the executor must forward the FeeQuoter's per-token value into destExecData,
+    // and asserting the default would not catch a regression to the old hardcoded default
+    // (the two coincide), so the override has to be distinct.
+    const { defaultTokenDestGasOverhead } = (await feeQuoter.getDestChainConfig(DestChainSelector))
+      .config
+    const destGasOverheadOverride = defaultTokenDestGasOverhead + 33_456n
+    const configResult = await feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      {
+        updates: new Map([
+          [
+            DestChainSelector,
+            fq.UpdateTokenTransferFeeConfig.create({
+              add: new Map([
+                [
+                  minter.address,
+                  fq.TokenTransferFeeConfig.create({
+                    isEnabled: true,
+                    // Zero premium components: only the destGasOverhead override matters here.
+                    minFeeUsdCents: 0n,
+                    maxFeeUsdCents: 0n,
+                    deciBps: 0n,
+                    destGasOverhead: destGasOverheadOverride,
+                    destBytesOverhead: 32n,
+                  }),
+                ],
+              ]),
+              remove: [],
+            }),
+          ],
+        ]),
+      },
+    )
+    expect(configResult.transactions).toHaveTransaction({
+      to: feeQuoter.address,
+      success: true,
+    })
+
     const ccipSend = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: DestChainSelector,
@@ -457,9 +497,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
     })
 
-    const { defaultTokenDestGasOverhead } = (await feeQuoter.getDestChainConfig(DestChainSelector))
-      .config
-
     // OnRamp emits the CCIPMessageSent log. Verify the token-transfer amount equals TOKEN_AMOUNT (wGRAM).
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
@@ -472,13 +509,15 @@ describe('CCIPSend with token transfer (e2e)', () => {
             {
               // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
               sourcePoolAddress: tokenPool.address,
-              // No token transfer fee is configured, so the post-fee amount is the full amount.
+              // The pool takes no fee, so the post-fee amount is the full amount.
               amount: TOKEN_AMOUNT,
               destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
               // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
               extraData: beginCell().storeUint(0, 256).endCell(),
-              // The destination gas overhead billed by the FeeQuoter, encoded as a bare 32-bit integer.
-              destExecData: beginCell().storeUint(defaultTokenDestGasOverhead, 32).endCell(),
+              // The FeeQuoter's per-token destGasOverhead override, encoded as a bare 32-bit
+              // integer — distinct from the lane default, proving the executor forwards the
+              // FeeQuoter's destGasOverheads value rather than a hardcoded default.
+              destExecData: beginCell().storeUint(destGasOverheadOverride, 32).endCell(),
             },
           ],
           // The pool's lockOrBurn output reaches the event end to end.
