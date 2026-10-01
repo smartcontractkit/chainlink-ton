@@ -1,856 +1,234 @@
-import { Address, Cell, Message, beginCell, toNano } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 
+import { beginCell, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { crc32 } from 'zlib'
+
+import * as coverage from '../../coverage/coverage'
+import { errorCode, facilityId } from '../../../wrappers/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
-import * as namespace from '../../../wrappers/ccip/NameSpace'
-import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
-import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import * as target from '../../../wrappers/gen/test/TokenAdminRegistryEntryUpgradeTarget'
+
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
+import { ownable2StepSpec } from '../../lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
+import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
+import {
+  CONTRACT_VERSION,
+  ERROR_CODE,
+  EventTopics,
+  FACILITY_ID,
+  FACILITY_NAME,
+} from '../../../wrappers/ccip/TokenAdminRegistry'
+import {
+  Fixture,
+  OPERATION_VALUE,
+  RegistryErrors,
+  accountState,
+  coverageConfig,
+  createBlockchain,
+  deployTokenAdminRegistry,
+  registerToken,
+  setup,
+  tokenInfo,
+} from './TokenAdminRegistry.Setup'
 
-describe('TokenAdminRegistry', () => {
+describe('TokenAdminRegistry - TypeAndVersion Tests', () => {
+  const typeAndVersionSpec = TypeAndVersionSpec.newInstance({
+    type: FACILITY_NAME,
+    version: CONTRACT_VERSION,
+    deployContract: deployTokenAdminRegistry,
+  })
+  typeAndVersionSpec.run([{ code: 'TokenAdminRegistry', name: 'token_admin_registry' }])
+})
+
+describe('TokenAdminRegistry - Current Version Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: FACILITY_NAME,
+    currentVersion: CONTRACT_VERSION,
+    getCurrentCode: () => contractCode.ccip.local('TokenAdminRegistry'),
+    CurrentVersionConstructor: tar.TokenAdminRegistry.fromAddress,
+    deployCurrentContract: deployTokenAdminRegistry,
+  })
+  currentVersionSpec.run('token_admin_registry')
+})
+
+describe('TokenAdminRegistry - Ownable Tests', () => {
   let blockchain: Blockchain
-  let owner: SandboxContract<TreasuryContract>
-  let other: SandboxContract<TreasuryContract>
-  let administrator: SandboxContract<TreasuryContract>
-  let replacementAdministrator: SandboxContract<TreasuryContract>
-  let token: Address
-  let pool: Address
-  let replacementPool: Address
-  let deployableCode: Cell
-  let registry: SandboxContract<tar.TokenAdminRegistry>
-  let nextRegistryId = 0n
-
-  const tokenInfo = (tokenPool: Address | null = pool) =>
-    tar.TokenRegistry_TokenInfo.create({
-      tokenPool,
-      minterAddress: token,
-      version: 1n,
-    })
-
-  const entryFor = (tokenAddress = token) =>
-    blockchain.openContract(
-      tare.TokenAdminRegistryEntry.fromAddress(
-        namespace.deriveAddress(
-          registry.address,
-          namespace.CCIPNamespace.TokenRegistry,
-          beginCell().storeAddress(tokenAddress),
-          deployableCode,
-        ),
-      ),
-    )
-
-  const externalEvent = (result: { transactions: any[] }) => {
-    const rootTransaction = result.transactions.find(
-      (tx) =>
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.dest.equals(registry.address) &&
-        tx.outMessages.values().some((msg: Message) => msg.info.type === 'external-out'),
-    )
-    if (!rootTransaction) {
-      throw new Error('TokenAdminRegistry event transaction not found')
-    }
-
-    const event = rootTransaction.outMessages
-      .values()
-      .find((msg: Message) => msg.info.type === 'external-out')
-    if (!event) {
-      throw new Error('TokenAdminRegistry external event not found')
-    }
-    return event.body.beginParse()
-  }
-
-  const register = async (proposedAdministrator = administrator.address, queryId = 0n) => {
-    const result = await registry.sendTokenAdminRegistryRegisterToken(
-      owner.getSender(),
-      toNano('0.1'),
-      {
-        queryId,
-        tokenAddress: token,
-        tokenInfo: tokenInfo(),
-        administrator: proposedAdministrator,
-      },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: owner.address,
-      to: registry.address,
-      success: true,
-      op: tar.TokenAdminRegistry_RegisterToken.PREFIX,
-    })
-    expect(result.transactions).toHaveTransaction({
-      to: entryFor().address,
-      deploy: true,
-      success: true,
-    })
-    return result
-  }
-
-  const transferAdminRole = (
-    actor: SandboxContract<TreasuryContract>,
-    newAdministrator: Address | null,
-    queryId = 0n,
-  ) =>
-    registry.sendTokenAdminRegistryTransferAdminRole(actor.getSender(), toNano('0.1'), {
-      queryId,
-      tokenAddress: token,
-      newAdministrator,
-    })
-
-  const acceptAdminRole = (actor: SandboxContract<TreasuryContract>, queryId = 0n) =>
-    registry.sendTokenAdminRegistryAcceptAdminRole(actor.getSender(), toNano('0.1'), {
-      queryId,
-      tokenAddress: token,
-    })
-
-  const setPool = (
-    actor: SandboxContract<TreasuryContract>,
-    tokenPool: Address | null,
-    queryId = 0n,
-  ) =>
-    registry.sendTokenAdminRegistrySetPool(actor.getSender(), toNano('0.1'), {
-      queryId,
-      tokenAddress: token,
-      tokenPool,
-    })
+  let fx: Fixture
 
   beforeAll(async () => {
-    blockchain = await Blockchain.create()
-    deployableCode = await contractCode.ccip.local('Deployable')
+    blockchain = await createBlockchain()
   })
 
   beforeEach(async () => {
-    owner = await blockchain.treasury('owner')
-    other = await blockchain.treasury('other')
-    administrator = await blockchain.treasury('administrator')
-    replacementAdministrator = await blockchain.treasury('replacementAdministrator')
-    token = (await blockchain.treasury(`token-${Math.random()}`)).address
-    pool = (await blockchain.treasury(`pool-${Math.random()}`)).address
-    replacementPool = (await blockchain.treasury(`replacement-pool-${Math.random()}`)).address
+    fx = await setup(blockchain)
+  })
 
-    registry = blockchain.openContract(
-      tar.TokenAdminRegistry.fromStorage(
-        {
-          // Registry addresses include storage in their StateInit. Keep every
-          // test registry distinct while reusing the same sandbox accounts.
-          id: ++nextRegistryId,
-          ownable: tar.Ownable2Step.create({ owner: owner.address }),
-        },
-        { overrideContractCode: await contractCode.ccip.local('TokenAdminRegistry') },
-      ),
-    )
-
-    const deployment = await registry.sendDeploy(owner.getSender(), toNano('0.1'))
-    expect(deployment.transactions).toHaveTransaction({
-      from: owner.address,
-      to: registry.address,
-      deploy: true,
-      success: true,
+  it('supports ownable messages', async () => {
+    await ownable2StepSpec(fx.owner, fx.other, fx.registry, {
+      coverage: { blockchain, conf: await coverageConfig() },
     })
   })
 
-  it('reports its type and version', async () => {
-    const [type, version] = await registry.getTypeAndVersion()
-    expect(type.loadStringTail()).toBe('link.chain.ton.ccip.TokenAdminRegistry')
-    expect(version.loadStringTail()).toBe('1.6.0')
-  })
-
-  it('transfers root ownership in two steps before changing owner permissions', async () => {
-    const proposal = await registry.sendOwnable2StepTransferOwnership(
-      owner.getSender(),
-      toNano('0.05'),
-      {
-        newOwner: other.address,
-      },
-    )
-    expect(proposal.transactions).toHaveTransaction({
-      from: owner.address,
-      to: registry.address,
-      success: true,
+  it('moves owner-only permissions with root ownership', async () => {
+    await fx.registry.sendOwnable2StepTransferOwnership(fx.owner.getSender(), toNano('0.05'), {
+      newOwner: fx.other.address,
     })
+    await fx.registry.sendOwnable2StepAcceptOwnership(fx.other.getSender(), toNano('0.05'), {})
+    expect(await fx.registry.getOwner()).toEqualAddress(fx.other.address)
+    expect(await fx.registry.getPendingOwner()).toBeNull()
 
-    const acceptance = await registry.sendOwnable2StepAcceptOwnership(
-      other.getSender(),
-      toNano('0.05'),
-      {},
+    const registration = {
+      tokenAddress: fx.token,
+      tokenInfo: tokenInfo(fx),
+      administrator: fx.administrator.address,
+    }
+    const oldOwner = await fx.registry.sendTokenAdminRegistryRegisterToken(
+      fx.owner.getSender(),
+      OPERATION_VALUE,
+      registration,
     )
-    expect(acceptance.transactions).toHaveTransaction({
-      from: other.address,
-      to: registry.address,
-      success: true,
-    })
-
-    const oldOwnerUpdate = await registry.sendTokenAdminRegistryRegisterToken(
-      owner.getSender(),
-      toNano('0.05'),
-      {
-        tokenAddress: token,
-        tokenInfo: tokenInfo(),
-        administrator: administrator.address,
-      },
-    )
-    expect(oldOwnerUpdate.transactions).toHaveTransaction({
-      from: owner.address,
-      to: registry.address,
+    expect(oldOwner.transactions).toHaveTransaction({
+      from: fx.owner.address,
+      to: fx.registry.address,
       success: false,
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
 
-    const newOwnerUpdate = await registry.sendTokenAdminRegistryRegisterToken(
-      other.getSender(),
-      toNano('0.05'),
-      {
-        tokenAddress: token,
-        tokenInfo: tokenInfo(),
-        administrator: administrator.address,
-      },
+    const newOwner = await fx.registry.sendTokenAdminRegistryRegisterToken(
+      fx.other.getSender(),
+      OPERATION_VALUE,
+      registration,
     )
-    expect(newOwnerUpdate.transactions).toHaveTransaction({
-      from: other.address,
-      to: registry.address,
+    expect(newOwner.transactions).toHaveTransaction({
+      from: fx.other.address,
+      to: fx.registry.address,
       success: true,
     })
   })
 
-  it('registers a token at its deterministic entry address and relays the proposal event', async () => {
-    const result = await register(administrator.address, 101n)
-    const entry = entryFor()
-
-    const config = await entry.getTokenAdminRegistryConfig()
-    expect(config.tokenAdminRegistry).toEqual(registry.address)
-    expect(config.administrator).toBeNull()
-    expect(config.pendingAdministrator).toEqual(administrator.address)
-    expect(await entry.getTokenInfo()).toEqual(tokenInfo())
-
-    const event = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
-      externalEvent(result),
-    )
-    expect(event.token).toEqual(token)
-    expect(event.queryId).toEqual(101n)
-    expect(event.currentAdministrator).toBeNull()
-    expect(event.newAdministrator).toEqual(administrator.address)
-  })
-
-  it('rejects registration by non-owners', async () => {
-    const nonOwnerResult = await registry.sendTokenAdminRegistryRegisterToken(
-      other.getSender(),
-      toNano('0.1'),
-      { tokenAddress: token, tokenInfo: tokenInfo(), administrator: administrator.address },
-    )
-    expect(nonOwnerResult.transactions).toHaveTransaction({
-      from: other.address,
-      to: registry.address,
-      success: false,
-      exitCode: ownable2step.Errors.OnlyCallableByOwner,
-    })
-  })
-
-  it('makes registration create-only and leaves an existing entry unchanged on retry', async () => {
-    await register()
-    const entry = entryFor()
-    const before = await entry.getTokenAdminRegistryConfig()
-
-    const retry = await registry.sendTokenAdminRegistryRegisterToken(
-      owner.getSender(),
-      toNano('0.1'),
-      {
-        tokenAddress: token,
-        tokenInfo: tokenInfo(replacementPool),
-        administrator: replacementAdministrator.address,
-      },
-    )
-    expect(retry.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-    })
-    expect(await entry.getTokenAdminRegistryConfig()).toEqual(before)
-    expect(await entry.getTokenInfo()).toEqual(tokenInfo())
-  })
-
-  it('allows the root owner to replace an unaccepted administrator proposal', async () => {
-    await register()
-    const result = await registry.sendTokenAdminRegistryOverridePendingAdministrator(
-      owner.getSender(),
-      toNano('0.1'),
-      { tokenAddress: token, administrator: replacementAdministrator.address },
-    )
-
-    expect(await entryFor().getTokenAdminRegistryConfig()).toEqual(
-      tare.TokenRegistry_AdminConfig.create({
-        tokenAdminRegistry: registry.address,
-        administrator: null,
-        pendingAdministrator: replacementAdministrator.address,
-      }),
-    )
-    const event = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
-      externalEvent(result),
-    )
-    expect(event.currentAdministrator).toBeNull()
-    expect(event.newAdministrator).toEqual(replacementAdministrator.address)
-  })
-
-  it('keeps administrator transfer two-step and relays lifecycle events through the root', async () => {
-    await register()
-    const entry = entryFor()
-
-    const invalidAcceptance = await acceptAdminRole(other)
-    expect(invalidAcceptance.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-      exitCode:
-        tare.TokenAdminRegistryEntry.Errors[
-          'TokenAdminRegistryEntry_Error.OnlyPendingAdministrator'
-        ],
-    })
-
-    const acceptance = await acceptAdminRole(administrator, 102n)
-    expect(
-      tar.TokenAdminRegistry_AdministratorTransferred.fromSlice(externalEvent(acceptance)),
-    ).toEqual(
-      tar.TokenAdminRegistry_AdministratorTransferred.create({
-        queryId: 102n,
-        token,
-        newAdministrator: administrator.address,
-      }),
-    )
-
-    const unauthorizedTransfer = await transferAdminRole(other, replacementAdministrator.address)
-    expect(unauthorizedTransfer.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-    })
-
-    const transfer = await transferAdminRole(administrator, replacementAdministrator.address, 103n)
-    const transferEvent = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
-      externalEvent(transfer),
-    )
-    expect(transferEvent.queryId).toEqual(103n)
-    expect(transferEvent.currentAdministrator).toEqual(administrator.address)
-    expect(transferEvent.newAdministrator).toEqual(replacementAdministrator.address)
-
-    await acceptAdminRole(replacementAdministrator)
-    const config = await entry.getTokenAdminRegistryConfig()
-    expect(config.administrator).toEqual(replacementAdministrator.address)
-    expect(config.pendingAdministrator).toBeNull()
-
-    const overrideAfterAcceptance =
-      await registry.sendTokenAdminRegistryOverridePendingAdministrator(
-        owner.getSender(),
-        toNano('0.1'),
-        { tokenAddress: token, administrator: administrator.address },
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(
+        blockchain,
+        'token_admin_registry_ownable',
+        await coverageConfig(),
       )
-    expect(overrideAfterAcceptance.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-      exitCode:
-        tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.AlreadyRegistered'],
-    })
-  })
-
-  it('rejects direct entry lifecycle calls even when they claim a valid actor', async () => {
-    await register()
-    const entry = entryFor()
-
-    const directAcceptance = await entry.sendTokenAdminRegistryEntryMessageFromRoot(
-      administrator.getSender(),
-      toNano('0.05'),
-      {
-        minEntryVersion: 1n,
-        content: tare.TokenAdminRegistryEntry_AcceptAdminRole.create({
-          actor: administrator.address,
-        }),
-      },
-    )
-    expect(directAcceptance.transactions).toHaveTransaction({
-      from: administrator.address,
-      to: entry.address,
-      success: false,
-      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-    })
-
-    const accepted = await acceptAdminRole(administrator)
-    expect(accepted.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: true,
-    })
-  })
-
-  it('keeps permissions with the active administrator until a transfer is accepted', async () => {
-    await register()
-    const entry = entryFor()
-    await acceptAdminRole(administrator)
-    await transferAdminRole(administrator, replacementAdministrator.address)
-
-    const pendingAdminUpdate = await setPool(replacementAdministrator, replacementPool)
-    expect(pendingAdminUpdate.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-    })
-
-    const currentAdminUpdate = await setPool(administrator, replacementPool)
-    expect(currentAdminUpdate.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: true,
-    })
-
-    await acceptAdminRole(replacementAdministrator)
-    const formerAdminUpdate = await setPool(administrator, pool)
-    expect(formerAdminUpdate.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-    })
-  })
-
-  it('allows the active administrator to cancel a pending transfer', async () => {
-    await register()
-    const entry = entryFor()
-    await acceptAdminRole(administrator)
-    await transferAdminRole(administrator, replacementAdministrator.address)
-
-    const cancellation = await transferAdminRole(administrator, null)
-    const event = tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
-      externalEvent(cancellation),
-    )
-    expect(event.currentAdministrator).toEqual(administrator.address)
-    expect(event.newAdministrator).toBeNull()
-
-    const config = await entry.getTokenAdminRegistryConfig()
-    expect(config.administrator).toEqual(administrator.address)
-    expect(config.pendingAdministrator).toBeNull()
-  })
-
-  it('updates pools only through the active administrator and emits changes from the root', async () => {
-    await register()
-    const entry = entryFor()
-    await acceptAdminRole(administrator)
-
-    const unauthorized = await setPool(other, replacementPool)
-    expect(unauthorized.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entry.address,
-      success: false,
-      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-    })
-
-    const update = await setPool(administrator, replacementPool, 104n)
-    expect(await entry.getTokenInfo()).toEqual(tokenInfo(replacementPool))
-    const event = tar.TokenAdminRegistry_PoolSet.fromSlice(externalEvent(update))
-    expect(event).toEqual(
-      tar.TokenAdminRegistry_PoolSet.create({
-        queryId: 104n,
-        token,
-        previousPool: pool,
-        newPool: replacementPool,
-      }),
-    )
-
-    const noOp = await setPool(administrator, replacementPool)
-    expect(noOp.transactions).not.toHaveTransaction({ from: entry.address, to: registry.address })
-  })
-
-  const returnedTokenInfo = (result: { transactions: any[] }, requester: Address) => {
-    const reply = result.transactions.find(
-      (tx) =>
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src.equals(registry.address) &&
-        tx.inMessage.info.dest.equals(requester),
-    )
-    if (!reply?.inMessage) {
-      throw new Error('TokenAdminRegistry token info reply not found')
     }
-    return tar.TokenAdminRegistry_ReturnTokenInfo.fromSlice(reply.inMessage.body.beginParse())
-  }
+  })
+})
 
-  it('resolves token info through the root for CCIP reads', async () => {
-    await register()
-    const result = await registry.sendTokenAdminRegistryGetTokenInfo(
-      other.getSender(),
-      toNano('0.1'),
-      { queryId: 106n, token },
+describe('TokenAdminRegistry - Opcodes', () => {
+  it('should match in opcodes', () => {
+    const names = [
+      'TokenAdminRegistry_RegisterToken',
+      'TokenAdminRegistry_OverridePendingAdministrator',
+      'TokenAdminRegistry_TransferAdminRole',
+      'TokenAdminRegistry_AcceptAdminRole',
+      'TokenAdminRegistry_SetPool',
+      'TokenAdminRegistry_GetTokenInfo',
+      'TokenAdminRegistry_TokenInfoResolved',
+      'TokenAdminRegistry_EntryUpgradeRequest',
+      'TokenAdminRegistry_UpgradeEntry',
+      'TokenAdminRegistry_AdministratorTransferRequested',
+      'TokenAdminRegistry_AdministratorTransferred',
+      'TokenAdminRegistry_PoolSet',
+    ] as const
+    for (const name of names) {
+      expect(tar[name].PREFIX).toBe(crc32(name))
+    }
+  })
+
+  it('should match out opcodes', () => {
+    expect(tar.TokenAdminRegistry_ReturnTokenInfo.PREFIX).toBe(
+      crc32('TokenAdminRegistry_ReturnTokenInfo'),
     )
-    expect(result.transactions).toHaveTransaction({
-      from: registry.address,
-      to: entryFor().address,
-      op: tare.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
-      success: true,
+  })
+})
+
+describe('TokenAdminRegistry - Unit Tests', () => {
+  let blockchain: Blockchain
+  let fx: Fixture
+
+  beforeAll(async () => {
+    blockchain = await createBlockchain()
+  })
+
+  beforeEach(async () => {
+    fx = await setup(blockchain)
+  })
+
+  it('should match facility name and error codes', () => {
+    expect(FACILITY_ID).toEqual(facilityId(crc32(FACILITY_NAME)))
+    expect(ERROR_CODE).toEqual(errorCode(crc32(FACILITY_NAME)))
+    expect(RegistryErrors['TokenAdminRegistry_Error.UnauthorizedEntry']).toBe(ERROR_CODE)
+    expect(RegistryErrors['TokenAdminRegistry_Error.InsufficientValue']).toBe(ERROR_CODE + 1)
+  })
+
+  it('should derive event topics from the event names', () => {
+    expect(EventTopics.AdministratorTransferRequested).toBe(crc32('AdministratorTransferRequested'))
+    expect(EventTopics.AdministratorTransferred).toBe(crc32('AdministratorTransferred'))
+    expect(EventTopics.PoolSet).toBe(crc32('PoolSet'))
+  })
+
+  it('reports owner and no pending owner after deployment', async () => {
+    expect(await fx.registry.getOwner()).toEqualAddress(fx.owner.address)
+    expect(await fx.registry.getPendingOwner()).toBeNull()
+  })
+
+  it('rejects an owner upgrade without a migration path from the current version', async () => {
+    await registerToken(fx)
+    const before = await accountState(fx, fx.registry.address)
+
+    const result = await fx.registry.sendUpgradeableUpgrade(fx.owner.getSender(), OPERATION_VALUE, {
+      code: before.code,
     })
     expect(result.transactions).toHaveTransaction({
-      from: entryFor().address,
-      to: registry.address,
-      op: tar.TokenAdminRegistry_TokenInfoResolved.PREFIX,
-      success: true,
-    })
-    expect(returnedTokenInfo(result, other.address)).toEqual(
-      tar.TokenAdminRegistry_ReturnTokenInfo.create({
-        queryId: 106n,
-        token,
-        minterAddress: token,
-        tokenPool: pool,
-        version: 1n,
-      }),
-    )
-  })
-
-  it('rejects resolved token info not sent by the deterministic entry', async () => {
-    await register()
-    const forged = await registry.sendTokenAdminRegistryTokenInfoResolved(
-      other.getSender(),
-      toNano('0.1'),
-      { token, requester: other.address, tokenInfo: tokenInfo(replacementPool) },
-    )
-    expect(forged.transactions).toHaveTransaction({
-      from: other.address,
-      to: registry.address,
+      from: fx.owner.address,
+      to: fx.registry.address,
       success: false,
-      exitCode: tar.TokenAdminRegistry.Errors['TokenAdminRegistry_Error.UnauthorizedEntry'],
+      exitCode: upgradeable.Error.VersionMismatch,
     })
+
+    expect(await accountState(fx, fx.registry.address)).toEqual(before)
   })
 
-  it('rejects root-only entry reads from other senders', async () => {
-    await register()
-    const direct = await entryFor().sendTokenAdminRegistryEntryMessageFromRoot(
-      other.getSender(),
-      toNano('0.1'),
-      {
-        minEntryVersion: 1n,
-        content: tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({ requester: other.address }),
-      },
-    )
-    expect(direct.transactions).toHaveTransaction({
-      from: other.address,
-      to: entryFor().address,
-      success: false,
-      exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
+  it('accepts empty-body top ups', async () => {
+    const result = await fx.other.send({
+      to: fx.registry.address,
+      value: toNano('0.05'),
+      body: beginCell().endCell(),
     })
-  })
-
-  it('returns no pool for delisted entries through the public entry read', async () => {
-    await register()
-    const entry = entryFor()
-    await acceptAdminRole(administrator)
-    await setPool(administrator, null)
-
-    const query = await entry.sendTokenAdminRegistryEntryGetTokenInfo(
-      other.getSender(),
-      toNano('0.05'),
-      { queryId: 105n },
-    )
-    expect(query.transactions).toHaveTransaction({
-      from: entry.address,
-      to: other.address,
-      success: true,
-      op: tare.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
-    })
-    const responseTransaction = query.transactions.find(
-      (tx) =>
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src.equals(entry.address) &&
-        tx.inMessage.info.dest.equals(other.address),
-    )
-    if (!responseTransaction?.inMessage) {
-      throw new Error('TokenAdminRegistryEntry lookup response not found')
-    }
-    const response = tare.TokenAdminRegistryEntry_ReturnTokenInfo.fromSlice(
-      responseTransaction.inMessage.body.beginParse(),
-    )
-    expect(response).toEqual(
-      tare.TokenAdminRegistryEntry_ReturnTokenInfo.create({
-        queryId: 105n,
-        minterAddress: token,
-        tokenPool: null,
-        version: 1n,
-      }),
-    )
-  })
-
-  it('rejects lifecycle notifications not sent by the deterministic entry', async () => {
-    const result = await registry.sendTokenAdminRegistryAdministratorTransferred(
-      other.getSender(),
-      toNano('0.05'),
-      { token, newAdministrator: administrator.address },
-    )
     expect(result.transactions).toHaveTransaction({
-      from: other.address,
-      to: registry.address,
-      success: false,
-      exitCode: tar.TokenAdminRegistry.Errors['TokenAdminRegistry_Error.UnauthorizedEntry'],
+      from: fx.other.address,
+      to: fx.registry.address,
+      success: true,
     })
   })
-  describe('upgrades', () => {
-    let entryCode: Cell
-    let targetCode: Cell
 
-    beforeAll(async () => {
-      entryCode = await contractCode.ccip.local('TokenAdminRegistryEntry')
-      targetCode = await contractCode.ccip.local('TokenAdminRegistryEntryUpgradeTarget')
+  it('rejects unknown opcodes', async () => {
+    const result = await fx.other.send({
+      to: fx.registry.address,
+      value: toNano('0.05'),
+      body: beginCell().storeUint(0xdeadbeef, 32).storeUint(0, 64).endCell(),
     })
+    expect(result.transactions).toHaveTransaction({
+      from: fx.other.address,
+      to: fx.registry.address,
+      success: false,
+      exitCode: 0xffff,
+    })
+  })
 
-    const accountState = async (address = entryFor().address) => {
-      const state = (await blockchain.getContract(address)).accountState
-      if (state?.type !== 'active' || !state.state.code || !state.state.data) {
-        throw new Error('entry is not active')
-      }
-      return state.state
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(
+        blockchain,
+        'token_admin_registry_unit_tests',
+        await coverageConfig(),
+      )
     }
-
-    const asRoot = () => blockchain.sender(registry.address)
-
-    const resolveTokenInfo = (minEntryVersion: bigint) =>
-      tare.TokenAdminRegistryEntry_MessageFromRoot.create({
-        queryId: 9n,
-        minEntryVersion,
-        content: tare.TokenAdminRegistryEntry_ResolveTokenInfo.create({ requester: other.address }),
-      })
-
-    it('deploys entries with the root entry code at the current version', async () => {
-      await register()
-      expect((await accountState()).code).toEqual(entryCode)
-      expect(await entryFor().getEntryVersion()).toEqual(1n)
-    })
-
-    it('upgrades the root only through its owner and preserves its state', async () => {
-      const rootCode = await contractCode.ccip.local('TokenAdminRegistry')
-      const unauthorized = await registry.sendUpgradeableUpgrade(other.getSender(), toNano('0.1'), {
-        code: rootCode,
-      })
-      expect(unauthorized.transactions).toHaveTransaction({
-        from: other.address,
-        to: registry.address,
-        success: false,
-        exitCode: ownable2step.Errors.OnlyCallableByOwner,
-      })
-
-      const upgrade = await registry.sendUpgradeableUpgrade(owner.getSender(), toNano('0.1'), {
-        code: rootCode,
-      })
-      expect(upgrade.transactions).toHaveTransaction({
-        from: owner.address,
-        to: registry.address,
-        success: true,
-      })
-      expect(await registry.getOwner()).toEqual(owner.address)
-    })
-
-    it('upgrades to the delivered code, migrates its storage and resumes the pending request on it', async () => {
-      await register()
-      const entry = entryFor()
-      const storageBefore = (await accountState()).data
-      const request = resolveTokenInfo(1n)
-
-      const result = await entry.sendTokenAdminRegistryEntryUpgradeAndResume(
-        asRoot(),
-        toNano('0.1'),
-        { code: targetCode, request },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: registry.address,
-        to: entry.address,
-        op: tare.TokenAdminRegistryEntry_UpgradeAndResume.PREFIX,
-        success: true,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: entry.address,
-        to: entry.address,
-        op: tare.TokenAdminRegistryEntry_Resume.PREFIX,
-        success: true,
-      })
-
-      expect((await accountState()).code).toEqual(targetCode)
-      const upgraded = blockchain.openContract(
-        target.TokenAdminRegistryEntryUpgradeTarget.fromAddress(entry.address),
-      )
-      expect(await upgraded.getPreviousStorage()).toEqual(storageBefore)
-      expect(await upgraded.getResumed()).toEqual(request)
-    })
-
-    it('resumes a pending request without reinstalling identical code', async () => {
-      await register()
-      const entry = entryFor()
-
-      const result = await entry.sendTokenAdminRegistryEntryUpgradeAndResume(
-        asRoot(),
-        toNano('0.1'),
-        { code: entryCode, request: resolveTokenInfo(1n) },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: entry.address,
-        to: entry.address,
-        op: tare.TokenAdminRegistryEntry_Resume.PREFIX,
-        success: true,
-      })
-      expect(
-        result.transactions.some(
-          (tx) =>
-            tx.inMessage?.info.type === 'internal' &&
-            tx.inMessage.info.dest.equals(entry.address) &&
-            tx.outMessages.values().some((msg: Message) => msg.info.type === 'external-out'),
-        ),
-      ).toBe(false)
-      expect(returnedTokenInfo(result, other.address).tokenPool).toEqual(pool)
-      expect((await accountState()).code).toEqual(entryCode)
-    })
-
-    it('defers a request it cannot satisfy and does not loop when the root has no newer code', async () => {
-      await register()
-      const entry = entryFor()
-
-      const result = await entry.sendTokenAdminRegistryEntryMessageFromRoot(
-        asRoot(),
-        toNano('0.1'),
-        resolveTokenInfo(2n),
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: entry.address,
-        to: registry.address,
-        op: tar.TokenAdminRegistry_EntryUpgradeRequest.PREFIX,
-        success: true,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: registry.address,
-        to: entry.address,
-        op: tare.TokenAdminRegistryEntry_UpgradeAndResume.PREFIX,
-        success: true,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: entry.address,
-        to: entry.address,
-        op: tare.TokenAdminRegistryEntry_Resume.PREFIX,
-        success: false,
-        exitCode:
-          tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.VersionUnavailable'],
-      })
-      expect(
-        result.transactions.filter(
-          (tx) =>
-            tx.inMessage?.info.type === 'internal' &&
-            tx.inMessage.info.src.equals(entry.address) &&
-            tx.inMessage.info.dest.equals(registry.address),
-        ),
-      ).toHaveLength(1)
-      expect((await accountState()).code).toEqual(entryCode)
-    })
-
-    it('lets anyone push the root entry code to an entry', async () => {
-      await register()
-
-      const underfunded = await registry.sendTokenAdminRegistryUpgradeEntry(
-        other.getSender(),
-        toNano('0.01'),
-        { tokenAddress: token },
-      )
-      expect(underfunded.transactions).toHaveTransaction({
-        from: other.address,
-        to: registry.address,
-        success: false,
-        exitCode: tar.TokenAdminRegistry.Errors['TokenAdminRegistry_Error.InsufficientValue'],
-      })
-
-      const result = await registry.sendTokenAdminRegistryUpgradeEntry(
-        other.getSender(),
-        toNano('0.1'),
-        { tokenAddress: token },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: registry.address,
-        to: entryFor().address,
-        op: tare.TokenAdminRegistryEntry_UpgradeAndResume.PREFIX,
-        success: true,
-      })
-      expect(result.transactions).not.toHaveTransaction({
-        op: tare.TokenAdminRegistryEntry_Resume.PREFIX,
-      })
-      expect((await accountState()).code).toEqual(entryCode)
-    })
-
-    it('rejects upgrade and resume messages from untrusted senders', async () => {
-      await register()
-      const entry = entryFor()
-      const request = tare.TokenAdminRegistryEntry_MessageFromRoot.create({
-        minEntryVersion: 1n,
-        content: tare.TokenAdminRegistryEntry_SetPool.create({
-          actor: other.address,
-          tokenPool: replacementPool,
-        }),
-      })
-
-      const upgrade = await entry.sendTokenAdminRegistryEntryUpgradeAndResume(
-        other.getSender(),
-        toNano('0.1'),
-        { code: targetCode, request: null },
-      )
-      expect(upgrade.transactions).toHaveTransaction({
-        from: other.address,
-        to: entry.address,
-        success: false,
-        exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-      })
-
-      const resume = await entry.sendTokenAdminRegistryEntryResume(
-        other.getSender(),
-        toNano('0.1'),
-        { request },
-      )
-      expect(resume.transactions).toHaveTransaction({
-        from: other.address,
-        to: entry.address,
-        success: false,
-        exitCode: tare.TokenAdminRegistryEntry.Errors['TokenAdminRegistryEntry_Error.Unauthorized'],
-      })
-
-      const upgradeRequest = await registry.sendTokenAdminRegistryEntryUpgradeRequest(
-        other.getSender(),
-        toNano('0.1'),
-        { token, request },
-      )
-      expect(upgradeRequest.transactions).toHaveTransaction({
-        from: other.address,
-        to: registry.address,
-        success: false,
-        exitCode: tar.TokenAdminRegistry.Errors['TokenAdminRegistry_Error.UnauthorizedEntry'],
-      })
-
-      expect((await accountState()).code).toEqual(entryCode)
-      expect(await entry.getTokenInfo()).toEqual(tokenInfo())
-    })
-
-    it('requires forwarded operations to fund a possible entry upgrade', async () => {
-      await register()
-      const underfunded = await registry.sendTokenAdminRegistryAcceptAdminRole(
-        administrator.getSender(),
-        toNano('0.03'),
-        { tokenAddress: token },
-      )
-      expect(underfunded.transactions).toHaveTransaction({
-        from: administrator.address,
-        to: registry.address,
-        success: false,
-        exitCode: tar.TokenAdminRegistry.Errors['TokenAdminRegistry_Error.InsufficientValue'],
-      })
-
-      const minimal = await registry.sendTokenAdminRegistryAcceptAdminRole(
-        administrator.getSender(),
-        toNano('0.035'),
-        { tokenAddress: token },
-      )
-      expect(minimal.transactions).toHaveTransaction({
-        from: registry.address,
-        to: entryFor().address,
-        success: true,
-      })
-      expect((await entryFor().getTokenAdminRegistryConfig()).administrator).toEqual(
-        administrator.address,
-      )
-    })
   })
 })

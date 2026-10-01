@@ -186,7 +186,6 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
     // TODO: add self-service registration once TON has a canonical,
     // independently verifiable proof that the sender controls the token minter.
     // Until then, the root owner is the trusted registration module.
-    assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
 
     val deployMsg = createMessage({
         bounce: false,
@@ -224,7 +223,6 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 /// Replaces an unaccepted administrator proposal. The shard enforces that no
 /// active administrator exists, so this cannot reclaim a configured token.
 fun overridePendingAdministrator(msg: TokenAdminRegistry_OverridePendingAdministrator) {
-    assert(msg.administrator != createAddressNone()) throw Ownable2Step_Error.OnlyCallableByOwner;
     forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_ProposeAdministrator {
         administrator: msg.administrator,
     });

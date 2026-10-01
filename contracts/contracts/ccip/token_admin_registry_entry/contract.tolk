@@ -149,7 +149,6 @@ fun onProposeAdministrator(queryId: uint64, msg: TokenAdminRegistryEntry_Propose
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator == null) throw TokenAdminRegistryEntry_Error.AlreadyRegistered;
-    assert(msg.administrator != createAddressNone()) throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
     adminConfig.pendingAdministrator = msg.administrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
