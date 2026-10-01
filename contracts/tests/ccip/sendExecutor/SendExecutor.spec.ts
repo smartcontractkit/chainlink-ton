@@ -335,13 +335,12 @@ describe('SendExecutor - Unit tests', () => {
       tokenRegistry: tokenRegistryMock.address,
     })
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: tokenOnrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -364,13 +363,12 @@ describe('SendExecutor - Unit tests', () => {
     // plain messaging flow: it finishes successfully without touching any registry.
     const { sendExecutor } = await afterExecute()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -390,13 +388,12 @@ describe('SendExecutor - Unit tests', () => {
   it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incoming value', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -422,7 +419,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should exit with error on message validated from feeQuoter after execute if fee is higher than incoming value', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
@@ -431,7 +428,6 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -456,7 +452,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw on message validated from non-feeQuoter after execute', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
@@ -465,7 +461,6 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -480,7 +475,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw on message validated from feeQuoter before execute', async () => {
     const { sendExecutor } = await sendDeploy()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       deployer.getSender(), // TODO Should be feeQuoterMock?
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
@@ -489,7 +484,6 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -504,13 +498,12 @@ describe('SendExecutor - Unit tests', () => {
   it('should exit with error on message validation failed from feeQuoter after execute', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidationFailedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidationFailed(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
         error: 42n,
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -550,13 +543,12 @@ describe('SendExecutor - Unit tests', () => {
 
   it('should throw on validation message after successful exit', async () => {
     const { sendExecutor } = await afterExecute()
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -570,25 +562,23 @@ describe('SendExecutor - Unit tests', () => {
     const expectError = errorExpecter(sendExecutor)
 
     await expectError(() =>
-      sendExecutor.sendFeeQuoterMessageValidatedAny(
+      sendExecutor.sendFeeQuoterMessageValidated(
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           msg: onrampSend.msg,
-          context: beginCell().asSlice(),
         }),
       ),
     )
 
     await expectError(() =>
-      sendExecutor.sendFeeQuoterMessageValidationFailedAny(
+      sendExecutor.sendFeeQuoterMessageValidationFailed(
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidationFailed.create({
           error: 42n,
           msg: onrampSend.msg,
-          context: beginCell().asSlice(),
         }),
       ),
     )
@@ -596,7 +586,7 @@ describe('SendExecutor - Unit tests', () => {
 
   it('should throw on validation message after error exit', async () => {
     const { sendExecutor } = await afterExecute()
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
@@ -605,7 +595,6 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
     expect(result.transactions).toHaveTransaction({
@@ -618,25 +607,23 @@ describe('SendExecutor - Unit tests', () => {
     const expectError = errorExpecter(sendExecutor)
 
     await expectError(() =>
-      sendExecutor.sendFeeQuoterMessageValidatedAny(
+      sendExecutor.sendFeeQuoterMessageValidated(
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           msg: onrampSend.msg,
-          context: beginCell().asSlice(),
         }),
       ),
     )
 
     await expectError(() =>
-      sendExecutor.sendFeeQuoterMessageValidationFailedAny(
+      sendExecutor.sendFeeQuoterMessageValidationFailed(
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidationFailed.create({
           error: 42n,
           msg: onrampSend.msg,
-          context: beginCell().asSlice(),
         }),
       ),
     )
@@ -688,13 +675,12 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw on message validation failed from non-feeQuoter after execute', async () => {
     const { sendExecutor } = await afterExecute()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidationFailedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidationFailed(
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
         error: 42n,
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 
@@ -709,13 +695,12 @@ describe('SendExecutor - Unit tests', () => {
   it('should throw on message validation failed from feeQuoter before execute', async () => {
     const { sendExecutor } = await sendDeploy()
 
-    const result = await sendExecutor.sendFeeQuoterMessageValidationFailedAny(
+    const result = await sendExecutor.sendFeeQuoterMessageValidationFailed(
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
         error: 42n,
         msg: onrampSend.msg,
-        context: beginCell().asSlice(),
       }),
     )
 

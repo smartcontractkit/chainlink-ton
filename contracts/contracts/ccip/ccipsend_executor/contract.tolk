@@ -49,13 +49,13 @@ fun onInternalMessage(in: InMessage) {
         }
 
         // Sender must be the Fee Quoter
-        FeeQuoter_MessageValidated_Any => {
+        FeeQuoter_MessageValidated => {
             var this: CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidated(msg);
         }
         // Sender must be the Fee Quoter
-        FeeQuoter_MessageValidationFailed_Any => {
+        FeeQuoter_MessageValidationFailed => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidationFailed(msg);
@@ -134,7 +134,7 @@ fun onInternalMessage(in: InMessage) {
 fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy CCIPSendExecutor_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
-        FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
+        FeeQuoter_GetValidatedFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce);
         }
@@ -175,9 +175,8 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
         bounce: true,
         value: 0,
         dest: feeQuoter,
-        body: FeeQuoter_GetValidatedFee<slice> {
+        body: FeeQuoter_GetValidatedFee {
             msg: onrampSend.msg,
-            context: createEmptySlice(),
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -190,7 +189,7 @@ fun depositAccountAddress(sender: address, router: address): address {
     return onRampAccountAutodeployAddressForRouter(sender, router, deployableCompiledCode()).calculateAddress();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
     val message = self.onrampSend.msg.load();
     val tokenAmounts = message.tokenAmounts;
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
@@ -386,7 +385,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed) {
     self.exitWithError(msg.error as uint256);
 }
 
