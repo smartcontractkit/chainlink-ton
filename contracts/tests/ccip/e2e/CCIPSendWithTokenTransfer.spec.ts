@@ -247,7 +247,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
       to: tokenPool.address,
       success: true,
     })
+  })
 
+  async function registerToken() {
     const registrationResult = await tokenAdminRegistry.sendTokenAdminRegistryRegisterToken(
       deployer.getSender(),
       toNano('0.2'),
@@ -285,9 +287,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
       deploy: true,
     })
-  })
+  }
 
-  it('propagates a token-transfer-initiated CCIP send end to end', async () => {
+  async function sendTokenTransfer() {
     const ccipSend = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: DestChainSelector,
@@ -340,6 +342,12 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })()
 
     sendExecutor = blockchain.openContract(exe.CCIPSendExecutor.fromAddress(executorAddress))
+    return { result, executorAddress, senderWallet, routerWalletAddress }
+  }
+
+  it('propagates a token-transfer-initiated CCIP send end to end', async () => {
+    await registerToken()
+    const { result, executorAddress, senderWallet, routerWalletAddress } = await sendTokenTransfer()
 
     // --- jetton transfer leg ---
     // user -> user wallet
@@ -391,7 +399,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
         if (!x) return false
         return (
           exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).config.tokenRegistry?.equals(
-            tokenRegistry.address,
+            tokenAdminRegistry.address,
           ) ?? false
         )
       },
@@ -409,17 +417,29 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: fq.FeeQuoter_MessageValidated.PREFIX,
       success: true,
     })
-    // executor -> tokenRegistry and back
+    // executor -> TokenAdminRegistry -> entry -> TokenAdminRegistry -> executor
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
+      to: tokenAdminRegistry.address,
+      op: tar.TokenAdminRegistry_GetTokenInfo.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: tokenAdminRegistry.address,
       to: tokenRegistry.address,
-      op: tr.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
+      op: tr.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
       success: true,
     })
     expect(result.transactions).toHaveTransaction({
       from: tokenRegistry.address,
+      to: tokenAdminRegistry.address,
+      op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: tokenAdminRegistry.address,
       to: executorAddress,
-      op: tr.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
+      op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
       success: true,
     })
     // executor -> onRamp (requests lock/burn)
@@ -497,6 +517,48 @@ describe('CCIPSend with token transfer (e2e)', () => {
       from: router.address,
       to: sender.address,
       op: rt.Router_CCIPSendACK.PREFIX,
+      success: true,
+    })
+  })
+
+  it('fails the CCIP send when the token is not registered', async () => {
+    const { result, executorAddress } = await sendTokenTransfer()
+
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: tokenAdminRegistry.address,
+      op: tar.TokenAdminRegistry_GetTokenInfo.PREFIX,
+      success: true,
+    })
+    // The registry's request to the missing entry bounces back to the registry.
+    expect(result.transactions).toHaveTransaction({
+      to: tokenAdminRegistry.address,
+      inMessageBounced: true,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: tokenAdminRegistry.address,
+      to: executorAddress,
+      op: tar.TokenAdminRegistry_GetTokenInfoFailed.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      success: true,
+      body(x) {
+        if (!x) return false
+        return (
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
+          BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
+        )
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
       success: true,
     })
   })

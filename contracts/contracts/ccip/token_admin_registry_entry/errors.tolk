@@ -8,4 +8,6 @@ enum TokenAdminRegistryEntry_Error {
     OnlyPendingAdministrator
     AlreadyRegistered
     InvalidAdministrator
+    /// The root could not provide an entry satisfying the requested version.
+    VersionUnavailable
 }
