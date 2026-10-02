@@ -250,7 +250,7 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
     return lisplist;
 }
 
-// Helper to cast T? into Cell<T>?
+// Serializes T? into Cell<T>?
 fun T?.toOptCell(self): Cell<T>? {
     if (self == null) {
         return null;
@@ -258,11 +258,20 @@ fun T?.toOptCell(self): Cell<T>? {
     return self.toCell();
 }
 
+// Deserializes Cell<T>? into T?
 fun Cell<T>?.loadOpt(self): T? {
     if (self == null) {
         return null;
     }
     return self.load();
+}
+
+// Unwraps the optional value or returns the provided default.
+fun T?.unwrapOr(self, default: T): T {
+    if (self == null) {
+        return default;
+    }
+    return self;
 }
 
 // This type works as a wrapper for RemainingBitsAndRefs that implements
