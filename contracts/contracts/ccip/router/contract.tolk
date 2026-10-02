@@ -229,10 +229,9 @@ fun onInternalMessage(in: InMessage) {
         DepositAccount_WithdrawFailed => {
             onDepositAccountWithdrawFailed(msg, in.senderAddress);
         }
-        // Sender must be a Jetton Wallet owned by the Router. The Router no longer accepts token
-        // transfers as a CCIP send entrypoint: tokens must be deposited into the sender's per-user
-        // deposit account. Accidental transfers to the Router are returned to the transfer
-        // initiator (throwing here would burn the tokens).
+        // Sender must be a Jetton Wallet owned by the Router.
+        // Accidental transfers to the Router are returned to the transfer
+        // initiator in a best-effort manner (throwing here would burn the tokens).
         TransferNotificationForRecipient => {
             returnAccidentalTransfer(in.senderAddress, msg);
         }
