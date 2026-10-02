@@ -356,7 +356,8 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
                 queryId: msg.queryID,
                 jettonAmount: withdrawRequest.amount,
                 transferRecipient: withdrawRequest.tokenPool,
-                sendExcessesTo: contract.getAddress(), // TBD Or the OnRamp? The send executor maybe not because it could be destroyed before the message reaches it, but it's the OnRamp that gets the fees and has variable balance
+                // TBD the Depossit account only allows sendExcessesTo to point to sender (Router). This will result in the Router slowly accumulating excess funds over time.
+                sendExcessesTo: contract.getAddress(),
                 customPayload: null,
                 forwardTonAmount: grams("0.5"),
                 forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
