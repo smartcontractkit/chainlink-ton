@@ -5,7 +5,7 @@ import { Blockchain } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
-import { EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { Costs, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
 import {
   EntryErrors,
   Fixture,
@@ -106,9 +106,9 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
   })
 
-  it('requires value for a possible entry upgrade', async () => {
+  it('requires the forward cost', async () => {
     await registerAndAccept(fx)
-    const result = await setPool(fx, fx.administrator, fx.replacementPool, 0n, toNano('0.03'))
+    const result = await setPool(fx, fx.administrator, fx.replacementPool, 0n, Costs.forward - 1n)
     expectRootFailure(
       fx,
       result,

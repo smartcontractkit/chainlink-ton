@@ -70,6 +70,7 @@ enum ReceiveExecutor_FailedReason: uint8 {
 
 const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.005");
 const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.004");
+const RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE = grams("0.005");
 
 struct ReceiveExecutor_Costs{}
 
@@ -83,6 +84,11 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
     return baseFee + OffRamp_Costs.notify();
 }
 
+/// The registry query, handling its reply, and the message that follows it:
+/// ReleaseOrMint, or NotifyFailure when the token is not enabled. The
+/// destGasAmount for ReleaseOrMint is budgeted separately.
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
-    return grams("0.02"); // TODO
+    return TokenAdminRegistry_GetTokenInfo.cost()
+        + RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE
+        + max(OffRamp_ReleaseOrMint.cost(), OffRamp_Costs.notify());
 }
