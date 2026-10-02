@@ -32,9 +32,13 @@ describe('SendExecutor - TypeAndVersion Tests', () => {
       deployer: SandboxContract<TreasuryContract>,
     ): Promise<SandboxContract<sx.CCIPSendExecutor>> => {
       const deployable = await ccipSendExecutor(blockchain, deployer)
-      return sendDeployOnBlockchain(blockchain, deployer, deployable, undefined, deployer).then(
-        ({ sendExecutor }) => sendExecutor,
-      )
+      return sendDeployOnBlockchain(
+        blockchain,
+        deployer,
+        deployable,
+        undefined,
+        deployer.address,
+      ).then(({ sendExecutor }) => sendExecutor)
     },
   })
   currentVersionSpec.run([
@@ -131,7 +135,13 @@ describe('SendExecutor - Unit tests', () => {
       result: void
     }
   }> => {
-    return await sendDeployOnBlockchain(blockchain, deployer, deployable, selfMessage, onRampMock)
+    return await sendDeployOnBlockchain(
+      blockchain,
+      deployer,
+      deployable,
+      selfMessage,
+      onRampMock.address,
+    )
   }
 
   it('should match facility name and ID', async () => {
@@ -195,6 +205,64 @@ describe('SendExecutor - Unit tests', () => {
       },
     })
     return { sendExecutor, result }
+  }
+
+  // Delivers the FeeQuoter validation reply and then simulates the OnRamp's
+  // OnRamp_ExecutorFeeReserved confirmation, driving the executor past the fee
+  // reservation step so tests can observe the post-reservation behavior.
+  async function afterFeeReserved(opts?: {
+    send?: or.OnRamp_Send
+    fee?: bigint
+    tokenRegistry?: Address | null
+  }): Promise<{
+    sendExecutor: SandboxContract<sx.CCIPSendExecutor>
+    result: SendMessageResult & {
+      result: void
+    }
+  }> {
+    const send = opts?.send ?? onrampSend
+    const { sendExecutor } = await afterExecute({
+      send,
+      tokenRegistry: opts?.tokenRegistry,
+    })
+
+    const validatedResult = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({
+          feeTokenAmount: opts?.fee ?? FeeTokenAmount,
+          feeValueJuels: toNano('0.1'),
+        }),
+        msg: send.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    // The executor must have asked the OnRamp to reserve the validated fee.
+    expect(validatedResult.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorReserveFee.PREFIX,
+    })
+
+    const reservedResult = await sendExecutor.sendOnRampExecutorFeeReserved(
+      onRampMock.getSender(),
+      toNano('0.05'),
+      {
+        executorID: 0n,
+      },
+    )
+
+    expect(reservedResult.transactions).toHaveTransaction({
+      from: onRampMock.address,
+      to: sendExecutor.address,
+      success: true,
+      op: or.OnRamp_ExecutorFeeReserved.PREFIX,
+    })
+
+    return { sendExecutor, result: reservedResult }
   }
 
   it('should handle execute from self', async () => {
@@ -345,14 +413,36 @@ describe('SendExecutor - Unit tests', () => {
       }),
     )
 
-    // The query must be addressed to the tokenRegistry from the config.
+    // The executor must first ask the OnRamp to reserve the validated fee.
     expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      body(x) {
+        if (!x) return false
+        const reserveFee = or.OnRamp_ExecutorReserveFee.fromSlice(x.beginParse())
+        return reserveFee.fee === FeeTokenAmount
+      },
+    })
+
+    // The tokenRegistry is only queried after the OnRamp confirms the reservation.
+    const reservedResult = await sendExecutor.sendOnRampExecutorFeeReserved(
+      onRampMock.getSender(),
+      toNano('0.05'),
+      {
+        executorID: 0n,
+      },
+    )
+
+    // The query must be addressed to the tokenRegistry from the config.
+    expect(reservedResult.transactions).toHaveTransaction({
       from: sendExecutor.address,
       to: tokenRegistryMock.address,
       success: true,
     })
     // And it must NOT have already finished the send back to the OnRamp.
-    expect(result.transactions).not.toHaveTransaction({
+    expect(reservedResult.transactions).not.toHaveTransaction({
       from: sendExecutor.address,
       to: onRampMock.address,
       op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
@@ -362,17 +452,7 @@ describe('SendExecutor - Unit tests', () => {
   it('should exit successfully on validated fee without a token transfer or tokenRegistry', async () => {
     // A config without a tokenRegistry and a message without token transfers behaves like the
     // plain messaging flow: it finishes successfully without touching any registry.
-    const { sendExecutor } = await afterExecute()
-
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
-      feeQuoterMock.getSender(),
-      toNano('0.3'),
-      sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
-        context: beginCell().asSlice(),
-      }),
-    )
+    const { sendExecutor, result } = await afterFeeReserved()
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -388,17 +468,7 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incoming value', async () => {
-    const { sendExecutor } = await afterExecute()
-
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
-      feeQuoterMock.getSender(),
-      toNano('0.3'),
-      sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
-        context: beginCell().asSlice(),
-      }),
-    )
+    const { sendExecutor, result } = await afterFeeReserved()
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -549,17 +619,9 @@ describe('SendExecutor - Unit tests', () => {
   }
 
   it('should throw on validation message after successful exit', async () => {
-    const { sendExecutor } = await afterExecute()
-    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
-      feeQuoterMock.getSender(),
-      toNano('0.3'),
-      sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
-        context: beginCell().asSlice(),
-      }),
-    )
+    const { sendExecutor, result } = await afterFeeReserved()
 
+    // The executor finished successfully upon the fee reservation confirmation.
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
       to: onRampMock.address,
@@ -680,6 +742,241 @@ describe('SendExecutor - Unit tests', () => {
           executorFinishedWithError.executorID === 0n &&
           executorFinishedWithError.error ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.FeeQuoterBounce'])
+        )
+      },
+    })
+  })
+
+  it('should request the fee reservation from the onramp on validated fee', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendFeeQuoterMessageValidatedAny(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    // The reservation request carries the validated fee and enough value to
+    // cover the fee plus the reservation roundtrip costs.
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      value(x) {
+        if (!x) return false
+        return x > FeeTokenAmount
+      },
+      body(x) {
+        if (!x) return false
+        const reserveFee = or.OnRamp_ExecutorReserveFee.fromSlice(x.beginParse())
+        return reserveFee.executorID === 0n && reserveFee.fee === FeeTokenAmount
+      },
+    })
+
+    // The executor must not finish before the reservation is confirmed.
+    expect(result.transactions).not.toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
+    })
+  })
+
+  it('should throw on fee reserved from non-onramp', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    // First move the executor into the OnGoingFeeReservation state.
+    await sendExecutor.sendFeeQuoterMessageValidatedAny(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    const result = await sendExecutor.sendOnRampExecutorFeeReserved(
+      deployer.getSender(), // not the onramp
+      toNano('0.05'),
+      {
+        executorID: 0n,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],
+    })
+  })
+
+  it('should throw on fee reserved with incorrect executorID', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    // First move the executor into the OnGoingFeeReservation state.
+    await sendExecutor.sendFeeQuoterMessageValidatedAny(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    const result = await sendExecutor.sendOnRampExecutorFeeReserved(
+      onRampMock.getSender(),
+      toNano('0.05'),
+      {
+        executorID: 1n, // incorrect ID
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: onRampMock.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],
+    })
+  })
+
+  it('should throw on fee reserved before validated fee', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    // The executor is still in OnGoingFeeValidation: the confirmation cannot be
+    // accepted yet.
+    const result = await sendExecutor.sendOnRampExecutorFeeReserved(
+      onRampMock.getSender(),
+      toNano('0.05'),
+      {
+        executorID: 0n,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: onRampMock.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.StateNotExpected'],
+    })
+  })
+
+  it('should exit with error and no refund when the fee reservation bounces', async () => {
+    // An onramp mock that bounces everything: the reservation request bounces
+    // before being accepted, so no fee was ever charged.
+    const onrampBouncer = await blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    // The bouncer's address is deterministic, so it may already be deployed by
+    // an earlier test in this suite; (re)sending the deploy message is harmless.
+    await onrampBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+    // Deploy a fresh executor bound to the bouncing onramp (the executor's
+    // onramp address comes from its initial data).
+    const deployable = await setup(blockchain, deployer)
+    const { sendExecutor: bouncerExecutor } = await sendDeployOnBlockchain(
+      blockchain,
+      deployer,
+      deployable,
+      {
+        value: toNano('3'),
+        body: sx.CCIPSendExecutor_Execute.toCell(
+          sx.CCIPSendExecutor_Execute.create({
+            onrampSend,
+            config: sx.CCIPSendExecutor_Config.create({
+              router: routerMock.address,
+              feeQuoter: feeQuoterMock.address,
+              tokenRegistry: null,
+            }),
+          }),
+        ),
+      },
+      onrampBouncer.address,
+    )
+
+    const result = await bouncerExecutor.sendFeeQuoterMessageValidatedAny(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    // The reservation request bounced back to the executor.
+    expect(result.transactions).toHaveTransaction({
+      from: onrampBouncer.address,
+      to: bouncerExecutor.address,
+      success: true,
+      op: 0xffffffff,
+    })
+
+    // The executor exits with the reservation bounce error and no refund: the
+    // fee was never reserved because the request bounced. The bouncer throws
+    // on every message, so the delivery itself fails; only the outgoing body
+    // is asserted.
+    expect(result.transactions).toHaveTransaction({
+      from: bouncerExecutor.address,
+      to: onrampBouncer.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.OnRamp_ExecutorFinishedWithError.fromSlice(
+          x.beginParse(),
+        )
+        return (
+          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.error ===
+            BigInt(
+              sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.OnRampFeeReservationBounce'],
+            ) &&
+          executorFinishedWithError.refund === 0n
+        )
+      },
+    })
+  })
+
+  it('should exit with error and refund the charged fee when the token is not enabled', async () => {
+    // The token registry reports no pool for the token: the executor exits with
+    // TokenNotEnabled and refunds the fee that was already reserved on the OnRamp.
+    const { sendExecutor } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
+    })
+
+    const result = await sendExecutor.sendTokenAdminRegistryEntryReturnTokenInfo(
+      tokenRegistryMock.getSender(),
+      toNano('0.3'),
+      {
+        queryId: 0n,
+        minterAddress: deployer.address,
+        tokenPool: null, // token not enabled
+        version: 0n,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.OnRamp_ExecutorFinishedWithError.fromSlice(
+          x.beginParse(),
+        )
+        return (
+          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.error ===
+            BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled']) &&
+          executorFinishedWithError.refund === FeeTokenAmount
         )
       },
     })
