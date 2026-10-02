@@ -801,6 +801,7 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     msg: TokenPool_LockOrBurnWithdrawFailed,
 ): void {
     self.onlyRouter(sender);
+    // TBD do we need a hook here?
     val fwdp = lazy msg.forwardPayload.load();
 
     // Custody never left the pool's wallet, so reinstate the rate limit consumed at admission.
