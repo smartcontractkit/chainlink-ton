@@ -664,6 +664,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_PreflightCheckFailed => {
             self.onPreflightCheckFailed(msgSender, msg);
         }
+        TokenPool_LockOrBurnWithdrawFailed => {
+            self.onLockOrBurnWithdrawFailed(msgSender, msg);
+        }
         // Once we withdraw via Executor -> OnRamp -> JettonWallet, we will receive a TransferNotificationForRecipient callback,
         // which is only allowed to be called by a valid OnRamp address, otherwise we try a best effort return.
         //
@@ -786,6 +789,26 @@ fun TokenPool<T>.onPreflightCheckFailed(
 
     // Send failure response back to the executor (replyTo).
     self.sendLockOrBurnFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16);
+}
+
+/// Handles a withdrawal rejection from the OnRamp (relayed by the Router): the pool-supplied
+/// remote token address (or another part of the lock/burn output) failed the OnRamp's
+/// validation, so the transfer can never be emitted. Refund the outbound rate limit consumed
+/// at admission and fail the send so the executor can settle.
+/// @dev Only the configured Router may relay this failure.
+fun TokenPool<T>.onLockOrBurnWithdrawFailed(
+    mutate self,
+    sender: address,
+    msg: TokenPool_LockOrBurnWithdrawFailed,
+): void {
+    self.onlyRouter(sender);
+    val fwdp = lazy msg.forwardPayload.load();
+
+    // Custody never left the pool's wallet, so reinstate the rate limit consumed at admission.
+    self.refundLockOrBurnRateLimit(fwdp);
+
+    // Send failure response back to the executor (replyTo), carrying the OnRamp's error.
+    self.sendLockOrBurnFailure(fwdp, msg.errorCode);
 }
 
 /// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check.

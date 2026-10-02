@@ -272,6 +272,7 @@ type TokenPool_InMessage =
     | TransferNotificationForRecipient // fwdPayload = TokenPool_LockOrBurnForwardPayload
     | TokenPool_PreflightCheckFinished
     | TokenPool_PreflightCheckFailed
+    | TokenPool_LockOrBurnWithdrawFailed
     | TokenPool_ReleaseOrMint
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
@@ -297,6 +298,12 @@ type TokenPool_InMessage =
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
+}
+
+struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
+    queryId: uint64;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+    errorCode: uint16;
 }
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
