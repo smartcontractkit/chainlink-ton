@@ -2227,6 +2227,62 @@ describe('OffRamp - Execute', () => {
       // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
+    it('manual execute forwards the offchainTokenData supplied on retry', async () => {
+      await setup.updateRateLimit(0n, 0n)
+
+      const message = setup.createTestMessageWithToken()
+      await setup.setupAndCommitMessage(message)
+
+      const firstResult = await setup.executeReport(setup.createExecuteReport([message]))
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      await setup.updateRateLimit(
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+      )
+
+      const offchainTokenData = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const retryReport = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
+        [offchainTokenData],
+      ])
+      const manualResult = await setup.manualExecuteReport(retryReport, undefined, true)
+      assertLog(
+        manualResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      const releaseOrMintTx = findTransaction(manualResult.transactions, {
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
+
+      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
+        releaseOrMintTx.inMessage!.body!.beginParse(),
+      )
+      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
+      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
+    })
+
     it('executes a PTT (token transfer + data) end to end', async () => {
       const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
       const message = setup.createTestMessageWithToken({ data })

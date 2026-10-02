@@ -29,6 +29,7 @@ fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Any2TVMTokenT
     if (self != null) {
         // The new transfer has the updated destGasAmount, so we need to update the transfer in the state
         self.transfer = transfer.toCell();
+        self.offchainTokenData = offchainTokenData;
         return self
     }
 
