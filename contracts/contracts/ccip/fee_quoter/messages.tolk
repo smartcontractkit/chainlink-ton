@@ -39,6 +39,8 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 struct (0xfbf78e40) FeeQuoter_MessageValidated {
     fee: Fee
     destGasOverheads: lisp_list<uint32>?
+    // Chain family of the destination lane
+    chainFamilySelector: uint32
     msg: Cell<Router_CCIPSend>
     context: cell? = null
 }

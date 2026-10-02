@@ -70,12 +70,6 @@ const VAL_1E14: uint256 = 100000000000000;
 const VAL_1E16: uint256 = 10000000000000000;
 const VAL_1E18: uint256 = 1000000000000000000;
 
-const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
-const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
-const CHAIN_FAMILY_SELECTOR_TVM:   uint32 = 0x647e2ba9;
-const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
-const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
-
 
 // This represents FeeQuoter's DestChainConfig (not OnRamp)
 struct DestChainConfig {

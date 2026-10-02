@@ -229,10 +229,15 @@ type GetValidatedFee struct {
 // NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
 // are written inline with no presence bit and no ref cell.
 type MessageValidated struct {
-	_       tlb.Magic  `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
-	Fee     Fee        `tlb:"."`
-	Msg     *cell.Cell `tlb:"^"` // Original message
-	Context *cell.Cell `tlb:"."` // Remaining bits/refs written inline
+	_   tlb.Magic `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
+	Fee Fee       `tlb:"."`
+	// DestGasOverheads is the per-token destination gas overhead (Tolk lisp_list<uint32>?).
+	DestGasOverheads *common.LispList[common.UInt32] `tlb:"maybe ^"`
+	// ChainFamilySelector is the destination chain family the message was validated
+	// against, echoed so the executor can relay it to the OnRamp.
+	ChainFamilySelector uint32     `tlb:"## 32"`
+	Msg                 *cell.Cell `tlb:"^"` // Original message
+	Context             *cell.Cell `tlb:"."` // Remaining bits/refs written inline
 }
 
 type Fee struct {

@@ -183,7 +183,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
         // No token transfer, so there are no pool-supplied details to report.
-        self.exitSuccessfully(msg.fee, null);
+        self.exitSuccessfully(msg.fee, msg.chainFamilySelector, null);
         return;
     }
     if (msg.destGasOverheads == null) {
@@ -214,6 +214,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             fee: msg.fee,
             destGasOverhead,
+            chainFamilySelector: msg.chainFamilySelector,
         }.toCell(),
     };
     newState.store();
@@ -241,6 +242,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         state: CCIPSendExecutor_State_WalletAddressValidation {
             fee: state.fee,
             destGasOverhead: state.destGasOverhead,
+            chainFamilySelector: state.chainFamilySelector,
             minterAddress: msg.minterAddress,
             tokenPool: msg.tokenPool,
         }.toCell(),
@@ -276,6 +278,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             fee: state.fee,
             destGasOverhead: state.destGasOverhead,
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             routerWalletAddress: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),
@@ -292,6 +295,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             fee: state.fee,
             destGasOverhead: state.destGasOverhead,
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             routerWalletAddress: state.routerWalletAddress,
         }.toCell(),
@@ -310,6 +314,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             queryID: self.onrampSend.msg.load().queryID,
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
+            chainFamilySelector: state.chainFamilySelector,
             withdrawRequest: Router_WithdrawRequest {
                 routerWalletAddress: state.routerWalletAddress,
                 amount: tokenAmount.amount,
@@ -335,10 +340,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdra
         extraData: out.destPoolData,
         destExecData: encodeDestExecData(state.destGasOverhead),
     }.toCell();
-    self.exitSuccessfully(state.fee, tokenTransfer);
+    self.exitSuccessfully(state.fee, state.chainFamilySelector, tokenTransfer);
 }
 
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, chainFamilySelector: uint32, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -357,6 +362,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
+            chainFamilySelector,
             tokenTransfer,
         }
     });

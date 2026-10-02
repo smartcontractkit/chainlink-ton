@@ -576,6 +576,34 @@ type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
 }
 
+// UInt32 is a LispList element wrapper for Tolk's lisp_list<uint32>.
+type UInt32 struct {
+	Value uint32 `tlb:"## 32"`
+}
+
+// ToCell packs the UInt32 into a cell.
+// SAFETY: implemented directly (not via tlb.ToCell) because tlb.ToCell prefers the
+// Marshaller interface, which would recurse into this method infinitely.
+func (v UInt32) ToCell() (*cell.Cell, error) {
+	b := cell.BeginCell()
+	if err := b.StoreUInt(uint64(v.Value), 32); err != nil {
+		return nil, fmt.Errorf("failed to store uint32: %w", err)
+	}
+	return b.EndCell(), nil
+}
+
+// LoadFromCell unpacks the UInt32 from a cell slice.
+// SAFETY: implemented directly (not via tlb.LoadFromCell) to mirror ToCell.
+func (v *UInt32) LoadFromCell(s *cell.Slice) error {
+	val, err := s.LoadUInt(32)
+	if err != nil {
+		return err
+	}
+	// SAFETY: LoadUInt(32) returns a value that always fits in uint32.
+	v.Value = uint32(val) // #nosec G115
+	return nil
+}
+
 // LispList is a generic Go binding for Tolk's lisp_list<T> (from @stdlib/lisp-lists).
 // It serializes as reversed snake refs: each chain cell stores ref[0]=next-chain
 // and ref[1]=element-cell. The terminator is a completely empty cell (0 bits, 0 refs).

@@ -9,7 +9,7 @@ import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainSelectors } from '../../utils/Selectors'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
@@ -159,10 +159,11 @@ describe('OnRamp - generate message id', () => {
           sender: senderAddress,
           value: 42n,
         }),
+        chainFamilySelector: ChainFamilySelectors.evm,
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          destTokenAddress: EVM_ADDRESS,
           extraData: Cell.EMPTY,
           destExecData: Cell.EMPTY,
         }),
@@ -186,7 +187,7 @@ describe('OnRamp - generate message id', () => {
           on.TVM2AnyTokenTransfer.create({
             sourcePoolAddress: senderAddress,
             amount: 0n,
-            destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
+            destTokenAddress: EVM_ADDRESS,
             extraData: Cell.EMPTY,
             destExecData: Cell.EMPTY,
           }),
