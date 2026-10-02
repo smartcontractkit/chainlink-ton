@@ -27,7 +27,6 @@ diverge only where the TON async execution model requires it.
 | `events.tolk`              | Emitted-event topics and payloads.                                                                         |
 | `errors.tolk`              | `TokenPool_Error` enum (facility-scoped codes).                                                            |
 | `rate_limiter.tolk`        | Token-bucket rate limiter. EVM `RateLimiter.sol`.                                                          |
-| `lock_release/`            | `LockReleaseTokenPool` — pool custodies tokens in its own Jetton wallet.                                   |
 | `burn_mint/`               | `BurnMintTokenPool` — pool owns minter admin; burns on lock, mints on release.                             |
 | `lock_release_lockbox/`    | `LockReleaseLockboxTokenPool` — custody delegated to a shared `JettonLockBox` (enables pool upgrades).     |
 | `lockbox/`                 | `JettonLockBox` — long-lived per-token custody contract; pools are OPERATORs.                              |
@@ -210,7 +209,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
   suspended operation.
 - **TON-TP/7 — ContextExecutor / sharded storage not implemented.**
   Pending-op maps live in contract storage (`burn_mint/storage.tolk`,
-  `lock_release/storage.tolk` — see their TODOs) → unbounded growth / dict limits.
+  `lock_release_lockbox/storage.tolk` — see their TODOs) → unbounded growth / dict limits.
   `sendExcessesTo` is hardcoded to `self` across pools; design routes it through a
   per-message ContextExecutor.
 - **TON-TP/8 — msg.value validation missing across flows.**
@@ -222,7 +221,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
 sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsistent
   and leaks gas.
 - **TON-TP/10 — No always-reply (ack/nack) guarantee.**
-  Flows reply only when `replyTo != null` (`lock_release/contract.tolk:179`,
+  Flows reply only when `replyTo != null` (`lock_release_lockbox/contract.tolk`,
   `token_pool.tolk:901`). The Executor state machine needs a deterministic
   success/failure response for every op to avoid stalls.
 
@@ -236,7 +235,7 @@ sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsis
 - **TON-TP/13 — `setDynamicConfig` missing router zero-address check**
   (`token_pool.tolk:216-217`).
 - **TON-TP/14 — Event `sender` field set to contract addr** vs EVM `msg.sender`
-  (`burn_mint/contract.tolk:199`, `lock_release/contract.tolk:145`).
+  (`burn_mint/contract.tolk:199`, `lock_release_lockbox/contract.tolk`).
 - **TON-TP/15 — `rate_limiter._consume` throws instead of surfacing
   `minWaitInSeconds`** (`rate_limiter.tolk:79`); `BucketOverfilled` path differs
   from EVM semantics.

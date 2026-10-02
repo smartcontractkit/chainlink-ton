@@ -2,7 +2,6 @@ package codec
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -25,28 +24,130 @@ import (
 )
 
 // any2TVMMessageIDGoldenPath points at the single source of truth for the expected
-// MessageID of the fixed message used below, shared with the TypeScript and Tolk
+// MessageIDs of the fixed messages used below, shared with the TypeScript and Tolk
 // implementations (see contracts/tests/ccip/offramp/OffRamp.messageID.spec.ts).
+// Golden values are anchored to the TypeScript/Tolk implementations, which match the
+// on-chain OffRamp leaf recomputation from the execute report.
 const any2TVMMessageIDGoldenPath = "../../../testdata/golden/any2tvm_message_id.json"
 
-// loadAny2TVMMessageIDGolden reads the golden MessageID that the Go, TypeScript, and Tolk
-// implementations of the Any2TVM message hasher must all agree on.
-func loadAny2TVMMessageIDGolden(t *testing.T) ccipocr3.Bytes32 {
+// goldenTokenTransfer mirrors one entry of the golden file's message.tokenAmounts.
+type goldenTokenTransfer struct {
+	SourcePoolAddress string  `json:"sourcePoolAddress"`
+	Token             string  `json:"token"`
+	DestGasAmount     string  `json:"destGasAmount"`
+	ExtraData         *string `json:"extraData"`
+	Amount            string  `json:"amount"`
+}
+
+// goldenMessage mirrors the golden file's message object.
+type goldenMessage struct {
+	Header struct {
+		MessageID           string `json:"messageId"`
+		SourceChainSelector string `json:"sourceChainSelector"`
+		DestChainSelector   string `json:"destChainSelector"`
+		SequenceNumber      string `json:"sequenceNumber"`
+		Nonce               string `json:"nonce"`
+		OnRamp              string `json:"onRamp"`
+	} `json:"header"`
+	Sender       string                `json:"sender"`
+	Data         string                `json:"data"`
+	Receiver     string                `json:"receiver"`
+	GasLimit     string                `json:"gasLimit"`
+	TokenAmounts []goldenTokenTransfer `json:"tokenAmounts"`
+}
+
+// goldenCase mirrors one entry of the golden file's cases array.
+type goldenCase struct {
+	Name              string        `json:"name"`
+	Message           goldenMessage `json:"message"`
+	ExpectedMessageID string        `json:"expectedMessageId"`
+}
+
+// loadAny2TVMMessageIDGoldenCases reads the golden MessageIDs that the Go, TypeScript,
+// and Tolk implementations of the Any2TVM message hasher must all agree on.
+func loadAny2TVMMessageIDGoldenCases(t *testing.T) []goldenCase {
 	data, err := os.ReadFile(any2TVMMessageIDGoldenPath)
 	require.NoError(t, err)
 
 	var golden struct {
-		MessageID string `json:"messageId"`
+		Cases []goldenCase `json:"cases"`
 	}
 	require.NoError(t, json.Unmarshal(data, &golden))
+	require.NotEmpty(t, golden.Cases, "golden file must contain at least one case")
 
-	decoded, err := hex.DecodeString(strings.TrimPrefix(golden.MessageID, "0x"))
+	for _, c := range golden.Cases {
+		require.NotEqual(t, "PENDING", c.ExpectedMessageID,
+			"case %s has a placeholder golden value; anchor it via the TypeScript/Tolk test first", c.Name)
+	}
+	return golden.Cases
+}
+
+// mustHex decodes a 0x-prefixed hex string from the golden file.
+func mustHex(t *testing.T, s string) []byte {
+	b, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
+	require.NoError(t, err)
+	return b
+}
+
+// mustBigInt parses a decimal string from the golden file.
+func mustBigInt(t *testing.T, s string) *big.Int {
+	v, ok := new(big.Int).SetString(s, 10)
+	require.True(t, ok, "invalid decimal string %q", s)
+	return v
+}
+
+// goldenCaseToMessage converts a golden file case into a ccipocr3.Message.
+func goldenCaseToMessage(t *testing.T, c goldenCase) ccipocr3.Message {
+	msg := c.Message
+	header := msg.Header
+
+	receiverAddr, err := address.ParseAddr(msg.Receiver)
+	require.NoError(t, err)
+	rawReceiver, err := ToRawAddr(receiverAddr)
 	require.NoError(t, err)
 
-	require.Len(t, decoded, 32, "golden messageID must be exactly 32 bytes")
-	var messageID ccipocr3.Bytes32
-	copy(messageID[:], decoded)
-	return messageID
+	var messageID [32]byte
+	messageIDInt := mustBigInt(t, header.MessageID)
+	require.LessOrEqual(t, messageIDInt.BitLen(), 256)
+	messageIDFill := messageIDInt.FillBytes(messageID[:])
+	copy(messageID[:], messageIDFill)
+
+	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(msg.TokenAmounts))
+	for _, tt := range msg.TokenAmounts {
+		ttTokenAddr, err := address.ParseAddr(tt.Token)
+		require.NoError(t, err)
+		rawToken, err := ToRawAddr(ttTokenAddr)
+		require.NoError(t, err)
+
+		var extraData []byte
+		if tt.ExtraData != nil {
+			extraData = mustHex(t, *tt.ExtraData)
+		}
+
+		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
+			SourcePoolAddress: ccipocr3.UnknownAddress(mustHex(t, tt.SourcePoolAddress)),
+			DestTokenAddress:  rawToken[:],
+			DestExecData:      binary.BigEndian.AppendUint32(nil, uint32(mustBigInt(t, tt.DestGasAmount).Uint64())), //nolint:gosec // fixture value fits
+			ExtraData:         extraData,
+			Amount:            ccipocr3.BigInt{Int: mustBigInt(t, tt.Amount)},
+		})
+	}
+
+	return ccipocr3.Message{
+		Header: ccipocr3.RampMessageHeader{
+			MessageID:           messageID,
+			SourceChainSelector: ccipocr3.ChainSelector(mustBigInt(t, header.SourceChainSelector).Uint64()),
+			DestChainSelector:   ccipocr3.ChainSelector(mustBigInt(t, header.DestChainSelector).Uint64()),
+			SequenceNumber:      ccipocr3.SeqNum(mustBigInt(t, header.SequenceNumber).Uint64()),
+			Nonce:               mustBigInt(t, header.Nonce).Uint64(),
+			OnRamp:              mustHex(t, header.OnRamp),
+		},
+		Sender:       ccipocr3.UnknownAddress(mustHex(t, msg.Sender)),
+		Data:         mustHex(t, msg.Data),
+		Receiver:     rawReceiver[:],
+		ExtraArgs:    []byte{0x2},
+		TokenAmounts: tokenAmounts,
+	}
 }
 
 // Extract a single message from the executecodec_test.go helper
@@ -274,7 +375,6 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 }
 
 func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
-	// Right now the hash from ts and gobinding Any2TVMRamp message generates different msg hash. Need to fix it before running this test
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
 	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
@@ -290,100 +390,66 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 
 	lg := logger.Test(t)
 	hasher := NewMessageHasherV1(lg, edc)
+	executeCodec := NewExecutePluginCodecV1(edc)
 
-	t.Run("matches TypeScript generateMessageId with simple address encoding", func(t *testing.T) {
-		// Use exact same TON address from TypeScript test
-		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-		require.NoError(t, err)
+	// The golden values are anchored to the TypeScript/Tolk implementations (see
+	// contracts/tests/ccip/offramp/OffRamp.messageID.spec.ts), which match the on-chain
+	// OffRamp leaf recomputation from the execute report. The Go hasher must agree with
+	// them, and the execute codec must round-trip each message without changing its leaf.
+	for _, goldenCase := range loadAny2TVMMessageIDGoldenCases(t) {
+		t.Run(goldenCase.Name, func(t *testing.T) {
+			msg := goldenCaseToMessage(t, goldenCase)
 
-		rawTonAddr, err := ToRawAddr(tonAddr)
-		require.NoError(t, err)
-		// EVM_SENDER_ADDRESS_TEST: 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a
-		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
-		require.NoError(t, err)
+			t.Run("hasher matches golden", func(t *testing.T) {
+				hash, err := hasher.Hash(ctx, msg)
+				require.NoError(t, err)
 
-		evmOnrampBytes, err := hex.DecodeString("111111c891c5d4e6ad68064ae45d43146d4f9f3a")
-		require.NoError(t, err)
+				decoded, err := hex.DecodeString(strings.TrimPrefix(goldenCase.ExpectedMessageID, "0x"))
+				require.NoError(t, err)
+				require.Len(t, decoded, 32, "golden messageID must be exactly 32 bytes")
+				var golden ccipocr3.Bytes32
+				copy(golden[:], decoded)
 
-		// Create messageID as 32-byte array with value 1 (matching TypeScript messageId: 1n)
-		var messageID [32]byte
-		binary.BigEndian.PutUint64(messageID[24:], 1) // This sets the last 8 bytes to 1
+				assert.Equal(t, golden, hash,
+					"Go message hasher should produce the golden MessageID shared with TypeScript and Tolk")
+			})
 
-		ta := make([]ccipocr3.RampTokenAmount, 0)
-		// Create exact same message as TypeScript test
-		msg := ccipocr3.Message{
-			Header: ccipocr3.RampMessageHeader{
-				MessageID:           messageID,
-				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),  // CHAINSEL_EVM_TEST_90000001
-				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768), // CHAINSEL_TON
-				SequenceNumber:      ccipocr3.SeqNum(1),
-				Nonce:               0,
-				OnRamp:              evmOnrampBytes,
-			},
-			Sender:       ccipocr3.UnknownAddress(evmSenderBytes),
-			Data:         []byte{}, // empty cell data
-			Receiver:     rawTonAddr[:],
-			ExtraArgs:    []byte{0x2}, // will be populated by mock
-			TokenAmounts: ta,          // no token amounts
-		}
+			// The hasher (commit plugin) and the execute codec (execute plugin) must
+			// serialize the message identically, or the committed merkle root never
+			// matches the on-chain recomputation from the execute report. This check is
+			// tautology-proof: the golden comes from TypeScript/Tolk, not from the hasher.
+			t.Run("execute codec round-trip preserves the golden leaf", func(t *testing.T) {
+				hash, err := hasher.Hash(ctx, msg)
+				require.NoError(t, err)
 
-		// Set messageID to 1
-		binary.BigEndian.PutUint64(msg.Header.MessageID[24:], 1)
+				report := ccipocr3.ExecutePluginReport{
+					ChainReports: []ccipocr3.ExecutePluginReportSingleChain{{
+						SourceChainSelector: msg.Header.SourceChainSelector,
+						Messages:            []ccipocr3.Message{msg},
+						// One blob per token; nil is only valid for tokenless messages.
+						OffchainTokenData: nil,
+						Proofs:            []ccipocr3.Bytes32{},
+						ProofFlagBits:     ccipocr3.BigInt{Int: big.NewInt(0)},
+					}},
+				}
+				if len(msg.TokenAmounts) != 0 {
+					report.ChainReports[0].OffchainTokenData = [][][]byte{{{0x1}}}
+				}
+				encoded, err := executeCodec.Encode(ctx, report)
+				require.NoError(t, err)
+				decoded, err := executeCodec.Decode(ctx, encoded)
+				require.NoError(t, err)
 
-		hash, err := hasher.Hash(ctx, msg)
-		require.NoError(t, err)
+				// OnRamp is not carried in the on-chain report (it is recovered from the
+				// source chain config); restore it from the original before re-hashing.
+				decodedMsg := decoded.ChainReports[0].Messages[0]
+				decodedMsg.Header.OnRamp = msg.Header.OnRamp
 
-		golden := loadAny2TVMMessageIDGolden(t)
-
-		assert.Equal(t, golden, hash,
-			"Go message hasher should produce the golden MessageID shared with TypeScript and Tolk")
-	})
-
-	t.Run("matches TypeScript generateMessageId with user friendly address encoding", func(t *testing.T) {
-		// Use exact same TON address from TypeScript test
-		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-		require.NoError(t, err)
-
-		rawTonAddr, err := base64.RawURLEncoding.DecodeString(tonAddr.String())
-		require.NoError(t, err)
-		// EVM_SENDER_ADDRESS_TEST: 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a
-		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
-		require.NoError(t, err)
-
-		evmOnrampBytes, err := hex.DecodeString("111111c891c5d4e6ad68064ae45d43146d4f9f3a")
-		require.NoError(t, err)
-
-		// Create messageID as 32-byte array with value 1 (matching TypeScript messageId: 1n)
-		var messageID [32]byte
-		binary.BigEndian.PutUint64(messageID[24:], 1) // This sets the last 8 bytes to 1
-
-		ta := make([]ccipocr3.RampTokenAmount, 0)
-		// Create exact same message as TypeScript test
-		msg := ccipocr3.Message{
-			Header: ccipocr3.RampMessageHeader{
-				MessageID:           messageID,
-				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),  // CHAINSEL_EVM_TEST_90000001
-				DestChainSelector:   ccipocr3.ChainSelector(1399300952838017768), // CHAINSEL_TON
-				SequenceNumber:      ccipocr3.SeqNum(1),
-				Nonce:               0,
-				OnRamp:              evmOnrampBytes,
-			},
-			Sender:       ccipocr3.UnknownAddress(evmSenderBytes),
-			Data:         []byte{}, // empty cell data
-			Receiver:     rawTonAddr,
-			ExtraArgs:    []byte{0x2}, // will be populated by mock
-			TokenAmounts: ta,          // no token amounts
-		}
-
-		// Set messageID to 1
-		binary.BigEndian.PutUint64(msg.Header.MessageID[24:], 1)
-
-		hash, err := hasher.Hash(ctx, msg)
-		require.NoError(t, err)
-
-		golden := loadAny2TVMMessageIDGolden(t)
-
-		assert.Equal(t, golden, hash,
-			"Go message hasher should produce the golden MessageID shared with TypeScript and Tolk")
-	})
+				reHashed, err := hasher.Hash(ctx, decodedMsg)
+				require.NoError(t, err)
+				assert.Equal(t, hash, reHashed,
+					"hasher leaf and execute-report leaf must match after encode/decode")
+			})
+		})
+	}
 }
