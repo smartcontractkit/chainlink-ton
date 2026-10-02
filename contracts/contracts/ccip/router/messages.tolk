@@ -24,6 +24,7 @@ type Router_InMsg =
     | OnRamp_MessageValidationFailed
     | Router_RouteMessage
     | Router_WithdrawToTokenPool
+    | Router_WithdrawToTokenPoolFailed
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
@@ -87,6 +88,17 @@ struct Router_WithdrawRequest {
     amount: coins;
     tokenPool: address;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+}
+
+/// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
+/// Router moves custody (e.g. the pool-supplied remote token address failed destination
+/// family validation). The Router relays the failure to the token pool so it can reinstate
+/// the rate limit consumed at admission and fail the send.
+struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
+    queryID: uint64;
+    destChainSelector: uint64;
+    withdrawRequest: Cell<Router_WithdrawRequest>;
+    error: uint16;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {

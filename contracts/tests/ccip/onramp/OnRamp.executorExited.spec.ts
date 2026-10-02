@@ -10,7 +10,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainSelectors } from '../../utils/Selectors'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
@@ -152,10 +152,11 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
+        chainFamilySelector: ChainFamilySelectors.evm,
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          destTokenAddress: EVM_ADDRESS,
           extraData: Cell.EMPTY,
           destExecData: Cell.EMPTY,
         }),
@@ -234,10 +235,11 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
+        chainFamilySelector: ChainFamilySelectors.evm,
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
+          destTokenAddress: EVM_ADDRESS,
           extraData: Cell.EMPTY,
           destExecData: Cell.EMPTY,
         }),
