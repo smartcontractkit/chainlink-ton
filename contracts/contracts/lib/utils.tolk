@@ -263,7 +263,7 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
     return lisplist;
 }
 
-// Helper to cast T? into Cell<T>?
+// Serializes T? into Cell<T>?
 fun T?.toOptCell(self): Cell<T>? {
     if (self == null) {
         return null;
@@ -271,6 +271,7 @@ fun T?.toOptCell(self): Cell<T>? {
     return self.toCell();
 }
 
+// Deserializes Cell<T>? into T?
 fun Cell<T>?.loadOpt(self): T? {
     if (self == null) {
         return null;
@@ -289,4 +290,12 @@ fun lisp_list<T>.asSingle(mutate self): T? {
         return null
     }
     return item;
+}
+
+// Unwraps the optional value or returns the provided default.
+fun T?.unwrapOr(self, default: T): T {
+    if (self == null) {
+        return default;
+    }
+    return self;
 }
