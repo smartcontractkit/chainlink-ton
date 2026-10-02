@@ -13,7 +13,7 @@ output-dir = "wrappers/gen"
 display-name = "link.chain.ton.ccip.Router"
 src = "contracts/ccip/router/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.OnRamp]
 display-name = "link.chain.ton.ccip.OnRamp"
@@ -38,17 +38,11 @@ depends = []
 display-name = "link.chain.ton.ccip.CCIPSendExecutor"
 src = "contracts/ccip/ccipsend_executor/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.DepositAccount]
 display-name = "link.chain.ton.ccip.account.DepositAccount"
 src = "contracts/ccip/accounts/deposit/contract.tolk"
-domain = "ccip"
-depends = []
-
-[contracts.OnRampAccount]
-display-name = "link.chain.ton.ccip.account.OnRampAccount"
-src = "contracts/ccip/accounts/on_ramp_account/contract.tolk"
 domain = "ccip"
 depends = []
 
