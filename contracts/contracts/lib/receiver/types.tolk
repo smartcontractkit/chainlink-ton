@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import "../../ccip/common/types"
+import "../utils"
 
 /// @notice Family-agnostic message routed to a Receiver.
 struct Any2TVMMessage {
@@ -7,6 +8,6 @@ struct Any2TVMMessage {
     sourceChainSelector: uint64;
     sender: CrossChainAddress;
     data: cell;
-    /// Note: currently unused, added for compatibility on upgrades
-    tokenAmounts: cell?;
+    /// Tokens delivered to the receiver, with amounts in local token decimals.
+    tokenAmounts: SnakedCell<TokenAmount>?;
 }

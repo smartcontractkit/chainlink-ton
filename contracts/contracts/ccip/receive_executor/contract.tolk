@@ -125,9 +125,8 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
             return match (ttInfo.state) {
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed => queryTokenAdminRegistry(mutate st, ttInfo),
-                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => {
-                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool);
-                }
+                // Re-query so a pool re-pointed in the TokenAdminRegistry since the failed attempt is used.
+                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
             }
@@ -216,9 +215,25 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
                 message: st.message,
                 execId: st.execId,
                 effectiveGasLimit: st.state.effectiveGasLimit,
+                tokenAmounts: receiverTokenAmounts(st),
             }
         }
     ).send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun receiverTokenAmounts(st: ReceiveExecutor_Storage): SnakedCell<TokenAmount>? {
+    if (st.state.tokenTransfer == null) {
+        return null;
+    }
+    val ttInfo = st.state.tokenTransfer.load();
+    if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
+        return null;
+    }
+    val transfer = ttInfo.transfer.load();
+    return TokenAmount {
+        amount: ttInfo.state.destinationAmount,
+        token: transfer.token,
+    }.toCell() as SnakedCell<TokenAmount>;
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract
@@ -256,8 +271,9 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
     notifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onReleaseOrMintFinished(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, _msg: TokenPool_ReleaseOrMintFinished) {
-    ttInfo.state = ReceiveExecutor_TokenTransferState_Success {};
+fun onReleaseOrMintFinished(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, msg: TokenPool_ReleaseOrMintFinished) {
+    val out = msg.out.load();
+    ttInfo.state = ReceiveExecutor_TokenTransferState_Success { destinationAmount: out.destinationAmount };
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
     if (ccipMessage.data.beginParse().isEmpty()) {

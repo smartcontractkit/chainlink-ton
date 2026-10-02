@@ -29,6 +29,7 @@ fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Any2TVMTokenT
     if (self != null) {
         // The new transfer has the updated destGasAmount, so we need to update the transfer in the state
         self.transfer = transfer.toCell();
+        self.offchainTokenData = offchainTokenData;
         return self
     }
 
@@ -39,7 +40,10 @@ type ReceiveExecutor_TokenTransferState =
     | ReceiveExecutor_TokenTransferState_Success
     | ReceiveExecutor_TokenTransferState_Pending;
 
-struct ReceiveExecutor_TokenTransferState_Success {}
+struct ReceiveExecutor_TokenTransferState_Success {
+    // Amount released or minted by the pool, in local token decimals.
+    destinationAmount: coins;
+}
 
 type ReceiveExecutor_TokenTransferState_Pending = 
     | ReceiveExecutor_TokenTransferState_Untouched

@@ -1248,7 +1248,7 @@ export const TransferNotificationForRecipient = {
  >     sourceChainSelector: uint64
  >     sender: CrossChainAddress
  >     data: cell
- >     tokenAmounts: cell?
+ >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
  */
 export interface Any2TVMMessage {
@@ -1257,7 +1257,7 @@ export interface Any2TVMMessage {
     sourceChainSelector: uint64
     sender: CrossChainAddress
     data: c.Cell
-    tokenAmounts: c.Cell | null
+    tokenAmounts: SnakedCell<TokenAmount> | null
 }
 
 export const Any2TVMMessage = {
@@ -1266,7 +1266,7 @@ export const Any2TVMMessage = {
         sourceChainSelector: uint64
         sender: CrossChainAddress
         data: c.Cell
-        tokenAmounts: c.Cell | null
+        tokenAmounts: SnakedCell<TokenAmount> | null
     }): Any2TVMMessage {
         return {
             $: 'Any2TVMMessage',
@@ -1280,7 +1280,7 @@ export const Any2TVMMessage = {
             sourceChainSelector: s.loadUintBig(64),
             sender: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
     },
     store(self: Any2TVMMessage, b: c.Builder): void {
@@ -1288,9 +1288,7 @@ export const Any2TVMMessage = {
         b.storeUint(self.sourceChainSelector, 64);
         CrossChainAddress.store(self.sender, b);
         b.storeRef(self.data);
-        storeTolkNullable<c.Cell>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
     toCell(self: Any2TVMMessage): c.Cell {
         return makeCellFrom<Any2TVMMessage>(self, Any2TVMMessage.store);
