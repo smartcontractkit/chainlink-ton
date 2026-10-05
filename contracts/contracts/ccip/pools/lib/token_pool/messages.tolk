@@ -115,7 +115,7 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
-    replyTo: address?;
+    replyTo: address;
 }
 
 struct TokenPool_LockOrBurnForwardPayload {
@@ -131,7 +131,7 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
-    replyTo: address? = null;
+    replyTo: address;
 }
 
 /// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check success.

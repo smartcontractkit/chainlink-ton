@@ -10,7 +10,40 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
 )
+
+func TestInsufficientMessageValueExitCode(t *testing.T) {
+	decoded, err := ErrorInsufficientMessageValue.NewFrom(51726)
+	require.NoError(t, err)
+	require.Equal(t, ErrorInsufficientMessageValue, decoded)
+	require.Equal(t, "ErrorInsufficientMessageValue", decoded.String())
+}
+
+func TestLockboxDepositFailed_WireFormat(t *testing.T) {
+	token := address.NewAddress(0, 0, make([]byte, 32))
+	context := cell.BeginCell().MustStoreUInt(301, 64).EndCell()
+	for name, attempted := range map[string]bool{"skipped": false, "queued": true} {
+		t.Run(name, func(t *testing.T) {
+			message := lockbox.DepositFailed{
+				QueryID: 301, Token: token, Depositor: token, Amount: tlb.MustFromTON("9"),
+				Context: context, ErrorCode: 47400, ReturnAttempted: attempted,
+			}
+			encoded, err := tlb.ToCell(message)
+			require.NoError(t, err)
+			expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
+				MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
+				MustStoreMaybeRef(context).MustStoreUInt(47400, 16).MustStoreBoolBit(attempted).EndCell()
+			require.Equal(t, expected.Hash(), encoded.Hash())
+			var decoded lockbox.DepositFailed
+			require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+			require.Equal(t, message.QueryID, decoded.QueryID)
+			require.Equal(t, message.ErrorCode, decoded.ErrorCode)
+			require.Equal(t, attempted, decoded.ReturnAttempted)
+			require.Equal(t, context.Hash(), decoded.Context.Hash())
+		})
+	}
+}
 
 // TestDynamicConfig_AllowedDepositNamespaces_WireFormat verifies that modelling
 // AllowedDepositNamespaces as *tlbe.Dict[uint32, struct{}] (tlb:".") produces

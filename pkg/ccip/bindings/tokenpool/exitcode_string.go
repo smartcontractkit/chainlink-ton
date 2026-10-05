@@ -31,11 +31,15 @@ func _() {
 	_ = x[ErrorAmountMismatch-51720]
 	_ = x[ErrorInvalidRequestedFinality-51721]
 	_ = x[ErrorRateLimitExceeded-51722]
+	_ = x[ErrorLockOrBurnWithdrawBounced-51723]
+	_ = x[ErrorPreflightCheckBounced-51724]
+	_ = x[ErrorPostflightCheckBounced-51725]
+	_ = x[ErrorInsufficientMessageValue-51726]
 }
 
-const _ExitCode_name = "ErrorInvalidTransferFeeBpsErrorInvalidTokenTransferFeeConfigErrorCallerIsNotARampOnRouterErrorZeroAddressInvalidErrorNonExistentChainErrorChainNotAllowedErrorCursedByRMNErrorChainAlreadyExistsErrorInvalidSourcePoolAddressErrorInvalidTokenErrorUnauthorizedErrorPoolAlreadyAddedErrorInvalidRemotePoolForChainErrorInvalidRemoteChainDecimalsErrorOverflowDetectedErrorInvalidDecimalArgsErrorCallerIsNotOwnerOrFeeAdminErrorUnsupportedOperationErrorMissingForwardPayloadErrorMissingTransferInitiatorErrorAmountMismatchErrorInvalidRequestedFinalityErrorRateLimitExceeded"
+const _ExitCode_name = "ErrorInvalidTransferFeeBpsErrorInvalidTokenTransferFeeConfigErrorCallerIsNotARampOnRouterErrorZeroAddressInvalidErrorNonExistentChainErrorChainNotAllowedErrorCursedByRMNErrorChainAlreadyExistsErrorInvalidSourcePoolAddressErrorInvalidTokenErrorUnauthorizedErrorPoolAlreadyAddedErrorInvalidRemotePoolForChainErrorInvalidRemoteChainDecimalsErrorOverflowDetectedErrorInvalidDecimalArgsErrorCallerIsNotOwnerOrFeeAdminErrorUnsupportedOperationErrorMissingForwardPayloadErrorMissingTransferInitiatorErrorAmountMismatchErrorInvalidRequestedFinalityErrorRateLimitExceededErrorLockOrBurnWithdrawBouncedErrorPreflightCheckBouncedErrorPostflightCheckBouncedErrorInsufficientMessageValue"
 
-var _ExitCode_index = [...]uint16{0, 26, 60, 89, 112, 133, 153, 169, 192, 221, 238, 255, 276, 306, 337, 358, 381, 412, 437, 463, 492, 511, 540, 562}
+var _ExitCode_index = [...]uint16{0, 26, 60, 89, 112, 133, 153, 169, 192, 221, 238, 255, 276, 306, 337, 358, 381, 412, 437, 463, 492, 511, 540, 562, 592, 618, 645, 674}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 51700

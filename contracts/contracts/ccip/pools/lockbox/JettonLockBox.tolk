@@ -8,7 +8,7 @@ import "../../../lib/jetton/messages"
 import "../../../lib/access/access_control"
 import "../../../lib/utils"
 
-import "../lib/token_pool/entrypoint"
+import "../lib/token_pool/recovery"
 
 import "types"
 import "messages"
@@ -158,17 +158,21 @@ fun onDepositWithTransferNotification(
     // lockbox wallet). It cannot be attributed or returned so we accept and error.
     assert(msg.transferInitiator != null, AccessControl_Error.UnauthorizedAccount);
 
-    // TODO: check message value is enough to cover full flow, or error
-    // assert(msgValue >= DEPOSIT_MIN_MESSAGE_VALUE, JettonLockBox_Error.InsufficientValue);
-
+    // Decode outside the validation try so its catch retains the deposit's correlation context.
+    var deposit: JettonLockBox_Deposit? = null;
     try {
         val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
-        assert(fwdps != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        if (fwdps != null) {
+            deposit = JettonLockBox_Deposit.fromSlice(fwdps!);
+        }
+    } catch {}
 
+    try {
+        assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!);
 
-        val fwdp = JettonLockBox_Deposit.fromSlice(fwdps!);
+        val fwdp = deposit!;
         assert(fwdp.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
         assert(fwdp.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
@@ -189,10 +193,42 @@ fun onDepositWithTransferNotification(
         });
         reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     } catch (errorCode) {
-        // Cap the return at the inbound value so an unsolicited deposit cannot drain the
-        // lockbox's own balance.
-        TokenPool<void>.returnTransfer(sender, msg, msgValue);
-        // TODO: should we notify deposit failed?
+        reserveBalanceBeforeInMessage(msgValue);
+        var failure = JettonLockBox_DepositFailed {
+            queryId: deposit != null ? deposit!.queryId : msg.queryId,
+            token: st.minterAddress,
+            depositor: msg.transferInitiator!,
+            amount: msg.jettonAmount,
+            context: deposit != null ? deposit!.context : null,
+            errorCode: errorCode as uint16,
+            returnAttempted: true,
+        };
+        val failureMsg = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: msg.transferInitiator!,
+            body: failure,
+        });
+        val identifiable = failure.context != null;
+        val transfer = AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: msg.jettonAmount,
+            transferRecipient: msg.transferInitiator!,
+            sendExcessesTo: msg.transferInitiator,
+            customPayload: null,
+            forwardTonAmount: identifiable ? jettonLockBoxReturnForwardValue() : 0 as coins,
+            forwardPayload: beginCell().storeMaybeRef(identifiable ? failure.toCell() : null).endCell().beginParse(),
+        };
+        failure.returnAttempted = sendTokenPoolRecoveryReturn(msgValue, sender, transfer, failureMsg);
+
+        // Report rejection independently of whether custody return is skipped or fails downstream.
+        val reply = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: msg.transferInitiator!,
+            body: failure,
+        });
+        reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
     }
 }
 

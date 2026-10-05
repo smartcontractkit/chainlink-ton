@@ -9,6 +9,8 @@ import {
   TokenPool_ChainUpdate,
   TokenPool_RateLimitConfigPair,
   TokenPool_RateLimitConfigArgs,
+  TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
@@ -77,6 +79,51 @@ export function runTokenPoolBehaviorTests(
   }
 
   describe(`${name} TokenPool behavior`, () => {
+    it.each(['lock', 'release'])(
+      'rejects a %s operation with addr_none as replyTo',
+      async (direction) => {
+        const ctx = await setup()
+        const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        const locking = direction === 'lock'
+        const request = locking
+          ? TokenPool_LockOrBurnInV1.toCell(
+              TokenPool_LockOrBurnInV1.create({
+                transfer: TokenPool_Transfer.create({
+                  id: 902n,
+                  details: TokenPool_TransferDetails.create({
+                    receiver: ctx.destTokenAddress,
+                    remoteChainSelector: ctx.remoteChainSelector,
+                    originalSender: ctx.deployer.address,
+                    amount: 1n,
+                    localToken: ctx.localToken,
+                  }),
+                }),
+              }),
+            )
+          : TokenPool_ReleaseOrMintInV1.toCell(releaseRequest(ctx))
+        const body = beginCell()
+          .storeUint(locking ? TokenPool_LockOrBurn.PREFIX : TokenPool_ReleaseOrMint.PREFIX, 32)
+          .storeUint(902, 64)
+          .storeRef(request)
+          .storeUint(0, 32)
+        if (locking) body.storeMaybeRef(null)
+        body.storeAddress(null)
+        const result = await ctx.deployer.send({
+          to: ctx.pool.address,
+          value: toNano('0.5'),
+          body: body.endCell(),
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.deployer.address,
+          to: ctx.pool.address,
+          success: false,
+        })
+        const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+        expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+      },
+    )
+
     it('reports the configured chain as supported after setup', async () => {
       const ctx = await setup()
 

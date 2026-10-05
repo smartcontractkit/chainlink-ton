@@ -159,7 +159,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
     var basePool = loadPool(st);
-    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody)) {
+    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody, in.valueCoins)) {
         st.poolData = basePool.data.toCell();
         st.store();
         return;
@@ -175,13 +175,13 @@ fun onBouncedMessage(in: InMessageBounced) {
                 st.store();
                 return;
             }
-            onReleaseTransferBounced(mutate st, in.senderAddress, msg);
+            onReleaseTransferBounced(mutate st, in.senderAddress, msg, in.valueCoins);
             st.store();
         }
         // The account rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
         // reply with a failure so the sender can retry instead of the release silently stalling.
         DepositAccount_Init => {
-            onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
+            onDepositAccountInitBounced(mutate st, in.senderAddress, msg, in.valueCoins);
             st.store();
         }
     }
@@ -218,13 +218,14 @@ fun onDepositAccountInitBounced(
     mutate st: Storage,
     sender: address,
     msg: DepositAccount_Init,
+    msgValue: coins,
 ) {
     assert(msg.forwardPayload != null, LockRelease_Error.UnexpectedReleaseBounce);
     val context = LockReleaseTokenPool_ReleaseContext.fromCell(msg.forwardPayload!);
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.recoverReleaseOrMintFailure(operation, LockRelease_Error.OffRampAccountDeployFailed as uint16);
+    pool.recoverReleaseOrMintFailure(operation, LockRelease_Error.OffRampAccountDeployFailed as uint16, msgValue);
     st.poolData = pool.data.toCell();
 }
 
@@ -261,6 +262,7 @@ fun onReleaseTransferBounced(
     mutate st: Storage,
     sender: address,
     msg: AskToTransfer,
+    msgValue: coins,
 ) {
     assert(st.poolData.load().jettonClient().isWallet(sender)) throw LockRelease_Error.UnexpectedReleaseBounce;
     val contextCell = loadForwardPayloadAsCell(msg.forwardPayload);
@@ -270,7 +272,7 @@ fun onReleaseTransferBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.recoverReleaseOrMintFailure(operation, LockRelease_Error.UnexpectedReleaseBounce as uint16);
+    pool.recoverReleaseOrMintFailure(operation, LockRelease_Error.UnexpectedReleaseBounce as uint16, msgValue);
     st.poolData = pool.data.toCell();
 }
 
@@ -363,6 +365,7 @@ fun onLockOrBurnTransferContinue(
     _sender: address,
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    _msgValue: coins,
 ): Storage {
     // Accrue the fee only once custody has confirmed (lock success). Failure/bounce paths never
     // reach here, so the ledger only counts actually-completed locks.

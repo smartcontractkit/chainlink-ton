@@ -347,7 +347,7 @@ export const ResponseWalletAddress = {
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
- >     replyTo: address?
+ >     replyTo: address
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -356,7 +356,7 @@ export interface TokenPool_LockOrBurn {
     request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
-    replyTo: c.Address | null
+    replyTo: c.Address
 }
 
 export const TokenPool_LockOrBurn = {
@@ -367,7 +367,7 @@ export const TokenPool_LockOrBurn = {
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
-        replyTo: c.Address | null
+        replyTo: c.Address
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
@@ -383,7 +383,7 @@ export const TokenPool_LockOrBurn = {
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
-            replyTo: s.loadMaybeAddress(),
+            replyTo: s.loadAddress(),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {

@@ -95,17 +95,24 @@ fun calculateGasFeeFor(size: int): coins {
     return calculateGasFeeDefault();
 }
 
+/// Reserves the pre-message balance and storage due so subsequent actions use inbound value.
+fun reserveBalanceBeforeInMessage(msgValue: coins): void {
+    val originalBalance = contract.getOriginalBalance();
+    val balanceBeforeMessage = originalBalance > msgValue ? originalBalance - msgValue : 0 as coins;
+    reserveGramsOnBalance(balanceBeforeMessage + contract.getStorageDuePayment(), RESERVE_MODE_AT_MOST);
+}
+
 /// Computes the Keccak-256 hash of the given data.
 fun keccak256(data: builder): uint256
     asm "1 PUSHINT HASHEXT_KECCAK256";
 
 @inline
-fun emit<T>(topic: int, body: T) {
+fun emit<T>(topic: int, body: T, sendMode: int = SEND_MODE_REGULAR) {
     val emitMsg = createExternalLogMessage({
         dest: ExtOutLogBucket { topic },
         body
     });
-    emitMsg.send(SEND_MODE_REGULAR);
+    emitMsg.send(sendMode);
 }
 
 type SnakedCell<T> = cell;

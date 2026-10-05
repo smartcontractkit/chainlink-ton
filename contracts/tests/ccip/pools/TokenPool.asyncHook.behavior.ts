@@ -9,6 +9,7 @@ import {
   TokenPool_LockOrBurnOutV1,
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnTransfer,
+  TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
@@ -42,7 +43,9 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const bounceHooks = ctx.blockchain.openContract(
         MockAdvancedPoolHooks.fromStorage(
           { id: 255n },
-          { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+          {
+            overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
+          },
         ),
       )
       await bounceHooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
@@ -95,7 +98,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
-          replyTo: null,
+          replyTo: ctx.deployer.address,
         }),
         prepared,
       })
@@ -122,7 +125,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           queryId: 0n,
           request,
           requestedFinalityConfig: 0n,
-          replyTo: null,
+          replyTo: ctx.deployer.address,
         }),
         prepared,
       })
@@ -296,7 +299,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    it('does not emit ReleaseOrMintFailure when async postflight fails and replyTo is null', async () => {
+    it('always notifies the requester when async postflight fails', async () => {
       const ctx = await setup()
 
       const request = releaseRequest(ctx)
@@ -308,7 +311,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           queryId: 3n,
           request,
           requestedFinalityConfig: 0n,
-          replyTo: null,
+          replyTo: ctx.deployer.address,
         },
       )
 
@@ -331,12 +334,17 @@ export function runTokenPoolAsyncHookBehaviorTests(
         )
       })
 
-      expect(failures).toHaveLength(0)
+      expect(failures).toHaveLength(1)
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+      })
     })
 
-    // === Inline mode (replyTo = null for LockOrBurn) ===
+    // === Without asynchronous hooks ===
 
-    it('processes LockOrBurn inline when replyTo is null', async () => {
+    it('always sends LockOrBurnWithdraw to the requester', async () => {
       const ctx = await setup()
 
       const request = lockOrBurnIn(ctx)
@@ -346,13 +354,18 @@ export function runTokenPoolAsyncHookBehaviorTests(
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
-        replyTo: null,
+        replyTo: ctx.deployer.address,
       })
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.deployer.address,
         to: ctx.pool.address,
         success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_LockOrBurnWithdraw.PREFIX,
       })
     })
 

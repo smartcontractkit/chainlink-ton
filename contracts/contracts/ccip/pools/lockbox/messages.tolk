@@ -2,6 +2,8 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
+import "../../../lib/utils"
+import "../lib/token_pool/recovery"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -57,6 +59,22 @@ struct (0x6d077f2e) JettonLockBox_Deposited {
     context: cell?;
 }
 
+/// Logical rejection; returnAttempted means a return was queued, not that custody arrived.
+/// Also carried by the returned jettons to authenticate completed restitution to the pool.
+struct (0x5e28ebd8) JettonLockBox_DepositFailed {
+    queryId: uint64;
+    token: address;
+    depositor: address;
+    amount: coins;
+    context: cell?;
+    errorCode: uint16;
+    returnAttempted: bool;
+}
+
+fun jettonLockBoxReturnForwardValue(): coins {
+    return TokenPool_RETURN_TRANSFER_VALUE + calculateGasFeeFor(FEE_SIZE_LARGE);
+}
+
 /// One-time init message — sets jetton addresses and grants admin role.
 /// @dev Sent during deployment with stateInit. If `admin` is null, the sender becomes admin.
 struct (0xffa6eeb9) JettonLockBox_Init {
@@ -96,5 +114,6 @@ type JettonLockBox_InMessage =
 /// All outgoing message types.
 type JettonLockBox_OutMessage =
     | JettonLockBox_Deposited
+    | JettonLockBox_DepositFailed
     | JettonLockBox_Initialized
     | JettonLockBox_WithdrawFailed;

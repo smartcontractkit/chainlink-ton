@@ -9,6 +9,7 @@ import "types"
 type LockReleaseLockboxTokenPool_InMessage =
     | ReturnExcessesBack
     | JettonLockBox_Deposited
+    | JettonLockBox_DepositFailed
     | JettonLockBox_WithdrawFailed
     | DepositAccount_Reply
     | DepositAccount_ForwardNotification;

@@ -389,7 +389,7 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
-// LockOrBurn locks tokens into the pool or burns the tokens.
+// LockOrBurn locks tokens into the pool or burns the tokens. ReplyTo must be non-nil.
 type LockOrBurn struct {
 	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
@@ -399,7 +399,7 @@ type LockOrBurn struct {
 	ReplyTo                 *address.Address `tlb:"addr"`
 }
 
-// ReleaseOrMint releases or mints tokens on the destination chain.
+// ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.
 type ReleaseOrMint struct {
 	_                       tlb.Magic         `tlb:"#351f77e3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64            `tlb:"## 64"`

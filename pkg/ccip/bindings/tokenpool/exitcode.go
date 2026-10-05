@@ -10,7 +10,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorInvalidTransferFeeBps)
-		ecMax = int32(ErrorRateLimitExceeded)
+		ecMax = int32(ErrorInsufficientMessageValue)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -39,4 +39,8 @@ const (
 	ErrorAmountMismatch
 	ErrorInvalidRequestedFinality
 	ErrorRateLimitExceeded
+	ErrorLockOrBurnWithdrawBounced
+	ErrorPreflightCheckBounced
+	ErrorPostflightCheckBounced
+	ErrorInsufficientMessageValue
 )

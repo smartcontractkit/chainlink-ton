@@ -53,6 +53,18 @@ type Deposited struct {
 	Context   *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
 }
 
+// DepositFailed reports logical rejection; ReturnAttempted does not confirm custody delivery.
+type DepositFailed struct {
+	_               tlb.Magic        `tlb:"#5e28ebd8" json:"-"` //nolint:revive
+	QueryID         uint64           `tlb:"## 64"`
+	Token           *address.Address `tlb:"addr"`
+	Depositor       *address.Address `tlb:"addr"`
+	Amount          tlb.Coins        `tlb:"."`
+	Context         *cell.Cell       `tlb:"maybe ^"`
+	ErrorCode       uint16           `tlb:"## 16"`
+	ReturnAttempted bool             `tlb:"bool"`
+}
+
 // Init initializes the lockbox with a jetton minter/wallet and admin.
 // This is the deployment-time initialization message.
 type Init struct {
@@ -130,6 +142,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Init{},
 	// Outgoing
 	Deposited{},
+	DepositFailed{},
 	Initialized{},
 	WithdrawFailed{},
 }).MustWithStorageType(Storage{})

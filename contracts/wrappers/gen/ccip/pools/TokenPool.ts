@@ -2007,7 +2007,7 @@ export const TokenPool_RMNAccessControlMessage = {
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
- >     replyTo: address?
+ >     replyTo: address
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -2016,7 +2016,7 @@ export interface TokenPool_LockOrBurn {
     request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
-    replyTo: c.Address | null
+    replyTo: c.Address
 }
 
 export const TokenPool_LockOrBurn = {
@@ -2027,7 +2027,7 @@ export const TokenPool_LockOrBurn = {
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
-        replyTo: c.Address | null
+        replyTo: c.Address
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
@@ -2043,7 +2043,7 @@ export const TokenPool_LockOrBurn = {
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
-            replyTo: s.loadMaybeAddress(),
+            replyTo: s.loadAddress(),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -2109,7 +2109,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
  >     queryId: uint64
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
  >     requestedFinalityConfig: uint32
- >     replyTo: address?
+ >     replyTo: address
  > }
  */
 export interface TokenPool_ReleaseOrMint {
@@ -2117,7 +2117,7 @@ export interface TokenPool_ReleaseOrMint {
     queryId: uint64
     request: TokenPool_ReleaseOrMintInV1
     requestedFinalityConfig: uint32
-    replyTo: c.Address | null /* = null */
+    replyTo: c.Address
 }
 
 export const TokenPool_ReleaseOrMint = {
@@ -2127,11 +2127,10 @@ export const TokenPool_ReleaseOrMint = {
         queryId?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
-        replyTo?: c.Address | null /* = null */
+        replyTo: c.Address
     }): TokenPool_ReleaseOrMint {
         return {
             $: 'TokenPool_ReleaseOrMint',
-            replyTo: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2143,7 +2142,7 @@ export const TokenPool_ReleaseOrMint = {
             queryId: s.loadUintBig(64),
             request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
-            replyTo: s.loadMaybeAddress(),
+            replyTo: s.loadAddress(),
         }
     },
     store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
@@ -4687,7 +4686,7 @@ export class TokenPool implements c.Contract {
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
-        replyTo: c.Address | null
+        replyTo: c.Address
     }) {
         return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
     }
@@ -4719,7 +4718,7 @@ export class TokenPool implements c.Contract {
         queryId?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
-        replyTo?: c.Address | null /* = null */
+        replyTo: c.Address
     }) {
         return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
     }
@@ -4903,7 +4902,7 @@ export class TokenPool implements c.Contract {
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
-        replyTo: c.Address | null
+        replyTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -4951,7 +4950,7 @@ export class TokenPool implements c.Contract {
         queryId?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
-        replyTo?: c.Address | null /* = null */
+        replyTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

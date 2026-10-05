@@ -34,4 +34,5 @@ enum TokenPool_Error {
     LockOrBurnWithdrawBounced // 51723
     PreflightCheckBounced // 51724
     PostflightCheckBounced // 51725
+    InsufficientMessageValue
 }

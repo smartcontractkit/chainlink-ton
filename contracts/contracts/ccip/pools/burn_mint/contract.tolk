@@ -113,7 +113,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
     var basePool = loadPool(st);
-    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody)) {
+    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody, in.valueCoins)) {
         st.poolData = basePool.data.toCell();
         st.store();
         return;
@@ -140,8 +140,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             // jettons to the original sender (best-effort) so they aren't permanently locked here,
             // then refund the rate limit and notify the requester of the failure.
             var pool = loadPool(st);
-            pool.returnTransferLocked(operation);
-            pool.recoverLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16);
+            pool.recoverLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16,
+                in.valueCoins, createTokenPoolCustodyReturn(operation));
             st.poolData = pool.data.toCell();
             st.store();
         }
@@ -154,14 +154,14 @@ fun onBouncedMessage(in: InMessageBounced) {
 
             val operation = lazy context.forwardPayload.load();
             var pool = loadPool(st);
-            pool.recoverReleaseOrMintFailure(operation, BurnMintTokenPool_Error.UnexpectedMintBounce as uint16);
+            pool.recoverReleaseOrMintFailure(operation, BurnMintTokenPool_Error.UnexpectedMintBounce as uint16, in.valueCoins);
             st.poolData = pool.data.toCell();
             st.store();
         }
         // The OAA rejected init (e.g. could not fund its rent reserve). Refund the rate limit and
         // reply with a failure so the sender can retry instead of the mint silently stalling.
         DepositAccount_Init => {
-            onDepositAccountInitBounced(mutate st, in.senderAddress, msg);
+            onDepositAccountInitBounced(mutate st, in.senderAddress, msg, in.valueCoins);
             st.store();
         }
     }
@@ -173,13 +173,14 @@ fun onDepositAccountInitBounced(
     mutate st: Storage,
     sender: address,
     msg: DepositAccount_Init,
+    msgValue: coins,
 ) {
     assert(msg.forwardPayload != null, BurnMintTokenPool_Error.OffRampAccountDeployFailed);
     val context = BurnMintTokenPool_MintContext.fromCell(msg.forwardPayload!);
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.recoverReleaseOrMintFailure(operation, BurnMintTokenPool_Error.OffRampAccountDeployFailed as uint16);
+    pool.recoverReleaseOrMintFailure(operation, BurnMintTokenPool_Error.OffRampAccountDeployFailed as uint16, msgValue);
     st.poolData = pool.data.toCell();
 }
 
@@ -191,6 +192,7 @@ fun onLockOrBurnTransferContinue(
     sender: address,
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    _msgValue: coins,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val context = BurnMintTokenPool_BurnContext {
