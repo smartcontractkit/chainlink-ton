@@ -27,7 +27,7 @@ const (
 	OpcodeUpdateFeeTokens               = 0xD0984986
 	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
 	OpcodeUpdateDestChainConfigs        = 0x2d2410f6
-	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
+	OpcodeFeeQuoterGetValidatedFee      = 0x5eee82b8
 	OpcodeFeeQuoterAddPriceUpdater      = 0x71DF848A
 	OpcodeFeeQuoterRemovePriceUpdater   = 0x5DFBB1BC
 )
@@ -217,27 +217,27 @@ type FeeToken struct {
 // Methods
 
 // Generic wrapper for fee quoter messages with context
-// NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
-// are written inline with no presence bit and no ref cell.
+// NOTE: Context is `cell?` on-chain, meaning it is written as a presence bit
+// followed by the cell in a ref when present.
 type GetValidatedFee struct {
-	_       tlb.Magic  `tlb:"#7496FF56" json:"-"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic  `tlb:"#5eee82b8" json:"-"` //nolint:revive // Ignore opcode tag
 	Msg     *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
-	Context *cell.Cell `tlb:"."`                  // Remaining bits/refs written inline
+	Context *cell.Cell `tlb:"maybe ^"`            // Optional context cell
 }
 
 // --- Response from GetValidatedFee ---
-// NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
-// are written inline with no presence bit and no ref cell.
+// NOTE: Context is `cell?` on-chain, meaning it is written as a presence bit
+// followed by the cell in a ref when present.
 type MessageValidated struct {
-	_   tlb.Magic `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
+	_   tlb.Magic `tlb:"#fbf78e40" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee Fee       `tlb:"."`
 	// DestGasOverheads is the per-token destination gas overhead (Tolk lisp_list<uint32>?).
 	DestGasOverheads *common.LispList[common.UInt32] `tlb:"maybe ^"`
 	// ChainFamilySelector is the destination chain family the message was validated
 	// against, echoed so the executor can relay it to the OnRamp.
 	ChainFamilySelector uint32     `tlb:"## 32"`
-	Msg                 *cell.Cell `tlb:"^"` // Original message
-	Context             *cell.Cell `tlb:"."` // Remaining bits/refs written inline
+	Msg                 *cell.Cell `tlb:"^"`       // Original message
+	Context             *cell.Cell `tlb:"maybe ^"` // Optional context cell
 }
 
 type Fee struct {
@@ -245,13 +245,13 @@ type Fee struct {
 	FeeValueJuels  *big.Int   `tlb:"## 96"` // fee value in juels
 }
 
-// NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
-// are written inline with no presence bit and no ref cell.
+// NOTE: Context is `cell?` on-chain, meaning it is written as a presence bit
+// followed by the cell in a ref when present.
 type MessageValidationFailed struct {
-	_         tlb.Magic  `tlb:"#bcf0ab0f" json:"-"` //nolint:revive // Ignore opcode tag
+	_         tlb.Magic  `tlb:"#4785cb72" json:"-"` //nolint:revive // Ignore opcode tag
 	ErrorCode *big.Int   `tlb:"## 256"`
-	Msg       *cell.Cell `tlb:"^"` // Original message
-	Context   *cell.Cell `tlb:"."` // Remaining bits/refs written inline
+	Msg       *cell.Cell `tlb:"^"`       // Original message
+	Context   *cell.Cell `tlb:"maybe ^"` // Optional context cell
 }
 
 type AddPriceUpdater struct {
