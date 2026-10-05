@@ -363,7 +363,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
     // FeeQuoter's processPoolReturnData. requireNonZero so SVM/Sui destinations require a
     // non-zero token address (same as processPoolReturnData).
     try {
-        validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), true);
+        validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
     } catch {
         val failure = createMessage({
             bounce: false,
@@ -410,7 +410,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     if (msg.tokenTransfer != null) {
         val tokenTransfer = lazy msg.tokenTransfer.load();
         try {
-            validateDestFamilyAddress(msg.chainFamilySelector, tokenTransfer.destTokenAddress.load(), true);
+            validateDestFamilyAddress(msg.chainFamilySelector, tokenTransfer.destTokenAddress.load(), false);
         } catch {
             // TBD can we refund the tokens in this edge case were the TokenPool malfunctions and passes a different address to the one provided above? Maybe this is solved in the followup that won't rely on the TP trusting the forward payload.
             return rejectMessage(OnRamp_Error.InvalidDestTokenAddress as int, destChainConfig.router, ccipsend, metadata.sender);
