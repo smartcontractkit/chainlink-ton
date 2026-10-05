@@ -44,6 +44,7 @@ struct CCIPSendExecutor_State_OnGoingFeeValidation {
 
 struct CCIPSendExecutor_State_TokenRegistryAccess {
     fee: Fee,
+    token: address,
 }
 
 // TODO Impl wallet address validation through JettonMinter/ stored wallet code

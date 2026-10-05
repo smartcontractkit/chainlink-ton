@@ -120,44 +120,215 @@ class StackReader {
 
 type coins = bigint
 
+type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
+type uint256 = bigint
+
+/**
+ > struct UnsafeBodyNoRef<T> {
+ >     forceInline: T
+ > }
+ */
+export interface UnsafeBodyNoRef<T> {
+    readonly $: 'UnsafeBodyNoRef'
+    forceInline: T
+}
+
+export const UnsafeBodyNoRef = {
+    create<T>(args: {
+        forceInline: T
+    }): UnsafeBodyNoRef<T> {
+        return {
+            $: 'UnsafeBodyNoRef',
+            ...args
+        }
+    },
+}
+
+/**
+ > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool
+ */
+export type TokenAdminRegistryEntry_RootMessage =
+    | TokenAdminRegistryEntry_GetTokenInfo
+    | TokenAdminRegistryEntry_ProposeAdministrator
+    | TokenAdminRegistryEntry_TransferAdminRole
+    | TokenAdminRegistryEntry_AcceptAdminRole
+    | TokenAdminRegistryEntry_SetPool
+
+export const TokenAdminRegistryEntry_RootMessage = {
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RootMessage {
+        return lookupPrefix(s, 0x7aef4c2d, 32) ? TokenAdminRegistryEntry_GetTokenInfo.fromSlice(s) :
+            lookupPrefix(s, 0x6dcbe573, 32) ? TokenAdminRegistryEntry_ProposeAdministrator.fromSlice(s) :
+            lookupPrefix(s, 0x8b1503cf, 32) ? TokenAdminRegistryEntry_TransferAdminRole.fromSlice(s) :
+            lookupPrefix(s, 0x39c6e872, 32) ? TokenAdminRegistryEntry_AcceptAdminRole.fromSlice(s) :
+            lookupPrefix(s, 0xa64e05c9, 32) ? TokenAdminRegistryEntry_SetPool.fromSlice(s) :
+            throwNonePrefixMatch('TokenAdminRegistryEntry_RootMessage');
+    },
+    store(self: TokenAdminRegistryEntry_RootMessage, b: c.Builder): void {
+        switch (self.$) {
+            case 'TokenAdminRegistryEntry_GetTokenInfo':
+                TokenAdminRegistryEntry_GetTokenInfo.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_ProposeAdministrator':
+                TokenAdminRegistryEntry_ProposeAdministrator.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_TransferAdminRole':
+                TokenAdminRegistryEntry_TransferAdminRole.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_AcceptAdminRole':
+                TokenAdminRegistryEntry_AcceptAdminRole.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_SetPool':
+                TokenAdminRegistryEntry_SetPool.store(self, b);
+                break;
+        }
+    },
+    toCell(self: TokenAdminRegistryEntry_RootMessage): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_RootMessage>(self, TokenAdminRegistryEntry_RootMessage.store);
+    }
+}
+
+/**
+ > struct (0x558e7559) TokenAdminRegistryEntry_MessageFromRoot {
+ >     queryId: uint64
+ >     minEntryVersion: uint16
+ >     content: Cell<TokenAdminRegistryEntry_RootMessage>
+ > }
+ */
+export interface TokenAdminRegistryEntry_MessageFromRoot {
+    readonly $: 'TokenAdminRegistryEntry_MessageFromRoot'
+    queryId: uint64
+    minEntryVersion: uint16
+    content: TokenAdminRegistryEntry_RootMessage
+}
+
+export const TokenAdminRegistryEntry_MessageFromRoot = {
+    PREFIX: 0x558e7559,
+
+    create(args: {
+        queryId?: uint64
+        minEntryVersion: uint16
+        content: TokenAdminRegistryEntry_RootMessage
+    }): TokenAdminRegistryEntry_MessageFromRoot {
+        return {
+            $: 'TokenAdminRegistryEntry_MessageFromRoot',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_MessageFromRoot {
+        loadAndCheckPrefix32(s, 0x558e7559, 'TokenAdminRegistryEntry_MessageFromRoot');
+        return {
+            $: 'TokenAdminRegistryEntry_MessageFromRoot',
+            queryId: s.loadUintBig(64),
+            minEntryVersion: s.loadUintBig(16),
+            content: loadCellRef<TokenAdminRegistryEntry_RootMessage>(s, TokenAdminRegistryEntry_RootMessage.fromSlice),
+        }
+    },
+    store(self: TokenAdminRegistryEntry_MessageFromRoot, b: c.Builder): void {
+        b.storeUint(0x558e7559, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.minEntryVersion, 16);
+        storeCellRef<TokenAdminRegistryEntry_RootMessage>(self.content, b, TokenAdminRegistryEntry_RootMessage.store);
+    },
+    toCell(self: TokenAdminRegistryEntry_MessageFromRoot): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_MessageFromRoot>(self, TokenAdminRegistryEntry_MessageFromRoot.store);
+    }
+}
 
 /**
  > struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
- >     queryId: uint64
+ >     token: address
+ >     requester: address
  > }
  */
 export interface TokenAdminRegistryEntry_GetTokenInfo {
     readonly $: 'TokenAdminRegistryEntry_GetTokenInfo'
-    queryId: uint64
+    token: c.Address
+    requester: c.Address
 }
 
 export const TokenAdminRegistryEntry_GetTokenInfo = {
     PREFIX: 0x7aef4c2d,
 
     create(args: {
-        queryId?: uint64
+        token: c.Address
+        requester: c.Address
     }): TokenAdminRegistryEntry_GetTokenInfo {
         return {
             $: 'TokenAdminRegistryEntry_GetTokenInfo',
-            ...args,
-            queryId: args.queryId ?? 0n
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_GetTokenInfo {
         loadAndCheckPrefix32(s, 0x7aef4c2d, 'TokenAdminRegistryEntry_GetTokenInfo');
         return {
             $: 'TokenAdminRegistryEntry_GetTokenInfo',
-            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            requester: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_GetTokenInfo, b: c.Builder): void {
         b.storeUint(0x7aef4c2d, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeAddress(self.requester);
     },
     toCell(self: TokenAdminRegistryEntry_GetTokenInfo): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_GetTokenInfo>(self, TokenAdminRegistryEntry_GetTokenInfo.store);
+    }
+}
+
+/**
+ > struct (0x4e1c9ad5) TokenAdminRegistryEntry_TokenInfo {
+ >     queryId: uint64
+ >     token: address
+ >     requester: address
+ >     tokenInfo: Cell<TokenRegistry_TokenInfo>
+ > }
+ */
+export interface TokenAdminRegistryEntry_TokenInfo {
+    readonly $: 'TokenAdminRegistryEntry_TokenInfo'
+    queryId: uint64
+    token: c.Address
+    requester: c.Address
+    tokenInfo: TokenRegistry_TokenInfo
+}
+
+export const TokenAdminRegistryEntry_TokenInfo = {
+    PREFIX: 0x4e1c9ad5,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        requester: c.Address
+        tokenInfo: TokenRegistry_TokenInfo
+    }): TokenAdminRegistryEntry_TokenInfo {
+        return {
+            $: 'TokenAdminRegistryEntry_TokenInfo',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_TokenInfo {
+        loadAndCheckPrefix32(s, 0x4e1c9ad5, 'TokenAdminRegistryEntry_TokenInfo');
+        return {
+            $: 'TokenAdminRegistryEntry_TokenInfo',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            requester: s.loadAddress(),
+            tokenInfo: loadCellRef<TokenRegistry_TokenInfo>(s, TokenRegistry_TokenInfo.fromSlice),
+        }
+    },
+    store(self: TokenAdminRegistryEntry_TokenInfo, b: c.Builder): void {
+        b.storeUint(0x4e1c9ad5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeAddress(self.requester);
+        storeCellRef<TokenRegistry_TokenInfo>(self.tokenInfo, b, TokenRegistry_TokenInfo.store);
+    },
+    toCell(self: TokenAdminRegistryEntry_TokenInfo): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_TokenInfo>(self, TokenAdminRegistryEntry_TokenInfo.store);
     }
 }
 
@@ -201,13 +372,11 @@ export const TokenAdminRegistryEntry_RegistrationInitialized = {
 
 /**
  > struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
- >     queryId: uint64
  >     administrator: address
  > }
  */
 export interface TokenAdminRegistryEntry_ProposeAdministrator {
     readonly $: 'TokenAdminRegistryEntry_ProposeAdministrator'
-    queryId: uint64
     administrator: c.Address
 }
 
@@ -215,26 +384,22 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
     PREFIX: 0x6dcbe573,
 
     create(args: {
-        queryId?: uint64
         administrator: c.Address
     }): TokenAdminRegistryEntry_ProposeAdministrator {
         return {
             $: 'TokenAdminRegistryEntry_ProposeAdministrator',
-            ...args,
-            queryId: args.queryId ?? 0n
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_ProposeAdministrator {
         loadAndCheckPrefix32(s, 0x6dcbe573, 'TokenAdminRegistryEntry_ProposeAdministrator');
         return {
             $: 'TokenAdminRegistryEntry_ProposeAdministrator',
-            queryId: s.loadUintBig(64),
             administrator: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_ProposeAdministrator, b: c.Builder): void {
         b.storeUint(0x6dcbe573, 32);
-        b.storeUint(self.queryId, 64);
         b.storeAddress(self.administrator);
     },
     toCell(self: TokenAdminRegistryEntry_ProposeAdministrator): c.Cell {
@@ -244,14 +409,12 @@ export const TokenAdminRegistryEntry_ProposeAdministrator = {
 
 /**
  > struct (0x8b1503cf) TokenAdminRegistryEntry_TransferAdminRole {
- >     queryId: uint64
  >     actor: address
  >     newAdministrator: address?
  > }
  */
 export interface TokenAdminRegistryEntry_TransferAdminRole {
     readonly $: 'TokenAdminRegistryEntry_TransferAdminRole'
-    queryId: uint64
     actor: c.Address
     newAdministrator: c.Address | null
 }
@@ -260,28 +423,24 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
     PREFIX: 0x8b1503cf,
 
     create(args: {
-        queryId?: uint64
         actor: c.Address
         newAdministrator: c.Address | null
     }): TokenAdminRegistryEntry_TransferAdminRole {
         return {
             $: 'TokenAdminRegistryEntry_TransferAdminRole',
-            ...args,
-            queryId: args.queryId ?? 0n
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_TransferAdminRole {
         loadAndCheckPrefix32(s, 0x8b1503cf, 'TokenAdminRegistryEntry_TransferAdminRole');
         return {
             $: 'TokenAdminRegistryEntry_TransferAdminRole',
-            queryId: s.loadUintBig(64),
             actor: s.loadAddress(),
             newAdministrator: s.loadMaybeAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_TransferAdminRole, b: c.Builder): void {
         b.storeUint(0x8b1503cf, 32);
-        b.storeUint(self.queryId, 64);
         b.storeAddress(self.actor);
         b.storeAddress(self.newAdministrator);
     },
@@ -292,13 +451,11 @@ export const TokenAdminRegistryEntry_TransferAdminRole = {
 
 /**
  > struct (0x39c6e872) TokenAdminRegistryEntry_AcceptAdminRole {
- >     queryId: uint64
  >     actor: address
  > }
  */
 export interface TokenAdminRegistryEntry_AcceptAdminRole {
     readonly $: 'TokenAdminRegistryEntry_AcceptAdminRole'
-    queryId: uint64
     actor: c.Address
 }
 
@@ -306,26 +463,22 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
     PREFIX: 0x39c6e872,
 
     create(args: {
-        queryId?: uint64
         actor: c.Address
     }): TokenAdminRegistryEntry_AcceptAdminRole {
         return {
             $: 'TokenAdminRegistryEntry_AcceptAdminRole',
-            ...args,
-            queryId: args.queryId ?? 0n
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_AcceptAdminRole {
         loadAndCheckPrefix32(s, 0x39c6e872, 'TokenAdminRegistryEntry_AcceptAdminRole');
         return {
             $: 'TokenAdminRegistryEntry_AcceptAdminRole',
-            queryId: s.loadUintBig(64),
             actor: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_AcceptAdminRole, b: c.Builder): void {
         b.storeUint(0x39c6e872, 32);
-        b.storeUint(self.queryId, 64);
         b.storeAddress(self.actor);
     },
     toCell(self: TokenAdminRegistryEntry_AcceptAdminRole): c.Cell {
@@ -335,13 +488,13 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
 
 /**
  > struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
- >     queryId: uint64
+ >     actor: address
  >     tokenPool: address?
  > }
  */
 export interface TokenAdminRegistryEntry_SetPool {
     readonly $: 'TokenAdminRegistryEntry_SetPool'
-    queryId: uint64
+    actor: c.Address
     tokenPool: c.Address | null
 }
 
@@ -349,26 +502,25 @@ export const TokenAdminRegistryEntry_SetPool = {
     PREFIX: 0xa64e05c9,
 
     create(args: {
-        queryId?: uint64
+        actor: c.Address
         tokenPool: c.Address | null
     }): TokenAdminRegistryEntry_SetPool {
         return {
             $: 'TokenAdminRegistryEntry_SetPool',
-            ...args,
-            queryId: args.queryId ?? 0n
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_SetPool {
         loadAndCheckPrefix32(s, 0xa64e05c9, 'TokenAdminRegistryEntry_SetPool');
         return {
             $: 'TokenAdminRegistryEntry_SetPool',
-            queryId: s.loadUintBig(64),
+            actor: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_SetPool, b: c.Builder): void {
         b.storeUint(0xa64e05c9, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.actor);
         b.storeAddress(self.tokenPool);
     },
     toCell(self: TokenAdminRegistryEntry_SetPool): c.Cell {
@@ -377,55 +529,39 @@ export const TokenAdminRegistryEntry_SetPool = {
 }
 
 /**
- > struct (0x0a58e678) TokenAdminRegistryEntry_ReturnTokenInfo {
- >     queryId: uint64
- >     minterAddress: address
- >     tokenPool: address?
- >     version: uint32
+ > struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
+ >     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>
  > }
  */
-export interface TokenAdminRegistryEntry_ReturnTokenInfo {
-    readonly $: 'TokenAdminRegistryEntry_ReturnTokenInfo'
-    queryId: uint64
-    minterAddress: c.Address
-    tokenPool: c.Address | null
-    version: uint32
+export interface TokenAdminRegistryEntry_Resume {
+    readonly $: 'TokenAdminRegistryEntry_Resume'
+    request: TokenAdminRegistryEntry_MessageFromRoot
 }
 
-export const TokenAdminRegistryEntry_ReturnTokenInfo = {
-    PREFIX: 0x0a58e678,
+export const TokenAdminRegistryEntry_Resume = {
+    PREFIX: 0x47d63a64,
 
     create(args: {
-        queryId?: uint64
-        minterAddress: c.Address
-        tokenPool: c.Address | null
-        version: uint32
-    }): TokenAdminRegistryEntry_ReturnTokenInfo {
+        request: TokenAdminRegistryEntry_MessageFromRoot
+    }): TokenAdminRegistryEntry_Resume {
         return {
-            $: 'TokenAdminRegistryEntry_ReturnTokenInfo',
-            ...args,
-            queryId: args.queryId ?? 0n
+            $: 'TokenAdminRegistryEntry_Resume',
+            ...args
         }
     },
-    fromSlice(s: c.Slice): TokenAdminRegistryEntry_ReturnTokenInfo {
-        loadAndCheckPrefix32(s, 0x0a58e678, 'TokenAdminRegistryEntry_ReturnTokenInfo');
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_Resume {
+        loadAndCheckPrefix32(s, 0x47d63a64, 'TokenAdminRegistryEntry_Resume');
         return {
-            $: 'TokenAdminRegistryEntry_ReturnTokenInfo',
-            queryId: s.loadUintBig(64),
-            minterAddress: s.loadAddress(),
-            tokenPool: s.loadMaybeAddress(),
-            version: s.loadUintBig(32),
+            $: 'TokenAdminRegistryEntry_Resume',
+            request: loadCellRef<TokenAdminRegistryEntry_MessageFromRoot>(s, TokenAdminRegistryEntry_MessageFromRoot.fromSlice),
         }
     },
-    store(self: TokenAdminRegistryEntry_ReturnTokenInfo, b: c.Builder): void {
-        b.storeUint(0x0a58e678, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.minterAddress);
-        b.storeAddress(self.tokenPool);
-        b.storeUint(self.version, 32);
+    store(self: TokenAdminRegistryEntry_Resume, b: c.Builder): void {
+        b.storeUint(0x47d63a64, 32);
+        storeCellRef<TokenAdminRegistryEntry_MessageFromRoot>(self.request, b, TokenAdminRegistryEntry_MessageFromRoot.store);
     },
-    toCell(self: TokenAdminRegistryEntry_ReturnTokenInfo): c.Cell {
-        return makeCellFrom<TokenAdminRegistryEntry_ReturnTokenInfo>(self, TokenAdminRegistryEntry_ReturnTokenInfo.store);
+    toCell(self: TokenAdminRegistryEntry_Resume): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_Resume>(self, TokenAdminRegistryEntry_Resume.store);
     }
 }
 
@@ -516,7 +652,7 @@ export const TokenRegistry_Storage = {
 }
 
 /**
- > enum TokenAdminRegistryEntry_Error { 4 variants }
+ > enum TokenAdminRegistryEntry_Error { 5 variants }
  */
 export type TokenAdminRegistryEntry_Error = bigint
 
@@ -525,6 +661,7 @@ export const TokenAdminRegistryEntry_Error = {
     OnlyPendingAdministrator: 45001n,
     AlreadyRegistered: 45002n,
     InvalidAdministrator: 45003n,
+    VersionUnavailable: 45004n,
 
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_Error {
         return s.loadUintBig(16);
@@ -581,6 +718,154 @@ export const TokenRegistry_TokenInfo = {
     }
 }
 
+/**
+ > enum Upgradeable_Error { 1 variants }
+ */
+export type Upgradeable_Error = bigint
+
+export const Upgradeable_Error = {
+    VersionMismatch: 19900n,
+
+    fromSlice(s: c.Slice): Upgradeable_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: Upgradeable_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: Upgradeable_Error): c.Cell {
+        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
+    }
+}
+
+/**
+ > struct (0x0aa811ed) Upgradeable_Upgrade {
+ >     queryId: uint64
+ >     code: cell
+ > }
+ */
+export interface Upgradeable_Upgrade {
+    readonly $: 'Upgradeable_Upgrade'
+    queryId: uint64
+    code: c.Cell
+}
+
+export const Upgradeable_Upgrade = {
+    PREFIX: 0x0aa811ed,
+
+    create(args: {
+        queryId?: uint64
+        code: c.Cell
+    }): Upgradeable_Upgrade {
+        return {
+            $: 'Upgradeable_Upgrade',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Upgradeable_Upgrade {
+        loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
+        return {
+            $: 'Upgradeable_Upgrade',
+            queryId: s.loadUintBig(64),
+            code: s.loadRef(),
+        }
+    },
+    store(self: Upgradeable_Upgrade, b: c.Builder): void {
+        b.storeUint(0x0aa811ed, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.code);
+    },
+    toCell(self: Upgradeable_Upgrade): c.Cell {
+        return makeCellFrom<Upgradeable_Upgrade>(self, Upgradeable_Upgrade.store);
+    }
+}
+
+/**
+ > struct Upgradeable_UpgradedEvent {
+ >     code: cell
+ >     hash: uint256
+ >     version: UnsafeBodyNoRef<slice>
+ > }
+ */
+export interface Upgradeable_UpgradedEvent {
+    readonly $: 'Upgradeable_UpgradedEvent'
+    code: c.Cell
+    hash: uint256
+    version: UnsafeBodyNoRef<c.Slice>
+}
+
+export const Upgradeable_UpgradedEvent = {
+    create(args: {
+        code: c.Cell
+        hash: uint256
+        version: UnsafeBodyNoRef<c.Slice>
+    }): Upgradeable_UpgradedEvent {
+        return {
+            $: 'Upgradeable_UpgradedEvent',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Upgradeable_UpgradedEvent {
+        throw new Error(`Can't unpack 'Upgradeable_UpgradedEvent' from cell, because 'UnsafeBodyNoRef.forceInline' is 'slice' (it can be used for writing only)`);
+    },
+    store(self: Upgradeable_UpgradedEvent, b: c.Builder): void {
+        b.storeRef(self.code);
+        b.storeUint(self.hash, 256);
+        b.storeSlice(self.version.forceInline);
+    },
+    toCell(self: Upgradeable_UpgradedEvent): c.Cell {
+        return makeCellFrom<Upgradeable_UpgradedEvent>(self, Upgradeable_UpgradedEvent.store);
+    }
+}
+
+/**
+ > struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
+ >     queryId: uint64
+ >     token: address
+ >     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>
+ > }
+ */
+export interface TokenAdminRegistry_EntryUpgradeRequest {
+    readonly $: 'TokenAdminRegistry_EntryUpgradeRequest'
+    queryId: uint64
+    token: c.Address
+    request: TokenAdminRegistryEntry_MessageFromRoot
+}
+
+export const TokenAdminRegistry_EntryUpgradeRequest = {
+    PREFIX: 0x55b8b654,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        request: TokenAdminRegistryEntry_MessageFromRoot
+    }): TokenAdminRegistry_EntryUpgradeRequest {
+        return {
+            $: 'TokenAdminRegistry_EntryUpgradeRequest',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_EntryUpgradeRequest {
+        loadAndCheckPrefix32(s, 0x55b8b654, 'TokenAdminRegistry_EntryUpgradeRequest');
+        return {
+            $: 'TokenAdminRegistry_EntryUpgradeRequest',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            request: loadCellRef<TokenAdminRegistryEntry_MessageFromRoot>(s, TokenAdminRegistryEntry_MessageFromRoot.fromSlice),
+        }
+    },
+    store(self: TokenAdminRegistry_EntryUpgradeRequest, b: c.Builder): void {
+        b.storeUint(0x55b8b654, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        storeCellRef<TokenAdminRegistryEntry_MessageFromRoot>(self.request, b, TokenAdminRegistryEntry_MessageFromRoot.store);
+    },
+    toCell(self: TokenAdminRegistry_EntryUpgradeRequest): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_EntryUpgradeRequest>(self, TokenAdminRegistry_EntryUpgradeRequest.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class TokenAdminRegistryEntry
 //
@@ -620,13 +905,15 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEgEAA9UAART/APSkE/S88sgLAQIBYgIDAgLPBAUCAUgQEQTTPiR8kAg1ywj13phbI44MdcLP/iS7UTQ+kgx+lD6SNMf1DHRyM+QKWOZ4hXLP/pS+lQSyx/JyM+FCBL6UnHPC27MyYBA+wDg1ywhisATTOMC1ywjbl8rnOMC1ywkWKgefOMC1ywhzjdDlIAYHCAkAHQhbpIxbuAgbpJbcODHBYAH+MdcLP/iS7UTQ+kj6UDH6SDHTHzHU0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyQoB+jHTP/pIMPiS7UTQ+kj6UPpI0x/XTND6SPpQ+lAx0YIAr8hRcscFF/L0ggCvyiZu8vSCAK/LiwIoxwWz8vRSYMj6UlJg+lT6VMkkyPpSFPpUEvpSyx/Mye1UyM+QUCx6RhTLPxP6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRDAH+MdM/+kj6UDD4ku1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/IUXLHBRfy9IIAr8gmbrOWUYbHBcMAkjhw4hjy9FNFCMj6Uhb6VBf6VMkjyPpSE/pU+lIVyx8UzMntVMjPkFAsekYUyz8S+lIS+lT6VMntRND6SDH6UDH6SDHTHwsC/o78MdM/+kgw+JLtRND6SPpQ+kjTH9dM0PpI+lAx+lDRggCvyFFyxwUX8vSCAK/JJm6zllJ3xwXDAJI2cOIW8vQlbQbI+lL6VBX6VMkjyPpSE/pU+lITyx8SzMntVMjPk4sdNtITyz8S+lL6UsntRND6SDH6UDH6SDHTHzHU0eAMDQAGcPsAAEox1NGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAESCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAArqJ1yeOzzHTP/pQMPiS7UTQ+kj6UPpI0x/XTCDQ+kgx+lD6UDHRggCvyCFus5UHxwXDAJMxNnDiFvL0U1PI+lL6VBL6UssfE8zJ7VRTEvABkl8E4w7gMIQPAccA8vQODwAIpk4FyQCMyM+TO8BqHhTLPxP6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXD7AAA3uulu1E0PpIMfpQMfpIMdMfMdTR0PpI+lD6UNGAAjuwUu1E0PpIMfpQ+kjTH9Qx0Y');
+    static CodeCell = c.Cell.fromBase64('te6ccgECHwEABW8AART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAZGgIBzwYHAgOj0hcYAgEgCAkAHUIW6SMW7gIG6SW3DgxwWAOvPiR8kAg1ywhisATTOMC1ywirHOqzI4lMfiS7UTQ10yCAK/IAdD6SPpQMfpQMdESxwXy9NM/0w/XTHDwAeDXLCBVQI9s4wLXLCI+sdMk4wIwhA8BxwDy9IAoLDATjCLCAY5GggCvzAGz8vTtRND6SNdM0PpI+lAx+lAx0cjPkVY51WYlzws/FMsPEszJyM+FiBP6UoIQVbi2VM8LjhPLPxL6UszJgED7AOAwMdDXLCPXemFs4wLXLCNuXyuc4wLXLCRYqB584wLXLCHON0OUgDg8QEQH+MdcLP/iS7UTQ+kj6UDH6SDHTHzHU0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyQ0A5DH4ku1E0NdMggCvyAHQ+kj6UDH6UDHREscF8vTTPzHXTPgqIfkAAfkAupEwjkOT8QPoAJPxA+kAINoBI/sEI9DtHu1T7URAE9oh7VQh+QAB2gECyMzL/87JyM+PGAAEghCjO0mOzwv3cc8LYczJcPsA4gBiMfiS7UTQ10yCAK/IAdD6SPpQMfpQMdESxwXy9NdM0NcsIqxzqszyv9M/0w/U0X/wAQAGcPsAAJb6SDH6SDDtRND6SPpQ+kjTH9TR0PpI+lAx+lAx0QPI+lQS+lLLH8nIz5E4cmtWFcs/EvpSEvpSEszJyM+FCBL6UnHPC27MyYBA+wAB/vpIMO1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/KIW7y9CYCyPpSUhD6VBL6VMklyPpSFfpUE/pSyx8SzMntVMjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2oSAf76SPpQMO1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/IIW6zllGBxwXDAJI4cOIY8vRUZXDI+lIY+lT6VMkkyPpSFPpUEvpSyx/Mye1UyM+QUCx6RhTLPxP6UvpU+lTJ7UTQ+kgx+lAx+kgx0x8x1NGCCA9CQAHQ+kj6UDH6UDHREwK04wLXLCUycC5Mjsz6SPpQMO1E0PpI+lD6SNMf10wg0PpIMfpQ+lAx0YIAr8ghbrOVCMcFwwCTMTdw4hfy9FNDyPpS+lQS+lLLHxTMye1UUyHwApJfBOMO4PI/FBUACszJcPsAACTIz4WI+lIB+gJxzwtqzMlw+wAB/vpIMO1E0PpI+lD6SNMf10zQ+kj6UDH6UNGCAK/JIW6zllJyxwXDAJIxcOLy9CVtAsj6UvpU+lTJJMj6UhT6VBL6UssfzMntVMjPk4sdNtITyz8S+lL6UsntRND6SDH6UDH6SDHTHzHU0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIWAIrIz5M7wGoeFMs/E/pS+lT6VMntRND6SDH6UDH6SDHTHzHU0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIB+gJxzwtqzMlw+wAAGAH6AnHPC2rMyXD7AAALIFNvPLwgAA8i1MS42LjCIAIBIBscAAe9kMOMAgEgHR4AI7sFLtRND6SDH6UPpI0x/UMdGABvtivxoVtjS3NZcxtDC0txc6N7cXMbG0uBcqN7WytyCyNrS3KTKztLm6OTyitzo5PMEWpiXGxcYRAAN7XS3aiaH0kGP0oGP0kGOmPmOpo6H0kfSh9KGjA=');
 
     static Errors = {
+        'Upgradeable_Error.VersionMismatch': 19900,
         'TokenAdminRegistryEntry_Error.Unauthorized': 45000,
         'TokenAdminRegistryEntry_Error.OnlyPendingAdministrator': 45001,
         'TokenAdminRegistryEntry_Error.AlreadyRegistered': 45002,
         'TokenAdminRegistryEntry_Error.InvalidAdministrator': 45003,
+        'TokenAdminRegistryEntry_Error.VersionUnavailable': 45004,
     }
 
     readonly address: c.Address
@@ -654,45 +941,31 @@ export class TokenAdminRegistryEntry implements c.Contract {
         return new TokenAdminRegistryEntry(address, initialState);
     }
 
-    static createCellOfTokenAdminRegistryEntryGetTokenInfo(body: {
-        queryId?: uint64
-    }) {
-        return TokenAdminRegistryEntry_GetTokenInfo.toCell(TokenAdminRegistryEntry_GetTokenInfo.create(body));
-    }
-
     static createCellOfTokenAdminRegistryEntryRegistrationInitialized(body: {
         queryId?: uint64
     }) {
         return TokenAdminRegistryEntry_RegistrationInitialized.toCell(TokenAdminRegistryEntry_RegistrationInitialized.create(body));
     }
 
-    static createCellOfTokenAdminRegistryEntryProposeAdministrator(body: {
+    static createCellOfTokenAdminRegistryEntryMessageFromRoot(body: {
         queryId?: uint64
-        administrator: c.Address
+        minEntryVersion: uint16
+        content: TokenAdminRegistryEntry_RootMessage
     }) {
-        return TokenAdminRegistryEntry_ProposeAdministrator.toCell(TokenAdminRegistryEntry_ProposeAdministrator.create(body));
+        return TokenAdminRegistryEntry_MessageFromRoot.toCell(TokenAdminRegistryEntry_MessageFromRoot.create(body));
     }
 
-    static createCellOfTokenAdminRegistryEntryTransferAdminRole(body: {
+    static createCellOfUpgradeableUpgrade(body: {
         queryId?: uint64
-        actor: c.Address
-        newAdministrator: c.Address | null
+        code: c.Cell
     }) {
-        return TokenAdminRegistryEntry_TransferAdminRole.toCell(TokenAdminRegistryEntry_TransferAdminRole.create(body));
+        return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
-    static createCellOfTokenAdminRegistryEntryAcceptAdminRole(body: {
-        queryId?: uint64
-        actor: c.Address
+    static createCellOfTokenAdminRegistryEntryResume(body: {
+        request: TokenAdminRegistryEntry_MessageFromRoot
     }) {
-        return TokenAdminRegistryEntry_AcceptAdminRole.toCell(TokenAdminRegistryEntry_AcceptAdminRole.create(body));
-    }
-
-    static createCellOfTokenAdminRegistryEntrySetPool(body: {
-        queryId?: uint64
-        tokenPool: c.Address | null
-    }) {
-        return TokenAdminRegistryEntry_SetPool.toCell(TokenAdminRegistryEntry_SetPool.create(body));
+        return TokenAdminRegistryEntry_Resume.toCell(TokenAdminRegistryEntry_Resume.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -711,16 +984,6 @@ export class TokenAdminRegistryEntry implements c.Contract {
         });
     }
 
-    async sendTokenAdminRegistryEntryGetTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenAdminRegistryEntry_GetTokenInfo.toCell(TokenAdminRegistryEntry_GetTokenInfo.create(body)),
-            ...extraOptions
-        });
-    }
-
     async sendTokenAdminRegistryEntryRegistrationInitialized(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
@@ -731,47 +994,35 @@ export class TokenAdminRegistryEntry implements c.Contract {
         });
     }
 
-    async sendTokenAdminRegistryEntryProposeAdministrator(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenAdminRegistryEntryMessageFromRoot(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        administrator: c.Address
+        minEntryVersion: uint16
+        content: TokenAdminRegistryEntry_RootMessage
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenAdminRegistryEntry_ProposeAdministrator.toCell(TokenAdminRegistryEntry_ProposeAdministrator.create(body)),
+            body: TokenAdminRegistryEntry_MessageFromRoot.toCell(TokenAdminRegistryEntry_MessageFromRoot.create(body)),
             ...extraOptions
         });
     }
 
-    async sendTokenAdminRegistryEntryTransferAdminRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        actor: c.Address
-        newAdministrator: c.Address | null
+        code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenAdminRegistryEntry_TransferAdminRole.toCell(TokenAdminRegistryEntry_TransferAdminRole.create(body)),
+            body: Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body)),
             ...extraOptions
         });
     }
 
-    async sendTokenAdminRegistryEntryAcceptAdminRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        actor: c.Address
+    async sendTokenAdminRegistryEntryResume(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        request: TokenAdminRegistryEntry_MessageFromRoot
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenAdminRegistryEntry_AcceptAdminRole.toCell(TokenAdminRegistryEntry_AcceptAdminRole.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTokenAdminRegistryEntrySetPool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        tokenPool: c.Address | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenAdminRegistryEntry_SetPool.toCell(TokenAdminRegistryEntry_SetPool.create(body)),
+            body: TokenAdminRegistryEntry_Resume.toCell(TokenAdminRegistryEntry_Resume.create(body)),
             ...extraOptions
         });
     }
@@ -800,5 +1051,21 @@ export class TokenAdminRegistryEntry implements c.Contract {
             minterAddress: r.readSlice().loadAddress(),
             version: r.readBigInt(),
         });
+    }
+
+    async getEntryVersion(provider: ContractProvider): Promise<bigint> {
+        const r = StackReader.fromGetMethod(1, await provider.get('entryVersion', []));
+        return r.readBigInt();
+    }
+
+    async getTypeAndVersion(provider: ContractProvider): Promise<[
+        c.Slice,
+        c.Slice,
+    ]> {
+        const r = StackReader.fromGetMethod(2, await provider.get('typeAndVersion', []));
+        return [
+            r.readSlice(),
+            r.readSlice(),
+        ];
     }
 }

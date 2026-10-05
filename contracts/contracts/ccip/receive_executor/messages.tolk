@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
 import "../offramp/types"
-import "../token_admin_registry_entry/messages"
+import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "types"
 
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
-    | TokenAdminRegistryEntry_ReturnTokenInfo
+    | TokenAdminRegistry_TokenInfo
+    | TokenAdminRegistry_GetTokenInfoFailed
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
     | ReceiveExecutor_ReleaseOrMintFailed

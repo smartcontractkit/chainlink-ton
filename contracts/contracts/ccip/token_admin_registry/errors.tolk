@@ -7,4 +7,5 @@ enum TokenAdminRegistry_Error {
     /// A lifecycle notification was not sent by the deterministic entry for
     /// the token carried in its payload.
     UnauthorizedEntry = TokenAdminRegistry_FACILITY_ID * 100
+    InsufficientValue
 }
