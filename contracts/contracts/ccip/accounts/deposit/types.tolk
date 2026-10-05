@@ -28,8 +28,7 @@ const DepositAccount_FACILITY_ID = DepositAccount_FACILITY_NAME.crc32() % 640 + 
 
 /// Error codes for DepositAccount.
 enum DepositAccount_Error {
-    /// Thrown when a non-owner attempts to (re-)deploy the account via
-    /// `Deployable_InitializeAndSend`.
+    /// Thrown when a non-owner attempts to initialize the account via `DepositAccount_Init`.
     OnlyOwner = DepositAccount_FACILITY_ID * 100
     /// Thrown when a non-beneficiary attempts to withdraw jettons.
     OnlyBeneficiary
@@ -37,9 +36,6 @@ enum DepositAccount_Error {
     /// sender of the `DepositAccount_Withdraw`). Required so a bounced withdraw can be correlated
     /// back to and notify the requester.
     OnlySendExcessesToSender
-    /// Thrown when `DepositAccount_Init` is not sent by the account itself: the init is replayed
-    /// as a self-message by `Deployable_InitializeAndSend`.
-    OnlySelf
 }
 
 /// Computes the deterministic address of a DepositAccount deployed via the Deployable pattern.
@@ -47,9 +43,10 @@ enum DepositAccount_Error {
 /// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner (tokenPool), id (receiver)), so
 ///      a user has one account across all tokens; the wallet boundary is enforced at the
 ///      pool/authorizer. The account's config (beneficiaries) is NOT part of the address
-///      — it is installed atomically at deployment, and since re-deploys are idempotent (see
-///      `DepositAccount.onDeployableInitializeAndSend`), the first deployment's config is the
-///      one that sticks: always derive and deploy with the same config.
+///      — it is installed atomically at deployment (via `Deployable_Initialize`), and since a
+///      retried `Deployable_Initialize` bounces off the already-upgraded account (unrecognized
+///      opcode), the first deployment's config is the one that sticks: always derive and deploy
+///      with the same config.
 fun calcAddressOfDepositAccount(
     deployableCode: cell,
     owner: address,

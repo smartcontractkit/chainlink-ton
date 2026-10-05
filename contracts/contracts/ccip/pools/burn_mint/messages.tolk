@@ -26,5 +26,5 @@ type BurnMintTokenPool_BouncedMessage =
     | AskToTransfer
     | CCT_AskToBurn
     | MintNewJettons
-    | Deployable_InitializeAndSend
+    | DepositAccount_Init
     | TokenPool_GetCCVs;

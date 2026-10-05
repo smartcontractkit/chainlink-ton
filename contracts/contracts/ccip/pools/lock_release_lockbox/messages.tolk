@@ -20,5 +20,5 @@ type LockReleaseLockboxTokenPool_OutMessage =
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
     | AskToTransfer
-    | Deployable_InitializeAndSend
+    | DepositAccount_Init
     | TokenPool_GetCCVs;

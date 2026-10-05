@@ -8,9 +8,10 @@ import "../../../lib/deployable/types"
 ///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
 ///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
 ///      so one account per user serves any number of jettons.
-///      The message is only accepted from the account itself: it is replayed as a self-message
-///      by `Deployable_InitializeAndSend` (see `DepositAccount_InMessage`), which is the only
-///      path that can install the account's code/data.
+///      The message is only accepted from the account's owner: the deployment sequence is
+///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
+///      directly by the owner. The account always replies with `DepositAccount_Reply`, confirming
+///      it is deployed.
 struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
@@ -81,12 +82,13 @@ type DepositAccount_BouncedMessage =
 
 /// All recognized incoming message types.
 ///
-/// `Deployable_InitializeAndSend` is the deployment entrypoint: the Deployable shell (whose
-/// address the account lives at).
+/// `TransferNotificationForRecipient` is the jetton deposit notification: the only external
+/// message (besides control messages) the account accepts — it is routed to the
+/// forward-notification path. Everything else bounces.
 type DepositAccount_InMessage =
     | DepositAccount_Init
     | DepositAccount_Withdraw
-    | Deployable_InitializeAndSend;
+    | TransferNotificationForRecipient;
 
 /// All outgoing message types this contract may produce.
 type DepositAccount_OutMessage =

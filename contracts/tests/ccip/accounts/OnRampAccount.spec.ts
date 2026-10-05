@@ -110,7 +110,9 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
         deployableCode,
       ),
     )
-    const result = await shell.sendInitializeAndSend(router.getSender(), toNano('0.5'), {
+
+    // 1. Install the account's code/data at the shell address.
+    const deployRes = await shell.sendInitialize(router.getSender(), toNano('0.5'), {
       stateInit: {
         code: ora.OnRampAccount.CodeCell,
         data: ora.DepositAccount_Data.toCell(
@@ -121,26 +123,32 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
           }),
         ),
       },
-      selfMessage: {
-        value: toNano('0.2'),
-        body: ora.DepositAccount_Init.toCell(
-          ora.DepositAccount_Init.create({ queryId: 0n, forwardPayload: null }),
-        ),
-      },
     })
 
+    account = blockchain.openContract(ora.OnRampAccount.fromAddress(shell.address))
+
+    // 2. Init the freshly installed account (sent directly by the owner = Router).
+    const result = await account.sendDepositAccountInit(router.getSender(), toNano('0.2'), {
+      queryId: 0n,
+      forwardPayload: null,
+    })
+
+    expect(deployRes.transactions).toHaveTransaction({
+      from: router.address,
+      to: shell.address,
+      deploy: true,
+      success: true,
+    })
     expect(result.transactions).toHaveTransaction({
       from: shell.address,
       to: router.address,
       success: true,
       op: ora.DepositAccount_Reply.PREFIX,
     })
-
-    account = blockchain.openContract(ora.OnRampAccount.fromAddress(shell.address))
   })
 
-  // A direct init from anyone (including the owner) is rejected: the init is only replayed as a
-  // self-message by `Deployable_InitializeAndSend`.
+  // A direct init from the owner is accepted (the owner sends the init in the new deployment
+  // flow); anyone else is rejected.
   const initAccount = async (via: SandboxContract<TreasuryContract>, queryId = 1n) => {
     return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
       queryId,
@@ -164,14 +172,14 @@ describe('OnRampAccount (generic DepositAccount with CCIPSend hook)', () => {
     expect((await account.getProxy()).equals(proxy())).toBe(true)
   })
 
-  it('rejects a direct init from anyone (init is self-only)', async () => {
-    // The init is replayed as a self-message by Deployable_InitializeAndSend, so a direct
-    // init from the owner (or anyone else) is rejected.
-    const badOwner = await initAccount(user)
-    expect(badOwner.transactions).toHaveTransaction({ to: account.address, success: false })
+  it('accepts a direct init from the owner and rejects it from anyone else', async () => {
+    // The init is sent directly by the owner in the new deployment flow, so the owner's init is
+    // accepted; anyone else is rejected (OnlyOwner).
+    const good = await initAccount(router, 2n)
+    expect(good.transactions).toHaveTransaction({ to: account.address, success: true })
 
-    const badProxy = await initAccount(router, 2n)
-    expect(badProxy.transactions).toHaveTransaction({ to: account.address, success: false })
+    const badUser = await initAccount(user)
+    expect(badUser.transactions).toHaveTransaction({ to: account.address, success: false })
 
     const bad = await initAccount(attacker, 3n)
     expect(bad.transactions).toHaveTransaction({ to: account.address, success: false })
