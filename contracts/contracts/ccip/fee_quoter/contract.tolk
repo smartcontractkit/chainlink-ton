@@ -352,9 +352,10 @@ fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins,
 //   is `deciBps` of the transferred value (in USD), clamped to [minFeeUsdCents, maxFeeUsdCents];
 // - otherwise, falls back to the dest chain's flat defaultTokenFeeUsdCents/defaultTokenDestGasOverhead,
 //   with CCIP_LOCK_OR_BURN_V1_RET_BYTES as the default bytes overhead.
-// NOTE: as in Solana's fee-quoter, a missing/zero price for the transferred token does not revert;
+// NOTE: as in Solana's fee-quoter, a missing price for the transferred token does not revert;
 // the bps-based component is simply treated as 0 and the result still goes through the min/max clamp.
 // This lets a transfer fee override be configured ahead of the token's price feed being populated.
+// A price that was never timestamped, or is zero, reverts with TokenNotSupported instead.
 fun getEnabledTokenTransferFeeConfig(destChainConfig: DestChainConfig, token: address): TokenTransferFeeConfig? {
     val configEntry = destChainConfig.tokenTransferFeeConfigs.get(token);
     if (configEntry.isFound) {
@@ -392,22 +393,42 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     }
 
     var premiumFeeUsdWei = 0;
-    if (config!.deciBps > 0) {
-        val priceEntry = st.usdPerToken.get(tokenAmount.token);
-        if (priceEntry.isFound) {
-            val tokenPrice = priceEntry.loadValue();
-            if (tokenPrice.value > 0) {
-                val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice.value, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
-                premiumFeeUsdWei = mustProd(tokenValueUsdWei, config!.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
+    if (config.deciBps > 0) {
+        val tokenPrice = st.getValidatedTokenPrice(tokenAmount.token);
+        if (tokenPrice != null) {
+            if (tokenPrice > 0) {
+                val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
+                premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
             }
         }
     }
 
-    val minFeeUsdWei = mustProd(config!.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
-    val maxFeeUsdWei = mustProd(config!.maxFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+    val minFeeUsdWei = mustProd(config.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
+    val maxFeeUsdWei = mustProd(config.maxFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     premiumFeeUsdWei = min(max(premiumFeeUsdWei, minFeeUsdWei), maxFeeUsdWei);
 
-    return (premiumFeeUsdWei, config!.destGasOverhead, config!.destBytesOverhead);
+    return (premiumFeeUsdWei, config.destGasOverhead, config.destBytesOverhead);
+}
+
+/// @notice Gets the token price for a given token and reverts if the token is not supported.
+/// @param token The address of the token to get the price for.
+/// @return tokenPriceValue The token price.
+fun Storage.getValidatedTokenPrice(self, token: address): uint224? {
+    val priceEntry = self.usdPerToken.get(token);
+    if (!priceEntry.isFound) {
+        return null;
+    }
+    val tokenPrice = priceEntry.loadValue();
+    // Token price must be set at least once (non-zero timestamp) and be non-zero.
+    assert(tokenPrice.timestamp != 0 && tokenPrice.value != 0, FeeQuoter_Error.TokenNotSupported);
+    // st.tokenPriceStalenessThreshold is only used in getters
+    // tokenPrice timestamp is no longer checked for staleness onchain
+    return tokenPrice.value;
+}
+
+get fun validatedTokenPrice(token: address): uint224? {
+    val st = lazy Storage.load();
+    return st.getValidatedTokenPrice(token);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256, tokenCount: int, tokenTransferBytesOverhead: int): (int, uint256) {

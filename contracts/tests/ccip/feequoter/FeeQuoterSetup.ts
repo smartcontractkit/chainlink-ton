@@ -188,7 +188,9 @@ export class FeeQuoterSetup {
   /**
    * Setup the FeeQuoter contract with minimal configuration (following setupTestFeeQuoter pattern)
    */
-  async setupFeeQuoterContract(): Promise<void> {
+  async setupFeeQuoterContract(
+    extraPrices: Map<Address, feeQuoter.TimestampedPrice> = new Map(),
+  ): Promise<void> {
     const data = feeQuoter.Storage.create({
       id: generateRandomContractId(),
       ownable: feeQuoter.Ownable2Step.create({
@@ -217,6 +219,12 @@ export class FeeQuoterSetup {
           timestamp: currentTime,
         }),
       )
+    }
+
+    // Extra pre-seeded price entries (e.g. timestamp-0 entries that updatePrices cannot
+    // produce onchain, since it always stamps blockchain.now).
+    for (const [token, price] of extraPrices) {
+      data.usdPerToken.set(token, price)
     }
 
     const feeQuoterContract = this.blockchain.openContract(
@@ -426,9 +434,13 @@ export class FeeQuoterSetup {
   /**
    * Complete setup for all contracts - convenience method
    */
-  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
+  async setupAll(
+    testId: string,
+    blockchain: Blockchain,
+    extraPrices?: Map<Address, feeQuoter.TimestampedPrice>,
+  ): Promise<void> {
     await this.initializeBlockchain(blockchain)
-    await this.setupFeeQuoterContract()
+    await this.setupFeeQuoterContract(extraPrices)
     await this.deployFeeQuoterContract()
     await this.setupCounterContract()
     await this.deployCounterContract()
@@ -633,8 +645,12 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
     super(blockchain)
   }
 
-  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
-    await super.setupAll(testId, blockchain)
+  async setupAll(
+    testId: string,
+    blockchain: Blockchain,
+    extraPrices?: Map<Address, feeQuoter.TimestampedPrice>,
+  ): Promise<void> {
+    await super.setupAll(testId, blockchain, extraPrices)
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }
