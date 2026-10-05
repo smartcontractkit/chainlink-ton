@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { toNano, beginCell, Cell } from '@ton/core'
+import { Address, toNano, beginCell, Cell } from '@ton/core'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoterManual from '../../../wrappers/ccip/FeeQuoter'
@@ -688,6 +688,164 @@ describe('FeeQuoter GetValidatedFee', () => {
           linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
+    })
+  })
+
+  // Token price validation: a price entry that was never timestamped, or carries a zero value,
+  // reverts with TokenNotSupported (getValidatedTokenPrice). A token with no price entry at all is
+  // NOT an error: the bps component is treated as zero and the fee is clamped to the configured
+  // minimum (mirroring the Solana FeeQuoter's graceful degradation).
+  describe('Token Price Validation', () => {
+    function uniqueToken(name: string): Address {
+      return Address.parse(`0:${Buffer.from(name).toString('hex').padStart(64, '0')}`)
+    }
+
+    // Registers an enabled transfer-fee override with deciBps > 0 so the bps branch (and hence
+    // getValidatedTokenPrice) is exercised when the token is transferred.
+    async function addTokenTransferFeeConfig(token: Address) {
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+        setup.acc.owner.getSender(),
+        toNano('1'),
+        {
+          updates: new Map([
+            [
+              BigInt(ChainSelectors.testnet.evm),
+              feeQuoter.UpdateTokenTransferFeeConfig.create({
+                add: new Map([
+                  [
+                    token,
+                    feeQuoter.TokenTransferFeeConfig.create({
+                      isEnabled: true,
+                      minFeeUsdCents: 1_00n,
+                      maxFeeUsdCents: 1000_00n,
+                      deciBps: 2_5n,
+                      destGasOverhead: 100_000n,
+                      destBytesOverhead: 32n,
+                    }),
+                  ],
+                ]),
+                remove: [],
+              }),
+            ],
+          ]),
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+    }
+
+    // Pushes a token price update; the price timestamp is blockchain.now at send time.
+    async function pushTokenPrice(token: Address, usdPerToken: bigint) {
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+        setup.acc.owner.getSender(),
+        toNano('1'),
+        {
+          updates: feeQuoter.PriceUpdates.create({
+            tokenPriceUpdates: [
+              feeQuoter.TokenPriceUpdate.create({ sourceToken: token, usdPerToken }),
+            ],
+            gasPriceUpdates: [],
+          }),
+          sendExcessesTo: setup.acc.owner.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+    }
+
+    it('validatedTokenPrice returns the stored price for a priced token', async () => {
+      const price = await setup.bind.feeQuoter.getValidatedTokenPrice(
+        FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+      )
+      expect(price).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
+    })
+
+    it('validatedTokenPrice returns null for a token with no price entry', async () => {
+      const price = await setup.bind.feeQuoter.getValidatedTokenPrice(uniqueToken('NO_ENTRY'))
+      expect(price).toBeNull()
+    })
+
+    it('validatedTokenPrice reverts for a zero price', async () => {
+      const token = uniqueToken('ZERO_PRICE')
+      await pushTokenPrice(token, 0n) // timestamped, but zero value
+
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(token)).rejects.toThrow()
+    })
+
+    it('validatedTokenPrice reverts for a price that was never timestamped', async () => {
+      // updatePrices always stamps blockchain.now, so a timestamp-0 entry can only exist by
+      // pre-seeding it into storage (fresh contract, no transactions yet).
+      const token = uniqueToken('NEVER_TIMESTAMPED')
+      setup = new FeeQuoterFeeSetup(blockchain)
+      setup.code = await FeeQuoterSetup.compileContracts()
+      await setup.setupAll(
+        'getValidatedFee',
+        blockchain,
+        new Map([
+          [
+            token,
+            feeQuoter.TimestampedPrice.create({
+              value: FeeQuoterSetup.CUSTOM_TOKEN.price,
+              timestamp: 0n,
+            }),
+          ],
+        ]),
+      )
+
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(token)).rejects.toThrow()
+    })
+
+    it('reverts with TokenNotSupported when a transferred token has a zero price', async () => {
+      const token = uniqueToken('ZERO_PRICE_FEE')
+      await addTokenTransferFeeConfig(token)
+      await pushTokenPrice(token, 0n)
+
+      const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    it('reverts with TokenNotSupported when a transferred token price was never timestamped', async () => {
+      // updatePrices always stamps blockchain.now, so a timestamp-0 entry can only exist by
+      // pre-seeding it into storage (fresh contract, no transactions yet).
+      const token = uniqueToken('NEVER_TIMESTAMPED_FEE')
+      setup = new FeeQuoterFeeSetup(blockchain)
+      setup.code = await FeeQuoterSetup.compileContracts()
+      await setup.setupAll(
+        'getValidatedFee',
+        blockchain,
+        new Map([
+          [
+            token,
+            feeQuoter.TimestampedPrice.create({
+              value: FeeQuoterSetup.CUSTOM_TOKEN.price,
+              timestamp: 0n,
+            }),
+          ],
+        ]),
+      )
+      await addTokenTransferFeeConfig(token)
+
+      const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    it('does not revert when a transferred token has no price entry (bps component treated as zero)', async () => {
+      const token = uniqueToken('NO_PRICE_ENTRY_FEE')
+      await addTokenTransferFeeConfig(token) // deciBps > 0, but no usdPerToken entry
+
+      const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
+      const result = await setup.getValidatedFee(message)
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
   })
 
