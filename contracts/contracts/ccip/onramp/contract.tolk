@@ -90,20 +90,24 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be Send Executor
         OnRamp_ExecutorReserveFee => {
+            var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorReserveFee(msg, in.senderAddress);
+            onExecutorReserveFee(mutate st, msg, in.senderAddress);
+            st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
-            val st = lazy OnRamp_Storage.load();
+            var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorFinishedSuccessfully(st, msg);
+            onExecutorFinishedSuccessfully(mutate st, msg);
+            st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
-            val st = lazy OnRamp_Storage.load();
+            var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorFinishedWithError(st, msg);
+            onExecutorFinishedWithError(mutate st, msg);
+            st.store();
         }
         // Sender must be the owner
         OnRamp_SetDynamicConfig => {
@@ -375,8 +379,16 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
 Stores the validated fee before the executor begins any token work. Reserving
 against the original balance leaves the fee on the OnRamp while carrying the
 request's extra TON back to the executor for the remaining execution steps.
+
+The reserved amount is also accumulated in `pendingFeeReservations` so that
+`onWithdrawFeeTokens` cannot withdraw committed fees while the executor is
+awaiting token callbacks. If the reserve action fails, the whole transaction
+is reverted (RESERVE_MODE_BOUNCE_ON_ACTION_FAIL), so the counter and the
+balance stay consistent.
 */
-fun onExecutorReserveFee(msg: OnRamp_ExecutorReserveFee, sendExecutor: address) {
+fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveFee, sendExecutor: address) {
+    st.pendingFeeReservations = st.pendingFeeReservations + msg.fee;
+
     reserveGramsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val confirmation = createMessage({
         bounce: true,
@@ -394,7 +406,7 @@ fun onExecutorReserveFee(msg: OnRamp_ExecutorReserveFee, sendExecutor: address) 
 Handles successful completion of a CCIPSendExecutor. Assigns a new sequence
 number and notifies the Router of the successful send.
 */
-fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedSuccessfully) {
+fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedSuccessfully) {
     val ccipsend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
 
@@ -405,7 +417,10 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, OnRamp_Error.UnknownDestChainSelector);
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
-    st.store();
+    // The fee was consumed by this successful send: release its reservation.
+    // Saturating: a buggy executor reporting a fee it never reserved must not
+    // underflow the counter (which would inflate the spendable balance).
+    st.pendingFeeReservations = max(st.pendingFeeReservations - msg.fee.feeTokenAmount, 0);
 
     var rampMessage = TVM2AnyRampMessage {
         header: RampMessageHeader {
@@ -470,10 +485,19 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
 Handles execution failures reported by a CCIPSendExecutor. Forwards a
 Router_MessageRejected notification to the Router on the destination chain
 with error details for tracking and recovery.
+
+The failed send's fee reservation is released and refunded to the Router.
 */
-fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
+fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
     val router = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector).router;
-    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, msg.refund.loadOpt().unwrapOr(0));
+    val refund = msg.refund.loadOpt().unwrapOr(0);
+
+    // Release this send's reservation: the fee is about to leave the contract.
+    // Saturating: a report for a fee that was never reserved must not underflow
+    // the counter (which would inflate the spendable balance).
+    st.pendingFeeReservations = max(st.pendingFeeReservations - refund, 0);
+
+    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
 }
 
 fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
@@ -592,7 +616,9 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
-    reserveGramsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
+    // Keep the static reserve AND the fees reserved for in-flight executors:
+    // those are committed and must not be paid out to the aggregator.
+    reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
         bounce: true,
@@ -690,6 +716,13 @@ get fun reserve(): coins {
     return config.reserve;
 }
 
+// Total fees currently reserved for in-flight send executors. Committed to the
+// balance: excluded from withdrawals until the executor reports success or error.
+get fun pendingFeeReservations(): coins {
+    val st = lazy OnRamp_Storage.load();
+    return st.pendingFeeReservations;
+}
+
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
@@ -704,6 +737,7 @@ fun migrate(storage: cell, version: slice): cell {
         }.toCell(),
         config: old.config,
         destChainConfigs: old.destChainConfigs,
+        pendingFeeReservations: 0,
     }.toCell();
 }
 

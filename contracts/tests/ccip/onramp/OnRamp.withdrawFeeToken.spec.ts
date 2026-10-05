@@ -1,12 +1,18 @@
-import { toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
+import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { ChainSelectors } from '../../utils/Selectors'
+import EVM_ADDRESS from '../../utils/evmAddress'
+import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
+import { findTransactionRequired } from '@ton/test-utils'
 
 describe('OnRamp - WithdrawFeeTokens', () => {
   let blockchain: Blockchain
@@ -146,6 +152,121 @@ describe('OnRamp - WithdrawFeeTokens', () => {
   it('should get reserve', async () => {
     const reserve = await onramp.getReserve()
     expect(reserve).toBeGreaterThan(BigInt(0))
+  })
+
+  it('should not withdraw fees reserved for in-flight executors', async () => {
+    // Drive a real send so the OnRamp deploys an executor, then have the
+    // executor reserve its fee: the counter must now exclude that fee from
+    // withdrawals.
+    const sender = await blockchain.treasury('sender')
+    const mockRouter = await blockchain.treasury('mockRouter')
+    const mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
+    const executorID = BigInt(generateRandomContractId())
+    const fee = toNano('0.3')
+
+    // Configure the lane and point the fee quoter at the mock.
+    {
+      const setConfig = await onramp.sendOnRampSetDynamicConfig(
+        deployer.getSender(),
+        toNano('0.1'),
+        {
+          config: or.OnRamp_DynamicConfig.create({
+            ...config,
+            feeQuoter: mockFeeQuoter.address,
+          }),
+        },
+      )
+      expect(setConfig.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onramp.address,
+        success: true,
+      })
+      const updateDest = await onramp.sendOnRampUpdateDestChainConfigs(
+        deployer.getSender(),
+        toNano('0.5'),
+        {
+          updates: [
+            or.OnRampUpdateDestChainConfig.create({
+              destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+              router: mockRouter.address,
+              allowlistEnabled: false,
+            }),
+          ],
+        },
+      )
+      expect(updateDest.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onramp.address,
+        success: true,
+      })
+    }
+
+    const ccipSend = or.Router_CCIPSend.create({
+      queryID: 1n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      // A token transfer keeps the executor mid-flight after the reservation:
+      // it pauses awaiting the TokenAdminRegistry's reply instead of finishing
+      // immediately (which would release the reservation in the same chain).
+      tokenAmounts: [or.TokenAmount.create({ amount: toNano('1'), token: WRAPPED_NATIVE })],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: or.GenericExtraArgsV2.create({
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      }),
+    })
+    const sendResult = await onramp.sendOnRampSend(mockRouter.getSender(), onrampSendCost, {
+      msg: ccipSend,
+      metadata: or.Metadata.create({ sender: sender.address, value: toNano('42') }),
+    })
+    expect(sendResult.transactions).toHaveTransaction({
+      from: onramp.address,
+      deploy: true,
+      success: true,
+      op: dep.opcodes.in.initializeAndSend,
+    })
+
+    // Grab the deployed executor's address from the deploy transaction.
+    const deployTX = findTransactionRequired(sendResult.transactions, { from: onramp.address })
+    if (!deployTX?.inMessage || !(deployTX.inMessage.info.dest instanceof Address)) {
+      throw new Error('Deploy transaction not found')
+    }
+    const executorAddress = deployTX.inMessage.info.dest
+
+    // The executor reserves its validated fee.
+    const executor = blockchain.openContract(ex.CCIPSendExecutor.fromAddress(executorAddress))
+    const reserveResult = await executor.sendFeeQuoterMessageValidatedAny(
+      mockFeeQuoter.getSender(),
+      toNano('0.3'),
+      ex.FeeQuoter_MessageValidated.create({
+        fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+        msg: ccipSend,
+        context: beginCell().asSlice(),
+      }),
+    )
+    expect(reserveResult.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onramp.address,
+      success: true,
+      op: or.OnRamp_ExecutorReserveFee.PREFIX,
+    })
+    expect(await onramp.getPendingFeeReservations()).toBe(fee)
+
+    // The withdrawal must leave the static reserve AND the pending reservation
+    // on the contract.
+    const result = await onramp.sendOnRampWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
+      feeTokens: [],
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: config.feeAggregator,
+      success: true,
+    })
+
+    const balanceAfter = (await blockchain.getContract(onramp.address)).balance
+    expect(balanceAfter).toBe((await onramp.getReserve()) + fee)
   })
 
   afterAll(async () => {
