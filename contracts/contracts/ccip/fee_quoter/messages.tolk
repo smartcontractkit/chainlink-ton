@@ -12,7 +12,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
     | FeeQuoter_UpdateDestChainConfigs
-    | FeeQuoter_GetValidatedFee_Any
+    | FeeQuoter_GetValidatedFee
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade;
     ;
@@ -22,12 +22,10 @@ struct (0xde852b1b) FeeQuoter_UpdatePrices {
     sendExcessesTo: address? = null;
 }
 
-// Typealias needed so that abigen generates builder
-type FeeQuoter_GetValidatedFee_Any = FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>;
-
-struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
+// nolint:opcode : crc32('FeeQuoter_GetValidatedFee_V2')
+struct (0x5eee82b8) FeeQuoter_GetValidatedFee {
     msg: Cell<Router_CCIPSend>
-    context: T;
+    context: cell? = null
 }
 
 struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
@@ -37,16 +35,18 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 
 // --- Outgoing messages ---
 
-struct (0x1fa60374) FeeQuoter_MessageValidated<T> {
-    fee: Fee,
+// nolint:opcode : crc32('FeeQuoter_MessageValidated_V2')
+struct (0xfbf78e40) FeeQuoter_MessageValidated {
+    fee: Fee
     msg: Cell<Router_CCIPSend>
-    context: T
+    context: cell? = null
 }
 
-struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
-    error: uint256,
-    msg: Cell<Router_CCIPSend>,
-    context: T
+// nolint:opcode : crc32('FeeQuoter_MessageValidationFailed_V2')
+struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
+    error: uint256
+    msg: Cell<Router_CCIPSend>
+    context: cell? = null
 }
 
 
