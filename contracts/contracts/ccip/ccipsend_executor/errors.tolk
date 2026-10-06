@@ -10,4 +10,5 @@ enum CCIPSendExecutor_Error {
     TokenNotEnabled
     TokenPoolBounce
     UnsupportedNumberOfTokens
+    InvalidValidatedFee
 }

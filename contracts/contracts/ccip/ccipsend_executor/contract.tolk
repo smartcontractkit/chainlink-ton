@@ -202,7 +202,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         // No token transfer, so there are no pool-supplied details to report.
         self.exitSuccessfully(msg.fee, null);
         return;
-     }
+    }
+    if (msg.destGasOverheads == null) {
+        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
+    }
+    val destGasOverhead = msg.destGasOverheads.asSingle();
+    if (destGasOverhead == null) {
+        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
+    }
 
     // Else if there are token transfers continue querying the TokenAdminRegistry
     val tokenAmount = tokenAmounts.asSingle();
@@ -230,6 +237,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             fee: msg.fee,
             token: tokenAmount.token,
+            destGasOverhead,
         }.toCell(),
     };
     newState.store();
@@ -258,6 +266,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         addresses: self.addresses,
         state: CCIPSendExecutor_State_WalletAddressValidation {
             fee: state.fee,
+            destGasOverhead: state.destGasOverhead,
             minterAddress: msg.minterAddress,
             tokenPool: msg.tokenPool,
         }.toCell(),
@@ -292,7 +301,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             fee: state.fee,
-            minterAddress: state.minterAddress,
+            destGasOverhead: state.destGasOverhead,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),
@@ -308,7 +317,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             fee: state.fee,
-            minterAddress: state.minterAddress,
+            destGasOverhead: state.destGasOverhead,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: state.senderDepositAccountWallet,
         }.toCell(),
@@ -351,11 +360,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdra
         amount: msg.destTokenAmount as uint256,
         destTokenAddress: out.destTokenAddress,
         extraData: out.destPoolData,
-        // TODO: source this from FeeQuoter_TokenTransferFeeConfig.destGasOverhead once the
-        // FeeQuoter fee path accepts token transfers. It cannot be left empty in the
-        // meantime: the offchain nodes fail to hash a message whose token transfer carries
-        // no destExecData, which stalls the lane.
-        destExecData: encodeDestExecData(DEFAULT_TOKEN_DEST_GAS_OVERHEAD),
+        destExecData: encodeDestExecData(state.destGasOverhead),
     }.toCell();
     self.exitSuccessfully(state.fee, tokenTransfer);
 }
