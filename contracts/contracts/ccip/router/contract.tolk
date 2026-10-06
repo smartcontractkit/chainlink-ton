@@ -10,6 +10,10 @@ import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../../lib/jetton/jetton_client"
+import "../../lib/deployable/types"
+
+import "../../../gen/Deployable.code"
+import "../../../gen/DepositAccount.code"
 
 import "../common/types"
 import "../onramp/messages"
@@ -19,6 +23,8 @@ import "../offramp/types"
 import "../rmn_remote/lib"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../accounts/deposit/messages"
+import "../accounts/deposit/types"
 
 import "types"
 import "messages"
@@ -210,6 +216,22 @@ fun onInternalMessage(in: InMessage) {
             }
             onRelayReleaseOrMint(msg);
         }
+        // Sender must be the receiver's deposit account (verified against the derived address)
+        DepositAccount_Reply => {
+            onDepositAccountReply(msg, in.senderAddress);
+        }
+        // Sender must be the receiver's deposit account (verified against the derived address)
+        DepositAccount_NotEnoughValue => {
+            onDepositAccountNotEnoughValue(msg, in.senderAddress);
+        }
+        // Sender must be the OffRamp registered for the transfer's source chain.
+        Router_TokenTransferDelivered => {
+            val st = lazy Storage.load();
+            val transfer = lazy msg.transfer.load();
+            val expectedOffRamp = st.offRamps.mustGet(transfer.remoteChainSelector, Router_Error.SourceChainNotEnabled);
+            assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+            onTokenTransferDelivered(msg);
+        }
         // Sender must be a Jetton Wallet owned by the Router
         TransferNotificationForRecipient => {
             // TODO we can't just throw errors in the Router on JettonTransferNotification - this will burn the tokens.
@@ -295,6 +317,13 @@ fun onBouncedMessage(in: InMessageBounced) {
                         in.senderAddress,
                         rich.exitCode,
                     );
+                }
+            }
+            // The receiver's deposit account rejected the deployment.
+            Deployable_InitializeAndSend => {
+                val init = lazy DepositAccount_Init.fromCell(richMsg.selfMessage.body);
+                if (init.forwardPayload != null) {
+                    sendDepositAccountInitFailure(Router_RelayReleaseOrMint.fromCell(init.forwardPayload!), rich.exitCode);
                 }
             }
             AskToTransfer => {
@@ -802,19 +831,109 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Deploys (idempotently) the receiver's deposit account before relaying the release/mint, so
+/// the account exists when the tokens and their notification arrive. The relay is carried as
+/// the init's forward payload and resumed on the account's `DepositAccount_Reply`.
+///
+/// sequenceDiagram
+///     OffRamp        ->> Router:         Router_RelayReleaseOrMint
+///     Router         ->> DepositAccount: Deployable_InitializeAndSend
+///     DepositAccount ->> Router:         DepositAccount_Reply
+///     Router         ->> TokenPool:      TokenPool_ReleaseOrMint
 fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
+    val request = lazy msg.request.load();
+    val details = lazy request.transfer.details.load();
+
+    var beneficiaries: map<address, ()> = [];
+    beneficiaries.set(details.receiver, ());
+    val deploy = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: receiverDepositAccount(details.receiver),
+        body: Deployable_InitializeAndSend {
+            stateInit: ContractState {
+                code: depositAccountCompiledCode(),
+                data: DepositAccount_Data {
+                    owner: contract.getAddress(),
+                    proxy: details.receiver,
+                    beneficiaries,
+                }.toCell(),
+            },
+            selfMessage: Deployable_Message {
+                value: DepositAccount_MIN_GRAM_TO_INIT,
+                body: DepositAccount_Init {
+                    queryId: msg.queryID,
+                    forwardPayload: msg.toCell(),
+                }.toCell(),
+            },
+        },
+    });
+    deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Resumes a release/mint relay once the receiver's deposit account confirmed it exists.
+fun onDepositAccountReply(msg: DepositAccount_Reply, sender: address) {
+    val relay = Router_RelayReleaseOrMint.fromCell(msg.forwardPayload!);
+    val request = lazy relay.request.load();
+    val details = lazy request.transfer.details.load();
+    assert(sender == receiverDepositAccount(details.receiver).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+
     val tokenPoolReleaseOrMint = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: msg.tokenPool,
+        dest: relay.tokenPool,
         body: TokenPool_ReleaseOrMint {
-            queryId: msg.queryID,
-            request: msg.request,
-            requestedFinalityConfig: msg.requestedFinalityConfig,
-            replyTo: msg.replyTo,
+            queryId: relay.queryID,
+            request: relay.request,
+            requestedFinalityConfig: relay.requestedFinalityConfig,
+            replyTo: relay.replyTo,
+            receiverAccount: sender,
         },
     });
     tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// The receiver's deposit account could not initialize (not enough value): fail the relay
+/// before the pool is called, so no rate limit was consumed.
+fun onDepositAccountNotEnoughValue(msg: DepositAccount_NotEnoughValue, sender: address) {
+    val relay = Router_RelayReleaseOrMint.fromCell(msg.forwardPayload!);
+    val request = lazy relay.request.load();
+    val details = lazy request.transfer.details.load();
+    assert(sender == receiverDepositAccount(details.receiver).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+
+    sendDepositAccountInitFailure(relay, Router_Error.DepositAccountInitFailed as int32);
+}
+
+fun sendDepositAccountInitFailure(relay: Router_RelayReleaseOrMint, exitCode: int32) {
+    val st = lazy Storage.load();
+    val offRamp = st.offRamps.mustGet(relay.sourceChainSelector, Router_Error.SourceChainNotEnabled);
+    sendReleaseOrMintRelayFailure(
+        offRamp,
+        relay.sourceChainSelector,
+        relay.replyTo,
+        relay.queryID,
+        relay.tokenPool,
+        exitCode,
+    );
+}
+
+/// Relays the delivery confirmation to the pool, which emits `ReleasedOrMinted`.
+fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
+    val delivered = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: msg.tokenPool,
+        body: TokenPool_ReleaseOrMintDelivered {
+            queryId: msg.queryId,
+            transfer: msg.transfer,
+        },
+    });
+    delivered.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Derives the Router-owned deposit account of an inbound transfer receiver.
+fun receiverDepositAccount(receiver: address): AutoDeployAddress {
+    return calcAddressOfDepositAccount(deployableCompiledCode(), contract.getAddress(), receiver);
 }
 
 /*
@@ -1046,6 +1165,11 @@ get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     val d = st.onRamps;
     return keysLispList(d)!;
+}
+
+/// Returns the Router-owned deposit account where inbound tokens for `receiver` are delivered.
+get fun depositAccountAddress(receiver: address): address {
+    return receiverDepositAccount(receiver).calculateAddress();
 }
 
 get fun reserve(): coins {

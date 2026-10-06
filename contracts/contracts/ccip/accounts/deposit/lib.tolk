@@ -3,6 +3,7 @@
 import "@stdlib/common"
 
 import "../../../lib/jetton/messages"
+import "../../../lib/jetton/jetton_client"
 import "../../../lib/deployable/types"
 import "types"
 import "messages"
@@ -289,16 +290,32 @@ fun DepositAccount<T>.onForwardNotification(
         return self.hooks.onForwardNotification(self.context(), forwarded);
     }
 
+    val notifyTarget = DepositAccount_notifyTarget(forwarded.body);
     val notification = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: self.data.proxy,
+        dest: notifyTarget != null ? notifyTarget : self.data.proxy,
         body: DepositAccount_ForwardNotification {
             message: forwarded.toCell(),
         },
     });
     notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     return true;
+}
+
+/// Returns the `DepositAccount_Notify.notify` target when `body` is a jetton transfer notification
+/// whose forward payload is a `DepositAccount_Notify` envelope, `null` otherwise.
+fun DepositAccount_notifyTarget(body: cell): address? {
+    try {
+        val notification = TransferNotificationForRecipient.fromCell(body);
+        val payload = loadForwardPayloadAsSlice(notification.forwardPayload);
+        if (payload == null) {
+            return null;
+        }
+        return DepositAccount_Notify.fromSlice(payload).notify;
+    } catch {
+        return null;
+    }
 }
 
 /// Handles a bounced outgoing message. Returns `true` if the bounce was recognized and consumed,

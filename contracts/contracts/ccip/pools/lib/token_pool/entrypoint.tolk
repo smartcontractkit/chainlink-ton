@@ -673,6 +673,12 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_ReleaseOrMint => {
             self.onReleaseOrMint(msgSender, msg);
         }
+        TokenPool_ReleaseOrMintDelivered => {
+            self.onReleaseOrMintDelivered(msgSender, msg);
+        }
+        TokenPool_GetJettonWallet => {
+            self.onGetJettonWallet(msgSender, msg);
+        }
         TokenPool_PostflightCheckFinished => {
             self.onPostflightCheckFinished(msgSender, msg);
         }
@@ -1872,6 +1878,47 @@ fun TokenPool<T>.onReleaseOrMintFinalize(
         });
         finished.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+}
+
+/// Emits `ReleasedOrMinted` once the Router reports that the ReceiveExecutor observed the
+/// released/minted tokens arrive at the receiver's deposit account.
+fun TokenPool<T>.onReleaseOrMintDelivered(
+    self,
+    sender: address,
+    msg: TokenPool_ReleaseOrMintDelivered,
+): void {
+    self.onlyRouter(sender);
+    val transfer = lazy msg.transfer.load();
+    assert(self.isSupportedToken(transfer.localToken), TokenPool_Error.InvalidToken);
+
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: transfer.remoteChainSelector,
+        details: TokenPool_ReleasedOrMintedDetails {
+            token: transfer.localToken,
+            sender,
+            amount: transfer.amount,
+            recipient: transfer.receiver.toCell(),
+        }.toCell(),
+    });
+}
+
+fun TokenPool<T>.onGetJettonWallet(
+    self,
+    sender: address,
+    msg: TokenPool_GetJettonWallet,
+): void {
+    val jettonClient = self.data.jettonClient();
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: TokenPool_JettonWallet {
+            queryId: msg.queryId,
+            owner: msg.owner,
+            wallet: calcAddressOfJettonWallet(msg.owner, jettonClient.masterAddress, jettonClient.jettonWalletCode),
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.encodeLocalDecimals(self): cell {

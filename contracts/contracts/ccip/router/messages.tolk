@@ -14,6 +14,8 @@ import "../onramp/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../rmn_remote/lib"
+import "../accounts/deposit/messages"
+import "../../lib/deployable/types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -35,6 +37,9 @@ type Router_InMsg =
     | Router_LockOrBurn
     | Router_RelayReleaseOrMint
     | Router_RMNOwnableMessage
+    | Router_TokenTransferDelivered
+    | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | TransferNotificationForRecipient;
 
 type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
@@ -49,6 +54,7 @@ type Router_BouncedMessage =
 type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
+    | Deployable_InitializeAndSend
     | AskToTransfer;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
@@ -177,6 +183,14 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
     replyTo: address;
 }
  
+/// Sent by the OffRamp once a ReceiveExecutor confirmed the released/minted tokens reached the
+/// receiver's deposit account. Relayed to the pool as `TokenPool_ReleaseOrMintDelivered`.
+struct (0xddfdefa8) Router_TokenTransferDelivered {
+    queryId: uint64;
+    tokenPool: address;
+    transfer: Cell<TokenPool_DeliveredTransfer>;
+}
+
 struct Router_GetValidatedFeeContext {
     routerContext: address; // sender
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,

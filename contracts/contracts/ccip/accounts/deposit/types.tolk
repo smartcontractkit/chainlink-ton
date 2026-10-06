@@ -44,7 +44,7 @@ enum DepositAccount_Error {
 
 /// Computes the deterministic address of a DepositAccount deployed via the Deployable pattern.
 ///
-/// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner (tokenPool), id (receiver)), so
+/// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner (Router), id (receiver)), so
 ///      a user has one account across all tokens; the wallet boundary is enforced at the
 ///      pool/authorizer. The account's config (beneficiaries) is NOT part of the address
 ///      — it is installed atomically at deployment, and since re-deploys are idempotent (see

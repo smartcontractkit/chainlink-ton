@@ -30,6 +30,7 @@ type OffRamp_InMessage =
     | Router_TokenPoolReleaseOrMintFailed
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
+    | OffRamp_TokenTransferDelivered
     | OffRamp_UpdateCursedSubjects
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
@@ -107,6 +108,21 @@ struct (0x59e56170) OffRamp_NotifySuccess {
     header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
+    /// Set for token-only messages: the token transfer delivery to relay to the pool.
+    delivered: Cell<OffRamp_DeliveredTransfer>? = null;
+}
+
+/// Sent by the ReceiveExecutor of a message with data when its token transfer was delivered
+/// (messages without data carry this in `OffRamp_NotifySuccess` instead).
+struct (0xb4b39784) OffRamp_TokenTransferDelivered {
+    queryId: uint64;
+    execId: ReceiveExecutorId;
+    delivered: Cell<OffRamp_DeliveredTransfer>;
+}
+
+struct OffRamp_DeliveredTransfer {
+    tokenPool: address;
+    transfer: Cell<TokenPool_DeliveredTransfer>;
 }
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
@@ -153,6 +169,10 @@ fun OffRamp_Costs.dispatchValidated(): int {
 fun OffRamp_Costs.receiveConfirmOrDeny(): int {
     val baseFee = OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE;
     return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
+}
+
+fun OffRamp_Costs.tokenTransferDelivered(): int {
+    return grams("0.02"); // TODO
 }
 
 fun OffRamp_Costs.notify(): int {

@@ -3,18 +3,24 @@ import "../offramp/messages"
 import "../offramp/types"
 import "../token_admin_registry_entry/messages"
 import "../pools/lib/token_pool/messages"
+import "../accounts/deposit/messages"
 import "types"
 
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
     | TokenAdminRegistryEntry_ReturnTokenInfo
-    | TokenPool_ReleaseOrMintFinished
+    | TokenPool_JettonWallet
+    | DepositAccount_ForwardNotification
     | TokenPool_ReleaseOrMintFailure
     | ReceiveExecutor_ReleaseOrMintFailed
     | ReceiveExecutor_CCIPReceiveFailed
     | ReceiveExecutor_CCIPReceiveConfirm
     ;
+
+type ReceiveExecutor_BouncedMessage =
+    | TokenAdminRegistryEntry_GetTokenInfo
+    | TokenPool_GetJettonWallet;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     queryId: uint64;
@@ -28,7 +34,8 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
 
 struct ReceiveExecutor_TokenTransfer {
     tokenAdminRegistry: address;
-    transfer: Any2TVMTokenTransfer;
+    receiverAccount: address;
+    transfer: Cell<Any2TVMTokenTransfer>;
     // Offchain token data for this token transfer (untrusted).
     // Null when there is no offchain data for this token.
     offchainTokenData: cell? = null;
@@ -83,5 +90,7 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
 }
 
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
-    return grams("0.02"); // TODO
+    return grams("0.02") // TODO
+        + grams("0.01") // TODO jetton wallet query
+        + OffRamp_Costs.tokenTransferDelivered();
 }

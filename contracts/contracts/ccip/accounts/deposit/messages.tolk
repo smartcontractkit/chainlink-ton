@@ -37,6 +37,16 @@ struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
     message: Cell<DepositAccount_InMessageForward>;
 }
 
+/// Routing envelope placed as the jetton transfer's forward payload. When an incoming
+/// `TransferNotificationForRecipient` carries it, the account forwards the notification to
+/// `notify` instead of the `proxy`.
+/// @dev The envelope is untrusted: `notify` must authenticate the forwarded message itself
+///      (account address, original jetton wallet sender and amount).
+struct (0x88e0ef3e) DepositAccount_Notify {
+    notify: address;
+    payload: cell?;
+}
+
 /// Metadata about a forwarded incoming message, sent to the pool for verification.
 /// @dev Contains the original message body cell for the pool to parse as a jetton notification.
 /// Other fields (valueCoins, valueExtra, etc.) are captured for auditability but may not be consumed by all pool types.

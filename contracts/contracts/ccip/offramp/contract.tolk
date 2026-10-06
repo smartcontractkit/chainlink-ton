@@ -22,6 +22,7 @@ import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
 import "../token_admin_registry_entry/types"
+import "../accounts/deposit/types"
 
 import "messages"
 import "errors"
@@ -122,7 +123,13 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_NotifySuccess => {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            onNotifySuccess(msg);
+            onNotifySuccess(st, msg);
+        }
+        // Sender must be ReceiveExecutor
+        OffRamp_TokenTransferDelivered => {
+            val st = lazy Storage.load();
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            relayTokenTransferDelivered(st, msg.queryId, msg.execId, msg.delivered, true);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
@@ -380,7 +387,11 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 //
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
-fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
+fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess) {
+    if (msg.delivered != null) {
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, msg.delivered!, false);
+    }
+
     val messageHeader = lazy msg.header.load();
     // propagate state change to root
     markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success);
@@ -391,6 +402,28 @@ fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
         messageId: messageHeader.messageId,
         state: ExecutionState.Success
     });
+}
+
+// Relays a ReceiveExecutor-confirmed token transfer delivery to the Router, which forwards it to
+// the pool so it can emit `ReleasedOrMinted`.
+//
+// sequenceDiagram
+//     ReceiveExecutor ->> OffRamp:   OffRamp_NotifySuccess / OffRamp_TokenTransferDelivered
+//     OffRamp         ->> Router:    Router_TokenTransferDelivered
+//     Router          ->> TokenPool: TokenPool_ReleaseOrMintDelivered
+fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutorId, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
+    val delivered = lazy deliveredCell.load();
+    val relay = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: carryValue ? 0 : OffRamp_Costs.tokenTransferDelivered(),
+        dest: getRouterFromSelector(st, execId.getSourceChainSelector()),
+        body: Router_TokenTransferDelivered {
+            queryId,
+            tokenPool: delivered.tokenPool,
+            transfer: delivered.transfer,
+        },
+    });
+    relay.send(carryValue ? SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE : SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 // Received from ReceiveExecutor after validating that the bounce message came from the correct
@@ -959,7 +992,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
             offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
         }
         initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
-        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, msg.gasOverride, offchainTokenDataForTTOfMessage);
+        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, message.receiver, msg.gasOverride, offchainTokenDataForTTOfMessage);
     } catch {
         return messageExecutionFailed(initExecuteMsg);
     }
@@ -985,7 +1018,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 // @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch the number of gasOverride.tokenGasOverrides does not match the number of tokenAmounts.
 // @throws OffRamp_Error.UnexpectedTokenData if offchainTokenData does not contain exactly one
 // per-message list with exactly one entry for the single token transfer.
-fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
+fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, receiver: address, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
         assert(gasOverride == null || gasOverride.tokenGasOverrides == null, OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         return null;
@@ -1007,9 +1040,17 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         staticConfig.tokenAdminRegistry,
     ).calculateAddress();
 
+    // Released/minted tokens are delivered to the receiver's Router-owned deposit account.
+    val receiverAccount = calcAddressOfDepositAccount(
+        deployerCode(),
+        getRouterFromSelector(st, sourceChainSelector),
+        receiver,
+    ).calculateAddress();
+
     return ReceiveExecutor_TokenTransfer {
         tokenAdminRegistry: registryAddress,
-        transfer: tokenTransfer,
+        receiverAccount,
+        transfer: tokenTransfer.toCell(),
         offchainTokenData: tokenData,
     }.toCell();
 }

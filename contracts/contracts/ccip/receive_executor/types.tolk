@@ -20,19 +20,21 @@ struct ReceiveExecutor_TokenTransferInfo {
     /// destGasAmount is updated by the latest execute call
     transfer: Cell<Any2TVMTokenTransfer>;
     tokenAdminRegistry: address
+    /// Router-owned deposit account of the receiver, where the tokens are delivered.
+    receiverAccount: address
     // Offchain token data for this token transfer (untrusted).
     offchainTokenData: cell? = null;
     state : ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Untouched {};
 }
 
-fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Any2TVMTokenTransfer, tokenAdminRegistry: address, offchainTokenData: cell?): ReceiveExecutor_TokenTransferInfo {
+fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Cell<Any2TVMTokenTransfer>, tokenAdminRegistry: address, receiverAccount: address, offchainTokenData: cell?): ReceiveExecutor_TokenTransferInfo {
     if (self != null) {
         // The new transfer has the updated destGasAmount, so we need to update the transfer in the state
-        self.transfer = transfer.toCell();
+        self.transfer = transfer;
         return self
     }
 
-    return ReceiveExecutor_TokenTransferInfo { transfer: transfer.toCell(), tokenAdminRegistry, offchainTokenData };
+    return ReceiveExecutor_TokenTransferInfo { transfer, tokenAdminRegistry, receiverAccount, offchainTokenData };
 }
 
 type ReceiveExecutor_TokenTransferState = 
@@ -45,14 +47,28 @@ type ReceiveExecutor_TokenTransferState_Pending =
     | ReceiveExecutor_TokenTransferState_Untouched
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed
+    | ReceiveExecutor_TokenTransferState_JettonWalletQuery
     | ReceiveExecutor_TokenTransferState_ReleaseOrMint
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed;
 
 struct ReceiveExecutor_TokenTransferState_Untouched {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {}
+/// Waiting for the pool to report the receiver account's jetton wallet for the pool's token.
+struct ReceiveExecutor_TokenTransferState_JettonWalletQuery {
+    tokenPool: address;
+}
+/// Waiting for the released/minted tokens to reach `receiverAccount`.
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     tokenPool: address;
+    receipt: Cell<ReceiveExecutor_Receipt>;
+}
+
+/// Notifications forwarded by the receiver account from `accountWallet` are summed into
+/// `received` until it covers the transfer.
+struct ReceiveExecutor_Receipt {
+    accountWallet: address;
+    received: coins;
 }
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     tokenPool: address;
