@@ -36,6 +36,7 @@ tolk 1.4.2
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
+const ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE = grams("0.02"); // TODO
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.7.0"
@@ -319,11 +320,13 @@ fun onBouncedMessage(in: InMessageBounced) {
                     );
                 }
             }
-            // The receiver's deposit account rejected the deployment.
-            Deployable_InitializeAndSend => {
-                val init = lazy DepositAccount_Init.fromCell(richMsg.selfMessage.body);
-                if (init.forwardPayload != null) {
-                    sendDepositAccountInitFailure(Router_RelayReleaseOrMint.fromCell(init.forwardPayload!), rich.exitCode);
+            // Ignored: a retried deployment bounces off the already-initialized account, and a
+            // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
+            Deployable_Initialize => {}
+            // The receiver's deposit account was not deployed or rejected the init.
+            DepositAccount_Init => {
+                if (richMsg.forwardPayload != null) {
+                    sendDepositAccountInitFailure(Router_RelayReleaseOrMint.fromCell(richMsg.forwardPayload!), rich.exitCode);
                 }
             }
             AskToTransfer => {
@@ -835,22 +838,29 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
 /// the account exists when the tokens and their notification arrive. The relay is carried as
 /// the init's forward payload and resumed on the account's `DepositAccount_Reply`.
 ///
+/// The deployment is two messages processed in order: `Deployable_Initialize` installs the
+/// account, then `DepositAccount_Init` pings it. On an already-deployed account the first one
+/// bounces and is ignored while the init still succeeds; on a failed deployment the init bounces
+/// and fails the relay.
+///
 /// sequenceDiagram
 ///     OffRamp        ->> Router:         Router_RelayReleaseOrMint
-///     Router         ->> DepositAccount: Deployable_InitializeAndSend
+///     Router         ->> DepositAccount: Deployable_Initialize
+///     Router         ->> DepositAccount: DepositAccount_Init
 ///     DepositAccount ->> Router:         DepositAccount_Reply
 ///     Router         ->> TokenPool:      TokenPool_ReleaseOrMint
 fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
+    val account = receiverDepositAccount(details.receiver);
 
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(details.receiver, ());
     val deploy = createMessage({
         bounce: BounceMode.RichBounce,
-        value: 0,
-        dest: receiverDepositAccount(details.receiver),
-        body: Deployable_InitializeAndSend {
+        value: DepositAccount_MIN_GRAM_TO_RESERVE + ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE,
+        dest: account,
+        body: Deployable_Initialize {
             stateInit: ContractState {
                 code: depositAccountCompiledCode(),
                 data: DepositAccount_Data {
@@ -859,16 +869,23 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
                     beneficiaries,
                 }.toCell(),
             },
-            selfMessage: Deployable_Message {
-                value: DepositAccount_MIN_GRAM_TO_INIT,
-                body: DepositAccount_Init {
-                    queryId: msg.queryID,
-                    forwardPayload: msg.toCell(),
-                }.toCell(),
-            },
         },
     });
-    deploy.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+
+    // The rest of the inbound value funds the init and the relay that follows it.
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    val init = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: account.calculateAddress(),
+        body: DepositAccount_Init {
+            queryId: msg.queryID,
+            forwardPayload: msg.toCell(),
+        },
+    });
+    // SAFETY: reserveGramsOnBalance keeps the Router's original balance, only the inbound value is sent.
+    init.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Resumes a release/mint relay once the receiver's deposit account confirmed it exists.

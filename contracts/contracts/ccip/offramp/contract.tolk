@@ -21,7 +21,6 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
-import "../token_admin_registry_entry/types"
 import "../accounts/deposit/types"
 
 import "messages"
@@ -1033,13 +1032,6 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         tokenData = userTokenData;
     }
 
-    val staticConfig = st.config.load().staticConfig;
-    val registryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployerCode(),
-        tokenTransfer.token,
-        staticConfig.tokenAdminRegistry,
-    ).calculateAddress();
-
     // Released/minted tokens are delivered to the receiver's Router-owned deposit account.
     val receiverAccount = calcAddressOfDepositAccount(
         deployerCode(),
@@ -1048,7 +1040,7 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
     ).calculateAddress();
 
     return ReceiveExecutor_TokenTransfer {
-        tokenAdminRegistry: registryAddress,
+        tokenAdminRegistry: st.config.load().staticConfig.tokenAdminRegistry,
         receiverAccount,
         transfer: tokenTransfer.toCell(),
         offchainTokenData: tokenData,

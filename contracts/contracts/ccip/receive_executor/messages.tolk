@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../offramp/messages"
 import "../offramp/types"
-import "../token_admin_registry_entry/messages"
+import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "../accounts/deposit/messages"
 import "types"
@@ -9,7 +9,8 @@ import "types"
 
 type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
-    | TokenAdminRegistryEntry_ReturnTokenInfo
+    | TokenAdminRegistry_TokenInfo
+    | TokenAdminRegistry_GetTokenInfoFailed
     | TokenPool_JettonWallet
     | DepositAccount_ForwardNotification
     | TokenPool_ReleaseOrMintFailure
@@ -19,7 +20,7 @@ type ReceiveExecutor_InMessage =
     ;
 
 type ReceiveExecutor_BouncedMessage =
-    | TokenAdminRegistryEntry_GetTokenInfo
+    | TokenAdminRegistry_GetTokenInfo
     | TokenPool_GetJettonWallet;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {

@@ -37,14 +37,10 @@ struct DepositAccount_Context<T> {
 
 /// Hook extensions exposed by the DepositAccount contract.
 struct DepositAccount_Hooks<T> {
-    /// Called on `DepositAccount_Init`. When null, the default init runs (self-only — the init
-    /// is replayed as a self-message by `Deployable_InitializeAndSend` — reserves rent, replies
+    /// Called on `DepositAccount_Init`. When null, the default init runs (owner-only — the init
+    /// is sent directly by the owner right after `Deployable_Initialize` — reserves rent, replies
     /// to the owner).
     onInit: ((DepositAccount_Context<T>, address, DepositAccount_Init, coins) -> void)?;
-    /// Called on a re-deploy: a `Deployable_InitializeAndSend` arriving at an already deployed DepositAccount
-    /// When null, the default re-init replies to the owner with `DepositAccount_Reply`, echoing the
-    /// self-message init's `queryId`/`forwardPayload`.
-    onReInit: ((DepositAccount_Context<T>, address, DepositAccount_Init, coins) -> void)?;
     /// Called on `DepositAccount_Withdraw`. When null, the default withdraw runs (beneficiary
     /// check + AskToTransfer to the wallet).
     onWithdraw: ((DepositAccount_Context<T>, address, DepositAccount_Withdraw) -> void)?;
@@ -90,14 +86,16 @@ fun DepositAccount<T>.store(self) {
 }
 
 /// Dispatches a DepositAccount inbound message. Returns `true` if the message was accepted (a
-/// recognized control message or a message from the allowed jetton wallet), `false` otherwise
-/// (the body is empty / was not handled) — mirroring the TokenPool's `onInternalMessage`.
+/// recognized control message or a jetton transfer notification), `false` otherwise (the body is
+/// empty / was not handled) — mirroring the TokenPool's `onInternalMessage`.
 ///
-/// Recognized messages (Init, Withdraw) are handled here — through their hook when wired, or via
-/// the default implementation. Anything else arriving from the account's allowed jetton wallet is
-/// routed to `onForwardNotification` (defaulting to a forward to `proxy`), carrying the full
-/// `forwarded` envelope the caller built from the original in-message; all other messages are left
-/// unhandled.
+/// Recognized control messages (Init, Withdraw) are handled here — through their hook when wired,
+/// or via the default implementation. A `TransferNotificationForRecipient` (the jetton deposit
+/// notification) is routed to `onForwardNotification` (defaulting to a forward to `proxy`),
+/// carrying the full `forwarded` envelope the caller built from the original in-message. All
+/// other messages — including a retried `Deployable_Initialize` (the first message of the
+/// deployment sequence, which must bounce off the already-upgraded account) — are left unhandled
+/// and bounce.
 ///
 /// @param msgSender   Address of the message sender.
 /// @param msgValue    Toncoins attached to the message.
@@ -122,13 +120,12 @@ fun DepositAccount<T>.onInternalMessage(
         DepositAccount_Withdraw => {
             self.onWithdraw(msgSender, msg);
         }
-        Deployable_InitializeAndSend => {
-            self.onDeployableInitializeAndSend(msgSender, msg, msgValue);
+        TransferNotificationForRecipient => {
+            // Only jetton deposit notification is proxied. Everything else, such as retried `Deployable_Initialize`, is left unhandled and bounces.
+            return self.onForwardNotification(forwarded);
         }
         else => {
-            // Any message that is not a recognized DepositAccount message is handed to the
-            // forward-notification path (which returns whether it accepted the message).
-            return self.onForwardNotification(forwarded);
+            return false;
         }
     }
 
@@ -137,13 +134,14 @@ fun DepositAccount<T>.onInternalMessage(
 
 /// Configures the account and replies to the owner.
 /// @dev Wires the `onInit` hook when one is set; otherwise runs the default init. The init is
-///      only accepted from the account itself: it is replayed as a self-message by
-///      `Deployable_InitializeAndSend` (the Deployable shell upgrades into the account, then
-///      sends the init to the account's own address), so only a self-sent init proves an
-///      owner-authorized deployment. The party that deploys the account is expected to be its
-///      owner (e.g. the pool for off-ramp accounts, the Router for on-ramp accounts), and the
-///      `DepositAccount_Reply` is sent to that owner so it can correlate the deployment back to
-///      the operation that triggered it (via `msg.forwardPayload`).
+///      only accepted from the account's owner: the deployment sequence is `Deployable_Initialize`
+///      (installs the account's code/data) followed by `DepositAccount_Init` sent directly by the
+///      owner, so only an owner-sent init proves an authorized deployment. The party that deploys
+///      the account is expected to be its owner (e.g. the pool for off-ramp accounts, the Router
+///      for on-ramp accounts), and the `DepositAccount_Reply` is sent to that owner so it can
+///      correlate the deployment back to the operation that triggered it (via
+///      `msg.forwardPayload`). The init is a ping: the account always replies, confirming it is
+///      deployed.
 fun DepositAccount<T>.onInit(
     mutate self,
     sender: address,
@@ -156,44 +154,14 @@ fun DepositAccount<T>.onInit(
         return;
     }
 
-    assert(sender == contract.getAddress(), DepositAccount_Error.OnlySelf);
-    self._onInit(msg, msgValue);
-}
-
-/// Re-confirms an already-initialized account on a re-deploy: a `Deployable_InitializeAndSend`
-/// arriving after the account was upgraded from its Deployable shell (see
-/// `onDeployableInitializeAndSend`). Wires the `onReInit` hook when one is set; otherwise the
-/// default replies to the owner with `DepositAccount_Reply`, echoing the self-message init's
-/// `queryId`/`forwardPayload` so the owner can correlate the re-deploy back to the operation
-/// that triggered it.
-fun DepositAccount<T>.onReInit(
-    mutate self,
-    sender: address,
-    msg: DepositAccount_Init,
-    msgValue: coins,
-) {
-    if (self.hooks != null && self.hooks.onReInit != null) {
-        self.hooks.onReInit(self.context(), sender, msg, msgValue);
-
-        return;
-    }
-
-    self._onInit(msg, msgValue);
-}
-
-
-fun DepositAccount<T>._onInit(
-    mutate self,
-    msg: DepositAccount_Init,
-    msgValue: coins,
-) {
+    assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
     // `contract.getOriginalBalance()` (TVM `BALANCE`) is the balance at the start of the compute
     // phase, (balance + inbound message's value)
     if (contract.getOriginalBalance() < DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT) {
         val reply = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
-            dest: self.data.owner,
+            dest: sender,
             body: DepositAccount_NotEnoughValue {
                 queryId: msg.queryId,
                 forwardPayload: msg.forwardPayload,
@@ -210,7 +178,7 @@ fun DepositAccount<T>._onInit(
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: self.data.owner,
+        dest: sender,
         body: DepositAccount_Reply {
             queryId: msg.queryId,
             forwardPayload: msg.forwardPayload,
@@ -218,32 +186,6 @@ fun DepositAccount<T>._onInit(
     });
     // SAFETY: reserveGramsOnBalance is called before
     reply.send(SEND_MODE_CARRY_ALL_BALANCE);
-}
-
-/// Handles a `Deployable_InitializeAndSend` arriving at an already-upgraded account (a re-deploy).
-///
-/// The account lives at a Deployable shell address (see `calcAddressOfDepositAccount`): on a
-/// first deployment the shell itself handles the message by upgrading into the account
-/// (installing `stateInit.code/data` and replaying the init as a self-message), so this handler
-/// is only reached when the account is already installed. Re-executing the upgrade and the init
-/// is unnecessary in that case — the account just re-confirms itself via `onReInit`, whose
-/// default replies to the owner with `DepositAccount_Reply`, making re-deploys idempotent (the
-/// owner can safely retry a deployment, e.g. after a lost reply, instead of the retry bouncing
-/// off an initialized account).
-///
-/// @dev Only the owner may re-deploy. The account keeps its installed config: `stateInit` is
-///      NOT re-installed, so the first deployment's config is the one that sticks (see
-///      `calcAddressOfDepositAccount`).
-fun DepositAccount<T>.onDeployableInitializeAndSend(
-    mutate self,
-    sender: address,
-    msg: Deployable_InitializeAndSend,
-    msgValue: coins,
-) {
-    assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
-
-    val init = lazy DepositAccount_Init.fromCell(msg.selfMessage.body);
-    self.onReInit(sender, init, msgValue);
 }
 
 /// Allows a beneficiary to withdraw jettons from this account's wallet.

@@ -54,7 +54,8 @@ type Router_BouncedMessage =
 type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
-    | Deployable_InitializeAndSend
+    | Deployable_Initialize
+    | DepositAccount_Init
     | AskToTransfer;
 
 // update multiple chain selectors in batch to the same onramp/offramp address

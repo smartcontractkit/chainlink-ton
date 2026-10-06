@@ -44,20 +44,10 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
   }
 
-  // Deploys the account the way a pool does: `Deployable_InitializeAndSend` to the account's
-  // deterministic Deployable shell address (namespace `DepositAccount`, owner, id), which
-  // upgrades the shell into the account by installing the account's code/data and replaying
-  // `DepositAccount_Init` as a self-message. Returns the opened account at the shell address.
-  const deployViaDeployable = async (
-    forwardPayload: Cell | null = null,
-    via: SandboxContract<TreasuryContract> = recipient,
-    deploymentValues = {
-      deploy: toNano('0.5'),
-      init: toNano('0.1'),
-    },
-  ) => {
-    // The Deployable shell: data = (owner, Namespaced{namespace, id}), code = Deployable.
-    const deployable = blockchain.openContract(
+  // Creates the undeployed Deployable shell for this account: data = (owner,
+  // Namespaced{namespace, id}), code = Deployable.
+  const makeDeployableShell = () =>
+    blockchain.openContract(
       Deployable.ContractClient.createFromConfig(
         {
           owner: owner(),
@@ -70,9 +60,23 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       ),
     )
 
-    // Upgrade the shell into the account: the message carries the shell's state init (deploying
-    // it), installs the account's code/data, and replays the init as a self-message.
-    const res = await deployable.sendInitializeAndSend(via.getSender(), deploymentValues.deploy, {
+  // Deploys the account the way a pool does, with a two-message sequence: `Deployable_Initialize`
+  // to the account's deterministic Deployable shell address (namespace `DepositAccount`, owner,
+  // id) installs the account's code/data, then `DepositAccount_Init` sent directly by the owner
+  // activates it. The two messages are enqueued and processed in order. Returns the opened account
+  // at the shell address.
+  const deployViaDeployable = async (
+    forwardPayload: Cell | null = null,
+    via: SandboxContract<TreasuryContract> = recipient,
+    deploymentValues = {
+      deploy: toNano('0.5'),
+      init: toNano('0.1'),
+    },
+  ) => {
+    const deployable = makeDeployableShell()
+
+    // 1. Install the account's code/data at the shell address.
+    const deployRes = await deployable.sendInitialize(via.getSender(), deploymentValues.deploy, {
       stateInit: {
         code: code.depositAccount,
         data: da.DepositAccount_Data.toCell(
@@ -83,16 +87,22 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           }),
         ),
       },
-      selfMessage: {
-        value: deploymentValues.init,
-        body: da.DepositAccount_Init.toCell(da.DepositAccount_Init.create({ forwardPayload })),
-      },
     })
 
     const depositAccount = blockchain.openContract(
       da.DepositAccount.fromAddress(deployable.address),
     )
-    return { deployable, depositAccount, res }
+
+    // 2. Init the freshly installed account (sent directly by the owner = `via`).
+    const res = await depositAccount.sendDepositAccountInit(
+      via.getSender(),
+      deploymentValues.init,
+      {
+        forwardPayload,
+      },
+    )
+
+    return { deployable, depositAccount, deployRes, res }
   }
 
   const buildAskToTransfer = (amount: bigint, to: Address, requester: Address | null = null) =>
@@ -145,16 +155,24 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     expect(version.loadStringTail()).toBe('0.1.0')
   })
 
-  it('deploys via Deployable_InitializeAndSend and replies to the owner', async () => {
+  it('deploys via Deployable_Initialize + DepositAccount_Init and replies to the owner', async () => {
     const forwardPayload = beginCell().storeUint(0xed696f9b, 32).endCell()
-    const { depositAccount, res } = await deployViaDeployable(forwardPayload)
+    const { depositAccount, deployRes, res } = await deployViaDeployable(forwardPayload)
 
-    // The Deployable shell upgrades into the account (code/data installed, init replayed).
+    // The Deployable shell upgrades into the account (code/data installed).
+    expect(deployRes.transactions).toHaveTransaction({
+      from: recipient.address,
+      to: depositAccount.address,
+      op: Deployable.opcodes.in.initialize,
+      deploy: true,
+      success: true,
+    })
+
+    // The owner-sent init is accepted by the installed account.
     expect(res.transactions).toHaveTransaction({
       from: recipient.address,
       to: depositAccount.address,
-      op: da.Deployable_InitializeAndSend.PREFIX,
-      deploy: true,
+      op: da.DepositAccount_Init.PREFIX,
       success: true,
     })
 
@@ -176,7 +194,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     expect((await depositAccount.getProxy()).equals(proxyAddr())).toBe(true)
   })
 
-  it('is idempotent: re-deploying the account re-runs the init and replies again', async () => {
+  it('is idempotent: a retried deploy bounces the Initialize but re-runs the init and replies again', async () => {
     const first = await deployViaDeployable()
     expect(first.res.transactions).toHaveTransaction({
       from: first.depositAccount.address,
@@ -185,15 +203,16 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       success: true,
     })
 
-    // A second Deployable_InitializeAndSend to the already-upgraded account is accepted:
-    // the account re-installs the same state and re-runs the init (fresh reply).
+    // A second Deployable_Initialize to the already-upgraded account is rejected by the account
+    // (opcode mismatch — the Deployable shell no longer exists at that address).
     const second = await deployViaDeployable()
-    expect(second.res.transactions).toHaveTransaction({
+    expect(second.deployRes.transactions).toHaveTransaction({
       from: recipient.address,
       to: second.depositAccount.address,
-      op: da.Deployable_InitializeAndSend.PREFIX,
-      success: true,
+      op: Deployable.opcodes.in.initialize,
+      success: false,
     })
+    // The init still succeeds and re-confirms the account (fresh reply).
     expect(second.res.transactions).toHaveTransaction({
       from: second.depositAccount.address,
       to: recipient.address,
@@ -202,20 +221,12 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
   })
 
-  it('rejects a Deployable_InitializeAndSend from a non-owner', async () => {
+  it('rejects a Deployable_Initialize from a non-owner', async () => {
     // The attacker's message is the first to reach the shell, so the Deployable shell itself
     // rejects it (NotOwner) before the depositAccount is ever installed.
-    const { deployable } = await deployViaDeployable()
-    const res = await deployable.sendInitializeAndSend(attacker.getSender(), toNano('0.1'), {
+    const deployable = makeDeployableShell()
+    const res = await deployable.sendInitialize(attacker.getSender(), toNano('0.1'), {
       stateInit: { code: Cell.EMPTY, data: Cell.EMPTY },
-      selfMessage: {
-        value: toNano('0.1'),
-        body: da.DepositAccount_Init.toCell(
-          da.DepositAccount_Init.create({
-            forwardPayload: beginCell().storeUint(123n, 32).endCell(),
-          }),
-        ),
-      },
     })
     expect(res.transactions).toHaveTransaction({
       from: attacker.address,
@@ -224,19 +235,41 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
   })
 
-  it('rejects init from anyone but the depositAccount itself', async () => {
-    // The init is replayed as a self-message by Deployable_InitializeAndSend, so a direct
-    // init from the owner (or anyone else) is rejected.
+  it('accepts plain TON transfers (empty body)', async () => {
     const { depositAccount } = await deployViaDeployable()
 
-    const badOwner = await init(recipient, depositAccount)
-    expect(badOwner.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
+    // An empty body is the "accept TONs" case: the account takes the coins without forwarding
+    // anything to the proxy.
+    const res = await attacker.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: Cell.EMPTY,
+    })
+    expect(res.transactions).toHaveTransaction({
+      to: depositAccount.address,
+      success: true,
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+    })
+  })
+
+  it('accepts init from the owner and rejects init from anyone else', async () => {
+    // The init is sent directly by the owner in the new deployment flow, so the owner's init is
+    // accepted; anyone else is rejected (OnlyOwner).
+    const { depositAccount } = await deployViaDeployable()
+
+    const good = await init(recipient, depositAccount)
+    expect(good.transactions).toHaveTransaction({ to: depositAccount.address, success: true })
 
     const bad = await init(attacker, depositAccount)
     expect(bad.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
   })
 
-  it("low self message value can't drain balance", async () => {
+  it("low init message value can't drain balance", async () => {
     const MIN_GRAM_TO_RESERVE = toNano('0.05')
     const MIN_GRAM_TO_INIT = toNano('0.01')
     const { depositAccount, res } = await deployViaDeployable(null, recipient, {
@@ -267,9 +300,11 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     const MIN_GRAM_TO_RESERVE = toNano('0.05')
     const MIN_GRAM_TO_INIT = toNano('0.01')
 
-    // Deploy with an init self-message below the minimum: the value check in `_onInit` catches it.
+    // Deploy with an init message below the minimum: the value check in `_onInit` catches it.
+    // The account's balance at init time is (deploy value - deploy gas) + init value, which stays
+    // below MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT.
     const initValue = MIN_GRAM_TO_INIT - 1n
-    const deployValue = MIN_GRAM_TO_RESERVE + initValue
+    const deployValue = MIN_GRAM_TO_RESERVE
     const forwardPayload = beginCell().storeUint(0xdeadbeef, 32).endCell()
     const { depositAccount, res } = await deployViaDeployable(forwardPayload, recipient, {
       deploy: deployValue,
@@ -278,7 +313,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
 
     // The init transaction completes successfully
     expect(res.transactions).toHaveTransaction({
-      from: depositAccount.address,
+      from: recipient.address,
       to: depositAccount.address,
       op: da.DepositAccount_Init.PREFIX,
       success: true,
@@ -359,10 +394,11 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     })
   })
 
-  it('forwards unrecognized messages (no bounce at the account)', async () => {
+  it('bounces unrecognized messages (only jetton notifications are forwarded)', async () => {
     const { depositAccount } = await deployViaDeployable()
 
-    // Unknown opcodes are forwarded verbatim to the proxy; the account does not bounce them.
+    // Unknown opcodes are not forwarded: the account only accepts jetton transfer notifications
+    // (besides control messages), everything else bounces.
     const res = await attacker.send({
       to: depositAccount.address,
       value: toNano('0.2'),
@@ -370,9 +406,12 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       body: beginCell().storeUint(0xdeadbeef, 32).endCell(),
     })
     expect(res.transactions).toHaveTransaction({
+      to: depositAccount.address,
+      success: false,
+    })
+    expect(res.transactions).not.toHaveTransaction({
       from: depositAccount.address,
       to: proxy.address,
-      success: true,
       op: da.DepositAccount_ForwardNotification.PREFIX,
     })
   })

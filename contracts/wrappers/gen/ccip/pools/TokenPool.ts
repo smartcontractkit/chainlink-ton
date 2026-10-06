@@ -2110,6 +2110,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
  >     requestedFinalityConfig: uint32
  >     replyTo: address?
+ >     receiverAccount: address?
  > }
  */
 export interface TokenPool_ReleaseOrMint {
@@ -2118,6 +2119,7 @@ export interface TokenPool_ReleaseOrMint {
     request: TokenPool_ReleaseOrMintInV1
     requestedFinalityConfig: uint32
     replyTo: c.Address | null /* = null */
+    receiverAccount: c.Address | null /* = null */
 }
 
 export const TokenPool_ReleaseOrMint = {
@@ -2128,10 +2130,12 @@ export const TokenPool_ReleaseOrMint = {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
+        receiverAccount?: c.Address | null /* = null */
     }): TokenPool_ReleaseOrMint {
         return {
             $: 'TokenPool_ReleaseOrMint',
             replyTo: null,
+            receiverAccount: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2144,6 +2148,7 @@ export const TokenPool_ReleaseOrMint = {
             request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             replyTo: s.loadMaybeAddress(),
+            receiverAccount: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
@@ -2152,9 +2157,192 @@ export const TokenPool_ReleaseOrMint = {
         storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         b.storeAddress(self.replyTo);
+        b.storeAddress(self.receiverAccount);
     },
     toCell(self: TokenPool_ReleaseOrMint): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMint>(self, TokenPool_ReleaseOrMint.store);
+    }
+}
+
+/**
+ > struct (0xdcfaa337) TokenPool_GetJettonWallet {
+ >     queryId: uint64
+ >     owner: address
+ > }
+ */
+export interface TokenPool_GetJettonWallet {
+    readonly $: 'TokenPool_GetJettonWallet'
+    queryId: uint64
+    owner: c.Address
+}
+
+export const TokenPool_GetJettonWallet = {
+    PREFIX: 0xdcfaa337,
+
+    create(args: {
+        queryId?: uint64
+        owner: c.Address
+    }): TokenPool_GetJettonWallet {
+        return {
+            $: 'TokenPool_GetJettonWallet',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_GetJettonWallet {
+        loadAndCheckPrefix32(s, 0xdcfaa337, 'TokenPool_GetJettonWallet');
+        return {
+            $: 'TokenPool_GetJettonWallet',
+            queryId: s.loadUintBig(64),
+            owner: s.loadAddress(),
+        }
+    },
+    store(self: TokenPool_GetJettonWallet, b: c.Builder): void {
+        b.storeUint(0xdcfaa337, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.owner);
+    },
+    toCell(self: TokenPool_GetJettonWallet): c.Cell {
+        return makeCellFrom<TokenPool_GetJettonWallet>(self, TokenPool_GetJettonWallet.store);
+    }
+}
+
+/**
+ > struct (0xdc3d07a4) TokenPool_JettonWallet {
+ >     queryId: uint64
+ >     owner: address
+ >     wallet: address
+ > }
+ */
+export interface TokenPool_JettonWallet {
+    readonly $: 'TokenPool_JettonWallet'
+    queryId: uint64
+    owner: c.Address
+    wallet: c.Address
+}
+
+export const TokenPool_JettonWallet = {
+    PREFIX: 0xdc3d07a4,
+
+    create(args: {
+        queryId?: uint64
+        owner: c.Address
+        wallet: c.Address
+    }): TokenPool_JettonWallet {
+        return {
+            $: 'TokenPool_JettonWallet',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_JettonWallet {
+        loadAndCheckPrefix32(s, 0xdc3d07a4, 'TokenPool_JettonWallet');
+        return {
+            $: 'TokenPool_JettonWallet',
+            queryId: s.loadUintBig(64),
+            owner: s.loadAddress(),
+            wallet: s.loadAddress(),
+        }
+    },
+    store(self: TokenPool_JettonWallet, b: c.Builder): void {
+        b.storeUint(0xdc3d07a4, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.owner);
+        b.storeAddress(self.wallet);
+    },
+    toCell(self: TokenPool_JettonWallet): c.Cell {
+        return makeCellFrom<TokenPool_JettonWallet>(self, TokenPool_JettonWallet.store);
+    }
+}
+
+/**
+ > struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
+ >     queryId: uint64
+ >     transfer: Cell<TokenPool_DeliveredTransfer>
+ > }
+ */
+export interface TokenPool_ReleaseOrMintDelivered {
+    readonly $: 'TokenPool_ReleaseOrMintDelivered'
+    queryId: uint64
+    transfer: TokenPool_DeliveredTransfer
+}
+
+export const TokenPool_ReleaseOrMintDelivered = {
+    PREFIX: 0x81d45b24,
+
+    create(args: {
+        queryId?: uint64
+        transfer: TokenPool_DeliveredTransfer
+    }): TokenPool_ReleaseOrMintDelivered {
+        return {
+            $: 'TokenPool_ReleaseOrMintDelivered',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintDelivered {
+        loadAndCheckPrefix32(s, 0x81d45b24, 'TokenPool_ReleaseOrMintDelivered');
+        return {
+            $: 'TokenPool_ReleaseOrMintDelivered',
+            queryId: s.loadUintBig(64),
+            transfer: loadCellRef<TokenPool_DeliveredTransfer>(s, TokenPool_DeliveredTransfer.fromSlice),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintDelivered, b: c.Builder): void {
+        b.storeUint(0x81d45b24, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_DeliveredTransfer>(self.transfer, b, TokenPool_DeliveredTransfer.store);
+    },
+    toCell(self: TokenPool_ReleaseOrMintDelivered): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintDelivered>(self, TokenPool_ReleaseOrMintDelivered.store);
+    }
+}
+
+/**
+ > struct TokenPool_DeliveredTransfer {
+ >     remoteChainSelector: uint64
+ >     localToken: address
+ >     receiver: address
+ >     amount: coins
+ > }
+ */
+export interface TokenPool_DeliveredTransfer {
+    readonly $: 'TokenPool_DeliveredTransfer'
+    remoteChainSelector: uint64
+    localToken: c.Address
+    receiver: c.Address
+    amount: coins
+}
+
+export const TokenPool_DeliveredTransfer = {
+    create(args: {
+        remoteChainSelector: uint64
+        localToken: c.Address
+        receiver: c.Address
+        amount: coins
+    }): TokenPool_DeliveredTransfer {
+        return {
+            $: 'TokenPool_DeliveredTransfer',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_DeliveredTransfer {
+        return {
+            $: 'TokenPool_DeliveredTransfer',
+            remoteChainSelector: s.loadUintBig(64),
+            localToken: s.loadAddress(),
+            receiver: s.loadAddress(),
+            amount: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_DeliveredTransfer, b: c.Builder): void {
+        b.storeUint(self.remoteChainSelector, 64);
+        b.storeAddress(self.localToken);
+        b.storeAddress(self.receiver);
+        b.storeCoins(self.amount);
+    },
+    toCell(self: TokenPool_DeliveredTransfer): c.Cell {
+        return makeCellFrom<TokenPool_DeliveredTransfer>(self, TokenPool_DeliveredTransfer.store);
     }
 }
 
@@ -4710,8 +4898,23 @@ export class TokenPool implements c.Contract {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
+        receiverAccount?: c.Address | null /* = null */
     }) {
         return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
+    }
+
+    static createCellOfTokenPoolReleaseOrMintDelivered(body: {
+        queryId?: uint64
+        transfer: TokenPool_DeliveredTransfer
+    }) {
+        return TokenPool_ReleaseOrMintDelivered.toCell(TokenPool_ReleaseOrMintDelivered.create(body));
+    }
+
+    static createCellOfTokenPoolGetJettonWallet(body: {
+        queryId?: uint64
+        owner: c.Address
+    }) {
+        return TokenPool_GetJettonWallet.toCell(TokenPool_GetJettonWallet.create(body));
     }
 
     static createCellOfTokenPoolPostflightCheckFinished(body: {
@@ -4942,10 +5145,33 @@ export class TokenPool implements c.Contract {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
+        receiverAccount?: c.Address | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolReleaseOrMintDelivered(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        transfer: TokenPool_DeliveredTransfer
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ReleaseOrMintDelivered.toCell(TokenPool_ReleaseOrMintDelivered.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolGetJettonWallet(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        owner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_GetJettonWallet.toCell(TokenPool_GetJettonWallet.create(body)),
             ...extraOptions
         });
     }
