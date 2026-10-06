@@ -40,7 +40,6 @@ import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMin
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
@@ -137,7 +136,6 @@ describe('BurnMintTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          offRampAccountCode: DepositAccount.CodeCell,
         },
         { overrideContractCode: burnMintPoolCode },
       ),

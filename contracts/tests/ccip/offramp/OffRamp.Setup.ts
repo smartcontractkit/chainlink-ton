@@ -994,7 +994,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: this.jettonLockBox.address,
-          offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
         },
         { overrideContractCode: this.code.tokenPool },
       ),
@@ -1102,17 +1101,18 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   async getTokenBalance(
     opt: { receiver?: Address; token?: { minterAddress: Address; tokenPool: Address } } = {},
   ): Promise<bigint> {
-    const depositAccount = da.DepositAccount.fromStorage({
-      owner: opt.token?.tokenPool ?? this.tokenPool.address,
-      proxy: opt.token?.tokenPool ?? this.tokenPool.address,
-      beneficiaries: new Set([opt.receiver ?? this.receiver.address]),
-    })
+    const depositAccount = NameSpace.deriveAddress(
+      opt.token?.tokenPool ?? this.tokenPool.address,
+      NameSpace.CCIPNamespace.DepositAccount,
+      beginCell().storeAddress(opt.receiver ?? this.receiver.address),
+      this.code.deployable,
+    )
     const wallet = this.blockchain.openContract(
       JettonWallet.fromStorage(
         {
           status: 0n,
           jettonBalance: 0n,
-          ownerAddress: depositAccount.address,
+          ownerAddress: depositAccount,
           minterAddress: opt.token?.minterAddress ?? this.token,
         },
         { overrideContractCode: this.code.jettonWallet },

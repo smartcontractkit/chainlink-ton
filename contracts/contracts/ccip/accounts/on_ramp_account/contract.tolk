@@ -101,11 +101,12 @@ fun onBouncedMessage(in: InMessageBounced) {
 /// body is not a recognized jetton notification — the caller then bounces non-empty unrecognized
 /// bodies.
 ///
-/// @dev The account is token-agnostic: it forwards any inbound non-control message here, and the
-///      token-handling layer verifies the original message's sender via `forwarded.senderAddress`
-///      before a withdraw. `context` is the account's own data (allows reading `proxy`). The Router
-///      owns CCIPSend fee validation (`Router_Costs.CCIPSend`), so we forward the message as-is
-///      with `NoBounce`: a Router rejection simply drops the CCIPSend and the deposited jettons stay
+/// @dev The account is token-agnostic: only a `TransferNotificationForRecipient` reaches this
+/// hook, and the token-handling layer verifies the original message's sender via
+/// `forwarded.senderAddress` before a withdraw. `context` is the account's own data (allows
+/// reading `proxy`). The Router owns CCIPSend fee validation (`Router_Costs.CCIPSend`), so we
+/// forward the message as-is with `NoBounce`: a Router rejection simply drops the CCIPSend and
+/// the deposited jettons stay
 ///      held by the account for a later beneficiary withdrawal.
 fun onForwardNotification(
     context: DepositAccount_Context<void>,
