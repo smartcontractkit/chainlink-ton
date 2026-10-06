@@ -13,6 +13,7 @@ import {
   TokenPool_DynamicConfig,
   TokenPool_LocalPolicy,
   TokenPool_ReleaseOrMintFinished,
+  TokenPool_ReleaseOrMintFailure,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnWithdraw,
   TokenPool_LockOrBurnFailure,
@@ -41,6 +42,8 @@ import {
   JettonLockBox,
   AccessControl_Data,
   JettonLockBox_WithdrawExtra,
+  JettonLockBox_WithdrawFailed,
+  JettonLockBox_Deposit,
   JettonLockBox_DepositFailed,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
@@ -1028,7 +1031,13 @@ describe('LockReleaseLockboxTokenPool', () => {
             token: jettonMinter.address,
             depositor: lockReleaseLockboxPool.address,
             amount: toNano('1'),
-            context,
+            context: JettonLockBox_Deposit.create({
+              queryId: 302n,
+              token: jettonMinter.address,
+              remoteChainSelector,
+              amount: toNano('1'),
+              context,
+            }),
             errorCode: 47400n,
             returnAttempted: true,
           }),
@@ -1274,13 +1283,12 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
     })
 
-    it('should handle release flow failure when lockbox has insufficient balance', async () => {
-      // Don't fund the lockbox - leave it empty (or with minimal balance)
-
-      // Trigger release request for more than the lockbox holds
+    it('recovers the full withdrawal request and refunds the rate limit after a wallet bounce', async () => {
+      const walletAddress = await fundLockboxViaLock(toNano('1'), 501n)
+      const rateLimitBefore = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
         deployer.getSender(),
-        toNano('0.5'),
+        toNano('1'),
         {
           queryId: 401n,
           request: TokenPool_ReleaseOrMintInV1.create({
@@ -1290,7 +1298,7 @@ describe('LockReleaseLockboxTokenPool', () => {
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
                 receiver: recipient.address,
-                amount: toNano('999999'),
+                amount: toNano('5'),
                 localToken: jettonMinter.address,
               }),
             }),
@@ -1303,14 +1311,45 @@ describe('LockReleaseLockboxTokenPool', () => {
         },
       )
 
-      // The release request should fail or bounce
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: lockReleaseLockboxPool.address,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: jettonLockBox.address,
+        to: walletAddress,
+        op: AskToTransfer.PREFIX,
         success: false,
       })
-
-      // No pending release should exist (either rejected upfront or cleaned up)
+      expect(result.transactions).toHaveTransaction({
+        from: jettonLockBox.address,
+        to: lockReleaseLockboxPool.address,
+        op: JettonLockBox_WithdrawFailed.PREFIX,
+        success: true,
+        body(body) {
+          if (!body) return false
+          const failure = JettonLockBox_WithdrawFailed.fromSlice(body.beginParse())
+          return (
+            failure.queryId === 401n &&
+            failure.context?.queryId === 401n &&
+            failure.context.amount === toNano('5') &&
+            failure.context.extra?.forwardPayload !== null
+          )
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: deployer.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        op: TokenPool_ReleaseOrMintFinished.PREFIX,
+      })
+      expect(
+        (await pool.getCurrentRateLimiterState(remoteChainSelector, false)).inbound.tokens,
+      ).toEqual(rateLimitBefore.inbound.tokens)
     })
   })
 

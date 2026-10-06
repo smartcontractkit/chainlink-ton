@@ -6,7 +6,6 @@ import "../../../lib/access/access_control"
 /// Facility ID used for error code derivation.
 const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pool.JettonLockBox";
 const JettonLockBox_FACILITY_ID = JettonLockBox_FACILITY_NAME.crc32() % 640 + 10;
-const JettonLockBox_CONTRACT_VERSION = "0.1.0";
 
 /// Role granted to pool contracts that can deposit and withdraw from the lockbox.
 const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
@@ -27,10 +26,12 @@ enum JettonLockBox_Error {
     ContractAlreadyInitialized // 56703
     /// Thrown when calling a function on an uninitialized contract or with invalid input.
     ContractNotInitialized // 56704
-    /// Thrown when the forward payload is missing or malformed during a deposit.
+    /// Thrown when a deposit or bounced withdrawal has a missing or malformed forward payload.
     MissingOrMalformedForwardPayload // 56705
     /// Thrown when a caller other than the bound initializer tries to initialize the lockbox.
     UnauthorizedInitializer // 56706
+    /// Thrown when the init message does not carry enough value to cover the rent reserve and init replies.
+    NotEnoughValue // 56707
 }
 
 /// Lockbox storage: tracks the supported jetton and RBAC state.

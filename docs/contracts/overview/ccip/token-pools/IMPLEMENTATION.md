@@ -127,6 +127,33 @@ independently well-defined and can proceed now.
 | **LockReleaseLockbox** | `pendingLocks`, `pendingReleases` | transfer to lockbox wallet w/ `JettonLockBox_Deposit`; await `Deposited` | `JettonLockBox_Withdraw` → lockbox; await `ReturnExcessesBack`           | lock-path bounce (partial; wrong dest)                                 |
 | **JettonLockBox**      | —                                 | `deposit` via transfer notification (OPERATOR)                           | `withdraw` → `AskToTransfer` (RichBounce)                                | withdraw bounce → `WithdrawFailed` (test TODO)                         |
 
+### 3.5 Lockbox failure contexts
+
+Both lockbox failure messages return the original request as a typed cell reference:
+
+- `JettonLockBox_DepositFailed.context: Cell<JettonLockBox_Deposit>?`. The caller's
+  payload is `context.load().context`. The request is null only when the deposit
+  payload cannot be decoded; the envelope's amount remains the actual received amount.
+- `JettonLockBox_WithdrawFailed.context: Cell<JettonLockBox_Withdraw>?`. The caller's
+  payload is `context.load().extra.load().forwardPayload`. Tagged withdrawal bounces
+  always carry the original request, even when it has no extra fields. The failure
+  envelope contains only `queryId`, `token`, and `context`; amount and recipient
+  are read from the original request rather than duplicated.
+
+Withdrawals put that same request in `Jetton_ForwardPayloadWrap.context`, with the
+caller in `initiator` and the original forward payload preserved in the remainder.
+No separate withdrawal-context wrapper or wallet `customPayload` is needed.
+An unrecognized withdrawal wrap causes the bounce handler to fail with
+`MissingOrMalformedForwardPayload`, without issuing a withdrawal-failure reply.
+The pool authenticates the failure sender and checks the request against the failure
+details before using its nested payload for recovery. A queued deposit return is
+still only an attempt; the authenticated custody notification is handled separately.
+
+This changes the failure-context reference contents and removes the withdrawal
+failure envelope's amount and recipient fields, without changing the failure opcodes.
+Lockbox, pool, and client bindings must use this format together; old opaque-payload
+failure contexts are not compatible.
+
 ## 4. EVM parity status
 
 | Capability                                           | EVM               | TON        | Notes                                   |

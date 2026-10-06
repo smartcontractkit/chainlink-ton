@@ -10,6 +10,7 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
+import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
 
 import "../../common/types"
@@ -207,7 +208,6 @@ fun onDepositAccountReply(
     // Also pass release context as forwardPayload so it survives the lockbox → jetton wallet hop.
     val withdrawExtra = JettonLockBox_WithdrawExtra {
         sendExcessesTo: poolAddr,
-        failureContext: null,
         forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
         forwardPayload: contextCell,
     };
@@ -272,10 +272,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         // follows. Unwind the admitted release from the context we embedded in `extra.forwardPayload`.
         JettonLockBox_Withdraw => {
             assert(in.senderAddress == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-            assert(msg.extra != null) throw LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed;
-            val withdrawExtra = lazy msg.extra!.load();
-            assert(withdrawExtra.forwardPayload != null) throw LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed;
-            recoverReleaseFromLockboxContext(mutate st, withdrawExtra.forwardPayload!, in.valueCoins);
+            recoverReleaseFromLockboxWithdraw(mutate st, msg, in.valueCoins);
             st.store();
         }
     }
@@ -425,7 +422,11 @@ fun validateRejectedDeposit(st: Storage, msg: JettonLockBox_DepositFailed): Toke
     assert(msg.token == data.token() && msg.depositor == contract.getAddress(),
         LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    val context = LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
+    val deposit = msg.context!.load();
+    assert(deposit.queryId == msg.queryId && deposit.token == msg.token && deposit.amount == msg.amount
+        && deposit.context != null,
+        LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+    val context = LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context!);
     val operation = context.forwardPayload.load();
     val request = lazy operation.requestMsg.load();
     val details = lazy request.request.load().transfer.details.load();
@@ -560,20 +561,23 @@ fun onWithdrawFailed(
     msgValue: coins,
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    // JettonLockBox_WithdrawFailed may or may not carry context depending on when it failed.
-    // If context is present, unwind the admitted release and reply with a failure.
-    if (msg.context != null) {
-        recoverReleaseFromLockboxContext(mutate st, msg.context!, msgValue);
-    }
+    assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
+    val withdraw = msg.context!.load();
+    assert(withdraw.queryId == msg.queryId && withdraw.token == msg.token && msg.token == st.poolData.load().token(),
+        LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+    recoverReleaseFromLockboxWithdraw(mutate st, withdraw, msgValue);
 }
 
 /// Unwinds an admitted release whose lockbox withdraw did not complete
-fun recoverReleaseFromLockboxContext(
+fun recoverReleaseFromLockboxWithdraw(
     mutate st: Storage,
-    contextCell: cell,
+    withdraw: JettonLockBox_Withdraw,
     msgValue: coins,
 ) {
-    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
+    assert(withdraw.extra != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
+    val extra = withdraw.extra!.load();
+    assert(extra.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(extra.forwardPayload!);
     var pool = loadPool(st);
     pool.recoverReleaseOrMintFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16, msgValue);
     st.poolData = pool.data.toCell();
@@ -590,10 +594,12 @@ fun onDepositAccountForwardNotification(
     val forwarded = msg.message.load();
 
     // Parse the forwarded body as TransferNotificationForRecipient.
-    val jettonMsg = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
+    val transferNotif = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
 
-    // Extract context from the jetton notification's forwardPayload.
-    val contextCell = loadForwardPayloadAsCell(jettonMsg.forwardPayload);
+    // Unwrap release context from the transfer notification's forward payload (`Jetton_ForwardPayloadWrap`).
+    val wrap = parseLockBoxWithdrawWrap(transferNotif.forwardPayload);
+    assert(wrap != null && wrap!.initiator == contract.getAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
+    val contextCell = loadForwardPayloadAsCell(wrap!.forwardPayload);
     assert(contextCell != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
     val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
@@ -621,8 +627,8 @@ fun onDepositAccountForwardNotification(
     assert(forwarded.senderAddress == expectedWallet, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
     // Verify transferInitiator is the lockbox's addr (auth the transfer source).
-    assert(jettonMsg.transferInitiator != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-    assert(jettonMsg.transferInitiator! == st.lockbox, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
+    assert(transferNotif.transferInitiator != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
+    assert(transferNotif.transferInitiator! == st.lockbox, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
 
     var pool = loadPool(st);
     pool.sendReleaseOrMintFinished(operation);

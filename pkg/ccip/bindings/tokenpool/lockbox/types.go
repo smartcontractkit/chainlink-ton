@@ -32,7 +32,6 @@ type Deposit struct {
 // WithdrawExtra holds optional extra fields for Withdraw.
 type WithdrawExtra struct {
 	SendExcessesTo   *address.Address `tlb:"addr"`
-	FailureContext   *cell.Cell       `tlb:"maybe ^"` // Optional context carried through withdrawal failure chain.
 	ForwardTonAmount tlb.Coins        `tlb:"."`       // Additional TON forwarded to the recipient wallet after the transfer.
 	ForwardPayload   *cell.Cell       `tlb:"maybe ^"` // Pool context forwarded to the recipient wallet (e.g., release context for notification back to the pool).
 }
@@ -65,7 +64,7 @@ type DepositFailed struct {
 	Token           *address.Address `tlb:"addr"`
 	Depositor       *address.Address `tlb:"addr"`
 	Amount          tlb.Coins        `tlb:"."`
-	Context         *cell.Cell       `tlb:"maybe ^"`
+	Context         *Deposit         `tlb:"maybe ^"`
 	ErrorCode       uint16           `tlb:"## 16"`
 	ReturnAttempted bool             `tlb:"bool"`
 }
@@ -91,12 +90,10 @@ type Initialized struct {
 
 // WithdrawFailed is sent when a withdrawal bounce is detected.
 type WithdrawFailed struct {
-	_               tlb.Magic        `tlb:"#60bae556" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID         uint64           `tlb:"## 64"`
-	Token           *address.Address `tlb:"addr"`    // The token address.
-	Amount          tlb.Coins        `tlb:"."`       // The amount that failed to withdraw.
-	RecipientWallet *address.Address `tlb:"addr"`    // The jetton wallet address of the intended recipient.
-	Context         *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the failure chain.
+	_       tlb.Magic        `tlb:"#60bae556" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`    // The token address.
+	Context *Withdraw        `tlb:"maybe ^"` // Original withdrawal request, including Extra.ForwardPayload.
 }
 
 // ExitCode represents a JettonLockBox-specific error code.
@@ -113,6 +110,7 @@ const (
 	ContractNotInitialized
 	MissingOrMalformedForwardPayload
 	UnauthorizedInitializer
+	NotEnoughValue
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

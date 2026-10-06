@@ -2,6 +2,7 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
+import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/utils"
 import "../lib/token_pool/recovery"
 
@@ -23,8 +24,6 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
 struct JettonLockBox_WithdrawExtra {
     /// Where the jetton wallet should send `ReturnExcessesBack` after the transfer.
     sendExcessesTo: address?;
-    /// @dev Unused — reserved for future failure context propagation.
-    failureContext: cell?;
     /// Additional TON forwarded to the recipient wallet after the transfer.
     forwardTonAmount: coins;
     /// Pool context forwarded to the recipient wallet (e.g., release context for notification back to the pool).
@@ -66,7 +65,8 @@ struct (0x5e28ebd8) JettonLockBox_DepositFailed {
     token: address;
     depositor: address;
     amount: coins;
-    context: cell?;
+    /// Original deposit request; null only when the forward payload could not be decoded.
+    context: Cell<JettonLockBox_Deposit>?;
     errorCode: uint16;
     returnAttempted: bool;
 }
@@ -95,14 +95,29 @@ struct (0xe9f4e311) JettonLockBox_Initialized {
     admin: address;
 }
 
+/// Parses the `Jetton_ForwardPayloadWrap` from a (possibly bounced) withdraw `AskToTransfer`,
+/// or `null` if the ask isn't a lockbox withdrawal.
+@inline
+fun parseLockBoxWithdrawWrap(forwardPayload: ForwardPayloadRemainder): Jetton_ForwardPayloadWrap? {
+    val wrap = Jetton_ForwardPayloadWrap.from(forwardPayload);
+    if (wrap == null || wrap!.context == null) {
+        return null;
+    }
+
+    val ctx = lazy JettonLockBox_Withdraw.fromCell(wrap!.context!);
+    match (ctx) {
+        JettonLockBox_Withdraw => { return wrap; }
+        else => { return null; }
+    }
+}
+
 /// Sent to the withdraw caller when a bounced jetton transfer indicates failure.
 /// @dev The lockbox can't distinguish between jetton-level rejection and insufficient balance — both produce bounces.
 struct (0x60bae556) JettonLockBox_WithdrawFailed {
     queryId: uint64;
     token: address;
-    amount: coins;
-    recipientWallet: address;
-    context: cell?;
+    /// Original withdrawal request, including extra.forwardPayload for caller recovery.
+    context: Cell<JettonLockBox_Withdraw>?;
 }
 
 /// All recognized incoming message types.

@@ -22,7 +22,13 @@ func TestInsufficientMessageValueExitCode(t *testing.T) {
 
 func TestLockboxDepositFailed_WireFormat(t *testing.T) {
 	token := address.NewAddress(0, 0, make([]byte, 32))
-	context := cell.BeginCell().MustStoreUInt(301, 64).EndCell()
+	payload := cell.BeginCell().MustStoreUInt(301, 64).EndCell()
+	context := &lockbox.Deposit{
+		QueryID: 301, Token: token, RemoteChainSelector: 123,
+		Amount: tlb.MustFromTON("9"), Context: payload,
+	}
+	contextCell, err := tlb.ToCell(context)
+	require.NoError(t, err)
 	for name, attempted := range map[string]bool{"skipped": false, "queued": true} {
 		t.Run(name, func(t *testing.T) {
 			message := lockbox.DepositFailed{
@@ -33,15 +39,52 @@ func TestLockboxDepositFailed_WireFormat(t *testing.T) {
 			require.NoError(t, err)
 			expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
 				MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
-				MustStoreMaybeRef(context).MustStoreUInt(47400, 16).MustStoreBoolBit(attempted).EndCell()
+				MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 16).MustStoreBoolBit(attempted).EndCell()
 			require.Equal(t, expected.Hash(), encoded.Hash())
 			var decoded lockbox.DepositFailed
 			require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
 			require.Equal(t, message.QueryID, decoded.QueryID)
 			require.Equal(t, message.ErrorCode, decoded.ErrorCode)
 			require.Equal(t, attempted, decoded.ReturnAttempted)
-			require.Equal(t, context.Hash(), decoded.Context.Hash())
+			decodedContext, err := tlb.ToCell(decoded.Context)
+			require.NoError(t, err)
+			require.Equal(t, contextCell.Hash(), decodedContext.Hash())
+			require.Equal(t, payload.Hash(), decoded.Context.Context.Hash())
 		})
+	}
+}
+
+func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
+	token := address.NewAddress(0, 0, make([]byte, 32))
+	payload := cell.BeginCell().MustStoreUInt(301, 64).EndCell()
+	for _, withExtra := range []bool{false, true} {
+		context := &lockbox.Withdraw{
+			QueryID: 301, Token: token, RemoteChainSelector: 123,
+			Amount: tlb.MustFromTON("9"), RecipientWallet: token,
+		}
+		if withExtra {
+			context.Extra = &lockbox.WithdrawExtra{SendExcessesTo: token, ForwardPayload: payload}
+		}
+		message := lockbox.WithdrawFailed{
+			QueryID: 301, Token: token, Context: context,
+		}
+		contextCell, err := tlb.ToCell(context)
+		require.NoError(test, err)
+		encoded, err := tlb.ToCell(message)
+		require.NoError(test, err)
+		expected := cell.BeginCell().MustStoreUInt(0x60bae556, 32).MustStoreUInt(301, 64).
+			MustStoreAddr(token).MustStoreMaybeRef(contextCell).EndCell()
+		require.Equal(test, expected.Hash(), encoded.Hash())
+		var decoded lockbox.WithdrawFailed
+		require.NoError(test, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+		decodedContext, err := tlb.ToCell(decoded.Context)
+		require.NoError(test, err)
+		require.Equal(test, contextCell.Hash(), decodedContext.Hash())
+		if withExtra {
+			require.Equal(test, payload.Hash(), decoded.Context.Extra.ForwardPayload.Hash())
+		} else {
+			require.Nil(test, decoded.Context.Extra)
+		}
 	}
 }
 
