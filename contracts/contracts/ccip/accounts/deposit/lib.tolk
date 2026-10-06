@@ -3,6 +3,7 @@
 import "@stdlib/common"
 
 import "../../../lib/jetton/messages"
+import "../../../lib/deployable/types"
 import "types"
 import "messages"
 import "storage"
@@ -35,9 +36,10 @@ struct DepositAccount_Context<T> {
 
 /// Hook extensions exposed by the DepositAccount contract.
 struct DepositAccount_Hooks<T> {
-    /// Called on `DepositAccount_Init`. When null, the default init runs (owner/proxy-only, sets
-    /// the allowed jetton wallet, replies to the initiator).
-    onInit: ((DepositAccount_Context<T>, address, DepositAccount_Init) -> void)?;
+    /// Called on `DepositAccount_Init`. When null, the default init runs (owner-only — the init
+    /// is sent directly by the owner right after `Deployable_Initialize` — reserves rent, replies
+    /// to the owner).
+    onInit: ((DepositAccount_Context<T>, address, DepositAccount_Init, coins) -> void)?;
     /// Called on `DepositAccount_Withdraw`. When null, the default withdraw runs (beneficiary
     /// check + AskToTransfer to the wallet).
     onWithdraw: ((DepositAccount_Context<T>, address, DepositAccount_Withdraw) -> void)?;
@@ -83,14 +85,16 @@ fun DepositAccount<T>.store(self) {
 }
 
 /// Dispatches a DepositAccount inbound message. Returns `true` if the message was accepted (a
-/// recognized control message or a message from the allowed jetton wallet), `false` otherwise
-/// (the body is empty / was not handled) — mirroring the TokenPool's `onInternalMessage`.
+/// recognized control message or a jetton transfer notification), `false` otherwise (the body is
+/// empty / was not handled) — mirroring the TokenPool's `onInternalMessage`.
 ///
-/// Recognized messages (Init, Withdraw) are handled here — through their hook when wired, or via
-/// the default implementation. Anything else arriving from the account's allowed jetton wallet is
-/// routed to `onForwardNotification` (defaulting to a forward to `proxy`), carrying the full
-/// `forwarded` envelope the caller built from the original in-message; all other messages are left
-/// unhandled.
+/// Recognized control messages (Init, Withdraw) are handled here — through their hook when wired,
+/// or via the default implementation. A `TransferNotificationForRecipient` (the jetton deposit
+/// notification) is routed to `onForwardNotification` (defaulting to a forward to `proxy`),
+/// carrying the full `forwarded` envelope the caller built from the original in-message. All
+/// other messages — including a retried `Deployable_Initialize` (the first message of the
+/// deployment sequence, which must bounce off the already-upgraded account) — are left unhandled
+/// and bounce.
 ///
 /// @param msgSender   Address of the message sender.
 /// @param msgValue    Toncoins attached to the message.
@@ -110,39 +114,66 @@ fun DepositAccount<T>.onInternalMessage(
 
     match (msg) {
         DepositAccount_Init => {
-            self.onInit(msgSender, msg);
+            self.onInit(msgSender, msg, msgValue);
         }
         DepositAccount_Withdraw => {
             self.onWithdraw(msgSender, msg);
         }
-        else => {
-            // Any message that is not a recognized DepositAccount message is handed to the
-            // forward-notification path (which returns whether it accepted the message).
+        TransferNotificationForRecipient => {
+            // Only jetton deposit notification is proxied. Everything else, such as retried `Deployable_Initialize`, is left unhandled and bounces.
             return self.onForwardNotification(forwarded);
+        }
+        else => {
+            return false;
         }
     }
 
     return true; // default
 }
 
-/// Configures the account and replies to the initiator.
-/// @dev Wires the `onInit` hook when one is set; otherwise runs the default init — only the owner
-///      may initialize the account. The party that deploys the account is expected to be its owner
-///      (e.g. the pool for off-ramp accounts, the Router for on-ramp accounts).
+/// Configures the account and replies to the owner.
+/// @dev Wires the `onInit` hook when one is set; otherwise runs the default init. The init is
+///      only accepted from the account's owner: the deployment sequence is `Deployable_Initialize`
+///      (installs the account's code/data) followed by `DepositAccount_Init` sent directly by the
+///      owner, so only an owner-sent init proves an authorized deployment. The party that deploys
+///      the account is expected to be its owner (e.g. the pool for off-ramp accounts, the Router
+///      for on-ramp accounts), and the `DepositAccount_Reply` is sent to that owner so it can
+///      correlate the deployment back to the operation that triggered it (via
+///      `msg.forwardPayload`). The init is a ping: the account always replies, confirming it is
+///      deployed.
 fun DepositAccount<T>.onInit(
     mutate self,
     sender: address,
     msg: DepositAccount_Init,
+    msgValue: coins,
 ) {
     if (self.hooks != null && self.hooks.onInit != null) {
-        self.hooks.onInit(self.context(), sender, msg);
+        self.hooks.onInit(self.context(), sender, msg, msgValue);
 
         return;
     }
 
     assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
+    // `contract.getOriginalBalance()` (TVM `BALANCE`) is the balance at the start of the compute
+    // phase, (balance + inbound message's value)
+    if (contract.getOriginalBalance() < DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT) {
+        val reply = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: 0,
+            dest: sender,
+            body: DepositAccount_NotEnoughValue {
+                queryId: msg.queryId,
+                forwardPayload: msg.forwardPayload,
+            },
+        });
+        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
+    }
 
-    // Send Reply to the initiator so it knows the account is ready.
+
+    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+
+    // Send Reply to the owner so it knows the account is ready.
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
@@ -152,7 +183,8 @@ fun DepositAccount<T>.onInit(
             forwardPayload: msg.forwardPayload,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // SAFETY: reserveGramsOnBalance is called before
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Allows a beneficiary to withdraw jettons from this account's wallet.
@@ -175,7 +207,7 @@ fun DepositAccount<T>.onWithdraw(
 
     // The AskToTransfer must carry the requester as `sendExcessesTo` so a bounce can be correlated
     // back to the sender and notified on the failure path.
-    assert(ask.sendExcessesTo != null && ask.sendExcessesTo! == sender, DepositAccount_Error.OnlySendExcessesToSender);
+    assert(ask.sendExcessesTo != null && ask.sendExcessesTo == sender, DepositAccount_Error.OnlySendExcessesToSender);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -264,6 +296,8 @@ fun DepositAccount<T>.onWithdrawBounced(
         dest: ask.sendExcessesTo!,
         body: DepositAccount_WithdrawFailed {
             queryId: ask.queryId,
+            owner: self.data.owner,
+            proxy: self.data.proxy,
             walletAddress: sender,
             ask: ask.toCell(),
         },

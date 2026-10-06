@@ -170,19 +170,6 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
-// Helper to extract the single item from a SnakedCell, and assert that there is only one
-fun SnakedCell<T>.asSingle(self): T? {
-    var it = self.iter();
-    if (it.empty()) {
-        return null;
-    }
-    val token = it.next();
-    if (!it.empty()) {
-        return null;
-    }
-    return token
-}
-
 // Helper to extract the single item from a lisp_list<T>, and assert that there is only one
 fun lisp_list<T>.asSingle(mutate self): T? {
     if (self.isEmpty()) {

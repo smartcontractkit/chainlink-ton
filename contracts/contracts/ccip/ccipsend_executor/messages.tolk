@@ -3,7 +3,7 @@ import "../../lib/jetton/messages"
 import "../router/messages"
 import "../onramp/messages"
 import "../fee_quoter/messages"
-import "../token_admin_registry_entry/messages"
+import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 
 import "types"
@@ -12,7 +12,8 @@ type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated_Any
     | FeeQuoter_MessageValidationFailed_Any
-    | TokenAdminRegistryEntry_ReturnTokenInfo
+    | TokenAdminRegistry_TokenInfo
+    | TokenAdminRegistry_GetTokenInfoFailed
     | ResponseWalletAddress
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished

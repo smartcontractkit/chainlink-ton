@@ -170,7 +170,6 @@ describe('LockReleaseLockboxTokenPool', () => {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: jettonLockBox.address,
-          offRampAccountCode: DepositAccount.CodeCell,
         },
         {
           overrideContractCode: await contractCode.ccip.local(

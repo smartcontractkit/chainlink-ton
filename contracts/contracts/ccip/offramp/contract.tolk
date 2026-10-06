@@ -21,7 +21,6 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
-import "../token_admin_registry_entry/types"
 
 import "messages"
 import "errors"
@@ -1000,15 +999,8 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         tokenData = userTokenData;
     }
 
-    val staticConfig = st.config.load().staticConfig;
-    val registryAddress = TokenAdminRegistryEntry.deriveAddress(
-        deployerCode(),
-        tokenTransfer.token,
-        staticConfig.tokenAdminRegistry,
-    ).calculateAddress();
-
     return ReceiveExecutor_TokenTransfer {
-        tokenAdminRegistry: registryAddress,
+        tokenAdminRegistry: st.config.load().staticConfig.tokenAdminRegistry,
         transfer: tokenTransfer,
         offchainTokenData: tokenData,
     }.toCell();

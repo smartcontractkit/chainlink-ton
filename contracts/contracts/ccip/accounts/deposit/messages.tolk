@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
+import "../../../lib/deployable/types"
 
 /// Initialization message sent by the owner to activate the account.
 /// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
 ///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
 ///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
 ///      so one account per user serves any number of jettons.
+///      The message is only accepted from the account's owner: the deployment sequence is
+///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
+///      directly by the owner. The account always replies with `DepositAccount_Reply`, confirming
+///      it is deployed.
 struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
@@ -15,7 +20,14 @@ struct (0x6890a205) DepositAccount_Init {
 }
 
 /// Reply message on successful initialization
+/// TODO rename to `DepositAccount_Initialized`
 struct (0xda04630c) DepositAccount_Reply {
+    queryId: uint64;
+    forwardPayload: cell?;
+}
+
+/// Reply message on failed initialization due to insufficient value.
+struct (0x83462e93) DepositAccount_NotEnoughValue {
     queryId: uint64;
     forwardPayload: cell?;
 }
@@ -58,6 +70,10 @@ struct (0x1936d112) DepositAccount_Withdraw {
 /// funds could not be transferred out.
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
+    /// Required to verify the deposit account.
+    owner: address;
+    /// Required to verify the deposit account.
+    proxy: address;
     /// Jetton wallet the failed AskToTransfer was sent to.
     walletAddress: address;
     /// The bounced AskToTransfer (carries amount + recipient + the requester in `sendExcessesTo` for reconciliation).
@@ -70,13 +86,19 @@ type DepositAccount_BouncedMessage =
     | AskToTransfer;
 
 /// All recognized incoming message types.
+///
+/// `TransferNotificationForRecipient` is the jetton deposit notification: the only external
+/// message (besides control messages) the account accepts — it is routed to the
+/// forward-notification path. Everything else bounces.
 type DepositAccount_InMessage =
     | DepositAccount_Init
-    | DepositAccount_Withdraw;
+    | DepositAccount_Withdraw
+    | TransferNotificationForRecipient;
 
 /// All outgoing message types this contract may produce.
 type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | DepositAccount_WithdrawFailed
     | AskToTransfer;

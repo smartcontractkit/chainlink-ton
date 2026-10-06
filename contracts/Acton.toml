@@ -13,7 +13,7 @@ output-dir = "wrappers/gen"
 display-name = "link.chain.ton.ccip.Router"
 src = "contracts/ccip/router/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.OnRamp]
 display-name = "link.chain.ton.ccip.OnRamp"
@@ -38,17 +38,11 @@ depends = []
 display-name = "link.chain.ton.ccip.CCIPSendExecutor"
 src = "contracts/ccip/ccipsend_executor/contract.tolk"
 domain = "ccip"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.DepositAccount]
 display-name = "link.chain.ton.ccip.account.DepositAccount"
 src = "contracts/ccip/accounts/deposit/contract.tolk"
-domain = "ccip"
-depends = []
-
-[contracts.OnRampAccount]
-display-name = "link.chain.ton.ccip.account.OnRampAccount"
-src = "contracts/ccip/accounts/on_ramp_account/contract.tolk"
 domain = "ccip"
 depends = []
 
@@ -121,13 +115,13 @@ depends = []
 display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.LockReleaseLockboxTokenPool]
 display-name = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
 src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable", "DepositAccount"]
 
 [contracts.MockAdvancedPoolHooks]
 display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
@@ -145,6 +139,12 @@ depends = ["TokenAdminRegistryEntry", "Deployable"]
 display-name = "link.chain.ton.ccip.TokenAdminRegistryEntry"
 src = "contracts/ccip/token_admin_registry_entry/contract.tolk"
 domain = "ccip"
+depends = []
+
+[contracts.TokenAdminRegistryEntryUpgradeTarget]
+display-name = "link.chain.ton.ccip.test.TokenAdminRegistryEntryUpgradeTarget"
+src = "contracts/ccip/test/token_admin_registry_entry_upgrade_target/contract.tolk"
+domain = "test"
 depends = []
 
 [contracts.Timelock]

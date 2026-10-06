@@ -14,6 +14,8 @@ export const CoverageContractName = {
   send_executor: 'send_executor',
   receive_executor: 'receive_executor',
   deployable: 'deployable',
+  token_admin_registry: 'token_admin_registry',
+  token_admin_registry_entry: 'token_admin_registry_entry',
   mcms: 'mcms',
   timelock: 'timelock',
 } as const

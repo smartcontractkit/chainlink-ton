@@ -7,13 +7,11 @@ import "../lib/token_pool/entrypoint"
 
 import "types"
 
-/// @notice Pool storage: common pool data, lockbox reference, + OffRampAccount code for deployment.
+/// @notice Pool storage: common pool data + lockbox reference.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
     /// Address of the JettonLockBox contract used for deposit/withdraw operations.
     lockbox: address;
-    /// Compiled code cell of the OffRampAccount contract (deployed per release operation).
-    offRampAccountCode: cell;
 }
 
 fun Storage.load(): Storage {
@@ -51,6 +49,5 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
             tokenTransferFeeConfigs: createEmptyMap(),
         }.toCell(),
         lockbox: config.lockbox,
-        offRampAccountCode: config.offRampAccountCode,
     };
 }

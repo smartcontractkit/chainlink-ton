@@ -36,6 +36,7 @@ import { JettonLockBox } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
+import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
@@ -191,8 +192,9 @@ export class OffRampTestSetup {
   public offRamp: SandboxContract<of.OffRamp> = null as any
   public router: SandboxContract<rt.Router> = null as any
   public receiver: SandboxContract<tr.TestReceiver> = null as any
-  // Isolated fixtures use a unique root so their deterministic entry addresses do not collide.
+  public registry: SandboxContract<tar.TokenAdminRegistry> = null as any
   public tokenAdminRegistry: Address = generateMockTonAddress()
+  private static nextRegistryId = 0n
 
   public readonly DEFAULT_GAS_LIMIT = toNano('0.03')
 
@@ -246,9 +248,19 @@ export class OffRampTestSetup {
   }
 
   async SetupContracts() {
-    // Setup instances are reused across test cases. Refresh the synthetic root
-    // so deterministic TokenAdminRegistryEntry addresses cannot collide.
-    this.tokenAdminRegistry = generateMockTonAddress()
+    // Setup instances are reused across test cases. Deploy a fresh root so
+    // deterministic TokenAdminRegistryEntry addresses cannot collide.
+    this.registry = this.blockchain.openContract(
+      tar.TokenAdminRegistry.fromStorage(
+        {
+          id: ++OffRampTestSetup.nextRegistryId,
+          ownable: tar.Ownable2Step.create({ owner: this.deployer.address }),
+        },
+        { overrideContractCode: await contractCode.ccip.local('TokenAdminRegistry') },
+      ),
+    )
+    await this.registry.sendDeploy(this.deployer.getSender(), toNano('0.1'))
+    this.tokenAdminRegistry = this.registry.address
 
     // setup offramp
     {
@@ -895,40 +907,39 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
-   * Deploys an entry at the registry-root-derived address with the simulated
-   * registry address as its active administrator.
+   * Registers the token at the registry root with the deployer as its active
+   * administrator.
    */
   async setupTokenRegistry(
     token: Address,
     tokenPool: Address,
   ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
-    const registry = await deployable.Deploy(
-      this.blockchain,
+    await this.registry.sendTokenAdminRegistryRegisterToken(
       this.deployer.getSender(),
-      toNano('1'),
-      NameSpace.CCIPNamespace.TokenRegistry,
-      {
-        owner: this.tokenAdminRegistry,
-        id: beginCell().storeAddress(token),
-      },
-      trg.TokenAdminRegistryEntry,
+      toNano('0.1'),
       {
         tokenAddress: token,
-        tokenInfo: trg.TokenRegistry_TokenInfo.create({
+        tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool,
           minterAddress: token,
           version: 1n,
         }),
-        adminConfig: trg.TokenRegistry_AdminConfig.create({
-          tokenAdminRegistry: this.tokenAdminRegistry,
-          administrator: this.tokenAdminRegistry,
-          pendingAdministrator: null,
-        }),
+        administrator: this.deployer.address,
       },
-      trg.TokenRegistry_Storage,
-      await contractCode.ccip.local('TokenAdminRegistryEntry'),
     )
-
+    const accepted = await this.registry.sendTokenAdminRegistryAcceptAdminRole(
+      this.deployer.getSender(),
+      toNano('0.1'),
+      { tokenAddress: token },
+    )
+    const registry = this.blockchain.openContract(
+      trg.TokenAdminRegistryEntry.fromAddress(this.tokenRegistryAddress(token)),
+    )
+    expect(accepted.transactions).toHaveTransaction({
+      from: this.registry.address,
+      to: registry.address,
+      success: true,
+    })
     return registry
   }
 
@@ -983,7 +994,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             tokenTransferFeeConfigs: new Map(),
           }),
           lockbox: this.jettonLockBox.address,
-          offRampAccountCode: await contractCode.ccip.local('ccip.account.DepositAccount'),
         },
         { overrideContractCode: this.code.tokenPool },
       ),
@@ -1091,17 +1101,18 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   async getTokenBalance(
     opt: { receiver?: Address; token?: { minterAddress: Address; tokenPool: Address } } = {},
   ): Promise<bigint> {
-    const depositAccount = da.DepositAccount.fromStorage({
-      owner: opt.token?.tokenPool ?? this.tokenPool.address,
-      proxy: opt.token?.tokenPool ?? this.tokenPool.address,
-      beneficiaries: new Set([opt.receiver ?? this.receiver.address]),
-    })
+    const depositAccount = NameSpace.deriveAddress(
+      opt.token?.tokenPool ?? this.tokenPool.address,
+      NameSpace.CCIPNamespace.DepositAccount,
+      beginCell().storeAddress(opt.receiver ?? this.receiver.address),
+      this.code.deployable,
+    )
     const wallet = this.blockchain.openContract(
       JettonWallet.fromStorage(
         {
           status: 0n,
           jettonBalance: 0n,
-          ownerAddress: depositAccount.address,
+          ownerAddress: depositAccount,
           minterAddress: opt.token?.minterAddress ?? this.token,
         },
         { overrideContractCode: this.code.jettonWallet },
@@ -1139,12 +1150,10 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   async disableToken(): Promise<void> {
-    const result = await this.tokenRegistry.sendTokenAdminRegistryEntrySetPool(
-      this.blockchain.sender(this.tokenAdminRegistry),
+    const result = await this.registry.sendTokenAdminRegistrySetPool(
+      this.deployer.getSender(),
       toNano('0.1'),
-      {
-        tokenPool: null,
-      },
+      { tokenAddress: this.token, tokenPool: null },
     )
 
     expect(result.transactions).toHaveTransaction({

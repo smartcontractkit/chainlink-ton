@@ -6,7 +6,7 @@ import "../../lib/jetton/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 
-import "../token_admin_registry_entry/messages"
+import "../token_admin_registry/messages"
 import "../fee_quoter/messages"
 import "../fee_quoter/types"
 import "../onramp/messages"
@@ -18,14 +18,16 @@ import "types"
 import "messages"
 import "storage"
 import "errors"
+import "../router/utils"
+import "../../../gen/Deployable.code"
 
 tolk 1.4.2
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 
 contract CCIPSendExecutor {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.CCIPSendExecutor"
 
     storage: CCIPSendExecutor_Data
@@ -58,11 +60,19 @@ fun onInternalMessage(in: InMessage) {
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidationFailed(msg);
         }
-        // Sender must be TokenRegistry
-        TokenAdminRegistryEntry_ReturnTokenInfo => {
+        // Sender must be the TokenAdminRegistry
+        TokenAdminRegistry_TokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
+        }
+        // Sender must be the TokenAdminRegistry
+        TokenAdminRegistry_GetTokenInfoFailed => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
+            this.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256);
         }
         // Sender must be minter
         ResponseWalletAddress => {
@@ -173,6 +183,13 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Derives the address of the sender's per-user deposit account: a Deployable-namespaced
+/// OnRampAccount owned by the Router and keyed by the original sender's address. Must mirror
+/// `Router.depositAccountAddress` — the Router verifies the withdraw sender against this address.
+fun depositAccountAddress(sender: address, router: address): address {
+    return onRampAccountAutodeployAddressForRouter(sender, router, deployableCompiledCode()).calculateAddress();
+}
+
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
     val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
     val tokenAmounts = message.tokenAmounts;
@@ -188,16 +205,22 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         return;
      }
 
-    // Else if there are token transfers continue querying the tokenRegistry
+    // Else if there are token transfers continue querying the TokenAdminRegistry
+    val tokenAmount = tokenAmounts.asSingle();
+    if (tokenAmount == null) {
+        self.exitWithError(CCIPSendExecutor_Error.UnsupportedNumberOfTokens as uint256);
+        return;
+    }
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
     //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
     val queryMsg = createMessage({
         bounce: true,
-        value: TokenAdminRegistryEntry_GetTokenInfo.cost(grams("0.5")), // TODO extract to constant and calculate real values
+        value: TokenAdminRegistry_GetTokenInfo.cost(grams("0.5")), // TODO extract to constant and calculate real values
         dest: tokenRegistry.load(),
-        body: TokenAdminRegistryEntry_GetTokenInfo {
+        body: TokenAdminRegistry_GetTokenInfo {
             queryId: 0,
+            token: tokenAmount.token,
         }
     });
     queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
@@ -207,26 +230,29 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             fee: msg.fee,
+            token: tokenAmount.token,
         }.toCell(),
     };
     newState.store();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistryEntry_ReturnTokenInfo) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistry_TokenInfo) {
     val state = self.state.load();
     assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
 
-    val routerWalletAddressRequest = createMessage({
+    // The jettons are held by the sender's per-user deposit account, so the withdraw leg must
+    // pull from the account's jetton wallet (not the Router's).
+    val accountWalletAddressRequest = createMessage({
         bounce: true,
         value: grams("0.5"), // TODO extract to constant and calculate real values
         dest: msg.minterAddress,
         body: RequestWalletAddress {
             queryId: 0,
-            ownerAddress: self.addresses.load().router,
+            ownerAddress: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
             includeOwnerAddress: false,
         },
     });
-    routerWalletAddressRequest.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    accountWalletAddressRequest.send(SEND_MODE_PAY_FEES_SEPARATELY);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -269,7 +295,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
             fee: state.fee,
             minterAddress: state.minterAddress,
             tokenPool: state.tokenPool,
-            routerWalletAddress: msg.jettonWalletAddress!, // TODO what to do if null
+            senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),
     };
     newState.store();
@@ -285,7 +311,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             fee: state.fee,
             minterAddress: state.minterAddress,
             tokenPool: state.tokenPool,
-            routerWalletAddress: state.routerWalletAddress,
+            senderDepositAccountWallet: state.senderDepositAccountWallet,
         }.toCell(),
     };
     newState.store();
@@ -303,7 +329,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             withdrawRequest: Router_WithdrawRequest {
-                routerWalletAddress: state.routerWalletAddress,
+                accountWalletAddress: state.senderDepositAccountWallet,
+                depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
                 forwardPayload: msg.forwardPayload.toCell(),
