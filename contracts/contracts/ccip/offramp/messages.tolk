@@ -135,7 +135,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 }
 
 fun OffRamp_ReleaseOrMint.cost(): coins {
-    return grams("0.02"); // TODO
+    return grams("0.07"); // TODO
 }
 
 struct OffRamp_Costs{}

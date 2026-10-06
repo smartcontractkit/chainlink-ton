@@ -20,6 +20,7 @@ import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
+import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
@@ -1866,18 +1867,30 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 2. ReceiveExecutor -> TokenRegistry (GetTokenInfo) and back
-      const registryAddress = setup.tokenRegistryAddress()
+      // 2. ReceiveExecutor -> TokenAdminRegistry -> entry -> TokenAdminRegistry -> ReceiveExecutor
+      const entryAddress = setup.tokenRegistryAddress()
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: registryAddress,
-        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
+        to: setup.tokenAdminRegistry,
+        op: tar.TokenAdminRegistry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
-        from: registryAddress,
+        from: setup.tokenAdminRegistry,
+        to: entryAddress,
+        op: trg.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: entryAddress,
+        to: setup.tokenAdminRegistry,
+        op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenAdminRegistry,
         to: executorAddress,
-        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
+        op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
         success: true,
       })
 
@@ -2243,18 +2256,30 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 2. ReceiveExecutor -> TokenRegistry (GetTokenInfo) and back
-      const registryAddress = setup.tokenRegistryAddress()
+      // 2. ReceiveExecutor -> TokenAdminRegistry -> entry -> TokenAdminRegistry -> ReceiveExecutor
+      const entryAddress = setup.tokenRegistryAddress()
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: registryAddress,
-        op: trg.TokenAdminRegistryEntry_GetTokenInfo.PREFIX,
+        to: setup.tokenAdminRegistry,
+        op: tar.TokenAdminRegistry_GetTokenInfo.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
-        from: registryAddress,
+        from: setup.tokenAdminRegistry,
+        to: entryAddress,
+        op: trg.TokenAdminRegistryEntry_MessageFromRoot.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: entryAddress,
+        to: setup.tokenAdminRegistry,
+        op: tar.TokenAdminRegistryEntry_TokenInfo.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenAdminRegistry,
         to: executorAddress,
-        op: trg.TokenAdminRegistryEntry_ReturnTokenInfo.PREFIX,
+        op: tar.TokenAdminRegistry_TokenInfo.PREFIX,
         success: true,
       })
 

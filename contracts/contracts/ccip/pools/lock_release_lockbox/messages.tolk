@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
+import "../../../lib/deployable/types"
 import "../lib/token_pool/messages"
 import "../../accounts/deposit/messages"
 import "../lockbox/messages"
@@ -12,6 +13,7 @@ type LockReleaseLockboxTokenPool_InMessage =
     | JettonLockBox_DepositFailed
     | JettonLockBox_WithdrawFailed
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
     | DepositAccount_ForwardNotification;
 
 type LockReleaseLockboxTokenPool_OutMessage =

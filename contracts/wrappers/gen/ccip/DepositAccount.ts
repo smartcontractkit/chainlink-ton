@@ -359,6 +359,51 @@ export const DepositAccount_Reply = {
 }
 
 /**
+ > struct (0x83462e93) DepositAccount_NotEnoughValue {
+ >     queryId: uint64
+ >     forwardPayload: cell?
+ > }
+ */
+export interface DepositAccount_NotEnoughValue {
+    readonly $: 'DepositAccount_NotEnoughValue'
+    queryId: uint64
+    forwardPayload: c.Cell | null
+}
+
+export const DepositAccount_NotEnoughValue = {
+    PREFIX: 0x83462e93,
+
+    create(args: {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): DepositAccount_NotEnoughValue {
+        return {
+            $: 'DepositAccount_NotEnoughValue',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
+        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
+        return {
+            $: 'DepositAccount_NotEnoughValue',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
+        b.storeUint(0x83462e93, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
+        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
+    }
+}
+
+/**
  > struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
  >     message: Cell<DepositAccount_InMessageForward>
  > }
@@ -641,6 +686,59 @@ export const AskToTransfer = {
     }
 }
 
+/**
+ > struct (0x7362d09c) TransferNotificationForRecipient {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferInitiator: address?
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface TransferNotificationForRecipient {
+    readonly $: 'TransferNotificationForRecipient'
+    queryId: uint64
+    jettonAmount: coins
+    transferInitiator: c.Address | null
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const TransferNotificationForRecipient = {
+    PREFIX: 0x7362d09c,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }): TransferNotificationForRecipient {
+        return {
+            $: 'TransferNotificationForRecipient',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TransferNotificationForRecipient {
+        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
+        return {
+            $: 'TransferNotificationForRecipient',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferInitiator: s.loadMaybeAddress(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: TransferNotificationForRecipient, b: c.Builder): void {
+        b.storeUint(0x7362d09c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferInitiator);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: TransferNotificationForRecipient): c.Cell {
+        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class DepositAccount
 //
@@ -680,7 +778,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECGwEAAzEAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAREgIBIAYHAgEgDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKAMM7aLt+zgG1ywjRIUQLJhscdM/9AXwAo5H1ywgybaIlI4gMDcvUX9Rf1F/UX9Rf1F/UX9RfwcQVhBFEDRBMPAE2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQAdQjwwCVJ26zwwCRcOKZVHupK1UjK9pw4IIAzRRTPMcF8vTIz4UIE/pSghDaBGMMzwuOyz/0AMmAQPsAgANkNTU2AcMAlSNus8MAkXDilAQD2oDgbDM0NCKCAM0VA4EBC/QKb6ExEvL0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQPHBcMAkzEycOIS8vTIz4WI+lLPhBBz+gJxzwtlzMmAUPsAgAgEgDxAAqUOTo6BcMAlSZus8MAkXDilxA4R1UG2sDgNjg4ODjIz5A+KfqWJs8LP1AF+gL6UlJg+lQS9AAB+gLOycjPhQgU+lKCEKUbbLrPC47LP/pSzMmAQPsAgAkw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3NzgFyPpSUAT6AhT0AFAF+gIUyz/LHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAE81ywn////9PK/10zQ1ywgfFP1LJ/TP/oA+kj6UPQE+gDwBn/gXwtwgAgEgExQCAUgZGgIBIBUWAgFIFxgAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAG7NCO1E0PpIMfpIMfQFgABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECGwEAA2wAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAREgIBIAYHAgEgDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKANs7aLt+wfXLCNEhRAsmWxx0z/0BVjwAo5TOAfXLCDJtoiUjio4B9csI5sWhOQxjhgvUX9Rf1F/UX9Rf1F/UX9RfwdVBfAE2zHgXwdw2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQA0wkwwCVKG6zwwCRcOKZVHy6LFUzLNqA4DCCAM0UUzzHBfL0+CdvEIILk4cAuY4ZyM+FCBP6UoIQg0Yuk88Ljss/9ADJgED7AOCCCvrwgHD7AsjPhQgT+lKCENoEYwzPC47LP/QAyYMG+wCAA2Q1NTYBwwCVI26zwwCRcOKUBAPagOBsMzQ0IoIAzRUDgQEL9ApvoTES8vQi0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIIAzRYhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCACASAPEACpQ5OjoFwwCVJm6zwwCRcOKXEDhHVQbawOA2ODg4OMjPkD4p+pYmzws/UAX6AvpSUmD6VBL0AAH6As7JyM+FCBT6UoIQpRtsus8Ljss/+lLMyYBA+wCACTDk5OQTDAJUkbrPDAJFw4pZHZVUD2rHgNDc3OAXI+lJQBPoCFPQAUAX6AhTLP8sfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAGf+BfC3CACASATFAIBSBkaAgEgFRYCAUgXGABttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAbs0I7UTQ+kgx+kgx9AWAAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
@@ -728,6 +826,15 @@ export class DepositAccount implements c.Contract {
         return DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body));
     }
 
+    static createCellOfTransferNotificationForRecipient(body: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }) {
+        return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -763,6 +870,19 @@ export class DepositAccount implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
             ...extraOptions
         });
     }

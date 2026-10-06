@@ -140,7 +140,6 @@ describe('BurnMintTokenPool', () => {
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
           }),
-          offRampAccountCode: DepositAccount.CodeCell,
         },
         { overrideContractCode: burnMintPoolCode },
       ),

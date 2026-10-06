@@ -125,6 +125,19 @@ fun SnakedCell<T>.empty(self): bool {
     return self.beginParse().isEmpty();
 }
 
+// Helper to extract the single item from a SnakedCell, and assert that there is only one
+fun SnakedCell<T>.asSingle(self): T? {
+    var it = self.iter();
+    if (it.empty()) {
+        return null;
+    }
+    val token = it.next();
+    if (!it.empty()) {
+        return null;
+    }
+    return token
+}
+
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
     data: slice;
