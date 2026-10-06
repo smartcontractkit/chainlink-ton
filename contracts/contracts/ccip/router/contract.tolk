@@ -10,8 +10,11 @@ import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../../lib/jetton/jetton_client"
+import "../../lib/deployable/types"
+import "../rmn_remote/lib.tolk"
 
-import "../common/types"
+import "../accounts/deposit/types"
+import "../accounts/deposit/messages"
 import "../onramp/messages"
 import "../onramp/types"
 import "../offramp/messages"
@@ -25,6 +28,10 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
+
+import "../../../gen/Deployable.code"
+import "../../../gen/DepositAccount.code"
+import "utils"
 
 tolk 1.4.2
 
@@ -60,8 +67,6 @@ fun onInternalMessage(in: InMessage) {
         Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
-            // Token transfer messages can only come in through jetton transfer notifications
-            assert(msg.tokenAmounts.empty()) throw Router_Error.TokenTransferNotThroughNotification; //TBD shuold this be sendMessageRejected instead of throw?
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
         // Permissionless
@@ -210,36 +215,25 @@ fun onInternalMessage(in: InMessage) {
             }
             onRelayReleaseOrMint(msg);
         }
-        // Sender must be a Jetton Wallet owned by the Router
+        // Permissionless
+        Router_GetOnRampAccount => {
+            // Check that the amount sent by the user is enough to cover deployment trace costs.
+            assert (in.valueCoins >= Router_Costs.GetDepositAccount()) throw Router_Error.InsufficientFee;
+            onGetOnRampAccount(msg, in.senderAddress);
+        }
+        // Sender must be the sender's deposit account (verified against the derived address)
+        DepositAccount_Reply => {
+            onDepositAccountInitReply(msg, in.senderAddress);
+        }
+        // Sender must be a deposit account owned by this Router (checked in onDepositAccountWithdrawFailed)
+        DepositAccount_WithdrawFailed => {
+            onDepositAccountWithdrawFailed(msg, in.senderAddress);
+        }
+        // Sender must be a Jetton Wallet owned by the Router.
+        // Accidental transfers to the Router are returned to the transfer
+        // initiator in a best-effort manner (throwing here would burn the tokens).
         TransferNotificationForRecipient => {
-            // TODO we can't just throw errors in the Router on JettonTransferNotification - this will burn the tokens.
-            // - We either need to return them (do we have enough gas to return?)
-            // - Or we need to store state and mark them invalid to be able to withdraw
-            // - Or we need a per-user deposit account which would do the checks and allow the user to withdraw
-            // Issue with returning/notifying is that we could fail down the line on any contract involved.
-            // Trying to catch every single error to notify failure could be very hard so a deposit account that always allows withdrawals
-            // could be the best solutuion. As long as we are able to guarantee we won't consume already withdrawn tokens
-
-            // TODO minValue is probably higher for a tokenTransfer as it needs more hops.
-            // We should revisit our entire min gas assertion model anyway
-            val minValue = Router_Costs.CCIPSend();
-            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
-
-            // TODO: this doesn't compile
-            // assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
-
-            //TODO: should we catch cases when the forward payload is not Router_CCIPSend?
-            var forwardPayload = msg.forwardPayload;
-            val sendMsg = lazy Router_CCIPSend.fromCell(forwardPayload.loadRef());
-
-            var tokenAmounts = sendMsg.tokenAmounts.iter();
-            assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
-
-            val transferedJetton = tokenAmounts.next();
-            assert (transferedJetton.amount == msg.jettonAmount) throw Router_Error.TokenAmountMismatch;
-            assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
-
-            onCCIPSend(sendMsg, msg.transferInitiator!, in.valueCoins);
+            returnAccidentalTransfer(in.senderAddress, msg);
         }
         else => {
             // attempt to handle Ownable messages
@@ -297,22 +291,6 @@ fun onBouncedMessage(in: InMessageBounced) {
                     );
                 }
             }
-            AskToTransfer => {
-                // Bounced `Router_WithdrawToTokenPool` withdrawal: the jettons never reached the
-                // token pool, so the send is stuck and the executor waits for a reply that will
-                // never come.
-                //
-                // TODO: propagate the failure to the OnRamp so it can fail the send and the
-                // executor can settle. Requires a failure message plus an executor `replyTo` for
-                // this leg, which the Router does not carry. The withdrawal is being reworked to
-                // route through an on-ramp deposit account, which will own this failure path.
-                emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
-                    wallet: in.senderAddress,
-                    tokenPool: richMsg.transferRecipient,
-                    queryId: richMsg.queryId,
-                    exitCode: rich.exitCode,
-                });
-            }
         }
         return;
     }
@@ -367,21 +345,152 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 
 fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
-    val transferRequest = createMessage({
-        bounce: BounceMode.RichBounce,
+    val withdraw = createMessage({
+        bounce: BounceMode.NoBounce,
         value: 0,
-        dest: withdrawRequest.routerWalletAddress,
-        body: AskToTransfer {
+        dest: withdrawRequest.depositAccount,
+        body: DepositAccount_Withdraw {
             queryId: msg.queryID,
-            jettonAmount: withdrawRequest.amount,
-            transferRecipient: withdrawRequest.tokenPool,
-            sendExcessesTo: null, // TBD
-            customPayload: null, // TBD
-            forwardTonAmount: grams("0.5"), // TODO
-            forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+            walletAddress: withdrawRequest.accountWalletAddress,
+            ask: AskToTransfer {
+                queryId: msg.queryID,
+                jettonAmount: withdrawRequest.amount,
+                transferRecipient: withdrawRequest.tokenPool,
+                // TBD the Depossit account only allows sendExcessesTo to point to sender (Router). This will result in the Router slowly accumulating excess funds over time.
+                sendExcessesTo: contract.getAddress(),
+                customPayload: null,
+                forwardTonAmount: grams("0.5"),
+                forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+            }.toCell(),
         },
     });
-    transferRequest.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Deploys (or re-confirms) the sender's per-user deposit account: a Deployable-namespaced
+/// OnRampAccount owned by this Router and keyed by the sender's address. The account is deployed
+/// with a two-message sequence — `Deployable_Initialize` installs the account's code/data, then
+/// `DepositAccount_Init` sent directly by the Router (its owner) activates it — so the default
+/// init accepts it and replies with `DepositAccount_Reply`, which the Router turns into
+/// `Router_UseOnRampAccount`.
+fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
+    var beneficiaries: map<address, ()> = [];
+    // Both the Router and the sender can withdraw from the deposit account.
+    beneficiaries.set(contract.getAddress(), ());
+    beneficiaries.set(sender, ());
+    val oaa = onRampAccountAutodeployAddress(sender);
+
+    // 1. Install the account's code/data at the shell address. On a retry to an already-deployed
+    // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
+    val deploy = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: DepositAccount_MIN_GRAM_TO_RESERVE,
+        dest: oaa,
+        body: Deployable_Initialize {
+            stateInit: ContractState {
+                code: depositAccountCompiledCode(),
+                data: DepositAccount_Data {
+                    owner: contract.getAddress(),
+                    proxy: sender,
+                    beneficiaries,
+                }.toCell(),
+            },
+        },
+    });
+    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+
+    // The remaining value should be at least DepositAccount_MIN_GRAM_TO_INIT
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+
+    // 2. Init the freshly installed account (processed right after the deploy). The account
+    // replies `DepositAccount_Reply` to the Router (its owner), which answers the user.
+    val init = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: oaa.calculateAddress(),
+        body: DepositAccount_Init {
+            queryId: msg.queryId,
+            forwardPayload: sender.toCell(),
+        },
+    });
+    // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
+    init.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Handles the account's `DepositAccount_Reply` (the "DeploymentConfirmed" leg): verifies the
+/// reply came from the sender's derived deposit account and hands the account address to the user.
+fun onDepositAccountInitReply(msg: DepositAccount_Reply, sender: address) {
+    // The account echoes the user's address in the forward payload.
+    val user = msg.forwardPayload!.beginParse().loadAddress();
+    assert(sender == onRampAccountAddress(user), Router_Error.SenderIsNotOnRampAccount);
+
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: user,
+        body: Router_UseOnRampAccount {
+            queryId: msg.queryId,
+            account: sender,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Handles a `DepositAccount_WithdrawFailed` from one of this Router's deposit accounts: the
+/// withdraw's AskToTransfer bounced, so the jettons never left the account. Surfaced as an event
+/// for visibility; propagating the failure to the executor requires a replyTo on this leg (TODO).
+///
+/// @dev The sender is NOT verified against a derived address: unlike the per-user account (keyed
+///      by one user), the Router cannot enumerate which user an arbitrary withdraw belongs to.
+///      The message is only accepted from accounts whose data was installed by this Router
+///      (owner = Router), and the event is informational — no state changes on this path.
+fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
+    assert(sender == onRampAccountAddress(msg.proxy), Router_Error.SenderIsNotOnRampAccount);
+    val ask = lazy msg.ask.load();
+    emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
+        wallet: msg.walletAddress,
+        tokenPool: ask.transferRecipient,
+        queryId: msg.queryId,
+        exitCode: 0,
+    });
+}
+
+/// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
+/// wallet only accepts AskToTransfer from its owner (the Router), so the return is executed by
+/// asking the wallet that sent the notification. If the initiator is unknown (null), the funds
+/// stay in the Router's wallet rather than being burned by a throw.
+fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationForRecipient) {
+    if (msg.transferInitiator == null) {
+        return;
+    }
+
+    val returnMsg = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: walletSender,
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: msg.jettonAmount,
+            transferRecipient: msg.transferInitiator,
+            sendExcessesTo: msg.transferInitiator,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: createEmptySlice(),
+        },
+    });
+    returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+}
+
+/// Derives the auto-deploy address of the per-user onramp account (a Deployable-namespaced OnRampAccount
+/// owned by this Router, keyed by the user's address).
+get fun onRampAccountAutodeployAddress(sender: address): AutoDeployAddress {
+    return onRampAccountAutodeployAddressForRouter(sender, contract.getAddress(), deployableCompiledCode());
+}
+
+/// Derives the address of the per-user onramp account (a Deployable-namespaced OnRampAccount
+/// owned by this Router, keyed by the user's address).
+get fun onRampAccountAddress(sender: address): address {
+    return onRampAccountAutodeployAddress(sender).calculateAddress();
 }
 
 /*

@@ -60,14 +60,16 @@ struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
     fee: Fee,
     minterAddress: address,
     tokenPool: address,
-    routerWalletAddress: address,
+    /// Jetton wallet of the sender's deposit account
+    senderDepositAccountWallet: address,
 }
 
 struct CCIPSendExecutor_State_TokenPool_Withdraw {
     fee: Fee,
     minterAddress: address,
     tokenPool: address,
-    routerWalletAddress: address,
+    /// Jetton wallet of the sender's deposit account
+    senderDepositAccountWallet: address,
 }
 
 struct CCIPSendExecutor_State_Finalized {

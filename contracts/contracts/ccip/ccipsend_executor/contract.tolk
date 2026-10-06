@@ -18,14 +18,16 @@ import "types"
 import "messages"
 import "storage"
 import "errors"
+import "../router/utils"
+import "../../../gen/Deployable.code"
 
 tolk 1.4.2
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 
 contract CCIPSendExecutor {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.CCIPSendExecutor"
 
     storage: CCIPSendExecutor_Data
@@ -181,6 +183,13 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Derives the address of the sender's per-user deposit account: a Deployable-namespaced
+/// OnRampAccount owned by the Router and keyed by the original sender's address. Must mirror
+/// `Router.depositAccountAddress` — the Router verifies the withdraw sender against this address.
+fun depositAccountAddress(sender: address, router: address): address {
+    return onRampAccountAutodeployAddressForRouter(sender, router, deployableCompiledCode()).calculateAddress();
+}
+
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
     val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
     val tokenAmounts = message.tokenAmounts;
@@ -231,17 +240,19 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val state = self.state.load();
     assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
 
-    val routerWalletAddressRequest = createMessage({
+    // The jettons are held by the sender's per-user deposit account, so the withdraw leg must
+    // pull from the account's jetton wallet (not the Router's).
+    val accountWalletAddressRequest = createMessage({
         bounce: true,
         value: grams("0.5"), // TODO extract to constant and calculate real values
         dest: msg.minterAddress,
         body: RequestWalletAddress {
             queryId: 0,
-            ownerAddress: self.addresses.load().router,
+            ownerAddress: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
             includeOwnerAddress: false,
         },
     });
-    routerWalletAddressRequest.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    accountWalletAddressRequest.send(SEND_MODE_PAY_FEES_SEPARATELY);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -284,7 +295,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
             fee: state.fee,
             minterAddress: state.minterAddress,
             tokenPool: state.tokenPool,
-            routerWalletAddress: msg.jettonWalletAddress!, // TODO what to do if null
+            senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),
     };
     newState.store();
@@ -300,7 +311,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             fee: state.fee,
             minterAddress: state.minterAddress,
             tokenPool: state.tokenPool,
-            routerWalletAddress: state.routerWalletAddress,
+            senderDepositAccountWallet: state.senderDepositAccountWallet,
         }.toCell(),
     };
     newState.store();
@@ -318,7 +329,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             withdrawRequest: Router_WithdrawRequest {
-                routerWalletAddress: state.routerWalletAddress,
+                accountWalletAddress: state.senderDepositAccountWallet,
+                depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
                 forwardPayload: msg.forwardPayload.toCell(),
