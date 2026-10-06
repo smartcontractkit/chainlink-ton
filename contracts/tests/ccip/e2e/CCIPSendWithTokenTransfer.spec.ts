@@ -11,6 +11,7 @@ import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as dep from '../../../wrappers/gen/ccip/DepositAccount'
 import * as exe from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import * as tr from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
@@ -28,6 +29,7 @@ import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 
 // Destination-chain token address the pool returns from lockOrBurn. In production this
 // is configured on the pool via TokenPool_ApplyChainUpdates.
@@ -53,6 +55,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
   let minterCode: Cell
   let walletCode: Cell
   let lockReleaseTokenPoolCode: Cell
+  let deployableCode: Cell
 
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
@@ -74,6 +77,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     lockReleaseTokenPoolCode = await contractCode.ccip.local(
       'ccip.pool.LockReleaseLockboxTokenPool',
     )
+    deployableCode = await contractCode.ccip.local('Deployable')
   })
 
   beforeEach(async () => {
@@ -170,13 +174,16 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 router: router.address,
                 rateLimitAdmin: deployer.address,
                 feeAdmin: deployer.address,
-                allowedDepositNamespaces: new Set(),
+                // Tokens are withdrawn from the Router-owned OnRampAccount, so authorize
+                // its deterministic Deployables namespace as a deposit source.
+                allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
               }),
               jettonClient: tp.JettonClient.create({
                 masterAddress: minter.address,
                 jettonWalletCode: walletCode,
               }),
               advancedPoolHooks: null,
+              deployableCode,
             }),
             localPolicy: tp.TokenPool_LocalPolicy.create({
               cursePolicy: createEmptyCursePolicy(deployer.address),
@@ -289,7 +296,110 @@ describe('CCIPSend with token transfer (e2e)', () => {
   }
 
   async function sendTokenTransfer() {
-    const ccipSend = rt.Router_CCIPSend.create({
+    // Register a per-token TokenTransferFeeConfig whose destGasOverhead differs from the lane
+    // default: the executor must forward the FeeQuoter's per-token value into destExecData,
+    // and asserting the default would not catch a regression to the old hardcoded default
+    // (the two coincide), so the override has to be distinct.
+    const { defaultTokenDestGasOverhead } = (await feeQuoter.getDestChainConfig(DestChainSelector))
+      .config
+    const destGasOverheadOverride = defaultTokenDestGasOverhead + 33_456n
+    const configResult = await feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+      deployer.getSender(),
+      toNano('1'),
+      {
+        updates: new Map([
+          [
+            DestChainSelector,
+            fq.UpdateTokenTransferFeeConfig.create({
+              add: new Map([
+                [
+                  minter.address,
+                  fq.TokenTransferFeeConfig.create({
+                    isEnabled: true,
+                    // Zero premium components: only the destGasOverhead override matters here.
+                    minFeeUsdCents: 0n,
+                    maxFeeUsdCents: 0n,
+                    deciBps: 0n,
+                    destGasOverhead: destGasOverheadOverride,
+                    destBytesOverhead: 32n,
+                  }),
+                ],
+              ]),
+              remove: [],
+            }),
+          ],
+        ]),
+      },
+    )
+    expect(configResult.transactions).toHaveTransaction({
+      to: feeQuoter.address,
+      success: true,
+    })
+
+    const senderWallet = blockchain.openContract(
+      jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
+    )
+    const onRampAcccount = await (async () => {
+      const addr = await router.getOnRampAccountAddress(sender.address)
+      return dep.DepositAccount.fromAddress(addr)
+    })()
+    console.log('onRampAcccount.address', onRampAcccount.address)
+    const onRampAccountWallet = blockchain.openContract(
+      jw.JettonWallet.createFromAddress(await minter.getWalletAddress(onRampAcccount.address)),
+    )
+
+    // Deploy OnRamp account
+    {
+      const result = await router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {})
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: onRampAcccount.address,
+        success: true,
+        deploy: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: sender.address,
+        op: rt.Router_UseOnRampAccount.PREFIX,
+        body(x) {
+          const use = rt.Router_UseOnRampAccount.fromSlice(x!.beginParse())
+          return use.account.equals(onRampAcccount.address)
+        },
+      })
+    }
+
+    // User transfers wGRAM to the router-owned wallet, carrying the CCIPSend payload.
+    {
+      const result = await senderWallet.sendTransfer(sender.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 1,
+          jettonAmount: TOKEN_AMOUNT,
+          destination: onRampAcccount.address,
+          responseDestination: sender.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: null,
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: sender.address,
+        to: senderWallet.address,
+        op: jw.opcodes.in.TRANSFER,
+        success: true,
+      })
+      // user wallet -> router wallet (deploys it)
+      expect(result.transactions).toHaveTransaction({
+        from: senderWallet.address,
+        to: onRampAccountWallet.address,
+        op: jw.opcodes.in.INTERNAL_TRANSFER,
+        deploy: true,
+        success: true,
+      })
+    }
+
+    const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('2'), {
       queryID: 1n,
       destChainSelector: DestChainSelector,
       receiver: EVM_ADDRESS,
@@ -300,28 +410,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
         gasLimit: 100n,
         allowOutOfOrderExecution: true,
       }),
-    })
-
-    // The CCIPSend payload travels as the forward payload of the jetton transfer.
-    const forwardPayload = rt.Router_CCIPSend.toCell(ccipSend)
-
-    const routerWalletAddress = await minter.getWalletAddress(router.address)
-    const senderWallet = blockchain.openContract(
-      jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
-    )
-
-    // User transfers wGRAM to the router-owned wallet, carrying the CCIPSend payload.
-    const result = await senderWallet.sendTransfer(sender.getSender(), {
-      value: FORWARD_TON_AMOUNT + toNano('2'),
-      message: {
-        queryId: 1,
-        jettonAmount: TOKEN_AMOUNT,
-        destination: router.address,
-        responseDestination: sender.address,
-        customPayload: null,
-        forwardTonAmount: FORWARD_TON_AMOUNT,
-        forwardPayload,
-      },
     })
 
     // Discover the deployed CCIPSendExecutor (first message emitted by the OnRamp).
@@ -341,34 +429,20 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })()
 
     sendExecutor = blockchain.openContract(exe.CCIPSendExecutor.fromAddress(executorAddress))
-    return { result, executorAddress, senderWallet, routerWalletAddress }
+    return { result, executorAddress, senderWallet, destGasOverheadOverride }
   }
 
   it('propagates a token-transfer-initiated CCIP send end to end', async () => {
     await registerToken()
-    const { result, executorAddress, senderWallet, routerWalletAddress } = await sendTokenTransfer()
+    const { result, executorAddress, senderWallet, destGasOverheadOverride } =
+      await sendTokenTransfer()
 
     // --- jetton transfer leg ---
-    // user -> user wallet
+    // user -> router (ccipSend)
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
-      to: senderWallet.address,
-      op: jw.opcodes.in.TRANSFER,
-      success: true,
-    })
-    // user wallet -> router wallet (deploys it)
-    expect(result.transactions).toHaveTransaction({
-      from: senderWallet.address,
-      to: routerWalletAddress,
-      op: jw.opcodes.in.INTERNAL_TRANSFER,
-      deploy: true,
-      success: true,
-    })
-    // router wallet -> router (transfer notification)
-    expect(result.transactions).toHaveTransaction({
-      from: routerWalletAddress,
       to: router.address,
-      op: jw.opcodes.in.TRANSFER_NOTIFICATION,
+      op: rt.Router_CCIPSend.PREFIX,
       success: true,
     })
 
@@ -488,14 +562,15 @@ describe('CCIPSend with token transfer (e2e)', () => {
             {
               // Set by the OnRamp from the pool it routed the lock/burn to, not by the pool.
               sourcePoolAddress: tokenPool.address,
-              // No token transfer fee is configured, so the post-fee amount is the full amount.
+              // The pool takes no fee, so the post-fee amount is the full amount.
               amount: TOKEN_AMOUNT,
               destTokenAddress: FromBuffer(DEST_TOKEN_ADDRESS),
               // destPoolData: the pool encodes its local decimals (0 here) as a uint256.
               extraData: beginCell().storeUint(0, 256).endCell(),
-              // The default per-token destGasOverhead, as a bare 32-bit big-endian integer.
-              // Still a constant: the FeeQuoter does not report a per-token value yet.
-              destExecData: beginCell().storeUint(90000, 32).endCell(),
+              // The FeeQuoter's per-token destGasOverhead override, encoded as a bare 32-bit
+              // integer — distinct from the lane default, proving the executor forwards the
+              // FeeQuoter's destGasOverheads value rather than a hardcoded default.
+              destExecData: beginCell().storeUint(destGasOverheadOverride, 32).endCell(),
             },
           ],
           // The pool's lockOrBurn output reaches the event end to end.

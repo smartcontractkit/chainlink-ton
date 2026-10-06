@@ -45,6 +45,7 @@ struct CCIPSendExecutor_State_OnGoingFeeValidation {
 struct CCIPSendExecutor_State_TokenRegistryAccess {
     fee: Fee,
     token: address,
+    destGasOverhead: uint32,
 }
 
 // TODO Impl wallet address validation through JettonMinter/ stored wallet code
@@ -52,22 +53,25 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
 // Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
     fee: Fee,
+    destGasOverhead: uint32,
     minterAddress: address,
     tokenPool: address,
 }
 
 struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
     fee: Fee,
-    minterAddress: address,
+    destGasOverhead: uint32,
     tokenPool: address,
-    routerWalletAddress: address,
+    /// Jetton wallet of the sender's deposit account
+    senderDepositAccountWallet: address,
 }
 
 struct CCIPSendExecutor_State_TokenPool_Withdraw {
     fee: Fee,
-    minterAddress: address,
+    destGasOverhead: uint32,
     tokenPool: address,
-    routerWalletAddress: address,
+    /// Jetton wallet of the sender's deposit account
+    senderDepositAccountWallet: address,
 }
 
 struct CCIPSendExecutor_State_Finalized {

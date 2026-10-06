@@ -231,6 +231,36 @@ class StackReader {
         return readFn_T(this);
     }
 
+    readWideNullable<T>(stackW: number, readFn_T: (r: StackReader) => T): T | null {
+        const slotTypeId = this.tuple[stackW - 1];
+        if (slotTypeId?.type !== 'int') {
+            throw new Error(`not 'int' on a stack`);
+        }
+        if (slotTypeId.value === 0n) {
+            this.tuple = this.tuple.slice(stackW);
+            return null;
+        }
+        const valueT = readFn_T(this);
+        this.tuple.shift();
+        return valueT;
+    }
+
+    readUnionType<T>(stackW: number, infoForTypeId: Record<number, [number, string | null, (r: StackReader) => any]>): T {
+        const slotTypeId = this.tuple[stackW - 1];
+        if (slotTypeId?.type !== 'int') {
+            throw new Error(`not 'int' on a stack`);
+        }
+        const info = infoForTypeId[Number(slotTypeId.value)];   // [stackWidth, label, readFn_T{i}]
+        if (info == null) {
+            throw new Error(`unexpected UTag=${slotTypeId.value}`);
+        }
+        const label = info[1];
+        this.tuple = this.tuple.slice(stackW - 1 - info[0]);
+        const valueT = info[2](this);
+        this.tuple.shift();
+        return label == null ? valueT : { $: label, value: valueT } as T;
+    }
+
     readCellRef<T>(loadFn_T: LoadCallback<T>): T {
         return loadFn_T(this.readCell().beginParse());
     }
@@ -267,8 +297,10 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int8 = bigint
 type int32 = bigint
 
+type uint5 = bigint
 type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
@@ -311,6 +343,98 @@ export const ContractState = {
     },
     toCell(self: ContractState): c.Cell {
         return makeCellFrom<ContractState>(self, ContractState.store);
+    }
+}
+
+/**
+ > struct AddressShardingOptions {
+ >     fixedPrefixLength: uint5
+ >     closeTo: address
+ > }
+ */
+export interface AddressShardingOptions {
+    readonly $: 'AddressShardingOptions'
+    fixedPrefixLength: uint5
+    closeTo: c.Address
+}
+
+export const AddressShardingOptions = {
+    create(args: {
+        fixedPrefixLength: uint5
+        closeTo: c.Address
+    }): AddressShardingOptions {
+        return {
+            $: 'AddressShardingOptions',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AddressShardingOptions {
+        return {
+            $: 'AddressShardingOptions',
+            fixedPrefixLength: s.loadUintBig(5),
+            closeTo: s.loadAddress(),
+        }
+    },
+    store(self: AddressShardingOptions, b: c.Builder): void {
+        b.storeUint(self.fixedPrefixLength, 5);
+        b.storeAddress(self.closeTo);
+    },
+    toCell(self: AddressShardingOptions): c.Cell {
+        return makeCellFrom<AddressShardingOptions>(self, AddressShardingOptions.store);
+    }
+}
+
+/**
+ > struct AutoDeployAddress {
+ >     workchain: int8
+ >     stateInit: ContractState | cell
+ >     toShard: AddressShardingOptions?
+ > }
+ */
+export interface AutoDeployAddress {
+    readonly $: 'AutoDeployAddress'
+    workchain: int8 /* = 0 */
+    stateInit: ContractState | { $: 'cell', value: c.Cell }
+    toShard: AddressShardingOptions | null /* = null */
+}
+
+export const AutoDeployAddress = {
+    create(args: {
+        workchain?: int8 /* = 0 */
+        stateInit: ContractState | { $: 'cell', value: c.Cell }
+        toShard?: AddressShardingOptions | null /* = null */
+    }): AutoDeployAddress {
+        return {
+            $: 'AutoDeployAddress',
+            workchain: 0n,
+            toShard: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): AutoDeployAddress {
+        return {
+            $: 'AutoDeployAddress',
+            workchain: s.loadIntBig(8),
+            stateInit: s.loadBoolean() ? { $: 'cell', value: s.loadRef() } : ContractState.fromSlice(s),
+            toShard: s.loadBoolean() ? AddressShardingOptions.fromSlice(s) : null,
+        }
+    },
+    store(self: AutoDeployAddress, b: c.Builder): void {
+        b.storeInt(self.workchain, 8);
+        switch (self.stateInit.$) {
+            case 'ContractState':
+                b.storeUint(0b0, 1);
+                ContractState.store(self.stateInit, b);
+                break;
+            case 'cell':
+                b.storeUint(0b1, 1);
+                b.storeRef(self.stateInit.value);
+                break;
+        }
+        storeTolkNullable<AddressShardingOptions>(self.toShard, b, AddressShardingOptions.store);
+    },
+    toCell(self: AutoDeployAddress): c.Cell {
+        return makeCellFrom<AutoDeployAddress>(self, AutoDeployAddress.store);
     }
 }
 
@@ -422,11 +546,6 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
     return outArr;
 }
 
-
-/**
- > type RemainingBitsOrRef<T> = T
- */
-export type RemainingBitsOrRef<T> = T
 
 /**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
@@ -1421,243 +1540,243 @@ export const Deployable_Initialize = {
 }
 
 /**
- > type CrossChainAddress = slice
- */
-export type CrossChainAddress = c.Slice
-
-export const CrossChainAddress = {
-    fromSlice(s: c.Slice): CrossChainAddress {
-        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
-    },
-    store(self: CrossChainAddress, b: c.Builder): void {
-        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
-    },
-    toCell(self: CrossChainAddress): c.Cell {
-        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
-    }
-}
-
-/**
- > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
- */
-export type ExtraArgs =
-    | GenericExtraArgsV2
-    | SVMExtraArgsV1
-    | SuiExtraArgsV1
-
-export const ExtraArgs = {
-    fromSlice(s: c.Slice): ExtraArgs {
-        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-            throwNonePrefixMatch('ExtraArgs');
-    },
-    store(self: ExtraArgs, b: c.Builder): void {
-        switch (self.$) {
-            case 'GenericExtraArgsV2':
-                GenericExtraArgsV2.store(self, b);
-                break;
-            case 'SVMExtraArgsV1':
-                SVMExtraArgsV1.store(self, b);
-                break;
-            case 'SuiExtraArgsV1':
-                SuiExtraArgsV1.store(self, b);
-                break;
-        }
-    },
-    toCell(self: ExtraArgs): c.Cell {
-        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
-    }
-}
-
-/**
- > struct (0x181dcf10) GenericExtraArgsV2 {
- >     gasLimit: uint256?
- >     allowOutOfOrderExecution: bool
+ > struct (0x6890a205) DepositAccount_Init {
+ >     queryId: uint64
+ >     forwardPayload: cell?
  > }
  */
-export interface GenericExtraArgsV2 {
-    readonly $: 'GenericExtraArgsV2'
-    gasLimit: uint256 | null
-    allowOutOfOrderExecution: boolean
+export interface DepositAccount_Init {
+    readonly $: 'DepositAccount_Init'
+    queryId: uint64
+    forwardPayload: c.Cell | null
 }
 
-export const GenericExtraArgsV2 = {
-    PREFIX: 0x181dcf10,
+export const DepositAccount_Init = {
+    PREFIX: 0x6890a205,
 
     create(args: {
-        gasLimit: uint256 | null
-        allowOutOfOrderExecution: boolean
-    }): GenericExtraArgsV2 {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): DepositAccount_Init {
         return {
-            $: 'GenericExtraArgsV2',
-            ...args
+            $: 'DepositAccount_Init',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): GenericExtraArgsV2 {
-        loadAndCheckPrefix32(s, 0x181dcf10, 'GenericExtraArgsV2');
+    fromSlice(s: c.Slice): DepositAccount_Init {
+        loadAndCheckPrefix32(s, 0x6890a205, 'DepositAccount_Init');
         return {
-            $: 'GenericExtraArgsV2',
-            gasLimit: s.loadBoolean() ? s.loadUintBig(256) : null,
-            allowOutOfOrderExecution: s.loadBoolean(),
+            $: 'DepositAccount_Init',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: GenericExtraArgsV2, b: c.Builder): void {
-        b.storeUint(0x181dcf10, 32);
-        storeTolkNullable<uint256>(self.gasLimit, b,
-            (v,b) => b.storeUint(v, 256)
+    store(self: DepositAccount_Init, b: c.Builder): void {
+        b.storeUint(0x6890a205, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
         );
-        b.storeBit(self.allowOutOfOrderExecution);
     },
-    toCell(self: GenericExtraArgsV2): c.Cell {
-        return makeCellFrom<GenericExtraArgsV2>(self, GenericExtraArgsV2.store);
+    toCell(self: DepositAccount_Init): c.Cell {
+        return makeCellFrom<DepositAccount_Init>(self, DepositAccount_Init.store);
     }
 }
 
 /**
- > struct (0x1f3b3aba) SVMExtraArgsV1 {
- >     computeUnits: uint32
- >     accountIsWritableBitmap: uint64
- >     allowOutOfOrderExecution: bool
- >     tokenReceiver: uint256
- >     accounts: SnakedCell<uint256>
+ > struct (0xda04630c) DepositAccount_Reply {
+ >     queryId: uint64
+ >     forwardPayload: cell?
  > }
  */
-export interface SVMExtraArgsV1 {
-    readonly $: 'SVMExtraArgsV1'
-    computeUnits: uint32
-    accountIsWritableBitmap: uint64
-    allowOutOfOrderExecution: boolean
-    tokenReceiver: uint256
-    accounts: SnakedCell<uint256>
+export interface DepositAccount_Reply {
+    readonly $: 'DepositAccount_Reply'
+    queryId: uint64
+    forwardPayload: c.Cell | null
 }
 
-export const SVMExtraArgsV1 = {
-    PREFIX: 0x1f3b3aba,
+export const DepositAccount_Reply = {
+    PREFIX: 0xda04630c,
 
     create(args: {
-        computeUnits: uint32
-        accountIsWritableBitmap: uint64
-        allowOutOfOrderExecution: boolean
-        tokenReceiver: uint256
-        accounts: SnakedCell<uint256>
-    }): SVMExtraArgsV1 {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): DepositAccount_Reply {
         return {
-            $: 'SVMExtraArgsV1',
-            ...args
+            $: 'DepositAccount_Reply',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): SVMExtraArgsV1 {
-        loadAndCheckPrefix32(s, 0x1f3b3aba, 'SVMExtraArgsV1');
+    fromSlice(s: c.Slice): DepositAccount_Reply {
+        loadAndCheckPrefix32(s, 0xda04630c, 'DepositAccount_Reply');
         return {
-            $: 'SVMExtraArgsV1',
-            computeUnits: s.loadUintBig(32),
-            accountIsWritableBitmap: s.loadUintBig(64),
-            allowOutOfOrderExecution: s.loadBoolean(),
-            tokenReceiver: s.loadUintBig(256),
-            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            $: 'DepositAccount_Reply',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: SVMExtraArgsV1, b: c.Builder): void {
-        b.storeUint(0x1f3b3aba, 32);
-        b.storeUint(self.computeUnits, 32);
-        b.storeUint(self.accountIsWritableBitmap, 64);
-        b.storeBit(self.allowOutOfOrderExecution);
-        b.storeUint(self.tokenReceiver, 256);
-        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
+    store(self: DepositAccount_Reply, b: c.Builder): void {
+        b.storeUint(0xda04630c, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: SVMExtraArgsV1): c.Cell {
-        return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
+    toCell(self: DepositAccount_Reply): c.Cell {
+        return makeCellFrom<DepositAccount_Reply>(self, DepositAccount_Reply.store);
     }
 }
 
 /**
- > struct (0x21ea4ca9) SuiExtraArgsV1 {
- >     gasLimit: uint256
- >     allowOutOfOrderExecution: bool
- >     tokenReceiver: uint256
- >     receiverObjectIds: SnakedCell<uint256>
+ > struct (0x83462e93) DepositAccount_NotEnoughValue {
+ >     queryId: uint64
+ >     forwardPayload: cell?
  > }
  */
-export interface SuiExtraArgsV1 {
-    readonly $: 'SuiExtraArgsV1'
-    gasLimit: uint256
-    allowOutOfOrderExecution: boolean
-    tokenReceiver: uint256
-    receiverObjectIds: SnakedCell<uint256>
+export interface DepositAccount_NotEnoughValue {
+    readonly $: 'DepositAccount_NotEnoughValue'
+    queryId: uint64
+    forwardPayload: c.Cell | null
 }
 
-export const SuiExtraArgsV1 = {
-    PREFIX: 0x21ea4ca9,
+export const DepositAccount_NotEnoughValue = {
+    PREFIX: 0x83462e93,
 
     create(args: {
-        gasLimit: uint256
-        allowOutOfOrderExecution: boolean
-        tokenReceiver: uint256
-        receiverObjectIds: SnakedCell<uint256>
-    }): SuiExtraArgsV1 {
+        queryId?: uint64
+        forwardPayload: c.Cell | null
+    }): DepositAccount_NotEnoughValue {
         return {
-            $: 'SuiExtraArgsV1',
-            ...args
+            $: 'DepositAccount_NotEnoughValue',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): SuiExtraArgsV1 {
-        loadAndCheckPrefix32(s, 0x21ea4ca9, 'SuiExtraArgsV1');
+    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
+        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
         return {
-            $: 'SuiExtraArgsV1',
-            gasLimit: s.loadUintBig(256),
-            allowOutOfOrderExecution: s.loadBoolean(),
-            tokenReceiver: s.loadUintBig(256),
-            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+            $: 'DepositAccount_NotEnoughValue',
+            queryId: s.loadUintBig(64),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: SuiExtraArgsV1, b: c.Builder): void {
-        b.storeUint(0x21ea4ca9, 32);
-        b.storeUint(self.gasLimit, 256);
-        b.storeBit(self.allowOutOfOrderExecution);
-        b.storeUint(self.tokenReceiver, 256);
-        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
+    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
+        b.storeUint(0x83462e93, 32);
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: SuiExtraArgsV1): c.Cell {
-        return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
+    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
+        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
     }
 }
 
 /**
- > struct TokenAmount {
- >     amount: coins
- >     token: address
+ > struct (0x1936d112) DepositAccount_Withdraw {
+ >     queryId: uint64
+ >     walletAddress: address
+ >     ask: Cell<AskToTransfer>
  > }
  */
-export interface TokenAmount {
-    readonly $: 'TokenAmount'
-    amount: coins
-    token: c.Address
+export interface DepositAccount_Withdraw {
+    readonly $: 'DepositAccount_Withdraw'
+    queryId: uint64
+    walletAddress: c.Address
+    ask: AskToTransfer
 }
 
-export const TokenAmount = {
+export const DepositAccount_Withdraw = {
+    PREFIX: 0x1936d112,
+
     create(args: {
-        amount: coins
-        token: c.Address
-    }): TokenAmount {
+        queryId?: uint64
+        walletAddress: c.Address
+        ask: AskToTransfer
+    }): DepositAccount_Withdraw {
         return {
-            $: 'TokenAmount',
-            ...args
+            $: 'DepositAccount_Withdraw',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenAmount {
+    fromSlice(s: c.Slice): DepositAccount_Withdraw {
+        loadAndCheckPrefix32(s, 0x1936d112, 'DepositAccount_Withdraw');
         return {
-            $: 'TokenAmount',
-            amount: s.loadCoins(),
-            token: s.loadAddress(),
+            $: 'DepositAccount_Withdraw',
+            queryId: s.loadUintBig(64),
+            walletAddress: s.loadAddress(),
+            ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
         }
     },
-    store(self: TokenAmount, b: c.Builder): void {
-        b.storeCoins(self.amount);
-        b.storeAddress(self.token);
+    store(self: DepositAccount_Withdraw, b: c.Builder): void {
+        b.storeUint(0x1936d112, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.walletAddress);
+        storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
     },
-    toCell(self: TokenAmount): c.Cell {
-        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    toCell(self: DepositAccount_Withdraw): c.Cell {
+        return makeCellFrom<DepositAccount_Withdraw>(self, DepositAccount_Withdraw.store);
+    }
+}
+
+/**
+ > struct (0xa51b6cba) DepositAccount_WithdrawFailed {
+ >     queryId: uint64
+ >     owner: address
+ >     proxy: address
+ >     walletAddress: address
+ >     ask: Cell<AskToTransfer>
+ > }
+ */
+export interface DepositAccount_WithdrawFailed {
+    readonly $: 'DepositAccount_WithdrawFailed'
+    queryId: uint64
+    owner: c.Address
+    proxy: c.Address
+    walletAddress: c.Address
+    ask: AskToTransfer
+}
+
+export const DepositAccount_WithdrawFailed = {
+    PREFIX: 0xa51b6cba,
+
+    create(args: {
+        queryId?: uint64
+        owner: c.Address
+        proxy: c.Address
+        walletAddress: c.Address
+        ask: AskToTransfer
+    }): DepositAccount_WithdrawFailed {
+        return {
+            $: 'DepositAccount_WithdrawFailed',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_WithdrawFailed {
+        loadAndCheckPrefix32(s, 0xa51b6cba, 'DepositAccount_WithdrawFailed');
+        return {
+            $: 'DepositAccount_WithdrawFailed',
+            queryId: s.loadUintBig(64),
+            owner: s.loadAddress(),
+            proxy: s.loadAddress(),
+            walletAddress: s.loadAddress(),
+            ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
+        }
+    },
+    store(self: DepositAccount_WithdrawFailed, b: c.Builder): void {
+        b.storeUint(0xa51b6cba, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.owner);
+        b.storeAddress(self.proxy);
+        b.storeAddress(self.walletAddress);
+        storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
+    },
+    toCell(self: DepositAccount_WithdrawFailed): c.Cell {
+        return makeCellFrom<DepositAccount_WithdrawFailed>(self, DepositAccount_WithdrawFailed.store);
     }
 }
 
@@ -1704,87 +1823,146 @@ export const OnRamp_Send = {
 }
 
 /**
- > struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
+ > struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
  >     ccipSend: Cell<Router_CCIPSend>
- >     context: T
+ >     context: cell?
  > }
  */
-export interface OnRamp_GetValidatedFee<T> {
+export interface OnRamp_GetValidatedFee {
     readonly $: 'OnRamp_GetValidatedFee'
     ccipSend: Router_CCIPSend
-    context: T
+    context: c.Cell | null /* = null */
 }
 
 export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
-    create<T>(args: {
+    create(args: {
         ccipSend: Router_CCIPSend
-        context: T
-    }): OnRamp_GetValidatedFee<T> {
+        context?: c.Cell | null /* = null */
+    }): OnRamp_GetValidatedFee {
         return {
             $: 'OnRamp_GetValidatedFee',
+            context: null,
             ...args
         }
     },
+    fromSlice(s: c.Slice): OnRamp_GetValidatedFee {
+        loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
+        return {
+            $: 'OnRamp_GetValidatedFee',
+            ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OnRamp_GetValidatedFee, b: c.Builder): void {
+        b.storeUint(0x9c2ccc7e, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OnRamp_GetValidatedFee): c.Cell {
+        return makeCellFrom<OnRamp_GetValidatedFee>(self, OnRamp_GetValidatedFee.store);
+    }
 }
 
 /**
- > struct (0x2afb11bd) OnRamp_MessageValidated<T> {
+ > struct (0x2afb11bd) OnRamp_MessageValidated {
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
- >     context: T
+ >     context: cell?
  > }
  */
-export interface OnRamp_MessageValidated<T> {
+export interface OnRamp_MessageValidated {
     readonly $: 'OnRamp_MessageValidated'
     fee: coins
     msg: Router_CCIPSend
-    context: T
+    context: c.Cell | null
 }
 
 export const OnRamp_MessageValidated = {
     PREFIX: 0x2afb11bd,
 
-    create<T>(args: {
+    create(args: {
         fee: coins
         msg: Router_CCIPSend
-        context: T
-    }): OnRamp_MessageValidated<T> {
+        context: c.Cell | null
+    }): OnRamp_MessageValidated {
         return {
             $: 'OnRamp_MessageValidated',
             ...args
         }
     },
+    fromSlice(s: c.Slice): OnRamp_MessageValidated {
+        loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
+        return {
+            $: 'OnRamp_MessageValidated',
+            fee: s.loadCoins(),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OnRamp_MessageValidated, b: c.Builder): void {
+        b.storeUint(0x2afb11bd, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OnRamp_MessageValidated): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidated>(self, OnRamp_MessageValidated.store);
+    }
 }
 
 /**
- > struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
+ > struct (0xac1dd12e) OnRamp_MessageValidationFailed {
  >     error: uint256
  >     msg: Cell<Router_CCIPSend>
- >     context: T
+ >     context: cell?
  > }
  */
-export interface OnRamp_MessageValidationFailed<T> {
+export interface OnRamp_MessageValidationFailed {
     readonly $: 'OnRamp_MessageValidationFailed'
     error: uint256
     msg: Router_CCIPSend
-    context: T
+    context: c.Cell | null
 }
 
 export const OnRamp_MessageValidationFailed = {
     PREFIX: 0xac1dd12e,
 
-    create<T>(args: {
+    create(args: {
         error: uint256
         msg: Router_CCIPSend
-        context: T
-    }): OnRamp_MessageValidationFailed<T> {
+        context: c.Cell | null
+    }): OnRamp_MessageValidationFailed {
         return {
             $: 'OnRamp_MessageValidationFailed',
             ...args
         }
     },
+    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed {
+        loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
+        return {
+            $: 'OnRamp_MessageValidationFailed',
+            error: s.loadUintBig(256),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: OnRamp_MessageValidationFailed, b: c.Builder): void {
+        b.storeUint(0xac1dd12e, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: OnRamp_MessageValidationFailed): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidationFailed>(self, OnRamp_MessageValidationFailed.store);
+    }
 }
 
 /**
@@ -2680,141 +2858,6 @@ export const TokenPool_ReleaseOrMintInV1 = {
 }
 
 /**
- > struct (0x6890a205) DepositAccount_Init {
- >     queryId: uint64
- >     forwardPayload: cell?
- > }
- */
-export interface DepositAccount_Init {
-    readonly $: 'DepositAccount_Init'
-    queryId: uint64
-    forwardPayload: c.Cell | null
-}
-
-export const DepositAccount_Init = {
-    PREFIX: 0x6890a205,
-
-    create(args: {
-        queryId?: uint64
-        forwardPayload: c.Cell | null
-    }): DepositAccount_Init {
-        return {
-            $: 'DepositAccount_Init',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): DepositAccount_Init {
-        loadAndCheckPrefix32(s, 0x6890a205, 'DepositAccount_Init');
-        return {
-            $: 'DepositAccount_Init',
-            queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: DepositAccount_Init, b: c.Builder): void {
-        b.storeUint(0x6890a205, 32);
-        b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: DepositAccount_Init): c.Cell {
-        return makeCellFrom<DepositAccount_Init>(self, DepositAccount_Init.store);
-    }
-}
-
-/**
- > struct (0xda04630c) DepositAccount_Reply {
- >     queryId: uint64
- >     forwardPayload: cell?
- > }
- */
-export interface DepositAccount_Reply {
-    readonly $: 'DepositAccount_Reply'
-    queryId: uint64
-    forwardPayload: c.Cell | null
-}
-
-export const DepositAccount_Reply = {
-    PREFIX: 0xda04630c,
-
-    create(args: {
-        queryId?: uint64
-        forwardPayload: c.Cell | null
-    }): DepositAccount_Reply {
-        return {
-            $: 'DepositAccount_Reply',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): DepositAccount_Reply {
-        loadAndCheckPrefix32(s, 0xda04630c, 'DepositAccount_Reply');
-        return {
-            $: 'DepositAccount_Reply',
-            queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: DepositAccount_Reply, b: c.Builder): void {
-        b.storeUint(0xda04630c, 32);
-        b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: DepositAccount_Reply): c.Cell {
-        return makeCellFrom<DepositAccount_Reply>(self, DepositAccount_Reply.store);
-    }
-}
-
-/**
- > struct (0x83462e93) DepositAccount_NotEnoughValue {
- >     queryId: uint64
- >     forwardPayload: cell?
- > }
- */
-export interface DepositAccount_NotEnoughValue {
-    readonly $: 'DepositAccount_NotEnoughValue'
-    queryId: uint64
-    forwardPayload: c.Cell | null
-}
-
-export const DepositAccount_NotEnoughValue = {
-    PREFIX: 0x83462e93,
-
-    create(args: {
-        queryId?: uint64
-        forwardPayload: c.Cell | null
-    }): DepositAccount_NotEnoughValue {
-        return {
-            $: 'DepositAccount_NotEnoughValue',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
-        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
-        return {
-            $: 'DepositAccount_NotEnoughValue',
-            queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
-        b.storeUint(0x83462e93, 32);
-        b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
-        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
-    }
-}
-
-/**
  > struct OnRamps {
  >     destChainSelectors: SnakedCell<uint64>
  >     onRamp: address?
@@ -2887,88 +2930,6 @@ export const OffRamps = {
     },
     toCell(self: OffRamps): c.Cell {
         return makeCellFrom<OffRamps>(self, OffRamps.store);
-    }
-}
-
-/**
- > type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
- */
-export type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
-
-export const Router_GetValidatedFee_Any = {
-    fromSlice(s: c.Slice): Router_GetValidatedFee_Any {
-        return (() => {
-            loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee');
-            return {
-                $: 'Router_GetValidatedFee',
-                ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: loadTolkRemaining(s),
-            }
-        })();
-    },
-    store(self: Router_GetValidatedFee_Any, b: c.Builder): void {
-        b.storeUint(0x4dd6aa82, 32);
-        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
-        storeTolkRemaining(self.context, b);
-    },
-    toCell(self: Router_GetValidatedFee_Any): c.Cell {
-        return makeCellFrom<Router_GetValidatedFee_Any>(self, Router_GetValidatedFee_Any.store);
-    }
-}
-
-/**
- > type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
- */
-export type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
-
-export const OnRamp_MessageValidated_GetValidatedFeeContext = {
-    fromSlice(s: c.Slice): OnRamp_MessageValidated_GetValidatedFeeContext {
-        return (() => {
-            loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
-            return {
-                $: 'OnRamp_MessageValidated',
-                fee: s.loadCoins(),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: Router_GetValidatedFeeContext.fromSlice(s),
-            }
-        })();
-    },
-    store(self: OnRamp_MessageValidated_GetValidatedFeeContext, b: c.Builder): void {
-        b.storeUint(0x2afb11bd, 32);
-        b.storeCoins(self.fee);
-        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
-        Router_GetValidatedFeeContext.store(self.context, b);
-    },
-    toCell(self: OnRamp_MessageValidated_GetValidatedFeeContext): c.Cell {
-        return makeCellFrom<OnRamp_MessageValidated_GetValidatedFeeContext>(self, OnRamp_MessageValidated_GetValidatedFeeContext.store);
-    }
-}
-
-/**
- > type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
- */
-export type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
-
-export const OnRamp_MessageValidationFailed_GetValidatedFeeContext = {
-    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed_GetValidatedFeeContext {
-        return (() => {
-            loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
-            return {
-                $: 'OnRamp_MessageValidationFailed',
-                error: s.loadUintBig(256),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: Router_GetValidatedFeeContext.fromSlice(s),
-            }
-        })();
-    },
-    store(self: OnRamp_MessageValidationFailed_GetValidatedFeeContext, b: c.Builder): void {
-        b.storeUint(0xac1dd12e, 32);
-        b.storeUint(self.error, 256);
-        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
-        Router_GetValidatedFeeContext.store(self.context, b);
-    },
-    toCell(self: OnRamp_MessageValidationFailed_GetValidatedFeeContext): c.Cell {
-        return makeCellFrom<OnRamp_MessageValidationFailed_GetValidatedFeeContext>(self, OnRamp_MessageValidationFailed_GetValidatedFeeContext.store);
     }
 }
 
@@ -3204,7 +3165,8 @@ export const Router_WithdrawToTokenPool = {
 
 /**
  > struct Router_WithdrawRequest {
- >     routerWalletAddress: address
+ >     accountWalletAddress: address
+ >     depositAccount: address
  >     amount: coins
  >     tokenPool: address
  >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
@@ -3212,7 +3174,8 @@ export const Router_WithdrawToTokenPool = {
  */
 export interface Router_WithdrawRequest {
     readonly $: 'Router_WithdrawRequest'
-    routerWalletAddress: c.Address
+    accountWalletAddress: c.Address
+    depositAccount: c.Address
     amount: coins
     tokenPool: c.Address
     forwardPayload: TokenPool_LockOrBurnForwardPayload
@@ -3220,7 +3183,8 @@ export interface Router_WithdrawRequest {
 
 export const Router_WithdrawRequest = {
     create(args: {
-        routerWalletAddress: c.Address
+        accountWalletAddress: c.Address
+        depositAccount: c.Address
         amount: coins
         tokenPool: c.Address
         forwardPayload: TokenPool_LockOrBurnForwardPayload
@@ -3233,20 +3197,103 @@ export const Router_WithdrawRequest = {
     fromSlice(s: c.Slice): Router_WithdrawRequest {
         return {
             $: 'Router_WithdrawRequest',
-            routerWalletAddress: s.loadAddress(),
+            accountWalletAddress: s.loadAddress(),
+            depositAccount: s.loadAddress(),
             amount: s.loadCoins(),
             tokenPool: s.loadAddress(),
             forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
         }
     },
     store(self: Router_WithdrawRequest, b: c.Builder): void {
-        b.storeAddress(self.routerWalletAddress);
+        b.storeAddress(self.accountWalletAddress);
+        b.storeAddress(self.depositAccount);
         b.storeCoins(self.amount);
         b.storeAddress(self.tokenPool);
         storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
     },
     toCell(self: Router_WithdrawRequest): c.Cell {
         return makeCellFrom<Router_WithdrawRequest>(self, Router_WithdrawRequest.store);
+    }
+}
+
+/**
+ > struct (0x0e24d5ba) Router_GetOnRampAccount {
+ >     queryId: uint64
+ > }
+ */
+export interface Router_GetOnRampAccount {
+    readonly $: 'Router_GetOnRampAccount'
+    queryId: uint64
+}
+
+export const Router_GetOnRampAccount = {
+    PREFIX: 0x0e24d5ba,
+
+    create(args: {
+        queryId?: uint64
+    }): Router_GetOnRampAccount {
+        return {
+            $: 'Router_GetOnRampAccount',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_GetOnRampAccount {
+        loadAndCheckPrefix32(s, 0x0e24d5ba, 'Router_GetOnRampAccount');
+        return {
+            $: 'Router_GetOnRampAccount',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Router_GetOnRampAccount, b: c.Builder): void {
+        b.storeUint(0x0e24d5ba, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Router_GetOnRampAccount): c.Cell {
+        return makeCellFrom<Router_GetOnRampAccount>(self, Router_GetOnRampAccount.store);
+    }
+}
+
+/**
+ > struct (0xf28658e0) Router_UseOnRampAccount {
+ >     queryId: uint64
+ >     account: address
+ > }
+ */
+export interface Router_UseOnRampAccount {
+    readonly $: 'Router_UseOnRampAccount'
+    queryId: uint64
+    account: c.Address
+}
+
+export const Router_UseOnRampAccount = {
+    PREFIX: 0xf28658e0,
+
+    create(args: {
+        queryId?: uint64
+        account: c.Address
+    }): Router_UseOnRampAccount {
+        return {
+            $: 'Router_UseOnRampAccount',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_UseOnRampAccount {
+        loadAndCheckPrefix32(s, 0xf28658e0, 'Router_UseOnRampAccount');
+        return {
+            $: 'Router_UseOnRampAccount',
+            queryId: s.loadUintBig(64),
+            account: s.loadAddress(),
+        }
+    },
+    store(self: Router_UseOnRampAccount, b: c.Builder): void {
+        b.storeUint(0xf28658e0, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.account);
+    },
+    toCell(self: Router_UseOnRampAccount): c.Cell {
+        return makeCellFrom<Router_UseOnRampAccount>(self, Router_UseOnRampAccount.store);
     }
 }
 
@@ -3732,29 +3779,90 @@ export const Router_CCIPSendNACK = {
 }
 
 /**
- > struct (0x4dd6aa82) Router_GetValidatedFee<T> {
+ > struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
  >     ccipSend: Cell<Router_CCIPSend>
- >     context: T
+ >     context: RemainingBitsAndRefs
  > }
  */
-export interface Router_GetValidatedFee<T> {
-    readonly $: 'Router_GetValidatedFee'
+export interface Router_GetValidatedFee_V1 {
+    readonly $: 'Router_GetValidatedFee_V1'
     ccipSend: Router_CCIPSend
-    context: T
+    context: RemainingBitsAndRefs
 }
 
-export const Router_GetValidatedFee = {
+export const Router_GetValidatedFee_V1 = {
     PREFIX: 0x4dd6aa82,
 
-    create<T>(args: {
+    create(args: {
         ccipSend: Router_CCIPSend
-        context: T
-    }): Router_GetValidatedFee<T> {
+        context: RemainingBitsAndRefs
+    }): Router_GetValidatedFee_V1 {
         return {
-            $: 'Router_GetValidatedFee',
+            $: 'Router_GetValidatedFee_V1',
             ...args
         }
     },
+    fromSlice(s: c.Slice): Router_GetValidatedFee_V1 {
+        loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee_V1');
+        return {
+            $: 'Router_GetValidatedFee_V1',
+            ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: loadTolkRemaining(s),
+        }
+    },
+    store(self: Router_GetValidatedFee_V1, b: c.Builder): void {
+        b.storeUint(0x4dd6aa82, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: Router_GetValidatedFee_V1): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee_V1>(self, Router_GetValidatedFee_V1.store);
+    }
+}
+
+/**
+ > struct (0x657ef7ec) Router_GetValidatedFee {
+ >     ccipSend: Cell<Router_CCIPSend>
+ >     context: cell?
+ > }
+ */
+export interface Router_GetValidatedFee {
+    readonly $: 'Router_GetValidatedFee'
+    ccipSend: Router_CCIPSend
+    context: c.Cell | null /* = null */
+}
+
+export const Router_GetValidatedFee = {
+    PREFIX: 0x657ef7ec,
+
+    create(args: {
+        ccipSend: Router_CCIPSend
+        context?: c.Cell | null /* = null */
+    }): Router_GetValidatedFee {
+        return {
+            $: 'Router_GetValidatedFee',
+            context: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_GetValidatedFee {
+        loadAndCheckPrefix32(s, 0x657ef7ec, 'Router_GetValidatedFee');
+        return {
+            $: 'Router_GetValidatedFee',
+            ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_GetValidatedFee, b: c.Builder): void {
+        b.storeUint(0x657ef7ec, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_GetValidatedFee): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee>(self, Router_GetValidatedFee.store);
+    }
 }
 
 /**
@@ -3924,19 +4032,22 @@ export const Router_TokenTransferDelivered = {
 /**
  > struct Router_GetValidatedFeeContext {
  >     routerContext: address
- >     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>
+ >     oldContextVersion: bool
+ >     userContext: cell?
  > }
  */
 export interface Router_GetValidatedFeeContext {
     readonly $: 'Router_GetValidatedFeeContext'
     routerContext: c.Address
-    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>
+    oldContextVersion: boolean
+    userContext: c.Cell | null
 }
 
 export const Router_GetValidatedFeeContext = {
     create(args: {
         routerContext: c.Address
-        userContext: RemainingBitsOrRef<RemainingBitsAndRefs>
+        oldContextVersion: boolean
+        userContext: c.Cell | null
     }): Router_GetValidatedFeeContext {
         return {
             $: 'Router_GetValidatedFeeContext',
@@ -3947,12 +4058,16 @@ export const Router_GetValidatedFeeContext = {
         return {
             $: 'Router_GetValidatedFeeContext',
             routerContext: s.loadAddress(),
-            userContext: loadTolkRemaining(s),
+            oldContextVersion: s.loadBoolean(),
+            userContext: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetValidatedFeeContext, b: c.Builder): void {
         b.storeAddress(self.routerContext);
-        storeTolkRemaining(self.userContext, b);
+        b.storeBit(self.oldContextVersion);
+        storeTolkNullable<c.Cell>(self.userContext, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: Router_GetValidatedFeeContext): c.Cell {
         return makeCellFrom<Router_GetValidatedFeeContext>(self, Router_GetValidatedFeeContext.store);
@@ -3960,117 +4075,195 @@ export const Router_GetValidatedFeeContext = {
 }
 
 /**
- > type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
+ > struct (0x9e2155ec) Router_MessageValidated_V1 {
+ >     fee: coins
+ >     msg: Cell<Router_CCIPSend>
+ >     context: RemainingBitsAndRefs
+ > }
  */
-export type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
+export interface Router_MessageValidated_V1 {
+    readonly $: 'Router_MessageValidated_V1'
+    fee: coins
+    msg: Router_CCIPSend
+    context: RemainingBitsAndRefs
+}
 
-export const Router_MessageValidated_Any = {
-    fromSlice(s: c.Slice): Router_MessageValidated_Any {
-        return (() => {
-            loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated');
-            return {
-                $: 'Router_MessageValidated',
-                fee: s.loadCoins(),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: loadTolkRemaining(s),
-            }
-        })();
+export const Router_MessageValidated_V1 = {
+    PREFIX: 0x9e2155ec,
+
+    create(args: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: RemainingBitsAndRefs
+    }): Router_MessageValidated_V1 {
+        return {
+            $: 'Router_MessageValidated_V1',
+            ...args
+        }
     },
-    store(self: Router_MessageValidated_Any, b: c.Builder): void {
+    fromSlice(s: c.Slice): Router_MessageValidated_V1 {
+        loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated_V1');
+        return {
+            $: 'Router_MessageValidated_V1',
+            fee: s.loadCoins(),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: loadTolkRemaining(s),
+        }
+    },
+    store(self: Router_MessageValidated_V1, b: c.Builder): void {
         b.storeUint(0x9e2155ec, 32);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidated_Any): c.Cell {
-        return makeCellFrom<Router_MessageValidated_Any>(self, Router_MessageValidated_Any.store);
+    toCell(self: Router_MessageValidated_V1): c.Cell {
+        return makeCellFrom<Router_MessageValidated_V1>(self, Router_MessageValidated_V1.store);
     }
 }
 
 /**
- > struct (0x9e2155ec) Router_MessageValidated<T> {
- >     fee: coins
+ > struct (0xec23c562) Router_MessageValidationFailed_V1 {
+ >     error: uint256
  >     msg: Cell<Router_CCIPSend>
- >     context: RemainingBitsOrRef<T>
+ >     context: RemainingBitsAndRefs
  > }
  */
-export interface Router_MessageValidated<T> {
-    readonly $: 'Router_MessageValidated'
-    fee: coins
+export interface Router_MessageValidationFailed_V1 {
+    readonly $: 'Router_MessageValidationFailed_V1'
+    error: uint256
     msg: Router_CCIPSend
-    context: RemainingBitsOrRef<T>
+    context: RemainingBitsAndRefs
 }
 
-export const Router_MessageValidated = {
-    PREFIX: 0x9e2155ec,
+export const Router_MessageValidationFailed_V1 = {
+    PREFIX: 0xec23c562,
 
-    create<T>(args: {
-        fee: coins
+    create(args: {
+        error: uint256
         msg: Router_CCIPSend
-        context: RemainingBitsOrRef<T>
-    }): Router_MessageValidated<T> {
+        context: RemainingBitsAndRefs
+    }): Router_MessageValidationFailed_V1 {
         return {
-            $: 'Router_MessageValidated',
+            $: 'Router_MessageValidationFailed_V1',
             ...args
         }
     },
-}
-
-/**
- > type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
- */
-export type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
-
-export const Router_MessageValidationFailed_Any = {
-    fromSlice(s: c.Slice): Router_MessageValidationFailed_Any {
-        return (() => {
-            loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed');
-            return {
-                $: 'Router_MessageValidationFailed',
-                error: s.loadUintBig(256),
-                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-                context: loadTolkRemaining(s),
-            }
-        })();
+    fromSlice(s: c.Slice): Router_MessageValidationFailed_V1 {
+        loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed_V1');
+        return {
+            $: 'Router_MessageValidationFailed_V1',
+            error: s.loadUintBig(256),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: loadTolkRemaining(s),
+        }
     },
-    store(self: Router_MessageValidationFailed_Any, b: c.Builder): void {
+    store(self: Router_MessageValidationFailed_V1, b: c.Builder): void {
         b.storeUint(0xec23c562, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidationFailed_Any): c.Cell {
-        return makeCellFrom<Router_MessageValidationFailed_Any>(self, Router_MessageValidationFailed_Any.store);
+    toCell(self: Router_MessageValidationFailed_V1): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed_V1>(self, Router_MessageValidationFailed_V1.store);
     }
 }
 
 /**
- > struct (0xec23c562) Router_MessageValidationFailed<T> {
- >     error: uint256
+ > struct (0x97ca8bd8) Router_MessageValidated {
+ >     fee: coins
  >     msg: Cell<Router_CCIPSend>
- >     context: RemainingBitsOrRef<T>
+ >     context: cell?
  > }
  */
-export interface Router_MessageValidationFailed<T> {
+export interface Router_MessageValidated {
+    readonly $: 'Router_MessageValidated'
+    fee: coins
+    msg: Router_CCIPSend
+    context: c.Cell | null
+}
+
+export const Router_MessageValidated = {
+    PREFIX: 0x97ca8bd8,
+
+    create(args: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }): Router_MessageValidated {
+        return {
+            $: 'Router_MessageValidated',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_MessageValidated {
+        loadAndCheckPrefix32(s, 0x97ca8bd8, 'Router_MessageValidated');
+        return {
+            $: 'Router_MessageValidated',
+            fee: s.loadCoins(),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_MessageValidated, b: c.Builder): void {
+        b.storeUint(0x97ca8bd8, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_MessageValidated): c.Cell {
+        return makeCellFrom<Router_MessageValidated>(self, Router_MessageValidated.store);
+    }
+}
+
+/**
+ > struct (0xe32e5616) Router_MessageValidationFailed {
+ >     error: uint256
+ >     msg: Cell<Router_CCIPSend>
+ >     context: cell?
+ > }
+ */
+export interface Router_MessageValidationFailed {
     readonly $: 'Router_MessageValidationFailed'
     error: uint256
     msg: Router_CCIPSend
-    context: RemainingBitsOrRef<T>
+    context: c.Cell | null
 }
 
 export const Router_MessageValidationFailed = {
-    PREFIX: 0xec23c562,
+    PREFIX: 0xe32e5616,
 
-    create<T>(args: {
+    create(args: {
         error: uint256
         msg: Router_CCIPSend
-        context: RemainingBitsOrRef<T>
-    }): Router_MessageValidationFailed<T> {
+        context: c.Cell | null
+    }): Router_MessageValidationFailed {
         return {
             $: 'Router_MessageValidationFailed',
             ...args
         }
     },
+    fromSlice(s: c.Slice): Router_MessageValidationFailed {
+        loadAndCheckPrefix32(s, 0xe32e5616, 'Router_MessageValidationFailed');
+        return {
+            $: 'Router_MessageValidationFailed',
+            error: s.loadUintBig(256),
+            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_MessageValidationFailed, b: c.Builder): void {
+        b.storeUint(0xe32e5616, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_MessageValidationFailed): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed>(self, Router_MessageValidationFailed.store);
+    }
 }
 
 /**
@@ -4503,6 +4696,247 @@ export const TokenPoolWithdrawBounced = {
     }
 }
 
+/**
+ > type CrossChainAddress = slice
+ */
+export type CrossChainAddress = c.Slice
+
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+    },
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    },
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
+    }
+}
+
+/**
+ > struct (0x181dcf10) GenericExtraArgsV2 {
+ >     gasLimit: uint256?
+ >     allowOutOfOrderExecution: bool
+ > }
+ */
+export interface GenericExtraArgsV2 {
+    readonly $: 'GenericExtraArgsV2'
+    gasLimit: uint256 | null
+    allowOutOfOrderExecution: boolean
+}
+
+export const GenericExtraArgsV2 = {
+    PREFIX: 0x181dcf10,
+
+    create(args: {
+        gasLimit: uint256 | null
+        allowOutOfOrderExecution: boolean
+    }): GenericExtraArgsV2 {
+        return {
+            $: 'GenericExtraArgsV2',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): GenericExtraArgsV2 {
+        loadAndCheckPrefix32(s, 0x181dcf10, 'GenericExtraArgsV2');
+        return {
+            $: 'GenericExtraArgsV2',
+            gasLimit: s.loadBoolean() ? s.loadUintBig(256) : null,
+            allowOutOfOrderExecution: s.loadBoolean(),
+        }
+    },
+    store(self: GenericExtraArgsV2, b: c.Builder): void {
+        b.storeUint(0x181dcf10, 32);
+        storeTolkNullable<uint256>(self.gasLimit, b,
+            (v,b) => b.storeUint(v, 256)
+        );
+        b.storeBit(self.allowOutOfOrderExecution);
+    },
+    toCell(self: GenericExtraArgsV2): c.Cell {
+        return makeCellFrom<GenericExtraArgsV2>(self, GenericExtraArgsV2.store);
+    }
+}
+
+/**
+ > struct (0x1f3b3aba) SVMExtraArgsV1 {
+ >     computeUnits: uint32
+ >     accountIsWritableBitmap: uint64
+ >     allowOutOfOrderExecution: bool
+ >     tokenReceiver: uint256
+ >     accounts: SnakedCell<uint256>
+ > }
+ */
+export interface SVMExtraArgsV1 {
+    readonly $: 'SVMExtraArgsV1'
+    computeUnits: uint32
+    accountIsWritableBitmap: uint64
+    allowOutOfOrderExecution: boolean
+    tokenReceiver: uint256
+    accounts: SnakedCell<uint256>
+}
+
+export const SVMExtraArgsV1 = {
+    PREFIX: 0x1f3b3aba,
+
+    create(args: {
+        computeUnits: uint32
+        accountIsWritableBitmap: uint64
+        allowOutOfOrderExecution: boolean
+        tokenReceiver: uint256
+        accounts: SnakedCell<uint256>
+    }): SVMExtraArgsV1 {
+        return {
+            $: 'SVMExtraArgsV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): SVMExtraArgsV1 {
+        loadAndCheckPrefix32(s, 0x1f3b3aba, 'SVMExtraArgsV1');
+        return {
+            $: 'SVMExtraArgsV1',
+            computeUnits: s.loadUintBig(32),
+            accountIsWritableBitmap: s.loadUintBig(64),
+            allowOutOfOrderExecution: s.loadBoolean(),
+            tokenReceiver: s.loadUintBig(256),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+        }
+    },
+    store(self: SVMExtraArgsV1, b: c.Builder): void {
+        b.storeUint(0x1f3b3aba, 32);
+        b.storeUint(self.computeUnits, 32);
+        b.storeUint(self.accountIsWritableBitmap, 64);
+        b.storeBit(self.allowOutOfOrderExecution);
+        b.storeUint(self.tokenReceiver, 256);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
+    },
+    toCell(self: SVMExtraArgsV1): c.Cell {
+        return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
+    }
+}
+
+/**
+ > struct (0x21ea4ca9) SuiExtraArgsV1 {
+ >     gasLimit: uint256
+ >     allowOutOfOrderExecution: bool
+ >     tokenReceiver: uint256
+ >     receiverObjectIds: SnakedCell<uint256>
+ > }
+ */
+export interface SuiExtraArgsV1 {
+    readonly $: 'SuiExtraArgsV1'
+    gasLimit: uint256
+    allowOutOfOrderExecution: boolean
+    tokenReceiver: uint256
+    receiverObjectIds: SnakedCell<uint256>
+}
+
+export const SuiExtraArgsV1 = {
+    PREFIX: 0x21ea4ca9,
+
+    create(args: {
+        gasLimit: uint256
+        allowOutOfOrderExecution: boolean
+        tokenReceiver: uint256
+        receiverObjectIds: SnakedCell<uint256>
+    }): SuiExtraArgsV1 {
+        return {
+            $: 'SuiExtraArgsV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): SuiExtraArgsV1 {
+        loadAndCheckPrefix32(s, 0x21ea4ca9, 'SuiExtraArgsV1');
+        return {
+            $: 'SuiExtraArgsV1',
+            gasLimit: s.loadUintBig(256),
+            allowOutOfOrderExecution: s.loadBoolean(),
+            tokenReceiver: s.loadUintBig(256),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+        }
+    },
+    store(self: SuiExtraArgsV1, b: c.Builder): void {
+        b.storeUint(0x21ea4ca9, 32);
+        b.storeUint(self.gasLimit, 256);
+        b.storeBit(self.allowOutOfOrderExecution);
+        b.storeUint(self.tokenReceiver, 256);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
+    },
+    toCell(self: SuiExtraArgsV1): c.Cell {
+        return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
+    }
+}
+
+/**
+ > struct TokenAmount {
+ >     amount: coins
+ >     token: address
+ > }
+ */
+export interface TokenAmount {
+    readonly $: 'TokenAmount'
+    amount: coins
+    token: c.Address
+}
+
+export const TokenAmount = {
+    create(args: {
+        amount: coins
+        token: c.Address
+    }): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            amount: s.loadCoins(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: TokenAmount, b: c.Builder): void {
+        b.storeCoins(self.amount);
+        b.storeAddress(self.token);
+    },
+    toCell(self: TokenAmount): c.Cell {
+        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class Router
 //
@@ -4542,7 +4976,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,
@@ -4563,13 +4997,10 @@ export class Router implements c.Contract {
         'Router_Error.OffRampAddressMismatch': 57104,
         'Router_Error.SubjectCursed': 57105,
         'Router_Error.NotOnRamp': 57106,
-        'Router_Error.MissingTokenAmounts': 57107,
-        'Router_Error.NoMultiTokenTransfers': 57108,
         'Router_Error.InsufficientFee': 57109,
-        'Router_Error.TokenTransferNotThroughNotification': 57110,
-        'Router_Error.TokenAmountMismatch': 57112,
-        'Router_Error.SourceChainSelectorMismatch': 57114,
-        'Router_Error.SenderIsNotDepositAccount': 57115,
+        'Router_Error.SourceChainSelectorMismatch': 57112,
+        'Router_Error.SenderIsNotDepositAccount': 57113,
+        'Router_Error.SenderIsNotOnRampAccount': 57115,
     }
 
     readonly address: c.Address
@@ -4632,16 +5063,34 @@ export class Router implements c.Contract {
         return Router_ApplyRampUpdates.toCell(Router_ApplyRampUpdates.create(body));
     }
 
-    static createCellOfRouterGetValidatedFeeAny(body: Router_GetValidatedFee_Any) {
-        return Router_GetValidatedFee_Any.toCell(body);
+    static createCellOfRouterGetValidatedFeeV1(body: {
+        ccipSend: Router_CCIPSend
+        context: RemainingBitsAndRefs
+    }) {
+        return Router_GetValidatedFee_V1.toCell(Router_GetValidatedFee_V1.create(body));
     }
 
-    static createCellOfOnRampMessageValidatedGetValidatedFeeContext(body: OnRamp_MessageValidated_GetValidatedFeeContext) {
-        return OnRamp_MessageValidated_GetValidatedFeeContext.toCell(body);
+    static createCellOfRouterGetValidatedFee(body: {
+        ccipSend: Router_CCIPSend
+        context?: c.Cell | null /* = null */
+    }) {
+        return Router_GetValidatedFee.toCell(Router_GetValidatedFee.create(body));
     }
 
-    static createCellOfOnRampMessageValidationFailedGetValidatedFeeContext(body: OnRamp_MessageValidationFailed_GetValidatedFeeContext) {
-        return OnRamp_MessageValidationFailed_GetValidatedFeeContext.toCell(body);
+    static createCellOfOnRampMessageValidated(body: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }) {
+        return OnRamp_MessageValidated.toCell(OnRamp_MessageValidated.create(body));
+    }
+
+    static createCellOfOnRampMessageValidationFailed(body: {
+        error: uint256
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }) {
+        return OnRamp_MessageValidationFailed.toCell(OnRamp_MessageValidationFailed.create(body));
     }
 
     static createCellOfRouterRouteMessage(body: {
@@ -4765,6 +5214,12 @@ export class Router implements c.Contract {
         return Router_TokenTransferDelivered.toCell(Router_TokenTransferDelivered.create(body));
     }
 
+    static createCellOfRouterGetOnRampAccount(body: {
+        queryId?: uint64
+    }) {
+        return Router_GetOnRampAccount.toCell(Router_GetOnRampAccount.create(body));
+    }
+
     static createCellOfDepositAccountReply(body: {
         queryId?: uint64
         forwardPayload: c.Cell | null
@@ -4777,6 +5232,16 @@ export class Router implements c.Contract {
         forwardPayload: c.Cell | null
     }) {
         return DepositAccount_NotEnoughValue.toCell(DepositAccount_NotEnoughValue.create(body));
+    }
+
+    static createCellOfDepositAccountWithdrawFailed(body: {
+        queryId?: uint64
+        owner: c.Address
+        proxy: c.Address
+        walletAddress: c.Address
+        ask: AskToTransfer
+    }) {
+        return DepositAccount_WithdrawFailed.toCell(DepositAccount_WithdrawFailed.create(body));
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
@@ -4846,26 +5311,48 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterGetValidatedFeeAny(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_Any, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFeeV1(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        ccipSend: Router_CCIPSend
+        context: RemainingBitsAndRefs
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_GetValidatedFee_Any.toCell(body),
+            body: Router_GetValidatedFee_V1.toCell(Router_GetValidatedFee_V1.create(body)),
             ...extraOptions
         });
     }
 
-    async sendOnRampMessageValidatedGetValidatedFeeContext(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_MessageValidated_GetValidatedFeeContext, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFee(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        ccipSend: Router_CCIPSend
+        context?: c.Cell | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: OnRamp_MessageValidated_GetValidatedFeeContext.toCell(body),
+            body: Router_GetValidatedFee.toCell(Router_GetValidatedFee.create(body)),
             ...extraOptions
         });
     }
 
-    async sendOnRampMessageValidationFailedGetValidatedFeeContext(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_MessageValidationFailed_GetValidatedFeeContext, extraOptions?: ExtraSendOptions) {
+    async sendOnRampMessageValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        fee: coins
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: OnRamp_MessageValidationFailed_GetValidatedFeeContext.toCell(body),
+            body: OnRamp_MessageValidated.toCell(OnRamp_MessageValidated.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOnRampMessageValidationFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        error: uint256
+        msg: Router_CCIPSend
+        context: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OnRamp_MessageValidationFailed.toCell(OnRamp_MessageValidationFailed.create(body)),
             ...extraOptions
         });
     }
@@ -5051,6 +5538,16 @@ export class Router implements c.Contract {
         });
     }
 
+    async sendRouterGetOnRampAccount(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_GetOnRampAccount.toCell(Router_GetOnRampAccount.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendDepositAccountReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         forwardPayload: c.Cell | null
@@ -5069,6 +5566,20 @@ export class Router implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: DepositAccount_NotEnoughValue.toCell(DepositAccount_NotEnoughValue.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendDepositAccountWithdrawFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        owner: c.Address
+        proxy: c.Address
+        walletAddress: c.Address
+        ask: AskToTransfer
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: DepositAccount_WithdrawFailed.toCell(DepositAccount_WithdrawFailed.create(body)),
             ...extraOptions
         });
     }
@@ -5105,6 +5616,46 @@ export class Router implements c.Contract {
             body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
+    }
+
+    async getOnRampAccountAutodeployAddress(provider: ContractProvider, sender: c.Address): Promise<AutoDeployAddress> {
+        const r = StackReader.fromGetMethod(7, await provider.get('onRampAccountAutodeployAddress', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(sender,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return ({
+            $: 'AutoDeployAddress',
+            workchain: r.readBigInt(),
+            stateInit: r.readUnionType<ContractState | { $: 'cell', value: c.Cell }>(3, {
+                130: [2, null,
+                    (r) => ({
+                        $: 'ContractState',
+                        code: r.readCell(),
+                        data: r.readCell(),
+                    })
+                ],
+                3: [1, 'cell',
+                    (r) => r.readCell()
+                ],
+            }),
+            toShard: r.readWideNullable<AddressShardingOptions>(3,
+                (r) => ({
+                    $: 'AddressShardingOptions',
+                    fixedPrefixLength: r.readBigInt(),
+                    closeTo: r.readSlice().loadAddress(),
+                })
+            ),
+        });
+    }
+
+    async getOnRampAccountAddress(provider: ContractProvider, sender: c.Address): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('onRampAccountAddress', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(sender,
+                (v,b) => b.storeAddress(v)
+            ) },
+        ]));
+        return r.readSlice().loadAddress();
     }
 
     async getVerifyNotCursed(provider: ContractProvider, subject: uint128): Promise<boolean> {

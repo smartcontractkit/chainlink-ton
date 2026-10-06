@@ -208,7 +208,7 @@ fun DepositAccount<T>.onWithdraw(
 
     // The AskToTransfer must carry the requester as `sendExcessesTo` so a bounce can be correlated
     // back to the sender and notified on the failure path.
-    assert(ask.sendExcessesTo != null && ask.sendExcessesTo! == sender, DepositAccount_Error.OnlySendExcessesToSender);
+    assert(ask.sendExcessesTo != null && ask.sendExcessesTo == sender, DepositAccount_Error.OnlySendExcessesToSender);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -313,6 +313,8 @@ fun DepositAccount<T>.onWithdrawBounced(
         dest: ask.sendExcessesTo!,
         body: DepositAccount_WithdrawFailed {
             queryId: ask.queryId,
+            owner: self.data.owner,
+            proxy: self.data.proxy,
             walletAddress: sender,
             ask: ask.toCell(),
         },
