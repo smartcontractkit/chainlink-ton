@@ -1087,10 +1087,11 @@ describe('ReceiveExecutor - Execution', () => {
         // Token admin re-points the registry entry to a new pool.
         const newTokenPool = await blockchain.treasury('newTokenPool')
         await initExecuteQueriesRegistry(receiveExecutorPtt)
-        const returnResult = await receiveExecutorPtt.sendTokenAdminRegistryEntryReturnTokenInfo(
+        const returnResult = await receiveExecutorPtt.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
           toNano('1'),
           {
+            token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: newTokenPool.address,
             version: 1n,
