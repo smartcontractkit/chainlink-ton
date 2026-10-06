@@ -327,9 +327,9 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should query the tokenRegistry from the config on validated fee for a token transfer', async () => {
-    // The executor config carries tokenRegistry:
-    // on a successful fee validation the executor must query that tokenRegistry.
+  // Sends a validated-fee response for the token-transfer send, with the given
+  // destGasOverheads list, against a config that carries a tokenRegistry.
+  async function sendValidatedTokenFee(destGasOverheads: bigint[] | null) {
     const { sendExecutor } = await afterExecute({
       send: tokenOnrampSend,
       tokenRegistry: tokenRegistryMock.address,
@@ -340,10 +340,17 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        destGasOverheads: [90_000n],
+        destGasOverheads,
         msg: tokenOnrampSend.msg,
       }),
     )
+    return { sendExecutor, result }
+  }
+
+  it('should query the tokenRegistry from the config on validated fee for a token transfer', async () => {
+    // The executor config carries tokenRegistry:
+    // on a successful fee validation the executor must query that tokenRegistry.
+    const { sendExecutor, result } = await sendValidatedTokenFee([90_000n])
 
     // The query must be addressed to the tokenRegistry from the config.
     expect(result.transactions).toHaveTransaction({
@@ -357,6 +364,46 @@ describe('SendExecutor - Unit tests', () => {
       to: onRampMock.address,
       op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
     })
+  })
+
+  // A token transfer needs exactly one destGasOverhead: it is the value the executor encodes
+  // into the emitted transfer's destExecData. null, an empty list and multiple entries are all
+  // ambiguous, so each must be rejected with InvalidValidatedFee before the tokenRegistry is
+  // queried (and before any lock/burn is requested).
+  async function expectTokenFeeRejected(destGasOverheads: bigint[] | null) {
+    const { sendExecutor, result } = await sendValidatedTokenFee(destGasOverheads)
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+        return (
+          finished.error ===
+          BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.InvalidValidatedFee'])
+        )
+      },
+    })
+    // Rejected before querying the tokenRegistry.
+    expect(result.transactions).not.toHaveTransaction({
+      from: sendExecutor.address,
+      to: tokenRegistryMock.address,
+    })
+  }
+
+  it('should reject a null destGasOverheads list for a token transfer', async () => {
+    await expectTokenFeeRejected(null)
+  })
+
+  it('should reject an empty destGasOverheads list for a token transfer', async () => {
+    await expectTokenFeeRejected([])
+  })
+
+  it('should reject multiple destGasOverheads for a token transfer', async () => {
+    await expectTokenFeeRejected([90_000n, 91_000n])
   })
 
   it('should exit successfully on validated fee without a token transfer or tokenRegistry', async () => {
