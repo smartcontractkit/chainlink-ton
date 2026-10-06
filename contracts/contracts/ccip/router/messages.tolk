@@ -101,7 +101,9 @@ struct Router_WithdrawRequest {
 /// sender's address. The Router answers with Router_UseOnRampAccount once the account
 /// confirms initialization (DepositAccount_Reply).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
-    queryId: uint64;
+    queryId: uint64
+    // Address of the minter contract for the jetton token
+    token: address
 }
 
 /// Sent to a user once their onramp account confirmed initialization: `account` is the

@@ -8,11 +8,15 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import { generateMockTonAddress } from '../../../src/utils'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 
 // Value covering Router_Costs.GetOnRampAccount() plus the account's init compute/storage and
 // the reply round-trip (the Router carries all remaining value forward on each leg).
 const getOnRampAccountValue = toNano('1')
+
+// The Router does not validate the token on GetOnRampAccount: it only keys the account by it.
+const token = generateMockTonAddress()
 
 describe('Router.getOnRampAccount', () => {
   let blockchain: Blockchain
@@ -46,18 +50,19 @@ describe('Router.getOnRampAccount', () => {
     attacker = await blockchain.treasury('attacker')
   })
 
-  // The Router's own derivation of the sender's onramp account (Deployable namespace 4,
-  // owner = Router, id = user address). Must match Router.onRampAccountAddress.
+  // The Router's own derivation of the sender's onramp account (Deployable namespace
+  // OnRampAccount, owner = Router, id = (user address, token)). Must match
+  // Router.onRampAccountAddress.
   const expectedAccountAddress = (): Address =>
     NameSpace.deriveAddress(
       router.address,
       NameSpace.CCIPNamespace.OnRampAccount,
-      beginCell().storeAddress(sender.address),
+      beginCell().storeAddress(sender.address).storeAddress(token),
       deployableCode,
     )
 
   it('exposes the derived account address via the onRampAccountAddress getter', async () => {
-    const getterAddress = await router.getOnRampAccountAddress(sender.address)
+    const getterAddress = await router.getOnRampAccountAddress(sender.address, token)
     expect(getterAddress.equals(expectedAccountAddress())).toBe(true)
   })
 
@@ -66,7 +71,7 @@ describe('Router.getOnRampAccount', () => {
     const result = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
-      {},
+      { token },
     )
 
     // Router -> account (Deployable_Initialize installs the OnRampAccount code/data; the
@@ -98,7 +103,9 @@ describe('Router.getOnRampAccount', () => {
         const reply = deposit.DepositAccount_Reply.fromSlice(body.beginParse())
         const payload = reply.forwardPayload
         if (!payload) return false
-        return payload.beginParse().loadAddress().equals(sender.address)
+        return (
+          reply.token.equals(token) && payload.beginParse().loadAddress().equals(sender.address)
+        )
       },
     })
 
@@ -119,7 +126,7 @@ describe('Router.getOnRampAccount', () => {
     const result = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
-      {},
+      { token },
     )
     expect(result.transactions).toHaveTransaction({
       to: sender.address,
@@ -145,7 +152,7 @@ describe('Router.getOnRampAccount', () => {
     const first = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
-      {},
+      { token },
     )
     expect(first.transactions).toHaveTransaction({
       to: sender.address,
@@ -158,7 +165,7 @@ describe('Router.getOnRampAccount', () => {
     const second = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
-      {},
+      { token },
     )
     expect(second.transactions).toHaveTransaction({
       from: router.address,
@@ -180,14 +187,14 @@ describe('Router.getOnRampAccount', () => {
 
   it('gives different users different onramp accounts', async () => {
     const other = attacker
-    const forSender = await router.getOnRampAccountAddress(sender.address)
-    const forOther = await router.getOnRampAccountAddress(other.address)
+    const forSender = await router.getOnRampAccountAddress(sender.address, token)
+    const forOther = await router.getOnRampAccountAddress(other.address, token)
     expect(forSender.equals(forOther)).toBe(false)
 
     const result = await router.sendRouterGetOnRampAccount(
       other.getSender(),
       getOnRampAccountValue,
-      {},
+      { token },
     )
     expect(result.transactions).toHaveTransaction({
       from: router.address,
@@ -206,6 +213,7 @@ describe('Router.getOnRampAccount', () => {
     // sender's address in the forward payload. The Router re-derives the expected account
     // address from the payload and rejects the message (SenderIsNotOnRampAccount).
     const spoofed = await router.sendDepositAccountReply(attacker.getSender(), toNano('0.5'), {
+      token,
       forwardPayload: beginCell().storeAddress(sender.address).endCell(),
     })
     expect(spoofed.transactions).toHaveTransaction({

@@ -136,6 +136,7 @@ fun deployOffRampAccountWithRelease(
                 data: DepositAccount_Data {
                     owner: poolAddr,
                     proxy: poolAddr,
+                    token: ZERO_ADDRESS, // TODO: to remove when deposit account ownership gets moved to Router
                     beneficiaries,
                 }.toCell(),
             },

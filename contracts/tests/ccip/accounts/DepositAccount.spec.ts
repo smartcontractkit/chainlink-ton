@@ -25,6 +25,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   let recipient: SandboxContract<TreasuryContract> // owner
   let attacker: SandboxContract<TreasuryContract>
   let notifier: SandboxContract<TreasuryContract> // any jetton wallet (token-agnostic account)
+  let token: SandboxContract<TreasuryContract> // minter stand-in for the account's token
   let code: {
     deployable: Cell
     depositAccount: Cell
@@ -32,6 +33,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
 
   const owner = () => recipient.address
   const proxyAddr = () => proxy.address
+  const tokenAddr = () => token.address
   const beneficiaries = () => new Set<Address>([recipient.address])
 
   const init = async (
@@ -83,6 +85,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           da.DepositAccount_Data.create({
             owner: owner(),
             proxy: proxyAddr(),
+            token: tokenAddr(),
             beneficiaries: beneficiaries(),
           }),
         ),
@@ -140,6 +143,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     recipient = await blockchain.treasury(`recipient_${generateRandomContractId()}`)
     attacker = await blockchain.treasury('attacker')
     notifier = await blockchain.treasury('notifier')
+    token = await blockchain.treasury('token')
   })
 
   it('deploys with owner and proxy', async () => {
@@ -185,7 +189,9 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       body(body) {
         if (!body) return false
         const reply = da.DepositAccount_Reply.fromSlice(body.beginParse())
-        return reply.forwardPayload?.equals(forwardPayload) === true
+        return (
+          reply.token.equals(tokenAddr()) && reply.forwardPayload?.equals(forwardPayload) === true
+        )
       },
     })
 

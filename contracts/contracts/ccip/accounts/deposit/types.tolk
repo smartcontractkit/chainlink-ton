@@ -18,6 +18,8 @@ struct DepositAccount_Data {
     owner: address;
     /// Account that messages are forwarded to (e.g. TP, Router).
     proxy: address;
+    /// Token this deposit account is associated with.
+    token: address;
     /// Accounts that are allowed to withdraw jettons from this account's wallet (a set).
     beneficiaries: map<address, ()>;
 }

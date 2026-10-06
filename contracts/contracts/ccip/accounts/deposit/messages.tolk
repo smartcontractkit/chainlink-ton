@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
-import "../../../lib/deployable/types"
 
 /// Initialization message sent by the owner to activate the account.
 /// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
@@ -22,8 +21,9 @@ struct (0x6890a205) DepositAccount_Init {
 /// Reply message on successful initialization
 /// TODO rename to `DepositAccount_Initialized`
 struct (0xda04630c) DepositAccount_Reply {
-    queryId: uint64;
-    forwardPayload: cell?;
+    queryId: uint64
+    token: address
+    forwardPayload: cell?
 }
 
 /// Reply message on failed initialization due to insufficient value.
@@ -71,13 +71,18 @@ struct (0x1936d112) DepositAccount_Withdraw {
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
     /// Required to verify the deposit account.
-    owner: address;
-    /// Required to verify the deposit account.
-    proxy: address;
+    id: Cell<DepositAccountID>
+
     /// Jetton wallet the failed AskToTransfer was sent to.
     walletAddress: address;
     /// The bounced AskToTransfer (carries amount + recipient + the requester in `sendExcessesTo` for reconciliation).
     ask: Cell<AskToTransfer>;
+}
+
+struct DepositAccountID {
+    owner: address
+    proxy: address
+    token: address
 }
 
 /// The subset of outgoing messages that can bounce back into this account, used to match bounced

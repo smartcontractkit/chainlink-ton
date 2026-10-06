@@ -12,10 +12,14 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
+import { generateMockTonAddress } from '../../../src/utils'
 
 // Value covering the Router's compute + the DepositAccount_Withdraw forward (the Router carries
 // all remaining value forward on each leg).
 const withdrawValue = toNano('1')
+
+// The Router does not validate the token on GetOnRampAccount: it only keys the account by it.
+const token = generateMockTonAddress()
 
 describe('Router.withdrawToTokenPool', () => {
   let blockchain: Blockchain
@@ -53,19 +57,19 @@ describe('Router.withdrawToTokenPool', () => {
   const destChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
   // The sender's per-user deposit account, derived exactly like Router.onRampAccountAddress
-  // (Deployable namespace OnRampAccount, owner = Router, id = user address).
+  // (Deployable namespace OnRampAccount, owner = Router, id = (user address, token)).
   const accountAddressFor = (user: Address): Address =>
     NameSpace.deriveAddress(
       router.address,
       NameSpace.CCIPNamespace.OnRampAccount,
-      beginCell().storeAddress(user),
+      beginCell().storeAddress(user).storeAddress(token),
       deployableCode,
     )
 
   // Deploys the sender's deposit account through the Router's permissionless
   // Router_GetOnRampAccount entrypoint, so the account exists with the Router as owner.
   const deployDepositAccount = async (user: SandboxContract<TreasuryContract>) => {
-    const res = await router.sendRouterGetOnRampAccount(user.getSender(), toNano('1'), {})
+    const res = await router.sendRouterGetOnRampAccount(user.getSender(), toNano('1'), { token })
     expect(res.transactions).toHaveTransaction({
       from: router.address,
       to: user.address,
@@ -218,8 +222,11 @@ describe('Router.withdrawToTokenPool', () => {
       blockchain.sender(accountAddress),
       toNano('0.5'),
       {
-        owner: router.address,
-        proxy: sender.address,
+        id: deposit.DepositAccountID.create({
+          owner: router.address,
+          proxy: sender.address,
+          token,
+        }),
         walletAddress: walletAddress.address,
         ask,
       },
@@ -260,8 +267,11 @@ describe('Router.withdrawToTokenPool', () => {
       attacker.getSender(),
       toNano('0.5'),
       {
-        owner: router.address,
-        proxy: sender.address,
+        id: deposit.DepositAccountID.create({
+          owner: router.address,
+          proxy: sender.address,
+          token,
+        }),
         walletAddress: walletAddress.address,
         ask,
       },

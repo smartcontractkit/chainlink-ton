@@ -1,14 +1,22 @@
 import "../../lib/deployable/namespace"
 
-fun onRampAccountAutodeployAddressForRouter(sender: address, router: address, deployableCode: cell): AutoDeployAddress {
+fun _onRampAccountAddress(sender: address, token: address, router: address, deployableCode: cell): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
             code: deployableCode,
-            data: NamespacedDeployableData<address>({
+            data: NamespacedDeployableData<OnRampAccountID>({
                 namespace: DeployableNamespace_OnRampAccount,
                 owner: router,
-                id: sender,
+                id: OnRampAccountID{
+                    sender,
+                    token,
+                },
             }),
         },
     };
+}
+
+struct OnRampAccountID {
+    sender: address,
+    token: address,
 }
