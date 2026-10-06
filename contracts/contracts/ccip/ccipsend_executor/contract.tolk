@@ -440,7 +440,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
             tokenTransfer,
         }
     });
-    // SAFETY: This is an ephimeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
+    // SAFETY: This is an ephemeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -472,7 +472,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) 
             refund: chargedFee.toOptCell(),
         }
     });
-    // SAFETY: This is an ephimeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
+    // SAFETY: This is an ephemeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
