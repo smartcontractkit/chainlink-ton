@@ -24,7 +24,8 @@ const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000
 // Builds the pool-supplied forward payload the CCIPSendExecutor would relay inside the
 // withdraw request. Only `prepared.out.destTokenAddress` matters for these tests.
 function buildWithdrawRequest(opts: {
-  routerWalletAddress: Address
+  accountWalletAddress: Address
+  depositAccount: Address
   tokenPool: Address
   destTokenAddress: Buffer
   originalSender: Address
@@ -59,7 +60,8 @@ function buildWithdrawRequest(opts: {
   })
 
   return rt.Router_WithdrawRequest.create({
-    routerWalletAddress: opts.routerWalletAddress,
+    accountWalletAddress: opts.accountWalletAddress,
+    depositAccount: opts.depositAccount,
     amount: 1n,
     tokenPool: opts.tokenPool,
     forwardPayload: tp.TokenPool_LockOrBurnForwardPayload.create({
@@ -76,6 +78,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   let onramp: SandboxContract<or.OnRamp>
   let mockRouter: SandboxContract<TreasuryContract>
   let mockTokenPool: SandboxContract<TreasuryContract>
+  let mockAccountWallet: SandboxContract<TreasuryContract>
+  let mockDepositAccount: SandboxContract<TreasuryContract>
   let executorSender: Sender
   let executorID: bigint
 
@@ -94,6 +98,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     deployer = await blockchain.treasury('deployer')
     mockRouter = await blockchain.treasury('mockRouter')
     mockTokenPool = await blockchain.treasury('mockTokenPool')
+    mockAccountWallet = await blockchain.treasury('mockAccountWallet')
+    mockDepositAccount = await blockchain.treasury('mockDepositAccount')
     executorID = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
@@ -179,7 +185,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       destChainSelector: DEST_CHAIN_SELECTOR,
       chainFamilySelector,
       withdrawRequest: buildWithdrawRequest({
-        routerWalletAddress: mockRouter.address,
+        accountWalletAddress: mockAccountWallet.address,
+        depositAccount: mockDepositAccount.address,
         tokenPool: mockTokenPool.address,
         destTokenAddress,
         originalSender: deployer.address,
