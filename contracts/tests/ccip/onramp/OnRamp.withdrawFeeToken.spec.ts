@@ -236,13 +236,13 @@ describe('OnRamp - WithdrawFeeTokens', () => {
 
     // The executor reserves its validated fee.
     const executor = blockchain.openContract(ex.CCIPSendExecutor.fromAddress(executorAddress))
-    const reserveResult = await executor.sendFeeQuoterMessageValidatedAny(
+    const reserveResult = await executor.sendFeeQuoterMessageValidated(
       mockFeeQuoter.getSender(),
       toNano('0.3'),
       ex.FeeQuoter_MessageValidated.create({
         fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
         msg: ccipSend,
-        context: beginCell().asSlice(),
+        destGasOverheads: [90_000n],
       }),
     )
     expect(reserveResult.transactions).toHaveTransaction({
