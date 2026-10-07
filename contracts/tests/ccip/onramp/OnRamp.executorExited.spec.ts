@@ -234,6 +234,34 @@ describe('OnRamp - executor exit', () => {
     expect(finalBalance).toBe(originalBalance - refund)
   })
 
+  it('should release the pending reservation on refund', async () => {
+    // Reserve the fee directly (as the executor would), then report the error.
+    const fee = toNano('0.1')
+    await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
+      executorID: executorID,
+      fee,
+    })
+    expect(await onramp.getPendingFeeReservations()).toBe(fee)
+
+    const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('0.5'), {
+      executorID: executorID,
+      queryID: ccipSend.queryID,
+      destChainSelector: ccipSend.destChainSelector,
+      sender: senderAddress,
+      error: 42n,
+      refund: fee,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Router_MessageRejected.PREFIX,
+    })
+
+    // The refund released the reservation.
+    expect(await onramp.getPendingFeeReservations()).toBe(0n)
+  })
+
   describe('executor reserve fee', () => {
     it('should reserve the fee and confirm back to the executor', async () => {
       const fee = toNano('0.1')
@@ -249,7 +277,6 @@ describe('OnRamp - executor exit', () => {
           fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
           destGasOverheads: [90_000n],
           msg: ccipSend,
-          context: Cell.EMPTY,
         }),
       )
 
@@ -299,6 +326,56 @@ describe('OnRamp - executor exit', () => {
       // the inbound message value, not from the stored balance).
       const onrampBalanceAfter = (await blockchain.getContract(onramp.address)).balance
       expect(onrampBalanceAfter).toBe(onrampBalanceBefore + fee)
+    })
+
+    it('should track pending reservations through the send lifecycle', async () => {
+      // No pending reservations on a fresh contract.
+      expect(await onramp.getPendingFeeReservations()).toBe(0n)
+
+      const fee = toNano('0.1')
+      const executor = blockchain.openContract(ex.CCIPSendExecutor.fromAddress(executorAddress))
+
+      // The reservation increments the counter. The send carries a token transfer,
+      // so after the confirmation the executor continues executing (tokenRegistry
+      // query) and the reservation stays pending until the send finishes.
+      const result = await executor.sendFeeQuoterMessageValidated(
+        mockFeeQuoter.getSender(),
+        toNano('0.3'),
+        ex.FeeQuoter_MessageValidated.create({
+          fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+          msg: ccipSend,
+          destGasOverheads: [90_000n],
+        }),
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: onramp.address,
+        success: true,
+        op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      })
+      expect(await onramp.getPendingFeeReservations()).toBe(fee)
+
+      // The executor's success report releases the reservation: the fee was
+      // consumed by the send.
+      await onramp.sendOnRampExecutorFinishedSuccessfully(executorSender, toNano('0.5'), {
+        executorID: executorID,
+        fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+        msg: ccipSend,
+        metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
+        tokenTransfer: null,
+      })
+      expect(await onramp.getPendingFeeReservations()).toBe(0n)
+
+      // A fabricated success report without a reservation must not underflow
+      // the counter (saturating release).
+      await onramp.sendOnRampExecutorFinishedSuccessfully(executorSender, toNano('0.5'), {
+        executorID: executorID,
+        fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+        msg: ccipSend,
+        metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
+        tokenTransfer: null,
+      })
+      expect(await onramp.getPendingFeeReservations()).toBe(0n)
     })
 
     it('should fail to reserve fee if sender is not the executor', async () => {

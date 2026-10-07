@@ -255,7 +255,8 @@ func TestStorage(t *testing.T) {
 			AllowListAdmin: dummyAddr,
 			Reserve:        tlb.MustFromTON("0.05"),
 		},
-		DestChainConfigs: destConfigMap,
+		DestChainConfigs:       destConfigMap,
+		PendingFeeReservations: tlb.MustFromTON("0.01"),
 	}
 
 	c, err = tlb.ToCell(s)
@@ -269,6 +270,9 @@ func TestStorage(t *testing.T) {
 	require.Equal(t, s.Config, decoded.Config)
 	require.Equal(t, dummyAddr, decoded.StaticConfig.TokenAdminRegistry)
 	require.NotNil(t, decoded.DestChainConfigs)
+	require.NotNil(t, decoded.PendingFeeReservations)
+	require.Equal(t, s.PendingFeeReservations, decoded.PendingFeeReservations)
+
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)
 	require.Len(t, destConfigDecodedMap, 1)
