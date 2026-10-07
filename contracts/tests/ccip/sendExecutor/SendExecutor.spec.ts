@@ -234,7 +234,7 @@ describe('SendExecutor - Unit tests', () => {
           feeTokenAmount: opts?.fee ?? FeeTokenAmount,
           feeValueJuels: toNano('0.1'),
         }),
-        destGasOverheads: [],
+        destGasOverheads: opts?.tokenRegistry ? [90_000n] : [],
         msg: send.msg,
         context: beginCell().endCell(),
       }),
@@ -500,7 +500,17 @@ describe('SendExecutor - Unit tests', () => {
   it('should exit successfully on validated fee without a token transfer or tokenRegistry', async () => {
     // A config without a tokenRegistry and a message without token transfers behaves like the
     // plain messaging flow: it finishes successfully without touching any registry.
-    const { sendExecutor, result } = await afterFeeReserved()
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: null,
+        msg: onrampSend.msg,
+      }),
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -516,7 +526,17 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incoming value', async () => {
-    const { sendExecutor, result } = await afterFeeReserved()
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: null,
+        msg: onrampSend.msg,
+      }),
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -666,9 +686,20 @@ describe('SendExecutor - Unit tests', () => {
   }
 
   it('should throw on validation message after successful exit', async () => {
-    const { sendExecutor, result } = await afterFeeReserved()
+    const { sendExecutor } = await afterExecute()
 
-    // The executor finished successfully upon the fee reservation confirmation.
+    // The executor finalizes immediately on the validated fee: the send has no
+    // token transfers, so there is nothing to reserve or execute.
+    const result = await sendExecutor.sendFeeQuoterMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      sx.FeeQuoter_MessageValidated.create({
+        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
+        destGasOverheads: null,
+        msg: onrampSend.msg,
+      }),
+    )
+
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
       to: onRampMock.address,
@@ -684,7 +715,7 @@ describe('SendExecutor - Unit tests', () => {
         toNano('0.3'),
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-          destGasOverheads: [],
+          destGasOverheads: null,
           msg: onrampSend.msg,
         }),
       ),
@@ -793,14 +824,15 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should request the fee reservation from the onramp on validated fee', async () => {
-    const { sendExecutor } = await afterExecute()
+    const { sendExecutor } = await afterExecute({ send: tokenOnrampSend })
 
     const result = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
+        destGasOverheads: [90_000n],
+        msg: tokenOnrampSend.msg,
         context: beginCell().endCell(),
       }),
     )
@@ -832,7 +864,7 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should throw on fee reserved from non-onramp', async () => {
-    const { sendExecutor } = await afterExecute()
+    const { sendExecutor } = await afterExecute({ send: tokenOnrampSend })
 
     // First move the executor into the OnGoingFeeReservation state.
     await sendExecutor.sendFeeQuoterMessageValidated(
@@ -840,7 +872,8 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
+        destGasOverheads: [90_000n],
+        msg: tokenOnrampSend.msg,
         context: beginCell().endCell(),
       }),
     )
@@ -862,7 +895,7 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should throw on fee reserved with incorrect executorID', async () => {
-    const { sendExecutor } = await afterExecute()
+    const { sendExecutor } = await afterExecute({ send: tokenOnrampSend })
 
     // First move the executor into the OnGoingFeeReservation state.
     await sendExecutor.sendFeeQuoterMessageValidated(
@@ -870,7 +903,8 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
+        destGasOverheads: [90_000n],
+        msg: tokenOnrampSend.msg,
         context: beginCell().endCell(),
       }),
     )
@@ -933,7 +967,7 @@ describe('SendExecutor - Unit tests', () => {
         value: toNano('3'),
         body: sx.CCIPSendExecutor_Execute.toCell(
           sx.CCIPSendExecutor_Execute.create({
-            onrampSend,
+            onrampSend: tokenOnrampSend,
             config: sx.CCIPSendExecutor_Config.create({
               router: routerMock.address,
               feeQuoter: feeQuoterMock.address,
@@ -950,7 +984,8 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        msg: onrampSend.msg,
+        destGasOverheads: [90_000n],
+        msg: tokenOnrampSend.msg,
         context: beginCell().endCell(),
       }),
     )

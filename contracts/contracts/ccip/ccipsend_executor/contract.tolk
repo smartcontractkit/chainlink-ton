@@ -353,7 +353,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             chargedFee: state.chargedFee,
             destGasOverhead: state.destGasOverhead,
-            minterAddress: state.minterAddress,
+            minterAddress: state.minterAddress.toCell(),
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),

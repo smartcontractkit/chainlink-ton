@@ -68,7 +68,7 @@ struct CCIPSendExecutor_State_WalletAddressValidation {
 struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
     chargedFee: Fee,
     destGasOverhead: uint32,
-    minterAddress: address,
+    minterAddress: Cell<address>,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
     senderDepositAccountWallet: address,
@@ -77,7 +77,7 @@ struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
 struct CCIPSendExecutor_State_TokenPool_Withdraw {
     chargedFee: Fee,
     destGasOverhead: uint32,
-    minterAddress: address,
+    minterAddress: Cell<address>,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
     senderDepositAccountWallet: address,

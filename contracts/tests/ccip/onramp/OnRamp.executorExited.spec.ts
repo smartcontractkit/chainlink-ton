@@ -7,6 +7,7 @@ import * as coverage from '../../coverage/coverage'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -22,6 +23,7 @@ describe('OnRamp - executor exit', () => {
   let senderAddress: Address
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
+  let mockTokenRegistry: SandboxContract<TreasuryContract>
   let executorSender: Sender
   let executorAddress: Address
   let executorID: bigint
@@ -31,7 +33,7 @@ describe('OnRamp - executor exit', () => {
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
-    tokenAmounts: [],
+    tokenAmounts: [or.TokenAmount.create({ amount: 1n, token: WRAPPED_NATIVE })],
     feeToken: WRAPPED_NATIVE,
     extraArgs: or.GenericExtraArgsV2.create({
       gasLimit: 100n,
@@ -55,11 +57,13 @@ describe('OnRamp - executor exit', () => {
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
+    mockTokenRegistry = await blockchain.treasury('mockTokenRegistry')
     executorID = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
+      tokenAdminRegistry: mockTokenRegistry.address,
     }))
 
     const resultUpdateDestChainConfigs = await onramp.sendOnRampUpdateDestChainConfigs(
@@ -238,13 +242,14 @@ describe('OnRamp - executor exit', () => {
 
       // The mocked FeeQuoter replies with a validated fee, which makes the
       // executor request the fee reservation from the OnRamp.
-      const result = await executor.sendFeeQuoterMessageValidatedAny(
+      const result = await executor.sendFeeQuoterMessageValidated(
         mockFeeQuoter.getSender(),
         toNano('0.3'),
         ex.FeeQuoter_MessageValidated.create({
           fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+          destGasOverheads: [90_000n],
           msg: ccipSend,
-          context: beginCell().asSlice(),
+          context: Cell.EMPTY,
         }),
       )
 
@@ -274,11 +279,18 @@ describe('OnRamp - executor exit', () => {
         },
       })
 
-      // ...and the executor completes the send (no token transfer).
+      // ...and the executor continues the token-transfer flow by querying the
+      // token registry (the send carries a token transfer, so the executor does
+      // not finalize here).
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: onramp.address,
+        to: mockTokenRegistry.address,
         success: true,
+        op: tar.TokenAdminRegistry_GetTokenInfo.PREFIX,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: executorAddress,
+        to: onramp.address,
         op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
       })
 
