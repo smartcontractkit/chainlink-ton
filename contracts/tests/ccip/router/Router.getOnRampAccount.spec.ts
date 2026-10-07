@@ -208,6 +208,58 @@ describe('Router.getOnRampAccount', () => {
     })
   })
 
+  it('gives the same user different onramp accounts for different tokens', async () => {
+    const otherToken = generateMockTonAddress()
+    const forToken = await router.getOnRampAccountAddress(sender.address, token)
+    const forOtherToken = await router.getOnRampAccountAddress(sender.address, otherToken)
+    // The token is part of the deployment ID: same user, different token => different account.
+    expect(forToken.equals(forOtherToken)).toBe(false)
+
+    // Deploy the second account independently: it must be a fresh deployment (not a reuse of
+    // the first token's account), initialized with its own token in the account data.
+    const result = await router.sendRouterGetOnRampAccount(
+      sender.getSender(),
+      getOnRampAccountValue,
+      { token: otherToken },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: forOtherToken,
+      op: dep.opcodes.in.initialize,
+      deploy: true,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: forOtherToken,
+      to: router.address,
+      op: deposit.DepositAccount_Reply.PREFIX,
+      success: true,
+      body(body) {
+        if (!body) return false
+        const reply = deposit.DepositAccount_Reply.fromSlice(body.beginParse())
+        return reply.token.equals(otherToken)
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: sender.address,
+      op: rt.Router_UseOnRampAccount.PREFIX,
+      success: true,
+      body(body) {
+        if (!body) return false
+        const use = rt.Router_UseOnRampAccount.fromSlice(body.beginParse())
+        return use.account.equals(forOtherToken)
+      },
+    })
+
+    // The first token's account is untouched: the second deployment neither reused nor
+    // re-initialized it (no transactions against it in this flow).
+    expect(result.transactions).not.toHaveTransaction({ to: forToken })
+
+    // The second account's stored config carries its own token.
+    const account = blockchain.openContract(deposit.DepositAccount.fromAddress(forOtherToken))
+    expect((await account.getProxy()).equals(sender.address)).toBe(true)
+  })
+
   it('rejects a spoofed OnRampAccount_Reply that does not derive to the claimed user', async () => {
     // An attacker sends a OnRampAccount_Reply claiming to be the sender's account with the
     // sender's address in the forward payload. The Router re-derives the expected account
