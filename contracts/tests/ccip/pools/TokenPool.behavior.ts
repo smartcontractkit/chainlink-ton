@@ -1,17 +1,19 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Slice, toNano } from '@ton/core'
 import {
   AccessControl_GrantRole,
   CrossChainAddress,
   CursedSubjects,
   TokenPool,
   TokenPool_ChainUpdate,
+  TokenPool_DeliveredTransfer,
+  TokenPool_DeliveryMetadata,
   TokenPool_RateLimitConfigPair,
   TokenPool_RateLimitConfigArgs,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
-  TokenPool_ReleaseOrMintFinished,
+  TransferNotificationForRecipient,
   TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_ReleaseOrMintInV1,
   RateLimiter_Config,
@@ -19,6 +21,8 @@ import {
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
+import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import { getExternals, testLog } from '../../Logs'
 import {
   Ownable2Step_AcceptOwnership,
   Ownable2Step_TransferOwnership,
@@ -36,6 +40,8 @@ export type TokenPoolBehaviorContext = {
   destTokenAddress: CrossChainAddress
   sourcePoolAddress: CrossChainAddress
   localToken: Address
+  /** Expected `transferInitiator` of the pool's release/mint delivery; defaults to the pool. */
+  releaseOrMintInitiator?: Address
 }
 
 export type TokenPoolBehaviorHooks = {
@@ -62,6 +68,21 @@ export function releaseRequest(
     offchainTokenData: null,
     ...overrides,
   })
+}
+
+// TokenPool_Error codes are shared by every pool built on the TokenPool library.
+const TokenPoolErrors = BurnMintTokenPool.Errors
+
+const DEPOSIT_ACCOUNT_NOTIFY_PREFIX = 0x88e0ef3e
+
+/** Returns the `notify` target of a `DepositAccount_Notify` envelope boxed in a jetton forward payload. */
+export function parseDepositAccountNotify(forwardPayload: Slice): Address | null {
+  const payload = forwardPayload.clone()
+  const envelope = payload.loadBit() ? payload.loadRef().beginParse() : payload
+  if (envelope.remainingBits < 32 || envelope.loadUint(32) !== DEPOSIT_ACCOUNT_NOTIFY_PREFIX) {
+    return null
+  }
+  return envelope.loadAddress()
 }
 
 export function runTokenPoolBehaviorTests(
@@ -94,6 +115,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
 
@@ -116,6 +138,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
 
@@ -169,6 +192,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
 
@@ -218,6 +242,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
       expect(first.transactions).toHaveTransaction({
@@ -235,6 +260,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
       expect(second.transactions).toHaveTransaction({
@@ -456,6 +482,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
 
@@ -500,6 +527,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx, { sourcePoolAddress: wrongSourcePoolAddress }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
 
@@ -532,6 +560,7 @@ export function runTokenPoolBehaviorTests(
           }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          receiverAccount: ctx.recipient.address,
         },
       )
 
@@ -608,6 +637,7 @@ export function runTokenPoolBehaviorTests(
         }),
         requestedFinalityConfig: 0n,
         replyTo: ctx.deployer.address,
+        receiverAccount: ctx.recipient.address,
       }
 
       const first = await ctx.pool.sendTokenPoolReleaseOrMint(
@@ -621,27 +651,28 @@ export function runTokenPoolBehaviorTests(
         repeatedRequest,
       )
 
+      // Each release lands in the receiver account's jetton wallet, which notifies the account with
+      // the pool's `DepositAccount_Notify` envelope routing the notification to `replyTo`.
       const allTransactions = [...first.transactions, ...second.transactions]
       const completions = allTransactions.filter((tx: any) => {
         const body = tx.inMessage?.body
-        if (!body) {
+        if (!body || !tx.inMessage?.info?.dest?.equals?.(ctx.recipient.address)) {
           return false
         }
-
         const slice = body.beginParse()
-        if (slice.remainingBits < 32) {
-          return false
-        }
-
         if (
-          !tx.inMessage?.info?.src?.equals?.(ctx.pool.address) ||
-          slice.preloadUint(32) !== TokenPool_ReleaseOrMintFinished.PREFIX
+          slice.remainingBits < 32 ||
+          slice.preloadUint(32) !== TransferNotificationForRecipient.PREFIX
         ) {
           return false
         }
-
-        const response = TokenPool_ReleaseOrMintFinished.fromSlice(slice)
-        return response.queryId === queryId && response.out.destinationAmount === amount
+        const notification = TransferNotificationForRecipient.fromSlice(slice)
+        const notify = parseDepositAccountNotify(notification.forwardPayload)
+        return (
+          notification.queryId === queryId &&
+          notification.jettonAmount === amount &&
+          notify?.equals(ctx.deployer.address) === true
+        )
       })
 
       const failures = allTransactions.filter((tx: any) => {
@@ -667,6 +698,149 @@ export function runTokenPoolBehaviorTests(
 
       expect(completions).toHaveLength(2)
       expect(failures).toHaveLength(0)
+    })
+
+    it('rejects releaseOrMint without a receiver account', async () => {
+      const ctx = await setup()
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('0.6'),
+        {
+          queryId: 940n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+          receiverAccount: null,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: TokenPoolErrors['TokenPool_Error.UnsupportedOperation'],
+      })
+    })
+
+    const deliveredTransfer = (ctx: TokenPoolBehaviorContext, token: Address = ctx.localToken) =>
+      TokenPool_DeliveredTransfer.create({
+        remoteChainSelector: ctx.remoteChainSelector,
+        localToken: token,
+        receiver: ctx.recipient.address,
+        amount: 7n,
+      })
+
+    it('emits ReleasedOrMinted when the Router reports the transfer was delivered', async () => {
+      const ctx = await setup()
+      const result = await ctx.pool.sendTokenPoolReleaseOrMintDelivered(
+        ctx.deployer.getSender(),
+        toNano('0.1'),
+        { queryId: 941n, transfer: deliveredTransfer(ctx) },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_ReleasedOrMinted', (body) => {
+          // TokenPool_ReleasedOrMinted { remoteChainSelector, details: ^{ token, sender, amount, ^recipient } }
+          const event = body.beginParse()
+          const remoteChainSelector = event.loadUintBig(64)
+          const details = event.loadRef().beginParse()
+          const token = details.loadAddress()
+          details.loadAddress()
+          const amount = details.loadCoins()
+          const recipient = details.loadRef().beginParse().loadAddress()
+          return (
+            remoteChainSelector === ctx.remoteChainSelector &&
+            token.equals(ctx.localToken) &&
+            amount === 7n &&
+            recipient.equals(ctx.recipient.address)
+          )
+        }),
+      )
+      expect(events).toHaveLength(1)
+    })
+
+    it('rejects ReleaseOrMintDelivered from a non-Router sender', async () => {
+      const ctx = await setup()
+      const result = await ctx.pool.sendTokenPoolReleaseOrMintDelivered(
+        ctx.unauthorized.getSender(),
+        toNano('0.1'),
+        { queryId: 942n, transfer: deliveredTransfer(ctx) },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: TokenPoolErrors['TokenPool_Error.Unauthorized'],
+      })
+      expect(getExternals(result.transactions)).toHaveLength(0)
+    })
+
+    it('rejects ReleaseOrMintDelivered for a token other than the pool token', async () => {
+      const ctx = await setup()
+      const result = await ctx.pool.sendTokenPoolReleaseOrMintDelivered(
+        ctx.deployer.getSender(),
+        toNano('0.1'),
+        { queryId: 943n, transfer: deliveredTransfer(ctx, ctx.unauthorized.address) },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: TokenPoolErrors['TokenPool_Error.InvalidToken'],
+      })
+    })
+
+    it('answers GetReleaseOrMintDeliveryMetadata with the wallet, initiator and local amount', async () => {
+      const ctx = await setup()
+      const owner = ctx.recipient.address
+      const expectedWallet = (
+        await ctx.blockchain
+          .provider(ctx.localToken)
+          .get('get_wallet_address', [
+            { type: 'slice', cell: beginCell().storeAddress(owner).endCell() },
+          ])
+      ).stack.readAddress()
+      const localDecimals = await ctx.pool.getTokenDecimals()
+      const cases = [
+        { sourcePoolData: null, amount: 12345000n, expected: 12345000n },
+        {
+          sourcePoolData: beginCell()
+            .storeUint(localDecimals + 3n, 256)
+            .endCell(),
+          amount: 12345000n,
+          expected: 12345n,
+        },
+      ]
+
+      for (const [i, c] of cases.entries()) {
+        const queryId = 944n + BigInt(i)
+        // Permissionless: anyone may query.
+        const result = await ctx.pool.sendTokenPoolGetReleaseOrMintDeliveryMetadata(
+          ctx.unauthorized.getSender(),
+          toNano('0.1'),
+          { queryId, owner, amount: c.amount, sourcePoolData: c.sourcePoolData },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.pool.address,
+          to: ctx.unauthorized.address,
+          success: true,
+          op: TokenPool_DeliveryMetadata.PREFIX,
+          body(body) {
+            if (!body) return false
+            const reply = TokenPool_DeliveryMetadata.fromSlice(body.beginParse())
+            return (
+              reply.queryId === queryId &&
+              reply.owner.equals(owner) &&
+              reply.wallet.equals(expectedWallet) &&
+              reply.transferInitiator.equals(ctx.releaseOrMintInitiator ?? ctx.pool.address) &&
+              reply.amount === c.expected
+            )
+          },
+        })
+      }
     })
   })
 }

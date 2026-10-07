@@ -8,16 +8,16 @@ const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.01") // extra for gas fees
 
 /// Runtime data stored by each DepositAccount instance.
 ///
-/// A deposit account is a token-agnostic escrow hub: it lets a fixed set of `beneficiaries` withdraw
-/// jettons and forwards inbound messages to the `proxy` (default) or hands them to a hook a
-/// specialized account (e.g. OnRampAccount) wires. It does NOT track which jetton wallet it trusts —
-/// wallet authorization is verified by the party that knows the token set (off-ramp: the pool;
-/// on-ramp: the token-handling layer), so one account per user serves any number of tokens.
+/// A deposit account escrows a single jetton for a single user: it lets a fixed set of
+/// `beneficiaries` withdraw jettons and forwards inbound messages to the `proxy` (default) or hands
+/// them to a hook a specialized account (e.g. OnRampAccount) wires.
 struct DepositAccount_Data {
     /// Account that deploys and initializes the account. Only the owner may init.
     owner: address;
     /// Account that messages are forwarded to (e.g. TP, Router).
     proxy: address;
+    /// Jetton master this account escrows; see `DepositAccount_DeploymentID`.
+    token: address;
     /// Accounts that are allowed to withdraw jettons from this account's wallet (a set).
     beneficiaries: map<address, ()>;
 }
@@ -38,28 +38,55 @@ enum DepositAccount_Error {
     OnlySendExcessesToSender
 }
 
-/// Computes the deterministic address of a DepositAccount deployed via the Deployable pattern.
+/// Deployment ID of a per-user, per-token account (DepositAccount / OnRampAccount).
 ///
-/// @dev Token-agnostic: the address depends only on (deployableCode, namespace, owner (Router), id (receiver)), so
-///      a user has one account across all tokens; the wallet boundary is enforced at the
-///      pool/authorizer. The account's config (beneficiaries) is NOT part of the address
-///      — it is installed atomically at deployment (via `Deployable_Initialize`), and since a
-///      retried `Deployable_Initialize` bounces off the already-upgraded account (unrecognized
-///      opcode), the first deployment's config is the one that sticks: always derive and deploy
-///      with the same config.
-fun calcAddressOfDepositAccount(
+/// @dev The token is part of the derivation so an account can only ever hold one jetton. Were it
+///      token-agnostic, a malicious minter or pool could hand out the jetton wallet of a
+///      *different* jetton owned by the same account, making the Router withdraw the wrong
+///      jettons or acknowledge a transfer that never happened.
+struct DepositAccount_DeploymentID {
+    user: address;
+    token: address;
+}
+
+/// Computes the deterministic address of a per-user, per-token account deployed via the Deployable
+/// pattern.
+///
+/// @dev The address depends only on (deployableCode, namespace, owner, user, token). The account's
+///      config (proxy, beneficiaries) is NOT part of the address — it is installed atomically at
+///      deployment (via `Deployable_Initialize`), and since a retried `Deployable_Initialize`
+///      bounces off the already-upgraded account (unrecognized opcode), the first deployment's
+///      config is the one that sticks: always derive and deploy with the same config.
+fun calcAddressOfAccount(
     deployableCode: cell,
+    namespace: Namespace,
     owner: address,
-    receiver: address,
+    user: address,
+    token: address,
 ): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
             code: deployableCode,
-            data: NamespacedDeployableData<address>({
-                namespace: DeployableNamespace_DepositAccount,
+            data: NamespacedDeployableData<DepositAccount_DeploymentID>({
+                namespace,
                 owner,
-                id: receiver,
+                id: DepositAccount_DeploymentID { user, token },
             }),
         },
     };
+}
+
+fun calcAddressOfDepositAccount(
+    deployableCode: cell,
+    owner: address,
+    receiver: address,
+    token: address,
+): AutoDeployAddress {
+    return calcAddressOfAccount(
+        deployableCode,
+        DeployableNamespace_DepositAccount,
+        owner,
+        receiver,
+        token,
+    );
 }

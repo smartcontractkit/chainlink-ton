@@ -405,10 +405,10 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Deploys (or re-confirms) the sender's per-user deposit account: a Deployable-namespaced
-/// OnRampAccount owned by this Router and keyed by the sender's address. The account is deployed
-/// with a two-message sequence — `Deployable_Initialize` installs the account's code/data, then
-/// `DepositAccount_Init` sent directly by the Router (its owner) activates it — so the default
+/// Deploys (or re-confirms) the sender's deposit account for `msg.token`: a Deployable-namespaced
+/// OnRampAccount owned by this Router and keyed by the (sender, token) pair. The account is
+/// deployed with a two-message sequence — `Deployable_Initialize` installs the account's code/data,
+/// then `DepositAccount_Init` sent directly by the Router (its owner) activates it — so the default
 /// init accepts it and replies with `DepositAccount_Reply`, which the Router turns into
 /// `Router_UseOnRampAccount`.
 fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
@@ -416,7 +416,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
     // Both the Router and the sender can withdraw from the deposit account.
     beneficiaries.set(contract.getAddress(), ());
     beneficiaries.set(sender, ());
-    val oaa = onRampAccountAutodeployAddress(sender);
+    val oaa = onRampAccountAutodeployAddress(sender, msg.token);
 
     // 1. Install the account's code/data at the shell address. On a retry to an already-deployed
     // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
@@ -430,6 +430,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
                 data: DepositAccount_Data {
                     owner: contract.getAddress(),
                     proxy: sender,
+                    token: msg.token,
                     beneficiaries,
                 }.toCell(),
             },
@@ -448,7 +449,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
         dest: oaa.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryId,
-            forwardPayload: Router_OnRampAccountContext { user: sender }.toCell(),
+            forwardPayload: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
         },
     });
     // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
@@ -459,7 +460,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
 /// reply came from the sender's derived on-ramp account and hands the account address to the user.
 fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccount_Reply, sender: address) {
     val user = context.user;
-    assert(sender == onRampAccountAddress(user), Router_Error.SenderIsNotOnRampAccount);
+    assert(sender == onRampAccountAddress(user, context.token), Router_Error.SenderIsNotOnRampAccount);
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
@@ -468,6 +469,7 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
         body: Router_UseOnRampAccount {
             queryId: msg.queryId,
             account: sender,
+            token: context.token,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -477,12 +479,12 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
 /// withdraw's AskToTransfer bounced, so the jettons never left the account. Surfaced as an event
 /// for visibility; propagating the failure to the executor requires a replyTo on this leg (TODO).
 ///
-/// @dev The sender is NOT verified against a derived address: unlike the per-user account (keyed
-///      by one user), the Router cannot enumerate which user an arbitrary withdraw belongs to.
-///      The message is only accepted from accounts whose data was installed by this Router
-///      (owner = Router), and the event is informational — no state changes on this path.
+/// @dev The account self-reports the `(proxy, token)` pair it was deployed for; the pair is only
+///      believed because re-deriving the account address from it must yield the sender. The event
+///      is informational — no state changes on this path.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
-    assert(sender == onRampAccountAddress(msg.proxy), Router_Error.SenderIsNotOnRampAccount);
+    val account = lazy msg.account.load();
+    assert(sender == onRampAccountAddress(account.proxy, account.token), Router_Error.SenderIsNotOnRampAccount);
     val ask = lazy msg.ask.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
@@ -518,16 +520,16 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
     returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
 }
 
-/// Derives the auto-deploy address of the per-user onramp account (a Deployable-namespaced OnRampAccount
-/// owned by this Router, keyed by the user's address).
-get fun onRampAccountAutodeployAddress(sender: address): AutoDeployAddress {
-    return onRampAccountAutodeployAddressForRouter(sender, contract.getAddress(), deployableCompiledCode());
+/// Derives the auto-deploy address of the onramp account (a Deployable-namespaced OnRampAccount
+/// owned by this Router, keyed by the (user, token) pair).
+get fun onRampAccountAutodeployAddress(sender: address, token: address): AutoDeployAddress {
+    return onRampAccountAutodeployAddressForRouter(sender, token, contract.getAddress(), deployableCompiledCode());
 }
 
-/// Derives the address of the per-user onramp account (a Deployable-namespaced OnRampAccount
-/// owned by this Router, keyed by the user's address).
-get fun onRampAccountAddress(sender: address): address {
-    return onRampAccountAutodeployAddress(sender).calculateAddress();
+/// Derives the address of the onramp account (a Deployable-namespaced OnRampAccount
+/// owned by this Router, keyed by the (user, token) pair).
+get fun onRampAccountAddress(sender: address, token: address): address {
+    return onRampAccountAutodeployAddress(sender, token).calculateAddress();
 }
 
 /*
@@ -997,7 +999,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
 fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
-    val account = receiverDepositAccount(details.receiver);
+    val account = receiverDepositAccount(details.receiver, details.localToken);
 
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(details.receiver, ());
@@ -1011,6 +1013,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
                 data: DepositAccount_Data {
                     owner: contract.getAddress(),
                     proxy: details.receiver,
+                    token: details.localToken,
                     beneficiaries,
                 }.toCell(),
             },
@@ -1052,7 +1055,7 @@ fun onDepositAccountReply(msg: DepositAccount_Reply, sender: address) {
 fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
     val request = lazy relay.request.load();
     val details = lazy request.transfer.details.load();
-    assert(sender == receiverDepositAccount(details.receiver).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+    assert(sender == receiverDepositAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
 
     val tokenPoolReleaseOrMint = createMessage({
         bounce: BounceMode.RichBounce,
@@ -1078,7 +1081,7 @@ fun onDepositAccountNotEnoughValue(msg: DepositAccount_NotEnoughValue, sender: a
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();
             val details = lazy request.transfer.details.load();
-            assert(sender == receiverDepositAccount(details.receiver).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+            assert(sender == receiverDepositAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
 
             sendDepositAccountInitFailure(context, Router_Error.DepositAccountInitFailed as int32);
         }
@@ -1115,9 +1118,9 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
     delivered.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Derives the Router-owned deposit account of an inbound transfer receiver.
-fun receiverDepositAccount(receiver: address): AutoDeployAddress {
-    return calcAddressOfDepositAccount(deployableCompiledCode(), contract.getAddress(), receiver);
+/// Derives the Router-owned deposit account holding `token` for an inbound transfer receiver.
+fun receiverDepositAccount(receiver: address, token: address): AutoDeployAddress {
+    return calcAddressOfDepositAccount(deployableCompiledCode(), contract.getAddress(), receiver, token);
 }
 
 /*
@@ -1351,9 +1354,9 @@ get fun destChainSelectors(): lisp_list<uint64> {
     return keysLispList(d)!;
 }
 
-/// Returns the Router-owned deposit account where inbound tokens for `receiver` are delivered.
-get fun depositAccountAddress(receiver: address): address {
-    return receiverDepositAccount(receiver).calculateAddress();
+/// Returns the Router-owned deposit account where inbound `token` for `receiver` is delivered.
+get fun depositAccountAddress(receiver: address, token: address): address {
+    return receiverDepositAccount(receiver, token).calculateAddress();
 }
 
 get fun reserve(): coins {

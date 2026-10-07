@@ -214,6 +214,11 @@ fun onLockTransferBounced(
  * 6. On error, the lockbox sends JettonLockBox_WithdrawFailed directly to the pool
  */
 
+/// Releases are transferred from the lockbox's wallet, so the lockbox is the transfer initiator.
+fun releaseOrMintInitiator(ctx: Storage?): address {
+    return ctx!.lockbox;
+}
+
 fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
@@ -304,6 +309,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
+            releaseOrMintInitiator,
             onWithdrawFeeTokens: null,
         },
     };

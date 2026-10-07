@@ -1032,11 +1032,13 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         tokenData = userTokenData;
     }
 
-    // Released/minted tokens are delivered to the receiver's Router-owned deposit account.
+    // Released/minted tokens are delivered to the receiver's Router-owned deposit account for
+    // this token, so a pool can only ever credit the account of the token it is registered for.
     val receiverAccount = calcAddressOfDepositAccount(
         deployerCode(),
         getRouterFromSelector(st, sourceChainSelector),
         receiver,
+        tokenTransfer.token,
     ).calculateAddress();
 
     return ReceiveExecutor_TokenTransfer {

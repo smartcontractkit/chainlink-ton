@@ -149,6 +149,10 @@ struct TokenPool_Hooks<T> {
     ///      `ReleaseOrMintFinished` reply to the caller.
     onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
+    /// The `transferInitiator` of the jetton transfer delivering a release/mint.
+    /// @dev Base behavior: the pool's own address.
+    releaseOrMintInitiator: ((T?) -> address)?;
+
     // ----------------------------------------------------------------------
     // LockOrBurn flow (outbound)
     // ----------------------------------------------------------------------
@@ -677,8 +681,8 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_ReleaseOrMintDelivered => {
             self.onReleaseOrMintDelivered(msgSender, msg);
         }
-        TokenPool_GetJettonWallet => {
-            self.onGetJettonWallet(msgSender, msg);
+        TokenPool_GetReleaseOrMintDeliveryMetadata => {
+            self.onGetReleaseOrMintDeliveryMetadata(msgSender, msg);
         }
         TokenPool_PostflightCheckFinished => {
             self.onPostflightCheckFinished(msgSender, msg);
@@ -1535,9 +1539,11 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 /// @param originalSender The original CCIP sender on the source chain, used to derive its
 ///        Router-owned OnRampAccount.
 ///
-/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) any per-user deposit
-///      account derived via Deployables — Router as owner and an allowed namespace. The account
-///      deployment ID must exactly match the Router's OnRampAccount derivation.
+/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) any per-user,
+///      per-token deposit account derived via Deployables — Router as owner and an allowed
+///      namespace. The account deployment ID must exactly match the Router's OnRampAccount
+///      derivation, and its token half is the pool's own jetton master, so an account holding a
+///      different jetton never authenticates here.
 /// 
 ///      Account-auth is opt-in: it is only enforced once the pool owner configures it (code, allowed namespaces).
 fun TokenPool<T>.assertAuthorizedDepositInitiator(
@@ -1571,9 +1577,9 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     throw TokenPool_Error.Unauthorized;
 }
 
-/// Derives the on-chain address of a Router-owned per-user OnRampAccount.
+/// Derives the on-chain address of a Router-owned OnRampAccount for `user` and the pool's own
+/// jetton.
 ///
-/// @param deployableCode The compiled Deployable contract code (address-namespace seed).
 /// @param router The Router that owns the deployable deployment.
 /// @param namespace The Deployables namespace identifying the account type (e.g. OnRampAccount).
 /// @param user The on-chain user that is the account's proxy and beneficiary.
@@ -1592,20 +1598,13 @@ fun TokenPool<T>.deriveDepositAccount(
     val code = adminConfig.deployableCode;
     assert(code != null, TokenPool_Error.Unauthorized);
 
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(user, ());
-    beneficiaries.set(router, ());
-
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code,
-            data: NamespacedDeployableData<address>({
-                namespace,
-                owner: router,
-                id: user,
-            }),
-        },
-    };
+    return calcAddressOfAccount(
+        code!,
+        namespace,
+        router,
+        user,
+        adminConfig.jettonClient.masterAddress,
+    );
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(
@@ -1914,20 +1913,29 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
     });
 }
 
-fun TokenPool<T>.onGetJettonWallet(
+fun TokenPool<T>.releaseOrMintInitiator(self): address {
+    if (self.hooks != null && self.hooks.releaseOrMintInitiator != null) {
+        return self.hooks.releaseOrMintInitiator(self.context);
+    }
+    return contract.getAddress();
+}
+
+fun TokenPool<T>.onGetReleaseOrMintDeliveryMetadata(
     self,
     sender: address,
-    msg: TokenPool_GetJettonWallet,
+    msg: TokenPool_GetReleaseOrMintDeliveryMetadata,
 ): void {
     val jettonClient = self.data.jettonClient();
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_JettonWallet {
+        body: TokenPool_DeliveryMetadata {
             queryId: msg.queryId,
             owner: msg.owner,
             wallet: calcAddressOfJettonWallet(msg.owner, jettonClient.masterAddress, jettonClient.jettonWalletCode),
+            transferInitiator: self.releaseOrMintInitiator(),
+            amount: self.calculateLocalAmount(msg.amount, self.parseRemoteDecimals(msg.sourcePoolData)),
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

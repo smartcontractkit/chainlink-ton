@@ -11,10 +11,11 @@ import "storage"
 
 /// Base abstract component shared by all deposit-account contracts.
 ///
-/// A deposit account holds jettons received into its own (derived) jetton wallet and lets a fixed
-/// set of `beneficiaries` withdraw them. Any message arriving from the account's allowed jetton
-/// wallet is either forwarded to the `proxy` (default) or handed to a hook that a specialized
-/// account (e.g. OnRampAccount) may override.
+/// A deposit account holds one jetton (`data.token`, bound through the account's address
+/// derivation) received into its own jetton wallet and lets a fixed set of `beneficiaries`
+/// withdraw them. Any message arriving from the account's allowed jetton wallet is either
+/// forwarded to the `proxy` (default) or handed to a hook that a specialized account
+/// (e.g. OnRampAccount) may override.
 ///
 /// @dev Mirrors the `TokenPool<T>` component pattern: `data` holds the persistent account config,
 ///      `context` carries per-account working state, and `hooks` lets specialized accounts extend
@@ -313,8 +314,11 @@ fun DepositAccount<T>.onWithdrawBounced(
         dest: ask.sendExcessesTo!,
         body: DepositAccount_WithdrawFailed {
             queryId: ask.queryId,
-            owner: self.data.owner,
-            proxy: self.data.proxy,
+            account: DepositAccount_Identity {
+                owner: self.data.owner,
+                proxy: self.data.proxy,
+                token: self.data.token,
+            }.toCell(),
             walletAddress: sender,
             ask: ask.toCell(),
         },

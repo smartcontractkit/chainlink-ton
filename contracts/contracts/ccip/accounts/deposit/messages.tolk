@@ -5,9 +5,9 @@ import "../../../lib/deployable/types"
 
 /// Initialization message sent by the owner to activate the account.
 /// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
-///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
-///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
-///      so one account per user serves any number of jettons.
+///      knows the token (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
+///      the token-handling layer before a withdraw). The account is bound to a single jetton
+///      through its address derivation, so there is one account per (user, token) pair.
 ///      The message is only accepted from the account's owner: the deployment sequence is
 ///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
 ///      directly by the owner. The account always replies with `DepositAccount_Reply`, confirming
@@ -80,14 +80,20 @@ struct (0x1936d112) DepositAccount_Withdraw {
 /// funds could not be transferred out.
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
-    /// Required to verify the deposit account.
-    owner: address;
-    /// Required to verify the deposit account.
-    proxy: address;
+    /// Self-reported: the recipient must re-derive the account address from it and match it
+    /// against the sender before believing it.
+    account: Cell<DepositAccount_Identity>;
     /// Jetton wallet the failed AskToTransfer was sent to.
     walletAddress: address;
     /// The bounced AskToTransfer (carries amount + recipient + the requester in `sendExcessesTo` for reconciliation).
     ask: Cell<AskToTransfer>;
+}
+
+/// What a deposit account reports about itself so a recipient can re-derive its address.
+struct DepositAccount_Identity {
+    owner: address;
+    proxy: address;
+    token: address;
 }
 
 /// The subset of outgoing messages that can bounce back into this account, used to match bounced

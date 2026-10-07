@@ -212,7 +212,7 @@ fun onReleaseOrMintContinue(
             internalTransferMsg: InternalTransferStep {
                 queryId: msg.queryId,
                 jettonAmount: prepared.localAmount,
-                transferInitiator: null,
+                transferInitiator: contract.getAddress(),
                 sendExcessesTo: contract.getAddress(),
                 forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
                 forwardPayload: beginCell()
@@ -286,6 +286,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
+            releaseOrMintInitiator: null,
             onWithdrawFeeTokens: null,
         },
     };

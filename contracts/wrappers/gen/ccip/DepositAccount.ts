@@ -220,6 +220,7 @@ export const ExtraCurrenciesMap = {
  > struct DepositAccount_Data {
  >     owner: address
  >     proxy: address
+ >     token: address
  >     beneficiaries: map<address, ()>
  > }
  */
@@ -227,6 +228,7 @@ export interface DepositAccount_Data {
     readonly $: 'DepositAccount_Data'
     owner: c.Address
     proxy: c.Address
+    token: c.Address
     beneficiaries: Set<c.Address>
 }
 
@@ -234,6 +236,7 @@ export const DepositAccount_Data = {
     create(args: {
         owner: c.Address
         proxy: c.Address
+        token: c.Address
         beneficiaries: Set<c.Address>
     }): DepositAccount_Data {
         return {
@@ -246,6 +249,7 @@ export const DepositAccount_Data = {
             $: 'DepositAccount_Data',
             owner: s.loadAddress(),
             proxy: s.loadAddress(),
+            token: s.loadAddress(),
             beneficiaries: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                             (s) => [],
                             (v,b) => { {} }
@@ -255,6 +259,7 @@ export const DepositAccount_Data = {
     store(self: DepositAccount_Data, b: c.Builder): void {
         b.storeAddress(self.owner);
         b.storeAddress(self.proxy);
+        b.storeAddress(self.token);
         b.storeDict<c.Address, []>(setToDict(self.beneficiaries, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                         (s) => [],
                         (v,b) => { {} }
@@ -554,8 +559,7 @@ export const DepositAccount_Withdraw = {
 /**
  > struct (0xa51b6cba) DepositAccount_WithdrawFailed {
  >     queryId: uint64
- >     owner: address
- >     proxy: address
+ >     account: Cell<DepositAccount_Identity>
  >     walletAddress: address
  >     ask: Cell<AskToTransfer>
  > }
@@ -563,8 +567,7 @@ export const DepositAccount_Withdraw = {
 export interface DepositAccount_WithdrawFailed {
     readonly $: 'DepositAccount_WithdrawFailed'
     queryId: uint64
-    owner: c.Address
-    proxy: c.Address
+    account: DepositAccount_Identity
     walletAddress: c.Address
     ask: AskToTransfer
 }
@@ -574,8 +577,7 @@ export const DepositAccount_WithdrawFailed = {
 
     create(args: {
         queryId?: uint64
-        owner: c.Address
-        proxy: c.Address
+        account: DepositAccount_Identity
         walletAddress: c.Address
         ask: AskToTransfer
     }): DepositAccount_WithdrawFailed {
@@ -590,8 +592,7 @@ export const DepositAccount_WithdrawFailed = {
         return {
             $: 'DepositAccount_WithdrawFailed',
             queryId: s.loadUintBig(64),
-            owner: s.loadAddress(),
-            proxy: s.loadAddress(),
+            account: loadCellRef<DepositAccount_Identity>(s, DepositAccount_Identity.fromSlice),
             walletAddress: s.loadAddress(),
             ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
         }
@@ -599,13 +600,55 @@ export const DepositAccount_WithdrawFailed = {
     store(self: DepositAccount_WithdrawFailed, b: c.Builder): void {
         b.storeUint(0xa51b6cba, 32);
         b.storeUint(self.queryId, 64);
-        b.storeAddress(self.owner);
-        b.storeAddress(self.proxy);
+        storeCellRef<DepositAccount_Identity>(self.account, b, DepositAccount_Identity.store);
         b.storeAddress(self.walletAddress);
         storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
     },
     toCell(self: DepositAccount_WithdrawFailed): c.Cell {
         return makeCellFrom<DepositAccount_WithdrawFailed>(self, DepositAccount_WithdrawFailed.store);
+    }
+}
+
+/**
+ > struct DepositAccount_Identity {
+ >     owner: address
+ >     proxy: address
+ >     token: address
+ > }
+ */
+export interface DepositAccount_Identity {
+    readonly $: 'DepositAccount_Identity'
+    owner: c.Address
+    proxy: c.Address
+    token: c.Address
+}
+
+export const DepositAccount_Identity = {
+    create(args: {
+        owner: c.Address
+        proxy: c.Address
+        token: c.Address
+    }): DepositAccount_Identity {
+        return {
+            $: 'DepositAccount_Identity',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_Identity {
+        return {
+            $: 'DepositAccount_Identity',
+            owner: s.loadAddress(),
+            proxy: s.loadAddress(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: DepositAccount_Identity, b: c.Builder): void {
+        b.storeAddress(self.owner);
+        b.storeAddress(self.proxy);
+        b.storeAddress(self.token);
+    },
+    toCell(self: DepositAccount_Identity): c.Cell {
+        return makeCellFrom<DepositAccount_Identity>(self, DepositAccount_Identity.store);
     }
 }
 
@@ -788,7 +831,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECHQEAA+EAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASATFAIBIAYHAMHZydHQLhgEqTN1nhgEi4cUuIHCOqg21gcBscHGRnyB8U/UsUZ4WfqAP9AQn9KSkQfSoKegAsfQEJZ2TkZ8lKNtl1CmWfiv0pCf0pCX0pZmTkZ8KECX0pOOeFt2ZkwCB9gEAgEgCAkCASANDgH1T4kY4wcG1tbW0k7UTQ+kj6SPQE0fiSI1GDUYMIEHwQa1UiTA3wB5rI+lL6UvQAye1U4F8D4HBtbW1tJO1E0PpI+kj0BNH4kviX+JL4l/iY+JMp+Dr4lPiVVhHIzskLERELChEQChCfEL4QrRCcVhJVYPADbGEDyPpSEoCgIBIAsMACL6UvQAye1UkTDghA8BxwDy9ACnO2i7fuVW23bMTDt47qOPdDXLCObFoTk8r/TPzH6ADH6UDH0BCFumDEgxwCSMG3gktHQ4iBulDBt2zHg1ywkRwd59PK/+kj0BDHR2zHtQe3xAfL/gANs7aLt+wfXLCNEhRAsmWxx0z/0BVjwBI5TOAfXLCDJtoiUjio4B9csI5sWhOQxjhgvUX9Rf1F/UX9Rf1F/UX9RfwdVBfAG2zHgXwdw2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8AXif4AIBIA8QAgEgERIA0wkwwCVKG6zwwCRcOKZVHy6LFUzLNqA4DCCAM0UUzzHBfL0+CdvEIILk4cAuY4ZyM+FCBP6UoIQg0Yuk88Ljss/9ADJgED7AOCCCvrwgHD7AsjPhQgT+lKCENoEYwzPC47LP/QAyYMG+wCAA2Q1NTYBwwCVI26zwwCRcOKUBAPagOBsMzQ0IoIAzRUDgQEL9ApvoTES8vQi0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIIAzRYhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAArw5OTkEwwCVJG6zwwCRcOKWR2VVA9qx4DQ3Nzgh8YAC2iEgbrNAGOMEBcj6UlAE+gIV9ABQBfoCFMs/EssfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAIf+BfC3CACASAVFgIBSBscAgEgFxgCAUgZGgBttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAbs0I7UTQ+kgx+kgx9AWAAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
+    static CodeCell = c.Cell.fromBase64('te6ccgECHwEABCEAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASATFAIBIAYHAM/ZydHQLhgEqTN1nhgEi4cUuIHCOqg21ocBscHAVkfSkM/SkL/Slk5GfIHxT9SxNnhZ+oAv0BfSkpMH0qCXoAAP0BCedk5GfJSjbZdQlln4lmCf0pCWZk5GfChAl9KTjnhbdmZMAgfYBAIBIAgJAgEgDQ4B90+JGOOnBtbW1tJO1E0PpI+kj6SPQE0fiSJFGEUYRRhAgQfhBtEFwQNEE/8AeeA8j6UhL6UvpS9ADJ7VTgXwTgcG1tbW0k7UTQ+kj6SPpI9ATR+JL4l/iS+Jf4mPiTKvg6+JT4lVYSyM7JDBESDAsREQsKERAKEJ8QzhC9gKAgEgCwwASBCsEJtWE1Vg8ANsYQTI+lIT+lL6UvQAye1UkTDghA8BxwDy9ACnO2i7fuVW23bMTDt47qOPdDXLCObFoTk8r/TPzH6ADH6UDH0BCFumDEgxwCSMG3gktHQ4iBulDBt2zHg1ywkRwd59PK/+kj0BDHR2zHtQe3xAfL/gAPM7aLt+wfXLCNEhRAsmWxx0z/0BVjwBI5fOAfXLCDJtoiUjjQ4B9csI5sWhOQxjiJWEAdWEAdWEAdWEAdWEAdWEAdWEAdWEAdWEAdWEAfwBtsx4F8HcNsx4Wxx0z/6SNdMLVFNUU1RTVFNUU1RTVFNUU1RTUQ08AXif4AIBIA8QAgEgERIA1QkwwCVKG6zwwCRcOKaVH3LU9xVNC3akOAwggDNFFM9xwXy9PgnbxCCC5OHALmOGcjPhQgT+lKCEINGLpPPC47LP/QAyYBA+wDgggr68IBw+wLIz4UIE/pSghDaBGMMzwuOyz/0AMmDBvsAgANkNTU2AcMAlSNus8MAkXDilAQD2pDgbDM0NDQhggDNFQKBAQv0Cm+hMfL0IdDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQLHBcMAk2whcOLy9MjPhYgS+lLPhBBz+gJxzwtlzMmAUPsAgAK0OTk5BMMAlSRus8MAkXDilkdlVQPaweA0Nzc3OCDxgALaISBus0AY4wQEyPpSUAP6Ahb0AFAD+gIUyz/LH8zJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAIf+BfDHCACASAVFgIBIBscAgEgFxgCAUgZGgBttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAhs0I7UTQ+kgx+kgx+kgx9AWACASAdHgAduABe1E0PpIMfpIMfpIMIABG10T2omh9JBhAAF7QDfaiaH0kGP0kGEA==');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
@@ -811,6 +854,7 @@ export class DepositAccount implements c.Contract {
     static fromStorage(emptyStorage: {
         owner: c.Address
         proxy: c.Address
+        token: c.Address
         beneficiaries: Set<c.Address>
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
@@ -927,6 +971,11 @@ export class DepositAccount implements c.Contract {
 
     async getProxy(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getProxy', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getToken(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getToken', []));
         return r.readSlice().loadAddress();
     }
 

@@ -1096,16 +1096,26 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   }
 
   /**
+   * The Router-owned deposit account where `token` released/minted for `receiver` is delivered.
+   */
+  receiverDepositAccount(receiver: Address = this.receiver.address, token: Address = this.token) {
+    return NameSpace.deriveAddress(
+      this.router.address,
+      NameSpace.CCIPNamespace.DepositAccount,
+      beginCell().storeAddress(receiver).storeAddress(token),
+      this.code.deployable,
+    )
+  }
+
+  /**
    * Gets the balance of the given token for the given address
    */
   async getTokenBalance(
     opt: { receiver?: Address; token?: { minterAddress: Address; tokenPool: Address } } = {},
   ): Promise<bigint> {
-    const depositAccount = NameSpace.deriveAddress(
-      opt.token?.tokenPool ?? this.tokenPool.address,
-      NameSpace.CCIPNamespace.DepositAccount,
-      beginCell().storeAddress(opt.receiver ?? this.receiver.address),
-      this.code.deployable,
+    const depositAccount = this.receiverDepositAccount(
+      opt.receiver ?? this.receiver.address,
+      opt.token?.minterAddress ?? this.token,
     )
     const wallet = this.blockchain.openContract(
       JettonWallet.fromStorage(

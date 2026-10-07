@@ -137,17 +137,21 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     receiverAccount: address? = null;
 }
 
-/// Permissionless query for the pool token's jetton wallet owned by `owner`. Answered with
-/// `TokenPool_JettonWallet` to the sender.
-struct (0xdcfaa337) TokenPool_GetJettonWallet {
+/// Permissionless query for how a release/mint of `amount` to `owner` is delivered. Answered with
+/// `TokenPool_DeliveryMetadata` to the sender.
+struct (0x5a9bf3ce) TokenPool_GetReleaseOrMintDeliveryMetadata {
     queryId: uint64;
     owner: address;
+    amount: uint256;        // Source token decimals.
+    sourcePoolData: cell?;
 }
 
-struct (0xdc3d07a4) TokenPool_JettonWallet {
+struct (0xc54839a3) TokenPool_DeliveryMetadata {
     queryId: uint64;
     owner: address;
     wallet: address;
+    transferInitiator: address;
+    amount: coins;          // Local token decimals.
 }
 
 /// Sent by the Router once the ReceiveExecutor confirmed the released/minted tokens reached the
@@ -304,7 +308,7 @@ type TokenPool_InMessage =
     | TokenPool_PreflightCheckFailed
     | TokenPool_ReleaseOrMint
     | TokenPool_ReleaseOrMintDelivered
-    | TokenPool_GetJettonWallet
+    | TokenPool_GetReleaseOrMintDeliveryMetadata
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
     | TokenPool_GetCCVs
@@ -408,7 +412,7 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFailure
-    | TokenPool_JettonWallet
+    | TokenPool_DeliveryMetadata
     | TokenPool_CCVs
     | TokenPool_CCVsAndFees
     | TokenPool_GetCCVsFailed

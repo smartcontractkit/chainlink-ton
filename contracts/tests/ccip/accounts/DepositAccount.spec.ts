@@ -17,14 +17,15 @@ import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/poo
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as Deployable from '../../../wrappers/libraries/Deployable'
-import { generateRandomContractId } from '../../../src/utils'
+import { generateRandomContractId, generateRandomTonAddress } from '../../../src/utils'
 
 describe('DepositAccount (default forward hook, off-ramp role)', () => {
   let blockchain: Blockchain
   let proxy: SandboxContract<TreasuryContract> // e.g. pool (or Router)
   let recipient: SandboxContract<TreasuryContract> // owner
   let attacker: SandboxContract<TreasuryContract>
-  let notifier: SandboxContract<TreasuryContract> // any jetton wallet (token-agnostic account)
+  let notifier: SandboxContract<TreasuryContract> // the account's jetton wallet
+  let token: Address // jetton master the account is bound to
   let code: {
     deployable: Cell
     depositAccount: Cell
@@ -53,7 +54,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           owner: owner(),
           id: Deployable.builder.data.namespaced.encode({
             namespace: NameSpace.CCIPNamespace.DepositAccount,
-            id: beginCell().storeAddress(recipient.address),
+            id: beginCell().storeAddress(recipient.address).storeAddress(token),
           }),
         },
         code.deployable,
@@ -83,6 +84,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           da.DepositAccount_Data.create({
             owner: owner(),
             proxy: proxyAddr(),
+            token,
             beneficiaries: beneficiaries(),
           }),
         ),
@@ -127,6 +129,26 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       }),
     )
 
+  // DepositAccount_Notify { notify, payload } routing envelope, boxed as the jetton forward payload.
+  const DEPOSIT_ACCOUNT_NOTIFY_PREFIX = 0x88e0ef3e
+  const buildNotifyNotificationBody = (amount: bigint, notify: Address, payload: Cell | null) =>
+    TransferNotificationForRecipient.toCell(
+      TransferNotificationForRecipient.create({
+        queryId: 4n,
+        jettonAmount: amount,
+        transferInitiator: null,
+        forwardPayload: beginCell()
+          .storeMaybeRef(
+            beginCell()
+              .storeUint(DEPOSIT_ACCOUNT_NOTIFY_PREFIX, 32)
+              .storeAddress(notify)
+              .storeMaybeRef(payload)
+              .endCell(),
+          )
+          .asSlice(),
+      }),
+    )
+
   beforeAll(async () => {
     blockchain = await Blockchain.create()
     code = {
@@ -140,12 +162,14 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     recipient = await blockchain.treasury(`recipient_${generateRandomContractId()}`)
     attacker = await blockchain.treasury('attacker')
     notifier = await blockchain.treasury('notifier')
+    token = (await blockchain.treasury('jettonMaster')).address
   })
 
-  it('deploys with owner and proxy', async () => {
+  it('deploys with owner, proxy and token', async () => {
     const { depositAccount } = await deployViaDeployable()
     expect((await depositAccount.getOwner()).equals(owner())).toBe(true)
     expect((await depositAccount.getProxy()).equals(proxyAddr())).toBe(true)
+    expect((await depositAccount.getToken()).equals(token)).toBe(true)
   })
 
   it('reports type and version', async () => {
@@ -343,10 +367,10 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     expect(balance).toBeLessThan(MIN_GRAM_TO_RESERVE)
   })
 
-  it('forwards a jetton notification from any wallet to the proxy', async () => {
+  it('forwards a jetton notification without a routing envelope to the proxy', async () => {
     const { depositAccount } = await deployViaDeployable()
 
-    // Any wallet (token-agnostic account) sends a Jetton notification to the account.
+    // The account's jetton wallet sends a plain Jetton notification to the account.
     const notificationBody = buildNotificationBody(3n, toNano('2'), proxy.address)
     const res = await notifier.send({
       to: depositAccount.address,
@@ -468,5 +492,103 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       },
     )
     expect(badExcess.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
+  })
+
+  it('forwards a notification carrying a DepositAccount_Notify envelope to its notify target', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    const target = await blockchain.treasury('receiveExecutor')
+    const notificationBody = buildNotifyNotificationBody(
+      toNano('3'),
+      target.address,
+      beginCell().storeUint(0xabcd, 16).endCell(),
+    )
+    const res = await notifier.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: notificationBody,
+    })
+
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: target.address,
+      success: true,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+      body(body) {
+        if (!body) return false
+        const fwd = da.DepositAccount_ForwardNotification.fromSlice(body.beginParse())
+        return (
+          fwd.message.senderAddress.equals(notifier.address) &&
+          fwd.message.body.equals(notificationBody)
+        )
+      },
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+    })
+  })
+
+  it('falls back to the proxy when the forward payload is not a DepositAccount_Notify envelope', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    const notificationBody = TransferNotificationForRecipient.toCell(
+      TransferNotificationForRecipient.create({
+        queryId: 5n,
+        jettonAmount: toNano('1'),
+        transferInitiator: null,
+        forwardPayload: beginCell()
+          .storeMaybeRef(beginCell().storeUint(0xdeadbeef, 32).endCell())
+          .asSlice(),
+      }),
+    )
+    const res = await notifier.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: notificationBody,
+    })
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+      success: true,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+    })
+  })
+
+  it('reports a bounced withdraw to the requester with the identity it was deployed for', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    // No contract lives at the wallet address, so the AskToTransfer bounces back.
+    const missingWallet = { address: await generateRandomTonAddress() }
+    const res = await depositAccount.sendDepositAccountWithdraw(
+      recipient.getSender(),
+      toNano('0.5'),
+      {
+        queryId: 6n,
+        walletAddress: missingWallet.address,
+        ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address),
+      },
+    )
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: missingWallet.address,
+      op: da.AskToTransfer.PREFIX,
+      success: false,
+    })
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: recipient.address,
+      op: da.DepositAccount_WithdrawFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        const failed = da.DepositAccount_WithdrawFailed.fromSlice(body.beginParse())
+        return (
+          failed.account.owner.equals(owner()) &&
+          failed.account.proxy.equals(proxyAddr()) &&
+          failed.account.token.equals(token) &&
+          failed.walletAddress.equals(missingWallet.address) &&
+          failed.ask.jettonAmount === toNano('4')
+        )
+      },
+    })
   })
 })

@@ -47,28 +47,28 @@ type ReceiveExecutor_TokenTransferState_Pending =
     | ReceiveExecutor_TokenTransferState_Untouched
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed
-    | ReceiveExecutor_TokenTransferState_JettonWalletQuery
+    | ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery
     | ReceiveExecutor_TokenTransferState_ReleaseOrMint
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed;
 
 struct ReceiveExecutor_TokenTransferState_Untouched {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {}
-/// Waiting for the pool to report the receiver account's jetton wallet for the pool's token.
-struct ReceiveExecutor_TokenTransferState_JettonWalletQuery {
+/// Waiting for the pool to report how the release/mint is delivered to the receiver account.
+struct ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
     tokenPool: address;
 }
 /// Waiting for the released/minted tokens to reach `receiverAccount`.
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     tokenPool: address;
-    receipt: Cell<ReceiveExecutor_Receipt>;
+    delivery: Cell<ReceiveExecutor_ExpectedDelivery>;
 }
 
-/// Notifications forwarded by the receiver account from `accountWallet` are summed into
-/// `received` until it covers the transfer.
-struct ReceiveExecutor_Receipt {
+/// The pool delivers the transfer in a single jetton transfer.
+struct ReceiveExecutor_ExpectedDelivery {
     accountWallet: address;
-    received: coins;
+    transferInitiator: address;
+    amount: coins;
 }
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     tokenPool: address;

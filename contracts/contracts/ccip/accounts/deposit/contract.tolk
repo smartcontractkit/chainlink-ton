@@ -87,6 +87,11 @@ get fun getProxy(): address {
     return data.proxy;
 }
 
+get fun getToken(): address {
+    val data = lazy DepositAccount_Data.load();
+    return data.token;
+}
+
 /// Returns the set of addresses that are allowed to withdraw jettons from this account's wallet.
 get fun getBeneficiaries(): map<address, ()> {
     val data = lazy DepositAccount_Data.load();

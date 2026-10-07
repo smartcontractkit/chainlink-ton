@@ -69,17 +69,21 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the TokenPool
-        TokenPool_JettonWallet => {
+        TokenPool_DeliveryMetadata => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_JettonWalletQuery) throw ReceiveExecutor_Error.TokenPoolUnexpectedResponse;
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery) throw ReceiveExecutor_Error.TokenPoolUnexpectedResponse;
             assert(in.senderAddress == ttInfo.state.tokenPool, ReceiveExecutor_Error.Unauthorized);
             assert(msg.owner == ttInfo.receiverAccount, ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
-            releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool, msg.wallet);
+            releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool, ReceiveExecutor_ExpectedDelivery {
+                accountWallet: msg.wallet,
+                transferInitiator: msg.transferInitiator,
+                amount: msg.amount,
+            });
             st.store();
         }
         // Permissionless: only notifications forwarded by the receiver's deposit account from
-        // its jetton wallet for the transferred token are counted, anything else is ignored.
+        // its jetton wallet for the transferred token are matched, anything else is ignored.
         DepositAccount_ForwardNotification => {
             onDepositAccountNotification(in.senderAddress, msg);
         }
@@ -118,7 +122,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// A bounced token admin registry or jetton wallet query fails the execution so it can be retried
+// A bounced token admin registry or delivery metadata query fails the execution so it can be retried
 // (the retry restarts from the registry query).
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
@@ -134,8 +138,8 @@ fun onBouncedMessage(in: InMessageBounced) {
                 return;
             }
         }
-        TokenPool_GetJettonWallet => {
-            if (ttInfo.state !is ReceiveExecutor_TokenTransferState_JettonWalletQuery) {
+        TokenPool_GetReleaseOrMintDeliveryMetadata => {
+            if (ttInfo.state !is ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery) {
                 return;
             }
         }
@@ -173,10 +177,10 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => {
-                    queryJettonWallet(mutate st, ttInfo, ttInfo.state.tokenPool);
+                    queryDeliveryMetadata(mutate st, ttInfo, ttInfo.state.tokenPool);
                 }
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
-                ReceiveExecutor_TokenTransferState_JettonWalletQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
+                ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
             }
         }
@@ -209,7 +213,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
     if (msg.tokenPool == null) {
         return onTokenNotEnabled(mutate st, ttInfo);
     }
-    queryJettonWallet(mutate st, ttInfo, msg.tokenPool!);
+    queryDeliveryMetadata(mutate st, ttInfo, msg.tokenPool!);
 }
 
 fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -219,27 +223,30 @@ fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecuto
     endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
 }
 
-// Asks the pool for the receiver account's jetton wallet, so receipts from the account can be
-// matched to this token before the release/mint is sent.
-fun queryJettonWallet(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
-    ttInfo.state = ReceiveExecutor_TokenTransferState_JettonWalletQuery { tokenPool };
+// Asks the pool how the release/mint will reach the receiver account, so its notification can be
+// matched before the release/mint is sent.
+fun queryDeliveryMetadata(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
+    ttInfo.state = ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery { tokenPool };
     st.state.tokenTransfer = ttInfo.toCell();
+    val transfer = lazy ttInfo.transfer.load();
     val query = createMessage({
         bounce: true,
         value: 0,
         dest: tokenPool,
-        body: TokenPool_GetJettonWallet {
+        body: TokenPool_GetReleaseOrMintDeliveryMetadata {
             queryId: st.state.queryId,
             owner: ttInfo.receiverAccount,
+            amount: transfer.amount,
+            sourcePoolData: transfer.extraData,
         },
     });
     query.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, accountWallet: address) {
+fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, delivery: ReceiveExecutor_ExpectedDelivery) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint {
         tokenPool,
-        receipt: ReceiveExecutor_Receipt { accountWallet, received: 0 }.toCell(),
+        delivery: delivery.toCell(),
     };
     st.state.tokenTransfer = ttInfo.toCell();
     val transfer = lazy ttInfo.transfer.load();
@@ -329,8 +336,8 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
     notifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-// Counts jettons forwarded by the receiver's deposit account. The transfer is delivered once the
-// notifications from the account's wallet for this token cover the transferred amount.
+// Matches the pool's delivery forwarded by the receiver's deposit account: a single notification
+// matching the wallet, initiator and local amount the pool reported.
 //
 // Checks run within the gas paid by the forwarded notification; the executor's balance is only
 // used once the transfer is delivered, so stray notifications cannot drain it.
@@ -343,26 +350,21 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     if (sender != ttInfo.receiverAccount) {
         return;
     }
-    var state = ttInfo.state;
-    var receipt = state.receipt.load();
+    val delivery = lazy ttInfo.state.delivery.load();
     val forwarded = lazy msg.message.load();
-    if (forwarded.senderAddress != receipt.accountWallet) {
+    if (forwarded.senderAddress != delivery.accountWallet) {
         return;
     }
     val notification = lazy TransferNotificationForRecipient.fromCell(forwarded.body);
-
-    receipt.received += notification.jettonAmount;
-    val transfer = lazy ttInfo.transfer.load();
-    if (receipt.received < transfer.amount) {
-        state.receipt = receipt.toCell();
-        ttInfo.state = state;
-        st.state.tokenTransfer = ttInfo.toCell();
-        st.store();
+    if (notification.transferInitiator == null || notification.transferInitiator! != delivery.transferInitiator) {
+        return;
+    }
+    if (notification.jettonAmount != delivery.amount) {
         return;
     }
 
     setGasLimitToMaximum();
-    onTokenTransferDelivered(mutate st, ttInfo, state.tokenPool, receipt.received);
+    onTokenTransferDelivered(mutate st, ttInfo, ttInfo.state.tokenPool, notification.jettonAmount);
     st.store();
 }
 

@@ -11,7 +11,7 @@ type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
     | TokenAdminRegistry_TokenInfo
     | TokenAdminRegistry_GetTokenInfoFailed
-    | TokenPool_JettonWallet
+    | TokenPool_DeliveryMetadata
     | DepositAccount_ForwardNotification
     | TokenPool_ReleaseOrMintFailure
     | ReceiveExecutor_ReleaseOrMintFailed
@@ -21,7 +21,7 @@ type ReceiveExecutor_InMessage =
 
 type ReceiveExecutor_BouncedMessage =
     | TokenAdminRegistry_GetTokenInfo
-    | TokenPool_GetJettonWallet;
+    | TokenPool_GetReleaseOrMintDeliveryMetadata;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     queryId: uint64;
@@ -92,6 +92,6 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
 
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
     return grams("0.02") // TODO
-        + grams("0.01") // TODO jetton wallet query
+        + grams("0.01") // TODO delivery metadata query
         + OffRamp_Costs.tokenTransferDelivered();
 }

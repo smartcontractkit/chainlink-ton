@@ -12,7 +12,9 @@ import {
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
   TokenPool_LocalPolicy,
+  TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
+  TransferNotificationForRecipient,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnForwardPayload,
   TokenPool_LockOrBurnPrepared,
@@ -34,6 +36,7 @@ import {
 import {
   JettonLockBox,
   AccessControl_Data,
+  JettonLockBox_Withdraw,
   JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
@@ -41,11 +44,7 @@ import { ContractClient as AccessControlClient } from '../../../wrappers/lib/acc
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import {
-  DepositAccount,
-  DepositAccount_ForwardNotification,
-} from '../../../wrappers/gen/ccip/DepositAccount'
-import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import { parseDepositAccountNotify, runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
@@ -350,6 +349,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       destTokenAddress,
       sourcePoolAddress,
       localToken: jettonMinter.address,
+      releaseOrMintInitiator: jettonLockBox.address,
     }),
     {
       setup: setupTokenPoolBehaviorContext,
@@ -704,6 +704,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
+          receiverAccount: recipient.address,
         },
       )
 
@@ -746,6 +747,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
+          receiverAccount: recipient.address,
         },
       )
 
@@ -753,6 +755,102 @@ describe('LockReleaseLockboxTokenPool', () => {
         from: deployer.address,
         to: lockReleaseLockboxPool.address,
         success: false,
+      })
+    })
+  })
+
+  describe('release failure reported by the lockbox', () => {
+    // Releases through the pool and returns the routing envelope the pool attached to the
+    // lockbox withdraw, which the lockbox echoes back as context in JettonLockBox_WithdrawFailed.
+    const releaseAndCaptureEnvelope = async (queryId: bigint) => {
+      await fundLockboxViaLock(toNano('50'), 600n + queryId)
+      const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
+        deployer.getSender(),
+        toNano('1'),
+        {
+          queryId,
+          request: TokenPool_ReleaseOrMintInV1.create({
+            transfer: TokenPool_Transfer.create({
+              id: queryId,
+              details: TokenPool_TransferDetails.create({
+                originalSender: sourcePoolAddress,
+                remoteChainSelector,
+                receiver: recipient.address,
+                amount: toNano('5'),
+                localToken: jettonMinter.address,
+              }),
+            }),
+            sourcePoolAddress: sourcePoolAddress,
+            sourcePoolData: null,
+            offchainTokenData: null,
+          }),
+          requestedFinalityConfig: 0n,
+          replyTo: offRamp.address,
+          receiverAccount: recipient.address,
+        },
+      )
+      const withdrawTx = result.transactions.find((tx) => {
+        const body = tx.inMessage?.body
+        const dest = tx.inMessage?.info.dest
+        if (!body || !(dest instanceof Address) || !dest.equals(jettonLockBox.address)) return false
+        const slice = body.beginParse()
+        return slice.remainingBits >= 32 && slice.preloadUint(32) === JettonLockBox_Withdraw.PREFIX
+      })
+      expect(withdrawTx).toBeDefined()
+      const withdraw = JettonLockBox_Withdraw.fromSlice(withdrawTx!.inMessage!.body.beginParse())
+      expect(withdraw.recipientWallet.equals(recipient.address)).toBe(true)
+      return withdraw.extra!.forwardPayload!
+    }
+
+    it('replies ReleaseOrMintFailure to replyTo when the lockbox reports the withdraw failed', async () => {
+      const queryId = 610n
+      const envelope = await releaseAndCaptureEnvelope(queryId)
+
+      const result = await lockReleaseLockboxPool.sendJettonLockBoxWithdrawFailed(
+        blockchain.sender(jettonLockBox.address),
+        toNano('0.2'),
+        {
+          queryId,
+          token: jettonMinter.address,
+          amount: toNano('5'),
+          recipientWallet: recipient.address,
+          context: envelope,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: offRamp.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+        body(body) {
+          if (!body) return false
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
+        },
+      })
+    })
+
+    it('rejects a JettonLockBox_WithdrawFailed that does not come from the lockbox', async () => {
+      const queryId = 611n
+      const envelope = await releaseAndCaptureEnvelope(queryId)
+
+      const unauthorized = await blockchain.treasury('unauthorized')
+      const result = await lockReleaseLockboxPool.sendJettonLockBoxWithdrawFailed(
+        unauthorized.getSender(),
+        toNano('0.2'),
+        {
+          queryId,
+          token: jettonMinter.address,
+          amount: toNano('5'),
+          recipientWallet: recipient.address,
+          context: envelope,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: unauthorized.address,
+        to: lockReleaseLockboxPool.address,
+        success: false,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
   })
@@ -879,6 +977,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
+          receiverAccount: recipient.address,
         },
       )
 
@@ -910,12 +1009,30 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: true,
       })
 
-      // ReturnExcessesBack is routed through the OAA before the
-      // pool finalizes the release and clears the direct failure context.
+      // The receiver account (a treasury stand-in) is credited and notified with the pool's
+      // routing envelope, so a real deposit account forwards the notification to `replyTo`.
+      const accountWallet = await userWallet(recipient.address)
+      expect(await accountWallet.getJettonBalance()).toBe(toNano('5'))
       expect(result.transactions).toHaveTransaction({
-        to: lockReleaseLockboxPool.address,
-        op: DepositAccount_ForwardNotification.PREFIX,
+        from: accountWallet.address,
+        to: recipient.address,
+        op: TransferNotificationForRecipient.PREFIX,
         success: true,
+        body(body) {
+          if (!body) return false
+          const notification = TransferNotificationForRecipient.fromSlice(body.beginParse())
+          return (
+            notification.jettonAmount === toNano('5') &&
+            parseDepositAccountNotify(notification.forwardPayload)?.equals(deployer.address) ===
+              true
+          )
+        },
+      })
+
+      // Completion is reported by the ReceiveExecutor, not by the pool.
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        op: TokenPool_ReleaseOrMintFinished.PREFIX,
       })
     })
 
@@ -945,6 +1062,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
+          receiverAccount: recipient.address,
         },
       )
 

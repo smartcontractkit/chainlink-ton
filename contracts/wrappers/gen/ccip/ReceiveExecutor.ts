@@ -872,93 +872,115 @@ export const TokenAdminRegistry_GetTokenInfoFailed = {
 }
 
 /**
- > struct (0xdcfaa337) TokenPool_GetJettonWallet {
+ > struct (0x5a9bf3ce) TokenPool_GetReleaseOrMintDeliveryMetadata {
  >     queryId: uint64
  >     owner: address
+ >     amount: uint256
+ >     sourcePoolData: cell?
  > }
  */
-export interface TokenPool_GetJettonWallet {
-    readonly $: 'TokenPool_GetJettonWallet'
+export interface TokenPool_GetReleaseOrMintDeliveryMetadata {
+    readonly $: 'TokenPool_GetReleaseOrMintDeliveryMetadata'
     queryId: uint64
     owner: c.Address
+    amount: uint256
+    sourcePoolData: c.Cell | null
 }
 
-export const TokenPool_GetJettonWallet = {
-    PREFIX: 0xdcfaa337,
+export const TokenPool_GetReleaseOrMintDeliveryMetadata = {
+    PREFIX: 0x5a9bf3ce,
 
     create(args: {
         queryId?: uint64
         owner: c.Address
-    }): TokenPool_GetJettonWallet {
+        amount: uint256
+        sourcePoolData: c.Cell | null
+    }): TokenPool_GetReleaseOrMintDeliveryMetadata {
         return {
-            $: 'TokenPool_GetJettonWallet',
+            $: 'TokenPool_GetReleaseOrMintDeliveryMetadata',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenPool_GetJettonWallet {
-        loadAndCheckPrefix32(s, 0xdcfaa337, 'TokenPool_GetJettonWallet');
+    fromSlice(s: c.Slice): TokenPool_GetReleaseOrMintDeliveryMetadata {
+        loadAndCheckPrefix32(s, 0x5a9bf3ce, 'TokenPool_GetReleaseOrMintDeliveryMetadata');
         return {
-            $: 'TokenPool_GetJettonWallet',
+            $: 'TokenPool_GetReleaseOrMintDeliveryMetadata',
             queryId: s.loadUintBig(64),
             owner: s.loadAddress(),
+            amount: s.loadUintBig(256),
+            sourcePoolData: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: TokenPool_GetJettonWallet, b: c.Builder): void {
-        b.storeUint(0xdcfaa337, 32);
+    store(self: TokenPool_GetReleaseOrMintDeliveryMetadata, b: c.Builder): void {
+        b.storeUint(0x5a9bf3ce, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.owner);
+        b.storeUint(self.amount, 256);
+        storeTolkNullable<c.Cell>(self.sourcePoolData, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: TokenPool_GetJettonWallet): c.Cell {
-        return makeCellFrom<TokenPool_GetJettonWallet>(self, TokenPool_GetJettonWallet.store);
+    toCell(self: TokenPool_GetReleaseOrMintDeliveryMetadata): c.Cell {
+        return makeCellFrom<TokenPool_GetReleaseOrMintDeliveryMetadata>(self, TokenPool_GetReleaseOrMintDeliveryMetadata.store);
     }
 }
 
 /**
- > struct (0xdc3d07a4) TokenPool_JettonWallet {
+ > struct (0xc54839a3) TokenPool_DeliveryMetadata {
  >     queryId: uint64
  >     owner: address
  >     wallet: address
+ >     transferInitiator: address
+ >     amount: coins
  > }
  */
-export interface TokenPool_JettonWallet {
-    readonly $: 'TokenPool_JettonWallet'
+export interface TokenPool_DeliveryMetadata {
+    readonly $: 'TokenPool_DeliveryMetadata'
     queryId: uint64
     owner: c.Address
     wallet: c.Address
+    transferInitiator: c.Address
+    amount: coins
 }
 
-export const TokenPool_JettonWallet = {
-    PREFIX: 0xdc3d07a4,
+export const TokenPool_DeliveryMetadata = {
+    PREFIX: 0xc54839a3,
 
     create(args: {
         queryId?: uint64
         owner: c.Address
         wallet: c.Address
-    }): TokenPool_JettonWallet {
+        transferInitiator: c.Address
+        amount: coins
+    }): TokenPool_DeliveryMetadata {
         return {
-            $: 'TokenPool_JettonWallet',
+            $: 'TokenPool_DeliveryMetadata',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenPool_JettonWallet {
-        loadAndCheckPrefix32(s, 0xdc3d07a4, 'TokenPool_JettonWallet');
+    fromSlice(s: c.Slice): TokenPool_DeliveryMetadata {
+        loadAndCheckPrefix32(s, 0xc54839a3, 'TokenPool_DeliveryMetadata');
         return {
-            $: 'TokenPool_JettonWallet',
+            $: 'TokenPool_DeliveryMetadata',
             queryId: s.loadUintBig(64),
             owner: s.loadAddress(),
             wallet: s.loadAddress(),
+            transferInitiator: s.loadAddress(),
+            amount: s.loadCoins(),
         }
     },
-    store(self: TokenPool_JettonWallet, b: c.Builder): void {
-        b.storeUint(0xdc3d07a4, 32);
+    store(self: TokenPool_DeliveryMetadata, b: c.Builder): void {
+        b.storeUint(0xc54839a3, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.owner);
         b.storeAddress(self.wallet);
+        b.storeAddress(self.transferInitiator);
+        b.storeCoins(self.amount);
     },
-    toCell(self: TokenPool_JettonWallet): c.Cell {
-        return makeCellFrom<TokenPool_JettonWallet>(self, TokenPool_JettonWallet.store);
+    toCell(self: TokenPool_DeliveryMetadata): c.Cell {
+        return makeCellFrom<TokenPool_DeliveryMetadata>(self, TokenPool_DeliveryMetadata.store);
     }
 }
 
@@ -1914,14 +1936,14 @@ export const ReceiveExecutor_TokenTransferInfo = {
 }
 
 /**
- > type ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Success | ReceiveExecutor_TokenTransferState_Untouched | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed | ReceiveExecutor_TokenTransferState_JettonWalletQuery | ReceiveExecutor_TokenTransferState_ReleaseOrMint | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
+ > type ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Success | ReceiveExecutor_TokenTransferState_Untouched | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed | ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery | ReceiveExecutor_TokenTransferState_ReleaseOrMint | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
  */
 export type ReceiveExecutor_TokenTransferState =
     | ReceiveExecutor_TokenTransferState_Success
     | ReceiveExecutor_TokenTransferState_Untouched
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed
-    | ReceiveExecutor_TokenTransferState_JettonWalletQuery
+    | ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery
     | ReceiveExecutor_TokenTransferState_ReleaseOrMint
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
 
@@ -1931,7 +1953,7 @@ export const ReceiveExecutor_TokenTransferState = {
             lookupPrefixAndEat(s, 0b001, 3) ? ReceiveExecutor_TokenTransferState_Untouched.fromSlice(s) :
             lookupPrefixAndEat(s, 0b010, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery.fromSlice(s) :
             lookupPrefixAndEat(s, 0b011, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b100, 3) ? ReceiveExecutor_TokenTransferState_JettonWalletQuery.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b100, 3) ? ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery.fromSlice(s) :
             lookupPrefixAndEat(s, 0b101, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMint.fromSlice(s) :
             lookupPrefixAndEat(s, 0b110, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.fromSlice(s) :
             throwNonePrefixMatch('ReceiveExecutor_TokenTransferState');
@@ -1954,9 +1976,9 @@ export const ReceiveExecutor_TokenTransferState = {
                 b.storeUint(0b011, 3);
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.store(self, b);
                 break;
-            case 'ReceiveExecutor_TokenTransferState_JettonWalletQuery':
+            case 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery':
                 b.storeUint(0b100, 3);
-                ReceiveExecutor_TokenTransferState_JettonWalletQuery.store(self, b);
+                ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery.store(self, b);
                 break;
             case 'ReceiveExecutor_TokenTransferState_ReleaseOrMint':
                 b.storeUint(0b101, 3);
@@ -2078,54 +2100,54 @@ export const ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed = 
 }
 
 /**
- > struct ReceiveExecutor_TokenTransferState_JettonWalletQuery {
+ > struct ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
  >     tokenPool: address
  > }
  */
-export interface ReceiveExecutor_TokenTransferState_JettonWalletQuery {
-    readonly $: 'ReceiveExecutor_TokenTransferState_JettonWalletQuery'
+export interface ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
+    readonly $: 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery'
     tokenPool: c.Address
 }
 
-export const ReceiveExecutor_TokenTransferState_JettonWalletQuery = {
+export const ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery = {
     create(args: {
         tokenPool: c.Address
-    }): ReceiveExecutor_TokenTransferState_JettonWalletQuery {
+    }): ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
         return {
-            $: 'ReceiveExecutor_TokenTransferState_JettonWalletQuery',
+            $: 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery',
             ...args
         }
     },
-    fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_JettonWalletQuery {
+    fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
         return {
-            $: 'ReceiveExecutor_TokenTransferState_JettonWalletQuery',
+            $: 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery',
             tokenPool: s.loadAddress(),
         }
     },
-    store(self: ReceiveExecutor_TokenTransferState_JettonWalletQuery, b: c.Builder): void {
+    store(self: ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery, b: c.Builder): void {
         b.storeAddress(self.tokenPool);
     },
-    toCell(self: ReceiveExecutor_TokenTransferState_JettonWalletQuery): c.Cell {
-        return makeCellFrom<ReceiveExecutor_TokenTransferState_JettonWalletQuery>(self, ReceiveExecutor_TokenTransferState_JettonWalletQuery.store);
+    toCell(self: ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery): c.Cell {
+        return makeCellFrom<ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery>(self, ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery.store);
     }
 }
 
 /**
  > struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
  >     tokenPool: address
- >     receipt: Cell<ReceiveExecutor_Receipt>
+ >     delivery: Cell<ReceiveExecutor_ExpectedDelivery>
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     readonly $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint'
     tokenPool: c.Address
-    receipt: ReceiveExecutor_Receipt
+    delivery: ReceiveExecutor_ExpectedDelivery
 }
 
 export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
     create(args: {
         tokenPool: c.Address
-        receipt: ReceiveExecutor_Receipt
+        delivery: ReceiveExecutor_ExpectedDelivery
     }): ReceiveExecutor_TokenTransferState_ReleaseOrMint {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint',
@@ -2136,12 +2158,12 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint',
             tokenPool: s.loadAddress(),
-            receipt: loadCellRef<ReceiveExecutor_Receipt>(s, ReceiveExecutor_Receipt.fromSlice),
+            delivery: loadCellRef<ReceiveExecutor_ExpectedDelivery>(s, ReceiveExecutor_ExpectedDelivery.fromSlice),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_ReleaseOrMint, b: c.Builder): void {
         b.storeAddress(self.tokenPool);
-        storeCellRef<ReceiveExecutor_Receipt>(self.receipt, b, ReceiveExecutor_Receipt.store);
+        storeCellRef<ReceiveExecutor_ExpectedDelivery>(self.delivery, b, ReceiveExecutor_ExpectedDelivery.store);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_ReleaseOrMint): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_ReleaseOrMint>(self, ReceiveExecutor_TokenTransferState_ReleaseOrMint.store);
@@ -2149,40 +2171,45 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
 }
 
 /**
- > struct ReceiveExecutor_Receipt {
+ > struct ReceiveExecutor_ExpectedDelivery {
  >     accountWallet: address
- >     received: coins
+ >     transferInitiator: address
+ >     amount: coins
  > }
  */
-export interface ReceiveExecutor_Receipt {
-    readonly $: 'ReceiveExecutor_Receipt'
+export interface ReceiveExecutor_ExpectedDelivery {
+    readonly $: 'ReceiveExecutor_ExpectedDelivery'
     accountWallet: c.Address
-    received: coins
+    transferInitiator: c.Address
+    amount: coins
 }
 
-export const ReceiveExecutor_Receipt = {
+export const ReceiveExecutor_ExpectedDelivery = {
     create(args: {
         accountWallet: c.Address
-        received: coins
-    }): ReceiveExecutor_Receipt {
+        transferInitiator: c.Address
+        amount: coins
+    }): ReceiveExecutor_ExpectedDelivery {
         return {
-            $: 'ReceiveExecutor_Receipt',
+            $: 'ReceiveExecutor_ExpectedDelivery',
             ...args
         }
     },
-    fromSlice(s: c.Slice): ReceiveExecutor_Receipt {
+    fromSlice(s: c.Slice): ReceiveExecutor_ExpectedDelivery {
         return {
-            $: 'ReceiveExecutor_Receipt',
+            $: 'ReceiveExecutor_ExpectedDelivery',
             accountWallet: s.loadAddress(),
-            received: s.loadCoins(),
+            transferInitiator: s.loadAddress(),
+            amount: s.loadCoins(),
         }
     },
-    store(self: ReceiveExecutor_Receipt, b: c.Builder): void {
+    store(self: ReceiveExecutor_ExpectedDelivery, b: c.Builder): void {
         b.storeAddress(self.accountWallet);
-        b.storeCoins(self.received);
+        b.storeAddress(self.transferInitiator);
+        b.storeCoins(self.amount);
     },
-    toCell(self: ReceiveExecutor_Receipt): c.Cell {
-        return makeCellFrom<ReceiveExecutor_Receipt>(self, ReceiveExecutor_Receipt.store);
+    toCell(self: ReceiveExecutor_ExpectedDelivery): c.Cell {
+        return makeCellFrom<ReceiveExecutor_ExpectedDelivery>(self, ReceiveExecutor_ExpectedDelivery.store);
     }
 }
 
@@ -2307,7 +2334,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2391,12 +2418,14 @@ export class ReceiveExecutor implements c.Contract {
         return TokenAdminRegistry_GetTokenInfoFailed.toCell(TokenAdminRegistry_GetTokenInfoFailed.create(body));
     }
 
-    static createCellOfTokenPoolJettonWallet(body: {
+    static createCellOfTokenPoolDeliveryMetadata(body: {
         queryId?: uint64
         owner: c.Address
         wallet: c.Address
+        transferInitiator: c.Address
+        amount: coins
     }) {
-        return TokenPool_JettonWallet.toCell(TokenPool_JettonWallet.create(body));
+        return TokenPool_DeliveryMetadata.toCell(TokenPool_DeliveryMetadata.create(body));
     }
 
     static createCellOfDepositAccountForwardNotification(body: {
@@ -2491,14 +2520,16 @@ export class ReceiveExecutor implements c.Contract {
         });
     }
 
-    async sendTokenPoolJettonWallet(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenPoolDeliveryMetadata(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         owner: c.Address
         wallet: c.Address
+        transferInitiator: c.Address
+        amount: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenPool_JettonWallet.toCell(TokenPool_JettonWallet.create(body)),
+            body: TokenPool_DeliveryMetadata.toCell(TokenPool_DeliveryMetadata.create(body)),
             ...extraOptions
         });
     }

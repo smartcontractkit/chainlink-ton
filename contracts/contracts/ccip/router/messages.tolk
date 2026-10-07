@@ -102,19 +102,22 @@ struct Router_WithdrawRequest {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-/// Permissionless: deploys (or re-confirms) the sender's per-user onramp account.
+/// Permissionless: deploys (or re-confirms) the sender's onramp account for `token`.
 /// The account is a Deployable-namespaced OnRampAccount owned by the Router, keyed by the
-/// sender's address. The Router answers with Router_UseOnRampAccount once the account
+/// (sender, token) pair. The Router answers with Router_UseOnRampAccount once the account
 /// confirms initialization (DepositAccount_Reply).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
     queryId: uint64;
+    /// Jetton master the account will escrow. One account per (sender, token).
+    token: address;
 }
 
 /// Sent to a user once their onramp account confirmed initialization: `account` is the
-/// address the user must send jettons to (via its jetton wallet).
+/// address the user must send `token` jettons to (via its jetton wallet).
 struct (0xf28658e0) Router_UseOnRampAccount {
     queryId: uint64;
     account: address;
+    token: address;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -222,6 +225,7 @@ struct (0xddfdefa8) Router_TokenTransferDelivered {
 /// that leg apart from the inbound relay leg when the account replies.
 struct (0x9e339227) Router_OnRampAccountContext {
     user: address;
+    token: address;
 }
 
 /// The two contexts the Router carries in a `DepositAccount_Init.forwardPayload` and gets back in

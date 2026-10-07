@@ -25,7 +25,15 @@ const (
 type Data struct {
 	Owner         *address.Address                         `tlb:"addr"`
 	Proxy         *address.Address                         `tlb:"addr"`
+	Token         *address.Address                         `tlb:"addr"`
 	Beneficiaries *tlbe.Dict[common.AddressWrap, struct{}] `tlb:"."`
+}
+
+// Identity is what an account reports about itself so a recipient can re-derive its address.
+type Identity struct {
+	Owner *address.Address `tlb:"addr"`
+	Proxy *address.Address `tlb:"addr"`
+	Token *address.Address `tlb:"addr"`
 }
 
 // --- Messages (incoming) ---
@@ -75,6 +83,7 @@ type ForwardNotification struct {
 type WithdrawFailed struct {
 	_             tlb.Magic        `tlb:"#a51b6cba" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
+	Account       *cell.Cell       `tlb:"^"` // Cell<Identity>
 	WalletAddress *address.Address `tlb:"addr"`
 	Ask           *cell.Cell       `tlb:"^"` // Cell<AskToTransfer>
 }
