@@ -15,9 +15,8 @@ const CHAIN_FAMILY_SELECTOR_TVM:   uint32 = 0x647e2ba9;
 const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
 const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 
-
 const DestFamilyAddressValidation_FACILITY_NAME = "link.chain.ton.ccip.common.DestFamilyAddressValidation";
-const DestFamilyAddressValidation_FACILITY_ID = DestFamilyAddressValidation_FACILITY_NAME.crc32() % 640 + 10; // 140
+const DestFamilyAddressValidation_FACILITY_ID = DestFamilyAddressValidation_FACILITY_NAME.crc32() % 640 + 10; // 351
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 enum DestFamilyAddressValidation_Error {
