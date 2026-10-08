@@ -286,7 +286,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
-            releaseOrMintInitiator: null,
             onWithdrawFeeTokens: null,
         },
     };

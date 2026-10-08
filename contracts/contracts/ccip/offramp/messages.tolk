@@ -6,6 +6,7 @@ import "../../lib/ocr/types"
 import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
 
+import "../accounts/deposit/types"
 import "../common/types"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
@@ -151,7 +152,8 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 }
 
 fun OffRamp_ReleaseOrMint.cost(): coins {
-    return grams("0.07"); // TODO
+    return grams("0.07") // TODO
+        + DepositAccount_WALLET_QUERY_VALUE;
 }
 
 struct OffRamp_Costs{}

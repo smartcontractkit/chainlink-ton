@@ -137,27 +137,12 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     receiverAccount: address? = null;
 }
 
-/// Permissionless query for how a release/mint of `amount` to `owner` is delivered. Answered with
-/// `TokenPool_DeliveryMetadata` to the sender.
-struct (0x5a9bf3ce) TokenPool_GetReleaseOrMintDeliveryMetadata {
-    queryId: uint64;
-    owner: address;
-    amount: uint256;        // Source token decimals.
-    sourcePoolData: cell?;
-}
-
-struct (0xc54839a3) TokenPool_DeliveryMetadata {
-    queryId: uint64;
-    owner: address;
-    wallet: address;
-    transferInitiator: address;
-    amount: coins;          // Local token decimals.
-}
-
 /// Sent by the Router once the ReceiveExecutor confirmed the released/minted tokens reached the
-/// receiver's deposit account.
+/// receiver's deposit account. The pool answers `replyTo` (the ReceiveExecutor) with
+/// `TokenPool_ReleaseOrMintFinalized`.
 struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
     queryId: uint64;
+    replyTo: address;
     transfer: Cell<TokenPool_DeliveredTransfer>;
 }
 
@@ -308,7 +293,6 @@ type TokenPool_InMessage =
     | TokenPool_PreflightCheckFailed
     | TokenPool_ReleaseOrMint
     | TokenPool_ReleaseOrMintDelivered
-    | TokenPool_GetReleaseOrMintDeliveryMetadata
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
     | TokenPool_GetCCVs
@@ -352,6 +336,11 @@ struct (0x3476ea72) TokenPool_LockOrBurnFailure {
 struct (0xe0e882f5) TokenPool_ReleaseOrMintFinished {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
+}
+
+/// Sent to the ReceiveExecutor once the pool processed `TokenPool_ReleaseOrMintDelivered`.
+struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
+    queryId: uint64;
 }
 
 struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
@@ -411,8 +400,8 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
+    | TokenPool_ReleaseOrMintFinalized
     | TokenPool_ReleaseOrMintFailure
-    | TokenPool_DeliveryMetadata
     | TokenPool_CCVs
     | TokenPool_CCVsAndFees
     | TokenPool_GetCCVsFailed

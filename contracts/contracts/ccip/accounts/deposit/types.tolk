@@ -5,6 +5,8 @@ import "../../../lib/deployable/namespace"
 /// Represents the amount of GRAM coins we reserve on the balance to pay for storage fees.
 const DepositAccount_MIN_GRAM_TO_RESERVE: int = grams("0.05");
 const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.01") // extra for gas fees // TODO  update with real value
+/// Attached to the TEP-89 wallet query; the token's response returns the unspent part.
+const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.02") // TODO update with real value
 
 /// Runtime data stored by each DepositAccount instance.
 ///
@@ -20,6 +22,17 @@ struct DepositAccount_Data {
     token: address;
     /// Accounts that are allowed to withdraw jettons from this account's wallet (a set).
     beneficiaries: map<address, ()>;
+    /// Jetton wallet of this account, learned from `token` when an init sets `learnWallet`.
+    wallet: Cell<address>? = null;
+    /// Inits waiting for the wallet to be learned, keyed by arrival order.
+    pendingInits: map<uint32, DepositAccount_PendingInit> = [];
+}
+
+struct DepositAccount_PendingInit {
+    queryId: uint64;
+    forwardPayload: cell?;
+    /// Init value returned with the reply.
+    value: coins;
 }
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10

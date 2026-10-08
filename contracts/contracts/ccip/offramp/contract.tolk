@@ -122,13 +122,13 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_NotifySuccess => {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            onNotifySuccess(st, msg);
+            onNotifySuccess(st, msg, in.senderAddress);
         }
         // Sender must be ReceiveExecutor
         OffRamp_TokenTransferDelivered => {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            relayTokenTransferDelivered(st, msg.queryId, msg.execId, msg.delivered, true);
+            relayTokenTransferDelivered(st, msg.queryId, msg.execId, in.senderAddress, msg.delivered, true);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
@@ -386,9 +386,9 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 //
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
-fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess) {
+fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
-        relayTokenTransferDelivered(st, msg.queryId, msg.execId, msg.delivered!, false);
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
     }
 
     val messageHeader = lazy msg.header.load();
@@ -410,7 +410,8 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess) {
 //     ReceiveExecutor ->> OffRamp:   OffRamp_NotifySuccess / OffRamp_TokenTransferDelivered
 //     OffRamp         ->> Router:    Router_TokenTransferDelivered
 //     Router          ->> TokenPool: TokenPool_ReleaseOrMintDelivered
-fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutorId, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
+//     TokenPool       ->> ReceiveExecutor: TokenPool_ReleaseOrMintFinalized
+fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutorId, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
     val delivered = lazy deliveredCell.load();
     val relay = createMessage({
         bounce: BounceMode.NoBounce,
@@ -419,6 +420,7 @@ fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExe
         body: Router_TokenTransferDelivered {
             queryId,
             tokenPool: delivered.tokenPool,
+            replyTo: receiveExecutor,
             transfer: delivered.transfer,
         },
     });

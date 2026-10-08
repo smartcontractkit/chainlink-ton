@@ -214,11 +214,6 @@ fun onLockTransferBounced(
  * 6. On error, the lockbox sends JettonLockBox_WithdrawFailed directly to the pool
  */
 
-/// Releases are transferred from the lockbox's wallet, so the lockbox is the transfer initiator.
-fun releaseOrMintInitiator(ctx: Storage?): address {
-    return ctx!.lockbox;
-}
-
 fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
@@ -287,8 +282,11 @@ fun onWithdrawFailed(
         assert(envelope.payload != null) throw 0xFFFF;
         val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(envelope.payload!);
         assert(msg.queryId == context.forwardPayload.load().requestMsg.load().queryId) throw 0xFFFF;
+        val operation = context.forwardPayload.load();
         var pool = loadPool(st);
-        pool.sendReleaseOrMintFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16);
+        pool.refundReleaseOrMintRateLimit(operation);
+        st.poolData = pool.data.toCell();
+        pool.sendReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16);
     }
 }
 
@@ -309,7 +307,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             validateReleaseOrMint: null,
             postflightCheck: null,
             onReleaseOrMintContinue,
-            releaseOrMintInitiator,
             onWithdrawFeeTokens: null,
         },
     };

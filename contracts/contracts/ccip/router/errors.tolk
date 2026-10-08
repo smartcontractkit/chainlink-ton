@@ -18,4 +18,5 @@ enum Router_Error {
     SenderIsNotDepositAccount
     DepositAccountInitFailed
     SenderIsNotOnRampAccount
+    DepositAccountWalletUnavailable
 }

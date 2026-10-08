@@ -27,6 +27,17 @@ type Data struct {
 	Proxy         *address.Address                         `tlb:"addr"`
 	Token         *address.Address                         `tlb:"addr"`
 	Beneficiaries *tlbe.Dict[common.AddressWrap, struct{}] `tlb:"."`
+	// Wallet is the account's jetton wallet, learned from Token when an init sets LearnWallet.
+	Wallet *address.Address `tlb:"maybe ^ addr"`
+	// PendingInits are the inits waiting for the wallet, keyed by arrival order (map<uint32, PendingInit>).
+	PendingInits *cell.Dictionary `tlb:"dict 32"`
+}
+
+// PendingInit is an init waiting for the account's jetton wallet to be learned.
+type PendingInit struct {
+	QueryID        uint64     `tlb:"## 64"`
+	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	Value          tlb.Coins  `tlb:"."`
 }
 
 // Identity is what an account reports about itself so a recipient can re-derive its address.
@@ -43,6 +54,8 @@ type Init struct {
 	_              tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	// LearnWallet makes the account reply only once it knows its jetton wallet (TEP-89 query to Token).
+	LearnWallet bool `tlb:"bool"`
 }
 
 // Withdraw lets a beneficiary transfer jettons from this account's wallet.
@@ -58,6 +71,13 @@ type Withdraw struct {
 // Reply is sent to the initiator on successful initialization.
 type Reply struct {
 	_              tlb.Magic  `tlb:"#da04630c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64     `tlb:"## 64"`
+	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+}
+
+// WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet.
+type WalletUnavailable struct {
+	_              tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
 }
@@ -95,6 +115,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Init{},
 	Withdraw{},
 	Reply{},
+	WalletUnavailable{},
 	ForwardNotification{},
 	WithdrawFailed{},
 }).MustWithStorageType(Data{})

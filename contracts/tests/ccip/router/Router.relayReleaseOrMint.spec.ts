@@ -17,6 +17,8 @@ const relayValue = toNano('1')
 // Router_Error.DepositAccountInitFailed follows SenderIsNotDepositAccount in the enum. It is only
 // reported as an exit code, never thrown, so the generated Errors map omits it.
 const DEPOSIT_ACCOUNT_INIT_FAILED = rt.Router.Errors['Router_Error.SenderIsNotDepositAccount'] + 1
+const DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE =
+  rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'] + 1
 
 describe('Router.relayReleaseOrMint', () => {
   let blockchain: Blockchain
@@ -31,6 +33,8 @@ describe('Router.relayReleaseOrMint', () => {
   let deployableCode: Cell
   let token: Address
   let otherToken: Address
+  let tokenMaster: SandboxContract<TreasuryContract>
+  let otherTokenMaster: SandboxContract<TreasuryContract>
 
   const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
@@ -47,8 +51,10 @@ describe('Router.relayReleaseOrMint', () => {
     attacker = await blockchain.treasury('attacker')
     tokenPool = await blockchain.treasury('tokenPool')
     executor = await blockchain.treasury('receiveExecutor')
-    token = (await blockchain.treasury('jettonMaster')).address
-    otherToken = (await blockchain.treasury('otherJettonMaster')).address
+    tokenMaster = await blockchain.treasury('jettonMaster')
+    otherTokenMaster = await blockchain.treasury('otherJettonMaster')
+    token = tokenMaster.address
+    otherToken = otherTokenMaster.address
   })
 
   // Router.receiverDepositAccount: Deployable namespace DepositAccount, owner = Router,
@@ -88,6 +94,31 @@ describe('Router.relayReleaseOrMint', () => {
   const relay = (relayMsg: rt.Router_RelayReleaseOrMint, via = offRamp) =>
     router.sendRouterRelayReleaseOrMint(via.getSender(), relayValue, relayMsg)
 
+  // Answers the fresh account's TEP-89 wallet query on behalf of the token.
+  const answerWalletQuery = (
+    account: Address,
+    master: SandboxContract<TreasuryContract> = tokenMaster,
+  ) =>
+    blockchain
+      .openContract(deposit.DepositAccount.fromAddress(account))
+      .sendResponseWalletAddress(master.getSender(), toNano('0.05'), {
+        queryId: 0n,
+        jettonWalletAddress: generateWalletAddress(account),
+        ownerAddress: null,
+      })
+
+  const generateWalletAddress = (account: Address) =>
+    new Address(0, beginCell().storeAddress(account).endCell().hash())
+
+  const relayToFreshAccount = async (relayMsg: rt.Router_RelayReleaseOrMint) => {
+    const jetton = relayMsg.request.transfer.details.localToken
+    await relay(relayMsg)
+    return answerWalletQuery(
+      receiverAccountFor(receiver.address, jetton),
+      jetton.equals(token) ? tokenMaster : otherTokenMaster,
+    )
+  }
+
   const expectRelayedToPool = (
     result: Awaited<ReturnType<typeof relay>>,
     queryID: bigint,
@@ -120,24 +151,35 @@ describe('Router.relayReleaseOrMint', () => {
       expect(forToken.equals(forOtherToken)).toBe(false)
     })
 
-    it('deploys the receiver account, then relays ReleaseOrMint with it as receiverAccount', async () => {
+    it('deploys the receiver account, learns its wallet, then relays ReleaseOrMint with it as receiverAccount', async () => {
       const account = receiverAccountFor()
       const relayMsg = relayOf(1n)
-      const result = await relay(relayMsg)
+      const deployment = await relay(relayMsg)
 
-      expect(result.transactions).toHaveTransaction({
+      expect(deployment.transactions).toHaveTransaction({
         from: router.address,
         to: account,
         op: dep.opcodes.in.initialize,
         deploy: true,
         success: true,
       })
-      expect(result.transactions).toHaveTransaction({
+      expect(deployment.transactions).toHaveTransaction({
         from: router.address,
         to: account,
         op: deposit.DepositAccount_Init.PREFIX,
         success: true,
       })
+      expect(deployment.transactions).toHaveTransaction({
+        from: account,
+        to: token,
+        op: deposit.RequestWalletAddress.PREFIX,
+      })
+      expect(deployment.transactions).not.toHaveTransaction({
+        to: tokenPool.address,
+        op: rt.TokenPool_ReleaseOrMint.PREFIX,
+      })
+
+      const result = await answerWalletQuery(account)
       // The account echoes the relay back so the Router can resume it.
       expect(result.transactions).toHaveTransaction({
         from: account,
@@ -156,7 +198,7 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
     it('initializes the account with the Router as owner, the receiver as proxy and sole beneficiary', async () => {
-      await relay(relayOf(2n))
+      await relayToFreshAccount(relayOf(2n))
 
       const account = blockchain.openContract(
         deposit.DepositAccount.fromAddress(receiverAccountFor()),
@@ -170,7 +212,7 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
     it('reuses an already deployed account: the retried Initialize bounce is ignored', async () => {
-      await relay(relayOf(3n))
+      await relayToFreshAccount(relayOf(3n))
       const result = await relay(relayOf(4n))
 
       expect(result.transactions).toHaveTransaction({
@@ -194,17 +236,18 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
     it('deploys a separate account for each token of the same receiver', async () => {
-      await relay(relayOf(5n))
-      const result = await relay(relayOf(6n, otherToken))
+      await relayToFreshAccount(relayOf(5n))
       const otherAccount = receiverAccountFor(receiver.address, otherToken)
+      const deployment = await relay(relayOf(6n, otherToken))
 
-      expect(result.transactions).toHaveTransaction({
+      expect(deployment.transactions).toHaveTransaction({
         from: router.address,
         to: otherAccount,
         op: dep.opcodes.in.initialize,
         deploy: true,
         success: true,
       })
+      const result = await answerWalletQuery(otherAccount, otherTokenMaster)
       expectRelayedToPool(result, 6n, otherAccount)
 
       const account = blockchain.openContract(deposit.DepositAccount.fromAddress(otherAccount))
@@ -230,7 +273,7 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
     it("rejects a reply from the receiver's account of a different token than the relayed one", async () => {
-      await relay(relayOf(11n))
+      await relayToFreshAccount(relayOf(11n))
 
       // The genuine (receiver, token) account replies with a relay for (receiver, otherToken).
       const result = await router.sendDepositAccountReply(
@@ -276,6 +319,30 @@ describe('Router.relayReleaseOrMint', () => {
       })
     })
 
+    it('fails the relay back to the OffRamp when the receiver account reports WalletUnavailable', async () => {
+      const result = await router.sendDepositAccountWalletUnavailable(
+        blockchain.sender(receiverAccountFor()),
+        toNano('0.5'),
+        { queryId: 15n, forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(15n)) },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: offRamp.address,
+        op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
+        body(body) {
+          if (!body) return false
+          const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
+          return (
+            failed.queryID === 15n && failed.exitCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
+          )
+        },
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        to: tokenPool.address,
+        op: rt.TokenPool_ReleaseOrMint.PREFIX,
+      })
+    })
+
     it('rejects a NotEnoughValue for a relay that does not come from the receiver account', async () => {
       const result = await router.sendDepositAccountNotEnoughValue(
         attacker.getSender(),
@@ -308,17 +375,24 @@ describe('Router.relayReleaseOrMint', () => {
       const result = await router.sendRouterTokenTransferDelivered(
         offRamp.getSender(),
         toNano('0.1'),
-        { queryId: 20n, tokenPool: tokenPool.address, transfer: delivered() },
+        {
+          queryId: 20n,
+          tokenPool: tokenPool.address,
+          replyTo: receiver.address,
+          transfer: delivered(),
+        },
       )
       expect(result.transactions).toHaveTransaction({
         from: router.address,
         to: tokenPool.address,
         op: rt.TokenPool_ReleaseOrMintDelivered.PREFIX,
         body(body) {
-          if (!body) return false
+          if (body?.beginParse().preloadUint(32) !== rt.TokenPool_ReleaseOrMintDelivered.PREFIX)
+            return false
           const msg = rt.TokenPool_ReleaseOrMintDelivered.fromSlice(body.beginParse())
           return (
             msg.queryId === 20n &&
+            msg.replyTo.equals(receiver.address) &&
             msg.transfer.amount === 1000n &&
             msg.transfer.localToken.equals(token) &&
             msg.transfer.receiver.equals(receiver.address) &&
@@ -332,7 +406,12 @@ describe('Router.relayReleaseOrMint', () => {
       const result = await router.sendRouterTokenTransferDelivered(
         attacker.getSender(),
         toNano('0.1'),
-        { queryId: 21n, tokenPool: tokenPool.address, transfer: delivered() },
+        {
+          queryId: 21n,
+          tokenPool: tokenPool.address,
+          replyTo: receiver.address,
+          transfer: delivered(),
+        },
       )
       expect(result.transactions).toHaveTransaction({
         from: attacker.address,
@@ -350,6 +429,7 @@ describe('Router.relayReleaseOrMint', () => {
         {
           queryId: 22n,
           tokenPool: tokenPool.address,
+          replyTo: receiver.address,
           transfer: delivered(sourceChainSelector + 1n),
         },
       )

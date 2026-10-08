@@ -4,19 +4,22 @@ import "../../../lib/jetton/messages"
 import "../../../lib/deployable/types"
 
 /// Initialization message sent by the owner to activate the account.
-/// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
-///      knows the token (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
-///      the token-handling layer before a withdraw). The account is bound to a single jetton
-///      through its address derivation, so there is one account per (user, token) pair.
+/// @dev The account is bound to a single jetton through its address derivation, so there is one
+///      account per (user, token) pair. With `learnWallet`, the account asks the token for its
+///      jetton wallet and only routes notifications from that wallet to a `DepositAccount_Notify`
+///      target.
 ///      The message is only accepted from the account's owner: the deployment sequence is
 ///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
-///      directly by the owner. The account always replies with `DepositAccount_Reply`, confirming
-///      it is deployed.
+///      directly by the owner. The account always replies, with `DepositAccount_Reply` once it is
+///      deployed (and knows its wallet, if asked), or with `DepositAccount_NotEnoughValue` /
+///      `DepositAccount_WalletUnavailable`.
 struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
     /// Optional context forwarded back in the DepositAccount_Reply.
     forwardPayload: cell?;
+    /// Reply only once the account knows its jetton wallet, learned from `token` with TEP-89.
+    learnWallet: bool = false;
 }
 
 /// Reply message on successful initialization
@@ -32,6 +35,12 @@ struct (0x83462e93) DepositAccount_NotEnoughValue {
     forwardPayload: cell?;
 }
 
+/// Reply to an init with `learnWallet` when the token could not report the account's jetton wallet.
+struct (0x9293d68e) DepositAccount_WalletUnavailable {
+    queryId: uint64;
+    forwardPayload: cell?;
+}
+
 /// Forwarded notification sent to the proxy on messages from specific jetton wallet.
 /// @dev Carries the full original in-message metadata so the proxy (e.g, TP, Router, etc.) can verify everything.
 struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
@@ -42,8 +51,8 @@ struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
 /// Routing envelope placed as the jetton transfer's forward payload. When an incoming
 /// `TransferNotificationForRecipient` carries it, the account forwards the notification to
 /// `notify` instead of the `proxy`.
-/// @dev The envelope is untrusted: `notify` must authenticate the forwarded message itself
-///      (account address, original jetton wallet sender and amount).
+/// @dev Only honored for notifications from the account's learned jetton wallet. The rest of the
+///      envelope is untrusted: `notify` must authenticate the transfer initiator itself.
 struct (0x88e0ef3e) DepositAccount_Notify {
     notify: address;
     payload: cell?;
@@ -99,7 +108,8 @@ struct DepositAccount_Identity {
 /// The subset of outgoing messages that can bounce back into this account, used to match bounced
 /// bodies in `onBouncedMessage`. A bounced `AskToTransfer` (from withdraw) is the recoverable case.
 type DepositAccount_BouncedMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | RequestWalletAddress;
 
 /// All recognized incoming message types.
 ///
@@ -109,12 +119,15 @@ type DepositAccount_BouncedMessage =
 type DepositAccount_InMessage =
     | DepositAccount_Init
     | DepositAccount_Withdraw
-    | TransferNotificationForRecipient;
+    | TransferNotificationForRecipient
+    | ResponseWalletAddress;
 
 /// All outgoing message types this contract may produce.
 type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
     | DepositAccount_Reply
     | DepositAccount_NotEnoughValue
+    | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
-    | AskToTransfer;
+    | AskToTransfer
+    | RequestWalletAddress;

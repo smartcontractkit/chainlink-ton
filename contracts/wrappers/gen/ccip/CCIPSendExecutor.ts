@@ -853,6 +853,7 @@ export const TokenAdminRegistry_GetTokenInfo = {
  >     token: address
  >     minterAddress: address
  >     tokenPool: address?
+ >     transferInitiator: Cell<address>?
  >     version: uint32
  > }
  */
@@ -862,6 +863,7 @@ export interface TokenAdminRegistry_TokenInfo {
     token: c.Address
     minterAddress: c.Address
     tokenPool: c.Address | null
+    transferInitiator: c.Address | null
     version: uint32
 }
 
@@ -873,6 +875,7 @@ export const TokenAdminRegistry_TokenInfo = {
         token: c.Address
         minterAddress: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
         version: uint32
     }): TokenAdminRegistry_TokenInfo {
         return {
@@ -889,6 +892,9 @@ export const TokenAdminRegistry_TokenInfo = {
             token: s.loadAddress(),
             minterAddress: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
+            transferInitiator: s.loadBoolean() ? loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ) : null,
             version: s.loadUintBig(32),
         }
     },
@@ -898,6 +904,11 @@ export const TokenAdminRegistry_TokenInfo = {
         b.storeAddress(self.token);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.tokenPool);
+        storeTolkNullable<c.Address>(self.transferInitiator, b,
+            (v,b) => { storeCellRef<c.Address>(v, b,
+                (v,b) => b.storeAddress(v)
+            ); }
+        );
         b.storeUint(self.version, 32);
     },
     toCell(self: TokenAdminRegistry_TokenInfo): c.Cell {
@@ -2630,6 +2641,7 @@ export class CCIPSendExecutor implements c.Contract {
         token: c.Address
         minterAddress: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
         version: uint32
     }) {
         return TokenAdminRegistry_TokenInfo.toCell(TokenAdminRegistry_TokenInfo.create(body));
@@ -2737,6 +2749,7 @@ export class CCIPSendExecutor implements c.Contract {
         token: c.Address
         minterAddress: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
         version: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

@@ -47,31 +47,21 @@ type ReceiveExecutor_TokenTransferState_Pending =
     | ReceiveExecutor_TokenTransferState_Untouched
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed
-    | ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery
     | ReceiveExecutor_TokenTransferState_ReleaseOrMint
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed;
 
 struct ReceiveExecutor_TokenTransferState_Untouched {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {}
-/// Waiting for the pool to report how the release/mint is delivered to the receiver account.
-struct ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
-    tokenPool: address;
-}
-/// Waiting for the released/minted tokens to reach `receiverAccount`.
+/// Waiting for the released/minted tokens to reach `receiverAccount` in a single jetton transfer
+/// started by `transferInitiator`.
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     tokenPool: address;
-    delivery: Cell<ReceiveExecutor_ExpectedDelivery>;
-}
-
-/// The pool delivers the transfer in a single jetton transfer.
-struct ReceiveExecutor_ExpectedDelivery {
-    accountWallet: address;
-    transferInitiator: address;
-    amount: coins;
+    transferInitiator: Cell<address>;
 }
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     tokenPool: address;
+    transferInitiator: Cell<address>;
 }
 
 enum ReceiveExecutor_MessageExecutionState {

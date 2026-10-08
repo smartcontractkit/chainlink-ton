@@ -667,12 +667,18 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				registryAddr = &r
 			}
 
+			transferInitiator, err := releaseOrMintInitiator(b.GetContext(), chain.Client, poolAddr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("resolve release/mint transfer initiator of pool %s: %w", poolAddr.String(), err)
+			}
+
 			body := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.RegisterToken{
 				TokenAddress: tokenAddr,
 				TokenInfo: tokenadminregistryentry.TokenInfo{
-					TokenPool:     poolAddr,
-					MinterAddress: tokenAddr,
-					Version:       1,
+					TokenPool:         poolAddr,
+					TransferInitiator: transferInitiator,
+					MinterAddress:     tokenAddr,
+					Version:           1,
 				},
 				Administrator: chain.Wallet.Address(),
 			})
@@ -737,6 +743,23 @@ func deriveTokenAdminRegistryEntryAddress(registryAddr, tokenAddr *address.Addre
 	}
 	data := cell.BeginCell().MustStoreAddr(registryAddr).MustStoreUInt(3, 32).MustStoreAddr(tokenAddr).EndCell()
 	return tlb.StateInit{Code: deployableCode, Data: data}.CalcAddress(0), nil
+}
+
+// releaseOrMintInitiator returns the transfer initiator of the pool's release/mint deliveries, as
+// registered in the TokenAdminRegistry: the lockbox for lockbox pools, nil (the pool) otherwise.
+func releaseOrMintInitiator(ctx context.Context, client ton.APIClientWrapped, pool *address.Address) (*address.Address, error) {
+	typeAndVersion, err := ton_tvm.CallGetterLatest(ctx, client, pool, lockreleaselockbox.GetTypeAndVersion)
+	if err != nil {
+		return nil, fmt.Errorf("get typeAndVersion: %w", err)
+	}
+	if typeAndVersion.Type != string(bindings.TypeLockReleaseLockboxTokenPool) {
+		return nil, nil
+	}
+	lockBox, err := ton_tvm.CallGetterLatest(ctx, client, pool, lockreleaselockbox.GetLockbox)
+	if err != nil {
+		return nil, fmt.Errorf("get lockbox: %w", err)
+	}
+	return lockBox, nil
 }
 
 // waitForTokenAdminRegistryEntryDeployment waits until the entry address no

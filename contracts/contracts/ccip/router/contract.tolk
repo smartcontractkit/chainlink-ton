@@ -236,7 +236,11 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be the receiver's deposit account (verified against the derived address)
         DepositAccount_NotEnoughValue => {
-            onDepositAccountNotEnoughValue(msg, in.senderAddress);
+            onDepositAccountInitFailed(msg.forwardPayload!, in.senderAddress, Router_Error.DepositAccountInitFailed);
+        }
+        // Sender must be the receiver's deposit account (verified against the derived address)
+        DepositAccount_WalletUnavailable => {
+            onDepositAccountInitFailed(msg.forwardPayload!, in.senderAddress, Router_Error.DepositAccountWalletUnavailable);
         }
         // Sender must be the sender's on-ramp account (verified against the derived address)
         DepositAccount_WithdrawFailed => {
@@ -990,10 +994,15 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
 /// bounces and is ignored while the init still succeeds; on a failed deployment the init bounces
 /// and fails the relay.
 ///
+/// The init asks the account to learn its jetton wallet first (only on its first init), so it can
+/// tell which notifications are deliveries of this token.
+///
 /// sequenceDiagram
 ///     OffRamp        ->> Router:         Router_RelayReleaseOrMint
 ///     Router         ->> DepositAccount: Deployable_Initialize
 ///     Router         ->> DepositAccount: DepositAccount_Init
+///     DepositAccount ->> Token:          RequestWalletAddress (first init only)
+///     Token          ->> DepositAccount: ResponseWalletAddress
 ///     DepositAccount ->> Router:         DepositAccount_Reply
 ///     Router         ->> TokenPool:      TokenPool_ReleaseOrMint
 fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
@@ -1030,6 +1039,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
         body: DepositAccount_Init {
             queryId: msg.queryID,
             forwardPayload: msg.toCell(),
+            learnWallet: true,
         },
     });
     // SAFETY: reserveGramsOnBalance keeps the Router's original balance, only the inbound value is sent.
@@ -1072,18 +1082,17 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
     tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// A deposit account could not initialize (not enough value). On the inbound leg the relay is
-/// failed before the pool is called, so no rate limit was consumed; the user-initiated on-ramp
-/// account deployment carries no operation to fail and is simply retried by the user.
-fun onDepositAccountNotEnoughValue(msg: DepositAccount_NotEnoughValue, sender: address) {
-    val context = lazy Router_DepositAccountInitContext.fromCell(msg.forwardPayload!);
+/// A deposit account could not initialize. The relay fails before the pool is called, so no rate
+/// limit was consumed; an on-ramp account deployment has no operation to fail and is retried by the user.
+fun onDepositAccountInitFailed(forwardPayload: cell, sender: address, error: Router_Error) {
+    val context = lazy Router_DepositAccountInitContext.fromCell(forwardPayload);
     match (context) {
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();
             val details = lazy request.transfer.details.load();
             assert(sender == receiverDepositAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
 
-            sendDepositAccountInitFailure(context, Router_Error.DepositAccountInitFailed as int32);
+            sendDepositAccountInitFailure(context, error as int32);
         }
         // The on-ramp account deployment is user-initiated and carries no operation to fail:
         // the user simply retries with enough value.
@@ -1112,6 +1121,7 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
         dest: msg.tokenPool,
         body: TokenPool_ReleaseOrMintDelivered {
             queryId: msg.queryId,
+            replyTo: msg.replyTo,
             transfer: msg.transfer,
         },
     });

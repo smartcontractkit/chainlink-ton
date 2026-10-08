@@ -211,9 +211,18 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,
             tokenPool: tokenInfo.tokenPool,
+            transferInitiator: resolveTransferInitiator(tokenInfo),
             version: tokenInfo.version,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// The pool itself initiates its deliveries unless the administrator registered another address.
+fun resolveTransferInitiator(tokenInfo: TokenRegistry_TokenInfo): Cell<address>? {
+    if (tokenInfo.tokenPool == null) {
+        return null;
+    }
+    return (tokenInfo.transferInitiator != null ? tokenInfo.transferInitiator! : tokenInfo.tokenPool!).toCell();
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
@@ -250,7 +259,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
                 code: entryCode(),
                 data: TokenRegistry_Storage {
                     tokenAddress: msg.tokenAddress,
-                    tokenInfo: msg.tokenInfo.load(),
+                    tokenInfo: msg.tokenInfo,
                     adminConfig: TokenRegistry_AdminConfig {
                         tokenAdminRegistry: contract.getAddress(),
                         administrator: null,
@@ -299,6 +308,7 @@ fun setPool(msg: TokenAdminRegistry_SetPool, actor: address) {
     forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_SetPool {
         actor,
         tokenPool: msg.tokenPool,
+        transferInitiator: msg.transferInitiator,
     });
 }
 

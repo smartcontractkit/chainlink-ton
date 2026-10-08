@@ -71,6 +71,7 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     actor: address;
     /// A null pool delists the token from CCIP.
     tokenPool: address?
+    transferInitiator: address?
 }
 
 /// Value the root attaches to an Upgradeable_Upgrade sent to an entry.

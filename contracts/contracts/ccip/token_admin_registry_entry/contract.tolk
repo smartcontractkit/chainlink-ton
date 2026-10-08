@@ -115,7 +115,7 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
             queryId,
             token: st.tokenAddress,
             requester: msg.requester,
-            tokenInfo: st.tokenInfo.toCell(),
+            tokenInfo: st.tokenInfo,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -168,16 +168,20 @@ fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     val adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
 
-    val previousPool = st.tokenInfo.tokenPool;
-    st.tokenInfo.tokenPool = msg.tokenPool;
+    var tokenInfo = st.tokenInfo.load();
+    val previousPool = tokenInfo.tokenPool;
+    val previousTransferInitiator = tokenInfo.transferInitiator;
+    tokenInfo.tokenPool = msg.tokenPool;
+    tokenInfo.transferInitiator = msg.transferInitiator;
+    st.tokenInfo = tokenInfo.toCell();
     st.store();
 
-    if (!samePool(previousPool, msg.tokenPool)) {
-        notifyPoolSet(queryId, st.tokenAddress, previousPool, msg.tokenPool);
+    if (!sameAddress(previousPool, msg.tokenPool) || !sameAddress(previousTransferInitiator, msg.transferInitiator)) {
+        notifyPoolSet(queryId, st.tokenAddress, previousPool, msg.tokenPool, msg.transferInitiator);
     }
 }
 
-fun samePool(left: address?, right: address?): bool {
+fun sameAddress(left: address?, right: address?): bool {
     if (left == null) {
         return right == null;
     }
@@ -204,12 +208,13 @@ fun notifyAdministratorTransferred(queryId: uint64, token: address, newAdministr
     }.toCell());
 }
 
-fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPool: address?) {
+fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPool: address?, transferInitiator: address?) {
     notifyRoot(TokenAdminRegistry_PoolSet {
             queryId,
             token,
             previousPool,
             newPool,
+            transferInitiator: transferInitiator == null ? null : transferInitiator!.toCell(),
     }.toCell());
 }
 
@@ -241,7 +246,7 @@ get fun tokenAdminRegistryConfig(): TokenRegistry_AdminConfig {
 }
 
 get fun tokenInfo(): TokenRegistry_TokenInfo {
-    return TokenRegistry_Storage.load().tokenInfo;
+    return TokenRegistry_Storage.load().tokenInfo.load();
 }
 
 get fun entryVersion(): int {

@@ -92,6 +92,12 @@ get fun getToken(): address {
     return data.token;
 }
 
+/// Returns the account's jetton wallet, or null if it was never learned.
+get fun getWallet(): address? {
+    val data = lazy DepositAccount_Data.load();
+    return data.wallet == null ? null : data.wallet.load();
+}
+
 /// Returns the set of addresses that are allowed to withdraw jettons from this account's wallet.
 get fun getBeneficiaries(): map<address, ()> {
     val data = lazy DepositAccount_Data.load();

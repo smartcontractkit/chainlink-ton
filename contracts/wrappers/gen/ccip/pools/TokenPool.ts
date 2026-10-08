@@ -2165,127 +2165,16 @@ export const TokenPool_ReleaseOrMint = {
 }
 
 /**
- > struct (0x5a9bf3ce) TokenPool_GetReleaseOrMintDeliveryMetadata {
- >     queryId: uint64
- >     owner: address
- >     amount: uint256
- >     sourcePoolData: cell?
- > }
- */
-export interface TokenPool_GetReleaseOrMintDeliveryMetadata {
-    readonly $: 'TokenPool_GetReleaseOrMintDeliveryMetadata'
-    queryId: uint64
-    owner: c.Address
-    amount: uint256
-    sourcePoolData: c.Cell | null
-}
-
-export const TokenPool_GetReleaseOrMintDeliveryMetadata = {
-    PREFIX: 0x5a9bf3ce,
-
-    create(args: {
-        queryId?: uint64
-        owner: c.Address
-        amount: uint256
-        sourcePoolData: c.Cell | null
-    }): TokenPool_GetReleaseOrMintDeliveryMetadata {
-        return {
-            $: 'TokenPool_GetReleaseOrMintDeliveryMetadata',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_GetReleaseOrMintDeliveryMetadata {
-        loadAndCheckPrefix32(s, 0x5a9bf3ce, 'TokenPool_GetReleaseOrMintDeliveryMetadata');
-        return {
-            $: 'TokenPool_GetReleaseOrMintDeliveryMetadata',
-            queryId: s.loadUintBig(64),
-            owner: s.loadAddress(),
-            amount: s.loadUintBig(256),
-            sourcePoolData: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: TokenPool_GetReleaseOrMintDeliveryMetadata, b: c.Builder): void {
-        b.storeUint(0x5a9bf3ce, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.owner);
-        b.storeUint(self.amount, 256);
-        storeTolkNullable<c.Cell>(self.sourcePoolData, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: TokenPool_GetReleaseOrMintDeliveryMetadata): c.Cell {
-        return makeCellFrom<TokenPool_GetReleaseOrMintDeliveryMetadata>(self, TokenPool_GetReleaseOrMintDeliveryMetadata.store);
-    }
-}
-
-/**
- > struct (0xc54839a3) TokenPool_DeliveryMetadata {
- >     queryId: uint64
- >     owner: address
- >     wallet: address
- >     transferInitiator: address
- >     amount: coins
- > }
- */
-export interface TokenPool_DeliveryMetadata {
-    readonly $: 'TokenPool_DeliveryMetadata'
-    queryId: uint64
-    owner: c.Address
-    wallet: c.Address
-    transferInitiator: c.Address
-    amount: coins
-}
-
-export const TokenPool_DeliveryMetadata = {
-    PREFIX: 0xc54839a3,
-
-    create(args: {
-        queryId?: uint64
-        owner: c.Address
-        wallet: c.Address
-        transferInitiator: c.Address
-        amount: coins
-    }): TokenPool_DeliveryMetadata {
-        return {
-            $: 'TokenPool_DeliveryMetadata',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_DeliveryMetadata {
-        loadAndCheckPrefix32(s, 0xc54839a3, 'TokenPool_DeliveryMetadata');
-        return {
-            $: 'TokenPool_DeliveryMetadata',
-            queryId: s.loadUintBig(64),
-            owner: s.loadAddress(),
-            wallet: s.loadAddress(),
-            transferInitiator: s.loadAddress(),
-            amount: s.loadCoins(),
-        }
-    },
-    store(self: TokenPool_DeliveryMetadata, b: c.Builder): void {
-        b.storeUint(0xc54839a3, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.owner);
-        b.storeAddress(self.wallet);
-        b.storeAddress(self.transferInitiator);
-        b.storeCoins(self.amount);
-    },
-    toCell(self: TokenPool_DeliveryMetadata): c.Cell {
-        return makeCellFrom<TokenPool_DeliveryMetadata>(self, TokenPool_DeliveryMetadata.store);
-    }
-}
-
-/**
  > struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
  >     queryId: uint64
+ >     replyTo: address
  >     transfer: Cell<TokenPool_DeliveredTransfer>
  > }
  */
 export interface TokenPool_ReleaseOrMintDelivered {
     readonly $: 'TokenPool_ReleaseOrMintDelivered'
     queryId: uint64
+    replyTo: c.Address
     transfer: TokenPool_DeliveredTransfer
 }
 
@@ -2294,6 +2183,7 @@ export const TokenPool_ReleaseOrMintDelivered = {
 
     create(args: {
         queryId?: uint64
+        replyTo: c.Address
         transfer: TokenPool_DeliveredTransfer
     }): TokenPool_ReleaseOrMintDelivered {
         return {
@@ -2307,12 +2197,14 @@ export const TokenPool_ReleaseOrMintDelivered = {
         return {
             $: 'TokenPool_ReleaseOrMintDelivered',
             queryId: s.loadUintBig(64),
+            replyTo: s.loadAddress(),
             transfer: loadCellRef<TokenPool_DeliveredTransfer>(s, TokenPool_DeliveredTransfer.fromSlice),
         }
     },
     store(self: TokenPool_ReleaseOrMintDelivered, b: c.Builder): void {
         b.storeUint(0x81d45b24, 32);
         b.storeUint(self.queryId, 64);
+        b.storeAddress(self.replyTo);
         storeCellRef<TokenPool_DeliveredTransfer>(self.transfer, b, TokenPool_DeliveredTransfer.store);
     },
     toCell(self: TokenPool_ReleaseOrMintDelivered): c.Cell {
@@ -3176,6 +3068,44 @@ export const TokenPool_ReleaseOrMintFinished = {
     },
     toCell(self: TokenPool_ReleaseOrMintFinished): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintFinished>(self, TokenPool_ReleaseOrMintFinished.store);
+    }
+}
+
+/**
+ > struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_ReleaseOrMintFinalized {
+    readonly $: 'TokenPool_ReleaseOrMintFinalized'
+    queryId: uint64
+}
+
+export const TokenPool_ReleaseOrMintFinalized = {
+    PREFIX: 0xedd4948a,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenPool_ReleaseOrMintFinalized {
+        return {
+            $: 'TokenPool_ReleaseOrMintFinalized',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFinalized {
+        loadAndCheckPrefix32(s, 0xedd4948a, 'TokenPool_ReleaseOrMintFinalized');
+        return {
+            $: 'TokenPool_ReleaseOrMintFinalized',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintFinalized, b: c.Builder): void {
+        b.storeUint(0xedd4948a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_ReleaseOrMintFinalized): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintFinalized>(self, TokenPool_ReleaseOrMintFinalized.store);
     }
 }
 
@@ -4927,18 +4857,10 @@ export class TokenPool implements c.Contract {
 
     static createCellOfTokenPoolReleaseOrMintDelivered(body: {
         queryId?: uint64
+        replyTo: c.Address
         transfer: TokenPool_DeliveredTransfer
     }) {
         return TokenPool_ReleaseOrMintDelivered.toCell(TokenPool_ReleaseOrMintDelivered.create(body));
-    }
-
-    static createCellOfTokenPoolGetReleaseOrMintDeliveryMetadata(body: {
-        queryId?: uint64
-        owner: c.Address
-        amount: uint256
-        sourcePoolData: c.Cell | null
-    }) {
-        return TokenPool_GetReleaseOrMintDeliveryMetadata.toCell(TokenPool_GetReleaseOrMintDeliveryMetadata.create(body));
     }
 
     static createCellOfTokenPoolPostflightCheckFinished(body: {
@@ -5180,24 +5102,12 @@ export class TokenPool implements c.Contract {
 
     async sendTokenPoolReleaseOrMintDelivered(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
+        replyTo: c.Address
         transfer: TokenPool_DeliveredTransfer
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_ReleaseOrMintDelivered.toCell(TokenPool_ReleaseOrMintDelivered.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTokenPoolGetReleaseOrMintDeliveryMetadata(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        owner: c.Address
-        amount: uint256
-        sourcePoolData: c.Cell | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenPool_GetReleaseOrMintDeliveryMetadata.toCell(TokenPool_GetReleaseOrMintDeliveryMetadata.create(body)),
             ...extraOptions
         });
     }

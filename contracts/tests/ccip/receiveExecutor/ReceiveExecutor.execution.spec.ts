@@ -342,10 +342,11 @@ describe('ReceiveExecutor - Execution', () => {
       return result
     }
 
-    /** TokenAdminRegistry returns a token pool -> asks the pool for the receiver account's wallet. */
+    /** TokenAdminRegistry returns a token pool and its transfer initiator -> sends ReleaseOrMint. */
     async function returnTokenInfoWithPool(
       executor: SandboxContract<rx.ReceiveExecutor>,
       pool: Address = tokenPool.address,
+      transferInitiator: Address = pool,
     ) {
       const result = await executor.sendTokenAdminRegistryTokenInfo(
         tokenAdminRegistry.getSender(),
@@ -354,42 +355,8 @@ describe('ReceiveExecutor - Execution', () => {
           token: messageWithTT.tokenAmounts![0].token,
           minterAddress: deployer.address,
           tokenPool: pool,
+          transferInitiator,
           version: 1n,
-        },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: executor.address,
-        to: pool,
-        op: rx.TokenPool_GetReleaseOrMintDeliveryMetadata.PREFIX,
-        body(body) {
-          if (!body) return false
-          const query = rx.TokenPool_GetReleaseOrMintDeliveryMetadata.fromSlice(body.beginParse())
-          const tokenAmount = messageWithTT.tokenAmounts![0]
-          return (
-            query.owner.equals(receiverAccount.address) &&
-            query.amount === tokenAmount.amount &&
-            (tokenAmount.extraData
-              ? (query.sourcePoolData?.equals(tokenAmount.extraData) ?? false)
-              : query.sourcePoolData === null)
-          )
-        },
-      })
-      return result
-    }
-
-    /** The pool answers with the delivery metadata -> sends ReleaseOrMint. */
-    async function returnDeliveryMetadata(
-      executor: SandboxContract<rx.ReceiveExecutor>,
-      amount: bigint = messageWithTT.tokenAmounts![0].amount,
-    ) {
-      const result = await executor.sendTokenPoolDeliveryMetadata(
-        tokenPool.getSender(),
-        toNano('1'),
-        {
-          owner: receiverAccount.address,
-          wallet: accountWallet.address,
-          transferInitiator: tokenPool.address,
-          amount,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -401,10 +368,12 @@ describe('ReceiveExecutor - Execution', () => {
       return result
     }
 
-    async function transitionToReleaseOrMint(executor: SandboxContract<rx.ReceiveExecutor>) {
+    async function transitionToReleaseOrMint(
+      executor: SandboxContract<rx.ReceiveExecutor>,
+      transferInitiator: Address = tokenPool.address,
+    ) {
       await initExecuteQueriesRegistry(executor)
-      await returnTokenInfoWithPool(executor)
-      return returnDeliveryMetadata(executor)
+      return returnTokenInfoWithPool(executor, tokenPool.address, transferInitiator)
     }
 
     /** A jetton notification forwarded by a deposit account (`via`) as it arrived from `walletSender`. */
@@ -499,18 +468,6 @@ describe('ReceiveExecutor - Execution', () => {
         )
       })
 
-      it('should reject InitExecute while the delivery metadata query is in progress', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await initExecute(receiveExecutorWithToken)
-        expectFailedTransaction(
-          result,
-          deployer.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.ExecutionAlreadyInProgress'],
-        )
-      })
-
       it('should reject InitExecute while the release/mint is in progress', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         const result = await initExecute(receiveExecutorWithToken)
@@ -524,12 +481,24 @@ describe('ReceiveExecutor - Execution', () => {
 
       // --- TokenAdminRegistry response ---
 
-      it('should query the pool for the delivery metadata when TokenAdminRegistry returns a token pool', async () => {
+      it('should send ReleaseOrMint when TokenAdminRegistry returns a token pool', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         const result = await returnTokenInfoWithPool(receiveExecutorWithToken)
-        expect(result.transactions).not.toHaveTransaction({
+        expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
+          to: deployer.address,
           op: of.OffRamp_ReleaseOrMint.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_ReleaseOrMint.fromSlice(body.beginParse())
+            const details = msg.request.transfer.details
+            return (
+              msg.tokenPool.equals(tokenPool.address) &&
+              details.receiver.equals(messageWithTT.receiver) &&
+              details.amount === messageWithTT.tokenAmounts![0].amount &&
+              details.localToken.equals(messageWithTT.tokenAmounts![0].token)
+            )
+          },
         })
       })
 
@@ -542,6 +511,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
+            transferInitiator: null,
             version: 1n,
           },
         )
@@ -604,6 +574,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
+            transferInitiator: tokenPool.address,
             version: 1n,
           },
         )
@@ -623,6 +594,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
+            transferInitiator: tokenPool.address,
             version: 1n,
           },
         )
@@ -663,122 +635,6 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      // --- Jetton wallet query ---
-
-      it('should send ReleaseOrMint once the pool reports the delivery metadata', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await returnDeliveryMetadata(receiveExecutorWithToken)
-        expect(result.transactions).toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          to: deployer.address,
-          op: of.OffRamp_ReleaseOrMint.PREFIX,
-          body(body) {
-            if (!body) return false
-            const msg = of.OffRamp_ReleaseOrMint.fromSlice(body.beginParse())
-            const details = msg.request.transfer.details
-            return (
-              msg.tokenPool.equals(tokenPool.address) &&
-              details.receiver.equals(messageWithTT.receiver) &&
-              details.amount === messageWithTT.tokenAmounts![0].amount &&
-              details.localToken.equals(messageWithTT.tokenAmounts![0].token)
-            )
-          },
-        })
-      })
-
-      it('should reject DeliveryMetadata from non-tokenPool', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenPoolDeliveryMetadata(
-          nonOwner.getSender(),
-          toNano('0.05'),
-          {
-            owner: receiverAccount.address,
-            wallet: accountWallet.address,
-            transferInitiator: tokenPool.address,
-            amount: messageWithTT.tokenAmounts![0].amount,
-          },
-        )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
-      })
-
-      it('should reject DeliveryMetadata for an owner other than the receiver account', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenPoolDeliveryMetadata(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            owner: nonOwner.address,
-            wallet: accountWallet.address,
-            transferInitiator: tokenPool.address,
-            amount: messageWithTT.tokenAmounts![0].amount,
-          },
-        )
-        expectFailedTransaction(
-          result,
-          tokenPool.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
-        )
-      })
-
-      it('should reject DeliveryMetadata when state is not DeliveryMetadataQuery', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenPoolDeliveryMetadata(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            owner: receiverAccount.address,
-            wallet: accountWallet.address,
-            transferInitiator: tokenPool.address,
-            amount: messageWithTT.tokenAmounts![0].amount,
-          },
-        )
-        expectFailedTransaction(
-          result,
-          tokenPool.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
-        )
-      })
-
-      it('should send NotifyFailure when the delivery metadata query bounces, and restart from the registry on retry', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        // No contract lives at the pool address, so the bounceable wallet query bounces back.
-        const missingPool = await generateRandomTonAddress()
-        const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
-          tokenAdminRegistry.getSender(),
-          toNano('1'),
-          {
-            token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
-            tokenPool: missingPool,
-            version: 1n,
-          },
-        )
-        expect(result.transactions).toHaveTransaction({
-          from: missingPool,
-          to: receiveExecutorWithToken.address,
-          inMessageBounced: true,
-          success: true,
-        })
-        expect(result.transactions).toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          to: deployer.address,
-          success: true,
-          op: of.OffRamp_NotifyFailure.PREFIX,
-        })
-
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-      })
-
       // --- Delivery to the receiver's deposit account ---
 
       it('should send NotifySuccess carrying the delivered transfer once the account receives the amount', async () => {
@@ -808,30 +664,11 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should ignore a notification below the transferred amount', async () => {
+      it('should report the received amount as delivered, whatever the transferred amount was', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
-        const amount = messageWithTT.tokenAmounts![0].amount
-
-        const partial = await forwardNotification(receiveExecutorWithToken, amount - 1n)
-        expect(partial.transactions).toHaveTransaction({
-          to: receiveExecutorWithToken.address,
-          op: rx.DepositAccount_ForwardNotification.PREFIX,
-          success: true,
-        })
-        expect(partial.transactions).not.toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          op: of.OffRamp_NotifySuccess.PREFIX,
-        })
-
-        // Notifications are not summed.
-        const second = await forwardNotification(receiveExecutorWithToken, 1n)
-        expect(second.transactions).not.toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          op: of.OffRamp_NotifySuccess.PREFIX,
-        })
-
-        const full = await forwardNotification(receiveExecutorWithToken, amount)
-        expect(full.transactions).toHaveTransaction({
+        const received = messageWithTT.tokenAmounts![0].amount * 1000n - 1n
+        const result = await forwardNotification(receiveExecutorWithToken, received)
+        expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
           to: deployer.address,
           success: true,
@@ -839,43 +676,7 @@ describe('ReceiveExecutor - Execution', () => {
           body(body) {
             if (!body) return false
             const msg = of.OffRamp_NotifySuccess.fromSlice(body.beginParse())
-            return expectDelivered(msg.delivered, amount)
-          },
-        })
-      })
-
-      it('should ignore a notification above the reported amount', async () => {
-        await transitionToReleaseOrMint(receiveExecutorWithToken)
-        const amount = messageWithTT.tokenAmounts![0].amount
-        const result = await forwardNotification(receiveExecutorWithToken, amount + 1n)
-        expect(result.transactions).not.toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          op: of.OffRamp_NotifySuccess.PREFIX,
-        })
-      })
-
-      it('should expect the local amount reported by the pool rather than the source amount', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const sourceAmount = messageWithTT.tokenAmounts![0].amount
-        const localAmount = sourceAmount * 1000n
-        await returnDeliveryMetadata(receiveExecutorWithToken, localAmount)
-
-        const source = await forwardNotification(receiveExecutorWithToken, sourceAmount)
-        expect(source.transactions).not.toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          op: of.OffRamp_NotifySuccess.PREFIX,
-        })
-
-        const local = await forwardNotification(receiveExecutorWithToken, localAmount)
-        expect(local.transactions).toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          to: deployer.address,
-          op: of.OffRamp_NotifySuccess.PREFIX,
-          body(body) {
-            if (!body) return false
-            const msg = of.OffRamp_NotifySuccess.fromSlice(body.beginParse())
-            return expectDelivered(msg.delivered, localAmount)
+            return expectDelivered(msg.delivered, received)
           },
         })
       })
@@ -904,25 +705,7 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should ignore notifications from a jetton wallet other than the receiver account wallet', async () => {
-        await transitionToReleaseOrMint(receiveExecutorWithToken)
-        const amount = messageWithTT.tokenAmounts![0].amount
-        // E.g. a different jetton's wallet owned by the same account.
-        const result = await forwardNotification(receiveExecutorWithToken, amount, {
-          walletSender: nonOwner.address,
-        })
-        expect(result.transactions).toHaveTransaction({
-          from: receiverAccount.address,
-          to: receiveExecutorWithToken.address,
-          success: true,
-        })
-        expect(result.transactions).not.toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          op: of.OffRamp_NotifySuccess.PREFIX,
-        })
-      })
-
-      it('should ignore notifications from a transfer initiator other than the one reported by the pool', async () => {
+      it('should ignore notifications from a transfer initiator other than the registered one', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         const amount = messageWithTT.tokenAmounts![0].amount
         for (const initiator of [nonOwner.address, null]) {
@@ -945,9 +728,28 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should match the transfer initiator registered in the TokenAdminRegistry instead of the pool', async () => {
+        const lockbox = await blockchain.treasury('lockbox')
+        await transitionToReleaseOrMint(receiveExecutorWithToken, lockbox.address)
+        const amount = messageWithTT.tokenAmounts![0].amount
+
+        const fromPool = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(fromPool.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+
+        const fromLockbox = await forwardNotification(receiveExecutorWithToken, amount, {
+          initiator: lockbox.address,
+        })
+        expect(fromLockbox.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
       it('should ignore notifications before the release/mint was sent', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
         const result = await forwardNotification(
           receiveExecutorWithToken,
           messageWithTT.tokenAmounts![0].amount,
@@ -1101,6 +903,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
+            transferInitiator: null,
             version: 1n,
           },
         )
@@ -1109,7 +912,7 @@ describe('ReceiveExecutor - Execution', () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
       })
 
-      it('should re-query the jetton wallet when retrying from ReleaseOrMintFailed', async () => {
+      it('should resend ReleaseOrMint to the same pool when retrying from ReleaseOrMintFailed', async () => {
         // First transfer fails.
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
@@ -1120,20 +923,19 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        // Retry InitExecute: the pool is known, so it goes straight to the wallet query.
+        // Retry InitExecute: the pool and initiator are known, so it goes straight to ReleaseOrMint.
         const result = await initExecute(receiveExecutorWithToken)
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
-          to: tokenPool.address,
+          to: deployer.address,
           success: true,
-          op: rx.TokenPool_GetReleaseOrMintDeliveryMetadata.PREFIX,
+          op: of.OffRamp_ReleaseOrMint.PREFIX,
         })
         expect(result.transactions).not.toHaveTransaction({
           from: receiveExecutorWithToken.address,
           to: tokenAdminRegistry.address,
         })
 
-        await returnDeliveryMetadata(receiveExecutorWithToken)
         const delivered = await forwardNotification(
           receiveExecutorWithToken,
           messageWithTT.tokenAmounts![0].amount,
@@ -1175,8 +977,7 @@ describe('ReceiveExecutor - Execution', () => {
             effectiveGasLimit: toNano('0.01'),
           },
         )
-        await returnTokenInfoWithPool(receiveExecutorLowGas)
-        const result = await returnDeliveryMetadata(receiveExecutorLowGas)
+        const result = await returnTokenInfoWithPool(receiveExecutorLowGas)
 
         // The ReleaseOrMint message should be sent successfully.
         expect(result.transactions).toHaveTransaction({
@@ -1215,8 +1016,7 @@ describe('ReceiveExecutor - Execution', () => {
             effectiveGasLimit: destGasAmount - toNano('0.001'),
           },
         )
-        await returnTokenInfoWithPool(receiveExecutorHighGas)
-        const result = await returnDeliveryMetadata(receiveExecutorHighGas)
+        const result = await returnTokenInfoWithPool(receiveExecutorHighGas)
 
         // The ReleaseOrMint message should be sent successfully.
         expect(result.transactions).toHaveTransaction({
@@ -1383,6 +1183,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
+            transferInitiator: null,
             version: 1n,
           },
         )
@@ -1404,15 +1205,14 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        // Retry InitExecute: should re-query the wallet, send ReleaseOrMint, then execute the message.
+        // Retry InitExecute: should resend ReleaseOrMint, then execute the message.
         const retryResult = await initExecute(receiveExecutorPtt)
         expect(retryResult.transactions).toHaveTransaction({
           from: receiveExecutorPtt.address,
-          to: tokenPool.address,
+          to: deployer.address,
           success: true,
-          op: rx.TokenPool_GetReleaseOrMintDeliveryMetadata.PREFIX,
+          op: of.OffRamp_ReleaseOrMint.PREFIX,
         })
-        await returnDeliveryMetadata(receiveExecutorPtt)
         await deliverAndExecute()
       })
     })

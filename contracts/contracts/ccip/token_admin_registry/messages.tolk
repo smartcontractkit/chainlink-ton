@@ -64,6 +64,9 @@ struct (0x37bcaede) TokenAdminRegistry_SetPool {
     tokenAddress: address;
     /// A null pool delists the token from CCIP.
     tokenPool: address?;
+    /// `transferInitiator` of the jetton transfers delivering a release/mint (e.g. the pool's
+    /// lockbox). Null means the pool itself.
+    transferInitiator: address? = null;
 }
 
 /// CCIP read path: resolves the token info of the entry derived from `token`
@@ -88,6 +91,9 @@ struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
     minterAddress: address;
     /// A null pool means the token is delisted from CCIP.
     tokenPool: address?;
+    /// `transferInitiator` of the jetton transfers delivering a release/mint. Null only when the
+    /// token is delisted.
+    transferInitiator: Cell<address>?;
     /// Pool interface version.
     version: uint32;
 }
@@ -146,4 +152,5 @@ struct (0xcef01a87) TokenAdminRegistry_PoolSet {
     token: address;
     previousPool: address?;
     newPool: address?;
+    transferInitiator: Cell<address>?;
 }

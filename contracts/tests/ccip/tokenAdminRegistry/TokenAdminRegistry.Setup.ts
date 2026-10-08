@@ -219,11 +219,13 @@ export const setPool = (
   tokenPool: Address | null,
   queryId = 0n,
   value = OPERATION_VALUE,
+  transferInitiator: Address | null = null,
 ) =>
   fx.registry.sendTokenAdminRegistrySetPool(actor.getSender(), value, {
     queryId,
     tokenAddress: fx.token,
     tokenPool,
+    transferInitiator,
   })
 
 export function expectEntrySuccess(fx: Fixture, result: Result) {

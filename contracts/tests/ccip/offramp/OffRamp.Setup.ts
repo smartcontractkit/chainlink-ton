@@ -790,7 +790,12 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       id: generateRandomContractId(),
     })
     this.tokenPool = await this.setupTokenPool()
-    this.tokenRegistry = await this.setupTokenRegistry(this.token, this.tokenPool.address)
+    // Releases are transferred from the lockbox's wallet, so the lockbox initiates them.
+    this.tokenRegistry = await this.setupTokenRegistry(
+      this.token,
+      this.tokenPool.address,
+      this.jettonLockBox.address,
+    )
     // Mint tokens to the pool so it has balance to release.
     await this.mintTokensToPool(this.DEFAULT_TOKEN_AMOUNT * 10n)
   }
@@ -913,6 +918,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   async setupTokenRegistry(
     token: Address,
     tokenPool: Address,
+    transferInitiator: Address | null = null,
   ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     await this.registry.sendTokenAdminRegistryRegisterToken(
       this.deployer.getSender(),
@@ -921,6 +927,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         tokenAddress: token,
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool,
+          transferInitiator,
           minterAddress: token,
           version: 1n,
         }),

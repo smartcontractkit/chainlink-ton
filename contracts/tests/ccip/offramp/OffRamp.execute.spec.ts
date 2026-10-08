@@ -1916,7 +1916,7 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 4. The Router deploys the receiver's deposit account; the pool reports its jetton wallet.
+      // 4. The Router deploys the receiver's deposit account, which learns its jetton wallet from the token.
       const receiverAccount = setup.receiverDepositAccount()
       expect(result.transactions).toHaveTransaction({
         from: setup.router.address,
@@ -1931,15 +1931,15 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
-        from: executorAddress,
-        to: setup.tokenPool.address,
-        op: tp.TokenPool_GetReleaseOrMintDeliveryMetadata.PREFIX,
+        from: receiverAccount,
+        to: setup.token,
+        op: deposit.RequestWalletAddress.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        to: executorAddress,
-        op: tp.TokenPool_DeliveryMetadata.PREFIX,
+        from: setup.token,
+        to: receiverAccount,
+        op: deposit.ResponseWalletAddress.PREFIX,
         success: true,
       })
 
@@ -1968,7 +1968,8 @@ describe('OffRamp - Execute', () => {
         },
       })
 
-      // 7. The delivery is relayed OffRamp -> Router -> TokenPool, which emits ReleasedOrMinted.
+      // 7. The delivery is relayed OffRamp -> Router -> TokenPool, which emits ReleasedOrMinted
+      //    and confirms back to the executor.
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         to: setup.router.address,
@@ -1979,6 +1980,19 @@ describe('OffRamp - Execute', () => {
         from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
+        success: true,
+        body(body) {
+          if (body?.beginParse().preloadUint(32) !== tp.TokenPool_ReleaseOrMintDelivered.PREFIX)
+            return false
+          return tp.TokenPool_ReleaseOrMintDelivered.fromSlice(body.beginParse()).replyTo.equals(
+            executorAddress,
+          )
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        to: executorAddress,
+        op: tp.TokenPool_ReleaseOrMintFinalized.PREFIX,
         success: true,
       })
       expect(result.transactions).not.toHaveTransaction({
@@ -2418,6 +2432,12 @@ describe('OffRamp - Execute', () => {
         from: setup.router.address,
         to: setup.tokenPool.address,
         op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        to: executorAddress,
+        op: tp.TokenPool_ReleaseOrMintFinalized.PREFIX,
         success: true,
       })
 

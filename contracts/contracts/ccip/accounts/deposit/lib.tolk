@@ -125,6 +125,9 @@ fun DepositAccount<T>.onInternalMessage(
             // Only jetton deposit notification is proxied. Everything else, such as retried `Deployable_Initialize`, is left unhandled and bounces.
             return self.onForwardNotification(forwarded);
         }
+        ResponseWalletAddress => {
+            self.onResponseWalletAddress(msgSender, msg);
+        }
         else => {
             return false;
         }
@@ -156,9 +159,12 @@ fun DepositAccount<T>.onInit(
     }
 
     assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
+    val waitForWallet = msg.learnWallet && self.data.wallet == null;
+    val sendWalletQuery = waitForWallet && self.data.pendingInits.isEmpty();
+    val initCost = DepositAccount_MIN_GRAM_TO_INIT + (sendWalletQuery ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `contract.getOriginalBalance()` (TVM `BALANCE`) is the balance at the start of the compute
     // phase, (balance + inbound message's value)
-    if (contract.getOriginalBalance() < DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT) {
+    if (contract.getOriginalBalance() < DepositAccount_MIN_GRAM_TO_RESERVE + initCost || msgValue < initCost) {
         val reply = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
@@ -169,6 +175,29 @@ fun DepositAccount<T>.onInit(
             },
         });
         reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
+    }
+
+    if (waitForWallet) {
+        val last = self.data.pendingInits.findLast();
+        self.data.pendingInits.set(last.isFound ? last.getKey() + 1 : 0, DepositAccount_PendingInit {
+            queryId: msg.queryId,
+            forwardPayload: msg.forwardPayload,
+            value: msgValue - initCost,
+        });
+        if (sendWalletQuery) {
+            val query = createMessage({
+                bounce: BounceMode.RichBounce,
+                value: DepositAccount_WALLET_QUERY_VALUE,
+                dest: self.data.token,
+                body: RequestWalletAddress {
+                    queryId: msg.queryId,
+                    ownerAddress: contract.getAddress(),
+                    includeOwnerAddress: false,
+                },
+            });
+            query.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        }
         return;
     }
 
@@ -187,6 +216,57 @@ fun DepositAccount<T>.onInit(
     });
     // SAFETY: reserveGramsOnBalance is called before
     reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
+/// Stores the wallet reported by the token and answers the inits that waited for it.
+fun DepositAccount<T>.onResponseWalletAddress(
+    mutate self,
+    sender: address,
+    msg: ResponseWalletAddress,
+) {
+    if (sender != self.data.token || self.data.pendingInits.isEmpty()) {
+        return;
+    }
+    if (msg.jettonWalletAddress == null) {
+        return self.failPendingInits();
+    }
+
+    self.data.wallet = msg.jettonWalletAddress!.toCell();
+    var entry = self.data.pendingInits.findFirst();
+    while (entry.isFound) {
+        val pending = entry.loadValue();
+        val reply = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: pending.value,
+            dest: self.data.owner,
+            body: DepositAccount_Reply {
+                queryId: pending.queryId,
+                forwardPayload: pending.forwardPayload,
+            },
+        });
+        reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        entry = self.data.pendingInits.iterateNext(entry);
+    }
+    self.data.pendingInits = [];
+}
+
+fun DepositAccount<T>.failPendingInits(mutate self) {
+    var entry = self.data.pendingInits.findFirst();
+    while (entry.isFound) {
+        val pending = entry.loadValue();
+        val reply = createMessage({
+            bounce: BounceMode.NoBounce,
+            value: pending.value,
+            dest: self.data.owner,
+            body: DepositAccount_WalletUnavailable {
+                queryId: pending.queryId,
+                forwardPayload: pending.forwardPayload,
+            },
+        });
+        reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        entry = self.data.pendingInits.iterateNext(entry);
+    }
+    self.data.pendingInits = [];
 }
 
 /// Allows a beneficiary to withdraw jettons from this account's wallet.
@@ -233,7 +313,9 @@ fun DepositAccount<T>.onForwardNotification(
         return self.hooks.onForwardNotification(self.context(), forwarded);
     }
 
-    val notifyTarget = DepositAccount_notifyTarget(forwarded.body);
+    val notifyTarget = self.data.wallet != null && forwarded.senderAddress == self.data.wallet.load()
+        ? DepositAccount_notifyTarget(forwarded.body)
+        : null;
     val notification = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
@@ -273,7 +355,7 @@ fun DepositAccount_notifyTarget(body: cell): address? {
 /// @param bouncedSender Address that sent the bounce (the account's jetton wallet for a withdraw).
 /// @param bouncedBody   The bounced message body (`RichBounceBody` envelope).
 fun DepositAccount<T>.onBouncedMessage(
-    self,
+    mutate self,
     bouncedSender: address,
     bouncedBody: slice,
 ): bool {
@@ -284,6 +366,10 @@ fun DepositAccount<T>.onBouncedMessage(
     match (bounced) {
         AskToTransfer => {
             self.onWithdrawBounced(bouncedSender, bounced);
+            return true;
+        }
+        RequestWalletAddress => {
+            self.failPendingInits();
             return true;
         }
         else => {

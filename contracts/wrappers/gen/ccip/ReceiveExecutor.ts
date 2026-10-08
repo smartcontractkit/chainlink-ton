@@ -776,6 +776,7 @@ export const TokenAdminRegistry_GetTokenInfo = {
  >     token: address
  >     minterAddress: address
  >     tokenPool: address?
+ >     transferInitiator: Cell<address>?
  >     version: uint32
  > }
  */
@@ -785,6 +786,7 @@ export interface TokenAdminRegistry_TokenInfo {
     token: c.Address
     minterAddress: c.Address
     tokenPool: c.Address | null
+    transferInitiator: c.Address | null
     version: uint32
 }
 
@@ -796,6 +798,7 @@ export const TokenAdminRegistry_TokenInfo = {
         token: c.Address
         minterAddress: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
         version: uint32
     }): TokenAdminRegistry_TokenInfo {
         return {
@@ -812,6 +815,9 @@ export const TokenAdminRegistry_TokenInfo = {
             token: s.loadAddress(),
             minterAddress: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
+            transferInitiator: s.loadBoolean() ? loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ) : null,
             version: s.loadUintBig(32),
         }
     },
@@ -821,6 +827,11 @@ export const TokenAdminRegistry_TokenInfo = {
         b.storeAddress(self.token);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.tokenPool);
+        storeTolkNullable<c.Address>(self.transferInitiator, b,
+            (v,b) => { storeCellRef<c.Address>(v, b,
+                (v,b) => b.storeAddress(v)
+            ); }
+        );
         b.storeUint(self.version, 32);
     },
     toCell(self: TokenAdminRegistry_TokenInfo): c.Cell {
@@ -872,119 +883,6 @@ export const TokenAdminRegistry_GetTokenInfoFailed = {
 }
 
 /**
- > struct (0x5a9bf3ce) TokenPool_GetReleaseOrMintDeliveryMetadata {
- >     queryId: uint64
- >     owner: address
- >     amount: uint256
- >     sourcePoolData: cell?
- > }
- */
-export interface TokenPool_GetReleaseOrMintDeliveryMetadata {
-    readonly $: 'TokenPool_GetReleaseOrMintDeliveryMetadata'
-    queryId: uint64
-    owner: c.Address
-    amount: uint256
-    sourcePoolData: c.Cell | null
-}
-
-export const TokenPool_GetReleaseOrMintDeliveryMetadata = {
-    PREFIX: 0x5a9bf3ce,
-
-    create(args: {
-        queryId?: uint64
-        owner: c.Address
-        amount: uint256
-        sourcePoolData: c.Cell | null
-    }): TokenPool_GetReleaseOrMintDeliveryMetadata {
-        return {
-            $: 'TokenPool_GetReleaseOrMintDeliveryMetadata',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_GetReleaseOrMintDeliveryMetadata {
-        loadAndCheckPrefix32(s, 0x5a9bf3ce, 'TokenPool_GetReleaseOrMintDeliveryMetadata');
-        return {
-            $: 'TokenPool_GetReleaseOrMintDeliveryMetadata',
-            queryId: s.loadUintBig(64),
-            owner: s.loadAddress(),
-            amount: s.loadUintBig(256),
-            sourcePoolData: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: TokenPool_GetReleaseOrMintDeliveryMetadata, b: c.Builder): void {
-        b.storeUint(0x5a9bf3ce, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.owner);
-        b.storeUint(self.amount, 256);
-        storeTolkNullable<c.Cell>(self.sourcePoolData, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: TokenPool_GetReleaseOrMintDeliveryMetadata): c.Cell {
-        return makeCellFrom<TokenPool_GetReleaseOrMintDeliveryMetadata>(self, TokenPool_GetReleaseOrMintDeliveryMetadata.store);
-    }
-}
-
-/**
- > struct (0xc54839a3) TokenPool_DeliveryMetadata {
- >     queryId: uint64
- >     owner: address
- >     wallet: address
- >     transferInitiator: address
- >     amount: coins
- > }
- */
-export interface TokenPool_DeliveryMetadata {
-    readonly $: 'TokenPool_DeliveryMetadata'
-    queryId: uint64
-    owner: c.Address
-    wallet: c.Address
-    transferInitiator: c.Address
-    amount: coins
-}
-
-export const TokenPool_DeliveryMetadata = {
-    PREFIX: 0xc54839a3,
-
-    create(args: {
-        queryId?: uint64
-        owner: c.Address
-        wallet: c.Address
-        transferInitiator: c.Address
-        amount: coins
-    }): TokenPool_DeliveryMetadata {
-        return {
-            $: 'TokenPool_DeliveryMetadata',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_DeliveryMetadata {
-        loadAndCheckPrefix32(s, 0xc54839a3, 'TokenPool_DeliveryMetadata');
-        return {
-            $: 'TokenPool_DeliveryMetadata',
-            queryId: s.loadUintBig(64),
-            owner: s.loadAddress(),
-            wallet: s.loadAddress(),
-            transferInitiator: s.loadAddress(),
-            amount: s.loadCoins(),
-        }
-    },
-    store(self: TokenPool_DeliveryMetadata, b: c.Builder): void {
-        b.storeUint(0xc54839a3, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.owner);
-        b.storeAddress(self.wallet);
-        b.storeAddress(self.transferInitiator);
-        b.storeCoins(self.amount);
-    },
-    toCell(self: TokenPool_DeliveryMetadata): c.Cell {
-        return makeCellFrom<TokenPool_DeliveryMetadata>(self, TokenPool_DeliveryMetadata.store);
-    }
-}
-
-/**
  > struct TokenPool_DeliveredTransfer {
  >     remoteChainSelector: uint64
  >     localToken: address
@@ -1029,6 +927,44 @@ export const TokenPool_DeliveredTransfer = {
     },
     toCell(self: TokenPool_DeliveredTransfer): c.Cell {
         return makeCellFrom<TokenPool_DeliveredTransfer>(self, TokenPool_DeliveredTransfer.store);
+    }
+}
+
+/**
+ > struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_ReleaseOrMintFinalized {
+    readonly $: 'TokenPool_ReleaseOrMintFinalized'
+    queryId: uint64
+}
+
+export const TokenPool_ReleaseOrMintFinalized = {
+    PREFIX: 0xedd4948a,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenPool_ReleaseOrMintFinalized {
+        return {
+            $: 'TokenPool_ReleaseOrMintFinalized',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFinalized {
+        loadAndCheckPrefix32(s, 0xedd4948a, 'TokenPool_ReleaseOrMintFinalized');
+        return {
+            $: 'TokenPool_ReleaseOrMintFinalized',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintFinalized, b: c.Builder): void {
+        b.storeUint(0xedd4948a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_ReleaseOrMintFinalized): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintFinalized>(self, TokenPool_ReleaseOrMintFinalized.store);
     }
 }
 
@@ -1936,14 +1872,13 @@ export const ReceiveExecutor_TokenTransferInfo = {
 }
 
 /**
- > type ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Success | ReceiveExecutor_TokenTransferState_Untouched | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed | ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery | ReceiveExecutor_TokenTransferState_ReleaseOrMint | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
+ > type ReceiveExecutor_TokenTransferState = ReceiveExecutor_TokenTransferState_Success | ReceiveExecutor_TokenTransferState_Untouched | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed | ReceiveExecutor_TokenTransferState_ReleaseOrMint | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
  */
 export type ReceiveExecutor_TokenTransferState =
     | ReceiveExecutor_TokenTransferState_Success
     | ReceiveExecutor_TokenTransferState_Untouched
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery
     | ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed
-    | ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery
     | ReceiveExecutor_TokenTransferState_ReleaseOrMint
     | ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed
 
@@ -1953,9 +1888,8 @@ export const ReceiveExecutor_TokenTransferState = {
             lookupPrefixAndEat(s, 0b001, 3) ? ReceiveExecutor_TokenTransferState_Untouched.fromSlice(s) :
             lookupPrefixAndEat(s, 0b010, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery.fromSlice(s) :
             lookupPrefixAndEat(s, 0b011, 3) ? ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b100, 3) ? ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b101, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMint.fromSlice(s) :
-            lookupPrefixAndEat(s, 0b110, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b100, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMint.fromSlice(s) :
+            lookupPrefixAndEat(s, 0b101, 3) ? ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.fromSlice(s) :
             throwNonePrefixMatch('ReceiveExecutor_TokenTransferState');
     },
     store(self: ReceiveExecutor_TokenTransferState, b: c.Builder): void {
@@ -1976,16 +1910,12 @@ export const ReceiveExecutor_TokenTransferState = {
                 b.storeUint(0b011, 3);
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed.store(self, b);
                 break;
-            case 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery':
-                b.storeUint(0b100, 3);
-                ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery.store(self, b);
-                break;
             case 'ReceiveExecutor_TokenTransferState_ReleaseOrMint':
-                b.storeUint(0b101, 3);
+                b.storeUint(0b100, 3);
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint.store(self, b);
                 break;
             case 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed':
-                b.storeUint(0b110, 3);
+                b.storeUint(0b101, 3);
                 ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.store(self, b);
                 break;
         }
@@ -2100,54 +2030,21 @@ export const ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed = 
 }
 
 /**
- > struct ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
- >     tokenPool: address
- > }
- */
-export interface ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
-    readonly $: 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery'
-    tokenPool: c.Address
-}
-
-export const ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery = {
-    create(args: {
-        tokenPool: c.Address
-    }): ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
-        return {
-            $: 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery {
-        return {
-            $: 'ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery',
-            tokenPool: s.loadAddress(),
-        }
-    },
-    store(self: ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery, b: c.Builder): void {
-        b.storeAddress(self.tokenPool);
-    },
-    toCell(self: ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery): c.Cell {
-        return makeCellFrom<ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery>(self, ReceiveExecutor_TokenTransferState_DeliveryMetadataQuery.store);
-    }
-}
-
-/**
  > struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
  >     tokenPool: address
- >     delivery: Cell<ReceiveExecutor_ExpectedDelivery>
+ >     transferInitiator: Cell<address>
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     readonly $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint'
     tokenPool: c.Address
-    delivery: ReceiveExecutor_ExpectedDelivery
+    transferInitiator: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
     create(args: {
         tokenPool: c.Address
-        delivery: ReceiveExecutor_ExpectedDelivery
+        transferInitiator: c.Address
     }): ReceiveExecutor_TokenTransferState_ReleaseOrMint {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint',
@@ -2158,12 +2055,16 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMint',
             tokenPool: s.loadAddress(),
-            delivery: loadCellRef<ReceiveExecutor_ExpectedDelivery>(s, ReceiveExecutor_ExpectedDelivery.fromSlice),
+            transferInitiator: loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_ReleaseOrMint, b: c.Builder): void {
         b.storeAddress(self.tokenPool);
-        storeCellRef<ReceiveExecutor_ExpectedDelivery>(self.delivery, b, ReceiveExecutor_ExpectedDelivery.store);
+        storeCellRef<c.Address>(self.transferInitiator, b,
+            (v,b) => b.storeAddress(v)
+        );
     },
     toCell(self: ReceiveExecutor_TokenTransferState_ReleaseOrMint): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_ReleaseOrMint>(self, ReceiveExecutor_TokenTransferState_ReleaseOrMint.store);
@@ -2171,61 +2072,21 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMint = {
 }
 
 /**
- > struct ReceiveExecutor_ExpectedDelivery {
- >     accountWallet: address
- >     transferInitiator: address
- >     amount: coins
- > }
- */
-export interface ReceiveExecutor_ExpectedDelivery {
-    readonly $: 'ReceiveExecutor_ExpectedDelivery'
-    accountWallet: c.Address
-    transferInitiator: c.Address
-    amount: coins
-}
-
-export const ReceiveExecutor_ExpectedDelivery = {
-    create(args: {
-        accountWallet: c.Address
-        transferInitiator: c.Address
-        amount: coins
-    }): ReceiveExecutor_ExpectedDelivery {
-        return {
-            $: 'ReceiveExecutor_ExpectedDelivery',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): ReceiveExecutor_ExpectedDelivery {
-        return {
-            $: 'ReceiveExecutor_ExpectedDelivery',
-            accountWallet: s.loadAddress(),
-            transferInitiator: s.loadAddress(),
-            amount: s.loadCoins(),
-        }
-    },
-    store(self: ReceiveExecutor_ExpectedDelivery, b: c.Builder): void {
-        b.storeAddress(self.accountWallet);
-        b.storeAddress(self.transferInitiator);
-        b.storeCoins(self.amount);
-    },
-    toCell(self: ReceiveExecutor_ExpectedDelivery): c.Cell {
-        return makeCellFrom<ReceiveExecutor_ExpectedDelivery>(self, ReceiveExecutor_ExpectedDelivery.store);
-    }
-}
-
-/**
  > struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
  >     tokenPool: address
+ >     transferInitiator: Cell<address>
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     readonly $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed'
     tokenPool: c.Address
+    transferInitiator: c.Address
 }
 
 export const ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed = {
     create(args: {
         tokenPool: c.Address
+        transferInitiator: c.Address
     }): ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed',
@@ -2236,10 +2097,16 @@ export const ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed = {
         return {
             $: 'ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed',
             tokenPool: s.loadAddress(),
+            transferInitiator: loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed, b: c.Builder): void {
         b.storeAddress(self.tokenPool);
+        storeCellRef<c.Address>(self.transferInitiator, b,
+            (v,b) => b.storeAddress(v)
+        );
     },
     toCell(self: ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed): c.Cell {
         return makeCellFrom<ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed>(self, ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed.store);
@@ -2334,7 +2201,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2406,6 +2273,7 @@ export class ReceiveExecutor implements c.Contract {
         token: c.Address
         minterAddress: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
         version: uint32
     }) {
         return TokenAdminRegistry_TokenInfo.toCell(TokenAdminRegistry_TokenInfo.create(body));
@@ -2416,16 +2284,6 @@ export class ReceiveExecutor implements c.Contract {
         token: c.Address
     }) {
         return TokenAdminRegistry_GetTokenInfoFailed.toCell(TokenAdminRegistry_GetTokenInfoFailed.create(body));
-    }
-
-    static createCellOfTokenPoolDeliveryMetadata(body: {
-        queryId?: uint64
-        owner: c.Address
-        wallet: c.Address
-        transferInitiator: c.Address
-        amount: coins
-    }) {
-        return TokenPool_DeliveryMetadata.toCell(TokenPool_DeliveryMetadata.create(body));
     }
 
     static createCellOfDepositAccountForwardNotification(body: {
@@ -2439,6 +2297,12 @@ export class ReceiveExecutor implements c.Contract {
         errorCode: uint16
     }) {
         return TokenPool_ReleaseOrMintFailure.toCell(TokenPool_ReleaseOrMintFailure.create(body));
+    }
+
+    static createCellOfTokenPoolReleaseOrMintFinalized(body: {
+        queryId?: uint64
+    }) {
+        return TokenPool_ReleaseOrMintFinalized.toCell(TokenPool_ReleaseOrMintFinalized.create(body));
     }
 
     static createCellOfReceiveExecutorReleaseOrMintFailed(body: {
@@ -2500,6 +2364,7 @@ export class ReceiveExecutor implements c.Contract {
         token: c.Address
         minterAddress: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
         version: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2516,20 +2381,6 @@ export class ReceiveExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenAdminRegistry_GetTokenInfoFailed.toCell(TokenAdminRegistry_GetTokenInfoFailed.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendTokenPoolDeliveryMetadata(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        owner: c.Address
-        wallet: c.Address
-        transferInitiator: c.Address
-        amount: coins
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: TokenPool_DeliveryMetadata.toCell(TokenPool_DeliveryMetadata.create(body)),
             ...extraOptions
         });
     }
@@ -2551,6 +2402,16 @@ export class ReceiveExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_ReleaseOrMintFailure.toCell(TokenPool_ReleaseOrMintFailure.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolReleaseOrMintFinalized(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_ReleaseOrMintFinalized.toCell(TokenPool_ReleaseOrMintFinalized.create(body)),
             ...extraOptions
         });
     }

@@ -490,12 +490,14 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
  > struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
  >     actor: address
  >     tokenPool: address?
+ >     transferInitiator: address?
  > }
  */
 export interface TokenAdminRegistryEntry_SetPool {
     readonly $: 'TokenAdminRegistryEntry_SetPool'
     actor: c.Address
     tokenPool: c.Address | null
+    transferInitiator: c.Address | null
 }
 
 export const TokenAdminRegistryEntry_SetPool = {
@@ -504,6 +506,7 @@ export const TokenAdminRegistryEntry_SetPool = {
     create(args: {
         actor: c.Address
         tokenPool: c.Address | null
+        transferInitiator: c.Address | null
     }): TokenAdminRegistryEntry_SetPool {
         return {
             $: 'TokenAdminRegistryEntry_SetPool',
@@ -516,12 +519,14 @@ export const TokenAdminRegistryEntry_SetPool = {
             $: 'TokenAdminRegistryEntry_SetPool',
             actor: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
+            transferInitiator: s.loadMaybeAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_SetPool, b: c.Builder): void {
         b.storeUint(0xa64e05c9, 32);
         b.storeAddress(self.actor);
         b.storeAddress(self.tokenPool);
+        b.storeAddress(self.transferInitiator);
     },
     toCell(self: TokenAdminRegistryEntry_SetPool): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_SetPool>(self, TokenAdminRegistryEntry_SetPool.store);
@@ -611,7 +616,7 @@ export const TokenRegistry_AdminConfig = {
 /**
  > struct TokenRegistry_Storage {
  >     tokenAddress: address
- >     tokenInfo: TokenRegistry_TokenInfo
+ >     tokenInfo: Cell<TokenRegistry_TokenInfo>
  >     adminConfig: Cell<TokenRegistry_AdminConfig>
  > }
  */
@@ -637,13 +642,13 @@ export const TokenRegistry_Storage = {
         return {
             $: 'TokenRegistry_Storage',
             tokenAddress: s.loadAddress(),
-            tokenInfo: TokenRegistry_TokenInfo.fromSlice(s),
+            tokenInfo: loadCellRef<TokenRegistry_TokenInfo>(s, TokenRegistry_TokenInfo.fromSlice),
             adminConfig: loadCellRef<TokenRegistry_AdminConfig>(s, TokenRegistry_AdminConfig.fromSlice),
         }
     },
     store(self: TokenRegistry_Storage, b: c.Builder): void {
         b.storeAddress(self.tokenAddress);
-        TokenRegistry_TokenInfo.store(self.tokenInfo, b);
+        storeCellRef<TokenRegistry_TokenInfo>(self.tokenInfo, b, TokenRegistry_TokenInfo.store);
         storeCellRef<TokenRegistry_AdminConfig>(self.adminConfig, b, TokenRegistry_AdminConfig.store);
     },
     toCell(self: TokenRegistry_Storage): c.Cell {
@@ -677,6 +682,7 @@ export const TokenAdminRegistryEntry_Error = {
 /**
  > struct TokenRegistry_TokenInfo {
  >     tokenPool: address?
+ >     transferInitiator: address?
  >     minterAddress: address
  >     version: uint32
  > }
@@ -684,6 +690,7 @@ export const TokenAdminRegistryEntry_Error = {
 export interface TokenRegistry_TokenInfo {
     readonly $: 'TokenRegistry_TokenInfo'
     tokenPool: c.Address | null
+    transferInitiator: c.Address | null /* = null */
     minterAddress: c.Address
     version: uint32 /* = 1 */
 }
@@ -691,11 +698,13 @@ export interface TokenRegistry_TokenInfo {
 export const TokenRegistry_TokenInfo = {
     create(args: {
         tokenPool: c.Address | null
+        transferInitiator?: c.Address | null /* = null */
         minterAddress: c.Address
         version?: uint32 /* = 1 */
     }): TokenRegistry_TokenInfo {
         return {
             $: 'TokenRegistry_TokenInfo',
+            transferInitiator: null,
             version: 1n,
             ...args
         }
@@ -704,12 +713,14 @@ export const TokenRegistry_TokenInfo = {
         return {
             $: 'TokenRegistry_TokenInfo',
             tokenPool: s.loadMaybeAddress(),
+            transferInitiator: s.loadMaybeAddress(),
             minterAddress: s.loadAddress(),
             version: s.loadUintBig(32),
         }
     },
     store(self: TokenRegistry_TokenInfo, b: c.Builder): void {
         b.storeAddress(self.tokenPool);
+        b.storeAddress(self.transferInitiator);
         b.storeAddress(self.minterAddress);
         b.storeUint(self.version, 32);
     },
@@ -905,7 +916,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECHwEABW8AART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAZGgIBzwYHAgOj0hcYAgEgCAkAHUIW6SMW7gIG6SW3DgxwWAOvPiR8kAg1ywhisATTOMC1ywirHOqzI4lMfiS7UTQ10yCAK/IAdD6SPpQMfpQMdESxwXy9NM/0w/XTHDwAeDXLCBVQI9s4wLXLCI+sdMk4wIwhA8BxwDy9IAoLDATjCLCAY5GggCvzAGz8vTtRND6SNdM0PpI+lAx+lAx0cjPkVY51WYlzws/FMsPEszJyM+FiBP6UoIQVbi2VM8LjhPLPxL6UszJgED7AOAwMdDXLCPXemFs4wLXLCNuXyuc4wLXLCRYqB584wLXLCHON0OUgDg8QEQH+MdcLP/iS7UTQ+kj6UDH6SDHTHzHU0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyQ0A5DH4ku1E0NdMggCvyAHQ+kj6UDH6UDHREscF8vTTPzHXTPgqIfkAAfkAupEwjkOT8QPoAJPxA+kAINoBI/sEI9DtHu1T7URAE9oh7VQh+QAB2gECyMzL/87JyM+PGAAEghCjO0mOzwv3cc8LYczJcPsA4gBiMfiS7UTQ10yCAK/IAdD6SPpQMfpQMdESxwXy9NdM0NcsIqxzqszyv9M/0w/U0X/wAQAGcPsAAJb6SDH6SDDtRND6SPpQ+kjTH9TR0PpI+lAx+lAx0QPI+lQS+lLLH8nIz5E4cmtWFcs/EvpSEvpSEszJyM+FCBL6UnHPC27MyYBA+wAB/vpIMO1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/KIW7y9CYCyPpSUhD6VBL6VMklyPpSFfpUE/pSyx8SzMntVMjPkFAsekYUyz/6UhL6VPpUye1E0PpIMfpQMfpIMdMfMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2oSAf76SPpQMO1E0PpI+lD6SNMf10zQ+kj6UPpQMdGCAK/IIW6zllGBxwXDAJI4cOIY8vRUZXDI+lIY+lT6VMkkyPpSFPpUEvpSyx/Mye1UyM+QUCx6RhTLPxP6UvpU+lTJ7UTQ+kgx+lAx+kgx0x8x1NGCCA9CQAHQ+kj6UDH6UDHREwK04wLXLCUycC5Mjsz6SPpQMO1E0PpI+lD6SNMf10wg0PpIMfpQ+lAx0YIAr8ghbrOVCMcFwwCTMTdw4hfy9FNDyPpS+lQS+lLLHxTMye1UUyHwApJfBOMO4PI/FBUACszJcPsAACTIz4WI+lIB+gJxzwtqzMlw+wAB/vpIMO1E0PpI+lD6SNMf10zQ+kj6UDH6UNGCAK/JIW6zllJyxwXDAJIxcOLy9CVtAsj6UvpU+lTJJMj6UhT6VBL6UssfzMntVMjPk4sdNtITyz8S+lL6UsntRND6SDH6UDH6SDHTHzHU0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIWAIrIz5M7wGoeFMs/E/pS+lT6VMntRND6SDH6UDH6SDHTHzHU0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIB+gJxzwtqzMlw+wAAGAH6AnHPC2rMyXD7AAALIFNvPLwgAA8i1MS42LjCIAIBIBscAAe9kMOMAgEgHR4AI7sFLtRND6SDH6UPpI0x/UMdGABvtivxoVtjS3NZcxtDC0txc6N7cXMbG0uBcqN7WytyCyNrS3KTKztLm6OTyitzo5PMEWpiXGxcYRAAN7XS3aiaH0kGP0oGP0kGOmPmOpo6H0kfSh9KGjA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECHAEABToAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAWFwIBzwYHAgOj0hQVAgEgCAkAHUIW6SMW7gIG6SW3DgxwWAOzPiR8kAg1ywhisATTOMC1ywirHOqzI4nMfiS7UTQ1DHXTIIAr8gB0PpI+lAx+lAx0RLHBfL00z/TD9dMcPAB4NcsIFVAj2zjAtcsIj6x0yTjAjCEDwHHAPL0gCgsMBOcIsIBjkiCAK/MAbPy9O1E0PpI1DHXTND6SPpQMfpQMdHIz5FWOdVmJc8LPxTLDxLMycjPhYgT+lKCEFW4tlTPC44Tyz8S+lLMyYBA+wDgMDHQ1ywj13phbOMC1ywjbl8rnOMC1ywkWKgefOMC1ywhzjdDlIA0ODxAA6DHXCz/4ku1E0PpI1DHU0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYUyz/6UhL6VPpUye1E0PpIMdQx1NGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAOgx+JLtRNDUMddMggCvyAHQ+kj6UDH6UDHREscF8vTTPzHXTPgqIfkAAfkAupEwjkOT8QPoAJPxA+kAINoBI/sEI9DtHu1T7URAE9oh7VQh+QAB2gECyMzL/87JyM+PGAAEghCjO0mOzwv3cc8LYczJcPsA4gBmMfiS7UTQ1DHXTIIAr8gB0PpI+lAx+lAx0RLHBfL010zQ1ywirHOqzPK/0z/TD9TRf/ABAHb6SDH6SDDtRND6SNTU0dD6SPpQMfpQMdHIz5E4cmtWFcs/EvpSEvpSzMnIz4UIEvpScc8LbszJgED7AADk+kgw7UTQ+kjU10zQ+kj6UPpQMdGCAK/KIW7y9CQCyPpSUhD6VBL6VMkjyPpSE8wSzMntVMjPkFAsekYUyz/6UhL6VPpUye1E0PpIMdQx1NGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAP76SPpQMO1E0PpI1NdM0PpI+lD6UDHRggCvyCFus5ZRYccFwwCSNnDiFvL0VGNQyPpSFvpU+lTJIsj6UhLMzMntVMjPkFAsekYUyz8T+lL6VPpUye1E0PpIMdQx1NGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAv6OefpIMO1E0PpI1NdM0PpI+lAx+lDRggCvySFus5ZSUscFwwCSMXDi8vQjbQLI+lL6VPpUySLI+lISzMzJ7VTIz5OLHTbSE8s/EvpS+lLJ7UTQ+kgx1DHU0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIB+gJxzwtqzMlw+wDgidcnERIACKZOBckB1o7m+kj6UPpQMO1E0PpI1NdMIND6SDH6UPpQMdGCAK/IIW6zlQfHBcMAkzE2cOIW8vTQ+lD6UPpI0x/RU1bI+lT6VBL6UssfySPI+lLMFszJ7VRTA/ACs5I0f5dRQvACs8MA4pJfBeMN4PI/EwCYIW6SMW2VAcj6UsniyM+TO8BqHhXLP/pSEvpU+lT0AMntRND6SDHUMdTRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXD7AAALIFNvPLwgAA8i1MS42LjCIAIBIBgZAAe9kMOMAgEgGhsALbsFLtRND6SDHU1DHR0PpQ+lD6SNMf0YAG+2K/GhW2NLc1lzG0MLS3Fzo3txcxsbS4Fyo3tbK3ILI2tLcpMrO0ubo5PKK3Ojk8wRamJcbFxhEAAptdLdqJofSQY6hjqaOh9JH0ofShow');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,
@@ -1042,10 +1053,13 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     async getTokenInfo(provider: ContractProvider): Promise<TokenRegistry_TokenInfo> {
-        const r = StackReader.fromGetMethod(3, await provider.get('tokenInfo', []));
+        const r = StackReader.fromGetMethod(4, await provider.get('tokenInfo', []));
         return ({
             $: 'TokenRegistry_TokenInfo',
             tokenPool: r.readNullable<c.Address>(
+                (r) => r.readSlice().loadAddress()
+            ),
+            transferInitiator: r.readNullable<c.Address>(
                 (r) => r.readSlice().loadAddress()
             ),
             minterAddress: r.readSlice().loadAddress(),

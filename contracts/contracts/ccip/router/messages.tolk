@@ -44,6 +44,7 @@ type Router_InMsg =
     | Router_GetOnRampAccount
     | DepositAccount_Reply
     | DepositAccount_NotEnoughValue
+    | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;
 
@@ -218,6 +219,7 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
 struct (0xddfdefa8) Router_TokenTransferDelivered {
     queryId: uint64;
     tokenPool: address;
+    replyTo: address;
     transfer: Cell<TokenPool_DeliveredTransfer>;
 }
 

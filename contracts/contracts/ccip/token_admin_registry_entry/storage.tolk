@@ -8,7 +8,7 @@ struct TokenRegistry_AdminConfig {
 
 struct TokenRegistry_Storage {
     tokenAddress: address
-    tokenInfo: TokenRegistry_TokenInfo
+    tokenInfo: Cell<TokenRegistry_TokenInfo>
     adminConfig: Cell<TokenRegistry_AdminConfig>
 }
 

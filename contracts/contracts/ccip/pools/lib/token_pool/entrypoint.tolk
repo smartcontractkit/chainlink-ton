@@ -149,10 +149,6 @@ struct TokenPool_Hooks<T> {
     ///      `ReleaseOrMintFinished` reply to the caller.
     onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
-    /// The `transferInitiator` of the jetton transfer delivering a release/mint.
-    /// @dev Base behavior: the pool's own address.
-    releaseOrMintInitiator: ((T?) -> address)?;
-
     // ----------------------------------------------------------------------
     // LockOrBurn flow (outbound)
     // ----------------------------------------------------------------------
@@ -680,9 +676,6 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_ReleaseOrMintDelivered => {
             self.onReleaseOrMintDelivered(msgSender, msg);
-        }
-        TokenPool_GetReleaseOrMintDeliveryMetadata => {
-            self.onGetReleaseOrMintDeliveryMetadata(msgSender, msg);
         }
         TokenPool_PostflightCheckFinished => {
             self.onPostflightCheckFinished(msgSender, msg);
@@ -1892,7 +1885,7 @@ fun TokenPool<T>.onReleaseOrMintFinalize(
 }
 
 /// Emits `ReleasedOrMinted` once the Router reports that the ReceiveExecutor observed the
-/// released/minted tokens arrive at the receiver's deposit account.
+/// released/minted tokens arrive at the receiver's deposit account, then confirms to the executor.
 fun TokenPool<T>.onReleaseOrMintDelivered(
     self,
     sender: address,
@@ -1911,34 +1904,14 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
             recipient: transfer.receiver.toCell(),
         }.toCell(),
     });
-}
 
-fun TokenPool<T>.releaseOrMintInitiator(self): address {
-    if (self.hooks != null && self.hooks.releaseOrMintInitiator != null) {
-        return self.hooks.releaseOrMintInitiator(self.context);
-    }
-    return contract.getAddress();
-}
-
-fun TokenPool<T>.onGetReleaseOrMintDeliveryMetadata(
-    self,
-    sender: address,
-    msg: TokenPool_GetReleaseOrMintDeliveryMetadata,
-): void {
-    val jettonClient = self.data.jettonClient();
-    val reply = createMessage({
+    val finalized = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: sender,
-        body: TokenPool_DeliveryMetadata {
-            queryId: msg.queryId,
-            owner: msg.owner,
-            wallet: calcAddressOfJettonWallet(msg.owner, jettonClient.masterAddress, jettonClient.jettonWalletCode),
-            transferInitiator: self.releaseOrMintInitiator(),
-            amount: self.calculateLocalAmount(msg.amount, self.parseRemoteDecimals(msg.sourcePoolData)),
-        },
+        dest: msg.replyTo,
+        body: TokenPool_ReleaseOrMintFinalized { queryId: msg.queryId },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    finalized.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.encodeLocalDecimals(self): cell {

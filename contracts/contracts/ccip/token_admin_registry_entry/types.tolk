@@ -5,6 +5,9 @@ import "../../lib/deployable/namespace"
 struct TokenRegistry_TokenInfo {
     /// A null pool delists the token from CCIP.
     tokenPool: address?
+    /// `transferInitiator` of the jetton transfers delivering a release/mint (e.g. the pool's
+    /// lockbox). Null means the pool itself.
+    transferInitiator: address? = null
     minterAddress: address
     /// Pool interface version. It is currently carried but ignored, so a
     /// future pool-interface upgrade can select the correct protocol.
