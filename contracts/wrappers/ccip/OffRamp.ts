@@ -17,6 +17,6 @@ export const EXECUTE_COST = toNano('0.5') // TODO
 export const DEFAULT_MIN_GASLIMIT = toNano('0.025')
 // LockRelease_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
 export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
-export const OFFRAMP_RELEASE_OR_MINT_COST = toNano('0.02') // TODO
+export const OFFRAMP_RELEASE_OR_MINT_COST = toNano('0.07') + toNano('0.02') // TODO; 0.02 is DepositAccount_WALLET_QUERY_VALUE
 /** Mirrors OffRamp_Costs.notify(): OffRamp notify fee plus MerkleRoot_Costs.markState(). */
 export const OFFRAMP_NOTIFY_COST = toNano('0.004') + toNano('0.005')

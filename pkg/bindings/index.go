@@ -19,7 +19,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockreleaselockbox"
 )
 
 const (
@@ -61,8 +62,8 @@ const (
 	TypeTestReceiver tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
 
 	// Token Pools
-	TypeLockReleaseTokenPool        tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseTokenPool"
 	TypeLockReleaseLockboxTokenPool tvm.FullyQualifiedName = PkgCCIP + ".pool.LockReleaseLockboxTokenPool"
+	TypeJettonLockBox               tvm.FullyQualifiedName = PkgCCIP + ".pool.JettonLockBox"
 
 	// Jetton
 	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
@@ -85,8 +86,8 @@ const (
 	ShortTimelock                    = "RBACTimelock"
 	ShortMCMS                        = "MCMS"
 	ShortTokenAdminRegistry          = "TokenAdminRegistry"
-	ShortLockReleaseTokenPool        = "LockReleaseTokenPool"
 	ShortLockReleaseLockboxTokenPool = "LockReleaseLockboxTokenPool"
+	ShortJettonLockBox               = "JettonLockBox"
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable            = "Ownable"
@@ -115,8 +116,8 @@ var AllContractTypes = []struct {
 	{ShortReceiveExecutor, TypeReceiveExecutor},
 	{ShortReceiver, TypeTestReceiver},
 	{ShortTokenAdminRegistry, TypeTokenAdminRegistry},
-	{ShortLockReleaseTokenPool, TypeLockReleaseTokenPool},
 	{ShortLockReleaseLockboxTokenPool, TypeLockReleaseLockboxTokenPool},
+	{ShortJettonLockBox, TypeJettonLockBox},
 	{ShortTimelock, TypeTimelock},
 	{ShortMCMS, TypeMCMS},
 }
@@ -163,7 +164,8 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeTokenAdminRegistryEntry: tokenadminregistryentry.TLBs,
 
 	// Token pool contract types
-	TypeLockReleaseTokenPool: lockrelease.TLBs,
+	TypeLockReleaseLockboxTokenPool: lockreleaselockbox.TLBs,
+	TypeJettonLockBox:               lockbox.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

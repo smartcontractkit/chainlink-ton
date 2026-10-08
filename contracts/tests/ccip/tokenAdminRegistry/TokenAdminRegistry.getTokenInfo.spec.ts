@@ -72,6 +72,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         token: fx.token,
         minterAddress: fx.token,
         tokenPool: fx.pool,
+        transferInitiator: fx.pool,
         version: 1n,
       }),
     )
@@ -117,6 +118,27 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     expect(returnedTokenInfo(fx, result, fx.other.address).tokenPool).toBeNull()
   })
 
+  it('returns the registered transfer initiator instead of the pool', async () => {
+    await registerAndAccept(fx)
+    const initiator = fx.other.address
+    await setPool(fx, fx.administrator, fx.pool, 0n, undefined, initiator)
+
+    const result = await getTokenInfo()
+    const info = returnedTokenInfo(fx, result, fx.other.address)
+    expect(info.tokenPool).toEqualAddress(fx.pool)
+    expect(info.transferInitiator).toEqualAddress(initiator)
+  })
+
+  it('returns no transfer initiator for a delisted token even if one was registered', async () => {
+    await registerAndAccept(fx)
+    await setPool(fx, fx.administrator, null, 0n, undefined, fx.other.address)
+
+    const result = await getTokenInfo()
+    const info = returnedTokenInfo(fx, result, fx.other.address)
+    expect(info.tokenPool).toBeNull()
+    expect(info.transferInitiator).toBeNull()
+  })
+
   it('relays resolved token info from the deterministic entry', async () => {
     const result = await fx.registry.sendTokenAdminRegistryEntryTokenInfo(
       asEntry(fx),
@@ -129,6 +151,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         token: fx.token,
         minterAddress: fx.token,
         tokenPool: fx.pool,
+        transferInitiator: fx.pool,
         version: 1n,
       }),
     )

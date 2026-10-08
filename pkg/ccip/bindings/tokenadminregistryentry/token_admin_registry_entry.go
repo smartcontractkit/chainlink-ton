@@ -23,14 +23,18 @@ var (
 
 type Storage struct {
 	TokenAddress *address.Address `tlb:"addr"`
-	TokenInfo    TokenInfo        `tlb:"."`
+	TokenInfo    TokenInfo        `tlb:"^"`
 	AdminConfig  AdminConfig      `tlb:"^"`
+	// Enabled is set once the token answers a TEP-89 query with a wallet.
+	Enabled bool `tlb:"bool"`
 }
 
 type TokenInfo struct {
-	TokenPool     *address.Address `tlb:"addr"`
-	MinterAddress *address.Address `tlb:"addr"`
-	Version       uint32           `tlb:"## 32"`
+	TokenPool *address.Address `tlb:"addr"`
+	// TransferInitiator of the jetton transfers delivering a release/mint; nil means the pool itself.
+	TransferInitiator *address.Address `tlb:"addr"`
+	MinterAddress     *address.Address `tlb:"addr"`
+	Version           uint32           `tlb:"## 32"`
 }
 
 type AdminConfig struct {
@@ -45,7 +49,8 @@ type RootMessage interface {
 		ProposeAdministrator |
 		TransferAdminRole |
 		AcceptAdminRole |
-		SetPool
+		SetPool |
+		VerifyToken
 }
 
 // crc32('TokenAdminRegistryEntry_MessageFromRoot')
@@ -104,9 +109,15 @@ type AcceptAdminRole struct {
 // crc32('TokenAdminRegistryEntry_SetPool')
 // Sent by the root, which forwards the original sender as Actor.
 type SetPool struct {
-	_         tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	Actor     *address.Address `tlb:"addr"`
-	TokenPool *address.Address `tlb:"addr"`
+	_                 tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Actor             *address.Address `tlb:"addr"`
+	TokenPool         *address.Address `tlb:"addr"`
+	TransferInitiator *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistryEntry_VerifyToken')
+type VerifyToken struct {
+	_ tlb.Magic `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
 }
 
 // crc32('TokenAdminRegistryEntry_Resume')
@@ -125,6 +136,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	TransferAdminRole{},
 	AcceptAdminRole{},
 	SetPool{},
+	VerifyToken{},
 	upgradeable.Upgrade{},
 	Resume{},
 }).MustWithStorageType(Storage{})

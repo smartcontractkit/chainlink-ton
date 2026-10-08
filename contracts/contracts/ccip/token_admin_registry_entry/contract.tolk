@@ -6,6 +6,7 @@ import "types"
 import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
 import "../token_admin_registry/messages"
+import "../../lib/jetton/messages"
 
 tolk 1.4.2
 
@@ -41,6 +42,9 @@ fun onInternalMessage(in: InMessage) {
             requireRoot(in.senderAddress);
             onMessageFromRoot(msg.request.load(), true);
         }
+        ResponseWalletAddress => {
+            onResponseWalletAddress(msg, in.senderAddress);
+        }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
         }
@@ -72,6 +76,9 @@ fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool
         }
         TokenAdminRegistryEntry_SetPool => {
             onSetPool(msg.queryId, content);
+        }
+        TokenAdminRegistryEntry_VerifyToken => {
+            onVerifyToken(msg.queryId);
         }
     }
 }
@@ -106,6 +113,12 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
     val st = TokenRegistry_Storage.load();
+    var tokenInfo = st.tokenInfo;
+    if (!st.enabled) {
+        var disabled = tokenInfo.load();
+        disabled.tokenPool = null;
+        tokenInfo = disabled.toCell();
+    }
     createMessage({
         bounce: false,
         value: 0,
@@ -114,13 +127,14 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
             queryId,
             token: st.tokenAddress,
             requester: msg.requester,
-            tokenInfo: st.tokenInfo.toCell(),
+            tokenInfo,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Emits the initial proposal after Deployable has atomically installed this
-/// shard's state. Only an internal self-message can reach this path.
+/// shard's state, and checks that the token answers TEP-89 wallet queries.
+/// Only an internal self-message can reach this path.
 fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitialized, sender: address) {
     val st = TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
@@ -128,6 +142,40 @@ fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitializ
     assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
         throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
     notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, null, adminConfig.pendingAdministrator);
+    queryWallet(st.tokenAddress, msg.queryId, TokenAdminRegistryEntry_WALLET_QUERY_VALUE, SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// Re-sends the TEP-89 query of a disabled token, e.g. one whose master was deployed or upgraded
+/// after registration.
+fun onVerifyToken(queryId: uint64) {
+    val st = lazy TokenRegistry_Storage.load();
+    if (st.enabled) {
+        return;
+    }
+    queryWallet(st.tokenAddress, queryId, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// A bounced query or a response without a wallet leaves the token disabled.
+fun queryWallet(token: address, queryId: uint64, value: coins, mode: int) {
+    createMessage({
+        bounce: true,
+        value,
+        dest: token,
+        body: RequestWalletAddress {
+            queryId,
+            ownerAddress: contract.getAddress(),
+            includeOwnerAddress: false,
+        },
+    }).send(mode);
+}
+
+fun onResponseWalletAddress(msg: ResponseWalletAddress, sender: address) {
+    var st = lazy TokenRegistry_Storage.load();
+    if (sender != st.tokenAddress || st.enabled || msg.jettonWalletAddress == null) {
+        return;
+    }
+    st.enabled = true;
+    st.store();
 }
 
 fun onProposeAdministrator(queryId: uint64, msg: TokenAdminRegistryEntry_ProposeAdministrator) {
@@ -167,16 +215,20 @@ fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     val adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
 
-    val previousPool = st.tokenInfo.tokenPool;
-    st.tokenInfo.tokenPool = msg.tokenPool;
+    var tokenInfo = st.tokenInfo.load();
+    val previousPool = tokenInfo.tokenPool;
+    val previousTransferInitiator = tokenInfo.transferInitiator;
+    tokenInfo.tokenPool = msg.tokenPool;
+    tokenInfo.transferInitiator = msg.transferInitiator;
+    st.tokenInfo = tokenInfo.toCell();
     st.store();
 
-    if (!samePool(previousPool, msg.tokenPool)) {
-        notifyPoolSet(queryId, st.tokenAddress, previousPool, msg.tokenPool);
+    if (!sameAddress(previousPool, msg.tokenPool) || !sameAddress(previousTransferInitiator, msg.transferInitiator)) {
+        notifyPoolSet(queryId, st.tokenAddress, previousPool, msg.tokenPool, msg.transferInitiator);
     }
 }
 
-fun samePool(left: address?, right: address?): bool {
+fun sameAddress(left: address?, right: address?): bool {
     if (left == null) {
         return right == null;
     }
@@ -203,12 +255,13 @@ fun notifyAdministratorTransferred(queryId: uint64, token: address, newAdministr
     }.toCell());
 }
 
-fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPool: address?) {
+fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPool: address?, transferInitiator: address?) {
     notifyRoot(TokenAdminRegistry_PoolSet {
             queryId,
             token,
             previousPool,
             newPool,
+            transferInitiator: transferInitiator == null ? null : transferInitiator!.toCell(),
     }.toCell());
 }
 
@@ -240,7 +293,11 @@ get fun tokenAdminRegistryConfig(): TokenRegistry_AdminConfig {
 }
 
 get fun tokenInfo(): TokenRegistry_TokenInfo {
-    return TokenRegistry_Storage.load().tokenInfo;
+    return TokenRegistry_Storage.load().tokenInfo.load();
+}
+
+get fun enabled(): bool {
+    return TokenRegistry_Storage.load().enabled;
 }
 
 get fun entryVersion(): int {

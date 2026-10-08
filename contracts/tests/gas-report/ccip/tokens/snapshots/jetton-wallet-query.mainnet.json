@@ -1,0 +1,128 @@
+{
+  "RegisterToken: reference jetton": {
+    "rows": [
+      {
+        "from": "Entry",
+        "to": "Minter",
+        "op": "RequestWalletAddress",
+        "gasUsed": 6251,
+        "computeFee": "0.000416734",
+        "fwdFee": "0.000065068"
+      },
+      {
+        "from": "Minter",
+        "to": "Entry",
+        "op": "ResponseWalletAddress",
+        "gasUsed": 2867,
+        "computeFee": "0.000191134",
+        "fwdFee": "0.000065068"
+      }
+    ],
+    "fee": "803071"
+  },
+  "VerifyToken: reference jetton": {
+    "rows": [
+      {
+        "from": "Entry",
+        "to": "Minter",
+        "op": "RequestWalletAddress",
+        "gasUsed": 6251,
+        "computeFee": "0.000416734",
+        "fwdFee": "0.000065068"
+      },
+      {
+        "from": "Minter",
+        "to": "Entry",
+        "op": "ResponseWalletAddress",
+        "gasUsed": 2867,
+        "computeFee": "0.000191134",
+        "fwdFee": "0.000065068"
+      }
+    ],
+    "fee": "803071"
+  },
+  "RegisterToken: wGRAM": {
+    "rows": [
+      {
+        "from": "Entry",
+        "to": "Minter",
+        "op": "RequestWalletAddress",
+        "gasUsed": 3298,
+        "computeFee": "0.000219868",
+        "fwdFee": "0.000065068"
+      },
+      {
+        "from": "Minter",
+        "to": "Entry",
+        "op": "ResponseWalletAddress",
+        "gasUsed": 2867,
+        "computeFee": "0.000191134",
+        "fwdFee": "0.000065068"
+      }
+    ],
+    "fee": "606206"
+  },
+  "VerifyToken: wGRAM": {
+    "rows": [
+      {
+        "from": "Entry",
+        "to": "Minter",
+        "op": "RequestWalletAddress",
+        "gasUsed": 3298,
+        "computeFee": "0.000219868",
+        "fwdFee": "0.000065068"
+      },
+      {
+        "from": "Minter",
+        "to": "Entry",
+        "op": "ResponseWalletAddress",
+        "gasUsed": 2867,
+        "computeFee": "0.000191134",
+        "fwdFee": "0.000065068"
+      }
+    ],
+    "fee": "606205"
+  },
+  "RegisterToken: CCT": {
+    "rows": [
+      {
+        "from": "Entry",
+        "to": "Minter",
+        "op": "RequestWalletAddress",
+        "gasUsed": 3298,
+        "computeFee": "0.000219868",
+        "fwdFee": "0.000065068"
+      },
+      {
+        "from": "Minter",
+        "to": "Entry",
+        "op": "ResponseWalletAddress",
+        "gasUsed": 2867,
+        "computeFee": "0.000191134",
+        "fwdFee": "0.000065068"
+      }
+    ],
+    "fee": "606205"
+  },
+  "VerifyToken: CCT": {
+    "rows": [
+      {
+        "from": "Entry",
+        "to": "Minter",
+        "op": "RequestWalletAddress",
+        "gasUsed": 3298,
+        "computeFee": "0.000219868",
+        "fwdFee": "0.000065068"
+      },
+      {
+        "from": "Minter",
+        "to": "Entry",
+        "op": "ResponseWalletAddress",
+        "gasUsed": 2867,
+        "computeFee": "0.000191134",
+        "fwdFee": "0.000065068"
+      }
+    ],
+    "fee": "606205"
+  }
+}

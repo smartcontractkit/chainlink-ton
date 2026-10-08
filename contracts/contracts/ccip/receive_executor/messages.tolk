@@ -3,6 +3,7 @@ import "../offramp/messages"
 import "../offramp/types"
 import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
+import "../accounts/deposit/messages"
 import "types"
 
 
@@ -10,12 +11,16 @@ type ReceiveExecutor_InMessage =
     | ReceiveExecutor_InitExecute
     | TokenAdminRegistry_TokenInfo
     | TokenAdminRegistry_GetTokenInfoFailed
-    | TokenPool_ReleaseOrMintFinished
+    | DepositAccount_ForwardNotification
     | TokenPool_ReleaseOrMintFailure
+    | TokenPool_ReleaseOrMintFinalized
     | ReceiveExecutor_ReleaseOrMintFailed
     | ReceiveExecutor_CCIPReceiveFailed
     | ReceiveExecutor_CCIPReceiveConfirm
     ;
+
+type ReceiveExecutor_BouncedMessage =
+    | TokenAdminRegistry_GetTokenInfo;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     queryId: uint64;
@@ -29,7 +34,8 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
 
 struct ReceiveExecutor_TokenTransfer {
     tokenAdminRegistry: address;
-    transfer: Any2TVMTokenTransfer;
+    receiverAccount: address;
+    transfer: Cell<Any2TVMTokenTransfer>;
     // Offchain token data for this token transfer (untrusted).
     // Null when there is no offchain data for this token.
     offchainTokenData: cell? = null;
@@ -85,10 +91,12 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
 }
 
 /// The registry query, handling its reply, and the message that follows it:
-/// ReleaseOrMint, or NotifyFailure when the token is not enabled. The
-/// destGasAmount for ReleaseOrMint is budgeted separately.
+/// ReleaseOrMint, or NotifyFailure when the token is not enabled, and the
+/// TokenTransferDelivered notification. The destGasAmount for ReleaseOrMint
+/// is budgeted separately.
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
     return TokenAdminRegistry_GetTokenInfo.cost()
         + RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE
-        + max(OffRamp_ReleaseOrMint.cost(), OffRamp_Costs.notify());
+        + max(OffRamp_ReleaseOrMint.cost(), OffRamp_Costs.notify())
+        + OffRamp_Costs.tokenTransferDelivered();
 }

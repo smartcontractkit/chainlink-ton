@@ -9,6 +9,7 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import { Costs, ENTRY_VERSION, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { generateRandomTonAddress } from '../../../src/utils'
 import {
   CELL_UNDERFLOW,
   EntryErrors,
@@ -16,12 +17,14 @@ import {
   OPERATION_VALUE,
   RegistryErrors,
   accountState,
+  answerWalletQuery,
   coverageConfig,
   createBlockchain,
   entryAddress,
   entryFor,
   expectRootFailure,
   registerToken,
+  returnedTokenInfo,
   rootEvent,
   setup,
   tokenInfo,
@@ -191,6 +194,113 @@ describe('TokenAdminRegistry - Register Token', () => {
         exitCode: EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized'],
       })
     }
+  })
+
+  describe('TEP-89 check', () => {
+    const verifyToken = (token = fx.token, value = OPERATION_VALUE) =>
+      fx.registry.sendTokenAdminRegistryVerifyToken(fx.other.getSender(), value, {
+        queryId: 9n,
+        tokenAddress: token,
+      })
+
+    const expectWalletQuery = (result: Awaited<ReturnType<typeof verifyToken>>, token = fx.token) =>
+      expect(result.transactions).toHaveTransaction({
+        from: entryAddress(fx, token),
+        to: token,
+        op: tare.RequestWalletAddress.PREFIX,
+        body: (body) =>
+          !!body &&
+          body.beginParse().preloadUint(32) === tare.RequestWalletAddress.PREFIX &&
+          tare.RequestWalletAddress.fromSlice(body.beginParse()).ownerAddress.equals(
+            entryAddress(fx, token),
+          ),
+      })
+
+    it('queries the token and enables it once answered', async () => {
+      const result = await registerToken(fx, { answerWalletQuery: false })
+      expectWalletQuery(result)
+      expect(await entryFor(fx).getEnabled()).toBe(false)
+
+      await answerWalletQuery(fx)
+      expect(await entryFor(fx).getEnabled()).toBe(true)
+    })
+
+    it('reports a disabled token without a pool', async () => {
+      await registerToken(fx, { answerWalletQuery: false })
+      const result = await fx.registry.sendTokenAdminRegistryGetTokenInfo(
+        fx.other.getSender(),
+        OPERATION_VALUE,
+        { queryId: 1n, token: fx.token },
+      )
+      const info = returnedTokenInfo(fx, result, fx.other.address)
+      expect(info.tokenPool).toBeNull()
+      expect(info.transferInitiator).toBeNull()
+      expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
+    })
+
+    it('ignores a wallet response not sent by the token', async () => {
+      await registerToken(fx, { answerWalletQuery: false })
+      await answerWalletQuery(fx, { from: fx.other.address })
+      expect(await entryFor(fx).getEnabled()).toBe(false)
+    })
+
+    it('keeps the token disabled when the token reports no wallet', async () => {
+      await registerToken(fx, { answerWalletQuery: false })
+      await answerWalletQuery(fx, { wallet: null })
+      expect(await entryFor(fx).getEnabled()).toBe(false)
+    })
+
+    it('keeps the token disabled when the query bounces', async () => {
+      const token = await generateRandomTonAddress()
+      const result = await registerToken(fx, { token, answerWalletQuery: false })
+      expect(result.transactions).toHaveTransaction({
+        from: entryAddress(fx, token),
+        to: token,
+        op: tare.RequestWalletAddress.PREFIX,
+        success: false,
+      })
+      expect(await entryFor(fx, token).getEnabled()).toBe(false)
+    })
+
+    it('re-sends the query on VerifyToken and enables the token once answered', async () => {
+      await registerToken(fx, { answerWalletQuery: false })
+      const result = await verifyToken()
+      expect(result.transactions).toHaveTransaction({
+        from: fx.registry.address,
+        to: entryAddress(fx),
+        success: true,
+      })
+      expectWalletQuery(result)
+
+      await answerWalletQuery(fx)
+      expect(await entryFor(fx).getEnabled()).toBe(true)
+    })
+
+    it('does not query an enabled token on VerifyToken', async () => {
+      await registerToken(fx)
+      const result = await verifyToken()
+      expect(result.transactions).toHaveTransaction({
+        from: fx.registry.address,
+        to: entryAddress(fx),
+        success: true,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: entryAddress(fx),
+        to: fx.token,
+      })
+    })
+
+    it('rejects VerifyToken without enough value for the query', async () => {
+      await registerToken(fx, { answerWalletQuery: false })
+      const result = await verifyToken(fx.token, Costs.verifyToken - 1n)
+      expect(result.transactions).toHaveTransaction({
+        from: fx.other.address,
+        to: fx.registry.address,
+        success: false,
+        exitCode: RegistryErrors['TokenAdminRegistry_Error.InsufficientValue'],
+      })
+      expect(result.transactions).not.toHaveTransaction({ to: entryAddress(fx) })
+    })
   })
 
   afterAll(async () => {

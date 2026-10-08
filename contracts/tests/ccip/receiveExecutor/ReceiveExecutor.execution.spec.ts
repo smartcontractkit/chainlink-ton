@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { crc32 } from 'zlib'
 
@@ -9,6 +9,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
+import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { contractCode } from '../../../wrappers/codeLoader'
 import {
   createTestMessage,
@@ -297,43 +298,45 @@ describe('ReceiveExecutor - Execution', () => {
   // --- Token Transfer Tests ---
 
   describe('ReceiveExecutor - Token Transfers', () => {
-    let receiveExecutor: SandboxContract<rx.ReceiveExecutor>
     let tokenAdminRegistry: SandboxContract<TreasuryContract>
     let tokenPool: SandboxContract<TreasuryContract>
+    // The receiver's Router-owned deposit account and its jetton wallet for the transferred token.
+    let receiverAccount: SandboxContract<TreasuryContract>
+    let accountWallet: SandboxContract<TreasuryContract>
 
     let messageWithTT: of.Any2TVMRampMessage
 
     beforeEach(async () => {
-      messageWithTT = createTestMessageWithToken({ receiver: deployer.address })
-      receiveExecutor = await setupTestReceiveExecutor(
-        blockchain,
-        deployer,
-        receiveExecutorCode,
-        messageWithTT,
-      )
-
-      defaultInitExecute = {
-        sequenceNumber: messageWithTT.header.sequenceNumber,
-        sourceChainSelector: messageWithTT.header.sourceChainSelector,
-        messageId: messageWithTT.header.messageId,
-        effectiveGasLimit: messageWithTT.gasLimit,
-      }
+      tokenAdminRegistry = await blockchain.treasury('tokenAdminRegistry')
+      tokenPool = await blockchain.treasury('tokenPool')
+      receiverAccount = await blockchain.treasury('receiverAccount')
+      accountWallet = await blockchain.treasury('accountWallet')
     })
+
+    const tokenTransferOf = (
+      transfer: of.Any2TVMTokenTransfer = messageWithTT.tokenAmounts![0],
+      registry: Address = tokenAdminRegistry.address,
+    ) =>
+      rx.ReceiveExecutor_TokenTransfer.create({
+        tokenAdminRegistry: registry,
+        receiverAccount: receiverAccount.address,
+        transfer,
+      })
+
+    const initExecute = (
+      executor: SandboxContract<rx.ReceiveExecutor>,
+      tokenTransfer = tokenTransferOf(),
+      value = toNano('1'),
+    ) =>
+      executor.sendReceiveExecutorInitExecute(deployer.getSender(), value, {
+        ...defaultInitExecute,
+        root: deployer.address,
+        tokenTransfer,
+      })
 
     /** InitExecute -> queries the TokenAdminRegistry. */
     async function initExecuteQueriesRegistry(executor: SandboxContract<rx.ReceiveExecutor>) {
-      const result = await executor.sendReceiveExecutorInitExecute(
-        deployer.getSender(),
-        toNano('1'),
-        {
-          ...defaultInitExecute,
-          root: deployer.address,
-          tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-            tokenAdminRegistry: tokenAdminRegistry.address,
-            transfer: messageWithTT.tokenAmounts![0],
-          }),
-        },
-      )
+      const result = await initExecute(executor)
       expect(result.transactions).toHaveTransaction({
         from: executor.address,
         to: tokenAdminRegistry.address,
@@ -344,15 +347,20 @@ describe('ReceiveExecutor - Execution', () => {
       return result
     }
 
-    /** TokenAdminRegistry returns a token pool -> sends ReleaseOrMint. */
-    async function returnTokenInfoWithPool(executor: SandboxContract<rx.ReceiveExecutor>) {
+    /** TokenAdminRegistry returns a token pool and its transfer initiator -> sends ReleaseOrMint. */
+    async function returnTokenInfoWithPool(
+      executor: SandboxContract<rx.ReceiveExecutor>,
+      pool: Address = tokenPool.address,
+      transferInitiator: Address = pool,
+    ) {
       const result = await executor.sendTokenAdminRegistryTokenInfo(
         tokenAdminRegistry.getSender(),
         REGISTRY_REPLY_VALUE,
         {
           token: messageWithTT.tokenAmounts![0].token,
           minterAddress: deployer.address,
-          tokenPool: tokenPool.address,
+          tokenPool: pool,
+          transferInitiator,
           version: 1n,
         },
       )
@@ -365,12 +373,67 @@ describe('ReceiveExecutor - Execution', () => {
       return result
     }
 
+    async function transitionToReleaseOrMint(
+      executor: SandboxContract<rx.ReceiveExecutor>,
+      transferInitiator: Address = tokenPool.address,
+    ) {
+      await initExecuteQueriesRegistry(executor)
+      return returnTokenInfoWithPool(executor, tokenPool.address, transferInitiator)
+    }
+
+    /** A jetton notification forwarded by a deposit account (`via`) as it arrived from `walletSender`. */
+    const forwardNotification = (
+      executor: SandboxContract<rx.ReceiveExecutor>,
+      amount: bigint,
+      opts: {
+        via?: SandboxContract<TreasuryContract>
+        walletSender?: Address
+        initiator?: Address | null
+      } = {},
+    ) =>
+      executor.sendDepositAccountForwardNotification(
+        (opts.via ?? receiverAccount).getSender(),
+        toNano('0.05'),
+        {
+          message: rx.DepositAccount_InMessageForward.create({
+            senderAddress: opts.walletSender ?? accountWallet.address,
+            valueCoins: toNano('0.01'),
+            valueExtra: new Map(),
+            originalForwardFee: 0n,
+            createdLt: 0n,
+            createdAt: 0n,
+            body: TransferNotificationForRecipient.toCell(
+              TransferNotificationForRecipient.create({
+                queryId: 0n,
+                jettonAmount: amount,
+                transferInitiator:
+                  opts.initiator === undefined ? tokenPool.address : opts.initiator,
+                forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
+              }),
+            ),
+          }),
+        },
+      )
+
+    const expectDelivered = (
+      delivered: of.OffRamp_DeliveredTransfer | null | undefined,
+      amount: bigint,
+    ): boolean => {
+      if (!delivered) return false
+      const transfer = delivered.transfer
+      return (
+        delivered.tokenPool.equals(tokenPool.address) &&
+        transfer.amount === amount &&
+        transfer.localToken.equals(messageWithTT.tokenAmounts![0].token) &&
+        transfer.receiver.equals(messageWithTT.receiver) &&
+        transfer.remoteChainSelector === messageWithTT.header.sourceChainSelector
+      )
+    }
+
     describe('ReceiveExecutor - Pure Token Transfers (No data)', () => {
       let receiveExecutorWithToken: SandboxContract<rx.ReceiveExecutor>
 
       beforeEach(async () => {
-        tokenAdminRegistry = await blockchain.treasury('tokenAdminRegistry')
-        tokenPool = await blockchain.treasury('tokenPool')
         messageWithTT = createTestMessageWithToken({ receiver: deployer.address })
         receiveExecutorWithToken = await setupTestReceiveExecutor(
           blockchain,
@@ -378,6 +441,12 @@ describe('ReceiveExecutor - Execution', () => {
           receiveExecutorCode,
           messageWithTT,
         )
+        defaultInitExecute = {
+          sequenceNumber: messageWithTT.header.sequenceNumber,
+          sourceChainSelector: messageWithTT.header.sourceChainSelector,
+          messageId: messageWithTT.header.messageId,
+          effectiveGasLimit: messageWithTT.gasLimit,
+        }
       })
 
       // --- InitExecute with token transfer ---
@@ -393,10 +462,7 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: messageWithTT.tokenAmounts![0],
-            }),
+            tokenTransfer: tokenTransferOf(),
           },
         )
         expectFailedTransaction(
@@ -407,11 +473,38 @@ describe('ReceiveExecutor - Execution', () => {
         )
       })
 
+      it('should reject InitExecute while the release/mint is in progress', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const result = await initExecute(receiveExecutorWithToken)
+        expectFailedTransaction(
+          result,
+          deployer.address,
+          receiveExecutorWithToken.address,
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.ExecutionAlreadyInProgress'],
+        )
+      })
+
       // --- TokenAdminRegistry response ---
 
       it('should send ReleaseOrMint when TokenAdminRegistry returns a token pool', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
+        const result = await returnTokenInfoWithPool(receiveExecutorWithToken)
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          op: of.OffRamp_ReleaseOrMint.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_ReleaseOrMint.fromSlice(body.beginParse())
+            const details = msg.request.transfer.details
+            return (
+              msg.tokenPool.equals(tokenPool.address) &&
+              details.receiver.equals(messageWithTT.receiver) &&
+              details.amount === messageWithTT.tokenAmounts![0].amount &&
+              details.localToken.equals(messageWithTT.tokenAmounts![0].token)
+            )
+          },
+        })
       })
 
       it('should send NotifyFailure when TokenAdminRegistry returns no token pool', async () => {
@@ -423,6 +516,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
+            transferInitiator: null,
             version: 1n,
           },
         )
@@ -489,6 +583,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
+            transferInitiator: tokenPool.address,
             version: 1n,
           },
         )
@@ -508,6 +603,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: tokenPool.address,
+            transferInitiator: tokenPool.address,
             version: 1n,
           },
         )
@@ -519,37 +615,185 @@ describe('ReceiveExecutor - Execution', () => {
         )
       })
 
-      // --- TokenPool release/mint response ---
-
-      it('should send NotifySuccess when ReleaseOrMintFinished', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinished(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            out: rx.TokenPool_ReleaseOrMintOutV1.create({
-              destinationAmount: 1000n,
-            }),
-          },
+      it('should send NotifyFailure when the TokenAdminRegistry query bounces, and re-query it on retry', async () => {
+        // No contract lives at the registry address, so the bounceable query bounces back.
+        const missingRegistry = await generateRandomTonAddress()
+        const result = await initExecute(
+          receiveExecutorWithToken,
+          tokenTransferOf(undefined, missingRegistry),
         )
         expect(result.transactions).toHaveTransaction({
-          from: tokenPool.address,
+          from: missingRegistry,
+          to: receiveExecutorWithToken.address,
+          inMessageBounced: true,
+          success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+        })
+
+        // The registry is fixed on the first execution: the retry queries the stored one again.
+        const retry = await initExecute(receiveExecutorWithToken)
+        expect(retry.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: missingRegistry,
+          op: rx.TokenAdminRegistry_GetTokenInfo.PREFIX,
+        })
+      })
+
+      // --- Delivery to the receiver's deposit account ---
+
+      it('should send NotifySuccess carrying the delivered transfer once the account receives the amount', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const amount = messageWithTT.tokenAmounts![0].amount
+        const result = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(result.transactions).toHaveTransaction({
+          from: receiverAccount.address,
           to: receiveExecutorWithToken.address,
           success: true,
-          op: rx.TokenPool_ReleaseOrMintFinished.PREFIX,
+          op: rx.DepositAccount_ForwardNotification.PREFIX,
         })
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
           to: deployer.address,
           success: true,
           op: of.OffRamp_NotifySuccess.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifySuccess.fromSlice(body.beginParse())
+            return expectDelivered(msg.delivered, amount)
+          },
+        })
+        // Token-only messages report the delivery through NotifySuccess only.
+        expect(result.transactions).not.toHaveTransaction({
+          op: of.OffRamp_TokenTransferDelivered.PREFIX,
         })
       })
 
-      it('should send NotifyFailure when ReleaseOrMintFailure', async () => {
+      it('should report the received amount as delivered, whatever the transferred amount was', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const received = messageWithTT.tokenAmounts![0].amount * 1000n - 1n
+        const result = await forwardNotification(receiveExecutorWithToken, received)
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifySuccess.fromSlice(body.beginParse())
+            return expectDelivered(msg.delivered, received)
+          },
+        })
+      })
+
+      it('should ignore notifications not forwarded by the receiver account', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const amount = messageWithTT.tokenAmounts![0].amount
+        const spoofed = await forwardNotification(receiveExecutorWithToken, amount, {
+          via: nonOwner,
+        })
+        expect(spoofed.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          success: true,
+        })
+        expect(spoofed.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+
+        // The spoofed amount was not counted: the genuine delivery alone completes the transfer.
+        const genuine = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(genuine.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      it('should ignore notifications from a transfer initiator other than the registered one', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const amount = messageWithTT.tokenAmounts![0].amount
+        for (const initiator of [nonOwner.address, null]) {
+          const result = await forwardNotification(receiveExecutorWithToken, amount, { initiator })
+          expect(result.transactions).toHaveTransaction({
+            from: receiverAccount.address,
+            to: receiveExecutorWithToken.address,
+            success: true,
+          })
+          expect(result.transactions).not.toHaveTransaction({
+            from: receiveExecutorWithToken.address,
+            op: of.OffRamp_NotifySuccess.PREFIX,
+          })
+        }
+
+        const genuine = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(genuine.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      it('should match the transfer initiator registered in the TokenAdminRegistry instead of the pool', async () => {
+        const lockbox = await blockchain.treasury('lockbox')
+        await transitionToReleaseOrMint(receiveExecutorWithToken, lockbox.address)
+        const amount = messageWithTT.tokenAmounts![0].amount
+
+        const fromPool = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(fromPool.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+
+        const fromLockbox = await forwardNotification(receiveExecutorWithToken, amount, {
+          initiator: lockbox.address,
+        })
+        expect(fromLockbox.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      it('should ignore notifications before the release/mint was sent', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
+        const result = await forwardNotification(
+          receiveExecutorWithToken,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(result.transactions).toHaveTransaction({
+          to: receiveExecutorWithToken.address,
+          op: rx.DepositAccount_ForwardNotification.PREFIX,
+          success: true,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      it('should ignore notifications after the transfer was delivered', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const amount = messageWithTT.tokenAmounts![0].amount
+        await forwardNotification(receiveExecutorWithToken, amount)
+        const again = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(again.transactions).toHaveTransaction({
+          to: receiveExecutorWithToken.address,
+          op: rx.DepositAccount_ForwardNotification.PREFIX,
+          success: true,
+        })
+        expect(again.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      // --- TokenPool release/mint failure ---
+
+      it('should send NotifyFailure when ReleaseOrMintFailure', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
           tokenPool.getSender(),
           toNano('0.05'),
@@ -565,29 +809,8 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should reject ReleaseOrMintFinished from non-tokenPool', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
-        const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinished(
-          nonOwner.getSender(),
-          toNano('0.05'),
-          {
-            out: rx.TokenPool_ReleaseOrMintOutV1.create({
-              destinationAmount: 1000n,
-            }),
-          },
-        )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
-      })
-
       it('should reject ReleaseOrMintFailure from non-tokenPool', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
           nonOwner.getSender(),
           toNano('0.05'),
@@ -600,24 +823,6 @@ describe('ReceiveExecutor - Execution', () => {
           nonOwner.address,
           receiveExecutorWithToken.address,
           rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
-      })
-
-      it('should reject ReleaseOrMintFinished when state is not TokenTransfer', async () => {
-        const result = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinished(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            out: rx.TokenPool_ReleaseOrMintOutV1.create({
-              destinationAmount: 1000n,
-            }),
-          },
-        )
-        expectFailedTransaction(
-          result,
-          tokenPool.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
         )
       })
 
@@ -640,8 +845,7 @@ describe('ReceiveExecutor - Execution', () => {
       // --- ReleaseOrMintBounced (from owner) ---
 
       it('should send NotifyFailure when ReleaseOrMintBounced', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendReceiveExecutorReleaseOrMintFailed(
           deployer.getSender(),
           toNano('0.05'),
@@ -664,8 +868,7 @@ describe('ReceiveExecutor - Execution', () => {
       })
 
       it('should reject ReleaseOrMintBounced from non-owner', async () => {
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendReceiveExecutorReleaseOrMintFailed(
           nonOwner.getSender(),
           toNano('0.05'),
@@ -709,6 +912,7 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
+            transferInitiator: null,
             version: 1n,
           },
         )
@@ -717,10 +921,9 @@ describe('ReceiveExecutor - Execution', () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
       })
 
-      it('should send ReleaseOrMint when retrying from TokenTransferFailed', async () => {
+      it('should resend ReleaseOrMint to the same pool when retrying from ReleaseOrMintFailed', async () => {
         // First transfer fails.
-        await initExecuteQueriesRegistry(receiveExecutorWithToken)
-        await returnTokenInfoWithPool(receiveExecutorWithToken)
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
         await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
           tokenPool.getSender(),
           toNano('0.05'),
@@ -729,24 +932,27 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        // Retry InitExecute: should send ReleaseOrMint directly.
-        const result = await receiveExecutorWithToken.sendReceiveExecutorInitExecute(
-          deployer.getSender(),
-          toNano('1'),
-          {
-            ...defaultInitExecute,
-            root: deployer.address,
-            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: messageWithTT.tokenAmounts![0],
-            }),
-          },
-        )
+        // Retry InitExecute: the pool and initiator are known, so it goes straight to ReleaseOrMint.
+        const result = await initExecute(receiveExecutorWithToken)
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
           to: deployer.address,
           success: true,
           op: of.OffRamp_ReleaseOrMint.PREFIX,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: tokenAdminRegistry.address,
+        })
+
+        const delivered = await forwardNotification(
+          receiveExecutorWithToken,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(delivered.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
         })
       })
 
@@ -773,25 +979,15 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: { ...messageWithTT.tokenAmounts![0], destGasAmount: tokenGasOverride },
+            tokenTransfer: tokenTransferOf({
+              ...messageWithTT.tokenAmounts![0],
+              destGasAmount: tokenGasOverride,
             }),
             effectiveGasLimit: toNano('0.01'),
           },
         )
+        const result = await returnTokenInfoWithPool(receiveExecutorLowGas)
 
-        // TokenAdminRegistry returns a token pool -> ReleaseOrMint.
-        const result = await receiveExecutorLowGas.sendTokenAdminRegistryTokenInfo(
-          tokenAdminRegistry.getSender(),
-          toNano('0.05'),
-          {
-            token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
-            tokenPool: tokenPool.address,
-            version: 1n,
-          },
-        )
         // The ReleaseOrMint message should be sent successfully.
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorLowGas.address,
@@ -825,24 +1021,12 @@ describe('ReceiveExecutor - Execution', () => {
           {
             ...defaultInitExecute,
             root: deployer.address,
-            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: messageWithTT.tokenAmounts![0],
-            }),
+            tokenTransfer: tokenTransferOf(),
             effectiveGasLimit: destGasAmount - toNano('0.001'),
           },
         )
+        const result = await returnTokenInfoWithPool(receiveExecutorHighGas)
 
-        const result = await receiveExecutorHighGas.sendTokenAdminRegistryTokenInfo(
-          tokenAdminRegistry.getSender(),
-          toNano('0.05'),
-          {
-            token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
-            tokenPool: tokenPool.address,
-            version: 1n,
-          },
-        )
         // The ReleaseOrMint message should be sent successfully.
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorHighGas.address,
@@ -861,13 +1045,9 @@ describe('ReceiveExecutor - Execution', () => {
     })
 
     describe('ReceiveExecutor - PTT', () => {
-      let tokenAdminRegistry: SandboxContract<TreasuryContract>
-      let tokenPool: SandboxContract<TreasuryContract>
       let receiveExecutorPtt: SandboxContract<rx.ReceiveExecutor>
 
       beforeEach(async () => {
-        tokenAdminRegistry = await blockchain.treasury('tokenAdminRegistry')
-        tokenPool = await blockchain.treasury('tokenPool')
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
           data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
@@ -887,35 +1067,53 @@ describe('ReceiveExecutor - Execution', () => {
         }
       })
 
-      // A PTT message carries both a token transfer and data, so after the token
-      // transfer completes the message is executed (DispatchValidated) instead of
-      // being finalized with NotifySuccess.
-      async function transitionToPttExecute() {
-        await initExecuteQueriesRegistry(receiveExecutorPtt)
-        await returnTokenInfoWithPool(receiveExecutorPtt)
-        const finishedResult = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            out: rx.TokenPool_ReleaseOrMintOutV1.create({
-              destinationAmount: 1000n,
-            }),
-          },
+      /** The receiver account receives the full amount -> the message is executed. */
+      async function deliverAndExecute() {
+        const result = await forwardNotification(
+          receiveExecutorPtt,
+          messageWithTT.tokenAmounts![0].amount,
         )
-        expect(finishedResult.transactions).toHaveTransaction({
+        expect(result.transactions).toHaveTransaction({
           from: receiveExecutorPtt.address,
           to: deployer.address,
           success: true,
           op: of.OffRamp_DispatchValidated.PREFIX,
         })
-        return finishedResult
+        return result
+      }
+
+      // A PTT message carries both a token transfer and data, so after the token
+      // transfer completes the message is executed (DispatchValidated) instead of
+      // being finalized with NotifySuccess.
+      async function transitionToPttExecute() {
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        return deliverAndExecute()
       }
 
       it('should execute the message after the token transfer completes', async () => {
-        await transitionToPttExecute()
+        const result = await transitionToPttExecute()
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
       })
 
-      it('should send NotifySuccess on Confirm after PTT execution', async () => {
+      it('should report the delivery to the OffRamp independently of the execution', async () => {
+        const result = await transitionToPttExecute()
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_TokenTransferDelivered.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_TokenTransferDelivered.fromSlice(body.beginParse())
+            return expectDelivered(msg.delivered, messageWithTT.tokenAmounts![0].amount)
+          },
+        })
+      })
+
+      it('should send NotifySuccess without a delivery on Confirm after PTT execution', async () => {
         await transitionToPttExecute()
         const result = await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveConfirm(
           deployer.getSender(),
@@ -929,6 +1127,10 @@ describe('ReceiveExecutor - Execution', () => {
           to: deployer.address,
           success: true,
           op: of.OffRamp_NotifySuccess.PREFIX,
+          body(body) {
+            if (!body) return false
+            return of.OffRamp_NotifySuccess.fromSlice(body.beginParse()).delivered == null
+          },
         })
       })
 
@@ -950,7 +1152,7 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should retry the message execution when retrying from ExecuteFailed', async () => {
+      it('should retry the message execution without re-reporting the delivery when retrying from ExecuteFailed', async () => {
         // Execute the message, then bounce it to set ExecuteFailed.
         await transitionToPttExecute()
         await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveFailed(
@@ -964,23 +1166,15 @@ describe('ReceiveExecutor - Execution', () => {
 
         // Retry InitExecute: token transfer is already done (TokenTransferSuccess),
         // so it should re-execute the message (DispatchValidated).
-        const result = await receiveExecutorPtt.sendReceiveExecutorInitExecute(
-          deployer.getSender(),
-          toNano('1'),
-          {
-            ...defaultInitExecute,
-            root: deployer.address,
-            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: messageWithTT.tokenAmounts![0],
-            }),
-          },
-        )
+        const result = await initExecute(receiveExecutorPtt)
         expect(result.transactions).toHaveTransaction({
           from: receiveExecutorPtt.address,
           to: deployer.address,
           success: true,
           op: of.OffRamp_DispatchValidated.PREFIX,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          op: of.OffRamp_TokenTransferDelivered.PREFIX,
         })
       })
 
@@ -998,35 +1192,20 @@ describe('ReceiveExecutor - Execution', () => {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
             tokenPool: null,
+            transferInitiator: null,
             version: 1n,
           },
         )
 
         // Retry InitExecute: should re-query TokenAdminRegistry, then resume the
         // token transfer and finally execute the message.
-        await initExecuteQueriesRegistry(receiveExecutorPtt)
-        await returnTokenInfoWithPool(receiveExecutorPtt)
-        const finishedResult = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            out: rx.TokenPool_ReleaseOrMintOutV1.create({
-              destinationAmount: 1000n,
-            }),
-          },
-        )
-        expect(finishedResult.transactions).toHaveTransaction({
-          from: receiveExecutorPtt.address,
-          to: deployer.address,
-          success: true,
-          op: of.OffRamp_DispatchValidated.PREFIX,
-        })
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        await deliverAndExecute()
       })
 
       it('should retry both token transfer and execution when retrying from ReleaseOrMintFailed', async () => {
         // First transfer fails.
-        await initExecuteQueriesRegistry(receiveExecutorPtt)
-        await returnTokenInfoWithPool(receiveExecutorPtt)
+        await transitionToReleaseOrMint(receiveExecutorPtt)
         await receiveExecutorPtt.sendTokenPoolReleaseOrMintFailure(
           tokenPool.getSender(),
           toNano('0.05'),
@@ -1035,40 +1214,15 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        // Retry InitExecute: should send ReleaseOrMint directly, then execute the message.
-        const retryResult = await receiveExecutorPtt.sendReceiveExecutorInitExecute(
-          deployer.getSender(),
-          toNano('1'),
-          {
-            ...defaultInitExecute,
-            root: deployer.address,
-            tokenTransfer: rx.ReceiveExecutor_TokenTransfer.create({
-              tokenAdminRegistry: tokenAdminRegistry.address,
-              transfer: messageWithTT.tokenAmounts![0],
-            }),
-          },
-        )
+        // Retry InitExecute: should resend ReleaseOrMint, then execute the message.
+        const retryResult = await initExecute(receiveExecutorPtt)
         expect(retryResult.transactions).toHaveTransaction({
           from: receiveExecutorPtt.address,
           to: deployer.address,
           success: true,
           op: of.OffRamp_ReleaseOrMint.PREFIX,
         })
-        const finishedResult = await receiveExecutorPtt.sendTokenPoolReleaseOrMintFinished(
-          tokenPool.getSender(),
-          toNano('0.05'),
-          {
-            out: rx.TokenPool_ReleaseOrMintOutV1.create({
-              destinationAmount: 1000n,
-            }),
-          },
-        )
-        expect(finishedResult.transactions).toHaveTransaction({
-          from: receiveExecutorPtt.address,
-          to: deployer.address,
-          success: true,
-          op: of.OffRamp_DispatchValidated.PREFIX,
-        })
+        await deliverAndExecute()
       })
     })
   })

@@ -209,6 +209,7 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
         tare.TokenAdminRegistryEntry_SetPool.create({
           actor: fx.administrator.address,
           tokenPool: fx.replacementPool,
+          transferInitiator: null,
         }),
         ENTRY_VERSION + 1n,
       ),

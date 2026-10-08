@@ -102,6 +102,10 @@ fun onInternalMessage(in: InMessage) {
             requireEntrySender(st, msg.token, in.senderAddress);
             emitPoolSet(msg);
         }
+        TokenAdminRegistry_VerifyToken => {
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
+        }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
             val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
@@ -213,9 +217,18 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,
             tokenPool: tokenInfo.tokenPool,
+            transferInitiator: resolveTransferInitiator(tokenInfo),
             version: tokenInfo.version,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// The pool itself initiates its deliveries unless the administrator registered another address.
+fun resolveTransferInitiator(tokenInfo: TokenRegistry_TokenInfo): Cell<address>? {
+    if (tokenInfo.tokenPool == null) {
+        return null;
+    }
+    return (tokenInfo.transferInitiator != null ? tokenInfo.transferInitiator! : tokenInfo.tokenPool!).toCell();
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
@@ -235,6 +248,9 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 /// This is intentionally create-only. Callers resolve the outcome by deriving
 /// the entry address and reading its config after finality; retrying this
 /// message against an existing entry is expected to fail in Deployable.
+///
+/// The entry then queries the token with TEP-89 and stays disabled until the token
+/// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     // TODO: add self-service registration once TON has a canonical,
     // independently verifiable proof that the sender controls the token minter.
@@ -249,7 +265,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
                 code: entryCode(),
                 data: TokenRegistry_Storage {
                     tokenAddress: msg.tokenAddress,
-                    tokenInfo: msg.tokenInfo.load(),
+                    tokenInfo: msg.tokenInfo,
                     adminConfig: TokenRegistry_AdminConfig {
                         tokenAdminRegistry: contract.getAddress(),
                         administrator: null,
@@ -298,6 +314,7 @@ fun setPool(msg: TokenAdminRegistry_SetPool, actor: address) {
     forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_SetPool {
         actor,
         tokenPool: msg.tokenPool,
+        transferInitiator: msg.transferInitiator,
     });
 }
 

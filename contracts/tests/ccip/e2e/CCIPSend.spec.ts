@@ -60,12 +60,7 @@ describe('Router', () => {
     })
 
     const offchainFee = await getValidatedFee(blockchain, router.address, ccipSend)
-    const onchainFee = await sendGetValidatedFee(
-      sender.getSender(),
-      router,
-      ccipSend,
-      Cell.EMPTY.asSlice(),
-    )
+    const onchainFee = await sendGetValidatedFee(sender.getSender(), router, ccipSend)
     expect(onchainFee).toBe(offchainFee)
 
     const totalSendValue = offchainFee + ccipSendCost + toNano('3') // TODO temporarily raise value to cover for fixed cost of TokenPool

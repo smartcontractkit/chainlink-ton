@@ -1,4 +1,78 @@
 {
-  "description": "Golden MessageID for a fixed Any2TVMRampMessage. Cross-validates that the Go implementation (cciplib/ccip/codec/msghasher.go), the TypeScript implementation (contracts/src/offramp/generateMessageID.ts), and the Tolk implementation (contracts/contracts/ccip/offramp/types.tolk, exercised via contracts/contracts/test/lib/msg_hasher.tolk) all produce the same hash for the same message. Go tests only check their own implementation against this value; TypeScript tests check both the TypeScript and Tolk implementations against it.",
-  "messageId": "0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807"
+  "description": "Golden MessageIDs for fixed Any2TVMRampMessages. Cross-validates that the Go implementation (cciplib/ccip/codec/msghasher.go), the TypeScript implementation (contracts/src/offramp/generateMessageID.ts), and the Tolk implementation (contracts/contracts/ccip/offramp/types.tolk, exercised via contracts/contracts/test/lib/msg_hasher.tolk) all produce the same hash for the same message. Go tests only check their own implementation against these values; TypeScript tests check both the TypeScript and Tolk implementations against them. Golden values are anchored to the TypeScript/Tolk implementations (which match the on-chain OffRamp leaf recomputation); the Go hasher must agree with them. Conventions: big integers are decimal strings, byte strings are 0x-prefixed hex, TON addresses (receiver and token) are user-friendly base64, and tokenAmounts may be null (no tokens) or a list of token transfers whose extraData may be null (empty destPoolData from the source pool).",
+  "cases": [
+    {
+      "name": "tokenless",
+      "message": {
+        "header": {
+          "messageId": "1",
+          "sourceChainSelector": "909606746561742123",
+          "destChainSelector": "1399300952838017768",
+          "sequenceNumber": "1",
+          "nonce": "0",
+          "onRamp": "0x111111c891c5d4e6ad68064ae45d43146d4f9f3a"
+        },
+        "sender": "0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a",
+        "data": "0x",
+        "receiver": "EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
+        "gasLimit": "100000000",
+        "tokenAmounts": null
+      },
+      "expectedMessageId": "0xba590969e3987ddf666a8319d7269b64f29da09636a8e996dac78309a2f76807"
+    },
+    {
+      "name": "token_empty_extra_data",
+      "message": {
+        "header": {
+          "messageId": "1",
+          "sourceChainSelector": "909606746561742123",
+          "destChainSelector": "1399300952838017768",
+          "sequenceNumber": "1",
+          "nonce": "0",
+          "onRamp": "0x111111c891c5d4e6ad68064ae45d43146d4f9f3a"
+        },
+        "sender": "0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a",
+        "data": "0x",
+        "receiver": "EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
+        "gasLimit": "100000000",
+        "tokenAmounts": [
+          {
+            "sourcePoolAddress": "0x736f757263652d706f6f6c",
+            "token": "EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
+            "destGasAmount": "1000",
+            "extraData": null,
+            "amount": "5000000000"
+          }
+        ]
+      },
+      "expectedMessageId": "0xfac856f10a561cb39b09f0f2106535b9df3d47340c6e9878ddafd16111894d52"
+    },
+    {
+      "name": "token_non_empty_extra_data",
+      "message": {
+        "header": {
+          "messageId": "1",
+          "sourceChainSelector": "909606746561742123",
+          "destChainSelector": "1399300952838017768",
+          "sequenceNumber": "1",
+          "nonce": "0",
+          "onRamp": "0x111111c891c5d4e6ad68064ae45d43146d4f9f3a"
+        },
+        "sender": "0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a",
+        "data": "0x",
+        "receiver": "EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
+        "gasLimit": "100000000",
+        "tokenAmounts": [
+          {
+            "sourcePoolAddress": "0x736f757263652d706f6f6c",
+            "token": "EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
+            "destGasAmount": "1000",
+            "extraData": "0x1234",
+            "amount": "5000000000"
+          }
+        ]
+      },
+      "expectedMessageId": "0x74ce5d54e7851c852c485ef2b4c86129d857b81a0281aa2b2a35ae01cdd1d1d9"
+    }
+  ]
 }

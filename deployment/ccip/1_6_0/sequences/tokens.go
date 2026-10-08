@@ -35,13 +35,15 @@ import (
 	jettoncommon "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	jettonwallet "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/rmnremote"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockrelease"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockreleaselockbox"
 	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -55,6 +57,19 @@ const (
 
 	// defaultJettonContentURI mirrors the value used by the existing jetton integration helper.
 	defaultJettonContentURI = "smartcontract.com"
+
+	// jettonLockBoxID is the JettonLockBox storage id. It only feeds the lockbox's own
+	// address derivation, so a stable value keeps pool/lockbox addresses reproducible
+	// across reruns of the deployment pipeline.
+	jettonLockBoxID = 1
+
+	// typeJettonLockBox mirrors bindings.TypeJettonLockBox from the root module
+	// (pkg/bindings/index.go). The deployment module is still pinned to a published
+	// chainlink-ton commit predating that constant, and the pin cannot be bumped yet
+	// because cldf/mcms are still built against tonutils-go v1.14.1.
+	// TODO(tonutils-upgrade): use bindings.TypeJettonLockBox once this module is
+	// re-pinned and rebased onto tonutils-go v1.18.
+	typeJettonLockBox ton_tvm.FullyQualifiedName = "link.chain.ton.ccip.pool.JettonLockBox"
 
 	// defaultJettonMintCoin is the TON value attached to a MintNewJettons message; it must
 	// cover the forwarded amount plus gas for deploying the recipient's jetton wallet.
@@ -304,7 +319,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/deploy-token-pool",
 		semver.MustParse("1.6.0"),
-		"Deploys a LockReleaseTokenPool for a jetton on a TON chain",
+		"Deploys a LockReleaseLockboxTokenPool for a jetton on a TON chain",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input tokensapi.DeployTokenPoolInput) (sequences.OnChainOutput, error) {
 			chain, ok := chains.TonChains()[input.ChainSelector]
 			if !ok {
@@ -337,7 +352,8 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &utils.RetrieveCompiledContractsOpts{
 				Package: a.Package,
 				Contracts: []ton_tvm.FullyQualifiedName{
-					bindings.TypeLockReleaseTokenPool,
+					bindings.TypeLockReleaseLockboxTokenPool,
+					typeJettonLockBox,
 					bindings.TypeJettonWallet,
 					bindings.TypeDepositAccount,
 				},
@@ -346,14 +362,22 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to retrieve lock-release token pool contract: %w", err)
 			}
 
-			compiled, ok := compiledContracts[bindings.TypeLockReleaseTokenPool]
+			compiled, ok := compiledContracts[bindings.TypeLockReleaseLockboxTokenPool]
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf(
 					"lock-release token pool contract not found in compiled contracts package under %q",
-					bindings.TypeLockReleaseTokenPool,
+					bindings.TypeLockReleaseLockboxTokenPool,
 				)
 			}
-			compiled.Metadata.ID = bindings.TypeLockReleaseTokenPool
+			compiled.Metadata.ID = bindings.TypeLockReleaseLockboxTokenPool
+
+			compiledLockBox, ok := compiledContracts[typeJettonLockBox]
+			if !ok {
+				return sequences.OnChainOutput{}, fmt.Errorf(
+					"jetton lockbox contract not found in compiled contracts package under %q",
+					typeJettonLockBox,
+				)
+			}
 
 			compiledWallet, ok := compiledContracts[bindings.TypeJettonWallet]
 			if !ok {
@@ -436,9 +460,110 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, errors.New("failed to load off-ramp-account code")
 			}
 
-			// LockReleaseTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the pool data
-			// has to go behind a ref; passing it bare makes every storage read underflow.
-			storage := lockrelease.Storage{PoolData: poolData, OffRampAccountCode: offRampAccount.Code}
+			// The pool keeps the lockbox address in its own storage, so the lockbox has to be
+			// built (address-wise) first. Its address derives from the lockbox StateInit, which
+			// does not depend on the pool — there is no cycle.
+			//
+			// `walletAddress` stays null in the deployed storage: the lockbox's init handler
+			// writes it from the init message (`onInit` → `st.walletAddress = msg.walletAddress`),
+			// so the address we derive here is provisional until init lands. That is fine because
+			// the jetton wallet address is a pure function of (minter, lockbox address), both of
+			// which we already know.
+			lockBoxData := lockbox.Storage{
+				ID:            jettonLockBoxID,
+				MinterAddress: tokenAddr,
+				WalletAddress: nil,
+				RBAC:          emptyRBACData(),
+			}
+			lockBoxDataCell, err := tlb.ToCell(lockBoxData)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack jetton lockbox data: %w", err)
+			}
+
+			stateInitCell, err := tlb.ToCell(&tlb.StateInit{Code: compiledLockBox.Code, Data: lockBoxDataCell})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to build jetton lockbox state init: %w", err)
+			}
+			lockBoxAddr := address.NewAddress(0, 0, stateInitCell.Hash())
+			lockBoxWalletAddr, err := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, tokenAddr, minter.GetWalletAddress, lockBoxAddr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to derive jetton lockbox wallet address: %w", err)
+			}
+
+			// LockReleaseLockboxTokenPool's storage is `poolData: Cell<TokenPool_Data>`, so the
+			// pool data has to go behind a ref; passing it bare makes every storage read underflow.
+			// The lockbox storage must likewise be the FINAL version with the jetton wallet
+			// address filled in, since the deploy operation derives the address from the storage
+			// it is handed. The lockbox therefore must exist before the pool, which is why the
+			// pool address is precomputed from the exact same storage we deploy with.
+			storage := lockreleaselockbox.Storage{
+				PoolData:           poolData,
+				Lockbox:            lockBoxAddr,
+				OffRampAccountCode: offRampAccount.Code,
+			}
+
+			poolStorageCell, err := tlb.ToCell(storage)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack token pool storage: %w", err)
+			}
+			poolStateInitCell, err := tlb.ToCell(&tlb.StateInit{Code: compiled.Code, Data: poolStorageCell})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to build token pool state init: %w", err)
+			}
+			poolAddr := address.NewAddress(0, 0, poolStateInitCell.Hash())
+
+			lockBoxQueryID, err := ton_tvm.RandomQueryID()
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to generate lockbox query id: %w", err)
+			}
+			lockBoxInitBody, err := tlb.ToCell(lockbox.Init{
+				QueryID:       lockBoxQueryID,
+				MinterAddress: tokenAddr,
+				WalletAddress: lockBoxWalletAddr,
+				Admin:         owner,
+			})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack lockbox init body: %w", err)
+			}
+			lockBoxAddrRef, err := operation.InvokeDeployContractOperation(
+				b,
+				dp,
+				input.ChainSelector,
+				compiledLockBox,
+				lockBoxData,
+				lockBoxInitBody,
+				defaultJettonDeployCoin,
+			)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy jetton lockbox: %w", err)
+			}
+
+			// Authorize the pool on the lockbox. This must happen after init, which rebuilds
+			// the RBAC data. Granting to the precomputed pool address is safe: the address is
+			// fully determined by the StateInit we are about to deploy verbatim.
+			grantQueryID, err := ton_tvm.RandomQueryID()
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to generate lockbox grant query id: %w", err)
+			}
+
+			//nolint:govet // allow shadowing
+			if _, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: lockBoxAddr,
+						Amount:  tlb.MustFromTON("0.1"),
+						Body: codec.MustWrapMessage[any](bindings.TypeRBAC, rbac.GrantRole{
+							QueryID: grantQueryID,
+							Role:    tlbe.NewUint256(big.NewInt(int64(lockbox.OperatorRole))),
+							Account: poolAddr,
+						}),
+					},
+				},
+				Plan: false,
+			}); err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to grant lockbox OPERATOR_ROLE to pool: %w", err)
+			}
 
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
@@ -451,6 +576,11 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
+			}
+
+			// Surface the lockbox alongside the pool so callers can fund/upgrade it.
+			if lockBoxAddrRef != nil {
+				lockBoxAddrRef.Qualifier = input.TokenPoolQualifier
 			}
 
 			addrRef.Qualifier = input.TokenPoolQualifier
@@ -537,12 +667,18 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				registryAddr = &r
 			}
 
+			transferInitiator, err := releaseOrMintInitiator(b.GetContext(), chain.Client, poolAddr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("resolve release/mint transfer initiator of pool %s: %w", poolAddr.String(), err)
+			}
+
 			body := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.RegisterToken{
 				TokenAddress: tokenAddr,
 				TokenInfo: tokenadminregistryentry.TokenInfo{
-					TokenPool:     poolAddr,
-					MinterAddress: tokenAddr,
-					Version:       1,
+					TokenPool:         poolAddr,
+					TransferInitiator: transferInitiator,
+					MinterAddress:     tokenAddr,
+					Version:           1,
 				},
 				Administrator: chain.Wallet.Address(),
 			})
@@ -609,10 +745,28 @@ func deriveTokenAdminRegistryEntryAddress(registryAddr, tokenAddr *address.Addre
 	return tlb.StateInit{Code: deployableCode, Data: data}.CalcAddress(0), nil
 }
 
-// waitForTokenAdminRegistryEntryDeployment waits until the entry address no
-// longer runs the Deployable initializer code. RegisterToken deploys the entry
-// asynchronously through the registry root, so accepting administration before
-// this transition would be rejected with Deployable_Error.NotOwner (9200).
+// releaseOrMintInitiator returns the transfer initiator of the pool's release/mint deliveries, as
+// registered in the TokenAdminRegistry: the lockbox for lockbox pools, nil (the pool) otherwise.
+func releaseOrMintInitiator(ctx context.Context, client ton.APIClientWrapped, pool *address.Address) (*address.Address, error) {
+	typeAndVersion, err := ton_tvm.CallGetterLatest(ctx, client, pool, lockreleaselockbox.GetTypeAndVersion)
+	if err != nil {
+		return nil, fmt.Errorf("get typeAndVersion: %w", err)
+	}
+	if typeAndVersion.Type != string(bindings.TypeLockReleaseLockboxTokenPool) {
+		return nil, nil
+	}
+	lockBox, err := ton_tvm.CallGetterLatest(ctx, client, pool, lockreleaselockbox.GetLockbox)
+	if err != nil {
+		return nil, fmt.Errorf("get lockbox: %w", err)
+	}
+	return lockBox, nil
+}
+
+// waitForTokenAdminRegistryEntryDeployment waits until the entry runs its own
+// code and is enabled. RegisterToken deploys the entry asynchronously through
+// the registry root, so accepting administration before this transition would
+// be rejected with Deployable_Error.NotOwner (9200). The entry is enabled once
+// the token answers its TEP-89 wallet query with a wallet.
 func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entryAddr *address.Address, entryCode *cell.Cell) error {
 	if client == nil || entryAddr == nil || entryCode == nil {
 		return errors.New("client, entry address, and entry code are required")
@@ -623,17 +777,28 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
+	deployed := false
 	for {
 		block, err := client.CurrentMasterchainInfo(ctx)
 		if err == nil {
 			account, accountErr := client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, entryAddr)
 			if accountErr == nil && account.IsActive && account.Code != nil && bytes.Equal(account.Code.Hash(), entryCode.Hash()) {
-				return nil
+				deployed = true
+				result, getErr := client.RunGetMethod(ctx, block, entryAddr, "enabled")
+				if getErr == nil {
+					enabled, intErr := result.Int(0)
+					if intErr == nil && enabled.Sign() != 0 {
+						return nil
+					}
+				}
 			}
 		}
 
 		select {
 		case <-ctx.Done():
+			if deployed {
+				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet within 30s (retry with TokenAdminRegistry_VerifyToken): %w", ctx.Err())
+			}
 			return fmt.Errorf("entry did not become active with its expected code within 30s: %w", ctx.Err())
 		case <-ticker.C:
 		}
@@ -680,7 +845,7 @@ func applyRemoteChainUpdates(
 		})
 	}
 
-	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseTokenPool, tokenpool.ApplyChainUpdates{
+	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseLockboxTokenPool, tokenpool.ApplyChainUpdates{
 		RemoteChainSelectorsToRemove: common.SnakedCell[tokenpool.ChainSelector]{},
 		ChainsToAdd:                  chainsToAdd,
 	})
@@ -706,6 +871,12 @@ func disabledRateLimitConfigPair() tokenpool.RateLimitConfigPair {
 		Rate:      big.NewInt(0),
 	}
 	return tokenpool.RateLimitConfigPair{Outbound: disabled, Inbound: disabled}
+}
+
+// emptyRBACData returns RBAC data with no roles set, matching the lockbox's
+// pre-init state. Init fills the roles in.
+func emptyRBACData() rbac.Data {
+	return rbac.Data{Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef]()}
 }
 
 // TODO: ManualRegistration is a no-op for the minimal skeleton.
@@ -753,7 +924,7 @@ func (a *TonTokenAdapter) MigrateLockReleasePoolLiquiditySequence() *cldf_ops.Se
 }
 
 // GetOnchainRateLimits reports the on-chain outbound and inbound rate limits for a lane.
-// TON's LockReleaseTokenPool does not enforce rate limits yet, so there is never a
+// TON's LockReleaseLockboxTokenPool does not enforce rate limits yet, so there is never a
 // configured bucket: return disabled zero-value configs. FastFinality is not a
 // concept on TON, so reject that bucket per the interface contract.
 func (a *TonTokenAdapter) GetOnchainRateLimits(

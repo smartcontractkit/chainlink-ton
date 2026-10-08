@@ -8,8 +8,11 @@ struct TokenRegistry_AdminConfig {
 
 struct TokenRegistry_Storage {
     tokenAddress: address
-    tokenInfo: TokenRegistry_TokenInfo
+    tokenInfo: Cell<TokenRegistry_TokenInfo>
     adminConfig: Cell<TokenRegistry_AdminConfig>
+    /// Set once the token answers a TEP-89 query with a wallet. Until then the token is reported
+    /// without a pool.
+    enabled: bool = false
 }
 
 fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
@@ -21,5 +24,6 @@ fun TokenRegistry_Storage.store(self) {
         tokenAddress: self.tokenAddress,
         tokenInfo: self.tokenInfo,
         adminConfig: self.adminConfig,
+        enabled: self.enabled,
     }.toCell());
 }

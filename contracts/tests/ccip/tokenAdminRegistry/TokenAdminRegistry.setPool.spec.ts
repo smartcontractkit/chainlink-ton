@@ -52,8 +52,37 @@ describe('TokenAdminRegistry - Set Pool', () => {
         token: fx.token,
         previousPool: fx.pool,
         newPool: fx.replacementPool,
+        transferInitiator: null,
       }),
     )
+  })
+
+  it('stores the transfer initiator with the pool and emits PoolSet when only the initiator changes', async () => {
+    await registerAndAccept(fx)
+    const initiator = fx.other.address
+
+    const result = await setPool(fx, fx.administrator, fx.pool, 105n, undefined, initiator)
+    expectEntrySuccess(fx, result)
+    expect((await entryFor(fx).getTokenInfo()).transferInitiator).toEqualAddress(initiator)
+    expect(
+      tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, result, EventTopics.PoolSet)),
+    ).toEqual(
+      tar.TokenAdminRegistry_PoolSet.create({
+        queryId: 105n,
+        token: fx.token,
+        previousPool: fx.pool,
+        newPool: fx.pool,
+        transferInitiator: initiator,
+      }),
+    )
+
+    const noOp = await setPool(fx, fx.administrator, fx.pool, 106n, undefined, initiator)
+    expectEntrySuccess(fx, noOp)
+    expect(rootEvents(fx, noOp, EventTopics.PoolSet)).toHaveLength(0)
+
+    const cleared = await setPool(fx, fx.administrator, fx.pool, 107n)
+    expect((await entryFor(fx).getTokenInfo()).transferInitiator).toBeNull()
+    expect(rootEvents(fx, cleared, EventTopics.PoolSet)).toHaveLength(1)
   })
 
   it('delists and relists a token', async () => {

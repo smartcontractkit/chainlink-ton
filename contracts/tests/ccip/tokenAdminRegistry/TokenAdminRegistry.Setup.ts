@@ -142,7 +142,13 @@ export async function accountState(fx: Fixture, address = entryAddress(fx)) {
 
 export async function registerToken(
   fx: Fixture,
-  opt: { administrator?: Address; queryId?: bigint; token?: Address } = {},
+  opt: {
+    administrator?: Address
+    queryId?: bigint
+    token?: Address
+    /** Answer the entry's TEP-89 query as the token, enabling it. */
+    answerWalletQuery?: boolean
+  } = {},
 ) {
   const token = opt.token ?? fx.token
   const result = await fx.registry.sendTokenAdminRegistryRegisterToken(
@@ -166,8 +172,26 @@ export async function registerToken(
     deploy: true,
     success: true,
   })
+  if (opt.answerWalletQuery ?? true) {
+    await answerWalletQuery(fx, { token })
+  }
   return result
 }
+
+/** Sends the TEP-89 answer to the entry's registration query, as the token by default. */
+export const answerWalletQuery = (
+  fx: Fixture,
+  opt: { token?: Address; wallet?: Address | null; from?: Address } = {},
+) =>
+  entryFor(fx, opt.token ?? fx.token).sendResponseWalletAddress(
+    fx.blockchain.sender(opt.from ?? opt.token ?? fx.token),
+    toNano('0.02'),
+    {
+      queryId: 0n,
+      jettonWalletAddress: opt.wallet === undefined ? fx.other.address : opt.wallet,
+      ownerAddress: null,
+    },
+  )
 
 /** Registers the token and has the proposed administrator accept the role. */
 export async function registerAndAccept(fx: Fixture) {
@@ -219,11 +243,13 @@ export const setPool = (
   tokenPool: Address | null,
   queryId = 0n,
   value = OPERATION_VALUE,
+  transferInitiator: Address | null = null,
 ) =>
   fx.registry.sendTokenAdminRegistrySetPool(actor.getSender(), value, {
     queryId,
     tokenAddress: fx.token,
     tokenPool,
+    transferInitiator,
   })
 
 export function expectEntrySuccess(fx: Fixture, result: Result) {
