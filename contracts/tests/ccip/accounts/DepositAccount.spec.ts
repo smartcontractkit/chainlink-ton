@@ -87,7 +87,6 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
             proxy: proxyAddr(),
             token,
             beneficiaries: beneficiaries(),
-            pendingInits: new Map(),
           }),
         ),
       },
@@ -638,23 +637,44 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       })
     })
 
-    it('sends a single query for concurrent inits and answers all of them', async () => {
+    it('refuses an init while another one waits for the wallet', async () => {
       const { depositAccount } = await deployViaDeployable()
       const first = await initLearningWallet(depositAccount, 1n)
       const second = await initLearningWallet(depositAccount, 2n)
       expect(first.transactions).toHaveTransaction({ from: depositAccount.address, to: token })
       expect(second.transactions).not.toHaveTransaction({ from: depositAccount.address, to: token })
+      expect(second.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_WalletUnavailable.PREFIX,
+        body: (body) =>
+          !!body && da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryId === 2n,
+      })
 
       const res = await answerWalletQuery(depositAccount, notifier.address)
-      for (const queryId of [1n, 2n]) {
-        expect(res.transactions).toHaveTransaction({
-          from: depositAccount.address,
-          to: recipient.address,
-          op: da.DepositAccount_Reply.PREFIX,
-          body: (body) =>
-            !!body && da.DepositAccount_Reply.fromSlice(body.beginParse()).queryId === queryId,
-        })
-      }
+      expect(res.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+        body: (body) =>
+          !!body && da.DepositAccount_Reply.fromSlice(body.beginParse()).queryId === 1n,
+      })
+      expect(res.transactions).not.toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+        body: (body) =>
+          !!body &&
+          body.beginParse().preloadUint(32) === da.DepositAccount_Reply.PREFIX &&
+          da.DepositAccount_Reply.fromSlice(body.beginParse()).queryId === 2n,
+      })
+
+      const retry = await initLearningWallet(depositAccount, 2n)
+      expect(retry.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+      })
     })
 
     it('replies right away once the wallet is known', async () => {
@@ -679,7 +699,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       expect(await depositAccount.getWallet()).toBeNull()
     })
 
-    it('fails the pending inits when the token reports no wallet', async () => {
+    it('fails the pending init when the token reports no wallet', async () => {
       const { depositAccount } = await deployViaDeployable()
       await initLearningWallet(depositAccount, 5n)
       const res = await answerWalletQuery(depositAccount, null)
@@ -693,7 +713,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       expect(await depositAccount.getWallet()).toBeNull()
     })
 
-    it('fails the pending inits when the wallet query bounces', async () => {
+    it('fails the pending init when the wallet query bounces', async () => {
       token = await generateRandomTonAddress()
       const { depositAccount } = await deployViaDeployable()
       const res = await initLearningWallet(depositAccount, 6n)

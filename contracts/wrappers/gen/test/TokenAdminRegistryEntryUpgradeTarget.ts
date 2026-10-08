@@ -182,7 +182,7 @@ export const UpgradeTarget_Storage = {
 }
 
 /**
- > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool
+ > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken
  */
 export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
@@ -190,6 +190,7 @@ export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
+    | TokenAdminRegistryEntry_VerifyToken
 
 export const TokenAdminRegistryEntry_RootMessage = {
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RootMessage {
@@ -198,6 +199,7 @@ export const TokenAdminRegistryEntry_RootMessage = {
             lookupPrefix(s, 0x8b1503cf, 32) ? TokenAdminRegistryEntry_TransferAdminRole.fromSlice(s) :
             lookupPrefix(s, 0x39c6e872, 32) ? TokenAdminRegistryEntry_AcceptAdminRole.fromSlice(s) :
             lookupPrefix(s, 0xa64e05c9, 32) ? TokenAdminRegistryEntry_SetPool.fromSlice(s) :
+            lookupPrefix(s, 0xa14b0288, 32) ? TokenAdminRegistryEntry_VerifyToken.fromSlice(s) :
             throwNonePrefixMatch('TokenAdminRegistryEntry_RootMessage');
     },
     store(self: TokenAdminRegistryEntry_RootMessage, b: c.Builder): void {
@@ -216,6 +218,9 @@ export const TokenAdminRegistryEntry_RootMessage = {
                 break;
             case 'TokenAdminRegistryEntry_SetPool':
                 TokenAdminRegistryEntry_SetPool.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_VerifyToken':
+                TokenAdminRegistryEntry_VerifyToken.store(self, b);
                 break;
         }
     },
@@ -478,6 +483,36 @@ export const TokenAdminRegistryEntry_SetPool = {
 }
 
 /**
+ > struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {
+ > }
+ */
+export interface TokenAdminRegistryEntry_VerifyToken {
+    readonly $: 'TokenAdminRegistryEntry_VerifyToken'
+}
+
+export const TokenAdminRegistryEntry_VerifyToken = {
+    PREFIX: 0xa14b0288,
+
+    create(): TokenAdminRegistryEntry_VerifyToken {
+        return {
+            $: 'TokenAdminRegistryEntry_VerifyToken',
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_VerifyToken {
+        loadAndCheckPrefix32(s, 0xa14b0288, 'TokenAdminRegistryEntry_VerifyToken');
+        return {
+            $: 'TokenAdminRegistryEntry_VerifyToken',
+        }
+    },
+    store(self: TokenAdminRegistryEntry_VerifyToken, b: c.Builder): void {
+        b.storeUint(0xa14b0288, 32);
+    },
+    toCell(self: TokenAdminRegistryEntry_VerifyToken): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_VerifyToken>(self, TokenAdminRegistryEntry_VerifyToken.store);
+    }
+}
+
+/**
  > struct (0x47d63a64) TokenAdminRegistryEntry_Resume {
  >     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>
  > }
@@ -553,7 +588,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntryUpgradeTarget implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAvQABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAHvT8SPkgdqJoanoCGOiQaH0kGOoY6mjCB/xJAWh9JH0oGP0oGOiJY4L5egDrlhEfWOmSeV/rpgDkZnoAZPaqQIDo9IGBwAtIFNvAGLUxLjYuMIxwXy9G0ByMz0AMmAADyLUyLjAuMIgABW+U/9qJoanoCGOjABRv6HHaiaGoY+gJokDdKmDa2trhHCehrlhFWOdVmeV/pn+mH6mjAgEJxQ=');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAwAABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAIHT8SPkgdqJoanoCGOiQaH0kGOoY6mkAGOjCB/xJAWh9JH0oGP0oGOiJY4L5egDrlhEfWOmSeV/rpgDkZnoAZPaqQIDo9IGBwAtIFNvAGLUxLjYuMIxwXy9G0ByMz0AMmAADyLUyLjAuMIgABW+U/9qJoanoCGOjABRv6HHaiaGoY+gJokDdKmDa2trhHCehrlhFWOdVmeV/pn+mH6mjAgEJxQ=');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,

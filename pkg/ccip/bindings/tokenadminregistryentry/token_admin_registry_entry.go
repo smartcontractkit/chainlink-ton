@@ -25,6 +25,8 @@ type Storage struct {
 	TokenAddress *address.Address `tlb:"addr"`
 	TokenInfo    TokenInfo        `tlb:"^"`
 	AdminConfig  AdminConfig      `tlb:"^"`
+	// Enabled is set once the token answers a TEP-89 query with a wallet.
+	Enabled bool `tlb:"bool"`
 }
 
 type TokenInfo struct {
@@ -47,7 +49,8 @@ type RootMessage interface {
 		ProposeAdministrator |
 		TransferAdminRole |
 		AcceptAdminRole |
-		SetPool
+		SetPool |
+		VerifyToken
 }
 
 // crc32('TokenAdminRegistryEntry_MessageFromRoot')
@@ -112,6 +115,11 @@ type SetPool struct {
 	TransferInitiator *address.Address `tlb:"addr"`
 }
 
+// crc32('TokenAdminRegistryEntry_VerifyToken')
+type VerifyToken struct {
+	_ tlb.Magic `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
+}
+
 // crc32('TokenAdminRegistryEntry_Resume')
 // Sent by the root right after an Upgrade to replay a deferred request.
 type Resume struct {
@@ -128,6 +136,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	TransferAdminRole{},
 	AcceptAdminRole{},
 	SetPool{},
+	VerifyToken{},
 	upgradeable.Upgrade{},
 	Resume{},
 }).MustWithStorageType(Storage{})

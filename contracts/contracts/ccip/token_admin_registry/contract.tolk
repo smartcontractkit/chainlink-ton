@@ -100,6 +100,10 @@ fun onInternalMessage(in: InMessage) {
             requireEntrySender(st, msg.token, in.senderAddress);
             emitPoolSet(msg);
         }
+        TokenAdminRegistry_VerifyToken => {
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
+        }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
             val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
@@ -242,6 +246,9 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 /// This is intentionally create-only. Callers resolve the outcome by deriving
 /// the entry address and reading its config after finality; retrying this
 /// message against an existing entry is expected to fail in Deployable.
+///
+/// The entry then queries the token with TEP-89 and stays disabled until the token
+/// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     // TODO: add self-service registration once TON has a canonical,
     // independently verifiable proof that the sender controls the token minter.
@@ -252,7 +259,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         // Covers Deployable initialization and the event self-message below.
         // The former Router flow only initialized the shard; this path also
         // emits the initial administrator-proposal event atomically.
-        value: grams("0.05"),
+        value: grams("0.05") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
         dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {
             stateInit: {
@@ -270,7 +277,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // The entry emits the initial proposal event after its state is
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
-                value: grams("0.015"),
+                value: grams("0.015") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
                 body: TokenAdminRegistryEntry_RegistrationInitialized {
                     queryId: msg.queryId,
                 }.toCell(),

@@ -1,11 +1,13 @@
 import "types"
 import "../../lib/versioning/upgradeable"
+import "../../lib/jetton/messages"
 
 type TokenAdminRegistryEntry_InMessage =
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_MessageFromRoot
     | Upgradeable_Upgrade
-    | TokenAdminRegistryEntry_Resume;
+    | TokenAdminRegistryEntry_Resume
+    | ResponseWalletAddress;
 
 /// Messages the root sends wrapped in TokenAdminRegistryEntry_MessageFromRoot.
 type TokenAdminRegistryEntry_RootMessage =
@@ -13,7 +15,8 @@ type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_ProposeAdministrator
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
-    | TokenAdminRegistryEntry_SetPool;
+    | TokenAdminRegistryEntry_SetPool
+    | TokenAdminRegistryEntry_VerifyToken;
 
 /// Envelope for every message the root sends to an entry. Its layout must
 /// never change: the entry checks `minEntryVersion` before loading `content`,
@@ -73,6 +76,8 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     tokenPool: address?
     transferInitiator: address?
 }
+
+struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {}
 
 /// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
 fun TokenAdminRegistryEntry_upgradeCost(): coins {

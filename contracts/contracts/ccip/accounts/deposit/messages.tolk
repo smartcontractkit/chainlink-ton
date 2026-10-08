@@ -35,7 +35,8 @@ struct (0x83462e93) DepositAccount_NotEnoughValue {
     forwardPayload: cell?;
 }
 
-/// Reply to an init with `learnWallet` when the token could not report the account's jetton wallet.
+/// Reply to an init with `learnWallet` when the token could not report the account's jetton wallet,
+/// or when another init is already waiting for it.
 struct (0x9293d68e) DepositAccount_WalletUnavailable {
     queryId: uint64;
     forwardPayload: cell?;

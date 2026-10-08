@@ -24,8 +24,8 @@ struct DepositAccount_Data {
     beneficiaries: map<address, ()>;
     /// Jetton wallet of this account, learned from `token` when an init sets `learnWallet`.
     wallet: Cell<address>? = null;
-    /// Inits waiting for the wallet to be learned, keyed by arrival order.
-    pendingInits: map<uint32, DepositAccount_PendingInit> = [];
+    /// Init waiting for the wallet query; others arriving meanwhile are refused.
+    pendingInit: Cell<DepositAccount_PendingInit>? = null;
 }
 
 struct DepositAccount_PendingInit {

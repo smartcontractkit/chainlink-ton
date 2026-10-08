@@ -15,7 +15,8 @@ type TokenAdminRegistry_InMessage =
     | Upgradeable_Upgrade
     | TokenAdminRegistry_AdministratorTransferRequested
     | TokenAdminRegistry_AdministratorTransferred
-    | TokenAdminRegistry_PoolSet;
+    | TokenAdminRegistry_PoolSet
+    | TokenAdminRegistry_VerifyToken;
 
 /// Root messages to an entry that may come back as rich bounces.
 type TokenAdminRegistry_BouncedEntryMessage =
@@ -67,6 +68,14 @@ struct (0x37bcaede) TokenAdminRegistry_SetPool {
     /// `transferInitiator` of the jetton transfers delivering a release/mint (e.g. the pool's
     /// lockbox). Null means the pool itself.
     transferInitiator: address? = null;
+}
+
+/// Permissionless: has the derived entry re-send its TEP-89 query, enabling the token if its
+/// master answers with a wallet. A no-op for an enabled token.
+// crc32('TokenAdminRegistry_VerifyToken')
+struct (0x182affc2) TokenAdminRegistry_VerifyToken {
+    queryId: uint64;
+    tokenAddress: address;
 }
 
 /// CCIP read path: resolves the token info of the entry derived from `token`
@@ -154,3 +163,4 @@ struct (0xcef01a87) TokenAdminRegistry_PoolSet {
     newPool: address?;
     transferInitiator: Cell<address>?;
 }
+

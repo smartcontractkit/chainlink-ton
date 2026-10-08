@@ -231,7 +231,7 @@ export const ExtraCurrenciesMap = {
  >     token: address
  >     beneficiaries: map<address, ()>
  >     wallet: Cell<address>?
- >     pendingInits: map<uint32, DepositAccount_PendingInit>
+ >     pendingInit: Cell<DepositAccount_PendingInit>?
  > }
  */
 export interface DepositAccount_Data {
@@ -241,7 +241,7 @@ export interface DepositAccount_Data {
     token: c.Address
     beneficiaries: Set<c.Address>
     wallet: c.Address | null /* = null */
-    pendingInits: Map<uint32, DepositAccount_PendingInit> /* = [] as map<uint32, DepositAccount_PendingInit> */
+    pendingInit: DepositAccount_PendingInit | null /* = null */
 }
 
 export const DepositAccount_Data = {
@@ -251,11 +251,12 @@ export const DepositAccount_Data = {
         token: c.Address
         beneficiaries: Set<c.Address>
         wallet?: c.Address | null /* = null */
-        pendingInits: Map<uint32, DepositAccount_PendingInit> /* = [] as map<uint32, DepositAccount_PendingInit> */
+        pendingInit?: DepositAccount_PendingInit | null /* = null */
     }): DepositAccount_Data {
         return {
             $: 'DepositAccount_Data',
             wallet: null,
+            pendingInit: null,
             ...args
         }
     },
@@ -272,7 +273,7 @@ export const DepositAccount_Data = {
             wallet: s.loadBoolean() ? loadCellRef<c.Address>(s,
                 (s) => s.loadAddress()
             ) : null,
-            pendingInits: dictToMap(c.Dictionary.load<uint32, DepositAccount_PendingInit>(c.Dictionary.Keys.BigUint(32), createDictionaryValue<DepositAccount_PendingInit>(DepositAccount_PendingInit.fromSlice, DepositAccount_PendingInit.store), s)),
+            pendingInit: s.loadBoolean() ? loadCellRef<DepositAccount_PendingInit>(s, DepositAccount_PendingInit.fromSlice) : null,
         }
     },
     store(self: DepositAccount_Data, b: c.Builder): void {
@@ -291,7 +292,9 @@ export const DepositAccount_Data = {
                 (v,b) => b.storeAddress(v)
             ); }
         );
-        b.storeDict<uint32, DepositAccount_PendingInit>(mapToDict(self.pendingInits, c.Dictionary.Keys.BigUint(32), createDictionaryValue<DepositAccount_PendingInit>(DepositAccount_PendingInit.fromSlice, DepositAccount_PendingInit.store)), c.Dictionary.Keys.BigUint(32), createDictionaryValue<DepositAccount_PendingInit>(DepositAccount_PendingInit.fromSlice, DepositAccount_PendingInit.store));
+        storeTolkNullable<DepositAccount_PendingInit>(self.pendingInit, b,
+            (v,b) => storeCellRef<DepositAccount_PendingInit>(v, b, DepositAccount_PendingInit.store)
+        );
     },
     toCell(self: DepositAccount_Data): c.Cell {
         return makeCellFrom<DepositAccount_Data>(self, DepositAccount_Data.store);
@@ -1055,7 +1058,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECKQEABkgAART/APSkE/S88sgLAQIBYgIDAgLMBAUCASAbHAIBIAYHAgHUGBkCASAICQIBIA4PAfVPiRjkdwbW1tbSTtRND6SPpI+kj0BPQE9ATR+JIQbRBcEEsQOkmAEFcQRhA1RAMC8AhsYY4TBcj6UhT6UhL6UvQA9AD0AMntVOBfBuBwbW1tbSTtRND6SPpI+kj0BPQE9ATR+JL4l/iS+Jf4mPiTLPg6+JT4lVYUyM7JgKAgEgCwwAdg4RFA4NERMNDBESDAsREQsKERAKEJ9WFVVg8ANsYQbI+lIV+lIT+lL0APQA9ADJ7VSRMOCEDwHHAPL0AKc7aLt+5VbbdsxMO3juo490NcsI5sWhOTyv9M/MfoAMfpQMfQEIW6YMSDHAJIwbeCS0dDiIG6UMG3bMeDXLCRHB3n08r/6SPQEMdHbMe1B7fEB8v+ABOztou37B9csI0SFECydbHHTP/QE1woAVQLwBOMOf4A0A+jgH1ywgybaIlI4ibHHTP/pI10wvUU9RT1FPUU9RT1FPUU9RT1FPUU9RTwTwBY5N1ywjmxaE5I4sMDdWEgdWEgdWEgdWEgdWEgdWEgdWEgdWEgdWEgdWEgdWEgdWEgdVQfAG2zHgbHHXLCaLmqAElFtw2zHh0z/6UPQF8AfiAgEgEBECASAVFgP1CXDAJUpbrPDAJFw4o4UVhBWEFYQVhBWEFYQVhBVRlYQ2sDgggDNFCVWEscF8vQBlCtuwwCRcOIglCtuwwCRcOKCCJiWgCGCCTEtAHDjBKD4J28Qggr68IAioLmRf5VTMLnDAOLjAgLjAl8Dggr68IBw+wLIz4UIE/pSgEhMUAN0NTU2AcMAlSNus8MAkXDilAQD2rDgbDMzMzQ0NCKCAM0VAoEBC/QKb6Ex8vQi0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIIAzRYhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCAANl8EyM+FCBP6UoIQg0Yuk88Ljss/9ADJgED7AACoNSuAIPSOb6VsEpGkkjBw4gKiI8jLPxP0AFj6AkAagCD0QwGOLIIJMS0A+CjIz4WIUtD6Ulj6As+Bc/oCghAsdrlzzwuFGcs/GPpSz4HJcfsAkTfiACSCENoEYwzPC47LP/QAyYMG+wAA2w5OTkEwwCVJG6zwwCRcOKWR2VVA9rh4DQ3Nzg4OSRus5oE0PpI0SPHBcMAkjRw4pYn8YAC2iGRbeIgbrNAGOMEAsj6UgH6AhT0AFj6AhPLPxLLHxLMycjPhQgS+lKCELT+XAzPC47MyYBA+wB/gAdMMDFRG8cFs5F/lCduwwDikTDgIG6OPTAmgCD0hm+lkI4tAdM/9AT6ANHIz4UIVhAB+lIB+gKCEJKT1o7PC4oSyz/0AMlx+wAngCD0fG+l6Fs2bQbgOAfI+lLJJoAg9IZvpZCK6Fs2bQYHgFwBaAdM/9AT6ANHIz4UIVhAB+lIB+gKCENoEYwzPC4oSyz/0AMlx+wAngCD0fG+lAa81ywn////9PK/10zQ1ywgfFP1LI410z/6APpI+lD0BPoAVhMIVhMIVhMIVhMIVhMIVhMIVhMIVhMIVhMIVhMIVhMIVhMIVTPwCX/gMdcsIWO1y5wx4wJwgGgDXDk6OgXDAJUmbrPDAJFw4pcQOEdVBtrw4DY4ODg4Csj6Uhn6Uhf6UsnIz5A+KfqWJM8LP1AD+gIX+lJSQPpUFvQAUAT6AhXOycjPkpRtsuoTyz8TzBP6UhLMycjPhQgS+lJxzwtuzMmAQPsAgAHomgCD0hm+lkI4tAdM/9AT6ANHIz4UIVhAB+lIB+gKCEJKT1o7PC4oSyz/0AMlx+wAngCD0fG+l6Fs2bQZ/AgEgHR4CASAjJAIBIB8gAgFIISIAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAIbNCO1E0PpIMfpIMfpIMfQFgAgEgJSYCASAnKAARtdE9qJofSQYQABe0A32omh9JBj9JBhAAHbQAvaiaH0kGP0kGP0kGEAA7tgo9qJofSQY/SQY/SQY+gD6ApA3SRg2ymh9JGjxQ');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
@@ -1081,7 +1084,7 @@ export class DepositAccount implements c.Contract {
         token: c.Address
         beneficiaries: Set<c.Address>
         wallet?: c.Address | null /* = null */
-        pendingInits: Map<uint32, DepositAccount_PendingInit> /* = [] as map<uint32, DepositAccount_PendingInit> */
+        pendingInit?: DepositAccount_PendingInit | null /* = null */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? DepositAccount.CodeCell,

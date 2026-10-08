@@ -29,8 +29,8 @@ type Data struct {
 	Beneficiaries *tlbe.Dict[common.AddressWrap, struct{}] `tlb:"."`
 	// Wallet is the account's jetton wallet, learned from Token when an init sets LearnWallet.
 	Wallet *address.Address `tlb:"maybe ^ addr"`
-	// PendingInits are the inits waiting for the wallet, keyed by arrival order (map<uint32, PendingInit>).
-	PendingInits *cell.Dictionary `tlb:"dict 32"`
+	// PendingInit is the init waiting for the wallet query; others arriving meanwhile are refused.
+	PendingInit *PendingInit `tlb:"maybe ^"`
 }
 
 // PendingInit is an init waiting for the account's jetton wallet to be learned.
@@ -75,7 +75,8 @@ type Reply struct {
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
 }
 
-// WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet.
+// WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet,
+// or when another init is already waiting for it.
 type WalletUnavailable struct {
 	_              tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`

@@ -150,6 +150,14 @@ type PoolSet struct {
 	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
 }
 
+// crc32('TokenAdminRegistry_VerifyToken')
+// Permissionless: has the derived entry re-send its TEP-89 query, enabling the token if its master answers.
+type VerifyToken struct {
+	_            tlb.Magic        `tlb:"#182affc2" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID      uint64           `tlb:"## 64"`
+	TokenAddress *address.Address `tlb:"addr"`
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	RegisterToken{},
 	OverridePendingAdministrator{},
@@ -166,4 +174,5 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	AdministratorTransferRequested{},
 	AdministratorTransferred{},
 	PoolSet{},
+	VerifyToken{},
 }).MustWithStorageType(Storage{})

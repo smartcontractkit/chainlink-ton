@@ -762,10 +762,11 @@ func releaseOrMintInitiator(ctx context.Context, client ton.APIClientWrapped, po
 	return lockBox, nil
 }
 
-// waitForTokenAdminRegistryEntryDeployment waits until the entry address no
-// longer runs the Deployable initializer code. RegisterToken deploys the entry
-// asynchronously through the registry root, so accepting administration before
-// this transition would be rejected with Deployable_Error.NotOwner (9200).
+// waitForTokenAdminRegistryEntryDeployment waits until the entry runs its own
+// code and is enabled. RegisterToken deploys the entry asynchronously through
+// the registry root, so accepting administration before this transition would
+// be rejected with Deployable_Error.NotOwner (9200). The entry is enabled once
+// the token answers its TEP-89 wallet query with a wallet.
 func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entryAddr *address.Address, entryCode *cell.Cell) error {
 	if client == nil || entryAddr == nil || entryCode == nil {
 		return errors.New("client, entry address, and entry code are required")
@@ -776,17 +777,28 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
+	deployed := false
 	for {
 		block, err := client.CurrentMasterchainInfo(ctx)
 		if err == nil {
 			account, accountErr := client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, entryAddr)
 			if accountErr == nil && account.IsActive && account.Code != nil && bytes.Equal(account.Code.Hash(), entryCode.Hash()) {
-				return nil
+				deployed = true
+				result, getErr := client.RunGetMethod(ctx, block, entryAddr, "enabled")
+				if getErr == nil {
+					enabled, intErr := result.Int(0)
+					if intErr == nil && enabled.Sign() != 0 {
+						return nil
+					}
+				}
 			}
 		}
 
 		select {
 		case <-ctx.Done():
+			if deployed {
+				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet within 30s (retry with TokenAdminRegistry_VerifyToken): %w", ctx.Err())
+			}
 			return fmt.Errorf("entry did not become active with its expected code within 30s: %w", ctx.Err())
 		case <-ticker.C:
 		}
