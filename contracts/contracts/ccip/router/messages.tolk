@@ -20,9 +20,10 @@ import "../rmn_remote/lib"
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
-    | Router_GetValidatedFee_Any
-    | OnRamp_MessageValidated_GetValidatedFeeContext
-    | OnRamp_MessageValidationFailed_GetValidatedFeeContext
+    | Router_GetValidatedFee_V1
+    | Router_GetValidatedFee
+    | OnRamp_MessageValidated
+    | OnRamp_MessageValidationFailed
     | Router_RouteMessage
     | Router_WithdrawToTokenPool
     | Router_CCIPReceiveConfirm
@@ -41,10 +42,6 @@ type Router_InMsg =
     | DepositAccount_Reply
     | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;
-
-type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
-type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
-type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
 
 type Router_BouncedMessage = 
     | Receiver_CCIPReceiveV2
@@ -175,9 +172,17 @@ struct (0x5a45d434) Router_CCIPSendNACK {
     error: uint256;
 }
 
-struct (0x4dd6aa82) Router_GetValidatedFee<T> {
+@deprecated("use Router_GetValidatedFee instead")
+// nolint:opcode : crc32('Router_GetValidatedFee')
+struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
     ccipSend: Cell<Router_CCIPSend>;
-    context: T;
+    context: RemainingBitsAndRefs;
+}
+
+// nolint:opcode : crc32('Router_GetValidatedFee_V2')
+struct (0x657ef7ec) Router_GetValidatedFee {
+    ccipSend: Cell<Router_CCIPSend>;
+    context: cell? = null;
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
@@ -198,32 +203,45 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
     requestedFinalityConfig: uint32;
     replyTo: address;
 }
- 
+
 struct Router_GetValidatedFeeContext {
-    routerContext: address; // sender
-    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
+    routerContext: address // sender
+    oldContextVersion: bool
+    userContext: cell?
 }
 
 // --- Outgoing messages ---
 
-/// Alias for ABIgen to generate codec
-type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
-
-// crc32('Router_MessageValidated')
-struct (0x9e2155ec) Router_MessageValidated<T> {
+@deprecated("use Router_MessageValidated instead")
+// nolint:opcode : crc32('Router_MessageValidated')
+struct (0x9e2155ec) Router_MessageValidated_V1 {
     fee: coins
     msg: Cell<Router_CCIPSend>
-    context: RemainingBitsOrRef<T>
+    context: RemainingBitsAndRefs,
 }
 
-/// Alias for ABIgen to generate codec
-type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
-
-// crc32('Router_MessageValidationFailed')
-struct (0xec23c562) Router_MessageValidationFailed<T> {
+@deprecated("use Router_MessageValidationFailed instead")
+// nolint:opcode : crc32('Router_MessageValidationFailed')
+struct (0xec23c562) Router_MessageValidationFailed_V1 {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
-    context: RemainingBitsOrRef<T>
+    context: RemainingBitsAndRefs,
+}
+
+// --- Outgoing messages ---
+
+// nolint:opcode : crc32('Router_MessageValidated_V2')
+struct (0x97ca8bd8) Router_MessageValidated {
+    fee: coins
+    msg: Cell<Router_CCIPSend>
+    context: cell?
+}
+
+// nolint:opcode : crc32('Router_MessageValidationFailed_V2')
+struct (0xe32e5616) Router_MessageValidationFailed {
+    error: uint256,
+    msg: Cell<Router_CCIPSend>,
+    context: cell?
 }
 
 /// Canonical Router failure returned when a LockOrBurn request bounced before

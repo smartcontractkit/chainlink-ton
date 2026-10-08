@@ -8,9 +8,9 @@ export async function sendGetValidatedFee(
   sender: Sender,
   router: SandboxContract<rt.Router>,
   msg: rt.Router_CCIPSend,
-  context: Slice,
+  context: Cell | null = null,
 ): Promise<bigint> {
-  const result = await router.sendRouterGetValidatedFeeAny(
+  const result = await router.sendRouterGetValidatedFee(
     sender,
     toNano('1'),
     rt.Router_GetValidatedFee.create({ ccipSend: msg, context }),
@@ -44,7 +44,7 @@ export async function sendGetValidatedFee(
   const body = resp.body.beginParse()
   if (body.preloadUint(32) !== rt.Router_MessageValidated.PREFIX) {
     if (body.preloadUint(32) === rt.Router_MessageValidationFailed.PREFIX) {
-      const msgValidationFailed = rt.Router_MessageValidationFailed_Any.fromSlice(
+      const msgValidationFailed = rt.Router_MessageValidationFailed.fromSlice(
         resp.body.beginParse(),
       )
       throw new Error(
@@ -53,6 +53,6 @@ export async function sendGetValidatedFee(
     }
     throw new Error('Unexpected response opcode')
   }
-  const messageValidated = rt.Router_MessageValidated_Any.fromSlice(resp.body.beginParse())
+  const messageValidated = rt.Router_MessageValidated.fromSlice(resp.body.beginParse())
   return messageValidated.fee
 }

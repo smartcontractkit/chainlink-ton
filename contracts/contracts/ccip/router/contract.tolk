@@ -44,7 +44,7 @@ contract Router {
 
     storage: Storage
     incomingMessages: Router_InMsg | Ownable2Step_Messages
-    forceAbiExport: (Router_MessageValidationFailed_Any, Router_MessageValidated_Any, AccessControl_InMessage)
+    forceAbiExport: (AccessControl_InMessage | Router_GetValidatedFeeContext)
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -70,20 +70,29 @@ fun onInternalMessage(in: InMessage) {
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
         // Permissionless
-        Router_GetValidatedFee<RemainingBitsAndRefs> => {
+        Router_GetValidatedFee_V1 => {
             val minValue = Router_Costs.GetValidatedFee();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
-            onGetValidatedFee(msg, in.senderAddress);
+            onGetValidatedFee(Router_GetValidatedFee {
+                ccipSend: msg.ccipSend,
+                context: msg.context.toCell(),
+            }, in.senderAddress, true);
+        }
+        // Permissionless
+        Router_GetValidatedFee => {
+            val minValue = Router_Costs.GetValidatedFee();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            onGetValidatedFee(msg, in.senderAddress, false);
         }
         // Sender must be Onramp
-        OnRamp_MessageValidated<Router_GetValidatedFeeContext> => {
+        OnRamp_MessageValidated => {
             val st = lazy Storage.load();
             val ccipSend = lazy msg.msg.load();
             assertSenderIsOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
             onMessageValidatedFromOnRamp(msg);
         }
         // Sender must be OnRamp
-        OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext> => {
+        OnRamp_MessageValidationFailed => {
             val st = lazy Storage.load();
             val ccipSend = lazy msg.msg.load();
             assertSenderIsOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
@@ -651,13 +660,13 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
 //     OnRamp    ->> Router:    OnRamp_MessageValidated
 //     Router    ->> SenderAcc: Router_MessageValidated
-fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) {
     val st = lazy Storage.load();
     var ccipSendCell = msg.ccipSend;
     var ccipSend = lazy msg.ccipSend.load();
     val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
     if (!onRampResult.isFound) {
-        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context);
+        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     if (ccipSend.feeToken == null) {
@@ -670,12 +679,13 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender:
         bounce: true,
         value: 0,
         dest: onRampResult.loadValue(),
-        body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
+        body: OnRamp_GetValidatedFee {
             ccipSend: ccipSendCell,
             context: Router_GetValidatedFeeContext {
                 routerContext: sender,
+                oldContextVersion: isV1,
                 userContext: msg.context,
-            },
+            }.toCell(),
         }
     });
 
@@ -697,17 +707,32 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender:
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
 //     OnRamp    ->> Router:    OnRamp_MessageValidated (process msg)
 //     Router    ->> SenderAcc: Router_MessageValidated
-fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidatedFeeContext>) {
-    val userAddress = msg.context.routerContext;
+fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
+    val context = lazy Router_GetValidatedFeeContext.fromCell(msg.context!);
+    val userAddress = context.routerContext;
+    var body: Router_MessageValidated_V1 | Router_MessageValidated;
+    if (context.oldContextVersion) {
+        var contextV1: RemainingBitsAndRefs = createEmptySlice();
+        if (context.userContext != null) {
+            contextV1 = context.userContext.beginParse() as RemainingBitsAndRefs;
+        }
+        body = Router_MessageValidated_V1 {
+            fee: msg.fee,
+            msg: msg.msg,
+            context: contextV1,
+        };
+    } else {
+        body = Router_MessageValidated {
+            fee: msg.fee,
+            msg: msg.msg,
+            context: context.userContext,
+        };
+    }
     val replyMsg = createMessage({
         bounce: false,
         value: 0,
         dest: userAddress,
-        body: Router_MessageValidated {
-            fee: msg.fee,
-            msg: msg.msg,
-            context: msg.context.userContext,
-        }
+        body,
     });
     replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -727,21 +752,36 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidate
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
 //     OnRamp    ->> Router:    OnRamp_MessageValidationFailed (process msg)
 //     Router    ->> SenderAcc: Router_MessageValidationFailed
-fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>) {
-    val userAddress = msg.context.routerContext;
-    sendMessageValidationFailed(userAddress, msg.error, msg.msg, msg.context.userContext);
+fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed) {
+    val context = Router_GetValidatedFeeContext.fromCell(msg.context!);
+    val userAddress = context.routerContext;
+    sendMessageValidationFailed(userAddress, msg.error, msg.msg, context.userContext, context.oldContextVersion);
 }
 
-fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: RemainingBitsAndRefs) {
-    val replyMsg = createMessage({
-        bounce: true,
-        value: 0,
-        dest: userAddress,
-        body: Router_MessageValidationFailed {
+fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
+    var body: Router_MessageValidationFailed | Router_MessageValidationFailed_V1;
+    if (oldContextVersion) {
+        var contextV1: RemainingBitsAndRefs = createEmptySlice();
+        if (userContext != null) {
+            contextV1 = userContext.beginParse() as RemainingBitsAndRefs;
+        }
+        body = Router_MessageValidationFailed_V1 {
+            error,
+            msg,
+            context: contextV1,
+        };
+    } else {
+        body = Router_MessageValidationFailed {
             error,
             msg,
             context: userContext,
         }
+    }
+    val replyMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: userAddress,
+        body
     });
     replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
