@@ -355,7 +355,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					bindings.TypeLockReleaseLockboxTokenPool,
 					typeJettonLockBox,
 					bindings.TypeJettonWallet,
-					bindings.TypeDepositAccount,
+					bindings.TypeDeployable,
 				},
 			})
 			if err != nil {
@@ -385,6 +385,10 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					"jetton wallet contract not found in compiled contracts package under %q",
 					bindings.TypeJettonWallet,
 				)
+			}
+			compiledDeployable, ok := compiledContracts[bindings.TypeDeployable]
+			if !ok {
+				return sequences.OnChainOutput{}, errors.New("failed to load Deployable code")
 			}
 
 			// The owner and RMN proxy are both set to the deployer wallet; RMN is not yet
@@ -437,6 +441,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					},
 					AllowedFinalityConfig: allowedFinality,
 					AdvancedPoolHooks:     nil,
+					DeployableCode:        compiledDeployable.Code,
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
 					CursePolicy: tokenpool.CursePolicy{
@@ -453,11 +458,6 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenDecimals:           defaultJettonDecimals,
 				RemoteChainConfigs:      nil,
 				TokenTransferFeeConfigs: nil,
-			}
-
-			offRampAccount, ok := compiledContracts[bindings.TypeDepositAccount]
-			if !ok {
-				return sequences.OnChainOutput{}, errors.New("failed to load off-ramp-account code")
 			}
 
 			// The pool keeps the lockbox address in its own storage, so the lockbox has to be
@@ -497,9 +497,8 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// it is handed. The lockbox therefore must exist before the pool, which is why the
 			// pool address is precomputed from the exact same storage we deploy with.
 			storage := lockreleaselockbox.Storage{
-				PoolData:           poolData,
-				Lockbox:            lockBoxAddr,
-				OffRampAccountCode: offRampAccount.Code,
+				PoolData: poolData,
+				Lockbox:  lockBoxAddr,
 			}
 
 			poolStorageCell, err := tlb.ToCell(storage)
