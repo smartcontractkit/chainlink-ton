@@ -8,6 +8,8 @@ import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../common/types"
+import "../accounts/deposit/types"
+import "../accounts/deposit/messages"
 import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
@@ -18,9 +20,10 @@ import "../rmn_remote/lib"
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
-    | Router_GetValidatedFee_Any
-    | OnRamp_MessageValidated_GetValidatedFeeContext
-    | OnRamp_MessageValidationFailed_GetValidatedFeeContext
+    | Router_GetValidatedFee_V1
+    | Router_GetValidatedFee
+    | OnRamp_MessageValidated
+    | OnRamp_MessageValidationFailed
     | Router_RouteMessage
     | Router_WithdrawToTokenPool
     | Router_CCIPReceiveConfirm
@@ -35,11 +38,10 @@ type Router_InMsg =
     | Router_LockOrBurn
     | Router_RelayReleaseOrMint
     | Router_RMNOwnableMessage
+    | Router_GetOnRampAccount
+    | DepositAccount_Reply
+    | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;
-
-type Router_GetValidatedFee_Any = Router_GetValidatedFee<RemainingBitsAndRefs>
-type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
-type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
 
 type Router_BouncedMessage = 
     | Receiver_CCIPReceiveV2
@@ -48,8 +50,7 @@ type Router_BouncedMessage =
 
 type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
-    | TokenPool_ReleaseOrMint
-    | AskToTransfer;
+    | TokenPool_ReleaseOrMint;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -85,11 +86,29 @@ struct (0x19f0098f) Router_WithdrawToTokenPool {
 }
 
 struct Router_WithdrawRequest {
-    /// Derived by SendExecutor
-    routerWalletAddress: address;
+    /// Jetton wallet of the sender's deposit account, derived by the SendExecutor
+    /// (RequestWalletAddress with `ownerAddress` = the deposit account).
+    accountWalletAddress: address;
+    /// The sender's per-user deposit account the withdraw is forwarded to.
+    depositAccount: address;
     amount: coins;
     tokenPool: address;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+}
+
+/// Permissionless: deploys (or re-confirms) the sender's per-user onramp account.
+/// The account is a Deployable-namespaced OnRampAccount owned by the Router, keyed by the
+/// sender's address. The Router answers with Router_UseOnRampAccount once the account
+/// confirms initialization (DepositAccount_Reply).
+struct (0x0e24d5ba) Router_GetOnRampAccount {
+    queryId: uint64;
+}
+
+/// Sent to a user once their onramp account confirmed initialization: `account` is the
+/// address the user must send jettons to (via its jetton wallet).
+struct (0xf28658e0) Router_UseOnRampAccount {
+    queryId: uint64;
+    account: address;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -153,9 +172,17 @@ struct (0x5a45d434) Router_CCIPSendNACK {
     error: uint256;
 }
 
-struct (0x4dd6aa82) Router_GetValidatedFee<T> {
+@deprecated("use Router_GetValidatedFee instead")
+// nolint:opcode : crc32('Router_GetValidatedFee')
+struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
     ccipSend: Cell<Router_CCIPSend>;
-    context: T;
+    context: RemainingBitsAndRefs;
+}
+
+// nolint:opcode : crc32('Router_GetValidatedFee_V2')
+struct (0x657ef7ec) Router_GetValidatedFee {
+    ccipSend: Cell<Router_CCIPSend>;
+    context: cell? = null;
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
@@ -176,32 +203,45 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
     requestedFinalityConfig: uint32;
     replyTo: address;
 }
- 
+
 struct Router_GetValidatedFeeContext {
-    routerContext: address; // sender
-    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
+    routerContext: address // sender
+    oldContextVersion: bool
+    userContext: cell?
 }
 
 // --- Outgoing messages ---
 
-/// Alias for ABIgen to generate codec
-type Router_MessageValidated_Any = Router_MessageValidated<RemainingBitsAndRefs>
-
-// crc32('Router_MessageValidated')
-struct (0x9e2155ec) Router_MessageValidated<T> {
+@deprecated("use Router_MessageValidated instead")
+// nolint:opcode : crc32('Router_MessageValidated')
+struct (0x9e2155ec) Router_MessageValidated_V1 {
     fee: coins
     msg: Cell<Router_CCIPSend>
-    context: RemainingBitsOrRef<T>
+    context: RemainingBitsAndRefs,
 }
 
-/// Alias for ABIgen to generate codec
-type Router_MessageValidationFailed_Any = Router_MessageValidationFailed<RemainingBitsAndRefs>
-
-// crc32('Router_MessageValidationFailed')
-struct (0xec23c562) Router_MessageValidationFailed<T> {
+@deprecated("use Router_MessageValidationFailed instead")
+// nolint:opcode : crc32('Router_MessageValidationFailed')
+struct (0xec23c562) Router_MessageValidationFailed_V1 {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
-    context: RemainingBitsOrRef<T>
+    context: RemainingBitsAndRefs,
+}
+
+// --- Outgoing messages ---
+
+// nolint:opcode : crc32('Router_MessageValidated_V2')
+struct (0x97ca8bd8) Router_MessageValidated {
+    fee: coins
+    msg: Cell<Router_CCIPSend>
+    context: cell?
+}
+
+// nolint:opcode : crc32('Router_MessageValidationFailed_V2')
+struct (0xe32e5616) Router_MessageValidationFailed {
+    error: uint256,
+    msg: Cell<Router_CCIPSend>,
+    context: cell?
 }
 
 /// Canonical Router failure returned when a LockOrBurn request bounced before
@@ -235,6 +275,7 @@ fun Router_Costs.CCIPSend(): int {
         + grams("0.001") // computeFee
         + grams("0.019") // CCIPSend fwdFee
         + OnRamp_Costs.Send()
+        // TODO add TokenTransfer costs
         ;
 }
 
@@ -292,6 +333,13 @@ fun Router_Costs.routeMessage(): int {
 fun Router_Costs.receiveConfirm(): int {
     val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
+}
+
+// Minimum value for calling Router_DeployDepositAccount: covers the Router's own compute,
+// the Deployable_Initialize + DepositAccount_Init messages, the account's init compute and
+// storage, and the DepositAccount_Reply -> Router_UseDepositAccount round-trip.
+fun Router_Costs.GetDepositAccount(): int {
+    return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");
