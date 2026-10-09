@@ -8,7 +8,7 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import { ENTRY_VERSION, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { Costs, ENTRY_VERSION, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
 import { generateRandomTonAddress } from '../../../src/utils'
 import {
   CELL_UNDERFLOW,
@@ -22,6 +22,7 @@ import {
   createBlockchain,
   entryAddress,
   entryFor,
+  expectRootFailure,
   registerToken,
   returnedTokenInfo,
   rootEvent,
@@ -114,6 +115,25 @@ describe('TokenAdminRegistry - Register Token', () => {
       success: false,
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
+    expect(result.transactions).not.toHaveTransaction({ to: entryAddress(fx) })
+  })
+
+  it('requires value for the entry deployment', async () => {
+    const result = await fx.registry.sendTokenAdminRegistryRegisterToken(
+      fx.owner.getSender(),
+      Costs.registerToken - 1n,
+      {
+        tokenAddress: fx.token,
+        tokenInfo: tokenInfo(fx),
+        administrator: fx.administrator.address,
+      },
+    )
+    expectRootFailure(
+      fx,
+      result,
+      fx.owner.address,
+      RegistryErrors['TokenAdminRegistry_Error.InsufficientValue'],
+    )
     expect(result.transactions).not.toHaveTransaction({ to: entryAddress(fx) })
   })
 
@@ -272,7 +292,7 @@ describe('TokenAdminRegistry - Register Token', () => {
 
     it('rejects VerifyToken without enough value for the query', async () => {
       await registerToken(fx, { answerWalletQuery: false })
-      const result = await verifyToken(fx.token, toNano('0.03'))
+      const result = await verifyToken(fx.token, Costs.verifyToken - 1n)
       expect(result.transactions).toHaveTransaction({
         from: fx.other.address,
         to: fx.registry.address,

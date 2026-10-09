@@ -40,6 +40,7 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
+            assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
             registerToken(st, msg);
         }
         TokenAdminRegistry_OverridePendingAdministrator => {
@@ -61,6 +62,7 @@ fun onInternalMessage(in: InMessage) {
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
+            assert(in.valueCoins >= TokenAdminRegistry_GetTokenInfo.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
             forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_GetTokenInfo {
                 token: msg.token,
                 requester: in.senderAddress,
@@ -256,10 +258,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
 
     val deployMsg = createMessage({
         bounce: false,
-        // Covers Deployable initialization and the event self-message below.
-        // The former Router flow only initialized the shard; this path also
-        // emits the initial administrator-proposal event atomically.
-        value: grams("0.05") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
+        value: TokenAdminRegistryEntry_deployCost(),
         dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {
             stateInit: {
@@ -277,7 +276,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // The entry emits the initial proposal event after its state is
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
-                value: grams("0.015") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
+                value: TokenAdminRegistryEntry_RegistrationInitialized.cost(),
                 body: TokenAdminRegistryEntry_RegistrationInitialized {
                     queryId: msg.queryId,
                 }.toCell(),

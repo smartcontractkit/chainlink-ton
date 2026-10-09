@@ -219,10 +219,9 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     }
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
-    //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
-    val queryMsg = createMessage({
+   val queryMsg = createMessage({
         bounce: true,
-        value: TokenAdminRegistry_GetTokenInfo.cost(grams("0.5")), // TODO extract to constant and calculate real values
+        value: TokenAdminRegistry_GetTokenInfo.cost(),
         dest: tokenRegistry.load(),
         body: TokenAdminRegistry_GetTokenInfo {
             queryId: 0,

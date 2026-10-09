@@ -31,7 +31,9 @@ fun TokenAdminRegistryEntry.deriveAddress(deployableCode: cell, tokenAddress: ad
 }
 
 /// Attached to the TEP-89 query sent at registration; the token's response returns the unspent part.
-const TokenAdminRegistryEntry_WALLET_QUERY_VALUE: int = grams("0.02"); // TODO update with real value
+/// 10x the measured cost (~0.0008 TON) with the ton-blockchain/jetton-contract reference minter:
+/// query and response forward fees, the token's execution and the entry handling the response.
+const TokenAdminRegistryEntry_WALLET_QUERY_VALUE: int = grams("0.01");
 
 /// Version of the entry code. Bump it whenever the entry code or its storage
 /// layout changes. The root declares it as the minimum in every message to an

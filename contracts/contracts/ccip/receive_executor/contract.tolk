@@ -181,14 +181,14 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
     createMessage(
         {
             bounce: true,
-            value: 0,
+            value: TokenAdminRegistry_GetTokenInfo.cost(),
             dest: ttInfo.tokenAdminRegistry,
             body: TokenAdminRegistry_GetTokenInfo {
                 queryId: 0,
                 token: ttInfo.transfer.load().token,
             }
         }
-    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_TokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -278,6 +278,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     endExecutionWithFailure(mutate st, ccipMessage.header);
 }
 
+// Returns all balance to the OffRamp; a manual execution funds the retry again.
 // TODO add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
     // TODO send error reason
@@ -292,7 +293,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
             root: st.root,
         },
     });
-    notifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    notifyFailure.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 // Matches the delivery forwarded by the receiver's deposit account: a single transfer started by

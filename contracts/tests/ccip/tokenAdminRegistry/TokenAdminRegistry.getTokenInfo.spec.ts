@@ -5,6 +5,7 @@ import { Blockchain } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
+import { Costs } from '../../../wrappers/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import {
   EntryErrors,
@@ -38,8 +39,8 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     fx = await setup(blockchain)
   })
 
-  const getTokenInfo = (queryId = 0n) =>
-    fx.registry.sendTokenAdminRegistryGetTokenInfo(fx.other.getSender(), toNano('0.1'), {
+  const getTokenInfo = (queryId = 0n, value = toNano('0.1')) =>
+    fx.registry.sendTokenAdminRegistryGetTokenInfo(fx.other.getSender(), value, {
       queryId,
       token: fx.token,
     })
@@ -95,6 +96,18 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     expect(failedTokenInfo(fx, result, fx.other.address)).toEqual(
       tar.TokenAdminRegistry_GetTokenInfoFailed.create({ queryId: 107n, token: fx.token }),
     )
+  })
+
+  it('rejects an underfunded query before reaching the entry', async () => {
+    await registerToken(fx)
+    const result = await getTokenInfo(0n, Costs.getTokenInfo - 1n)
+    expectRootFailure(
+      fx,
+      result,
+      fx.other.address,
+      RegistryErrors['TokenAdminRegistry_Error.InsufficientValue'],
+    )
+    expect(result.transactions).not.toHaveTransaction({ to: entryAddress(fx) })
   })
 
   it('returns no pool for a delisted token', async () => {

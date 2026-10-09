@@ -1,0 +1,46 @@
+{
+  "current-entry": {
+    "transactions": [
+      {
+        "from": "Requester",
+        "to": "TokenAdminRegistry",
+        "opCode": "0xec5f855e",
+        "gasUsed": 5729,
+        "computeFee": "381934",
+        "forwardFee": "111068",
+        "totalFee": "493002"
+      },
+      {
+        "from": "TokenAdminRegistry",
+        "to": "TokenAdminRegistryEntry",
+        "opCode": "0x558e7559",
+        "gasUsed": 5734,
+        "computeFee": "382268",
+        "forwardFee": "142201",
+        "totalFee": "524469"
+      },
+      {
+        "from": "TokenAdminRegistryEntry",
+        "to": "TokenAdminRegistry",
+        "opCode": "0x4e1c9ad5",
+        "gasUsed": 5906,
+        "computeFee": "393734",
+        "forwardFee": "117668",
+        "totalFee": "511402"
+      },
+      {
+        "from": "TokenAdminRegistry",
+        "to": "Requester",
+        "opCode": "0x0a9bf5d1",
+        "gasUsed": 309,
+        "computeFee": "20601",
+        "forwardFee": "0",
+        "totalFee": "20601"
+      }
+    ],
+    "totalTransactions": 4,
+    "totalGasUsed": 17678,
+    "totalFee": "1549474",
+    "totalFeeTON": "0.001549474"
+  }
+}

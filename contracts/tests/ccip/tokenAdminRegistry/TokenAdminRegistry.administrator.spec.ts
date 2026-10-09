@@ -7,7 +7,7 @@ import * as coverage from '../../coverage/coverage'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import { EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { Costs, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
 import {
   CELL_UNDERFLOW,
   EntryErrors,
@@ -115,14 +115,14 @@ describe('TokenAdminRegistry - Administrator', () => {
       expectRootFailure(fx, result, fx.owner.address, CELL_UNDERFLOW)
     })
 
-    it('requires value for a possible entry upgrade', async () => {
+    it('requires the forward cost', async () => {
       await registerToken(fx)
       const result = await overridePendingAdministrator(
         fx,
         fx.owner,
         fx.replacementAdministrator.address,
         0n,
-        toNano('0.03'),
+        Costs.forward - 1n,
       )
       expectRootFailure(
         fx,
@@ -178,9 +178,9 @@ describe('TokenAdminRegistry - Administrator', () => {
       )
     })
 
-    it('requires value for a possible entry upgrade', async () => {
+    it('requires the forward cost', async () => {
       await registerToken(fx)
-      const underfunded = await acceptAdminRole(fx, fx.administrator, 0n, toNano('0.03'))
+      const underfunded = await acceptAdminRole(fx, fx.administrator, 0n, Costs.forward - 1n)
       expectRootFailure(
         fx,
         underfunded,
@@ -188,7 +188,7 @@ describe('TokenAdminRegistry - Administrator', () => {
         RegistryErrors['TokenAdminRegistry_Error.InsufficientValue'],
       )
 
-      const minimal = await acceptAdminRole(fx, fx.administrator, 0n, toNano('0.035'))
+      const minimal = await acceptAdminRole(fx, fx.administrator, 0n, Costs.forward)
       expectEntrySuccess(fx, minimal)
       expect((await adminConfig()).administrator).toEqualAddress(fx.administrator.address)
     })
@@ -284,14 +284,14 @@ describe('TokenAdminRegistry - Administrator', () => {
       )
     })
 
-    it('requires value for a possible entry upgrade', async () => {
+    it('requires the forward cost', async () => {
       await registerAndAccept(fx)
       const result = await transferAdminRole(
         fx,
         fx.administrator,
         fx.replacementAdministrator.address,
         0n,
-        toNano('0.03'),
+        Costs.forward - 1n,
       )
       expectRootFailure(
         fx,
