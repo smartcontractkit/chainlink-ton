@@ -13,6 +13,7 @@ import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
 import "../../../common/types"
 import "../../../accounts/deposit/types"
+import "../../../router/utils"
 import "../../../rmn_remote/lib"
 
 import "types"
@@ -1548,58 +1549,29 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     }
 
     // Look through all allowed namespace/account types for one that derives to `initiator`.
+    // Only the OnRampAccount namespace is supported: the pool re-derives the Router's
+    // `_onRampAccountAddress` (shared with the Router and the CCIPSendExecutor), which is
+    // keyed by (sender, token) under that namespace.
     var entry = dynamicConfig.allowedDepositNamespaces.findFirst();
     while (entry.isFound) {
         val namespace: Namespace = entry.getKey();
-        val account = self.deriveDepositAccount(
-            dynamicConfig.router,
-            namespace,
-            originalSender,
-        ).calculateAddress();
-        if (initiator == account) {
-            return;
+        val deployableCode = adminConfig.deployableCode;
+        assert(deployableCode != null, TokenPool_Error.Unauthorized);
+        if (namespace == DeployableNamespace_OnRampAccount) {
+            val account = _onRampAccountAddress(
+                originalSender,
+                self.data.jettonClient().masterAddress,
+                dynamicConfig.router,
+                deployableCode,
+            ).calculateAddress();
+            if (initiator == account) {
+                return;
+            }
         }
         entry = dynamicConfig.allowedDepositNamespaces.iterateNext(entry);
     }
 
     throw TokenPool_Error.Unauthorized;
-}
-
-/// Derives the on-chain address of a Router-owned per-user OnRampAccount.
-///
-/// @param deployableCode The compiled Deployable contract code (address-namespace seed).
-/// @param router The Router that owns the deployable deployment.
-/// @param namespace The Deployables namespace identifying the account type (e.g. OnRampAccount).
-/// @param user The on-chain user that is the account's proxy and beneficiary.
-///
-/// @dev Must stay byte-for-byte compatible with
-///      `onRampAccountAutodeployAddressForRouter` in `ccip/router/utils.tolk`. In particular,
-///      the deployable ID is `DepositAccount_DeploymentID`, not the user's address directly.
-@inline
-fun TokenPool<T>.deriveDepositAccount(
-    self,
-    router: address,
-    namespace: Namespace,
-    user: address,
-): AutoDeployAddress {
-    val adminConfig = lazy self.data.adminConfig.load();
-    val code = adminConfig.deployableCode;
-    assert(code != null, TokenPool_Error.Unauthorized);
-
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(user, ());
-    beneficiaries.set(router, ());
-
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code,
-            data: NamespacedDeployableData<address>({
-                namespace,
-                owner: router,
-                id: user,
-            }),
-        },
-    };
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(

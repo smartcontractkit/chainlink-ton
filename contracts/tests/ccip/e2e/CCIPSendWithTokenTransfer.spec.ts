@@ -340,7 +340,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
     )
     const onRampAcccount = await (async () => {
-      const addr = await router.getOnRampAccountAddress(sender.address)
+      const addr = await router.getOnRampAccountAddress(sender.address, minter.address)
       return dep.DepositAccount.fromAddress(addr)
     })()
     console.log('onRampAcccount.address', onRampAcccount.address)
@@ -350,7 +350,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
     // Deploy OnRamp account
     {
-      const result = await router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {})
+      const result = await router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {
+        token: minter.address,
+      })
       expect(result.transactions).toHaveTransaction({
         from: router.address,
         to: onRampAcccount.address,

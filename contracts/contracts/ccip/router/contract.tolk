@@ -387,7 +387,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
     // Both the Router and the sender can withdraw from the deposit account.
     beneficiaries.set(contract.getAddress(), ());
     beneficiaries.set(sender, ());
-    val oaa = onRampAccountAutodeployAddress(sender);
+    val oaa = onRampAccountAutodeployAddress(sender, msg.token);
 
     // 1. Install the account's code/data at the shell address. On a retry to an already-deployed
     // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
@@ -401,6 +401,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
                 data: DepositAccount_Data {
                     owner: contract.getAddress(),
                     proxy: sender,
+                    token: msg.token,
                     beneficiaries,
                 }.toCell(),
             },
@@ -431,7 +432,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
 fun onDepositAccountInitReply(msg: DepositAccount_Reply, sender: address) {
     // The account echoes the user's address in the forward payload.
     val user = msg.forwardPayload!.beginParse().loadAddress();
-    assert(sender == onRampAccountAddress(user), Router_Error.SenderIsNotOnRampAccount);
+    assert(sender == onRampAccountAddress(user, msg.token), Router_Error.SenderIsNotOnRampAccount);
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
@@ -454,7 +455,8 @@ fun onDepositAccountInitReply(msg: DepositAccount_Reply, sender: address) {
 ///      The message is only accepted from accounts whose data was installed by this Router
 ///      (owner = Router), and the event is informational — no state changes on this path.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
-    assert(sender == onRampAccountAddress(msg.proxy), Router_Error.SenderIsNotOnRampAccount);
+    val daID = lazy msg.id.load();
+    assert(sender == onRampAccountAddress(daID.proxy, daID.token), Router_Error.SenderIsNotOnRampAccount);
     val ask = lazy msg.ask.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
@@ -492,14 +494,14 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
 
 /// Derives the auto-deploy address of the per-user onramp account (a Deployable-namespaced OnRampAccount
 /// owned by this Router, keyed by the user's address).
-get fun onRampAccountAutodeployAddress(sender: address): AutoDeployAddress {
-    return onRampAccountAutodeployAddressForRouter(sender, contract.getAddress(), deployableCompiledCode());
+get fun onRampAccountAutodeployAddress(sender: address, token: address): AutoDeployAddress {
+    return _onRampAccountAddress(sender, token, contract.getAddress(), deployableCompiledCode());
 }
 
 /// Derives the address of the per-user onramp account (a Deployable-namespaced OnRampAccount
 /// owned by this Router, keyed by the user's address).
-get fun onRampAccountAddress(sender: address): address {
-    return onRampAccountAutodeployAddress(sender).calculateAddress();
+get fun onRampAccountAddress(sender: address, token: address): address {
+    return onRampAccountAutodeployAddress(sender, token).calculateAddress();
 }
 
 /*

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
-import "../../../lib/deployable/types"
 
 /// Initialization message sent by the owner to activate the account.
 /// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
 ///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
-///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
-///      so one account per user serves any number of jettons.
+///      the token-handling layer before a withdraw). The account is bound to a single token
+///      (`data.token`): Router-owned OnRampAccounts are keyed by (sender, token) — one account per
+///      user and token — while pool-owned off-ramp accounts currently store `ZERO_ADDRESS`.
 ///      The message is only accepted from the account's owner: the deployment sequence is
 ///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
 ///      directly by the owner. The account always replies with `DepositAccount_Reply`, confirming
@@ -21,9 +21,13 @@ struct (0x6890a205) DepositAccount_Init {
 
 /// Reply message on successful initialization
 /// TODO rename to `DepositAccount_Initialized`
+/// @dev `token` echoes the account's stored `data.token` so the owner can verify the reply came
+///      from the account it derived for that token (the Router re-derives the OnRampAccount
+///      address from (user, token) before accepting the reply).
 struct (0xda04630c) DepositAccount_Reply {
-    queryId: uint64;
-    forwardPayload: cell?;
+    queryId: uint64
+    token: address
+    forwardPayload: cell?
 }
 
 /// Reply message on failed initialization due to insufficient value.
@@ -70,14 +74,22 @@ struct (0x1936d112) DepositAccount_Withdraw {
 /// funds could not be transferred out.
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
-    /// Required to verify the deposit account.
-    owner: address;
-    /// Required to verify the deposit account.
-    proxy: address;
+    /// Identifies the reporting account: the recipient re-derives the expected account address
+    /// from (owner, proxy, token) and rejects messages from any other sender.
+    id: Cell<DepositAccountID>
+
     /// Jetton wallet the failed AskToTransfer was sent to.
     walletAddress: address;
     /// The bounced AskToTransfer (carries amount + recipient + the requester in `sendExcessesTo` for reconciliation).
     ask: Cell<AskToTransfer>;
+}
+
+/// Identifies a DepositAccount: the (owner, proxy, token) triple its owner can use to re-derive
+/// the account's address and authenticate `DepositAccount_WithdrawFailed` reports.
+struct DepositAccountID {
+    owner: address
+    proxy: address
+    token: address
 }
 
 /// The subset of outgoing messages that can bounce back into this account, used to match bounced

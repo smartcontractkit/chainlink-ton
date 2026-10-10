@@ -180,6 +180,7 @@ fun DepositAccount<T>.onInit(
         dest: sender,
         body: DepositAccount_Reply {
             queryId: msg.queryId,
+            token: self.data.token,
             forwardPayload: msg.forwardPayload,
         },
     });
@@ -296,8 +297,11 @@ fun DepositAccount<T>.onWithdrawBounced(
         dest: ask.sendExcessesTo!,
         body: DepositAccount_WithdrawFailed {
             queryId: ask.queryId,
-            owner: self.data.owner,
-            proxy: self.data.proxy,
+            id: DepositAccountID {
+                owner: self.data.owner,
+                proxy: self.data.proxy,
+                token: self.data.token,
+            }.toCell(),
             walletAddress: sender,
             ask: ask.toCell(),
         },
