@@ -16,6 +16,7 @@ type OnRamp_InMessage =
     | FeeQuoter_MessageValidationFailed
     | OnRamp_ExecutorRequestsLockOrBurn
     | OnRamp_ExecutorRequestsWithdraw
+    | OnRamp_ExecutorReserveFee
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -63,6 +64,18 @@ struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     withdrawRequest: Cell<Router_WithdrawRequest>,
 }
 
+// Sent by the executor immediately after fee validation. The attached value
+// includes `fee` plus enough TON for this request and its confirmation.
+struct (0xb6bbebdb) OnRamp_ExecutorReserveFee {
+    executorID: CCIPSendExecutor_ID,
+    fee: coins,
+}
+
+// The OnRamp sends this only after it has reserved the requested fee.
+struct (0x540a6d81) OnRamp_ExecutorFeeReserved {
+    executorID: CCIPSendExecutor_ID,
+}
+
 struct OnRamp_GetValidatedFeeContext {
     onrampContext: address; // router address
     userContext: cell?,
@@ -83,10 +96,12 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
-    executorID: CCIPSendExecutor_ID,
-    error: uint256,
-    msg: Cell<Router_CCIPSend>,
-    metadata: Metadata,
+    queryID: uint64
+    executorID: CCIPSendExecutor_ID
+    destChainSelector: uint64
+    sender: address
+    error: uint256
+    refund: Cell<coins>?
 }
 
 struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
@@ -172,6 +187,17 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
         + grams("0.019") // emit CCIPMessageSent event
         + grams("0.019") // MessageSent fwdFee
         + Router_Costs.MessageSent() 
+        ;
+}
+
+// Minimum value for the executor's fee reservation request. The fee itself is
+// attached separately and is kept on the OnRamp by reserveGramsOnBalance.
+@inline
+fun OnRamp_Costs.ExecutorReserveFee(): int {
+    // TODO: Calculate the actual cost for reserving the executor's fee.
+    return
+        + grams("0.002") // computeFee
+        + grams("0.019") // ExecutorFeeReserved fwdFee
         ;
 }
 
