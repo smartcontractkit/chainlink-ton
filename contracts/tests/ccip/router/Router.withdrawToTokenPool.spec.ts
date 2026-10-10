@@ -26,6 +26,7 @@ describe('Router.withdrawToTokenPool', () => {
   let onRamp: SandboxContract<TreasuryContract>
   let depositAccountCode: Cell
   let deployableCode: Cell
+  let token: Address
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -44,6 +45,7 @@ describe('Router.withdrawToTokenPool', () => {
     onRamp = await blockchain.treasury('onRamp')
     depositAccountCode = await contractCode.ccip.local('ccip.account.DepositAccount')
     deployableCode = await contractCode.ccip.local('Deployable')
+    token = (await blockchain.treasury('jettonMaster')).address
   })
 
   beforeEach(async () => {
@@ -52,20 +54,20 @@ describe('Router.withdrawToTokenPool', () => {
 
   const destChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
-  // The sender's per-user deposit account, derived exactly like Router.onRampAccountAddress
-  // (Deployable namespace OnRampAccount, owner = Router, id = user address).
-  const accountAddressFor = (user: Address): Address =>
+  // The sender's deposit account for `jetton`, derived exactly like Router.onRampAccountAddress
+  // (Deployable namespace OnRampAccount, owner = Router, id = (user, token)).
+  const accountAddressFor = (user: Address, jetton: Address = token): Address =>
     NameSpace.deriveAddress(
       router.address,
       NameSpace.CCIPNamespace.OnRampAccount,
-      beginCell().storeAddress(user),
+      beginCell().storeAddress(user).storeAddress(jetton),
       deployableCode,
     )
 
   // Deploys the sender's deposit account through the Router's permissionless
   // Router_GetOnRampAccount entrypoint, so the account exists with the Router as owner.
   const deployDepositAccount = async (user: SandboxContract<TreasuryContract>) => {
-    const res = await router.sendRouterGetOnRampAccount(user.getSender(), toNano('1'), {})
+    const res = await router.sendRouterGetOnRampAccount(user.getSender(), toNano('1'), { token })
     expect(res.transactions).toHaveTransaction({
       from: router.address,
       to: user.address,
@@ -214,12 +216,15 @@ describe('Router.withdrawToTokenPool', () => {
     // bounces back from the jetton wallet).
     const result = await router.sendDepositAccountWithdrawFailed(
       // The message must come from the sender's derived deposit account: the Router re-derives
-      // the expected account address from the reported proxy.
+      // the expected account address from the reported (proxy, token) identity.
       blockchain.sender(accountAddress),
       toNano('0.5'),
       {
-        owner: router.address,
-        proxy: sender.address,
+        account: deposit.DepositAccount_Identity.create({
+          owner: router.address,
+          proxy: sender.address,
+          token,
+        }),
         walletAddress: walletAddress.address,
         ask,
       },
@@ -255,13 +260,16 @@ describe('Router.withdrawToTokenPool', () => {
     })
 
     // The attacker claims the withdraw failed for the sender's deposit account, but the message
-    // does not come from the account address the Router derives from the reported proxy.
+    // does not come from the account address the Router derives from the reported identity.
     const result = await router.sendDepositAccountWithdrawFailed(
       attacker.getSender(),
       toNano('0.5'),
       {
-        owner: router.address,
-        proxy: sender.address,
+        account: deposit.DepositAccount_Identity.create({
+          owner: router.address,
+          proxy: sender.address,
+          token,
+        }),
         walletAddress: walletAddress.address,
         ask,
       },
@@ -269,6 +277,42 @@ describe('Router.withdrawToTokenPool', () => {
 
     expect(result.transactions).toHaveTransaction({
       from: attacker.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'],
+    })
+  })
+
+  it('rejects a DepositAccount_WithdrawFailed whose reported token does not match the sending account', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    const walletAddress = await blockchain.treasury('accountWallet')
+    const otherToken = (await blockchain.treasury('otherJettonMaster')).address
+    const accountAddress = await deployDepositAccount(sender)
+
+    // The genuine (sender, token) account reports an identity for a different token.
+    const result = await router.sendDepositAccountWithdrawFailed(
+      blockchain.sender(accountAddress),
+      toNano('0.5'),
+      {
+        account: deposit.DepositAccount_Identity.create({
+          owner: router.address,
+          proxy: sender.address,
+          token: otherToken,
+        }),
+        walletAddress: walletAddress.address,
+        ask: deposit.AskToTransfer.create({
+          jettonAmount: toNano('5'),
+          transferRecipient: tokenPool.address,
+          sendExcessesTo: router.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: Cell.EMPTY.beginParse(),
+        }),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: accountAddress,
       to: router.address,
       success: false,
       exitCode: rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'],

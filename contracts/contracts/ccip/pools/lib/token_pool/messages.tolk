@@ -127,11 +127,30 @@ struct TokenPool_LockOrBurnForwardPayload {
 /// @Releases or mints tokens on the destination chain.
 /// @param releaseOrMintIn Encoded data fields for the processing of tokens on the destination chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
+/// @param receiverAccount Router-owned deposit account of the receiver. Released/minted tokens
+///        must be sent there; it is deployed by the Router before relaying this message.
 struct (0x351f77e3) TokenPool_ReleaseOrMint {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     replyTo: address? = null;
+    receiverAccount: address? = null;
+}
+
+/// Sent by the Router once the ReceiveExecutor confirmed the released/minted tokens reached the
+/// receiver's deposit account. The pool answers `replyTo` (the ReceiveExecutor) with
+/// `TokenPool_ReleaseOrMintFinalized`.
+struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
+    queryId: uint64;
+    replyTo: address;
+    transfer: Cell<TokenPool_DeliveredTransfer>;
+}
+
+struct TokenPool_DeliveredTransfer {
+    remoteChainSelector: uint64;
+    localToken: address;
+    receiver: address;
+    amount: coins;
 }
 
 /// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check success.
@@ -273,6 +292,7 @@ type TokenPool_InMessage =
     | TokenPool_PreflightCheckFinished
     | TokenPool_PreflightCheckFailed
     | TokenPool_ReleaseOrMint
+    | TokenPool_ReleaseOrMintDelivered
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
     | TokenPool_GetCCVs
@@ -316,6 +336,11 @@ struct (0x3476ea72) TokenPool_LockOrBurnFailure {
 struct (0xe0e882f5) TokenPool_ReleaseOrMintFinished {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
+}
+
+/// Sent to the ReceiveExecutor once the pool processed `TokenPool_ReleaseOrMintDelivered`.
+struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
+    queryId: uint64;
 }
 
 struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
@@ -375,6 +400,7 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
+    | TokenPool_ReleaseOrMintFinalized
     | TokenPool_ReleaseOrMintFailure
     | TokenPool_CCVs
     | TokenPool_CCVsAndFees

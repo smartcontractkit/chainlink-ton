@@ -5,6 +5,9 @@ import "../../lib/deployable/namespace"
 struct TokenRegistry_TokenInfo {
     /// A null pool delists the token from CCIP.
     tokenPool: address?
+    /// `transferInitiator` of the jetton transfers delivering a release/mint (e.g. the pool's
+    /// lockbox). Null means the pool itself.
+    transferInitiator: address? = null
     minterAddress: address
     /// Pool interface version. It is currently carried but ignored, so a
     /// future pool-interface upgrade can select the correct protocol.
@@ -26,6 +29,9 @@ fun TokenAdminRegistryEntry.deriveAddress(deployableCode: cell, tokenAddress: ad
         }
     }
 }
+
+/// Attached to the TEP-89 query sent at registration; the token's response returns the unspent part.
+const TokenAdminRegistryEntry_WALLET_QUERY_VALUE: int = grams("0.02"); // TODO update with real value
 
 /// Version of the entry code. Bump it whenever the entry code or its storage
 /// layout changes. The root declares it as the minimum in every message to an

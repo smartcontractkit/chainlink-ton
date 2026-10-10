@@ -71,6 +71,8 @@ type SetPool struct {
 	QueryID      uint64           `tlb:"## 64"`
 	TokenAddress *address.Address `tlb:"addr"`
 	TokenPool    *address.Address `tlb:"addr"`
+	// TransferInitiator of the jetton transfers delivering a release/mint; nil means the pool itself.
+	TransferInitiator *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistry_GetTokenInfo')
@@ -88,7 +90,10 @@ type TokenInfo struct {
 	Token         *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
 	TokenPool     *address.Address `tlb:"addr"`
-	Version       uint32           `tlb:"## 32"`
+	// TransferInitiator resolved by the registry (the pool unless another one is registered); nil
+	// only when the token is delisted.
+	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
+	Version           uint32           `tlb:"## 32"`
 }
 
 // crc32('TokenAdminRegistry_GetTokenInfoFailed')
@@ -137,11 +142,20 @@ type AdministratorTransferred struct {
 
 // crc32('TokenAdminRegistry_PoolSet')
 type PoolSet struct {
-	_            tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_                 tlb.Magic        `tlb:"#cef01a87" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID           uint64           `tlb:"## 64"`
+	Token             *address.Address `tlb:"addr"`
+	PreviousPool      *address.Address `tlb:"addr"`
+	NewPool           *address.Address `tlb:"addr"`
+	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
+}
+
+// crc32('TokenAdminRegistry_VerifyToken')
+// Permissionless: has the derived entry re-send its TEP-89 query, enabling the token if its master answers.
+type VerifyToken struct {
+	_            tlb.Magic        `tlb:"#182affc2" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID      uint64           `tlb:"## 64"`
-	Token        *address.Address `tlb:"addr"`
-	PreviousPool *address.Address `tlb:"addr"`
-	NewPool      *address.Address `tlb:"addr"`
+	TokenAddress *address.Address `tlb:"addr"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -160,4 +174,5 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	AdministratorTransferRequested{},
 	AdministratorTransferred{},
 	PoolSet{},
+	VerifyToken{},
 }).MustWithStorageType(Storage{})

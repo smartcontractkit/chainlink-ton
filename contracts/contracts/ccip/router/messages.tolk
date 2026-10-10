@@ -16,6 +16,8 @@ import "../onramp/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../rmn_remote/lib"
+import "../accounts/deposit/messages"
+import "../../lib/deployable/types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -38,8 +40,11 @@ type Router_InMsg =
     | Router_LockOrBurn
     | Router_RelayReleaseOrMint
     | Router_RMNOwnableMessage
+    | Router_TokenTransferDelivered
     | Router_GetOnRampAccount
     | DepositAccount_Reply
+    | DepositAccount_NotEnoughValue
+    | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;
 
@@ -50,7 +55,9 @@ type Router_BouncedMessage =
 
 type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
-    | TokenPool_ReleaseOrMint;
+    | TokenPool_ReleaseOrMint
+    | Deployable_Initialize
+    | DepositAccount_Init;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -96,19 +103,22 @@ struct Router_WithdrawRequest {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-/// Permissionless: deploys (or re-confirms) the sender's per-user onramp account.
+/// Permissionless: deploys (or re-confirms) the sender's onramp account for `token`.
 /// The account is a Deployable-namespaced OnRampAccount owned by the Router, keyed by the
-/// sender's address. The Router answers with Router_UseOnRampAccount once the account
+/// (sender, token) pair. The Router answers with Router_UseOnRampAccount once the account
 /// confirms initialization (DepositAccount_Reply).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
     queryId: uint64;
+    /// Jetton master the account will escrow. One account per (sender, token).
+    token: address;
 }
 
 /// Sent to a user once their onramp account confirmed initialization: `account` is the
-/// address the user must send jettons to (via its jetton wallet).
+/// address the user must send `token` jettons to (via its jetton wallet).
 struct (0xf28658e0) Router_UseOnRampAccount {
     queryId: uint64;
     account: address;
+    token: address;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -203,6 +213,29 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
     requestedFinalityConfig: uint32;
     replyTo: address;
 }
+
+/// Sent by the OffRamp once a ReceiveExecutor confirmed the released/minted tokens reached the
+/// receiver's deposit account. Relayed to the pool as `TokenPool_ReleaseOrMintDelivered`.
+struct (0xddfdefa8) Router_TokenTransferDelivered {
+    queryId: uint64;
+    tokenPool: address;
+    replyTo: address;
+    transfer: Cell<TokenPool_DeliveredTransfer>;
+}
+
+/// Context echoed through a user's on-ramp account `DepositAccount_Init`, so the Router can tell
+/// that leg apart from the inbound relay leg when the account replies.
+struct (0x9e339227) Router_OnRampAccountContext {
+    user: address;
+    token: address;
+}
+
+/// The two contexts the Router carries in a `DepositAccount_Init.forwardPayload` and gets back in
+/// the account's `DepositAccount_Reply`: the inbound release/mint relay to resume, or the
+/// user-initiated on-ramp account deployment to confirm.
+type Router_DepositAccountInitContext =
+    | Router_RelayReleaseOrMint
+    | Router_OnRampAccountContext;
 
 struct Router_GetValidatedFeeContext {
     routerContext: address // sender

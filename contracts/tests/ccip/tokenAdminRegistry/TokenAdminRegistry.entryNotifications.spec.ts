@@ -53,6 +53,7 @@ const notifications: Record<string, Notification> = {
           token: fx.token,
           previousPool: fx.pool,
           newPool: null,
+          transferInitiator: null,
         }),
       ),
   },

@@ -182,11 +182,11 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Derives the address of the sender's per-user deposit account: a Deployable-namespaced
-/// OnRampAccount owned by the Router and keyed by the original sender's address. Must mirror
-/// `Router.depositAccountAddress` — the Router verifies the withdraw sender against this address.
-fun depositAccountAddress(sender: address, router: address): address {
-    return onRampAccountAutodeployAddressForRouter(sender, router, deployableCompiledCode()).calculateAddress();
+/// Derives the address of the sender's deposit account for `token`: a Deployable-namespaced
+/// OnRampAccount owned by the Router and keyed by the (original sender, token) pair. Must mirror
+/// `Router.onRampAccountAddress` — the Router verifies the withdraw sender against this address.
+fun depositAccountAddress(sender: address, token: address, router: address): address {
+    return onRampAccountAutodeployAddressForRouter(sender, token, router, deployableCompiledCode()).calculateAddress();
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
@@ -247,15 +247,16 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val state = self.state.load();
     assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
 
-    // The jettons are held by the sender's per-user deposit account, so the withdraw leg must
-    // pull from the account's jetton wallet (not the Router's).
+    // The jettons are held by the sender's deposit account for this token, so the withdraw leg
+    // must pull from that account's jetton wallet (not the Router's). The account is derived from
+    // the token, so a minter answering with some other jetton's wallet resolves to an empty one.
     val accountWalletAddressRequest = createMessage({
         bounce: true,
         value: grams("0.5"), // TODO extract to constant and calculate real values
         dest: msg.minterAddress,
         body: RequestWalletAddress {
             queryId: 0,
-            ownerAddress: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
+            ownerAddress: depositAccountAddress(self.onrampSend.metadata.sender, state.token, self.addresses.load().router),
             includeOwnerAddress: false,
         },
     });
@@ -338,7 +339,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             withdrawRequest: Router_WithdrawRequest {
                 accountWalletAddress: state.senderDepositAccountWallet,
-                depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
+                depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
                 forwardPayload: msg.forwardPayload.toCell(),

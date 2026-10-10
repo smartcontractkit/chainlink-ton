@@ -674,6 +674,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_ReleaseOrMint => {
             self.onReleaseOrMint(msgSender, msg);
         }
+        TokenPool_ReleaseOrMintDelivered => {
+            self.onReleaseOrMintDelivered(msgSender, msg);
+        }
         TokenPool_PostflightCheckFinished => {
             self.onPostflightCheckFinished(msgSender, msg);
         }
@@ -1529,9 +1532,11 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 /// @param originalSender The original CCIP sender on the source chain, used to derive its
 ///        Router-owned OnRampAccount.
 ///
-/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) any per-user deposit
-///      account derived via Deployables — Router as owner and an allowed namespace. The account
-///      deployment ID must exactly match the Router's OnRampAccount derivation.
+/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) any per-user,
+///      per-token deposit account derived via Deployables — Router as owner and an allowed
+///      namespace. The account deployment ID must exactly match the Router's OnRampAccount
+///      derivation, and its token half is the pool's own jetton master, so an account holding a
+///      different jetton never authenticates here.
 /// 
 ///      Account-auth is opt-in: it is only enforced once the pool owner configures it (code, allowed namespaces).
 fun TokenPool<T>.assertAuthorizedDepositInitiator(
@@ -1565,9 +1570,9 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     throw TokenPool_Error.Unauthorized;
 }
 
-/// Derives the on-chain address of a Router-owned per-user OnRampAccount.
+/// Derives the on-chain address of a Router-owned OnRampAccount for `user` and the pool's own
+/// jetton.
 ///
-/// @param deployableCode The compiled Deployable contract code (address-namespace seed).
 /// @param router The Router that owns the deployable deployment.
 /// @param namespace The Deployables namespace identifying the account type (e.g. OnRampAccount).
 /// @param user The on-chain user that is the account's proxy and beneficiary.
@@ -1586,20 +1591,13 @@ fun TokenPool<T>.deriveDepositAccount(
     val code = adminConfig.deployableCode;
     assert(code != null, TokenPool_Error.Unauthorized);
 
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(user, ());
-    beneficiaries.set(router, ());
-
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code,
-            data: NamespacedDeployableData<address>({
-                namespace,
-                owner: router,
-                id: user,
-            }),
-        },
-    };
+    return calcAddressOfAccount(
+        code!,
+        namespace,
+        router,
+        user,
+        adminConfig.jettonClient.masterAddress,
+    );
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(
@@ -1884,6 +1882,36 @@ fun TokenPool<T>.onReleaseOrMintFinalize(
         });
         finished.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+}
+
+/// Emits `ReleasedOrMinted` once the Router reports that the ReceiveExecutor observed the
+/// released/minted tokens arrive at the receiver's deposit account, then confirms to the executor.
+fun TokenPool<T>.onReleaseOrMintDelivered(
+    self,
+    sender: address,
+    msg: TokenPool_ReleaseOrMintDelivered,
+): void {
+    self.onlyRouter(sender);
+    val transfer = lazy msg.transfer.load();
+    assert(self.isSupportedToken(transfer.localToken), TokenPool_Error.InvalidToken);
+
+    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: transfer.remoteChainSelector,
+        details: TokenPool_ReleasedOrMintedDetails {
+            token: transfer.localToken,
+            sender,
+            amount: transfer.amount,
+            recipient: transfer.receiver.toCell(),
+        }.toCell(),
+    });
+
+    val finalized = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: msg.replyTo,
+        body: TokenPool_ReleaseOrMintFinalized { queryId: msg.queryId },
+    });
+    finalized.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun TokenPool<T>.encodeLocalDecimals(self): cell {

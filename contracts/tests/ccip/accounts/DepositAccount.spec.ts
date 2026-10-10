@@ -17,14 +17,16 @@ import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/poo
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as Deployable from '../../../wrappers/libraries/Deployable'
-import { generateRandomContractId } from '../../../src/utils'
+import { generateRandomContractId, generateRandomTonAddress } from '../../../src/utils'
 
 describe('DepositAccount (default forward hook, off-ramp role)', () => {
   let blockchain: Blockchain
   let proxy: SandboxContract<TreasuryContract> // e.g. pool (or Router)
   let recipient: SandboxContract<TreasuryContract> // owner
   let attacker: SandboxContract<TreasuryContract>
-  let notifier: SandboxContract<TreasuryContract> // any jetton wallet (token-agnostic account)
+  let notifier: SandboxContract<TreasuryContract> // the account's jetton wallet
+  let token: Address // jetton master the account is bound to
+  let tokenMaster: SandboxContract<TreasuryContract> // answers the account's TEP-89 wallet query
   let code: {
     deployable: Cell
     depositAccount: Cell
@@ -53,7 +55,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           owner: owner(),
           id: Deployable.builder.data.namespaced.encode({
             namespace: NameSpace.CCIPNamespace.DepositAccount,
-            id: beginCell().storeAddress(recipient.address),
+            id: beginCell().storeAddress(recipient.address).storeAddress(token),
           }),
         },
         code.deployable,
@@ -83,6 +85,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
           da.DepositAccount_Data.create({
             owner: owner(),
             proxy: proxyAddr(),
+            token,
             beneficiaries: beneficiaries(),
           }),
         ),
@@ -127,6 +130,26 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       }),
     )
 
+  // DepositAccount_Notify { notify, payload } routing envelope, boxed as the jetton forward payload.
+  const DEPOSIT_ACCOUNT_NOTIFY_PREFIX = 0x88e0ef3e
+  const buildNotifyNotificationBody = (amount: bigint, notify: Address, payload: Cell | null) =>
+    TransferNotificationForRecipient.toCell(
+      TransferNotificationForRecipient.create({
+        queryId: 4n,
+        jettonAmount: amount,
+        transferInitiator: null,
+        forwardPayload: beginCell()
+          .storeMaybeRef(
+            beginCell()
+              .storeUint(DEPOSIT_ACCOUNT_NOTIFY_PREFIX, 32)
+              .storeAddress(notify)
+              .storeMaybeRef(payload)
+              .endCell(),
+          )
+          .asSlice(),
+      }),
+    )
+
   beforeAll(async () => {
     blockchain = await Blockchain.create()
     code = {
@@ -140,12 +163,44 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     recipient = await blockchain.treasury(`recipient_${generateRandomContractId()}`)
     attacker = await blockchain.treasury('attacker')
     notifier = await blockchain.treasury('notifier')
+    tokenMaster = await blockchain.treasury('jettonMaster')
+    token = tokenMaster.address
   })
 
-  it('deploys with owner and proxy', async () => {
+  const initLearningWallet = (
+    account: SandboxContract<da.DepositAccount>,
+    queryId = 0n,
+    forwardPayload: Cell | null = null,
+  ) =>
+    account.sendDepositAccountInit(recipient.getSender(), toNano('0.5'), {
+      queryId,
+      forwardPayload,
+      learnWallet: true,
+    })
+
+  const answerWalletQuery = (
+    account: SandboxContract<da.DepositAccount>,
+    wallet: Address | null,
+    from: SandboxContract<TreasuryContract> = tokenMaster,
+  ) =>
+    account.sendResponseWalletAddress(from.getSender(), toNano('0.05'), {
+      queryId: 0n,
+      jettonWalletAddress: wallet,
+      ownerAddress: null,
+    })
+
+  const deployWithLearnedWallet = async () => {
+    const deployed = await deployViaDeployable()
+    await initLearningWallet(deployed.depositAccount)
+    await answerWalletQuery(deployed.depositAccount, notifier.address)
+    return deployed
+  }
+
+  it('deploys with owner, proxy and token', async () => {
     const { depositAccount } = await deployViaDeployable()
     expect((await depositAccount.getOwner()).equals(owner())).toBe(true)
     expect((await depositAccount.getProxy()).equals(proxyAddr())).toBe(true)
+    expect((await depositAccount.getToken()).equals(token)).toBe(true)
   })
 
   it('reports type and version', async () => {
@@ -343,10 +398,10 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     expect(balance).toBeLessThan(MIN_GRAM_TO_RESERVE)
   })
 
-  it('forwards a jetton notification from any wallet to the proxy', async () => {
+  it('forwards a jetton notification without a routing envelope to the proxy', async () => {
     const { depositAccount } = await deployViaDeployable()
 
-    // Any wallet (token-agnostic account) sends a Jetton notification to the account.
+    // The account's jetton wallet sends a plain Jetton notification to the account.
     const notificationBody = buildNotificationBody(3n, toNano('2'), proxy.address)
     const res = await notifier.send({
       to: depositAccount.address,
@@ -468,5 +523,268 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       },
     )
     expect(badExcess.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
+  })
+
+  it('forwards a notification carrying a DepositAccount_Notify envelope to its notify target', async () => {
+    const { depositAccount } = await deployWithLearnedWallet()
+    const target = await blockchain.treasury('receiveExecutor')
+    const notificationBody = buildNotifyNotificationBody(
+      toNano('3'),
+      target.address,
+      beginCell().storeUint(0xabcd, 16).endCell(),
+    )
+    const res = await notifier.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: notificationBody,
+    })
+
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: target.address,
+      success: true,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+      body(body) {
+        if (!body) return false
+        const fwd = da.DepositAccount_ForwardNotification.fromSlice(body.beginParse())
+        return (
+          fwd.message.senderAddress.equals(notifier.address) &&
+          fwd.message.body.equals(notificationBody)
+        )
+      },
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+    })
+  })
+
+  it('ignores a DepositAccount_Notify envelope from a wallet other than the learned one', async () => {
+    const { depositAccount } = await deployWithLearnedWallet()
+    const target = await blockchain.treasury('receiveExecutor')
+    const res = await attacker.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: buildNotifyNotificationBody(toNano('3'), target.address, null),
+    })
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: target.address,
+    })
+  })
+
+  it('ignores a DepositAccount_Notify envelope while the wallet is not learned', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    const target = await blockchain.treasury('receiveExecutor')
+    const res = await notifier.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: buildNotifyNotificationBody(toNano('3'), target.address, null),
+    })
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: depositAccount.address,
+      to: target.address,
+    })
+  })
+
+  describe('learning the jetton wallet (learnWallet init)', () => {
+    it('queries the token and replies only once the wallet is known', async () => {
+      const { depositAccount } = await deployViaDeployable()
+      const forwardPayload = beginCell().storeUint(0x1234, 16).endCell()
+
+      const initRes = await initLearningWallet(depositAccount, 7n, forwardPayload)
+      expect(initRes.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: token,
+        op: da.RequestWalletAddress.PREFIX,
+        body(body) {
+          if (!body) return false
+          const req = da.RequestWalletAddress.fromSlice(body.beginParse())
+          return req.ownerAddress.equals(depositAccount.address) && !req.includeOwnerAddress
+        },
+      })
+      expect(initRes.transactions).not.toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+      })
+      expect(await depositAccount.getWallet()).toBeNull()
+
+      const res = await answerWalletQuery(depositAccount, notifier.address)
+      expect(await depositAccount.getWallet()).toEqualAddress(notifier.address)
+      expect(res.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+        body(body) {
+          if (!body) return false
+          const reply = da.DepositAccount_Reply.fromSlice(body.beginParse())
+          return reply.queryId === 7n && reply.forwardPayload?.equals(forwardPayload) === true
+        },
+      })
+    })
+
+    it('refuses an init while another one waits for the wallet', async () => {
+      const { depositAccount } = await deployViaDeployable()
+      const first = await initLearningWallet(depositAccount, 1n)
+      const second = await initLearningWallet(depositAccount, 2n)
+      expect(first.transactions).toHaveTransaction({ from: depositAccount.address, to: token })
+      expect(second.transactions).not.toHaveTransaction({ from: depositAccount.address, to: token })
+      expect(second.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_WalletUnavailable.PREFIX,
+        body: (body) =>
+          !!body && da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryId === 2n,
+      })
+
+      const res = await answerWalletQuery(depositAccount, notifier.address)
+      expect(res.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+        body: (body) =>
+          !!body && da.DepositAccount_Reply.fromSlice(body.beginParse()).queryId === 1n,
+      })
+      expect(res.transactions).not.toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+        body: (body) =>
+          !!body &&
+          body.beginParse().preloadUint(32) === da.DepositAccount_Reply.PREFIX &&
+          da.DepositAccount_Reply.fromSlice(body.beginParse()).queryId === 2n,
+      })
+
+      const retry = await initLearningWallet(depositAccount, 2n)
+      expect(retry.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+      })
+    })
+
+    it('replies right away once the wallet is known', async () => {
+      const { depositAccount } = await deployWithLearnedWallet()
+      const res = await initLearningWallet(depositAccount, 3n)
+      expect(res.transactions).not.toHaveTransaction({ from: depositAccount.address, to: token })
+      expect(res.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_Reply.PREFIX,
+      })
+    })
+
+    it('ignores a wallet response not sent by the token', async () => {
+      const { depositAccount } = await deployViaDeployable()
+      await initLearningWallet(depositAccount)
+      const res = await answerWalletQuery(depositAccount, attacker.address, attacker)
+      expect(res.transactions).not.toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+      })
+      expect(await depositAccount.getWallet()).toBeNull()
+    })
+
+    it('fails the pending init when the token reports no wallet', async () => {
+      const { depositAccount } = await deployViaDeployable()
+      await initLearningWallet(depositAccount, 5n)
+      const res = await answerWalletQuery(depositAccount, null)
+      expect(res.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_WalletUnavailable.PREFIX,
+        body: (body) =>
+          !!body && da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryId === 5n,
+      })
+      expect(await depositAccount.getWallet()).toBeNull()
+    })
+
+    it('fails the pending init when the wallet query bounces', async () => {
+      token = await generateRandomTonAddress()
+      const { depositAccount } = await deployViaDeployable()
+      const res = await initLearningWallet(depositAccount, 6n)
+      expect(res.transactions).toHaveTransaction({
+        from: depositAccount.address,
+        to: recipient.address,
+        op: da.DepositAccount_WalletUnavailable.PREFIX,
+      })
+    })
+  })
+
+  it('falls back to the proxy when the forward payload is not a DepositAccount_Notify envelope', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    const notificationBody = TransferNotificationForRecipient.toCell(
+      TransferNotificationForRecipient.create({
+        queryId: 5n,
+        jettonAmount: toNano('1'),
+        transferInitiator: null,
+        forwardPayload: beginCell()
+          .storeMaybeRef(beginCell().storeUint(0xdeadbeef, 32).endCell())
+          .asSlice(),
+      }),
+    )
+    const res = await notifier.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: notificationBody,
+    })
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: proxy.address,
+      success: true,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+    })
+  })
+
+  it('reports a bounced withdraw to the requester with the identity it was deployed for', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    // No contract lives at the wallet address, so the AskToTransfer bounces back.
+    const missingWallet = { address: await generateRandomTonAddress() }
+    const res = await depositAccount.sendDepositAccountWithdraw(
+      recipient.getSender(),
+      toNano('0.5'),
+      {
+        queryId: 6n,
+        walletAddress: missingWallet.address,
+        ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address),
+      },
+    )
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: missingWallet.address,
+      op: da.AskToTransfer.PREFIX,
+      success: false,
+    })
+    expect(res.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: recipient.address,
+      op: da.DepositAccount_WithdrawFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        const failed = da.DepositAccount_WithdrawFailed.fromSlice(body.beginParse())
+        return (
+          failed.account.owner.equals(owner()) &&
+          failed.account.proxy.equals(proxyAddr()) &&
+          failed.account.token.equals(token) &&
+          failed.walletAddress.equals(missingWallet.address) &&
+          failed.ask.jettonAmount === toNano('4')
+        )
+      },
+    })
   })
 })

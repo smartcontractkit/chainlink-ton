@@ -7,6 +7,8 @@ import "../offramp/messages"
 import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../accounts/deposit/messages"
+import "../../lib/jetton/messages"
 import "../common/types"
 
 import "storage"
@@ -66,16 +68,10 @@ fun onInternalMessage(in: InMessage) {
             onTokenNotEnabled(mutate st, ttInfo);
             st.store();
         }
-        // Sender must be the TokenPool
-        TokenPool_ReleaseOrMintFinished => {
-            var st = ReceiveExecutor_Storage.load();
-            val ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw ReceiveExecutor_Error.TokenPoolUnexpectedResponse;
-            assert(in.senderAddress == ttInfo.state.tokenPool, ReceiveExecutor_Error.Unauthorized);
-            // TokenPool returns a small remainder of the destGasAmount set
-            setGasLimitToMaximum();
-            onReleaseOrMintFinished(mutate st, ttInfo, msg);
-            st.store();
+        // Permissionless: only notifications forwarded by the receiver's deposit account for a
+        // transfer started by the expected initiator are matched, anything else is ignored.
+        DepositAccount_ForwardNotification => {
+            onDepositAccountNotification(in.senderAddress, msg);
         }
         // Sender must be the TokenPool
         TokenPool_ReleaseOrMintFailure => {
@@ -85,16 +81,18 @@ fun onInternalMessage(in: InMessage) {
             assert(in.senderAddress == ttInfo.state.tokenPool, ReceiveExecutor_Error.Unauthorized);
             // TokenPool returns a small remainder of the destGasAmount set
             setGasLimitToMaximum();
-            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state.tokenPool);
+            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
             st.store();
         }
+        // Not consumed yet; accepted so pools can confirm finalization.
+        TokenPool_ReleaseOrMintFinalized => {}
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_ReleaseOrMintFailed => {
             var st = ReceiveExecutor_Storage.load();
             assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw ReceiveExecutor_Error.TokenPoolUnexpectedResponse;
-            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state.tokenPool);
+            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
             st.store();
         }
         // Sender must be the owner (OffRamp)
@@ -112,6 +110,30 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+// A bounced token admin registry query fails the execution so it can be retried (the retry
+// restarts from the registry query).
+fun onBouncedMessage(in: InMessageBounced) {
+    in.bouncedBody.skipBouncedPrefix();
+    val bounced = lazy ReceiveExecutor_BouncedMessage.fromSlice(in.bouncedBody);
+    var st = ReceiveExecutor_Storage.load();
+    var ttInfo = st.state.tokenTransfer.loadOpt();
+    if (ttInfo == null) {
+        return;
+    }
+    match (bounced) {
+        TokenAdminRegistry_GetTokenInfo => {
+            if (ttInfo.state !is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) {
+                return;
+            }
+        }
+    }
+    ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
+    st.state.tokenTransfer = ttInfo.toCell();
+    val message = lazy st.message.load();
+    endExecutionWithFailure(mutate st, message.header);
+    st.store();
+}
+
 // onInitExecute is called by the OffRamp to initiate the execution of a message in the ReceiveExecutor.
 //
 // @param value: The value sent with the message, which should be enough to cover the gas costs for the execution and any token transfers.
@@ -127,17 +149,18 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
     if (msg.tokenTransfer != null) { // Message has token transfer
         val tokenTransfer = lazy msg.tokenTransfer.load();
         var ttInfo = st.state.tokenTransfer.loadOpt();
-        if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + tokenTransfer.transfer.destGasAmount + ReceiveExecutor_Costs.tokenTransfer()) {
+        val transfer = lazy tokenTransfer.transfer.load();
+        if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + transfer.destGasAmount + ReceiveExecutor_Costs.tokenTransfer()) {
             return endExecutionWithFailure(mutate st, message.header, 0);
         }
-        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry, tokenTransfer.offchainTokenData);
+        ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry, tokenTransfer.receiverAccount, tokenTransfer.offchainTokenData);
 
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
             return match (ttInfo.state) {
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => {
-                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool);
+                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool, ttInfo.state.transferInitiator);
                 }
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
@@ -172,7 +195,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
     if (msg.tokenPool == null) {
         return onTokenNotEnabled(mutate st, ttInfo);
     }
-    releaseOrMint(mutate st, ttInfo, msg.tokenPool!);
+    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, msg.transferInitiator!);
 }
 
 fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -182,8 +205,8 @@ fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecuto
     endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
 }
 
-fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
-    ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint { tokenPool };
+fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>) {
+    ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint { tokenPool, transferInitiator };
     st.state.tokenTransfer = ttInfo.toCell();
     val transfer = lazy ttInfo.transfer.load();
     val rampMsg = lazy st.message.load();
@@ -272,17 +295,67 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
     notifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onReleaseOrMintFinished(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, _msg: TokenPool_ReleaseOrMintFinished) {
+// Matches the delivery forwarded by the receiver's deposit account: a single transfer started by
+// the initiator registered for the token. The account only routes notifications from its own
+// jetton wallet here, and the received amount is what is reported as delivered.
+//
+// Checks run within the gas paid by the forwarded notification; the executor's balance is only
+// used once the transfer is delivered, so stray notifications cannot drain it.
+fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNotification) {
+    var st = ReceiveExecutor_Storage.load();
+    var ttInfo = st.state.tokenTransfer.loadOpt();
+    if (ttInfo == null || ttInfo.state !is ReceiveExecutor_TokenTransferState_ReleaseOrMint) {
+        return;
+    }
+    if (sender != ttInfo.receiverAccount) {
+        return;
+    }
+    val forwarded = lazy msg.message.load();
+    val notification = lazy TransferNotificationForRecipient.fromCell(forwarded.body);
+    if (notification.transferInitiator == null || notification.transferInitiator! != ttInfo.state.transferInitiator.load()) {
+        return;
+    }
+
+    setGasLimitToMaximum();
+    onTokenTransferDelivered(mutate st, ttInfo, ttInfo.state.tokenPool, notification.jettonAmount);
+    st.store();
+}
+
+fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, amount: coins) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_Success {};
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
+    val transfer = lazy ttInfo.transfer.load();
+    val delivered = OffRamp_DeliveredTransfer {
+        tokenPool,
+        transfer: TokenPool_DeliveredTransfer {
+            remoteChainSelector: ccipMessage.header.sourceChainSelector,
+            localToken: transfer.token,
+            receiver: ccipMessage.receiver,
+            amount,
+        }.toCell(),
+    };
+
     if (ccipMessage.data.beginParse().isEmpty()) {
-        return endExecutionSuccessfully(mutate st, ccipMessage.header);
+        return endExecutionSuccessfully(mutate st, ccipMessage.header, delivered.toCell());
     }
+
+    // The receiver may never confirm, so the delivery is reported independently of execution.
+    val deliveredMsg = createMessage({
+        bounce: false,
+        value: OffRamp_Costs.tokenTransferDelivered(),
+        dest: st.owner,
+        body: OffRamp_TokenTransferDelivered {
+            queryId: st.state.queryId,
+            execId: st.execId,
+            delivered: delivered.toCell(),
+        },
+    });
+    deliveredMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     execute(mutate st)
 }
 
-fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader) {
+fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, delivered: Cell<OffRamp_DeliveredTransfer>? = null) {
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Success;
 
     val notifySuccess = createMessage({
@@ -294,13 +367,17 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
             header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
+            delivered,
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address) {
-    ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed { tokenPool };
+fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, releaseOrMint: ReceiveExecutor_TokenTransferState_ReleaseOrMint) {
+    ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
+        tokenPool: releaseOrMint.tokenPool,
+        transferInitiator: releaseOrMint.transferInitiator,
+    };
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
     endExecutionWithFailure(mutate st, ccipMessage.header);

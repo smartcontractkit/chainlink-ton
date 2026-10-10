@@ -15,5 +15,8 @@ enum Router_Error {
     TokenAmountMismatch
     ForwardPayloadIsNotCCIPSend
     SourceChainSelectorMismatch
+    SenderIsNotDepositAccount
+    DepositAccountInitFailed
     SenderIsNotOnRampAccount
+    DepositAccountWalletUnavailable
 }
