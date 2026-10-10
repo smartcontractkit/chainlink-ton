@@ -37,6 +37,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
 
   beforeAll(async () => {
     blockchain = await createBlockchain()
+    blockchain.now = 1
     entryCode = await contractCode.ccip.local('TokenAdminRegistryEntry')
     targetCode = await contractCode.ccip.local('TokenAdminRegistryEntryUpgradeTarget')
   })

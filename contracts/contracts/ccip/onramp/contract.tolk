@@ -6,6 +6,7 @@ import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
 
 import "../common/types";
+import "../common/cross_chain_address_validation"
 
 import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
@@ -86,7 +87,7 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorRequestsWithdraw(st, msg, in.senderAddress);
+            onExecutorRequestsWithdraw(st, msg);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
@@ -350,8 +351,35 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
+fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw) {
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
+    val out = prepared.out;
+
+    // The chain family comes from the FeeQuoter (relayed by the executor), matching the
+    // config the message was fee-validated against. The remote token address is
+    // pool-supplied and untrusted: validate it before custody moves, mirroring the EVM
+    // FeeQuoter's processPoolReturnData. requireNonZero so SVM/Sui destinations require a
+    // non-zero token address (same as processPoolReturnData).
+    try {
+        validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
+    } catch {
+        val failure = createMessage({
+            bounce: false,
+            value: 0,
+            dest: destChainConfig.router,
+            body: Router_WithdrawToTokenPoolFailed {
+                queryID: msg.queryID,
+                destChainSelector: msg.destChainSelector,
+                withdrawRequest: msg.withdrawRequest,
+                error: OnRamp_Error.InvalidDestTokenAddress as int,
+            }
+        });
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
+    }
+
     val routerWithdraw = createMessage({
         bounce: true,
         value: 0,
@@ -376,8 +404,20 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // validate user transferred enough value
     // else refund and notify
 
-    // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, OnRamp_Error.UnknownDestChainSelector);
+
+    // re-validate destTokenAddress provided by TokenPool
+    if (msg.tokenTransfer != null) {
+        val tokenTransfer = lazy msg.tokenTransfer.load();
+        try {
+            validateDestFamilyAddress(msg.chainFamilySelector, tokenTransfer.destTokenAddress.load(), false);
+        } catch {
+            // TBD can we refund the tokens in this edge case were the TokenPool malfunctions and passes a different address to the one provided above? Maybe this is solved in the followup that won't rely on the TP trusting the forward payload.
+            return rejectMessage(OnRamp_Error.InvalidDestTokenAddress as int, destChainConfig.router, ccipsend, metadata.sender);
+        }
+    }
+
+    // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
     st.store();

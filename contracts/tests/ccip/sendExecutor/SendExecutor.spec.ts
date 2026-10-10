@@ -1,6 +1,6 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
-import { ChainSelectors } from '../../utils/Selectors'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
@@ -341,6 +341,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads,
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
       }),
     )
@@ -417,6 +418,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -443,6 +445,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -478,6 +481,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -512,6 +516,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -536,6 +541,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -602,6 +608,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -622,6 +629,7 @@ describe('SendExecutor - Unit tests', () => {
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           destGasOverheads: [],
+          chainFamilySelector: ChainFamilySelectors.evm,
           msg: onrampSend.msg,
         }),
       ),
@@ -650,6 +658,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
     )
@@ -669,6 +678,7 @@ describe('SendExecutor - Unit tests', () => {
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           destGasOverheads: [],
+          chainFamilySelector: ChainFamilySelectors.evm,
           msg: onrampSend.msg,
         }),
       ),

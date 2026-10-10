@@ -1,11 +1,13 @@
 package feequoter
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
@@ -112,4 +114,79 @@ func TestUpdateFeeTokens_WithRemove(t *testing.T) {
 	require.NotNil(t, decoded.Add)
 	require.Equal(t, 1, decoded.Add.Len())
 	require.Len(t, decoded.Remove, 1)
+}
+
+// TestMessageValidated_TLBEncodeDecode verifies that MessageValidated round-trips
+// through TLB serialization with the destGasOverheads lisp_list and the echoed
+// chainFamilySelector the executor relays to the OnRamp.
+func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
+	msgCell := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
+	contextCell := cell.BeginCell().MustStoreUInt(2, 8).EndCell()
+
+	orig := MessageValidated{
+		Fee: Fee{
+			FeeTokenAmount: ptrCoins(tlb.MustFromTON("0.5")),
+			FeeValueJuels:  big.NewInt(123456),
+		},
+		DestGasOverheads: &common.LispList[common.UInt32]{
+			{Value: 90000},
+			{Value: 123456},
+		},
+		ChainFamilySelector: 0x2812d52c,
+		Msg:                 msgCell,
+		Context:             contextCell,
+	}
+
+	c, err := tlb.ToCell(orig)
+	require.NoError(t, err)
+
+	var decoded MessageValidated
+	err = tlb.LoadFromCell(&decoded, c.MustBeginParse())
+	require.NoError(t, err)
+
+	reencoded, err := tlb.ToCell(decoded)
+	require.NoError(t, err)
+	require.Equal(t, c.Hash(), reencoded.Hash(), "cell hash mismatch after round-trip")
+
+	require.Equal(t, orig.ChainFamilySelector, decoded.ChainFamilySelector)
+	require.NotNil(t, decoded.DestGasOverheads)
+	require.Len(t, *decoded.DestGasOverheads, 2)
+	require.Equal(t, uint32(90000), (*decoded.DestGasOverheads)[0].Value)
+	require.Equal(t, uint32(123456), (*decoded.DestGasOverheads)[1].Value)
+}
+
+// TestMessageValidated_NilDestGasOverheads covers the messaging-only case: the
+// FeeQuoter sends a null destGasOverheads list when the message carries no tokens.
+func TestMessageValidated_NilDestGasOverheads(t *testing.T) {
+	msgCell := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
+
+	orig := MessageValidated{
+		Fee: Fee{
+			FeeTokenAmount: ptrCoins(tlb.MustFromTON("0.5")),
+			FeeValueJuels:  big.NewInt(1),
+		},
+		DestGasOverheads:    nil,
+		ChainFamilySelector: 0x1e10bdc4,
+		Msg:                 msgCell,
+		Context:             nil,
+	}
+
+	c, err := tlb.ToCell(orig)
+	require.NoError(t, err)
+
+	var decoded MessageValidated
+	err = tlb.LoadFromCell(&decoded, c.MustBeginParse())
+	require.NoError(t, err)
+
+	reencoded, err := tlb.ToCell(decoded)
+	require.NoError(t, err)
+	require.Equal(t, c.Hash(), reencoded.Hash(), "cell hash mismatch after round-trip")
+
+	require.Nil(t, decoded.DestGasOverheads)
+	require.Equal(t, orig.ChainFamilySelector, decoded.ChainFamilySelector)
+}
+
+// ptrCoins returns a pointer to the given coins value.
+func ptrCoins(c tlb.Coins) *tlb.Coins {
+	return &c
 }
