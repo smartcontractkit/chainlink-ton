@@ -43,7 +43,6 @@ type Router_InMsg =
     | Router_TokenTransferDelivered
     | Router_GetOnRampAccount
     | DepositAccount_Reply
-    | DepositAccount_NotEnoughValue
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;

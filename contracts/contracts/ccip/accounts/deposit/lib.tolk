@@ -160,35 +160,14 @@ fun DepositAccount<T>.onInit(
 
     assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
     val waitForWallet = msg.learnWallet && self.data.wallet == null;
-    if (waitForWallet && self.data.pendingInit != null) {
-        val reply = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: sender,
-            body: DepositAccount_WalletUnavailable {
-                queryId: msg.queryId,
-                forwardPayload: msg.forwardPayload,
-            },
-        });
-        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        return;
-    }
+    assert(!(waitForWallet && self.data.pendingInit != null), DepositAccount_Error.InitPending);
     val initCost = DepositAccount_MIN_GRAM_TO_INIT + (waitForWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `contract.getOriginalBalance()` (TVM `BALANCE`) is the balance at the start of the compute
     // phase, (balance + inbound message's value)
-    if (contract.getOriginalBalance() < DepositAccount_MIN_GRAM_TO_RESERVE + initCost || msgValue < initCost) {
-        val reply = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: sender,
-            body: DepositAccount_NotEnoughValue {
-                queryId: msg.queryId,
-                forwardPayload: msg.forwardPayload,
-            },
-        });
-        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        return;
-    }
+    assert(
+        contract.getOriginalBalance() >= DepositAccount_MIN_GRAM_TO_RESERVE + initCost && msgValue >= initCost,
+        DepositAccount_Error.NotEnoughValue
+    );
 
     if (waitForWallet) {
         self.data.pendingInit = DepositAccount_PendingInit {
@@ -233,9 +212,8 @@ fun DepositAccount<T>.onResponseWalletAddress(
     sender: address,
     msg: ResponseWalletAddress,
 ) {
-    if (sender != self.data.token || self.data.pendingInit == null) {
-        return;
-    }
+    assert(sender == self.data.token, DepositAccount_Error.OnlyToken);
+    assert(self.data.pendingInit != null, DepositAccount_Error.NoPendingInit);
     if (msg.jettonWalletAddress == null) {
         return self.answerPendingInit(false);
     }

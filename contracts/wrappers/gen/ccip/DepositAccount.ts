@@ -444,51 +444,6 @@ export const DepositAccount_Reply = {
 }
 
 /**
- > struct (0x83462e93) DepositAccount_NotEnoughValue {
- >     queryId: uint64
- >     forwardPayload: cell?
- > }
- */
-export interface DepositAccount_NotEnoughValue {
-    readonly $: 'DepositAccount_NotEnoughValue'
-    queryId: uint64
-    forwardPayload: c.Cell | null
-}
-
-export const DepositAccount_NotEnoughValue = {
-    PREFIX: 0x83462e93,
-
-    create(args: {
-        queryId?: uint64
-        forwardPayload: c.Cell | null
-    }): DepositAccount_NotEnoughValue {
-        return {
-            $: 'DepositAccount_NotEnoughValue',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
-        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
-        return {
-            $: 'DepositAccount_NotEnoughValue',
-            queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
-        b.storeUint(0x83462e93, 32);
-        b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
-        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
-    }
-}
-
-/**
  > struct (0x9293d68e) DepositAccount_WalletUnavailable {
  >     queryId: uint64
  >     forwardPayload: cell?
@@ -1058,12 +1013,16 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
         'DepositAccount_Error.OnlyBeneficiary': 52501,
         'DepositAccount_Error.OnlySendExcessesToSender': 52502,
+        'DepositAccount_Error.InitPending': 52503,
+        'DepositAccount_Error.OnlyToken': 52504,
+        'DepositAccount_Error.NoPendingInit': 52505,
+        'DepositAccount_Error.NotEnoughValue': 52506,
     }
 
     readonly address: c.Address

@@ -14,9 +14,8 @@ import { setup, contractsCoverageConfig } from './Router.Setup'
 
 const relayValue = toNano('1')
 
-// Router_Error.DepositAccountInitFailed follows SenderIsNotDepositAccount in the enum. It is only
-// reported as an exit code, never thrown, so the generated Errors map omits it.
-const DEPOSIT_ACCOUNT_INIT_FAILED = rt.Router.Errors['Router_Error.SenderIsNotDepositAccount'] + 1
+// Router_Error.DepositAccountWalletUnavailable is only reported as an exit code, never thrown, so
+// the generated Errors map omits it.
 const DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE =
   rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'] + 1
 
@@ -292,12 +291,10 @@ describe('Router.relayReleaseOrMint', () => {
       })
     })
 
-    it('fails the relay back to the OffRamp when the receiver account reports NotEnoughValue', async () => {
-      const result = await router.sendDepositAccountNotEnoughValue(
-        blockchain.sender(receiverAccountFor()),
-        toNano('0.5'),
-        { forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(13n)) },
-      )
+    it('fails the relay back to the OffRamp when the receiver account bounces the init', async () => {
+      // The first relay leaves an init waiting for the wallet, so the second init bounces.
+      await relay(relayOf(13n))
+      const result = await relay(relayOf(14n))
       expect(result.transactions).toHaveTransaction({
         from: router.address,
         to: offRamp.address,
@@ -306,10 +303,11 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 13n &&
+            failed.queryID === 14n &&
             failed.tokenPool.equals(tokenPool.address) &&
             failed.replyTo.equals(executor.address) &&
-            failed.exitCode === BigInt(DEPOSIT_ACCOUNT_INIT_FAILED)
+            failed.exitCode ===
+              BigInt(deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'])
           )
         },
       })
@@ -343,8 +341,8 @@ describe('Router.relayReleaseOrMint', () => {
       })
     })
 
-    it('rejects a NotEnoughValue for a relay that does not come from the receiver account', async () => {
-      const result = await router.sendDepositAccountNotEnoughValue(
+    it('rejects a WalletUnavailable for a relay that does not come from the receiver account', async () => {
+      const result = await router.sendDepositAccountWalletUnavailable(
         attacker.getSender(),
         toNano('0.5'),
         { forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(14n)) },

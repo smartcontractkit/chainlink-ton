@@ -49,6 +49,14 @@ enum DepositAccount_Error {
     /// sender of the `DepositAccount_Withdraw`). Required so a bounced withdraw can be correlated
     /// back to and notify the requester.
     OnlySendExcessesToSender
+    /// Thrown when an init asks to learn the wallet while another init is already waiting for it.
+    InitPending
+    /// Thrown when a `ResponseWalletAddress` does not come from the account's token.
+    OnlyToken
+    /// Thrown when a `ResponseWalletAddress` arrives with no init waiting for it.
+    NoPendingInit
+    /// Thrown when the init value or the account balance can't cover the init cost and rent reserve.
+    NotEnoughValue
 }
 
 /// Deployment ID of a per-user, per-token account (DepositAccount / OnRampAccount).
@@ -87,19 +95,4 @@ fun calcAddressOfAccount(
             }),
         },
     };
-}
-
-fun calcAddressOfDepositAccount(
-    deployableCode: cell,
-    owner: address,
-    receiver: address,
-    token: address,
-): AutoDeployAddress {
-    return calcAddressOfAccount(
-        deployableCode,
-        DeployableNamespace_DepositAccount,
-        owner,
-        receiver,
-        token,
-    );
 }

@@ -332,12 +332,12 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       init: MIN_GRAM_TO_INIT,
     })
 
-    // Below the minimum, the account replies with a failure message instead of reserving.
+    // Below the minimum, the init bounces instead of reserving.
     expect(res.transactions).toHaveTransaction({
-      from: depositAccount.address,
-      to: recipient.address,
-      success: true,
-      op: da.DepositAccount_NotEnoughValue.PREFIX,
+      to: depositAccount.address,
+      op: da.DepositAccount_Init.PREFIX,
+      success: false,
+      exitCode: da.DepositAccount.Errors['DepositAccount_Error.NotEnoughValue'],
     })
     expect(res.transactions).not.toHaveTransaction({
       from: depositAccount.address,
@@ -345,13 +345,13 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       op: da.DepositAccount_Reply.PREFIX,
     })
 
-    // The failure reply only carries the init message's remaining value (never the account
-    // balance), so the deploy funds can't be drained.
+    // The bounce only carries the init message's remaining value, so the deploy funds can't be
+    // drained.
     const balance = (await blockchain.getContract(depositAccount.address)).balance
     expect(balance).toBeGreaterThanOrEqual(MIN_GRAM_TO_INIT)
   })
 
-  it('init below MIN_GRAM_TO_INIT + MIN_GRAM_TO_RESERVE replies DepositAccount_NotEnoughValue instead of reserving', async () => {
+  it('init below MIN_GRAM_TO_INIT + MIN_GRAM_TO_RESERVE bounces instead of reserving', async () => {
     const MIN_GRAM_TO_RESERVE = toNano('0.05')
     const MIN_GRAM_TO_INIT = toNano('0.01')
 
@@ -366,26 +366,17 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       init: initValue,
     })
 
-    // The init transaction completes successfully
     expect(res.transactions).toHaveTransaction({
       from: recipient.address,
       to: depositAccount.address,
       op: da.DepositAccount_Init.PREFIX,
-      success: true,
+      success: false,
+      exitCode: da.DepositAccount.Errors['DepositAccount_Error.NotEnoughValue'],
     })
-
-    // The account replies to the owner with DepositAccount_NotEnoughValue, echoing the
-    // init's forwardPayload for correlation.
     expect(res.transactions).toHaveTransaction({
       from: depositAccount.address,
       to: recipient.address,
-      success: true,
-      op: da.DepositAccount_NotEnoughValue.PREFIX,
-      body(body) {
-        if (!body) return false
-        const reply = da.DepositAccount_NotEnoughValue.fromSlice(body.beginParse())
-        return reply.forwardPayload?.equals(forwardPayload) === true
-      },
+      inMessageBounced: true,
     })
 
     // No success reply is sent and nothing is reserved.
@@ -644,11 +635,9 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       expect(first.transactions).toHaveTransaction({ from: depositAccount.address, to: token })
       expect(second.transactions).not.toHaveTransaction({ from: depositAccount.address, to: token })
       expect(second.transactions).toHaveTransaction({
-        from: depositAccount.address,
-        to: recipient.address,
-        op: da.DepositAccount_WalletUnavailable.PREFIX,
-        body: (body) =>
-          !!body && da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryId === 2n,
+        to: depositAccount.address,
+        success: false,
+        exitCode: da.DepositAccount.Errors['DepositAccount_Error.InitPending'],
       })
 
       const res = await answerWalletQuery(depositAccount, notifier.address)
@@ -688,10 +677,15 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       })
     })
 
-    it('ignores a wallet response not sent by the token', async () => {
+    it('rejects a wallet response not sent by the token', async () => {
       const { depositAccount } = await deployViaDeployable()
       await initLearningWallet(depositAccount)
       const res = await answerWalletQuery(depositAccount, attacker.address, attacker)
+      expect(res.transactions).toHaveTransaction({
+        to: depositAccount.address,
+        success: false,
+        exitCode: da.DepositAccount.Errors['DepositAccount_Error.OnlyToken'],
+      })
       expect(res.transactions).not.toHaveTransaction({
         from: depositAccount.address,
         to: recipient.address,

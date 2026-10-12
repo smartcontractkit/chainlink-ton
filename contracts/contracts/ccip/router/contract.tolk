@@ -11,6 +11,7 @@ import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../../lib/jetton/jetton_client"
 import "../../lib/deployable/types"
+import "../../lib/deployable/namespace"
 
 import "../accounts/deposit/types"
 import "../accounts/deposit/messages"
@@ -235,12 +236,8 @@ fun onInternalMessage(in: InMessage) {
             onDepositAccountReply(msg, in.senderAddress);
         }
         // Sender must be the receiver's deposit account (verified against the derived address)
-        DepositAccount_NotEnoughValue => {
-            onDepositAccountInitFailed(msg.forwardPayload!, in.senderAddress, Router_Error.DepositAccountInitFailed);
-        }
-        // Sender must be the receiver's deposit account (verified against the derived address)
         DepositAccount_WalletUnavailable => {
-            onDepositAccountInitFailed(msg.forwardPayload!, in.senderAddress, Router_Error.DepositAccountWalletUnavailable);
+            onDepositAccountWalletUnavailable(msg.forwardPayload!, in.senderAddress);
         }
         // Sender must be the sender's on-ramp account (verified against the derived address)
         DepositAccount_WithdrawFailed => {
@@ -1084,7 +1081,7 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
 
 /// A deposit account could not initialize. The relay fails before the pool is called, so no rate
 /// limit was consumed; an on-ramp account deployment has no operation to fail and is retried by the user.
-fun onDepositAccountInitFailed(forwardPayload: cell, sender: address, error: Router_Error) {
+fun onDepositAccountWalletUnavailable(forwardPayload: cell, sender: address) {
     val context = lazy Router_DepositAccountInitContext.fromCell(forwardPayload);
     match (context) {
         Router_RelayReleaseOrMint => {
@@ -1092,10 +1089,10 @@ fun onDepositAccountInitFailed(forwardPayload: cell, sender: address, error: Rou
             val details = lazy request.transfer.details.load();
             assert(sender == receiverDepositAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
 
-            sendDepositAccountInitFailure(context, error as int32);
+            sendDepositAccountInitFailure(context, Router_Error.DepositAccountWalletUnavailable as int32);
         }
         // The on-ramp account deployment is user-initiated and carries no operation to fail:
-        // the user simply retries with enough value.
+        // the user simply retries.
         Router_OnRampAccountContext => {}
     }
 }
@@ -1130,7 +1127,7 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
 
 /// Derives the Router-owned deposit account holding `token` for an inbound transfer receiver.
 fun receiverDepositAccount(receiver: address, token: address): AutoDeployAddress {
-    return calcAddressOfDepositAccount(deployableCompiledCode(), contract.getAddress(), receiver, token);
+    return calcAddressOfAccount(deployableCompiledCode(), DeployableNamespace_DepositAccount, contract.getAddress(), receiver, token);
 }
 
 /*

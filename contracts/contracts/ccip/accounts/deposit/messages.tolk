@@ -10,9 +10,9 @@ import "../../../lib/deployable/types"
 ///      target.
 ///      The message is only accepted from the account's owner: the deployment sequence is
 ///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
-///      directly by the owner. The account always replies, with `DepositAccount_Reply` once it is
-///      deployed (and knows its wallet, if asked), or with `DepositAccount_NotEnoughValue` /
-///      `DepositAccount_WalletUnavailable`.
+///      directly by the owner. The account replies with `DepositAccount_Reply` once it is
+///      deployed (and knows its wallet, if asked), or with `DepositAccount_WalletUnavailable`.
+///      An init without enough value, or sent while another one waits for the wallet, bounces.
 struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
@@ -29,14 +29,7 @@ struct (0xda04630c) DepositAccount_Reply {
     forwardPayload: cell?;
 }
 
-/// Reply message on failed initialization due to insufficient value.
-struct (0x83462e93) DepositAccount_NotEnoughValue {
-    queryId: uint64;
-    forwardPayload: cell?;
-}
-
-/// Reply to an init with `learnWallet` when the token could not report the account's jetton wallet,
-/// or when another init is already waiting for it.
+/// Reply to an init with `learnWallet` when the token could not report the account's jetton wallet.
 struct (0x9293d68e) DepositAccount_WalletUnavailable {
     queryId: uint64;
     forwardPayload: cell?;
@@ -127,7 +120,6 @@ type DepositAccount_InMessage =
 type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
     | DepositAccount_Reply
-    | DepositAccount_NotEnoughValue
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
     | AskToTransfer

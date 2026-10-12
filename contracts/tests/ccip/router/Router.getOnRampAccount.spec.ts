@@ -291,8 +291,8 @@ describe('Router.getOnRampAccount', () => {
     })
   })
 
-  it('ignores DepositAccount_NotEnoughValue for an onramp account (the user simply retries)', async () => {
-    const result = await router.sendDepositAccountNotEnoughValue(
+  it('ignores DepositAccount_WalletUnavailable for an onramp account (the user simply retries)', async () => {
+    const result = await router.sendDepositAccountWalletUnavailable(
       attacker.getSender(),
       toNano('0.5'),
       {
