@@ -255,7 +255,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         // Covers Deployable initialization and the event self-message below.
         // The former Router flow only initialized the shard; this path also
         // emits the initial administrator-proposal event atomically.
-        value: grams("0.05") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE + TokenAdminRegistryEntry_POOL_PROBE_VALUE,
+        value: grams("0.07") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE + TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {
             stateInit: {
@@ -273,7 +273,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // The entry emits the initial proposal event after its state is
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
-                value: grams("0.015") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE + TokenAdminRegistryEntry_POOL_PROBE_VALUE,
+                value: grams("0.035") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE + TokenAdminRegistryEntry_POOL_PROBE_VALUE,
                 body: TokenAdminRegistryEntry_RegistrationInitialized {
                     queryId: msg.queryId,
                 }.toCell(),

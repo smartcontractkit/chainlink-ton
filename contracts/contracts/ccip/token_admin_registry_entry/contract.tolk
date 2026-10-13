@@ -368,10 +368,10 @@ fun notifyRoot(body: cell) {
     val st = TokenRegistry_Storage.load();
     createMessage({
         bounce: true,
-        value: grams("0.001"),
+        value: grams("0.01"),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,
-    }).send(SEND_MODE_REGULAR);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 // Implement when upgrading the contract
