@@ -56,7 +56,8 @@ type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize
-    | DepositAccount_Init;
+    | DepositAccount_Init
+    | DepositAccount_Withdraw;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -88,13 +89,12 @@ struct (0xfc69c50b) Router_RouteMessage {
 struct (0x19f0098f) Router_WithdrawToTokenPool {
     queryID: uint64;
     destChainSelector: uint64;
+    /// The CCIPSendExecutor requesting the withdraw, authenticated by the OnRamp.
+    executor: address;
     withdrawRequest: Cell<Router_WithdrawRequest>;
 }
 
 struct Router_WithdrawRequest {
-    /// Jetton wallet of the sender's deposit account, derived by the SendExecutor
-    /// (RequestWalletAddress with `ownerAddress` = the deposit account).
-    accountWalletAddress: address;
     /// The sender's on-ramp account for the token, the withdraw is forwarded to.
     depositAccount: address;
     amount: coins;
@@ -105,9 +105,9 @@ struct Router_WithdrawRequest {
 /// Permissionless: deploys (or re-confirms) the sender's onramp account for `token`.
 /// The account is a deposit account owned by the Router in the OnRampAccount namespace, keyed by
 /// the (sender, token) pair. The Router answers with Router_UseOnRampAccount once the account
-/// learned its jetton wallet and confirmed initialization (DepositAccount_Initialized). Nothing is
-/// answered if the token can't report the wallet, or if another request for the same new account
-/// is still waiting for it; the user retries.
+/// learned its jetton wallet and confirmed initialization (DepositAccount_Initialized), or with
+/// Router_OnRampAccountFailed otherwise (e.g. the token can't report the wallet, or another request
+/// for the same new account is still waiting for it).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
     queryId: uint64;
     /// Jetton master the account will escrow. One account per (sender, token).
@@ -120,6 +120,12 @@ struct (0xf28658e0) Router_UseOnRampAccount {
     queryId: uint64;
     account: address;
     token: address;
+}
+
+/// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
+struct (0x2c734db9) Router_OnRampAccountFailed {
+    queryId: uint64;
+    error: uint256;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {

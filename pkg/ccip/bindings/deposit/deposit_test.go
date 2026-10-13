@@ -84,16 +84,14 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	askCell, err := tlb.ToCell(ask)
 	require.NoError(t, err)
 	withdraw := Withdraw{
-		QueryID:       7,
-		WalletAddress: addr,
-		Ask:           askCell,
+		QueryID: 7,
+		Ask:     askCell,
 	}
 	c, err = tlb.ToCell(withdraw)
 	require.NoError(t, err)
 	var decodedWithdraw Withdraw
 	require.NoError(t, tlb.Parse(&decodedWithdraw, c))
 	require.Equal(t, withdraw.QueryID, decodedWithdraw.QueryID)
-	require.Equal(t, withdraw.WalletAddress, decodedWithdraw.WalletAddress)
 	require.Equal(t, askCell.Hash(), decodedWithdraw.Ask.Hash())
 
 	// Initialized

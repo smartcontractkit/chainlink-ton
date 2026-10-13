@@ -14,7 +14,6 @@ type CCIPSendExecutor_InMessage =
     | FeeQuoter_MessageValidationFailed
     | TokenAdminRegistry_TokenInfo
     | TokenAdminRegistry_GetTokenInfoFailed
-    | ResponseWalletAddress
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure

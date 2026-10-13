@@ -302,7 +302,61 @@ describe('Router.getOnRampAccount', () => {
     })
   })
 
-  it('ignores DepositAccount_WalletUnavailable for an onramp account (the user simply retries)', async () => {
+  const expectOnRampAccountFailed = (
+    result: Awaited<ReturnType<typeof router.sendRouterGetOnRampAccount>>,
+    queryId: bigint,
+    error: number,
+  ) =>
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_OnRampAccountFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        const failed = rt.Router_OnRampAccountFailed.fromSlice(body.beginParse())
+        return failed.queryId === queryId && failed.error === BigInt(error)
+      },
+    })
+
+  it('notifies the user when the token cannot report the account wallet', async () => {
+    await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
+      queryId: 3n,
+      token,
+    })
+    const result = await blockchain
+      .openContract(deposit.DepositAccount.fromAddress(expectedAccountAddress()))
+      .sendResponseWalletAddress(blockchain.sender(token), toNano('0.05'), {
+        queryId: 0n,
+        jettonWalletAddress: null,
+        ownerAddress: null,
+      })
+    expectOnRampAccountFailed(
+      result,
+      3n,
+      rt.Router.Errors['Router_Error.DepositAccountWalletUnavailable'],
+    )
+    expect(result.transactions).not.toHaveTransaction({ op: rt.Router_UseOnRampAccount.PREFIX })
+  })
+
+  it('notifies the user when the account init bounces', async () => {
+    // The first request waits for the token's wallet response, so a second one is refused.
+    await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
+      queryId: 1n,
+      token,
+    })
+    const result = await router.sendRouterGetOnRampAccount(
+      sender.getSender(),
+      getOnRampAccountValue,
+      { queryId: 2n, token },
+    )
+    expectOnRampAccountFailed(
+      result,
+      2n,
+      deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'],
+    )
+  })
+
+  it('rejects a DepositAccount_WalletUnavailable for an onramp account not sent by that account', async () => {
     const result = await router.sendDepositAccountWalletUnavailable(
       attacker.getSender(),
       toNano('0.5'),
@@ -313,9 +367,10 @@ describe('Router.getOnRampAccount', () => {
     expect(result.transactions).toHaveTransaction({
       from: attacker.address,
       to: router.address,
-      success: true,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'],
     })
-    expect(result.transactions).not.toHaveTransaction({ from: router.address })
+    expect(result.transactions).not.toHaveTransaction({ from: router.address, to: sender.address })
   })
 
   afterAll(async () => {

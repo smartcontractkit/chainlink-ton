@@ -159,13 +159,14 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
 fun onWithdraw(sender: address, msg: DepositAccount_Withdraw) {
     val data = lazy DepositAccount_Data.load();
     assert(data.beneficiaries.exists(sender), DepositAccount_Error.OnlyBeneficiary);
+    assert(data.wallet != null, DepositAccount_Error.WalletUnknown);
     val ask = lazy msg.ask.load();
     assert(ask.sendExcessesTo != null && ask.sendExcessesTo == sender, DepositAccount_Error.OnlySendExcessesToSender);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: msg.walletAddress,
+        dest: data.wallet.load(),
         body: msg.ask,
     });
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);

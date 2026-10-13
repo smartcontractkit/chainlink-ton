@@ -55,6 +55,8 @@ enum DepositAccount_Error {
     NoPendingInit
     /// Thrown when the init value or the account balance can't cover the init cost and rent reserve.
     NotEnoughValue
+    /// Thrown when a withdraw arrives before the account learned its jetton wallet.
+    WalletUnknown
 }
 
 /// Deployable ID of a deposit account.

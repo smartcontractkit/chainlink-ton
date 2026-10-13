@@ -42,11 +42,9 @@ struct (0x88e0ef3e) DepositAccount_Notify {
     notify: address;
 }
 
-/// Sent by a beneficiary to transfer jettons out of the account.
+/// Sent by a beneficiary to transfer jettons out of the account's jetton wallet.
 struct (0x1936d112) DepositAccount_Withdraw {
     queryId: uint64;
-    /// Jetton wallet the `ask` is sent to.
-    walletAddress: address;
     /// `ask.sendExcessesTo` must be the requester: a bounced withdraw is reported back to it.
     ask: Cell<AskToTransfer>;
 }

@@ -474,16 +474,15 @@ describe('DepositAccount', () => {
   })
 
   it('lets a beneficiary withdraw by forwarding AskToTransfer, and rejects everyone else', async () => {
-    const { depositAccount } = await deployViaDeployable()
+    const { depositAccount } = await deployWithLearnedWallet()
     const to = recipient.address
-    const walletAddress = attacker.address // a stand-in wallet address for the AskToTransfer target
+    const walletAddress = notifier.address
 
     // The beneficiary (owner) can withdraw.
     const ownerRes = await depositAccount.sendDepositAccountWithdraw(
       recipient.getSender(),
       toNano('0.5'),
       {
-        walletAddress,
         ask: buildAskToTransfer(toNano('4'), to, recipient.address),
       },
     )
@@ -499,7 +498,6 @@ describe('DepositAccount', () => {
       user.getSender(),
       toNano('0.5'),
       {
-        walletAddress,
         ask: buildAskToTransfer(toNano('4'), to, user.address),
       },
     )
@@ -509,7 +507,6 @@ describe('DepositAccount', () => {
       attacker.getSender(),
       toNano('0.5'),
       {
-        walletAddress,
         ask: buildAskToTransfer(toNano('4'), to, attacker.address),
       },
     )
@@ -520,11 +517,26 @@ describe('DepositAccount', () => {
       recipient.getSender(),
       toNano('0.5'),
       {
-        walletAddress,
         ask: buildAskToTransfer(toNano('4'), to, user.address), // sendExcessesTo != requester
       },
     )
     expect(badExcess.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
+  })
+
+  it('rejects a withdraw before the account learned its jetton wallet', async () => {
+    const { depositAccount } = await deployViaDeployable()
+    const res = await depositAccount.sendDepositAccountWithdraw(
+      recipient.getSender(),
+      toNano('0.5'),
+      {
+        ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address),
+      },
+    )
+    expect(res.transactions).toHaveTransaction({
+      to: depositAccount.address,
+      success: false,
+      exitCode: da.DepositAccount.Errors['DepositAccount_Error.WalletUnknown'],
+    })
   })
 
   it('forwards a notification carrying a wrapped DepositAccount_Notify envelope to its notify target', async () => {
@@ -752,15 +764,15 @@ describe('DepositAccount', () => {
   })
 
   it('reports a bounced withdraw to the requester with the identity it was deployed for', async () => {
-    const { depositAccount } = await deployViaDeployable()
-    // No contract lives at the wallet address, so the AskToTransfer bounces back.
+    // No contract lives at the learned wallet address, so the AskToTransfer bounces back.
     const missingWallet = { address: await generateRandomTonAddress() }
+    const { depositAccount } = await deployViaDeployable()
+    await answerWalletQuery(depositAccount, missingWallet.address)
     const res = await depositAccount.sendDepositAccountWithdraw(
       recipient.getSender(),
       toNano('0.5'),
       {
         queryId: 6n,
-        walletAddress: missingWallet.address,
         ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address),
       },
     )

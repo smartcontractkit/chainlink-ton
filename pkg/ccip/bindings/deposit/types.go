@@ -49,12 +49,11 @@ type Init struct {
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
 }
 
-// Withdraw lets a beneficiary transfer jettons from this account's wallet.
+// Withdraw lets a beneficiary transfer jettons out of the account's learned jetton wallet.
 type Withdraw struct {
-	_             tlb.Magic        `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID       uint64           `tlb:"## 64"`
-	WalletAddress *address.Address `tlb:"addr"`
-	Ask           *cell.Cell       `tlb:"^"` // Cell<AskToTransfer>
+	_       tlb.Magic  `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Ask     *cell.Cell `tlb:"^"` // Cell<AskToTransfer>
 }
 
 // --- Messages (outgoing) ---

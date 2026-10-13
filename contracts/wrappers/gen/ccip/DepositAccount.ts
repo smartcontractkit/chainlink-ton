@@ -716,14 +716,12 @@ export const DepositAccount_ForwardNotification = {
 /**
  > struct (0x1936d112) DepositAccount_Withdraw {
  >     queryId: uint64
- >     walletAddress: address
  >     ask: Cell<AskToTransfer>
  > }
  */
 export interface DepositAccount_Withdraw {
     readonly $: 'DepositAccount_Withdraw'
     queryId: uint64
-    walletAddress: c.Address
     ask: AskToTransfer
 }
 
@@ -732,7 +730,6 @@ export const DepositAccount_Withdraw = {
 
     create(args: {
         queryId?: uint64
-        walletAddress: c.Address
         ask: AskToTransfer
     }): DepositAccount_Withdraw {
         return {
@@ -746,14 +743,12 @@ export const DepositAccount_Withdraw = {
         return {
             $: 'DepositAccount_Withdraw',
             queryId: s.loadUintBig(64),
-            walletAddress: s.loadAddress(),
             ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
         }
     },
     store(self: DepositAccount_Withdraw, b: c.Builder): void {
         b.storeUint(0x1936d112, 32);
         b.storeUint(self.queryId, 64);
-        b.storeAddress(self.walletAddress);
         storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
     },
     toCell(self: DepositAccount_Withdraw): c.Cell {
@@ -858,7 +853,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECIAEABMkAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHASvXbRdv3KrbbtmJh28d1FdqD2+ID5f8EQRnT4keMCINcsI0SFECycMdM/9AX4kviXWvAD4NcsIMm2iJTjAtcsI5sWhOTjAtcsJouaoASAgJCgsC9V7UTQ+kj6SPpI9AT0BPQE0YIAzRRTpscF8vQhboIAzRchlQJus8MAkjJw4rMS8vSCCJiWgCGCCTEtAHDjBKCCAM0a+CdvEIIK+vCAI6C+lVOhvsMAkXDi8vQB4wM5UHihJcjLPxX0AFAE+gLJAsj6UvpSUiD6UhT0ABSA8QAfrXLCf////08r/XTNDXLCB8U/Usjl3TP/oA+kj6UPQE+gD4ku1E0PpIMfpI+kgwyM+QPin6lirPCz9QCfoCF/pSUlD6VBT0AFj6As7JyM+SlG2y6hbLPxP6UhP6UvpSEszJyM+FCBL6UnHPC27MyYBA+wDg1ywhY7XLnDHjAgwA1DHTPzH6SNdM+JLtRND6SDH6SDH6SDH0BSGCAM0VAoEBC/QKb6Ex8vQh0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIIAzRYhbrOVAscFwwCTbCFw4vL0yM+FiBL6Us+EEHP6AnHPC2XMyYBQ+wAArtM/MfoAMfpQMfiS7UTQ+kgx+kj6SDH0AfQFIG6zmdD6SNESxwXDAJMwMXDilgHxgATaIZIxbeIgbrMC4wQByM7JyM+FCBL6UoIQtP5cDM8LjszJgED7AAL+jvkx0z8x+lAw+JLtRND6SPpI+kj0BPQE9ATRggDNGFF0xwUX8vSCAM0ZJm6z8vQmbrMgljEGyPpSyZE34gXQ0z/0BPoA0W0Jjh3Iz4UIUnD6UgH6AoIQkpPWjs8LihLLP/QAyXH7AOMNA8j6UhL6UvpS9AD0APQAye1U4DCEDw0OAKLtRND6SPpI+kj0BPQE9ATRIG6SXwaOOdDTP/QE+gDRbcjPhQhSkPpSWPoCghCSk9aOzwuKE8s/9ADJcfsABcj6UhT6UhL6UvQA9AD0AMntVOIAOsjPhQhScPpSAfoCghB4TZjpzwuKEss/9ADJcfsAAAoBxwDy9ABKXwYyggr68IBw+wLIz4UIE/pSghB4TZjpzwuOEss/9ADJgwb7AABi9AAS9ADJ7VSCCTEtAPgoyM+FiBT6UgH6As+Bc/oCghAsdrlzzwuFyz/6Us+ByXH7AADeIPQEIW6YMSDHAJIwbeCS0dDiIG6zk8jOyZIwbeIB9AQhbpgxIMcAkjBt4JLR0OIgbpUwbW1tcI4X1ywhawsAZJn6SPQE9AWBAITgMG1tbXDibCKRMZEw4iBulDBt2zHg0NcsJEcHefTyv/pI0dsxAgEgFBUCASAaGwIBIBYXAgFIGBkAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAIbNCO1E0PpIMfpIMfpIMfQFgABG46J7UTQ+kgwgCASAcHQIByx4fADu2Cj2omh9JBj9JBj9JBj6APoCkDdJGDbKaH0kaPFAAG7he1E0PpIMfpIMfpIMIABW+vtRND6SDH6SDCA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIAEABNcAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASASEwIBIAYHASvXbRdv3KrbbtmJh28d1FdqD2+ID5f8EQRnT4keMCINcsI0SFECycMdM/9AX4kviXWvAD4NcsIMm2iJTjAtcsI5sWhOTjAtcsJouaoASAgJCgsC9V7UTQ+kj6SPpI9AT0BPQE0YIAzRRTpscF8vQhboIAzRchlQJus8MAkjJw4rMS8vSCCJiWgCGCCTEtAHDjBKCCAM0a+CdvEIIK+vCAI6C+lVOhvsMAkXDi8vQB4wM5UHihJcjLPxX0AFAE+gLJAsj6UvpSUiD6UhT0ABSA8QAfrXLCf////08r/XTNDXLCB8U/Usjl3TP/oA+kj6UPQE+gD4ku1E0PpIMfpI+kgwyM+QPin6lirPCz9QCfoCF/pSUlD6VBT0AFj6As7JyM+SlG2y6hbLPxP6UhP6UvpSEszJyM+FCBL6UnHPC27MyYBA+wDg1ywhY7XLnDHjAgwA8DHTPzHXTPiS7UTQ+kgx+kgx+kgx9AT0BSKCAM0VA4EBC/QKb6ExEvL0ggDNGyFus/L0ItDXLCB8U/Us8r/TPzH6ADH6SDH6UDCCAM0WIW6zlQPHBcMAkzEycOIS8vTQ+kjRyM+FiPpSz4QQc/oCcc8LZczJgFD7AACu0z8x+gAx+lAx+JLtRND6SDH6SPpIMfQB9AUgbrOZ0PpI0RLHBcMAkzAxcOKWAfGABNohkjFt4iBuswLjBAHIzsnIz4UIEvpSghC0/lwMzwuOzMmAQPsAAv6O+THTPzH6UDD4ku1E0PpI+kj6SPQE9AT0BNGCAM0YUXTHBRfy9IIAzRkmbrPy9CZusyCWMQbI+lLJkTfiBdDTP/QE+gDRbQmOHcjPhQhScPpSAfoCghCSk9aOzwuKEss/9ADJcfsA4w0DyPpSEvpS+lL0APQA9ADJ7VTgMIQPDQ4Aou1E0PpI+kj6SPQE9AT0BNEgbpJfBo450NM/9AT6ANFtyM+FCFKQ+lJY+gKCEJKT1o7PC4oTyz/0AMlx+wAFyPpSFPpSEvpS9AD0APQAye1U4gA6yM+FCFJw+lIB+gKCEHhNmOnPC4oSyz/0AMlx+wAACgHHAPL0AEpfBjKCCvrwgHD7AsjPhQgT+lKCEHhNmOnPC44Syz/0AMmDBvsAAGL0ABL0AMntVIIJMS0A+CjIz4WIFPpSAfoCz4Fz+gKCECx2uXPPC4XLP/pSz4HJcfsAAN4g9AQhbpgxIMcAkjBt4JLR0OIgbrOTyM7JkjBt4gH0BCFumDEgxwCSMG3gktHQ4iBulTBtbW1wjhfXLCFrCwBkmfpI9AT0BYEAhOAwbW1tcOJsIpExkTDiIG6UMG3bMeDQ1ywkRwd59PK/+kjR2zECASAUFQIBIBobAgEgFhcCAUgYGQBttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAhs0I7UTQ+kgx+kgx+kgx9AWAAEbjontRND6SDCAIBIBwdAgHLHh8AO7YKPaiaH0kGP0kGP0kGPoA+gKQN0kYNspofSRo8UAAbuF7UTQ+kgx+kgx+kgwgAFb6+1E0PpIMfpIMI');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
@@ -868,6 +863,7 @@ export class DepositAccount implements c.Contract {
         'DepositAccount_Error.OnlyToken': 52504,
         'DepositAccount_Error.NoPendingInit': 52505,
         'DepositAccount_Error.NotEnoughValue': 52506,
+        'DepositAccount_Error.WalletUnknown': 52507,
     }
 
     readonly address: c.Address
@@ -907,7 +903,6 @@ export class DepositAccount implements c.Contract {
 
     static createCellOfDepositAccountWithdraw(body: {
         queryId?: uint64
-        walletAddress: c.Address
         ask: AskToTransfer
     }) {
         return DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body));
@@ -959,7 +954,6 @@ export class DepositAccount implements c.Contract {
 
     async sendDepositAccountWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        walletAddress: c.Address
         ask: AskToTransfer
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

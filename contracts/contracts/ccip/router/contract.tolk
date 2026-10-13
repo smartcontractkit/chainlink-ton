@@ -48,6 +48,7 @@ contract Router {
     storage: Storage
     incomingMessages: Router_InMsg | Ownable2Step_Messages
     forceAbiExport: (AccessControl_InMessage | Router_GetValidatedFeeContext)
+    thrownErrors: Router_Error
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -239,7 +240,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be the receiver's deposit account (verified against the derived address)
         DepositAccount_WalletUnavailable => {
-            onDepositAccountWalletUnavailable(msg.forwardPayload!, in.senderAddress);
+            onDepositAccountWalletUnavailable(msg, in.senderAddress);
         }
         // Sender must be the sender's on-ramp account (verified against the derived address)
         DepositAccount_WithdrawFailed => {
@@ -318,7 +319,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             // Ignored: a retried deployment bounces off the already-initialized account, and a
             // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
             Deployable_Initialize => {}
-            // The receiver's deposit account was not deployed or rejected the init.
+            // The deposit account was not deployed or rejected the init.
             DepositAccount_Init => {
                 if (richMsg.forwardPayload != null) {
                     val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.forwardPayload!);
@@ -326,11 +327,15 @@ fun onBouncedMessage(in: InMessageBounced) {
                         Router_RelayReleaseOrMint => {
                             sendDepositAccountInitFailure(context, rich.exitCode);
                         }
-                        // The on-ramp account deployment is user-initiated and carries no
-                        // operation to fail: the user simply retries.
-                        Router_OnRampAccountContext => {}
+                        Router_OnRampAccountContext => {
+                            sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256);
+                        }
                     }
                 }
+            }
+            // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
+            DepositAccount_Withdraw => {
+                failWithdrawToTokenPool(richMsg.ask.load(), rich.exitCode);
             }
         }
         return;
@@ -384,15 +389,27 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
+/// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
+/// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
+/// transfer's forward payload, so that payload must name the executor requesting the withdraw.
 fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
+    val fwdp = lazy withdrawRequest.forwardPayload.load();
+    val request = lazy fwdp.requestMsg.load();
+    if (request.replyTo == null || request.replyTo! != msg.executor) {
+        return sendLockOrBurnRelayFailure(
+            msg.executor,
+            msg.queryID,
+            withdrawRequest.tokenPool,
+            Router_Error.WithdrawExecutorMismatch as int32,
+        );
+    }
     val withdraw = createMessage({
-        bounce: BounceMode.NoBounce,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: withdrawRequest.depositAccount,
         body: DepositAccount_Withdraw {
             queryId: msg.queryID,
-            walletAddress: withdrawRequest.accountWalletAddress,
             ask: AskToTransfer {
                 queryId: msg.queryID,
                 jettonAmount: withdrawRequest.amount,
@@ -445,7 +462,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
     // 2. Init the freshly installed account (processed right after the deploy). The account
     // replies `DepositAccount_Initialized` to the Router (its owner), which answers the user.
     val init = createMessage({
-        bounce: BounceMode.NoBounce,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
@@ -475,9 +492,8 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Handles a `DepositAccount_WithdrawFailed` from one of this Router's deposit accounts: the
-/// withdraw's AskToTransfer bounced, so the jettons never left the account. Surfaced as an event
-/// for visibility; propagating the failure to the executor requires a replyTo on this leg (TODO).
+/// Handles a `DepositAccount_WithdrawFailed` from one of this Router's on-ramp accounts: the
+/// withdraw's AskToTransfer bounced, so the jettons never left the account and the CCIPSend fails.
 ///
 /// @dev The account self-reports the `(user, token)` pair it was deployed for; the pair is only
 ///      believed because re-deriving the on-ramp account address from it must yield the sender.
@@ -491,6 +507,15 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
         queryId: msg.queryId,
         exitCode: 0,
     });
+    failWithdrawToTokenPool(ask, Router_Error.OnRampAccountWithdrawFailed as int32);
+}
+
+/// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
+/// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
+fun failWithdrawToTokenPool(ask: AskToTransfer, exitCode: int32) {
+    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromSlice(loadForwardPayloadAsSlice(ask.forwardPayload)!);
+    val request = lazy fwdp.requestMsg.load();
+    sendLockOrBurnRelayFailure(request.replyTo!, ask.queryId, ask.transferRecipient!, exitCode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -1080,10 +1105,10 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
     tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// A deposit account could not initialize. The relay fails before the pool is called, so no rate
-/// limit was consumed; an on-ramp account deployment has no operation to fail and is retried by the user.
-fun onDepositAccountWalletUnavailable(forwardPayload: cell, sender: address) {
-    val context = lazy Router_DepositAccountInitContext.fromCell(forwardPayload);
+/// A deposit account could not learn its jetton wallet. A relay fails before the pool is called, so
+/// no rate limit was consumed.
+fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sender: address) {
+    val context = lazy Router_DepositAccountInitContext.fromCell(msg.forwardPayload!);
     match (context) {
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();
@@ -1092,10 +1117,21 @@ fun onDepositAccountWalletUnavailable(forwardPayload: cell, sender: address) {
 
             sendDepositAccountInitFailure(context, Router_Error.DepositAccountWalletUnavailable as int32);
         }
-        // The on-ramp account deployment is user-initiated and carries no operation to fail:
-        // the user simply retries.
-        Router_OnRampAccountContext => {}
+        Router_OnRampAccountContext => {
+            assert(sender == onRampAccountAddress(context.user, context.token), Router_Error.SenderIsNotOnRampAccount);
+            sendOnRampAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as uint256);
+        }
     }
+}
+
+fun sendOnRampAccountFailed(user: address, queryId: uint64, error: uint256) {
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: user,
+        body: Router_OnRampAccountFailed { queryId, error },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun sendDepositAccountInitFailure(relay: Router_RelayReleaseOrMint, exitCode: int32) {
