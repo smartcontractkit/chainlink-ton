@@ -409,6 +409,19 @@ type ReleaseOrMint struct {
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
 }
 
+// GetTransferInitiator asks a pool which address initiates its release/mint deliveries.
+type GetTransferInitiator struct {
+	_       tlb.Magic `tlb:"#500b10e4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+}
+
+// TransferInitiator answers GetTransferInitiator; nil means the pool delivers by minting.
+type TransferInitiator struct {
+	_                 tlb.Magic        `tlb:"#904443b3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID           uint64           `tlb:"## 64"`
+	TransferInitiator *address.Address `tlb:"addr"`
+}
+
 // ReleaseOrMintDelivery is the jetton transfer the pool performs to deliver released/minted tokens.
 type ReleaseOrMintDelivery struct {
 	Recipient        *address.Address `tlb:"addr"`

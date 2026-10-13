@@ -281,7 +281,6 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       tare.TokenAdminRegistryEntry_SetPool.create({
         actor: fx.other.address,
         tokenPool: fx.replacementPool,
-        transferInitiator: null,
       }),
     )
 

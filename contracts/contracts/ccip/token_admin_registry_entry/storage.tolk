@@ -10,9 +10,16 @@ struct TokenRegistry_Storage {
     tokenAddress: address
     tokenInfo: Cell<TokenRegistry_TokenInfo>
     adminConfig: Cell<TokenRegistry_AdminConfig>
-    /// Set once the token answers a TEP-89 query with a wallet. Until then the token is reported
-    /// without a pool.
-    enabled: bool = false
+    /// Set once the token answers a TEP-89 query with a wallet.
+    tokenVerified: bool = false
+    /// Pool that has not answered the transfer initiator probe yet.
+    pendingPool: address? = null
+}
+
+/// The token is reported with its pool only once the token answered the TEP-89 query and no pool
+/// update awaits the probe answer.
+fun TokenRegistry_Storage.isEnabled(self): bool {
+    return self.tokenVerified && self.pendingPool == null;
 }
 
 fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
@@ -24,6 +31,7 @@ fun TokenRegistry_Storage.store(self) {
         tokenAddress: self.tokenAddress,
         tokenInfo: self.tokenInfo,
         adminConfig: self.adminConfig,
-        enabled: self.enabled,
+        tokenVerified: self.tokenVerified,
+        pendingPool: self.pendingPool,
     }.toCell());
 }

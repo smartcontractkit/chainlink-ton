@@ -17,6 +17,7 @@ import {
   OPERATION_VALUE,
   RegistryErrors,
   accountState,
+  answerPoolProbe,
   answerWalletQuery,
   coverageConfig,
   createBlockchain,
@@ -202,6 +203,15 @@ describe('TokenAdminRegistry - Register Token', () => {
       expect(await entryFor(fx).getEnabled()).toBe(false)
 
       await answerWalletQuery(fx)
+      expect(await entryFor(fx).getEnabled()).toBe(true)
+    })
+
+    it('is only enabled once both the token and the registered pool answered', async () => {
+      await registerToken(fx, { answerWalletQuery: false, answerPoolProbe: false })
+      await answerWalletQuery(fx)
+      expect(await entryFor(fx).getEnabled()).toBe(false)
+
+      await answerPoolProbe(fx)
       expect(await entryFor(fx).getEnabled()).toBe(true)
     })
 

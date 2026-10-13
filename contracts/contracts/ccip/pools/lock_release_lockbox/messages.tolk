@@ -8,7 +8,8 @@ import "types"
 type LockReleaseLockboxTokenPool_InMessage =
     | ReturnExcessesBack
     | JettonLockBox_Deposited
-    | JettonLockBox_WithdrawFailed;
+    | JettonLockBox_WithdrawFailed
+    | TokenPool_GetTransferInitiator;
 
 type LockReleaseLockboxTokenPool_OutMessage =
     | AskToTransfer;

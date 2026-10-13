@@ -22,7 +22,11 @@ import {
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
-import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import {
+  BurnMintTokenPool,
+  TokenPool_GetTransferInitiator,
+  TokenPool_TransferInitiator,
+} from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { getExternals, testLog } from '../../Logs'
 import {
   Ownable2Step_AcceptOwnership,
@@ -41,9 +45,8 @@ export type TokenPoolBehaviorContext = {
   destTokenAddress: CrossChainAddress
   sourcePoolAddress: CrossChainAddress
   localToken: Address
-  /** Expected `transferInitiator` of the pool's release/mint delivery (the address to register in
-   * the TokenAdminRegistry); defaults to the pool. */
-  releaseOrMintInitiator?: Address
+  /** Expected `transferInitiator` of the pool's release/mint delivery; null (default) for a mint. */
+  releaseOrMintInitiator?: Address | null
 }
 
 export type TokenPoolBehaviorHooks = {
@@ -108,6 +111,9 @@ export function parseDepositAccountNotify(forwardPayload: Slice): Address | null
   }
   return inner.loadAddress()
 }
+
+const sameInitiator = (actual: Address | null, expected: Address | null = null) =>
+  expected === null ? actual === null : actual?.equals(expected) === true
 
 export function runTokenPoolBehaviorTests(
   name: string,
@@ -695,8 +701,7 @@ export function runTokenPoolBehaviorTests(
         return (
           notification.queryId === queryId &&
           notification.jettonAmount === amount &&
-          notification.transferInitiator?.equals(ctx.releaseOrMintInitiator ?? ctx.pool.address) ===
-            true &&
+          sameInitiator(notification.transferInitiator, ctx.releaseOrMintInitiator) &&
           notify?.equals(ctx.deployer.address) === true
         )
       })
@@ -724,6 +729,30 @@ export function runTokenPoolBehaviorTests(
 
       expect(completions).toHaveLength(2)
       expect(failures).toHaveLength(0)
+    })
+
+    it('answers the transfer initiator probe with the initiator of its deliveries', async () => {
+      const ctx = await setup()
+      const result = await ctx.unauthorized.send({
+        to: ctx.pool.address,
+        value: toNano('0.05'),
+        body: TokenPool_GetTransferInitiator.toCell(
+          TokenPool_GetTransferInitiator.create({ queryId: 950n }),
+        ),
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.unauthorized.address,
+        op: TokenPool_TransferInitiator.PREFIX,
+        body(body) {
+          if (!body) return false
+          const answer = TokenPool_TransferInitiator.fromSlice(body.beginParse())
+          return (
+            answer.queryId === 950n &&
+            sameInitiator(answer.transferInitiator, ctx.releaseOrMintInitiator)
+          )
+        },
+      })
     })
 
     it('rejects releaseOrMint without a receiver account', async () => {

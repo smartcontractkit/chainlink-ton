@@ -317,7 +317,6 @@ describe('TokenAdminRegistry - Administrator', () => {
       tare.TokenAdminRegistryEntry_SetPool.create({
         actor: fx.administrator.address,
         tokenPool: fx.replacementPool,
-        transferInitiator: null,
       }),
     ]
     for (const content of contents) {

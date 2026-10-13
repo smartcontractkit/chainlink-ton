@@ -426,3 +426,24 @@ type TokenPool_OutMessage =
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied
     | TokenPool_FeeConfigApplied;
+
+/// Asks a pool which address initiates the jetton transfers delivering its releases/mints. Sent
+/// by the token admin registry when a pool is set or refreshed.
+struct (0x500b10e4) TokenPool_GetTransferInitiator {
+    queryId: uint64;
+}
+
+/// Answer to `TokenPool_GetTransferInitiator`. A null initiator means the pool delivers by minting.
+struct (0x904443b3) TokenPool_TransferInitiator {
+    queryId: uint64;
+    transferInitiator: address?;
+}
+
+fun TokenPool_replyTransferInitiator(dest: address, queryId: uint64, transferInitiator: address?) {
+    createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest,
+        body: TokenPool_TransferInitiator { queryId, transferInitiator },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}

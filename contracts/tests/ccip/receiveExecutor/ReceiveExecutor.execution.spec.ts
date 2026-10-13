@@ -346,7 +346,7 @@ describe('ReceiveExecutor - Execution', () => {
     async function returnTokenInfoWithPool(
       executor: SandboxContract<rx.ReceiveExecutor>,
       pool: Address = tokenPool.address,
-      transferInitiator: Address = pool,
+      transferInitiator: Address | null = pool,
     ) {
       const result = await executor.sendTokenAdminRegistryTokenInfo(
         tokenAdminRegistry.getSender(),
@@ -370,7 +370,7 @@ describe('ReceiveExecutor - Execution', () => {
 
     async function transitionToReleaseOrMint(
       executor: SandboxContract<rx.ReceiveExecutor>,
-      transferInitiator: Address = tokenPool.address,
+      transferInitiator: Address | null = tokenPool.address,
     ) {
       await initExecuteQueriesRegistry(executor)
       return returnTokenInfoWithPool(executor, tokenPool.address, transferInitiator)
@@ -743,6 +743,25 @@ describe('ReceiveExecutor - Execution', () => {
           initiator: lockbox.address,
         })
         expect(fromLockbox.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      it('should only accept a delivery without transfer initiator when the pool mints', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken, null)
+        const amount = messageWithTT.tokenAmounts![0].amount
+
+        const withInitiator = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(withInitiator.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+
+        const minted = await forwardNotification(receiveExecutorWithToken, amount, {
+          initiator: null,
+        })
+        expect(minted.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
           op: of.OffRamp_NotifySuccess.PREFIX,
         })

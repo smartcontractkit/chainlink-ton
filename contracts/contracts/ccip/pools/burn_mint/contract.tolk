@@ -66,6 +66,10 @@ fun onInternalMessage(in: InMessage) {
             onCCTReturnExcessesBack(mutate st, in.senderAddress, msg);
             st.store();
         }
+        // Mints carry no transfer initiator; the CCT wallet only accepts that from the minter.
+        TokenPool_GetTransferInitiator => {
+            TokenPool_replyTransferInitiator(in.senderAddress, msg.queryId, null);
+        }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
@@ -210,7 +214,7 @@ fun onReleaseOrMintContinue(
             internalTransferMsg: InternalTransferStep {
                 queryId: msg.queryId,
                 jettonAmount: prepared.localAmount,
-                transferInitiator: contract.getAddress(),
+                transferInitiator: null,
                 sendExcessesTo: contract.getAddress(),
                 forwardTonAmount: delivery.forwardTonAmount,
                 forwardPayload: wrap.asForwardPayload(),

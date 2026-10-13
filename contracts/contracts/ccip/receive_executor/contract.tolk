@@ -195,7 +195,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
     if (msg.tokenPool == null) {
         return onTokenNotEnabled(mutate st, ttInfo);
     }
-    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, msg.transferInitiator!);
+    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, msg.transferInitiator);
 }
 
 fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -205,7 +205,7 @@ fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecuto
     endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
 }
 
-fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>) {
+fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>?) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint { tokenPool, transferInitiator };
     st.state.tokenTransfer = ttInfo.toCell();
     val transfer = lazy ttInfo.transfer.load();
@@ -296,7 +296,8 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
 }
 
 // Matches the delivery forwarded by the receiver's deposit account: a single transfer started by
-// the initiator registered for the token. The account only routes notifications from its own
+// the initiator the pool reported to the registry. A null initiator (mint) is only accepted by the
+// jetton wallet from its minter. The account only routes notifications from its own
 // jetton wallet here, and the received amount is what is reported as delivered.
 //
 // Checks run within the gas paid by the forwarded notification; the executor's balance is only
@@ -312,7 +313,11 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     }
     val forwarded = lazy msg.message.load();
     val notification = lazy TransferNotificationForRecipient.fromCell(forwarded.body);
-    if (notification.transferInitiator == null || notification.transferInitiator! != ttInfo.state.transferInitiator.load()) {
+    val expected = ttInfo.state.transferInitiator;
+    val matches = expected == null
+        ? notification.transferInitiator == null
+        : notification.transferInitiator != null && notification.transferInitiator! == expected!.load();
+    if (!matches) {
         return;
     }
 

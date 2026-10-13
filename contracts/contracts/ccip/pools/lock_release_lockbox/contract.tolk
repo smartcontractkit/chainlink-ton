@@ -67,6 +67,11 @@ fun onInternalMessage(in: InMessage): void {
         ReturnExcessesBack => {
             // Excess TON from jetton transfer — just keep the coins.
         }
+        // Releases are transferred out of the lockbox's wallet.
+        TokenPool_GetTransferInitiator => {
+            assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+            TokenPool_replyTransferInitiator(in.senderAddress, msg.queryId, st.lockbox);
+        }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }

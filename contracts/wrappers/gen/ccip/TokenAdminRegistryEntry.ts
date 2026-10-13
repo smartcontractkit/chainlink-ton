@@ -147,7 +147,7 @@ export const UnsafeBodyNoRef = {
 }
 
 /**
- > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken
+ > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken | TokenAdminRegistryEntry_RefreshTransferInitiator
  */
 export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
@@ -156,6 +156,7 @@ export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
     | TokenAdminRegistryEntry_VerifyToken
+    | TokenAdminRegistryEntry_RefreshTransferInitiator
 
 export const TokenAdminRegistryEntry_RootMessage = {
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RootMessage {
@@ -165,6 +166,7 @@ export const TokenAdminRegistryEntry_RootMessage = {
             lookupPrefix(s, 0x39c6e872, 32) ? TokenAdminRegistryEntry_AcceptAdminRole.fromSlice(s) :
             lookupPrefix(s, 0xa64e05c9, 32) ? TokenAdminRegistryEntry_SetPool.fromSlice(s) :
             lookupPrefix(s, 0xa14b0288, 32) ? TokenAdminRegistryEntry_VerifyToken.fromSlice(s) :
+            lookupPrefix(s, 0x91f8fb81, 32) ? TokenAdminRegistryEntry_RefreshTransferInitiator.fromSlice(s) :
             throwNonePrefixMatch('TokenAdminRegistryEntry_RootMessage');
     },
     store(self: TokenAdminRegistryEntry_RootMessage, b: c.Builder): void {
@@ -186,6 +188,9 @@ export const TokenAdminRegistryEntry_RootMessage = {
                 break;
             case 'TokenAdminRegistryEntry_VerifyToken':
                 TokenAdminRegistryEntry_VerifyToken.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_RefreshTransferInitiator':
+                TokenAdminRegistryEntry_RefreshTransferInitiator.store(self, b);
                 break;
         }
     },
@@ -495,14 +500,12 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
  > struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
  >     actor: address
  >     tokenPool: address?
- >     transferInitiator: address?
  > }
  */
 export interface TokenAdminRegistryEntry_SetPool {
     readonly $: 'TokenAdminRegistryEntry_SetPool'
     actor: c.Address
     tokenPool: c.Address | null
-    transferInitiator: c.Address | null
 }
 
 export const TokenAdminRegistryEntry_SetPool = {
@@ -511,7 +514,6 @@ export const TokenAdminRegistryEntry_SetPool = {
     create(args: {
         actor: c.Address
         tokenPool: c.Address | null
-        transferInitiator: c.Address | null
     }): TokenAdminRegistryEntry_SetPool {
         return {
             $: 'TokenAdminRegistryEntry_SetPool',
@@ -524,14 +526,12 @@ export const TokenAdminRegistryEntry_SetPool = {
             $: 'TokenAdminRegistryEntry_SetPool',
             actor: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
-            transferInitiator: s.loadMaybeAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_SetPool, b: c.Builder): void {
         b.storeUint(0xa64e05c9, 32);
         b.storeAddress(self.actor);
         b.storeAddress(self.tokenPool);
-        b.storeAddress(self.transferInitiator);
     },
     toCell(self: TokenAdminRegistryEntry_SetPool): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_SetPool>(self, TokenAdminRegistryEntry_SetPool.store);
@@ -565,6 +565,36 @@ export const TokenAdminRegistryEntry_VerifyToken = {
     },
     toCell(self: TokenAdminRegistryEntry_VerifyToken): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_VerifyToken>(self, TokenAdminRegistryEntry_VerifyToken.store);
+    }
+}
+
+/**
+ > struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {
+ > }
+ */
+export interface TokenAdminRegistryEntry_RefreshTransferInitiator {
+    readonly $: 'TokenAdminRegistryEntry_RefreshTransferInitiator'
+}
+
+export const TokenAdminRegistryEntry_RefreshTransferInitiator = {
+    PREFIX: 0x91f8fb81,
+
+    create(): TokenAdminRegistryEntry_RefreshTransferInitiator {
+        return {
+            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshTransferInitiator {
+        loadAndCheckPrefix32(s, 0x91f8fb81, 'TokenAdminRegistryEntry_RefreshTransferInitiator');
+        return {
+            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+        }
+    },
+    store(self: TokenAdminRegistryEntry_RefreshTransferInitiator, b: c.Builder): void {
+        b.storeUint(0x91f8fb81, 32);
+    },
+    toCell(self: TokenAdminRegistryEntry_RefreshTransferInitiator): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_RefreshTransferInitiator>(self, TokenAdminRegistryEntry_RefreshTransferInitiator.store);
     }
 }
 
@@ -653,7 +683,8 @@ export const TokenRegistry_AdminConfig = {
  >     tokenAddress: address
  >     tokenInfo: Cell<TokenRegistry_TokenInfo>
  >     adminConfig: Cell<TokenRegistry_AdminConfig>
- >     enabled: bool
+ >     tokenVerified: bool
+ >     pendingPool: address?
  > }
  */
 export interface TokenRegistry_Storage {
@@ -661,7 +692,8 @@ export interface TokenRegistry_Storage {
     tokenAddress: c.Address
     tokenInfo: TokenRegistry_TokenInfo
     adminConfig: TokenRegistry_AdminConfig
-    enabled: boolean /* = false */
+    tokenVerified: boolean /* = false */
+    pendingPool: c.Address | null /* = null */
 }
 
 export const TokenRegistry_Storage = {
@@ -669,11 +701,13 @@ export const TokenRegistry_Storage = {
         tokenAddress: c.Address
         tokenInfo: TokenRegistry_TokenInfo
         adminConfig: TokenRegistry_AdminConfig
-        enabled?: boolean /* = false */
+        tokenVerified?: boolean /* = false */
+        pendingPool?: c.Address | null /* = null */
     }): TokenRegistry_Storage {
         return {
             $: 'TokenRegistry_Storage',
-            enabled: false,
+            tokenVerified: false,
+            pendingPool: null,
             ...args
         }
     },
@@ -683,14 +717,16 @@ export const TokenRegistry_Storage = {
             tokenAddress: s.loadAddress(),
             tokenInfo: loadCellRef<TokenRegistry_TokenInfo>(s, TokenRegistry_TokenInfo.fromSlice),
             adminConfig: loadCellRef<TokenRegistry_AdminConfig>(s, TokenRegistry_AdminConfig.fromSlice),
-            enabled: s.loadBoolean(),
+            tokenVerified: s.loadBoolean(),
+            pendingPool: s.loadMaybeAddress(),
         }
     },
     store(self: TokenRegistry_Storage, b: c.Builder): void {
         b.storeAddress(self.tokenAddress);
         storeCellRef<TokenRegistry_TokenInfo>(self.tokenInfo, b, TokenRegistry_TokenInfo.store);
         storeCellRef<TokenRegistry_AdminConfig>(self.adminConfig, b, TokenRegistry_AdminConfig.store);
-        b.storeBit(self.enabled);
+        b.storeBit(self.tokenVerified);
+        b.storeAddress(self.pendingPool);
     },
     toCell(self: TokenRegistry_Storage): c.Cell {
         return makeCellFrom<TokenRegistry_Storage>(self, TokenRegistry_Storage.store);
@@ -1020,6 +1056,87 @@ export const ResponseWalletAddress = {
     }
 }
 
+/**
+ > struct (0x500b10e4) TokenPool_GetTransferInitiator {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_GetTransferInitiator {
+    readonly $: 'TokenPool_GetTransferInitiator'
+    queryId: uint64
+}
+
+export const TokenPool_GetTransferInitiator = {
+    PREFIX: 0x500b10e4,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenPool_GetTransferInitiator {
+        return {
+            $: 'TokenPool_GetTransferInitiator',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_GetTransferInitiator {
+        loadAndCheckPrefix32(s, 0x500b10e4, 'TokenPool_GetTransferInitiator');
+        return {
+            $: 'TokenPool_GetTransferInitiator',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_GetTransferInitiator, b: c.Builder): void {
+        b.storeUint(0x500b10e4, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_GetTransferInitiator): c.Cell {
+        return makeCellFrom<TokenPool_GetTransferInitiator>(self, TokenPool_GetTransferInitiator.store);
+    }
+}
+
+/**
+ > struct (0x904443b3) TokenPool_TransferInitiator {
+ >     queryId: uint64
+ >     transferInitiator: address?
+ > }
+ */
+export interface TokenPool_TransferInitiator {
+    readonly $: 'TokenPool_TransferInitiator'
+    queryId: uint64
+    transferInitiator: c.Address | null
+}
+
+export const TokenPool_TransferInitiator = {
+    PREFIX: 0x904443b3,
+
+    create(args: {
+        queryId?: uint64
+        transferInitiator: c.Address | null
+    }): TokenPool_TransferInitiator {
+        return {
+            $: 'TokenPool_TransferInitiator',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_TransferInitiator {
+        loadAndCheckPrefix32(s, 0x904443b3, 'TokenPool_TransferInitiator');
+        return {
+            $: 'TokenPool_TransferInitiator',
+            queryId: s.loadUintBig(64),
+            transferInitiator: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_TransferInitiator, b: c.Builder): void {
+        b.storeUint(0x904443b3, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.transferInitiator);
+    },
+    toCell(self: TokenPool_TransferInitiator): c.Cell {
+        return makeCellFrom<TokenPool_TransferInitiator>(self, TokenPool_TransferInitiator.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class TokenAdminRegistryEntry
 //
@@ -1059,7 +1176,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECJQEABlgAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAdHgIBzQYHAgOj0hscAgEgCAkAHdELdJGLdwEDdJLbhwY4LAIBIAoLAgEgGRoD2z4kfJAINcsIYrAE0zjAtcsIqxzqsyOJzH4ku1E0NQx10yCAK/IAdD6SPpQMfpQMdESxwXy9NM/0w/XTHDwAeDXLCBVQI9s4wLXLCI+sdMk4wLXLCaLmqAEmzHTP/pQ9AX4kvAD4DCEDwHHAPL0gDA0OBOcIsIBjkiCAK/MAbPy9O1E0PpI1DHXTND6SPpQMfpQMdHIz5FWOdVmJc8LPxTLDxLMycjPhYgT+lKCEFW4tlTPC44Tyz8S+lLMyYBA+wDgMDHQ1ywj13phbOMC1ywjbl8rnOMC1ywkWKgefOMC1ywhzjdDlIBAREhMB+jHXCz/4ku1E0PpI1DHU0gAx0dD6SDH6UPpQ0YIAr8j4KBXHBRTy9IIAr8sBbpUibrPDAJFw4vL0bcjPkFAsekYkzws/UiD6UvpUEvpUye1E0PpIMdQx1NIAMdGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsADwDoMfiS7UTQ1DHXTIIAr8gB0PpI+lAx+lAx0RLHBfL00z8x10z4KiH5AAH5ALqRMI5Dk/ED6ACT8QPpACDaASP7BCPQ7R7tU+1EQBPaIe1UIfkAAdoBAsjMy//OycjPjxgABIIQoztJjs8L93HPC2HMyXD7AOIAZjH4ku1E0NQx10yCAK/IAdD6SPpQMfpQMdESxwXy9NdM0NcsIqxzqszyv9M/0w/U0X/wAQBMggkxLQBx+CjIz4WIFPpSWPoCghAsdrlzzwuKE8s/+lLPgckB+wAAsvpIMfpIMO1E0PpI1NTSANGOGQHQ+lAx+lD6SNMf0W3I+lQT+lT6UssfyQHf0PpI+lAx+lAx0cjPkThya1YVyz8S+lIS+lLMycjPhQgS+lJxzwtuzMmAQPsAAPT6SDDtRND6SNTU1woAAdD6SPpQ+lAx0YIAr8ohbvL0JQLI+lJSEPpUEvpUySTI+lIUzBPMygDJ7VTIz5BQLHpGFMs/+lIS+lT6VMntRND6SDHUMdTSADHRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXD7AAH++kj6UDDtRND6SNTU1woAAdD6SPpQ+lAx0YIAr8ghbrOWUXHHBcMAkjdw4hfy9FRkYMj6Uhf6VPpUySPI+lITzBLMygDJ7VTIz5BQLHpGFMs/E/pS+lT6VMntRND6SDHUMdTSADHRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AhQD/uMC1ywlMnAuTI7r+kj6UPpQMO1E0PpI1NTXCgAh0PpIMfpQ+lAx0YIAr8ghbrOVCMcFwwCTMTdw4hfy9AHQ+lD6UPpI0x/RU2fI+lT6VBL6UssfySTI+lLME8wWygDJ7VRTQ/AEs5Iwf5Yi8ASzwwDikl8F4w3g1ywlClgURDEVFhcAEnHPC2rMyXD7AAH++kgw7UTQ+kjU1NcKAAHQ+kj6UDH6UNGCAK/JIW6zllJixwXDAJIxcOLy9CRtAsj6UvpU+lTJI8j6UhPMEszKAMntVMjPk4sdNtITyz8S+lL6UsntRND6SDHUMdTSADHRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyRgAniFukjFtlQHI+lLJ4sjPkzvAah4Vyz/6UhL6VPpU9ADJ7UTQ+kgx1DHU0gAx0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIB+gJxzwtqzMlw+wAADJLwAuDyPwAGcPsAAFU7UTQ+kjXCgCRW+CAQPgoyM+FiBP6UoIQLHa5c88LjhPLP/pSz4HJAfsAgAGEMTLtRND6SNTU1woAUVPHBbOSNH+TBMMA4pIyf5QCbsMA4pJfA+DI+lLMzM+Dye1UgAAsgU288vCAADyLUxLjYuMIgAgEgHyAAB72Qw4wCASAhIgAzuwUu1E0PpIMdTUMdIAMdHQ+lD6UPpI0x/RgAb7Yr8aFbY0tzWXMbQwtLcXOje3FzGxtLgXKje1srcgsja0tykys7S5ujk8orc6OTzBFqYlxsXGEQAgFIIyQAH65jdqJofSQY6hjqGOkAaMAAL69LdqJofSQY6hjqaQAY6Oh9JH0ofShowA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECLwEACUUAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAnKAIBzQYHAgOj0iUmAgEgCAkCAUgiIwIBIAoLAgEgHyAD9z4kY700x8x1ywigFiHJI7e7UTQ+kgx0wAx+lAwIG6zlviSxwXDAJIwcOKOv9cLP+1E0PpI1NTXCgAC0PpQ+lAx+kjTH9FtbQHI+lT6VBL6UssfyW0lyPpSEswTzBPKAPpUye1UIG6SXwPjDpEw4uDXLCFjtcucMdzgIImAMDQ4E5wiwgGOSIIAr8wBs/L07UTQ+kjUMddM0PpI+lAx+lAx0cjPkVY51WYlzws/FMsPEszJyM+FiBP6UoIQVbi2VM8LjhPLPxL6UszJgED7AOAwMdDXLCPXemFs4wLXLCNuXyuc4wLXLCRYqB584wLXLCHON0OUgFRYXGACmbW0gbpIwbZTI+lLJ4sjPkzvAah4Vyz8T+lL6VPpU9ADJ7UTQ+kgx1DHU0gAx+lAx0YIID0JAAdD6SPpQMfpQMdHIz4WI+lIB+gJxzwtqzMlw+wAACDFYAmkE/Ncn4wLXLCKsc6rMjicx+JLtRNDUMddMggCvyAHQ+kj6UDH6UDHREscF8vTTP9MP10xw8AHg1ywgVUCPbOMC1ywiPrHTJI4zMfiS7UTQ1DHXTIIAr8gB0PpI+lAx+lAx0RLHBfL010zQ1ywirHOqzPK/0z/TD9TRf/AB4InXJw8QERIB/jHXCz/4ku1E0PpI1NTSAPpQ0SLQ+kgx+lD6UNGCAK/I+CgZxwUY8vSCAK/LAW6VJm6zwwCRcOLy9G3Iz5BQLHpGKM8LP1Jg+lL6VBb6VMntRND6SDHUMdTSADH6UDHRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXATAOgx+JLtRNDUMddMggCvyAHQ+kj6UDH6UDHREscF8vTTPzHXTPgqIfkAAfkAupEwjkOT8QPoAJPxA+kAINoBI/sEI9DtHu1T7URAE9oh7VQh+QAB2gECyMzL/87JyM+PGAAEghCjO0mOzwv3cc8LYczJcPsA4gAI0XNUAABQmzHTP/pQ9AX4kvAC4NcsJIIiHZyaMdM/+lAw+JLwBOAwhA8BxwDy9AHO+wAC0PpQ+lAx+kjTH9EibpJfBI4gNm1tAcj6VPpU+lIVyx/JI8j6UszMIc8KAFIw+lTJ7VTikTCOJoIJMS0A+CjIz4WIE/pSAfoCghAsdrlzzwuKI88LP/pSz4HJcfsA4iBukVvjDhQAPIIJMS0AyM+FiBL6UgH6AoIQUAsQ5M8Liss/yXH7AADI+kgx+kgw7UTQ+kjU1NIA+lDRAZNuwwCSMHDijhkB0PpQMfpQ+kjTH9FtyPpUE/pU+lLLH8kB39D6SPpQMfpQMdHIz5E4cmtWFcs/EvpSEvpSzMnIz4UIEvpScc8LbszJgED7AAH++kgw7UTQ+kjU1NIA+lAwAtD6SPpQ+lAx0YIAr8ohbvL0JgLI+lJSEPpUEvpUySXI+lIVzBTMygD6VMntVMjPkFAsekYUyz/6UhL6VPpUye1E0PpIMdQx1NIAMfpQMdGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcBkB/vpI+lAw7UTQ+kjU1NIA+lAwAtD6SPpQ+lAx0YIAr8ghbrOWUYHHBcMAkjhw4hjy9FRlcMj6Uhj6VPpUySTI+lIUzBPMEsoA+lTJ7VTIz5BQLHpGFMs/E/pS+lT6VMntRND6SDHUMdTSADH6UDHRgggPQkAB0PpI+lAx+lAx0cgaArbjAtcsJTJwLkyX+kj6UDDwA+DXLCUKWBREjjMw7UTQ+kjXCgCRW44lggkxLQD4KMjPhYgT+lIB+gKCECx2uXPPC4oSyz/6Us+ByXH7AOLg1ywkj8fcDDHjAvI/HB0ABPsAASKJzxb6UgH6AnHPC2rMyXD7ABsAAWIB/vpIMO1E0PpI1NTSAPpQMALQ+kj6UDH6UNGCAK/JIW6zllJyxwXDAJIxcOLy9CVtAsj6UvpU+lTJJMj6UhTME8wSygD6VMntVMjPk4sdNtITyz8S+lL6UsntRND6SDHUMdTSADH6UDHRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgEeAI7tRND6SDHU0wAx+lAwIG6zkTGeMND6UPpQMfpIMdMfMdHiIG6RW44eggkxLQDIz4WIEvpSAfoCghBQCxDkzwuKyz/JcfsA4gAW+gJxzwtqzMlw+wAAaQxMu1E0PpI1NTSAPpQMFFkxwWzkjB/ksMA4pIzf5QDbsMA4pJfBOAByPpSzMzPg/pUye1UgAfU7UTQ+kjU1NcKACHQ+kgx+lD6UDHRggCvyCFus5UHxwXDAJMxNnDiFvL0I26OLyMDyPpSEszME8oAEvpUye1UggkxLQDIz4WIEvpSAfoCghBQCxDkzwuKyz/JcfsA4V8F7UTQ+kjU1NcKAALQ+lD6UDH6SNMf0W1tAciAhAOj6VPpUEvpSyx/JbSXI+lISzBPME8oA+lTJ7VQgbpJfA+BtbSBukjBtlMj6UsniyM+TO8BqHhXLPxP6UvpU+lT0AMntRND6SDHUMdTSADH6UDHRgggPQkAB0PpI+lAx+lAx0cjPhYj6UgH6AnHPC2rMyXD7AAHpO2i7fvtRND6SNTU0gD6UDAD0PpQ+lD6SNMf0SZus5ZThscFwwCRcOKSNm2OFCNukX+XU4PHBbPDAOKUXwvbMeAG4lOYyPpU+lQS+lIWyx/JJsj6UswUzBLKABP6VMntVFMT8AWzkjB/liTwBbPDAOLjAl8FgJAAdCFukjFu4CBukltw4McFgAKQjbpIzbZUDyPpSyeLIz5M7wGoeFcs/+lIS+lT6VPQAye1E0PpIMdQx1NIAMfpQMdGCCA9CQAHQ+kj6UDH6UDHRyM+FiPpSAfoCcc8LaszJcPsAAAsgU288vCAADyLUxLjYuMIgAgEgKSoAB72Qw4wCASArLAA5uwUu1E0PpIMdTUMdIAMfpQMdHQ+lD6UPpI0x/RgAb7Yr8aFbY0tzWXMbQwtLcXOje3FzGxtLgXKje1srcgsja0tykys7S5ujk8orc6OTzBFqYlxsXGEQAgFILS4ANa5jdqJofSQY6hjqGOkAfShogMm3YYBJGDhxQAA1r0t2omh9JBjqGOppABj9KBjo6H0kfSh9KGjA');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,
@@ -1086,7 +1203,8 @@ export class TokenAdminRegistryEntry implements c.Contract {
         tokenAddress: c.Address
         tokenInfo: TokenRegistry_TokenInfo
         adminConfig: TokenRegistry_AdminConfig
-        enabled?: boolean /* = false */
+        tokenVerified?: boolean /* = false */
+        pendingPool?: c.Address | null /* = null */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenAdminRegistryEntry.CodeCell,
@@ -1129,6 +1247,13 @@ export class TokenAdminRegistryEntry implements c.Contract {
         ownerAddress: c.Address | null
     }) {
         return ResponseWalletAddress.toCell(ResponseWalletAddress.create(body));
+    }
+
+    static createCellOfTokenPoolTransferInitiator(body: {
+        queryId?: uint64
+        transferInitiator: c.Address | null
+    }) {
+        return TokenPool_TransferInitiator.toCell(TokenPool_TransferInitiator.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -1198,6 +1323,17 @@ export class TokenAdminRegistryEntry implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: ResponseWalletAddress.toCell(ResponseWalletAddress.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolTransferInitiator(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        transferInitiator: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_TransferInitiator.toCell(TokenPool_TransferInitiator.create(body)),
             ...extraOptions
         });
     }

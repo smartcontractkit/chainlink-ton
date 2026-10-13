@@ -54,14 +54,14 @@ struct ReceiveExecutor_TokenTransferState_Untouched {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {}
 /// Waiting for the released/minted tokens to reach `receiverAccount` in a single jetton transfer
-/// started by `transferInitiator`.
+/// started by `transferInitiator` (null for a mint).
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     tokenPool: address;
-    transferInitiator: Cell<address>;
+    transferInitiator: Cell<address>?;
 }
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     tokenPool: address;
-    transferInitiator: Cell<address>;
+    transferInitiator: Cell<address>?;
 }
 
 enum ReceiveExecutor_MessageExecutionState {

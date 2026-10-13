@@ -25,13 +25,15 @@ type Storage struct {
 	TokenAddress *address.Address `tlb:"addr"`
 	TokenInfo    TokenInfo        `tlb:"^"`
 	AdminConfig  AdminConfig      `tlb:"^"`
-	// Enabled is set once the token answers a TEP-89 query with a wallet.
-	Enabled bool `tlb:"bool"`
+	// TokenVerified is set once the token answers a TEP-89 query with a wallet.
+	TokenVerified bool `tlb:"bool"`
+	// PendingPool has not answered the transfer initiator probe yet.
+	PendingPool *address.Address `tlb:"addr"`
 }
 
 type TokenInfo struct {
 	TokenPool *address.Address `tlb:"addr"`
-	// TransferInitiator of the jetton transfers delivering a release/mint; nil means the pool itself.
+	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
 	TransferInitiator *address.Address `tlb:"addr"`
 	MinterAddress     *address.Address `tlb:"addr"`
 	Version           uint32           `tlb:"## 32"`
@@ -50,7 +52,8 @@ type RootMessage interface {
 		TransferAdminRole |
 		AcceptAdminRole |
 		SetPool |
-		VerifyToken
+		VerifyToken |
+		RefreshTransferInitiator
 }
 
 // crc32('TokenAdminRegistryEntry_MessageFromRoot')
@@ -109,15 +112,19 @@ type AcceptAdminRole struct {
 // crc32('TokenAdminRegistryEntry_SetPool')
 // Sent by the root, which forwards the original sender as Actor.
 type SetPool struct {
-	_                 tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	Actor             *address.Address `tlb:"addr"`
-	TokenPool         *address.Address `tlb:"addr"`
-	TransferInitiator *address.Address `tlb:"addr"`
+	_         tlb.Magic        `tlb:"#a64e05c9" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Actor     *address.Address `tlb:"addr"`
+	TokenPool *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_VerifyToken')
 type VerifyToken struct {
 	_ tlb.Magic `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
+}
+
+// crc32('TokenAdminRegistryEntry_RefreshTransferInitiator')
+type RefreshTransferInitiator struct {
+	_ tlb.Magic `tlb:"#91f8fb81" json:"-"` //nolint:revive // used by tlb reflection for encoding
 }
 
 // crc32('TokenAdminRegistryEntry_Resume')
