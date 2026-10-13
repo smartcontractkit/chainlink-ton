@@ -44,7 +44,11 @@ import { ContractClient as AccessControlClient } from '../../../wrappers/lib/acc
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { parseDepositAccountNotify, runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import {
+  deliveryTo,
+  parseDepositAccountNotify,
+  runTokenPoolBehaviorTests,
+} from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
@@ -704,7 +708,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
-          receiverAccount: recipient.address,
+          delivery: deliveryTo(recipient.address, deployer.address),
         },
       )
 
@@ -747,7 +751,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
-          receiverAccount: recipient.address,
+          delivery: deliveryTo(recipient.address, deployer.address),
         },
       )
 
@@ -786,7 +790,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: offRamp.address,
-          receiverAccount: recipient.address,
+          delivery: deliveryTo(recipient.address, offRamp.address),
         },
       )
       const withdrawTx = result.transactions.find((tx) => {
@@ -977,7 +981,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
-          receiverAccount: recipient.address,
+          delivery: deliveryTo(recipient.address, deployer.address),
         },
       )
 
@@ -1062,7 +1066,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
           requestedFinalityConfig: 0n,
           replyTo: deployer.address,
-          receiverAccount: recipient.address,
+          delivery: deliveryTo(recipient.address, deployer.address),
         },
       )
 

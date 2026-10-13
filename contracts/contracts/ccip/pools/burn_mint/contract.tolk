@@ -10,7 +10,7 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/funding/jetton_withdrawable"
 
 import "../../common/types"
-import "../../accounts/deposit/messages"
+import "../../../lib/jetton/forward_payload_wrap"
 import "../../cct/messages"
 import "../../rmn_remote/lib"
 
@@ -131,11 +131,9 @@ fun onBouncedMessage(in: InMessageBounced) {
         MintNewJettons => {
             assert(in.senderAddress == st.poolData.load().jettonClient().masterAddress) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
             val internalTransfer = lazy msg.internalTransferMsg.load();
-            val envelopeCell = loadForwardPayloadAsCell(internalTransfer.forwardPayload);
-            assert(envelopeCell != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
-            val envelope = lazy DepositAccount_Notify.fromCell(envelopeCell!);
-            assert(envelope.payload != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
-            val context = lazy BurnMintTokenPool_MintContext.fromCell(envelope.payload!);
+            val wrap = Jetton_ForwardPayloadWrap.from(internalTransfer.forwardPayload);
+            assert(wrap != null && wrap!.context != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            val context = lazy BurnMintTokenPool_MintContext.fromCell(wrap!.context!);
 
             val operation = lazy context.forwardPayload.load();
             var pool = loadPool(st);
@@ -181,8 +179,9 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    assert(msg.receiverAccount != null && msg.replyTo != null, TokenPool_Error.UnsupportedOperation);
+    assert(msg.delivery != null && msg.replyTo != null, TokenPool_Error.UnsupportedOperation);
     val st = ctx!;
+    val delivery = msg.delivery!.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
@@ -193,12 +192,11 @@ fun onReleaseOrMintContinue(
         forwardPayload: forwardPayload.toCell(),
     };
 
-    // Mint into the receiver's Router-owned deposit account. The account forwards the jetton
-    // notification to `replyTo` (the ReceiveExecutor), which finalizes the transfer. The mint
-    // context rides along in the envelope only for the bounce path.
-    val envelope = DepositAccount_Notify {
-        notify: msg.replyTo!,
-        payload: context.toCell(),
+    // The mint context rides along in the wrap only for the bounce path.
+    val wrap = Jetton_ForwardPayloadWrap {
+        initiator: sender,
+        context: context.toCell(),
+        forwardPayload: delivery.forwardPayload,
     };
     val jettonClient = st.poolData.load().jettonClient();
     val mint = createMessage({
@@ -207,18 +205,15 @@ fun onReleaseOrMintContinue(
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
             queryId: msg.queryId,
-            mintRecipient: msg.receiverAccount!,
+            mintRecipient: delivery.recipient,
             tonAmount: BurnMintTokenPool_MINT_VALUE,
             internalTransferMsg: InternalTransferStep {
                 queryId: msg.queryId,
                 jettonAmount: prepared.localAmount,
                 transferInitiator: contract.getAddress(),
                 sendExcessesTo: contract.getAddress(),
-                forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
-                forwardPayload: beginCell()
-                    .storeMaybeRef(envelope.toCell())
-                    .endCell()
-                    .beginParse(),
+                forwardTonAmount: delivery.forwardTonAmount,
+                forwardPayload: wrap.asForwardPayload(),
             }.toCell(),
         },
     });

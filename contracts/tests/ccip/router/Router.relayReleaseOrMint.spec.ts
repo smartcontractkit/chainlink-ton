@@ -132,7 +132,7 @@ describe('Router.relayReleaseOrMint', () => {
         const msg = rt.TokenPool_ReleaseOrMint.fromSlice(body.beginParse())
         return (
           msg.queryId === queryID &&
-          msg.receiverAccount?.equals(account) === true &&
+          msg.delivery?.recipient.equals(account) === true &&
           msg.replyTo?.equals(executor.address) === true
         )
       },
@@ -150,7 +150,7 @@ describe('Router.relayReleaseOrMint', () => {
       expect(forToken.equals(forOtherToken)).toBe(false)
     })
 
-    it('deploys the receiver account, learns its wallet, then relays ReleaseOrMint with it as receiverAccount', async () => {
+    it('deploys the receiver account, learns its wallet, then relays ReleaseOrMint delivering to it', async () => {
       const account = receiverAccountFor()
       const relayMsg = relayOf(1n)
       const deployment = await relay(relayMsg)

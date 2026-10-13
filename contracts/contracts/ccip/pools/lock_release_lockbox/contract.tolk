@@ -7,7 +7,7 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/funding/jetton_withdrawable"
 
 import "../../common/types"
-import "../../accounts/deposit/messages"
+import "../../../lib/jetton/forward_payload_wrap"
 import "../../rmn_remote/lib"
 
 import "../lib/token_pool/entrypoint"
@@ -221,8 +221,9 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    assert(msg.receiverAccount != null && msg.replyTo != null, TokenPool_Error.UnsupportedOperation);
+    assert(msg.delivery != null && msg.replyTo != null, TokenPool_Error.UnsupportedOperation);
     val st = ctx!;
+    val delivery = msg.delivery!.load();
     assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     val request = lazy msg.request.load();
@@ -237,17 +238,17 @@ fun onReleaseOrMintContinue(
         forwardPayload: forwardPayload.toCell(),
     };
 
-    // The account forwards the jetton notification to `replyTo` (the ReceiveExecutor). The
-    // release context rides along in the envelope only for the lockbox failure path.
-    val envelope = DepositAccount_Notify {
-        notify: msg.replyTo!,
-        payload: context.toCell(),
+    // The release context rides along in the wrap only for the lockbox failure path.
+    val wrap = Jetton_ForwardPayloadWrap {
+        initiator: sender,
+        context: context.toCell(),
+        forwardPayload: delivery.forwardPayload,
     };
     val withdrawExtra = JettonLockBox_WithdrawExtra {
         sendExcessesTo: contract.getAddress(),
         failureContext: null,
-        forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
-        forwardPayload: envelope.toCell(),
+        forwardTonAmount: delivery.forwardTonAmount,
+        forwardPayload: wrap.toCell(),
     };
 
     val jc = st.poolData.load().jettonClient();
@@ -260,7 +261,7 @@ fun onReleaseOrMintContinue(
             token: jc.masterAddress,
             remoteChainSelector: details.remoteChainSelector,
             amount: prepared.localAmount,
-            recipientWallet: msg.receiverAccount!, // account address (owner of the destination wallet)
+            recipientWallet: delivery.recipient,
             extra: withdrawExtra.toCell(),
         },
     });
@@ -275,12 +276,12 @@ fun onWithdrawFailed(
     msg: JettonLockBox_WithdrawFailed,
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    // JettonLockBox_WithdrawFailed carries the transfer's forward payload (our Notify envelope) as
-    // context. If present, use it to send a failure reply to the original requester.
+    // JettonLockBox_WithdrawFailed carries the transfer's forward payload (our wrap) as context.
+    // If present, use it to send a failure reply to the original requester.
     if (msg.context != null) {
-        val envelope = lazy DepositAccount_Notify.fromCell(msg.context!);
-        assert(envelope.payload != null) throw 0xFFFF;
-        val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(envelope.payload!);
+        val wrap = lazy Jetton_ForwardPayloadWrap.fromCell(msg.context!);
+        assert(wrap.context != null) throw 0xFFFF;
+        val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(wrap.context!);
         assert(msg.queryId == context.forwardPayload.load().requestMsg.load().queryId) throw 0xFFFF;
         val operation = context.forwardPayload.load();
         var pool = loadPool(st);

@@ -38,6 +38,8 @@ tolk 1.4.2
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
 const ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE = grams("0.02"); // TODO
+/// Forwarded with released/minted tokens so the deposit account gets a transfer notification.
+const ROUTER_DELIVERY_FORWARD_TON_AMOUNT = grams("0.01");
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
     version: "1.7.0"
@@ -1073,7 +1075,12 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
             request: relay.request,
             requestedFinalityConfig: relay.requestedFinalityConfig,
             replyTo: relay.replyTo,
-            receiverAccount: sender,
+            delivery: TokenPool_ReleaseOrMintDelivery {
+                recipient: sender,
+                forwardTonAmount: ROUTER_DELIVERY_FORWARD_TON_AMOUNT,
+                // The account routes the transfer notification to the ReceiveExecutor.
+                forwardPayload: DepositAccount_Notify { notify: relay.replyTo }.toCell(),
+            }.toCell(),
         },
     });
     tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

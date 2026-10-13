@@ -130,25 +130,32 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       }),
     )
 
-  // DepositAccount_Notify { notify, payload } routing envelope, boxed as the jetton forward payload.
+  // DepositAccount_Notify { notify } routing envelope, boxed as the jetton forward payload. With a
+  // `wrapContext`, the envelope is nested in a Jetton_ForwardPayloadWrap the way pools send it.
   const DEPOSIT_ACCOUNT_NOTIFY_PREFIX = 0x88e0ef3e
-  const buildNotifyNotificationBody = (amount: bigint, notify: Address, payload: Cell | null) =>
-    TransferNotificationForRecipient.toCell(
+  const JETTON_FORWARD_PAYLOAD_WRAP_PREFIX = 0x2d61600c
+  const buildNotifyNotificationBody = (amount: bigint, notify: Address, wrapContext?: Cell) => {
+    const envelope = beginCell()
+      .storeUint(DEPOSIT_ACCOUNT_NOTIFY_PREFIX, 32)
+      .storeAddress(notify)
+      .endCell()
+    const payload = wrapContext
+      ? beginCell()
+          .storeUint(JETTON_FORWARD_PAYLOAD_WRAP_PREFIX, 32)
+          .storeAddress(notify)
+          .storeMaybeRef(wrapContext)
+          .storeMaybeRef(envelope)
+          .endCell()
+      : envelope
+    return TransferNotificationForRecipient.toCell(
       TransferNotificationForRecipient.create({
         queryId: 4n,
         jettonAmount: amount,
         transferInitiator: null,
-        forwardPayload: beginCell()
-          .storeMaybeRef(
-            beginCell()
-              .storeUint(DEPOSIT_ACCOUNT_NOTIFY_PREFIX, 32)
-              .storeAddress(notify)
-              .storeMaybeRef(payload)
-              .endCell(),
-          )
-          .asSlice(),
+        forwardPayload: beginCell().storeMaybeRef(payload).asSlice(),
       }),
     )
+  }
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -516,7 +523,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     expect(badExcess.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
   })
 
-  it('forwards a notification carrying a DepositAccount_Notify envelope to its notify target', async () => {
+  it('forwards a notification carrying a wrapped DepositAccount_Notify envelope to its notify target', async () => {
     const { depositAccount } = await deployWithLearnedWallet()
     const target = await blockchain.treasury('receiveExecutor')
     const notificationBody = buildNotifyNotificationBody(
@@ -558,7 +565,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       to: depositAccount.address,
       value: toNano('0.2'),
       bounce: false,
-      body: buildNotifyNotificationBody(toNano('3'), target.address, null),
+      body: buildNotifyNotificationBody(toNano('3'), target.address),
     })
     expect(res.transactions).toHaveTransaction({
       from: depositAccount.address,
@@ -578,7 +585,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       to: depositAccount.address,
       value: toNano('0.2'),
       bounce: false,
-      body: buildNotifyNotificationBody(toNano('3'), target.address, null),
+      body: buildNotifyNotificationBody(toNano('3'), target.address),
     })
     expect(res.transactions).toHaveTransaction({
       from: depositAccount.address,

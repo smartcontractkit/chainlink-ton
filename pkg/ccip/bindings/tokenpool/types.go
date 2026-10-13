@@ -401,11 +401,19 @@ type LockOrBurn struct {
 
 // ReleaseOrMint releases or mints tokens on the destination chain.
 type ReleaseOrMint struct {
-	_                       tlb.Magic         `tlb:"#351f77e3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                 uint64            `tlb:"## 64"`
-	Request                 ReleaseOrMintInV1 `tlb:"^"`
-	RequestedFinalityConfig uint32            `tlb:"## 32"`
-	ReplyTo                 *address.Address  `tlb:"addr"`
+	_                       tlb.Magic              `tlb:"#351f77e3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64                 `tlb:"## 64"`
+	Request                 ReleaseOrMintInV1      `tlb:"^"`
+	RequestedFinalityConfig uint32                 `tlb:"## 32"`
+	ReplyTo                 *address.Address       `tlb:"addr"`
+	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
+}
+
+// ReleaseOrMintDelivery is the jetton transfer the pool performs to deliver released/minted tokens.
+type ReleaseOrMintDelivery struct {
+	Recipient        *address.Address `tlb:"addr"`
+	ForwardTonAmount tlb.Coins        `tlb:"."`
+	ForwardPayload   *cell.Cell       `tlb:"maybe ^"`
 }
 
 // PreflightCheckFinished notifies preflight check success.

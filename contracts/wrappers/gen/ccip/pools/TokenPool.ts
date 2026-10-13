@@ -2110,7 +2110,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
  >     requestedFinalityConfig: uint32
  >     replyTo: address?
- >     receiverAccount: address?
+ >     delivery: Cell<TokenPool_ReleaseOrMintDelivery>?
  > }
  */
 export interface TokenPool_ReleaseOrMint {
@@ -2119,7 +2119,7 @@ export interface TokenPool_ReleaseOrMint {
     request: TokenPool_ReleaseOrMintInV1
     requestedFinalityConfig: uint32
     replyTo: c.Address | null /* = null */
-    receiverAccount: c.Address | null /* = null */
+    delivery: TokenPool_ReleaseOrMintDelivery | null /* = null */
 }
 
 export const TokenPool_ReleaseOrMint = {
@@ -2130,12 +2130,12 @@ export const TokenPool_ReleaseOrMint = {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
-        receiverAccount?: c.Address | null /* = null */
+        delivery?: TokenPool_ReleaseOrMintDelivery | null /* = null */
     }): TokenPool_ReleaseOrMint {
         return {
             $: 'TokenPool_ReleaseOrMint',
             replyTo: null,
-            receiverAccount: null,
+            delivery: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2148,7 +2148,7 @@ export const TokenPool_ReleaseOrMint = {
             request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             replyTo: s.loadMaybeAddress(),
-            receiverAccount: s.loadMaybeAddress(),
+            delivery: s.loadBoolean() ? loadCellRef<TokenPool_ReleaseOrMintDelivery>(s, TokenPool_ReleaseOrMintDelivery.fromSlice) : null,
         }
     },
     store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
@@ -2157,10 +2157,57 @@ export const TokenPool_ReleaseOrMint = {
         storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         b.storeAddress(self.replyTo);
-        b.storeAddress(self.receiverAccount);
+        storeTolkNullable<TokenPool_ReleaseOrMintDelivery>(self.delivery, b,
+            (v,b) => storeCellRef<TokenPool_ReleaseOrMintDelivery>(v, b, TokenPool_ReleaseOrMintDelivery.store)
+        );
     },
     toCell(self: TokenPool_ReleaseOrMint): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMint>(self, TokenPool_ReleaseOrMint.store);
+    }
+}
+
+/**
+ > struct TokenPool_ReleaseOrMintDelivery {
+ >     recipient: address
+ >     forwardTonAmount: coins
+ >     forwardPayload: cell?
+ > }
+ */
+export interface TokenPool_ReleaseOrMintDelivery {
+    readonly $: 'TokenPool_ReleaseOrMintDelivery'
+    recipient: c.Address
+    forwardTonAmount: coins
+    forwardPayload: c.Cell | null
+}
+
+export const TokenPool_ReleaseOrMintDelivery = {
+    create(args: {
+        recipient: c.Address
+        forwardTonAmount: coins
+        forwardPayload: c.Cell | null
+    }): TokenPool_ReleaseOrMintDelivery {
+        return {
+            $: 'TokenPool_ReleaseOrMintDelivery',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintDelivery {
+        return {
+            $: 'TokenPool_ReleaseOrMintDelivery',
+            recipient: s.loadAddress(),
+            forwardTonAmount: s.loadCoins(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintDelivery, b: c.Builder): void {
+        b.storeAddress(self.recipient);
+        b.storeCoins(self.forwardTonAmount);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_ReleaseOrMintDelivery): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintDelivery>(self, TokenPool_ReleaseOrMintDelivery.store);
     }
 }
 
@@ -4850,7 +4897,7 @@ export class TokenPool implements c.Contract {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
-        receiverAccount?: c.Address | null /* = null */
+        delivery?: TokenPool_ReleaseOrMintDelivery | null /* = null */
     }) {
         return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
     }
@@ -5091,7 +5138,7 @@ export class TokenPool implements c.Contract {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo?: c.Address | null /* = null */
-        receiverAccount?: c.Address | null /* = null */
+        delivery?: TokenPool_ReleaseOrMintDelivery | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

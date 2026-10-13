@@ -49,7 +49,6 @@ struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
 ///      envelope is untrusted: `notify` must authenticate the transfer initiator itself.
 struct (0x88e0ef3e) DepositAccount_Notify {
     notify: address;
-    payload: cell?;
 }
 
 /// Metadata about a forwarded incoming message, sent to the pool for verification.

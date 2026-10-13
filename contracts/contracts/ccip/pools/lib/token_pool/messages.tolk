@@ -127,14 +127,23 @@ struct TokenPool_LockOrBurnForwardPayload {
 /// @Releases or mints tokens on the destination chain.
 /// @param releaseOrMintIn Encoded data fields for the processing of tokens on the destination chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
-/// @param receiverAccount Router-owned deposit account of the receiver. Released/minted tokens
-///        must be sent there; it is deployed by the Router before relaying this message.
+/// @param delivery Where the Router wants the released/minted tokens sent.
 struct (0x351f77e3) TokenPool_ReleaseOrMint {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     replyTo: address? = null;
-    receiverAccount: address? = null;
+    delivery: Cell<TokenPool_ReleaseOrMintDelivery>? = null;
+}
+
+/// Jetton transfer the pool performs to deliver released/minted tokens.
+/// @dev The pool sends `forwardPayload` wrapped in a `Jetton_ForwardPayloadWrap` carrying its own
+///      context, which it reads back if the transfer fails.
+struct TokenPool_ReleaseOrMintDelivery {
+    /// Owner of the destination jetton wallet.
+    recipient: address;
+    forwardTonAmount: coins;
+    forwardPayload: cell?;
 }
 
 /// Sent by the Router once the ReceiveExecutor confirmed the released/minted tokens reached the

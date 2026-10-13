@@ -4,6 +4,7 @@ import "@stdlib/common"
 
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
+import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/deployable/types"
 import "types"
 import "messages"
@@ -301,15 +302,20 @@ fun DepositAccount<T>.onForwardNotification(
 }
 
 /// Returns the `DepositAccount_Notify.notify` target when `body` is a jetton transfer notification
-/// whose forward payload is a `DepositAccount_Notify` envelope, `null` otherwise.
+/// whose forward payload is a `DepositAccount_Notify` envelope, possibly inside a
+/// `Jetton_ForwardPayloadWrap`; `null` otherwise.
 fun DepositAccount_notifyTarget(body: cell): address? {
     try {
         val notification = TransferNotificationForRecipient.fromCell(body);
-        val payload = loadForwardPayloadAsSlice(notification.forwardPayload);
+        var payload = loadForwardPayloadAsCell(notification.forwardPayload);
+        val wrap = Jetton_ForwardPayloadWrap.from(notification.forwardPayload);
+        if (wrap != null) {
+            payload = wrap!.forwardPayload;
+        }
         if (payload == null) {
             return null;
         }
-        return DepositAccount_Notify.fromSlice(payload).notify;
+        return DepositAccount_Notify.fromCell(payload!).notify;
     } catch {
         return null;
     }

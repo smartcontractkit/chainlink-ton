@@ -75,8 +75,7 @@ type Reply struct {
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
 }
 
-// WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet,
-// or when another init is already waiting for it.
+// WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet.
 type WalletUnavailable struct {
 	_              tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64     `tlb:"## 64"`

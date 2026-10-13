@@ -12,8 +12,8 @@ struct (0x2d61600c) Jetton_ForwardPayloadWrap {
     initiator: address
     /// Opaque processor context (e.g. `JettonWithdrawable_WithdrawContext`), `null` if none.
     context: cell?
-    /// The caller's original `forwardPayload`, preserved as the remainder.
-    forwardPayload: ForwardPayloadRemainder
+    /// The caller's original `forwardPayload`.
+    forwardPayload: cell?
 }
 
 @inline

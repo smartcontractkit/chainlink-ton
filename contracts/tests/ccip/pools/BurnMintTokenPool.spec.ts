@@ -41,7 +41,11 @@ import { CCT_ReturnExcessesBack } from '../../../wrappers/gen/ccip/cct/JettonMin
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { parseDepositAccountNotify, runTokenPoolBehaviorTests } from './TokenPool.behavior'
+import {
+  deliveryTo,
+  parseDepositAccountNotify,
+  runTokenPoolBehaviorTests,
+} from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
@@ -772,7 +776,7 @@ describe('BurnMintTokenPool', () => {
         request: mintRequest(22n, toNano('2')),
         requestedFinalityConfig: 0n,
         replyTo: offRamp.address,
-        receiverAccount: receiverAccount.address,
+        delivery: deliveryTo(receiverAccount.address, offRamp.address),
       },
     )
 
@@ -820,7 +824,7 @@ describe('BurnMintTokenPool', () => {
         request: mintRequest(305n, toNano('1')),
         requestedFinalityConfig: 0n,
         replyTo: null,
-        receiverAccount: recipient.address,
+        delivery: deliveryTo(recipient.address, recipient.address),
       },
     )
 
