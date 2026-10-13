@@ -11,4 +11,6 @@ enum CCIPSendExecutor_Error {
     TokenPoolBounce
     UnsupportedNumberOfTokens
     InvalidValidatedFee
+    /// The token's registered minter is not the token itself, which on-ramp accounts are keyed by.
+    TokenMinterMismatch
 }

@@ -1,4 +1,4 @@
-import '@ton/test-utils'
+import { findTransaction } from '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 
@@ -64,10 +64,40 @@ describe('Router.withdrawToTokenPool', () => {
       deployableCode,
     )
 
+  // Requests the on-ramp account and, on its first init, answers the account's TEP-89 wallet
+  // query on behalf of the token.
+  const requestOnRampAccount = async (
+    via: SandboxContract<TreasuryContract>,
+    jetton: Address = token,
+    value: bigint = toNano('1'),
+  ) => {
+    const request = await router.sendRouterGetOnRampAccount(via.getSender(), value, {
+      token: jetton,
+    })
+    const account = accountAddressFor(via.address, jetton)
+    if (
+      !findTransaction(request.transactions, {
+        from: account,
+        to: jetton,
+        op: deposit.RequestWalletAddress.PREFIX,
+      })
+    ) {
+      return request
+    }
+    const answer = await blockchain
+      .openContract(deposit.DepositAccount.fromAddress(account))
+      .sendResponseWalletAddress(blockchain.sender(jetton), toNano('0.05'), {
+        queryId: 0n,
+        jettonWalletAddress: new Address(0, beginCell().storeAddress(account).endCell().hash()),
+        ownerAddress: null,
+      })
+    return { ...answer, transactions: [...request.transactions, ...answer.transactions] }
+  }
+
   // Deploys the sender's deposit account through the Router's permissionless
   // Router_GetOnRampAccount entrypoint, so the account exists with the Router as owner.
   const deployDepositAccount = async (user: SandboxContract<TreasuryContract>) => {
-    const res = await router.sendRouterGetOnRampAccount(user.getSender(), toNano('1'), { token })
+    const res = await requestOnRampAccount(user)
     expect(res.transactions).toHaveTransaction({
       from: router.address,
       to: user.address,
@@ -216,15 +246,12 @@ describe('Router.withdrawToTokenPool', () => {
     // bounces back from the jetton wallet).
     const result = await router.sendDepositAccountWithdrawFailed(
       // The message must come from the sender's derived deposit account: the Router re-derives
-      // the expected account address from the reported (proxy, token) identity.
+      // the expected account address from the reported (user, token) pair.
       blockchain.sender(accountAddress),
       toNano('0.5'),
       {
-        account: deposit.DepositAccount_Identity.create({
-          owner: router.address,
-          proxy: sender.address,
-          token,
-        }),
+        user: sender.address,
+        token,
         walletAddress: walletAddress.address,
         ask,
       },
@@ -265,11 +292,8 @@ describe('Router.withdrawToTokenPool', () => {
       attacker.getSender(),
       toNano('0.5'),
       {
-        account: deposit.DepositAccount_Identity.create({
-          owner: router.address,
-          proxy: sender.address,
-          token,
-        }),
+        user: sender.address,
+        token,
         walletAddress: walletAddress.address,
         ask,
       },
@@ -294,11 +318,8 @@ describe('Router.withdrawToTokenPool', () => {
       blockchain.sender(accountAddress),
       toNano('0.5'),
       {
-        account: deposit.DepositAccount_Identity.create({
-          owner: router.address,
-          proxy: sender.address,
-          token: otherToken,
-        }),
+        user: sender.address,
+        token: otherToken,
         walletAddress: walletAddress.address,
         ask: deposit.AskToTransfer.create({
           jettonAmount: toNano('5'),

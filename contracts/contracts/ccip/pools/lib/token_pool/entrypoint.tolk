@@ -1570,16 +1570,11 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     throw TokenPool_Error.Unauthorized;
 }
 
-/// Derives the on-chain address of a Router-owned OnRampAccount for `user` and the pool's own
-/// jetton.
+/// Derives the address of the Router-owned deposit account of `user` for the pool's own jetton.
 ///
-/// @param router The Router that owns the deployable deployment.
+/// @param router The Router that owns the account.
 /// @param namespace The Deployables namespace identifying the account type (e.g. OnRampAccount).
-/// @param user The on-chain user that is the account's proxy and beneficiary.
-///
-/// @dev Must stay byte-for-byte compatible with
-///      `onRampAccountAutodeployAddressForRouter` in `ccip/router/utils.tolk`. In particular,
-///      the deployable ID is `DepositAccount_DeploymentID`, not the user's address directly.
+/// @param user The user the account escrows the jetton for.
 @inline
 fun TokenPool<T>.deriveDepositAccount(
     self,
@@ -1591,7 +1586,7 @@ fun TokenPool<T>.deriveDepositAccount(
     val code = adminConfig.deployableCode;
     assert(code != null, TokenPool_Error.Unauthorized);
 
-    return calcAddressOfAccount(
+    return DepositAccount_calcAddress(
         code!,
         namespace,
         router,

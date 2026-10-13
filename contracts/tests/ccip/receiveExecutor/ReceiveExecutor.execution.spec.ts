@@ -298,7 +298,6 @@ describe('ReceiveExecutor - Execution', () => {
     let tokenPool: SandboxContract<TreasuryContract>
     // The receiver's Router-owned deposit account and its jetton wallet for the transferred token.
     let receiverAccount: SandboxContract<TreasuryContract>
-    let accountWallet: SandboxContract<TreasuryContract>
 
     let messageWithTT: of.Any2TVMRampMessage
 
@@ -306,7 +305,6 @@ describe('ReceiveExecutor - Execution', () => {
       tokenAdminRegistry = await blockchain.treasury('tokenAdminRegistry')
       tokenPool = await blockchain.treasury('tokenPool')
       receiverAccount = await blockchain.treasury('receiverAccount')
-      accountWallet = await blockchain.treasury('accountWallet')
     })
 
     const tokenTransferOf = (
@@ -376,13 +374,12 @@ describe('ReceiveExecutor - Execution', () => {
       return returnTokenInfoWithPool(executor, tokenPool.address, transferInitiator)
     }
 
-    /** A jetton notification forwarded by a deposit account (`via`) as it arrived from `walletSender`. */
+    /** A jetton notification forwarded by a deposit account (`via`). */
     const forwardNotification = (
       executor: SandboxContract<rx.ReceiveExecutor>,
       amount: bigint,
       opts: {
         via?: SandboxContract<TreasuryContract>
-        walletSender?: Address
         initiator?: Address | null
       } = {},
     ) =>
@@ -390,22 +387,11 @@ describe('ReceiveExecutor - Execution', () => {
         (opts.via ?? receiverAccount).getSender(),
         toNano('0.05'),
         {
-          message: rx.DepositAccount_InMessageForward.create({
-            senderAddress: opts.walletSender ?? accountWallet.address,
-            valueCoins: toNano('0.01'),
-            valueExtra: new Map(),
-            originalForwardFee: 0n,
-            createdLt: 0n,
-            createdAt: 0n,
-            body: TransferNotificationForRecipient.toCell(
-              TransferNotificationForRecipient.create({
-                queryId: 0n,
-                jettonAmount: amount,
-                transferInitiator:
-                  opts.initiator === undefined ? tokenPool.address : opts.initiator,
-                forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
-              }),
-            ),
+          notification: TransferNotificationForRecipient.create({
+            queryId: 0n,
+            jettonAmount: amount,
+            transferInitiator: opts.initiator === undefined ? tokenPool.address : opts.initiator,
+            forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
           }),
         },
       )

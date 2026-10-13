@@ -21,12 +21,14 @@ func newTestAddress(seed byte) *address.Address {
 
 func TestData_EncodingAndDecoding(t *testing.T) {
 	owner := newTestAddress(0x01)
-	proxy := newTestAddress(0x02)
+	user := newTestAddress(0x02)
+	token := newTestAddress(0x04)
 	beneficiary := newTestAddress(0x03)
 
 	data := Data{
 		Owner: owner,
-		Proxy: proxy,
+		User:  user,
+		Token: token,
 		Beneficiaries: tlbe.NewDict[common.AddressWrap, struct{}](map[common.AddressWrap]struct{}{
 			{Val: beneficiary}: {},
 		}),
@@ -40,7 +42,8 @@ func TestData_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, data.Owner, decoded.Owner)
-	require.Equal(t, data.Proxy, decoded.Proxy)
+	require.Equal(t, data.User, decoded.User)
+	require.Equal(t, data.Token, decoded.Token)
 	require.Len(t, decoded.Beneficiaries.AsMap(), 1)
 
 	// Compare the decoded beneficiary address by value (AddressWrap keys hold pointers, so
@@ -93,11 +96,11 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, withdraw.WalletAddress, decodedWithdraw.WalletAddress)
 	require.Equal(t, askCell.Hash(), decodedWithdraw.Ask.Hash())
 
-	// Reply
-	reply := Reply{QueryID: 5, ForwardPayload: nil}
+	// Initialized
+	reply := Initialized{QueryID: 5, ForwardPayload: nil}
 	c, err = tlb.ToCell(reply)
 	require.NoError(t, err)
-	var decodedReply Reply
+	var decodedReply Initialized
 	require.NoError(t, tlb.Parse(&decodedReply, c))
 	require.Equal(t, reply.QueryID, decodedReply.QueryID)
 	require.Nil(t, decodedReply.ForwardPayload)
