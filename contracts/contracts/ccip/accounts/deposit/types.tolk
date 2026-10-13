@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-import "../../../lib/deployable/namespace"
-
 /// Kept on the balance to pay for storage fees.
 const DepositAccount_MIN_GRAM_TO_RESERVE: int = grams("0.05");
 const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.01") // TODO update with real value
@@ -12,8 +10,8 @@ const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.02") // TODO update with
 /// `beneficiaries` may withdraw it, and incoming jetton transfer notifications are forwarded to
 /// `user`, or to the `DepositAccount_Notify` target carried in the transfer.
 ///
-/// @dev The deployer must install the `owner`, `user` and `token` it derived the address from
-///      (see `DepositAccount_calcAddress`); `beneficiaries` is not part of the address.
+/// @dev Deployed through Deployables: the deployer must install the `owner`, `user` and `token` it
+///      derived the address from.
 struct DepositAccount_Data {
     /// Deployer of the account. Only the owner may init.
     owner: address;
@@ -57,39 +55,4 @@ enum DepositAccount_Error {
     NotEnoughValue
     /// Thrown when a withdraw arrives before the account learned its jetton wallet.
     WalletUnknown
-}
-
-/// Deployable ID of a deposit account.
-///
-/// @dev The token is part of the ID so an account can only ever hold one jetton: were it
-///      token-agnostic, a malicious minter could hand out the jetton wallet of a *different*
-///      jetton owned by the same account.
-struct DepositAccount_DeploymentID {
-    user: address;
-    token: address;
-}
-
-/// Computes the address of a deposit account deployed through the Deployable pattern.
-///
-/// @dev `namespace` separates account types deployed by the same owner. The config not in the
-///      address (`beneficiaries`) is installed by `Deployable_Initialize`; a retried
-///      `Deployable_Initialize` bounces off the deployed account, so the first deployment's
-///      config sticks: always deploy an address with the same config.
-fun DepositAccount_calcAddress(
-    deployableCode: cell,
-    namespace: Namespace,
-    owner: address,
-    user: address,
-    token: address,
-): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: deployableCode,
-            data: NamespacedDeployableData<DepositAccount_DeploymentID>({
-                namespace,
-                owner,
-                id: DepositAccount_DeploymentID { user, token },
-            }),
-        },
-    };
 }

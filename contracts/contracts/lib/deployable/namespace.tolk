@@ -30,3 +30,13 @@ fun NamespacedDeployableData<T>(props: NamespacedDeployableDataProps<T>): cell {
         },
     }.toCell();
 }
+
+/// Address of a contract deployed through the Deployable pattern by `props.owner`.
+fun NamespacedDeployableAddress<T>(deployableCode: cell, props: NamespacedDeployableDataProps<T>): AutoDeployAddress {
+    return AutoDeployAddress {
+        stateInit: ContractState {
+            code: deployableCode,
+            data: NamespacedDeployableData<T>(props),
+        },
+    };
+}
