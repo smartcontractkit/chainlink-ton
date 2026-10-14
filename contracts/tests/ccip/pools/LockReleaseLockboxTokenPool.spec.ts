@@ -45,6 +45,7 @@ import {
   JettonLockBox_WithdrawFailed,
   JettonLockBox_Deposit,
   JettonLockBox_DepositFailed,
+  JettonLockBox_Deposited,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
@@ -59,6 +60,8 @@ import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
+import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
+import { setTokenPoolSafetyFloor } from '../../utils/minValue'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -346,6 +349,23 @@ describe('LockReleaseLockboxTokenPool', () => {
     // Fund the lockbox so release completions can actually be observed in behavior tests.
     await fundLockboxViaLock(toNano('10'))
   }
+
+  runTokenPoolContinuationBehaviorTests('LockReleaseLockboxTokenPool', async () => {
+    await fundLockboxViaLock(toNano('10'))
+    return {
+      pool,
+      blockchain,
+      deployer,
+      offRamp,
+      unauthorized: recipient,
+      recipient,
+      remoteChainSelector,
+      onRampAddress: deployer.address,
+      destTokenAddress,
+      sourcePoolAddress,
+      localToken: jettonMinter.address,
+    }
+  })
 
   runTokenPoolBehaviorTests(
     'LockReleaseLockboxTokenPool',
@@ -1084,6 +1104,8 @@ describe('LockReleaseLockboxTokenPool', () => {
     ])(
       'funds the lockbox from $inbound TON without subsidizing the transfer',
       async ({ inbound, forwarded }) => {
+        const adminFloor = toNano('1')
+        await setTokenPoolSafetyFloor(blockchain, pool.address, 'admin', adminFloor)
         // Fund lockbox wallet with a small mint to activate it
         await jettonMinter.sendMint(deployer.getSender(), {
           value: toNano('1'),
@@ -1208,6 +1230,13 @@ describe('LockReleaseLockboxTokenPool', () => {
           from: lockReleaseLockboxPool.address,
           to: deployer.address,
           op: TokenPool_LockOrBurnFinished.PREFIX,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: jettonLockBox.address,
+          to: pool.address,
+          op: JettonLockBox_Deposited.PREFIX,
+          value: (value) => value !== undefined && value < adminFloor,
+          success: true,
         })
         expect(await lockboxWallet.getJettonBalance()).toEqual(initialLockboxBalance + toNano('8'))
       },

@@ -1,5 +1,6 @@
 import "@stdlib/gas-payments"
-import "../../../../lib/utils"
+
+import "../../../../lib/budget/gas"
 import "../../../../lib/jetton/messages"
 
 /// Fixed wallet budget for best-effort custody returns; never reduced on underfunded input.

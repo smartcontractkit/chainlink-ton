@@ -2,6 +2,7 @@
 tolk 1.4.2
 
 import "../lib/utils";
+import "../lib/budget/gas";
 import "../lib/access/access_control";
 
 const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";

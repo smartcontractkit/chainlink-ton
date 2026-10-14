@@ -2,6 +2,7 @@
 tolk 1.4.2
 
 import "../utils.tolk";
+import "../budget/gas.tolk";
 
 const AccessControl_FACILITY_NAME = "link.chain.ton.lib.access.AccessControl";
 const AccessControl_FACILITY_ID = AccessControl_FACILITY_NAME.crc32() % 640 + 10;  // 474
