@@ -44,7 +44,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       it('aborts LockOrBurn locally when a successful preflight reply is below the safety floor', async () => {
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
-        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'default', floor)
+        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
 
         const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
           ctx.deployer.getSender(),
@@ -90,7 +90,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       it('aborts ReleaseOrMint locally when a successful postflight reply is below the safety floor', async () => {
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
-        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'default', floor)
+        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
 
         const { transactions } = await ctx.pool.sendTokenPoolReleaseOrMint(
           ctx.deployer.getSender(),

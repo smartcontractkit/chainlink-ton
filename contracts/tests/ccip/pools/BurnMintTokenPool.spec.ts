@@ -773,8 +773,8 @@ describe('BurnMintTokenPool', () => {
 
     // === Step 1: Send LockOrBurn to the pool ===
     // Pool validates → sends TokenPool_LockOrBurnWithdraw with forward payload back to deployer
-    const adminFloor = toNano('1')
-    await setTokenPoolSafetyFloor(blockchain, pool.address, 'admin', adminFloor)
+    const adminFloor = toNano('0.1')
+    await setTokenPoolSafetyFloor(blockchain, pool.address, adminFloor)
     const lockOrBurn = TokenPool_LockOrBurn.create({
       queryId,
       request: TokenPool_LockOrBurnInV1.create({

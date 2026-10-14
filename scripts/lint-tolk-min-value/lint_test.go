@@ -8,161 +8,207 @@ import (
 	"testing"
 )
 
-const declarations = `
-struct (0x12345678) Request { queryId: uint64; }
-type Requests = Request;
-contract Demo {
-    incomingMessages: Requests
-}
-`
+const demoABI = `{
+  "contract_name": "Demo",
+  "description": "link.chain.ton.ccip.Demo",
+  "incoming_messages": [{"body_ty_idx": 1}, {"body_ty_idx": 2}],
+  "unique_types": [
+    {"kind": "void"},
+    {"kind": "StructRef", "struct_name": "Demo_Request"},
+    {"kind": "AliasRef", "alias_name": "Demo_Reply"}
+  ]
+}`
 
-func fixture(t *testing.T, files map[string]string) string {
+func fixture(t *testing.T, abi, src string) (string, string) {
 	t.Helper()
 	root := t.TempDir()
-	for file, text := range files {
-		path := filepath.Join(root, file)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(text), 0644); err != nil {
-			t.Fatal(err)
-		}
+	abiDir := filepath.Join(root, "abi")
+	srcDir := filepath.Join(root, "src")
+	if err := os.MkdirAll(abiDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	return root
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(abiDir, "Demo.json"), []byte(abi), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "demo.tolk"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return abiDir, srcDir
 }
 
-func TestMarkerChecks(t *testing.T) {
-	for _, tc := range []struct{ name, body, want string }{
-		{"extracted value", "// lint:min-value/normal Request — checked\nval minValue = 1;\nassertMinValue(value, minValue, 1);", ""},
-		{"caught check", "try {\n// lint:min-value/normal-local Request — local recovery\nval minValue = 1;\nassertMinValue(value, minValue, 1);\n} catch { recover(); }", ""},
-		{"nested caught check", "try {\nif (valid) {\n// lint:min-value/normal-local Request local recovery\nassertMinValue(value, 1, 1);\n}\n} /* } */ catch (errorCode) { recover(); }", ""},
-		{"uncaught local", "// lint:min-value/normal-local Request local recovery\nassertMinValue(value, 1, 1);", "inside try/catch"},
-		{"unrelated catch", "try { complete(); } catch { recover(); }\n// lint:min-value/normal-local Request local recovery\nassertMinValue(value, 1, 1);", "inside try/catch"},
-		{"try without catch", "try {\n// lint:min-value/normal-local Request local recovery\nassertMinValue(value, 1, 1);\n}", "inside try/catch"},
-		{"multi-hop", "// lint:min-value/multi-hop Request safety and optional admission\nval safety = 1;\nassertMinValue(value, safety, 1);\nval admission = config.resolve(safety);\nassertMinValue(value, admission, 1);", ""},
-		{"missing admission", "// lint:min-value/multi-hop Request safety and optional admission\nassertMinValue(value, 1, 1);\n// assertMinValue(value, 2, 1);", "safety and admission"},
-		{"recovery", "// lint:min-value/recovery Request unwind an aborted attempt\nrecover();", ""},
-		{"non-reject", "// lint:min-value/non-reject Request custody already committed\ncomplete();", ""},
-		{"best effort", "// lint:min-value/best-effort Request passive excess receipt only\nkeepCoins();", ""},
-		{"gated recovery", "// lint:min-value/recovery Request unwind\nassertMinValue(value, 1, 1);", "must not introduce"},
-		{"gated non-reject", "// lint:min-value/non-reject Request committed\nassertMinValue(value, 1, 1);", "must not introduce"},
-		{"gated exception", "// lint:min-value/best-effort Request passive receipt\nassertMinValue(value, 1, 1);", "must not introduce"},
-		{"unknown group", "// lint:min-value/typo Request some reason", "unknown min-value group"},
-		{"legacy checked", "// lint:min-value Request — checked\nassertMinValue(value, 1, 1);", "expected // lint:min-value/<group>"},
-		{"legacy unchecked", "// lint:min-value-best-effort Request — committed", "expected // lint:min-value/<group>"},
-		{"missing", "complete();", "found 0"},
-		{"no description", "// lint:min-value/best-effort Request\ncomplete();", "description"},
-		{"empty description", "// lint:min-value/normal Request —\nassertMinValue(value, 1, 1);", "description"},
-		{"commented call", "// lint:min-value/normal Request — checked\n// assertMinValue(value, 1, 1);", "no assertMinValue"},
-		{"block comment call", "// lint:min-value/normal Request — checked\n/* assertMinValue(value, 1, 1); */", "no assertMinValue"},
-		{"string call", "// lint:min-value/normal Request — checked\nval text = \"assertMinValue(value, 1, 1)\";", "no assertMinValue"},
-		{"function definition", "// lint:min-value/normal Request — checked\nfun assertMinValue(value: coins) {}", "no assertMinValue"},
-		{"block comment tag", "/*\n// lint:min-value/normal Request — checked\nassertMinValue(value, 1, 1);\n*/", "found 0"},
-		{"next handler", "// lint:min-value/normal Request — checked\n}\nfun other() { assertMinValue(value, 1, 1);", "no assertMinValue"},
-		{"window boundary", "// lint:min-value/normal Request — checked\n\n\n\n\nassertMinValue(value, 1, 1);", ""},
-		{"outside window", "// lint:min-value/normal Request — checked\n\n\n\n\n\nassertMinValue(value, 1, 1);", "no assertMinValue"},
-		{"duplicate", "// lint:min-value/non-reject Request — first\n// lint:min-value/non-reject Request — second", "found 2"},
-		{"conflict", "// lint:min-value/normal Request — first\nassertMinValue(value, 1, 1);\n// lint:min-value/non-reject Request — second", "found 2"},
-		{"stale", "// lint:min-value/non-reject Request — committed\n// lint:min-value/non-reject Typo — wrong name", "stale tag Typo"},
+func TestParseMarker(t *testing.T) {
+	for _, tc := range []struct {
+		name, line, category, gate, message, description string
+	}{
+		{"full", "// minval:check-admission gate=A Demo_Request — start of flow", "check-admission", "A", "Demo_Request", "start of flow"},
+		{"default gate", "// minval:check-bounce Demo_Reply — owner config", "check-bounce", "S", "Demo_Reply", "owner config"},
+		{"no summary", "// minval:recovery gate=none Demo_Reply", "recovery", "none", "Demo_Reply", ""},
+		{"hyphen dash", "// minval:check-fail Demo_Reply - owner config", "check-fail", "S", "Demo_Reply", "owner config"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			root := fixture(t, map[string]string{"ccip/demo/contract.tolk": declarations + tc.body})
-			r, err := lint(root)
-			if err != nil {
-				t.Fatal(err)
+			got := parseMarkers(tc.line, "x.tolk")
+			if len(got) != 1 {
+				t.Fatalf("want 1 marker, got %d", len(got))
 			}
-			output := strings.Join(r.diagnostics, "\n")
-			if tc.want == "" && output != "" {
-				t.Fatal(output)
-			}
-			if tc.want != "" && !strings.Contains(output, tc.want) {
-				t.Fatalf("want %q, got %q", tc.want, output)
+			m := got[0]
+			if m.Category != tc.category || m.Gate != tc.gate || m.Message != tc.message || m.Description != tc.description {
+				t.Fatalf("got %+v", m)
 			}
 		})
 	}
 }
 
-func TestImportScopedTags(t *testing.T) {
-	root := fixture(t, map[string]string{
-		"ccip/a/contract.tolk": `import "../../lib/messages"
-import "../../lib/handler.tolk"
-contract A { incomingMessages: Requests }`,
-		"ccip/b/contract.tolk": `import "../../lib/messages"
-contract B { incomingMessages: Requests }`,
-		"lib/messages.tolk": "struct (0x12345678) Request {}\ntype Requests = Request\nconst NEXT = 1;",
-		"lib/handler.tolk": `import "messages"
-// lint:min-value/normal Request — shared checked handler
-val minValue = 1;
-assertMinValue(value, minValue, 1);`,
-	})
-	r, err := lint(root)
+func TestParseDetailBlock(t *testing.T) {
+	src := "// minval:check-bounce gate=S Demo_Request — summary\n" +
+		"// minval.detail:\n" +
+		"//   First line.\n" +
+		"//   Second line.\n" +
+		"fun f() {}"
+	got := parseMarkers(src, "x.tolk")
+	if len(got) != 1 || got[0].Description != "summary" || got[0].Detail != "First line. Second line." {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestCoverage(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo_Request — config\nfun f() {}\n"+
+			"// minval:check-admission gate=A Demo_Reply — flow start\nfun g() {}")
+	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.contracts != 2 || r.groups["normal"] != 1 {
+	if r.total != 2 || r.classified != 2 || !r.ok() {
 		t.Fatalf("unexpected report: %+v", r)
 	}
-	if len(r.diagnostics) != 1 || !strings.Contains(r.diagnostics[0], "(B): Request") {
-		t.Fatalf("an unrelated contract's tag must not satisfy B: %v", r.diagnostics)
+	doc := r.contractDoc(r.contracts[0])
+	if !strings.Contains(doc, "| `Demo_Request` | check-bounce | S | config |") {
+		t.Fatalf("contract doc missing row:\n%s", doc)
 	}
-	// A narrower invocation still follows relative imports outside the scan root.
-	r, err = lint(filepath.Join(root, "ccip", "a"))
-	if err != nil || len(r.diagnostics) != 0 || r.groups["normal"] != 1 {
-		t.Fatalf("%+v, %v", r, err)
-	}
-}
-
-func TestFailClosed(t *testing.T) {
-	for _, tc := range []struct{ name, code, want string }{
-		{"missing import", "import \"missing\"\n" + declarations, "import"},
-		{"unknown message", "contract Demo { incomingMessages: Missing }", "unresolved message"},
-		{"empty messages", "contract Demo { incomingMessages: }", "empty incomingMessages"},
-		{"missing messages", "contract Demo { storage: Storage }", "missing or empty"},
-		{"unknown generic", "type Reply = Missing<cell>;\ncontract Demo { incomingMessages: Reply }", "unresolved generic"},
-		{"cycle", "type A = B;\ntype B = A;\ncontract Demo { incomingMessages: A }", "cyclic"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			root := fixture(t, map[string]string{"ccip/demo/contract.tolk": tc.code})
-			_, err := lint(root)
-			if err == nil || !strings.Contains(err.Error(), tc.want) {
-				t.Fatalf("want %s error, got %v", tc.want, err)
-			}
-		})
-	}
-	root := t.TempDir()
-	if _, err := lint(root); err == nil {
-		t.Fatal("zero contracts must not pass")
-	}
-	if _, err := lint(filepath.Join(root, "missing")); err == nil {
-		t.Fatal("missing root must not pass")
+	if !strings.Contains(r.overview(), "2/2") {
+		t.Fatalf("overview missing coverage:\n%s", r.overview())
 	}
 }
 
-func TestTransitiveImportsAndGenericMessages(t *testing.T) {
-	root := fixture(t, map[string]string{
-		"ccip/demo/contract.tolk": `import "../../lib/alias"
-contract Demo { incomingMessages: Messages }
-// lint:min-value/non-reject Reply — generic callback already committed`,
-		"lib/alias.tolk":    "import \"messages\"\ntype Reply = GenericReply<cell>\ntype Messages = Reply;",
-		"lib/messages.tolk": "import \"alias\"\nstruct (0x12345678) GenericReply<T> { payload: T; }",
-	})
-	r, err := lint(root)
-	if err != nil || len(r.diagnostics) != 0 || r.groups["non-reject"] != 1 {
-		t.Fatalf("%+v, %v", r, err)
+func TestDetailRendered(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo_Request — summary\n// minval.detail:\n//   More detail here.\nfun f() {}\n"+
+			"// minval:check-admission gate=A Demo_Reply — flow\nfun g() {}")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc := r.contractDoc(r.contracts[0]); !strings.Contains(doc, "## Details") || !strings.Contains(doc, "More detail here.") {
+		t.Fatalf("detail not rendered:\n%s", doc)
 	}
 }
 
-func TestStaleTagsAreImportScoped(t *testing.T) {
-	root := fixture(t, map[string]string{
-		"ccip/a/contract.tolk": `struct (1) ARequest {}
-struct (2) Request {}
-contract A { incomingMessages: ARequest }
-// lint:min-value/best-effort ARequest passive receipt
-// lint:min-value/non-reject Request stale in this closure`,
-		"ccip/b/contract.tolk": declarations + "// lint:min-value/non-reject Request committed in B",
-	})
-	r, err := lint(root)
-	if err != nil || len(r.diagnostics) != 1 || !strings.Contains(r.diagnostics[0], "stale tag Request") {
-		t.Fatalf("%+v, %v", r, err)
+func TestMissingMarkerFails(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI, "// minval:check-bounce gate=S Demo_Request — config\nfun f() {}")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.missing) != 1 || !strings.Contains(r.missing[0], "Demo: Demo_Reply") {
+		t.Fatalf("want missing Demo_Reply, got %+v", r)
+	}
+}
+
+func TestExcludedToleratesMissing(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI, "// minval:check-bounce gate=S Demo_Request — config\nfun f() {}")
+	r, err := lint(abiDir, srcDir, map[string]bool{"Demo": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.ok() || len(r.missing) != 0 || len(r.excludedMissing) != 1 {
+		t.Fatalf("want excluded missing and ok, got %+v", r)
+	}
+}
+
+func TestStaleMarker(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo_Request — a\n// minval:check-bounce gate=S Demo_Reply — b\n// minval:check-bounce gate=S Demo_Typo — c")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.stale) != 1 || !strings.Contains(r.stale[0], "Demo_Typo") {
+		t.Fatalf("want stale Demo_Typo, got %+v", r)
+	}
+}
+
+func TestQualifiedOverridesShared(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo_Request — shared default\n"+
+			"// minval:check-admission gate=A Demo.Demo_Request — demo-specific\n"+
+			"// minval:check-bounce gate=S Demo_Reply — reply")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.ok() {
+		t.Fatalf("want ok, got %+v", r)
+	}
+	if m, _ := r.tagFor("Demo", "Demo_Request"); m.Category != "check-admission" || m.Gate != "A" {
+		t.Fatalf("qualified marker should win, got %+v", m)
+	}
+}
+
+func TestDuplicateUnqualified(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo_Request — a\n// minval:check-bounce gate=S Demo_Request — b\n// minval:check-bounce gate=S Demo_Reply — c")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.duplicates) != 1 {
+		t.Fatalf("want duplicate, got %+v", r)
+	}
+}
+
+func TestDuplicateQualified(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo.Demo_Request — a\n// minval:check-bounce gate=S Demo.Demo_Request — b\n// minval:check-bounce gate=S Demo_Reply — c")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.duplicates) != 1 {
+		t.Fatalf("want duplicate, got %+v", r)
+	}
+}
+
+func TestStaleQualified(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S Demo_Request — a\n// minval:check-bounce gate=S Nope.Demo_Request — b\n// minval:check-bounce gate=S Demo_Reply — c")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.stale) != 1 {
+		t.Fatalf("want stale qualified marker, got %+v", r)
+	}
+}
+
+func TestInvalidGate(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=X Demo_Request — a\n// minval:check-bounce gate=S Demo_Reply — c")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.invalid) != 1 {
+		t.Fatalf("want 1 invalid, got %+v", r)
+	}
+}
+
+func TestOutOfScopeIgnored(t *testing.T) {
+	other := strings.Replace(demoABI, "link.chain.ton.ccip.Demo", "link.chain.ton.wgram.Demo", 1)
+	abiDir, srcDir := fixture(t, other, "fun f() {}")
+	if _, err := lint(abiDir, srcDir, nil); err == nil {
+		t.Fatal("expected error when no in-scope contracts remain")
 	}
 }

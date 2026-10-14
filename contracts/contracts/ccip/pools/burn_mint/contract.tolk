@@ -255,8 +255,8 @@ fun onClaimMinterAdmin(
     msgValue: coins,
     queryId: uint64,
 ) {
-    // lint:min-value/normal BurnMintTokenPool_ClaimMinterAdmin — owner-only minter admin claim
-    val minValue = st.poolData.load().rollback.admin.resolve(ccipAdminMinValue());
+    // minval:check-bounce gate=S BurnMintTokenPool_ClaimMinterAdmin — owner-only minter admin claim
+    val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
@@ -280,7 +280,7 @@ fun onCCTReturnExcessesBack(
     sender: address,
     msg: CCT_ReturnExcessesBack,
 ) {
-    // lint:min-value/non-reject CCT_ReturnExcessesBack — burn committed; authenticate and complete, no reversal exists; context-free excess is passive
+    // minval:non-reject gate=none CCT_ReturnExcessesBack — burn committed; authenticate and complete, no reversal exists; context-free excess is passive
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
     if (msg.forwardPayload == null) {
         return;

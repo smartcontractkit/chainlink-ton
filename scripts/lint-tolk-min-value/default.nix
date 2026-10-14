@@ -17,7 +17,7 @@ in
     proxyVendor = true;
 
     meta = with pkgs.lib; {
-      description = "Linter requiring every CCIP/MCMS incoming message to carry a min-value check";
+      description = "Checks every CCIP/MCMS incoming message for a min-value marker and generates the value-budget spec";
       license = licenses.mit;
     };
   }

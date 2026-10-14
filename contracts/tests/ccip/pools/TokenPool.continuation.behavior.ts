@@ -27,8 +27,8 @@ export function runTokenPoolContinuationBehaviorTests(
   name: string,
   setup: () => Promise<TokenPoolBehaviorContext>,
 ) {
-  function releaseOneToken(ctx: TokenPoolBehaviorContext) {
-    return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), toNano('0.6'), {
+  function releaseOneToken(ctx: TokenPoolBehaviorContext, value = toNano('0.6')) {
+    return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), value, {
       queryId: 1n,
       request: releaseRequest(ctx),
       requestedFinalityConfig: 0n,
@@ -51,14 +51,15 @@ export function runTokenPoolContinuationBehaviorTests(
   describe(`${name} continuation value policy`, () => {
     it('aborts before mint/withdraw when the inbound release is below the safety floor', async () => {
       const ctx = await setup()
-      const floor = toNano('1')
-      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'default', floor)
+      const floor = toNano('0.57')
+      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
       )
 
-      const { transactions } = await releaseOneToken(ctx)
+      // The inbound release itself is gated now that there is no account-reply hop.
+      const { transactions } = await releaseOneToken(ctx, floor - 1n)
 
       expect(transactions).toHaveTransaction({
         from: ctx.deployer.address,
@@ -84,7 +85,7 @@ export function runTokenPoolContinuationBehaviorTests(
     it('mints/withdraws directly without a post-commit delivery value recheck', async () => {
       const ctx = await setup()
       const floor = toNano('0.1')
-      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'default', floor)
+      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
@@ -109,7 +110,7 @@ export function runTokenPoolContinuationBehaviorTests(
     it('returns received custody and restores capacity when its notification is below the safety floor', async () => {
       const ctx = await setup()
       const floor = toNano('0.3')
-      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'default', floor)
+      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,

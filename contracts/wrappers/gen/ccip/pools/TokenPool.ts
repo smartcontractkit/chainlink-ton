@@ -1238,8 +1238,7 @@ export const TokenPool_AdminConfig = {
  >     tokenDecimals: uint8
  >     remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig>
  >     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>
- >     rollback: TokenPool_RollbackConfig
- >     admission: MinValueConfig
+ >     budget: TokenPool_Budget
  > }
  */
 export interface TokenPool_Data {
@@ -1249,8 +1248,7 @@ export interface TokenPool_Data {
     tokenDecimals: uint8
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-    rollback: TokenPool_RollbackConfig /* = TokenPool_RollbackConfig { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
-    admission: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+    budget: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
 }
 
 export const TokenPool_Data = {
@@ -1260,13 +1258,11 @@ export const TokenPool_Data = {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        rollback?: TokenPool_RollbackConfig /* = TokenPool_RollbackConfig { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
-        admission?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
-            rollback: { $: 'TokenPool_RollbackConfig', default: { $: 'MinValueConfig', value: null }, admin: { $: 'MinValueConfig', value: null } },
-            admission: { $: 'MinValueConfig', value: null },
+            budget: { $: 'TokenPool_Budget', safety: { $: 'MinValueConfig', value: null }, admission: { $: 'MinValueConfig', value: null } },
             ...args
         }
     },
@@ -1278,8 +1274,7 @@ export const TokenPool_Data = {
             tokenDecimals: s.loadUintBig(8),
             remoteChainConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_RemoteChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store), s)),
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_TokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store), s)),
-            rollback: TokenPool_RollbackConfig.fromSlice(s),
-            admission: MinValueConfig.fromSlice(s),
+            budget: TokenPool_Budget.fromSlice(s),
         }
     },
     store(self: TokenPool_Data, b: c.Builder): void {
@@ -1288,8 +1283,7 @@ export const TokenPool_Data = {
         b.storeUint(self.tokenDecimals, 8);
         b.storeDict<uint64, TokenPool_RemoteChainConfig>(mapToDict(self.remoteChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store));
         b.storeDict<uint64, TokenPool_TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store));
-        TokenPool_RollbackConfig.store(self.rollback, b);
-        MinValueConfig.store(self.admission, b);
+        TokenPool_Budget.store(self.budget, b);
     },
     toCell(self: TokenPool_Data): c.Cell {
         return makeCellFrom<TokenPool_Data>(self, TokenPool_Data.store);
@@ -1297,42 +1291,42 @@ export const TokenPool_Data = {
 }
 
 /**
- > struct TokenPool_RollbackConfig {
- >     default: MinValueConfig
- >     admin: MinValueConfig
+ > struct TokenPool_Budget {
+ >     safety: MinValueConfig
+ >     admission: MinValueConfig
  > }
  */
-export interface TokenPool_RollbackConfig {
-    readonly $: 'TokenPool_RollbackConfig'
-    default: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-    admin: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+export interface TokenPool_Budget {
+    readonly $: 'TokenPool_Budget'
+    safety: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+    admission: MinValueConfig /* = MinValueConfig { null as null as coins? } */
 }
 
-export const TokenPool_RollbackConfig = {
+export const TokenPool_Budget = {
     create(args: {
-        default?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-        admin?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-    }): TokenPool_RollbackConfig {
+        safety?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+        admission?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+    }): TokenPool_Budget {
         return {
-            $: 'TokenPool_RollbackConfig',
-            default: { $: 'MinValueConfig', value: null },
-            admin: { $: 'MinValueConfig', value: null },
+            $: 'TokenPool_Budget',
+            safety: { $: 'MinValueConfig', value: null },
+            admission: { $: 'MinValueConfig', value: null },
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_RollbackConfig {
+    fromSlice(s: c.Slice): TokenPool_Budget {
         return {
-            $: 'TokenPool_RollbackConfig',
-            default: MinValueConfig.fromSlice(s),
-            admin: MinValueConfig.fromSlice(s),
+            $: 'TokenPool_Budget',
+            safety: MinValueConfig.fromSlice(s),
+            admission: MinValueConfig.fromSlice(s),
         }
     },
-    store(self: TokenPool_RollbackConfig, b: c.Builder): void {
-        MinValueConfig.store(self.default, b);
-        MinValueConfig.store(self.admin, b);
+    store(self: TokenPool_Budget, b: c.Builder): void {
+        MinValueConfig.store(self.safety, b);
+        MinValueConfig.store(self.admission, b);
     },
-    toCell(self: TokenPool_RollbackConfig): c.Cell {
-        return makeCellFrom<TokenPool_RollbackConfig>(self, TokenPool_RollbackConfig.store);
+    toCell(self: TokenPool_Budget): c.Cell {
+        return makeCellFrom<TokenPool_Budget>(self, TokenPool_Budget.store);
     }
 }
 
@@ -5289,8 +5283,7 @@ export class TokenPool implements c.Contract {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        rollback?: TokenPool_RollbackConfig /* = TokenPool_RollbackConfig { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
-        admission?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,

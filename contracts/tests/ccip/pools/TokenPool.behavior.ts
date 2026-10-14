@@ -132,12 +132,15 @@ export function runTokenPoolBehaviorTests(
 
   describe(`${name} TokenPool behavior`, () => {
     describe('flow admission', () => {
-      const safety = toNano('0.3')
+      // S = global safety allowance; A = admission threshold (>= S).
+      const safety = toNano('0.1')
+      // Downstream continuations consume value, so an admitted flow needs headroom.
+      const headroom = toNano('0.5')
       const policies = [
         { name: 'unset', admission: null, threshold: safety },
         { name: 'zero', admission: 0n, threshold: safety },
-        { name: 'below safety', admission: toNano('0.15'), threshold: safety },
-        { name: 'above safety', admission: toNano('0.6'), threshold: toNano('0.6') },
+        { name: 'below safety', admission: toNano('0.05'), threshold: safety },
+        { name: 'above safety', admission: toNano('0.3'), threshold: toNano('0.3') },
       ]
       const acceptedBoundaries = [
         { name: 'at', offset: 0n },
@@ -194,7 +197,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendLockOrBurn(threshold + offset)
+            const { transactions } = await sendLockOrBurn(threshold + offset + headroom)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -240,7 +243,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendReleaseOrMint(threshold + offset)
+            const { transactions } = await sendReleaseOrMint(threshold + offset + headroom)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,

@@ -90,8 +90,8 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     // Only the initializer bound at construction (stateInit) may initialize.
     assert(sender == st.initializer, JettonLockBox_Error.UnauthorizedInitializer);
 
-    // lint:min-value/normal JettonLockBox_Init — one-time init; reject shortfall before binding initializer or changing configuration
-    val minValue = ccipAdminMinValue();
+    // minval:check-bounce gate=S JettonLockBox_Init — one-time init; reject shortfall before binding initializer or changing configuration
+    val minValue = ccipMinValue();
     assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
     // Validate addresses are not zero
@@ -184,7 +184,7 @@ fun onDepositWithTransferNotification(
         assert(deposit!.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
         assert(deposit!.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
-        // lint:min-value/normal-local TransferNotificationForRecipient — authenticated deposit; shortfall uses the correlated custody-return path
+        // minval:check-fail gate=S JettonLockBox.TransferNotificationForRecipient — authenticated deposit; shortfall uses the correlated custody-return path
         val minValue = ccipMinValue();
         assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
@@ -252,8 +252,8 @@ fun onDepositWithTransferNotification(
 fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
 
-    // lint:min-value/normal JettonLockBox_Withdraw — reject before withdrawing custody; operator handles the request bounce
-    val minValue = ccipAdminMinValue();
+    // minval:check-bounce gate=S JettonLockBox_Withdraw — reject before withdrawing custody; operator handles the request bounce
+    val minValue = ccipMinValue();
     assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
     val rbac = hookTrait__AccessControl(st);
