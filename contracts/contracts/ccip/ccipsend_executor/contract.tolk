@@ -142,11 +142,11 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         FeeQuoter_GetValidatedFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce, 0);
+            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce, NO_FEE_CHARGED);
         }
         OnRamp_ExecutorReserveFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.OnRampFeeReservationBounce, 0);
+            this.exitWithError(CCIPSendExecutor_Error.OnRampFeeReservationBounce, NO_FEE_CHARGED);
         }
         //TODO: We should handle bounced messages from the TokenRegistry, as that means the token is not enabled on the lane
     }
@@ -201,7 +201,7 @@ fun depositAccountAddress(sender: address, router: address): address {
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
-        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, 0);
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, NO_FEE_CHARGED);
         return;
     }
 
@@ -212,11 +212,11 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     var destGasOverhead: uint32? = null;
     if (!self.onrampSend.msg.load().tokenAmounts.empty()) {
         if (msg.destGasOverheads == null) {
-            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, 0);
+            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
         }
         destGasOverhead = msg.destGasOverheads.asSingle();
         if (destGasOverhead == null) {
-            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, 0);
+            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
         }
     }
 
@@ -448,8 +448,10 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed) {
-    self.exitWithError(msg.error as uint256, 0);
+    self.exitWithError(msg.error as uint256, NO_FEE_CHARGED);
 }
+
+const NO_FEE_CHARGED: coins = 0
 
 fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {

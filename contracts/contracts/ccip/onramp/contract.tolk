@@ -473,7 +473,8 @@ with error details for tracking and recovery.
 */
 fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
     val router = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector).router;
-    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, msg.refund.loadOpt().unwrapOr(0));
+    val refund = msg.refund.loadOpt().unwrapOr(0); // No fee charged if refund is not present
+    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
 }
 
 fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
