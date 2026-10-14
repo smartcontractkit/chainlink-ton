@@ -353,17 +353,13 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
 
 fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw) {
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
-    val withdrawRequest = lazy msg.withdrawRequest.load();
-    val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
-    val out = prepared.out;
 
     // chainFamilySelector comes from the FeeQuoter via the executor; the remote token
     // address is pool-supplied and untrusted, so validate it before custody moves
     // (mirrors EVM FeeQuoter.processPoolReturnData).
     try {
-        assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw OnRamp_Error.SourceTokenDataTooLarge;
-        validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
-    } catch {
+        processPoolReturnData(msg);
+    } catch (e) {
         val failure = createMessage({
             bounce: false,
             value: 0,
@@ -372,7 +368,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
                 queryID: msg.queryID,
                 destChainSelector: msg.destChainSelector,
                 withdrawRequest: msg.withdrawRequest,
-                error: OnRamp_Error.InvalidDestTokenAddress as int,
+                error: e,
             }
         });
         failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -390,6 +386,18 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         }
     });
     routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
+    val out = prepared.out;
+    assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw OnRamp_Error.SourceTokenDataTooLarge;
+    try {
+        validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
+    } catch {
+        throw OnRamp_Error.InvalidDestTokenAddress;
+    }
 }
 
 /*
