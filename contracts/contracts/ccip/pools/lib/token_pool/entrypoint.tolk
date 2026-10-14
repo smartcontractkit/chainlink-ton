@@ -1601,7 +1601,7 @@ fun TokenPool<T>.onLockOrBurn(
         return;
     }
 
-    // minval:check-admission gate=A A=static TokenPool_LockOrBurn
+    // minval:check-admission gate=A/static TokenPool_LockOrBurn
     // minval.detail: outbound flow; safety plus optional admission
     //   Checks the resolved safety floor, then the optional admission threshold, before consuming
     //   outbound rate-limit capacity. On shortfall the caller (Router/executor) owns rejection
@@ -1957,7 +1957,7 @@ fun TokenPool<T>.onReleaseOrMint(
         return;
     }
 
-    // minval:check-admission gate=A A=static TokenPool_ReleaseOrMint
+    // minval:check-admission gate=A/static TokenPool_ReleaseOrMint
     // minval.detail: inbound flow; safety plus optional admission before capacity consumption
     val minValue = self.data.budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
