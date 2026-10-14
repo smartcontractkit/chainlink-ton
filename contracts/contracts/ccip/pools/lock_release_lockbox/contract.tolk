@@ -5,6 +5,7 @@ import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
+import "../../../lib/budget/gas"
 import "../../../lib/access/access_control"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
@@ -74,15 +75,15 @@ fun onInternalMessage(in: InMessage): void {
             st.store();
         }
         JettonLockBox_DepositFailed => {
-            onDepositFailed(mutate st, in.senderAddress, msg, in.valueCoins);
+            onDepositFailed(mutate st, in.senderAddress, in.valueCoins, msg);
             st.store();
         }
         JettonLockBox_WithdrawFailed => {
-            onWithdrawFailed(mutate st, in.senderAddress, msg, in.valueCoins);
+            onWithdrawFailed(mutate st, in.senderAddress, in.valueCoins, msg);
             st.store();
         }
         ReturnExcessesBack => {
-            // Excess TON from jetton transfer — just keep the coins.
+            // lint:min-value/best-effort ReturnExcessesBack — passive excess receipt; retain coins without advancing an operation or granting authority
         }
         TokenPool_GetTransferInitiator => {
             // TODO: wrong zero addr check, and this should be done on init
@@ -111,7 +112,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
     var basePool = loadPool(st);
-    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody, in.valueCoins)) {
+    if (basePool.onBouncedMessage(in.senderAddress, in.valueCoins, in.bouncedBody)) {
         st.poolData = basePool.data.toCell();
         st.store();
         return;
@@ -132,7 +133,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                 return;
             }
 
-            onLockTransferBounced(mutate st, in.senderAddress, msg, in.valueCoins);
+            onLockTransferBounced(mutate st, in.senderAddress, in.valueCoins, msg);
             st.store();
         }
         // The lockbox rejected the withdraw request at entry, so no JettonLockBox_WithdrawFailed
@@ -158,9 +159,9 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     _sender: address,
+    msgValue: coins,
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
-    msgValue: coins,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val prepared = lazy fwdPayload.prepared.load();
@@ -194,7 +195,7 @@ fun onLockOrBurnTransferContinue(
             transferRecipient: st.lockbox,
             sendExcessesTo: contract.getAddress(),
             customPayload: context.toCell(),
-            forwardTonAmount: msgValue,
+            forwardTonAmount: 0, // set below after calculating the overhead
             forwardPayload: beginCell().storeMaybeRef(depositMsg.toCell()).endCell().beginParse(),
         },
     };
@@ -223,6 +224,8 @@ fun onDeposited(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+    // lint:min-value/non-reject JettonLockBox_Deposited — lockbox owns custody; authenticate and complete, no reversal path exists
+
     var pool = loadPool(st);
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
     pool.onLockOrBurnTransferFinalize(context.forwardPayload.load());
@@ -251,13 +254,17 @@ fun validateRejectedDeposit(st: Storage, msg: JettonLockBox_DepositFailed): Toke
 fun onDepositFailed(
     mutate st: Storage,
     sender: address,
-    msg: JettonLockBox_DepositFailed,
     msgValue: coins,
+    msg: JettonLockBox_DepositFailed,
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+
+    // lint:min-value/recovery JettonLockBox_DepositFailed — lock unwind when lockbox deposit is rejected
+
     if (msg.context == null) {
         return;
     }
+
     val operation = validateRejectedDeposit(st, msg);
     var pool = loadPool(st);
     pool.recoverLockOrBurnFailure(operation, msg.errorCode, msgValue);
@@ -268,6 +275,7 @@ fun onDepositFailed(
 /// Ordinary or malformed payloads return false for the base pool dispatcher to handle.
 /// Returns custody without refunding rate limits or issuing another operation result.
 fun tryHandleRejectedDepositReturn(st: Storage, sender: address, msgValue: coins, body: slice): bool {
+    // Recovery path for TransferNotificationForRecipient: returned custody bypasses the normal receipt's floor.
     if (body.remainingBitsCount() < 32 || body.preloadUint(32) != 0x7362d09c) {
         return false;
     }
@@ -310,8 +318,8 @@ fun tryHandleRejectedDepositReturn(st: Storage, sender: address, msgValue: coins
 fun onLockTransferBounced(
     mutate st: Storage,
     sender: address,
-    msg: AskToTransfer,
     msgValue: coins,
+    msg: AskToTransfer,
 ) {
     assert(st.poolData.load().jettonClient().isWallet(sender)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     assert(msg.customPayload != null) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
@@ -394,11 +402,13 @@ fun onReleaseOrMintContinue(
 fun onWithdrawFailed(
     mutate st: Storage,
     sender: address,
-    msg: JettonLockBox_WithdrawFailed,
     msgValue: coins,
+    msg: JettonLockBox_WithdrawFailed,
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
+    // lint:min-value/recovery JettonLockBox_WithdrawFailed — release unwind when lockbox withdraw fails
+
     val withdraw = msg.context!.load();
     assert(withdraw.queryId == msg.queryId && withdraw.token == msg.token && msg.token == st.poolData.load().token(),
         LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);

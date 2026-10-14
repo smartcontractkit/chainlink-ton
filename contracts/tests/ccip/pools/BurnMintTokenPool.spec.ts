@@ -51,6 +51,8 @@ import {
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
+import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
+import { setTokenPoolSafetyFloor } from '../../utils/minValue'
 
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
 // from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
@@ -271,6 +273,20 @@ describe('BurnMintTokenPool', () => {
     unsupportedChainSelector: remoteChainSelector + 1n,
     unknownSourcePoolAddress: CrossChainAddressCodec.FromBuffer(Buffer.from('unknown-source-pool')),
     remoteTokenAddress: destTokenAddress,
+    onRampAddress: deployer.address,
+    destTokenAddress,
+    sourcePoolAddress,
+    localToken: cctMinter.address,
+  }))
+
+  runTokenPoolContinuationBehaviorTests('BurnMintTokenPool', async () => ({
+    pool,
+    blockchain,
+    deployer,
+    offRamp,
+    unauthorized,
+    recipient,
+    remoteChainSelector,
     onRampAddress: deployer.address,
     destTokenAddress,
     sourcePoolAddress,
@@ -733,7 +749,7 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  it('burns tokens on lockOrBurn path and finalizes through the executor notification', async () => {
+  it('burns tokens and finalizes even when the burn confirmation is below the admin floor', async () => {
     const deployerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(burnMintPool.address)
 
@@ -757,6 +773,8 @@ describe('BurnMintTokenPool', () => {
 
     // === Step 1: Send LockOrBurn to the pool ===
     // Pool validates → sends TokenPool_LockOrBurnWithdraw with forward payload back to deployer
+    const adminFloor = toNano('1')
+    await setTokenPoolSafetyFloor(blockchain, pool.address, 'admin', adminFloor)
     const lockOrBurn = TokenPool_LockOrBurn.create({
       queryId,
       request: TokenPool_LockOrBurnInV1.create({
@@ -848,6 +866,12 @@ describe('BurnMintTokenPool', () => {
       },
     })
 
+    expect(result2.transactions).toHaveTransaction({
+      to: pool.address,
+      op: CCT_ReturnExcessesBack.PREFIX,
+      value: (value) => value !== undefined && value < adminFloor,
+      success: true,
+    })
     expect(await poolWallet.getJettonBalance()).toEqual(0n)
 
     expect(result2.transactions).toHaveTransaction({

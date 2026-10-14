@@ -2,6 +2,7 @@
 tolk 1.4.2
 
 import "../lib/utils";
+import "../lib/budget/gas";
 import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";

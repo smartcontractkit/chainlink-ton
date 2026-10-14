@@ -6,14 +6,17 @@ import "@stdlib/lisp-lists"
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/access/access_control"
+import "../../../lib/deployable/types"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
+import "../../../lib/budget/min_value"
 
 import "../../common/types"
 import "../../cct/messages"
 import "../../rmn_remote/lib"
+import "../../budget/min_value"
 
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
@@ -65,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
-            onClaimMinterAdmin(mutate st, in.senderAddress, msg.queryId);
+            onClaimMinterAdmin(mutate st, in.senderAddress, in.valueCoins, msg.queryId);
             st.store();
         }
         CCT_ReturnExcessesBack => {
@@ -122,7 +125,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
     var basePool = loadPool(st);
-    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody, in.valueCoins)) {
+    if (basePool.onBouncedMessage(in.senderAddress, in.valueCoins, in.bouncedBody)) {
         st.poolData = basePool.data.toCell();
         st.store();
         return;
@@ -181,9 +184,9 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
+    _msgValue: coins,
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
-    _msgValue: coins,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val context = BurnMintTokenPool_BurnContext {
@@ -235,7 +238,7 @@ fun onReleaseOrMintContinue(
                 queryId: msg.queryId,
                 jettonAmount: prepared.localAmount,
                 transferInitiator: null,
-                sendExcessesTo: contract.getAddress(),
+                sendExcessesTo: contract.getAddress(), // pool keeps any excesses
                 forwardTonAmount: delivery.forwardTonAmount,
                 forwardPayload: wrap.asForwardPayload(),
             }.toCell(),
@@ -249,8 +252,13 @@ fun onReleaseOrMintContinue(
 fun onClaimMinterAdmin(
     mutate st: Storage,
     sender: address,
+    msgValue: coins,
     queryId: uint64,
 ) {
+    // lint:min-value/normal BurnMintTokenPool_ClaimMinterAdmin — owner-only minter admin claim
+    val minValue = st.poolData.load().rollback.admin.resolve(ccipAdminMinValue());
+    assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
+
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
 
     val claim = createMessage({
@@ -272,6 +280,7 @@ fun onCCTReturnExcessesBack(
     sender: address,
     msg: CCT_ReturnExcessesBack,
 ) {
+    // lint:min-value/non-reject CCT_ReturnExcessesBack — burn committed; authenticate and complete, no reversal exists; context-free excess is passive
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
     if (msg.forwardPayload == null) {
         return;

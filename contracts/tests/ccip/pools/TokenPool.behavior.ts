@@ -34,6 +34,7 @@ import {
   TokenPool_GetTransferInitiator,
   TokenPool_TransferInitiator,
 } from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
+import { setTokenPoolAdmissionPolicy } from '../../utils/minValue'
 
 export type TokenPoolBehaviorContext = {
   pool: SandboxContract<TokenPool>
@@ -130,6 +131,132 @@ export function runTokenPoolBehaviorTests(
   }
 
   describe(`${name} TokenPool behavior`, () => {
+    describe('flow admission', () => {
+      const safety = toNano('0.3')
+      const policies = [
+        { name: 'unset', admission: null, threshold: safety },
+        { name: 'zero', admission: 0n, threshold: safety },
+        { name: 'below safety', admission: toNano('0.15'), threshold: safety },
+        { name: 'above safety', admission: toNano('0.6'), threshold: toNano('0.6') },
+      ]
+      const acceptedBoundaries = [
+        { name: 'at', offset: 0n },
+        { name: 'one nanoton above', offset: 1n },
+      ]
+
+      describe.each(policies)('$name admission', ({ admission, threshold }) => {
+        let ctx: TokenPoolBehaviorContext
+
+        beforeEach(async () => {
+          ctx = await setup()
+          await setTokenPoolAdmissionPolicy(ctx.blockchain, ctx.pool.address, { safety, admission })
+        })
+
+        describe('LockOrBurn', () => {
+          function sendLockOrBurn(value: bigint) {
+            return ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), value, {
+              queryId: 903n,
+              request: TokenPool_LockOrBurnInV1.create({
+                transfer: TokenPool_Transfer.create({
+                  id: 903n,
+                  details: TokenPool_TransferDetails.create({
+                    receiver: ctx.destTokenAddress,
+                    remoteChainSelector: ctx.remoteChainSelector,
+                    originalSender: ctx.deployer.address,
+                    amount: 1n,
+                    localToken: ctx.localToken,
+                  }),
+                }),
+              }),
+              requestedFinalityConfig: 0n,
+              tokenArgs: null,
+              replyTo: ctx.deployer.address,
+            })
+          }
+
+          it('rejects one nanoton below the threshold without consuming capacity', async () => {
+            const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+
+            const { transactions } = await sendLockOrBurn(threshold - 1n)
+
+            expect(transactions).toHaveTransaction({
+              from: ctx.deployer.address,
+              to: ctx.pool.address,
+              op: TokenPool_LockOrBurn.PREFIX,
+              success: false,
+              exitCode: 51725, // TokenPool_Error.InsufficientMessageValue
+            })
+            const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+            expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+            expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+          })
+
+          it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
+            const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+
+            const { transactions } = await sendLockOrBurn(threshold + offset)
+
+            expect(transactions).toHaveTransaction({
+              from: ctx.deployer.address,
+              to: ctx.pool.address,
+              op: TokenPool_LockOrBurn.PREFIX,
+              success: true,
+              exitCode: 0,
+            })
+            const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+            expect(after.outbound.tokens).toEqual(before.outbound.tokens - 1n)
+            expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+          })
+        })
+
+        describe('ReleaseOrMint', () => {
+          function sendReleaseOrMint(value: bigint) {
+            return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), value, {
+              queryId: 903n,
+              request: releaseRequest(ctx),
+              requestedFinalityConfig: 0n,
+              replyTo: ctx.deployer.address,
+              delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+            })
+          }
+
+          it('rejects one nanoton below the threshold without consuming capacity', async () => {
+            const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+
+            const { transactions } = await sendReleaseOrMint(threshold - 1n)
+
+            expect(transactions).toHaveTransaction({
+              from: ctx.deployer.address,
+              to: ctx.pool.address,
+              op: TokenPool_ReleaseOrMint.PREFIX,
+              success: false,
+              exitCode: 51725, // TokenPool_Error.InsufficientMessageValue
+            })
+            const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+            expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+            expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+          })
+
+          it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
+            const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+
+            const { transactions } = await sendReleaseOrMint(threshold + offset)
+
+            expect(transactions).toHaveTransaction({
+              from: ctx.deployer.address,
+              to: ctx.pool.address,
+              op: TokenPool_ReleaseOrMint.PREFIX,
+              success: true,
+              exitCode: 0,
+            })
+            const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+            expect(after.inbound.tokens).toEqual(before.inbound.tokens - 1n)
+            expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+          })
+        })
+      })
+    })
+
     it.each(['lock', 'release'])(
       'rejects a %s operation with addr_none as replyTo',
       async (direction) => {

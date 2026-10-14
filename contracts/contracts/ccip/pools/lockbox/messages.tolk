@@ -2,8 +2,7 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
-import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/utils"
+import "../../../lib/budget/gas"
 
 import "../lib/token_pool/recovery"
 
