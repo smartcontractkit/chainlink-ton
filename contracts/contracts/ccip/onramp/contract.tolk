@@ -361,6 +361,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
     // address is pool-supplied and untrusted, so validate it before custody moves
     // (mirrors EVM FeeQuoter.processPoolReturnData).
     try {
+        assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw OnRamp_Error.SourceTokenDataTooLarge;
         validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
     } catch {
         val failure = createMessage({

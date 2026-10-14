@@ -210,6 +210,13 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     if (destGasOverhead == null) {
         return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
     }
+    if (msg.destBytesOverheads == null) {
+        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
+    }
+    val destBytesOverhead = msg.destBytesOverheads.asSingle();
+    if (destBytesOverhead == null) {
+        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
+    }
 
     // Else if there are token transfers continue querying the TokenAdminRegistry
     val tokenAmount = tokenAmounts.asSingle();
@@ -238,6 +245,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
             fee: msg.fee,
             token: tokenAmount.token,
             destGasOverhead,
+            destBytesOverhead,
             chainFamilySelector: msg.chainFamilySelector,
         }.toCell(),
     };
@@ -268,6 +276,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         state: CCIPSendExecutor_State_WalletAddressValidation {
             fee: state.fee,
             destGasOverhead: state.destGasOverhead,
+            destBytesOverhead: state.destBytesOverhead,
             chainFamilySelector: state.chainFamilySelector,
             minterAddress: msg.minterAddress,
             tokenPool: msg.tokenPool,
@@ -304,6 +313,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             fee: state.fee,
             destGasOverhead: state.destGasOverhead,
+            destBytesOverhead: state.destBytesOverhead,
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
@@ -324,6 +334,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             fee: state.fee,
             destGasOverhead: state.destGasOverhead,
+            destBytesOverhead: state.destBytesOverhead,
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: state.senderDepositAccountWallet,
@@ -346,6 +357,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             chainFamilySelector: state.chainFamilySelector,
+            destBytesOverhead: state.destBytesOverhead,
             withdrawRequest: Router_WithdrawRequest {
                 accountWalletAddress: state.senderDepositAccountWallet,
                 depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),

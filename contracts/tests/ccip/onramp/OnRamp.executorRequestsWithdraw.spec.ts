@@ -183,6 +183,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       executorID,
       destChainSelector: DEST_CHAIN_SELECTOR,
       chainFamilySelector,
+      destBytesOverhead: 32n,
       withdrawRequest: buildWithdrawRequest({
         accountWalletAddress: mockAccountWallet.address,
         depositAccount: mockDepositAccount.address,

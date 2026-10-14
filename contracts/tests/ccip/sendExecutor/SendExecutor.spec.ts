@@ -328,8 +328,11 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   // Sends a validated-fee response for the token-transfer send, with the given
-  // destGasOverheads list, against a config that carries a tokenRegistry.
-  async function sendValidatedTokenFee(destGasOverheads: bigint[] | null) {
+  // destGasOverheads/destBytesOverheads lists, against a config that carries a tokenRegistry.
+  async function sendValidatedTokenFee(
+    destGasOverheads: bigint[] | null,
+    destBytesOverheads: bigint[] | null = [32n],
+  ) {
     const { sendExecutor } = await afterExecute({
       send: tokenOnrampSend,
       tokenRegistry: tokenRegistryMock.address,
@@ -341,6 +344,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads,
+        destBytesOverheads,
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
       }),
@@ -367,12 +371,19 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  // A token transfer needs exactly one destGasOverhead: it is the value the executor encodes
-  // into the emitted transfer's destExecData. null, an empty list and multiple entries are all
-  // ambiguous, so each must be rejected with InvalidValidatedFee before the tokenRegistry is
-  // queried (and before any lock/burn is requested).
-  async function expectTokenFeeRejected(destGasOverheads: bigint[] | null) {
-    const { sendExecutor, result } = await sendValidatedTokenFee(destGasOverheads)
+  // A token transfer needs exactly one destGasOverhead and one destBytesOverhead: the gas value
+  // is encoded into the emitted transfer's destExecData, the bytes value is relayed to the OnRamp
+  // to bound the pool's destPoolData. null, an empty list and multiple entries are all ambiguous,
+  // so each must be rejected with InvalidValidatedFee before the tokenRegistry is queried (and
+  // before any lock/burn is requested).
+  async function expectTokenFeeRejected(
+    destGasOverheads: bigint[] | null,
+    destBytesOverheads: bigint[] | null = [32n],
+  ) {
+    const { sendExecutor, result } = await sendValidatedTokenFee(
+      destGasOverheads,
+      destBytesOverheads,
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -407,6 +418,18 @@ describe('SendExecutor - Unit tests', () => {
     await expectTokenFeeRejected([90_000n, 91_000n])
   })
 
+  it('should reject a null destBytesOverheads list for a token transfer', async () => {
+    await expectTokenFeeRejected([90_000n], null)
+  })
+
+  it('should reject an empty destBytesOverheads list for a token transfer', async () => {
+    await expectTokenFeeRejected([90_000n], [])
+  })
+
+  it('should reject multiple destBytesOverheads for a token transfer', async () => {
+    await expectTokenFeeRejected([90_000n], [32n, 33n])
+  })
+
   it('should exit successfully on validated fee without a token transfer or tokenRegistry', async () => {
     // A config without a tokenRegistry and a message without token transfers behaves like the
     // plain messaging flow: it finishes successfully without touching any registry.
@@ -418,6 +441,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -445,6 +469,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -481,6 +506,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -516,6 +542,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -541,6 +568,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -608,6 +636,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -629,6 +658,7 @@ describe('SendExecutor - Unit tests', () => {
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           destGasOverheads: [],
+          destBytesOverheads: [],
           chainFamilySelector: ChainFamilySelectors.evm,
           msg: onrampSend.msg,
         }),
@@ -658,6 +688,7 @@ describe('SendExecutor - Unit tests', () => {
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: onrampSend.msg,
       }),
@@ -678,6 +709,7 @@ describe('SendExecutor - Unit tests', () => {
         sx.FeeQuoter_MessageValidated.create({
           fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
           destGasOverheads: [],
+          destBytesOverheads: [],
           chainFamilySelector: ChainFamilySelectors.evm,
           msg: onrampSend.msg,
         }),

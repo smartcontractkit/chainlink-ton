@@ -123,6 +123,7 @@ describe('OnRamp - Get Fee', () => {
           feeValueJuels: 12345n,
         }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: ccipSend,
         context: or.OnRamp_GetValidatedFeeContext.toCell(
@@ -153,6 +154,7 @@ describe('OnRamp - Get Fee', () => {
           feeValueJuels: 12345n,
         }),
         destGasOverheads: [],
+        destBytesOverheads: [],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: ccipSend,
         context: or.OnRamp_GetValidatedFeeContext.toCell(
