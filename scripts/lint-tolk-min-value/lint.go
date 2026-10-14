@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -11,308 +12,152 @@ import (
 	"strings"
 )
 
-const checkWindow = 5
-
-var policyGroups = []string{"multi-hop", "normal", "normal-local", "recovery", "non-reject", "best-effort"}
-
+// A value-budget marker on an incoming message handler:
+//
+//	// minval:<category> gate=<S|A|none> [<Contract>.]<Message> — <summary>
+//
+// An unqualified marker is a shared default for every contract that declares the
+// message. A `<Contract>.<Message>` marker applies only to that contract and takes
+// precedence. An optional long-form description follows as a block:
+//
+//	// minval.detail:
+//	//   First line.
+//	//   Second line.
 var (
-	tokenRE    = regexp.MustCompile(`(?s)"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|//[^\n]*|/\*.*?\*/`)
-	importRE   = regexp.MustCompile(`(?m)^\s*import\s+"([^"]+)"`)
-	contractRE = regexp.MustCompile(`(?s)\bcontract\s+(\w+)\s*\{([^}]*)\}`)
-	incomingRE = regexp.MustCompile(`\bincomingMessages\s*:`)
-	aliasRE    = regexp.MustCompile(`(?m)^\s*type\s+(\w+)\s*=`)
-	declRE     = regexp.MustCompile(`(?m)^\s*(?:type|struct|enum|fun|get|const|global|contract|import|tolk|@)\b`)
-	structRE   = regexp.MustCompile(`(?m)^\s*struct\s+(?:\([^)]*\)\s*)?(\w+)`)
-	nameRE     = regexp.MustCompile(`^[A-Za-z_]\w*$`)
-	fieldRE    = regexp.MustCompile(`^\w+\s*:`)
-	markerRE   = regexp.MustCompile(`^\s*//\s*lint:min-value/(\S+)\s+(\w+)(?:\s+(.*))?\s*$`)
-	tagRE      = regexp.MustCompile(`^\s*//\s*lint:min-value\b`)
-	assertRE   = regexp.MustCompile(`^\s*assertMinValue\s*\(`)
-	tryRE      = regexp.MustCompile(`\btry\s*\{`)
-	catchRE    = regexp.MustCompile(`^\s*catch\b`)
-	// Binding-only contracts whose onInternalMessage deliberately throws.
-	exempt = map[string]bool{"TokenPool": true, "CCIPReceiver": true}
+	markerHeadRE = regexp.MustCompile(`^minval:([a-z][a-z-]*)(?:\s+gate=([A-Za-z]+))?\s+([A-Za-z_][A-Za-z0-9_.]*)\s*(.*)$`)
+	commentRE    = regexp.MustCompile(`^\s*//\s?(.*)$`)
 )
 
+// Categories and the gate they imply when `gate=` is omitted.
+var defaultGate = map[string]string{
+	"check-admission": "A",
+	"check-bounce":    "S",
+	"check-fail":      "S",
+	"recovery":        "none",
+	"non-reject":      "none",
+	"best-effort":     "none",
+}
+
+var validGates = map[string]bool{"S": true, "A": true, "none": true}
+
 type marker struct {
-	file, name, group, reason string
-	line                      int
+	Category    string
+	Gate        string
+	Contract    string // empty for a shared default
+	Message     string
+	Description string
+	Detail      string
+	File        string
+	Line        int
 }
 
-type lineRange struct {
-	first, last int
-}
-
-type source struct {
-	file        string
-	code        []string
-	imports     []string
-	aliases     map[string]string
-	structs     map[string]bool
-	markers     []marker
-	caught      []lineRange
-	diagnostics []string
-	contracts   []contract
+func (m marker) scope() string {
+	if m.Contract == "" {
+		return m.Message
+	}
+	return m.Contract + "." + m.Message
 }
 
 type contract struct {
-	name  string
-	types []string
+	Name     string
+	FQN      string
+	Messages []string
 }
 
 type report struct {
-	contracts                    int
-	groups                       map[string]int
-	classifications, diagnostics []string
+	contracts       []contract
+	markers         map[string][]marker // message -> markers
+	excluded        map[string]bool     // contracts not yet adopted (missing markers tolerated)
+	missing         []string            // "Contract: Message"
+	excludedMissing []string            // missing markers in excluded contracts
+	duplicates      []string
+	invalid         []string
+	stale           []string
+	total           int
+	classified      int
 }
 
-// mask preserves line numbers while excluding comments and, optionally, string literals.
-func mask(text string, lineComments, literals bool) string {
-	return tokenRE.ReplaceAllStringFunc(text, func(token string) string {
-		if strings.HasPrefix(token, "//") && !lineComments {
-			return token
-		}
-		if !strings.HasPrefix(token, "/") && !literals {
-			return token
-		}
-		return strings.Map(func(r rune) rune {
-			if r == '\n' {
-				return r
-			}
-			return ' '
-		}, token)
-	})
+// --- ABI ---
+
+type abiIncoming struct {
+	BodyTyIdx int `json:"body_ty_idx"`
 }
 
-func load(file string, cache map[string]*source) (*source, error) {
-	if s := cache[file]; s != nil {
-		return s, nil
-	}
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	text := string(data)
-	code := mask(text, true, true)
-	s := &source{file: file, code: strings.Split(code, "\n"), caught: caughtBlocks(code), aliases: map[string]string{}, structs: map[string]bool{}}
-	for _, match := range importRE.FindAllStringSubmatch(mask(text, true, false), -1) {
-		if strings.HasPrefix(match[1], "@") {
-			continue
-		} // bundled standard-library imports
-		target := filepath.Clean(filepath.Join(filepath.Dir(file), match[1]))
-		if filepath.Ext(target) == "" {
-			target += ".tolk"
-		}
-		if filepath.Ext(target) == ".tolk" {
-			s.imports = append(s.imports, target)
-		}
-	}
-	for _, match := range structRE.FindAllStringSubmatch(code, -1) {
-		s.structs[match[1]] = true
-	}
-	for _, match := range aliasRE.FindAllStringSubmatchIndex(code, -1) {
-		rhs := code[match[1]:]
-		end := len(rhs)
-		if i := strings.IndexByte(rhs, ';'); i >= 0 {
-			end = i
-		}
-		if next := declRE.FindStringIndex(rhs); next != nil && next[0] < end {
-			end = next[0]
-		}
-		s.aliases[code[match[2]:match[3]]] = strings.TrimSpace(rhs[:end])
-	}
-	for _, match := range contractRE.FindAllStringSubmatch(code, -1) {
-		body := match[2]
-		field := incomingRE.FindStringIndex(body)
-		if field == nil {
-			s.contracts = append(s.contracts, contract{name: match[1]})
-			continue
-		}
-		var parts []string
-		for _, line := range strings.Split(body[field[1]:], "\n") {
-			line = strings.TrimSpace(line)
-			if fieldRE.MatchString(line) {
-				break
-			}
-			parts = append(parts, line)
-		}
-		s.contracts = append(s.contracts, contract{match[1], splitTypes(strings.Join(parts, " "))})
-	}
-	for i, line := range strings.Split(mask(text, false, true), "\n") {
-		if match := markerRE.FindStringSubmatch(line); match != nil {
-			reason := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(match[3]), "—"))
-			s.markers = append(s.markers, marker{file: file, name: match[2], group: match[1], reason: reason, line: i + 1})
-		} else if tagRE.MatchString(line) {
-			s.diagnostics = append(s.diagnostics, fmt.Sprintf("%s:%d: expected // lint:min-value/<group> <Message> <description>", file, i+1))
-		}
-	}
-	cache[file] = s
-	return s, nil
+type abiType struct {
+	Kind       string `json:"kind"`
+	StructName string `json:"struct_name"`
+	AliasName  string `json:"alias_name"`
 }
 
-func splitTypes(expression string) []string {
-	var names []string
-	for _, part := range strings.Split(expression, "|") {
-		if part = strings.TrimSpace(part); part != "" {
-			names = append(names, part)
-		}
-	}
-	return names
+type abiDoc struct {
+	ContractName string        `json:"contract_name"`
+	Description  string        `json:"description"`
+	Incoming     []abiIncoming `json:"incoming_messages"`
+	UniqueTypes  []abiType     `json:"unique_types"`
 }
 
-func closure(file string, cache map[string]*source, seen map[string]bool) ([]*source, error) {
-	if seen[file] {
-		return nil, nil
-	}
-	seen[file] = true
-	s, err := load(file, cache)
-	if err != nil {
-		return nil, err
-	}
-	result := []*source{s}
-	for _, target := range s.imports {
-		children, err := closure(target, cache, seen)
-		if err != nil {
-			return nil, fmt.Errorf("%s: import %s: %w", file, target, err)
-		}
-		result = append(result, children...)
-	}
-	return result, nil
-}
-
-// Resolve union aliases within this contract's import closure. Generic message aliases keep
-// their concrete alias name (the name used by dispatch) rather than their generic parameters.
-func expand(name string, sources []*source, visiting map[string]bool) ([]string, error) {
-	if visiting[name] {
-		return nil, fmt.Errorf("cyclic message alias %s", name)
-	}
-	visiting[name] = true
-	defer delete(visiting, name)
-	for _, s := range sources {
-		if rhs, ok := s.aliases[name]; ok {
-			if strings.Contains(rhs, "<") && !strings.Contains(rhs, "|") {
-				base := strings.TrimSpace(rhs[:strings.IndexByte(rhs, '<')])
-				for _, imported := range sources {
-					if imported.structs[base] {
-						return []string{name}, nil
-					}
-				}
-				return nil, fmt.Errorf("unresolved generic message type %s", base)
-			}
-			var result []string
-			for _, child := range splitTypes(rhs) {
-				messages, err := expand(child, sources, visiting)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, messages...)
-			}
-			return result, nil
-		}
-	}
-	if !nameRE.MatchString(name) {
-		return nil, fmt.Errorf("unsupported message type %q", name)
-	}
-	for _, s := range sources {
-		if s.structs[name] {
-			return []string{name}, nil
-		}
-	}
-	return nil, fmt.Errorf("unresolved message type %s", name)
-}
-
-// Brace matching only establishes an enclosing try/catch, not the correctness of its recovery.
-func caughtBlocks(code string) []lineRange {
-	tries := map[int]bool{}
-	for _, match := range tryRE.FindAllStringIndex(code, -1) {
-		tries[match[1]-1] = true
-	}
-	type block struct {
-		line  int
-		isTry bool
-	}
-	var stack []block
-	var caught []lineRange
-	line := 1
-	for i := 0; i < len(code); i++ {
-		switch code[i] {
-		case '\n':
-			line++
-		case '{':
-			stack = append(stack, block{line, tries[i]})
-		case '}':
-			if len(stack) == 0 {
-				continue
-			}
-			b := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			if b.isTry && catchRE.MatchString(code[i+1:]) {
-				caught = append(caught, lineRange{b.line, line})
-			}
-		}
-	}
-	return caught
-}
-
-func checksNear(s *source, m marker) int {
-	count := 0
-	for i := m.line; i < len(s.code) && i < m.line+checkWindow; i++ {
-		line := strings.TrimSpace(s.code[i])
-		if strings.HasPrefix(line, "}") {
-			break
-		} // do not borrow a check from the next handler
-		if assertRE.MatchString(line) {
-			count++
-		}
-	}
-	return count
-}
-
-func validatePolicy(s *source, m marker) string {
-	checks := checksNear(s, m)
-	switch m.group {
-	case "multi-hop":
-		if checks < 2 {
-			return "multi-hop requires safety and admission assertMinValue calls within five lines in this handler"
-		}
-	case "normal", "normal-local":
-		if checks == 0 {
-			return "no assertMinValue call within five lines in this handler"
-		}
-		if m.group == "normal-local" {
-			for _, b := range s.caught {
-				if b.first <= m.line && m.line < b.last {
-					return ""
-				}
-			}
-			return "normal-local requires the tagged check inside try/catch for local recovery"
-		}
-	case "recovery", "non-reject", "best-effort":
-		if checks != 0 {
-			return m.group + " must not introduce a nearby assertMinValue gate"
-		}
-	default:
-		return fmt.Sprintf("unknown min-value group %q; expected %s", m.group, strings.Join(policyGroups, ", "))
-	}
-	return ""
-}
-
-func inScope(file string) bool {
-	p := filepath.ToSlash(file)
-	if strings.Contains(p, "/ccip/cct/") || strings.Contains(p, "/test/") {
+func inScope(fqn string) bool {
+	if !strings.HasPrefix(fqn, "link.chain.ton.ccip.") && !strings.HasPrefix(fqn, "link.chain.ton.mcms.") {
 		return false
 	}
-	return strings.Contains(p, "/ccip/") || strings.Contains(p, "/mcms/") || strings.Contains(p, "/lib/receiver/")
+	for _, bad := range []string{".cct.", ".test.", ".firedrill.", ".lib."} {
+		if strings.Contains(fqn, bad) {
+			return false
+		}
+	}
+	return true
 }
 
-func lint(root string) (report, error) {
-	r := report{groups: map[string]int{}}
-	root, err := filepath.Abs(root)
+func loadABI(dir string) ([]contract, error) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return r, err
+		return nil, err
 	}
-	var files []string
-	err = filepath.WalkDir(root, func(file string, entry fs.DirEntry, walkErr error) error {
+	var out []contract
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		var doc abiDoc
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("%s: %w", entry.Name(), err)
+		}
+		if !inScope(doc.Description) {
+			continue
+		}
+		seen := map[string]bool{}
+		var messages []string
+		for _, in := range doc.Incoming {
+			if in.BodyTyIdx < 0 || in.BodyTyIdx >= len(doc.UniqueTypes) {
+				continue
+			}
+			t := doc.UniqueTypes[in.BodyTyIdx]
+			name := t.StructName
+			if name == "" {
+				name = t.AliasName
+			}
+			if name == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			messages = append(messages, name)
+		}
+		sort.Strings(messages)
+		out = append(out, contract{Name: doc.ContractName, FQN: doc.Description, Messages: messages})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+// --- Markers ---
+
+func loadMarkers(srcDir string) (map[string][]marker, error) {
+	byMessage := map[string][]marker{}
+	err := filepath.WalkDir(srcDir, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -320,87 +165,317 @@ func lint(root string) (report, error) {
 			if entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".") {
 				return filepath.SkipDir
 			}
-		} else if strings.HasSuffix(file, ".tolk") && inScope(file) {
-			files = append(files, file)
+			return nil
+		}
+		if !strings.HasSuffix(path, ".tolk") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, m := range parseMarkers(string(data), path) {
+			byMessage[m.Message] = append(byMessage[m.Message], m)
 		}
 		return nil
 	})
-	if err != nil {
-		return r, err
-	}
-	cache := map[string]*source{}
-	used := map[string]bool{}
-	visitedSources := map[string]bool{}
-	visitedMarkers := map[string]marker{}
-	for _, file := range files {
-		s, err := load(file, cache)
-		if err != nil {
-			return r, err
+	return byMessage, err
+}
+
+func parseMarkers(text, file string) []marker {
+	lines := strings.Split(text, "\n")
+	var out []marker
+	last := -1
+	for i := 0; i < len(lines); i++ {
+		body, ok := commentBody(lines[i])
+		if !ok {
+			continue
 		}
-		for _, c := range s.contracts {
-			if exempt[c.name] {
+		switch {
+		case strings.HasPrefix(body, "minval.detail:"):
+			if last < 0 {
 				continue
 			}
-			r.contracts++
-			if len(c.types) == 0 {
-				return r, fmt.Errorf("%s: missing or empty incomingMessages for %s", file, c.name)
+			text := strings.TrimSpace(strings.TrimPrefix(body, "minval.detail:"))
+			var parts []string
+			if text != "" {
+				parts = append(parts, text)
 			}
-			sources, err := closure(file, cache, map[string]bool{})
-			if err != nil {
-				return r, err
+			for j := i + 1; j < len(lines); j++ {
+				b, ok := commentBody(lines[j])
+				if !ok || b == "" || strings.HasPrefix(b, "minval:") || strings.HasPrefix(b, "minval.detail:") {
+					break
+				}
+				parts = append(parts, b)
 			}
-			markers := map[string][]marker{}
-			for _, imported := range sources {
-				if !visitedSources[imported.file] {
-					r.diagnostics = append(r.diagnostics, imported.diagnostics...)
-					visitedSources[imported.file] = true
-				}
-				for _, m := range imported.markers {
-					markers[m.name] = append(markers[m.name], m)
-					visitedMarkers[fmt.Sprintf("%s:%d", m.file, m.line)] = m
-				}
+			out[last].Detail = strings.Join(parts, " ")
+		case strings.HasPrefix(body, "minval:"):
+			head := markerHeadRE.FindStringSubmatch(body)
+			if head == nil {
+				out = append(out, marker{File: file, Line: i + 1})
+				last = len(out) - 1
+				continue
 			}
-			messages := map[string]bool{}
-			for _, name := range c.types {
-				expanded, err := expand(name, sources, map[string]bool{})
-				if err != nil {
-					return r, fmt.Errorf("%s (%s): %w", file, c.name, err)
-				}
-				for _, msg := range expanded {
-					messages[msg] = true
-				}
+			category, gate, target := head[1], head[2], head[3]
+			if gate == "" {
+				gate = defaultGate[category]
 			}
-			for msg := range messages {
-				tags := markers[msg]
-				for _, m := range tags {
-					used[fmt.Sprintf("%s:%d", m.file, m.line)] = true
-				}
-				if len(tags) != 1 {
-					r.diagnostics = append(r.diagnostics, fmt.Sprintf("%s (%s): %s requires exactly one import-scoped tag; found %d", file, c.name, msg, len(tags)))
-					continue
-				}
-				m := tags[0]
-				where := fmt.Sprintf("%s:%d (%s, %s)", m.file, m.line, c.name, msg)
-				if m.reason == "" {
-					r.diagnostics = append(r.diagnostics, where+": tag requires a description")
-				} else if problem := validatePolicy(cache[m.file], m); problem != "" {
-					r.diagnostics = append(r.diagnostics, where+": "+problem)
-				} else {
-					r.groups[m.group]++
-					r.classifications = append(r.classifications, where+": "+m.group+" — "+m.reason)
-				}
+			contractName, message := splitScope(target)
+			summary := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(head[4]), "—–- \t"))
+			out = append(out, marker{
+				Category:    category,
+				Gate:        gate,
+				Contract:    contractName,
+				Message:     message,
+				Description: summary,
+				File:        file,
+				Line:        i + 1,
+			})
+			last = len(out) - 1
+		}
+	}
+	return out
+}
+
+// splitScope splits "<Contract>.<Message>" into its parts; a bare name has no contract.
+func splitScope(target string) (contractName, message string) {
+	if i := strings.IndexByte(target, '.'); i >= 0 {
+		return target[:i], target[i+1:]
+	}
+	return "", target
+}
+
+func commentBody(line string) (string, bool) {
+	m := commentRE.FindStringSubmatch(line)
+	if m == nil {
+		return "", false
+	}
+	return strings.TrimSpace(m[1]), true
+}
+
+// --- Lint ---
+
+func lint(abiDir, srcDir string, exclude map[string]bool) (report, error) {
+	contracts, err := loadABI(abiDir)
+	if err != nil {
+		return report{}, err
+	}
+	if len(contracts) == 0 {
+		return report{}, fmt.Errorf("no in-scope contracts under %s", abiDir)
+	}
+	byMessage, err := loadMarkers(srcDir)
+	if err != nil {
+		return report{}, err
+	}
+	if exclude == nil {
+		exclude = map[string]bool{}
+	}
+
+	declared := map[string]map[string]bool{}
+	allMessages := map[string]bool{}
+	for _, c := range contracts {
+		declared[c.Name] = map[string]bool{}
+		for _, msg := range c.Messages {
+			declared[c.Name][msg] = true
+			allMessages[msg] = true
+		}
+	}
+
+	r := report{contracts: contracts, markers: byMessage, excluded: exclude}
+
+	// Marker validation: malformed, invalid gate, stale.
+	for msg, tags := range byMessage {
+		for _, m := range tags {
+			if m.Message == "" || defaultGate[m.Category] == "" {
+				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: malformed marker", m.File, m.Line))
+				continue
+			}
+			if !validGates[m.Gate] {
+				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: invalid gate %q", m.File, m.Line, m.Gate))
+			}
+			if !allMessages[msg] {
+				r.stale = append(r.stale, fmt.Sprintf("%s:%d: %s not declared by any in-scope contract", m.File, m.Line, m.scope()))
+				continue
+			}
+			if m.Contract != "" && !declared[m.Contract][m.Message] {
+				r.stale = append(r.stale, fmt.Sprintf("%s:%d: %s does not declare %s", m.File, m.Line, m.Contract, m.Message))
 			}
 		}
 	}
-	if r.contracts == 0 {
-		return r, fmt.Errorf("no in-scope contracts found under %s", root)
-	}
-	for where, m := range visitedMarkers {
-		if !used[where] {
-			r.diagnostics = append(r.diagnostics, where+": stale tag "+m.name)
+
+	// Duplicates: two markers resolving to the same (contract, message).
+	for msg, tags := range byMessage {
+		shared := 0
+		perContract := map[string]int{}
+		for _, m := range tags {
+			if m.Contract == "" {
+				shared++
+			} else {
+				perContract[m.Contract]++
+			}
+		}
+		if shared > 1 {
+			r.duplicates = append(r.duplicates, fmt.Sprintf("%s has %d unqualified markers", msg, shared))
+		}
+		for c, n := range perContract {
+			if n > 1 {
+				r.duplicates = append(r.duplicates, fmt.Sprintf("%s.%s has %d markers", c, msg, n))
+			}
 		}
 	}
-	sort.Strings(r.diagnostics)
-	sort.Strings(r.classifications)
+
+	// Coverage. Excluded contracts tolerate missing markers.
+	for _, c := range contracts {
+		for _, msg := range c.Messages {
+			r.total++
+			if _, ok := r.tagFor(c.Name, msg); ok {
+				r.classified++
+			} else if exclude[c.Name] {
+				r.excludedMissing = append(r.excludedMissing, c.Name+": "+msg)
+			} else {
+				r.missing = append(r.missing, c.Name+": "+msg)
+			}
+		}
+	}
+
+	sort.Strings(r.missing)
+	sort.Strings(r.excludedMissing)
+	sort.Strings(r.duplicates)
+	sort.Strings(r.invalid)
+	sort.Strings(r.stale)
 	return r, nil
+}
+
+func (r report) ok() bool {
+	return len(r.missing) == 0 && len(r.duplicates) == 0 && len(r.invalid) == 0 && len(r.stale) == 0
+}
+
+// tagFor resolves the marker for a contract+message: a qualified marker takes
+// precedence over the shared unqualified default.
+func (r report) tagFor(contractName, msg string) (marker, bool) {
+	var shared *marker
+	for i := range r.markers[msg] {
+		m := r.markers[msg][i]
+		if m.Contract == contractName {
+			return m, true
+		}
+		if m.Contract == "" && shared == nil {
+			shared = &m
+		}
+	}
+	if shared != nil {
+		return *shared, true
+	}
+	return marker{}, false
+}
+
+// --- Generation ---
+
+const generatedBanner = "> Generated from `build/abi` + `// minval` markers. Do not edit by hand.\n"
+
+func (r report) overview() string {
+	var b strings.Builder
+	b.WriteString("# Value-budget spec (generated)\n\n")
+	b.WriteString(generatedBanner)
+	fmt.Fprintf(&b, "\nCoverage: **%d/%d** messages classified across %d contracts.\n\n", r.classified, r.total, len(r.contracts))
+
+	b.WriteString("| Contract | Status | Messages | Classified | Missing |\n| --- | --- | ---: | ---: | ---: |\n")
+	for _, c := range r.contracts {
+		classified, missing := 0, 0
+		for _, msg := range c.Messages {
+			if _, ok := r.tagFor(c.Name, msg); ok {
+				classified++
+			} else {
+				missing++
+			}
+		}
+		status := "adopted"
+		if r.excluded[c.Name] {
+			status = "excluded"
+		}
+		fmt.Fprintf(&b, "| [%s](./%s.md) | %s | %d | %d | %d |\n", c.Name, c.Name, status, len(c.Messages), classified, missing)
+	}
+
+	counts := map[string]int{}
+	for _, c := range r.contracts {
+		for _, msg := range c.Messages {
+			if m, ok := r.tagFor(c.Name, msg); ok {
+				counts[m.Category]++
+			}
+		}
+	}
+	b.WriteString("\n## Categories\n\n| Category | Count |\n| --- | ---: |\n")
+	for _, c := range sortedKeys(counts) {
+		fmt.Fprintf(&b, "| %s | %d |\n", c, counts[c])
+	}
+
+	if gaps := r.gaps(); gaps != "" {
+		b.WriteString("\n## Gaps\n\n")
+		b.WriteString(gaps)
+	}
+
+	b.WriteString("\n## Notes\n\n")
+	b.WriteString("- An unqualified marker is a shared default; `<Contract>.<Message>` takes precedence.\n")
+	b.WriteString("  Add a qualified marker when a contract needs a different category than the shared default.\n")
+	b.WriteString("- `excluded` contracts are not yet adopted: missing markers there are tolerated by the check.\n")
+	b.WriteString("- This is a coverage and consistency check, not a semantic proof of funding.\n")
+	return b.String()
+}
+
+func (r report) contractDoc(c contract) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# %s\n\n`%s`\n\n", c.Name, c.FQN)
+	b.WriteString(generatedBanner)
+	if r.excluded[c.Name] {
+		b.WriteString("\n> Not yet adopted: missing markers are tolerated by the check.\n")
+	}
+	b.WriteString("\n| Message | Category | Gate | Summary |\n| --- | --- | --- | --- |\n")
+	var details []string
+	for _, msg := range c.Messages {
+		m, ok := r.tagFor(c.Name, msg)
+		if !ok {
+			fmt.Fprintf(&b, "| `%s` | — | — | **missing marker** |\n", msg)
+			continue
+		}
+		summary := m.Description
+		if summary == "" {
+			summary = "_(no summary)_"
+		}
+		fmt.Fprintf(&b, "| `%s` | %s | %s | %s |\n", msg, m.Category, m.Gate, summary)
+		if m.Detail != "" {
+			details = append(details, fmt.Sprintf("- **`%s`** — %s", msg, m.Detail))
+		}
+	}
+	if len(details) > 0 {
+		b.WriteString("\n## Details\n\n")
+		b.WriteString(strings.Join(details, "\n"))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func (r report) gaps() string {
+	var b strings.Builder
+	for _, m := range r.missing {
+		fmt.Fprintf(&b, "- missing: %s\n", m)
+	}
+	for _, d := range r.duplicates {
+		fmt.Fprintf(&b, "- duplicate: %s\n", d)
+	}
+	for _, i := range r.invalid {
+		fmt.Fprintf(&b, "- invalid: %s\n", i)
+	}
+	for _, s := range r.stale {
+		fmt.Fprintf(&b, "- stale: %s\n", s)
+	}
+	return b.String()
+}
+
+func sortedKeys(m map[string]int) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

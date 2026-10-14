@@ -213,7 +213,7 @@ fun onDepositAccountInitFailed(
     msgValue: coins,
     msg: DepositAccount_NotEnoughValue,
 ) {
-    // lint:min-value/recovery DepositAccount_NotEnoughValue — mint unwind when account init is underfunded
+    // minval:recovery gate=none BurnMintTokenPool.DepositAccount_NotEnoughValue — mint unwind when account init is underfunded
     assert(msg.forwardPayload != null, BurnMintTokenPool_Error.OffRampAccountDeployFailed);
     val context = BurnMintTokenPool_MintContext.fromCell(msg.forwardPayload);
     val operation = lazy context.forwardPayload.load();
@@ -293,8 +293,8 @@ fun onClaimMinterAdmin(
     msgValue: coins,
     queryId: uint64,
 ) {
-    // lint:min-value/normal BurnMintTokenPool_ClaimMinterAdmin — owner-only minter admin claim
-    val minValue = st.poolData.load().rollback.admin.resolve(ccipAdminMinValue());
+    // minval:check-bounce gate=S BurnMintTokenPool_ClaimMinterAdmin — owner-only minter admin claim
+    val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
@@ -318,7 +318,7 @@ fun onCCTReturnExcessesBack(
     sender: address,
     msg: CCT_ReturnExcessesBack,
 ) {
-    // lint:min-value/non-reject CCT_ReturnExcessesBack — burn committed; authenticate and complete, no reversal exists; context-free excess is passive
+    // minval:non-reject gate=none CCT_ReturnExcessesBack — burn committed; authenticate and complete, no reversal exists; context-free excess is passive
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
     if (msg.forwardPayload == null) {
         return;
@@ -433,8 +433,8 @@ fun onDepositAccountReply(
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
 
     try {
-        // lint:min-value/normal-local DepositAccount_Reply — account ready, no mint yet; abort this attempt on shortfall
-        val minValue = st.poolData.load().rollback.admin.resolve(ccipAdminMinValue());
+        // minval:check-fail gate=S BurnMintTokenPool.DepositAccount_Reply — account ready, no mint yet; abort this attempt on shortfall
+        val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
         assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
         var pool = loadPool(st);
@@ -488,7 +488,7 @@ fun onDepositAccountForwardNotification(
     sender: address,
     msg: DepositAccount_ForwardNotification,
 ) {
-    // lint:min-value/non-reject DepositAccount_ForwardNotification — mint committed; authenticate and complete, no reversal exists
+    // minval:non-reject gate=none BurnMintTokenPool.DepositAccount_ForwardNotification — mint committed; authenticate and complete, no reversal exists
     val forwarded = msg.message.load();
 
     // Parse the forwarded body as TransferNotificationForRecipient.

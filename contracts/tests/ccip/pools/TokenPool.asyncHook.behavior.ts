@@ -40,13 +40,13 @@ export function runTokenPoolAsyncHookBehaviorTests(
 ) {
   describe(`${name} async hook behavior`, () => {
     describe('callback value shortfall', () => {
-      const floor = toNano('1')
+      const floor = toNano('0.299')
       const insufficientMessageValue = 51726n // TokenPool_Error.InsufficientMessageValue
 
       it('aborts LockOrBurn locally when a successful preflight reply is below the safety floor', async () => {
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
-        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'admin', floor)
+        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
 
         const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
           ctx.deployer.getSender(),
@@ -92,7 +92,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       it('aborts ReleaseOrMint locally when a successful postflight reply is below the safety floor', async () => {
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
-        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'admin', floor)
+        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
 
         const { transactions } = await ctx.pool.sendTokenPoolReleaseOrMint(
           ctx.deployer.getSender(),

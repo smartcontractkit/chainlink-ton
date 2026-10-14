@@ -8,23 +8,16 @@ import { TokenPool_Data } from '../../wrappers/gen/ccip/pools/TokenPool'
 export const MIN_VALUE = {
   /** CCIP custody-bearing flows: LockOrBurn, ReleaseOrMint, custody notifications, lockbox deposits. */
   ccip: toNano('0.5'),
-  /** CCIP admin/config handlers (no custody). */
-  ccipAdmin: toNano('0.1'),
-  /** MCMS flows. */
-  mcms: toNano('0.1'),
-  /** MCMS admin/config handlers. */
-  mcmsAdmin: toNano('0.1'),
 } as const
 
 /** Configure a sandbox fixture before sending messages; there is no on-chain floor setter. */
 export async function setTokenPoolSafetyFloor(
   blockchain: Blockchain,
   address: Address,
-  group: 'default' | 'admin',
   value: bigint,
 ) {
   await updateTokenPoolData(blockchain, address, (data) => {
-    data.rollback[group].value = value
+    data.budget.safety.value = value
   })
 }
 
@@ -34,8 +27,8 @@ export async function setTokenPoolAdmissionPolicy(
   policy: { safety: bigint; admission: bigint | null },
 ) {
   await updateTokenPoolData(blockchain, address, (data) => {
-    data.rollback.default.value = policy.safety
-    data.admission.value = policy.admission
+    data.budget.safety.value = policy.safety
+    data.budget.admission.value = policy.admission
   })
 }
 

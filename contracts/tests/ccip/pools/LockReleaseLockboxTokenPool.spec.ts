@@ -61,7 +61,6 @@ import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavi
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
-import { setTokenPoolSafetyFloor } from '../../utils/minValue'
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -1104,8 +1103,6 @@ describe('LockReleaseLockboxTokenPool', () => {
     ])(
       'funds the lockbox from $inbound TON without subsidizing the transfer',
       async ({ inbound, forwarded }) => {
-        const adminFloor = toNano('1')
-        await setTokenPoolSafetyFloor(blockchain, pool.address, 'admin', adminFloor)
         // Fund lockbox wallet with a small mint to activate it
         await jettonMinter.sendMint(deployer.getSender(), {
           value: toNano('1'),
@@ -1231,11 +1228,11 @@ describe('LockReleaseLockboxTokenPool', () => {
           to: deployer.address,
           op: TokenPool_LockOrBurnFinished.PREFIX,
         })
+        // Non-reject completion: the lockbox confirms custody regardless of its value.
         expect(result.transactions).toHaveTransaction({
           from: jettonLockBox.address,
           to: pool.address,
           op: JettonLockBox_Deposited.PREFIX,
-          value: (value) => value !== undefined && value < adminFloor,
           success: true,
         })
         expect(await lockboxWallet.getJettonBalance()).toEqual(initialLockboxBalance + toNano('8'))

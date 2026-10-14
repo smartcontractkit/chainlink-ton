@@ -1,78 +1,92 @@
 # lint-tolk-min-value
 
-Classifies declared incoming messages of CCIP/MCMS contracts using explicit policy-group tags.
-It follows each contract's relative Tolk imports and expands message unions within that closure.
-CCT/wGRAM and test contracts are excluded from discovery; binding-only templates are skipped.
-Each message needs exactly one import-scoped tag and a description:
+Classifies every in-scope incoming message by reading the generated ABI and finding its
+`// minval` marker in the contract sources. Deliberately simple: no import following, no union
+expansion, no control-flow analysis. It also generates the value-budget spec.
+
+## Marker
+
+One marker per incoming message, anywhere in the contract's sources:
 
 ```tolk
-// lint:min-value/<group> <Message> <description>
+// minval:<category> gate=<S|A|none> [<Contract>.]<Message> — <summary>
 ```
 
-An em dash before the description is optional. The supported groups match
-[`MIN-VALUE-CHECKS.md`](../../docs/contracts/overview/ccip/MIN-VALUE-CHECKS.md):
+- `category`: `check-admission` | `check-bounce` | `check-fail` | `recovery` | `non-reject` | `best-effort`.
+- `gate`: `S` | `A` | `none`; optional — defaults from the category
+  (`check-admission`→`A`, `check-bounce`/`check-fail`→`S`, others→`none`).
+- `<Message>`: the ABI message name (e.g. `TokenPool_LockOrBurn`).
+- `<Contract>.` (optional): scopes the marker to one contract; it takes precedence over the
+  shared default. Omit it for a message handled identically by every contract that declares it.
+- `summary`: one concise line.
 
-| Group | Policy | Source requirement |
+### Shared vs contract-qualified
+
+An **unqualified** marker is a shared default for every contract that declares the message. When a
+message is handled differently by a specific contract, add a `<Contract>.<Message>` marker for it:
+
+```tolk
+// shared default for the pool trait and its implementations
+// minval:check-fail gate=S TransferNotificationForRecipient — custody receipt
+
+// Router handles the same opcode as a flow admission point
+// minval:check-admission gate=A Router.TransferNotificationForRecipient — token-transfer entry
+```
+
+Resolution for a contract+message: a `<Contract>.` marker wins; otherwise the single unqualified
+marker applies. Findings:
+
+- **missing** — no marker resolves for an ABI message.
+- **duplicate** — two unqualified markers for a message, or two markers for the same `<Contract>.<Message>`.
+- **invalid** — malformed marker or unknown gate.
+- **stale** — a marker for a message no in-scope contract declares, or a `<Contract>.` marker whose
+  contract does not declare the message.
+
+An optional long-form description follows as a block:
+
+```tolk
+// minval:check-admission gate=A TokenPool_LockOrBurn — outbound flow; safety plus optional admission
+// minval.detail:
+//   Checks the resolved safety floor, then the optional admission threshold, before consuming
+//   outbound rate-limit capacity. On shortfall the caller owns rejection recovery.
+```
+
+## Categories
+
+| Category | Gate | Meaning |
 | --- | --- | --- |
-| `multi-hop` | Start with safety and optional admission | Two nearby `assertMinValue` calls |
-| `normal` | Safely reject shortfall | A nearby `assertMinValue` call |
-| `normal-local` | Handle shortfall with implemented local recovery | A nearby call inside an enclosing `try/catch` |
-| `recovery` | Already unwinding | No nearby `assertMinValue` gate |
-| `non-reject` | Committed work without implemented reversal | No nearby `assertMinValue` gate |
-| `best-effort` | Deliberately exempt passive/security/escape operation | No nearby gate; description justifies the exception |
+| `check-admission` | `A` | Check admission (`A = S + F`) before fixed sends, fan-out or new liabilities. |
+| `check-bounce` | `S` | Check safety; reject/bounce (sender can compensate). |
+| `check-fail` | `S` | Sender cannot compensate; caught local recovery. |
+| `recovery` | `none` | Already unwinding; no gate. |
+| `non-reject` | `none` | Committed, no reversal; no gate. |
+| `best-effort` | `none` | Documented exception. |
 
-## Checked handler
+## How it works
 
-An actual `assertMinValue(...)` call must follow within five source lines, before the enclosing
-block closes. Comments and strings do not count. The check may be inside `try/catch` when
-the handler has implemented local recovery:
-
-```tolk
-try {
-    // lint:min-value/normal-local DepositAccount_Reply — account ready, no withdraw yet; abort on shortfall
-    val minValue = st.poolData.load().rollback.admin.resolve(ccipAdminMinValue());
-    assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
-} catch (errorCode) {
-    // Existing authenticated operation recovery.
-}
-```
-
-## Ungated handler
-
-Distinguish recovery from committed completion and a deliberate exception. Explain why:
-
-```tolk
-// lint:min-value/recovery TokenPool_PreflightCheckFailed — unwind the failed attempt
-// lint:min-value/non-reject JettonLockBox_Deposited — custody committed; no reversal path exists
-// lint:min-value/best-effort ReturnExcessesBack — passive receipt only; retain excess coins
-```
-
-This waives the value gate, not authentication. It does not guarantee funding, catch OOG, or prove
-successful recovery. The linter does not prove the chosen policy, admission expression, correctness
-of a catch, or control-flow reachability. Its five-line window does not inspect later or delegated
-checks. Mixed-purpose messages need path-specific review: the tag describes the normal path,
-while recovery branches bypass the normal gate.
+1. Read `contracts/build/abi/*.json`; keep contracts whose fully-qualified `description` starts with
+   `link.chain.ton.ccip.` or `link.chain.ton.mcms.` (excluding `.cct.`, `.test.`, `.firedrill.`, `.lib.`).
+2. Resolve `incoming_messages` through `unique_types` to concrete struct/alias names.
+3. Scan `contracts/contracts/**/*.tolk` for markers.
+4. Report coverage; fail on missing, invalid or stale markers.
 
 ## Usage
 
 ```bash
-nix develop .#contracts -c lint-tolk-min-value
-nix develop .#contracts -c lint-tolk-min-value contracts/contracts/ccip/pools
-go test -race ./scripts/lint-tolk-min-value
-go vet ./scripts/lint-tolk-min-value
+go run ./scripts/lint-tolk-min-value                     # check (exit 1 on gaps)
+go run ./scripts/lint-tolk-min-value -verbose            # print each classification
+go run ./scripts/lint-tolk-min-value -outdir docs/contracts/overview/ccip/budget/generated
+go test ./scripts/lint-tolk-min-value
 ```
 
-The root defaults to the working directory. Full scope currently reports unfinished non-pool
-rollout; the TP subtree can be checked independently, including its imports outside the subtree.
+Flags: `-abi` (default `contracts/build/abi`), `-src` (default `contracts/contracts`), `-outdir`
+(write `overview.md` and one file per contract), `-verbose`.
 
-The tool reports counts per group. It rejects missing/duplicate tags in a contract's import
-closure, legacy/malformed tags, unknown groups, missing descriptions, stale tags and group-specific
-check violations. Missing imports, unresolved message types,
-filesystem errors and **zero discovered contracts fail**, rather than producing a clean report.
-Shared messages must be classified separately for unrelated contracts; their tags cannot satisfy
-one another globally. Shared imported handlers need only one tag within each importing closure.
+Exit codes: `0` clean, `1` coverage/consistency findings, `2` discovery/parsing error.
 
-**Limit:** coverage starts from declared `incomingMessages`. Fallback handlers must be included in
-that inventory. This is a lightweight source linter, not a Tolk compiler or semantic analyzer.
+## Notes
 
-Exit codes: `0` clean, `1` classification findings, `2` discovery/parsing/invocation error.
+- Shared code (a trait imported by several contracts) needs one unqualified marker; contracts that
+  differ add a `<Contract>.` override. Duplicates must be resolved by qualifying.
+- This is a coverage and consistency check, not a semantic proof of funding. See
+  [`docs/contracts/overview/ccip/budget/`](../../docs/contracts/overview/ccip/budget/) for the model.

@@ -43,8 +43,8 @@ export function runTokenPoolContinuationBehaviorTests(
   describe(`${name} continuation value policy`, () => {
     it('aborts before mint/withdraw when the account-ready reply is below the safety floor', async () => {
       const ctx = await setup()
-      const floor = toNano('1')
-      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'admin', floor)
+      const floor = toNano('0.57')
+      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
@@ -85,7 +85,7 @@ export function runTokenPoolContinuationBehaviorTests(
     it('completes committed mint/release even when the delivery notification is below the safety floor', async () => {
       const ctx = await setup()
       const floor = toNano('0.1')
-      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'admin', floor)
+      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
@@ -136,7 +136,7 @@ export function runTokenPoolContinuationBehaviorTests(
     it('returns received custody and restores capacity when its notification is below the safety floor', async () => {
       const ctx = await setup()
       const floor = toNano('0.3')
-      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, 'default', floor)
+      await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
