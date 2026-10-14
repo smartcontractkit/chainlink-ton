@@ -285,7 +285,6 @@ describe('OnRamp - executor exit', () => {
           ],
           chainFamilySelector: ChainFamilySelectors.evm,
           msg: ccipSend,
-          context: Cell.EMPTY,
         }),
       )
 
@@ -344,16 +343,16 @@ describe('OnRamp - executor exit', () => {
       const fee = toNano('0.1')
       const executor = blockchain.openContract(ex.CCIPSendExecutor.fromAddress(executorAddress))
 
-      // The reservation increments the counter. The executor reads the message
-      // from its own storage (no token transfer), so the whole flow completes
-      // within this chain and the counter is released again by the end of it.
-      const result = await executor.sendFeeQuoterMessageValidatedAny(
+      // The reservation increments the counter. The send carries a token transfer,
+      // so after the confirmation the executor continues executing (tokenRegistry
+      // query) and the reservation stays pending until the send finishes.
+      const result = await executor.sendFeeQuoterMessageValidated(
         mockFeeQuoter.getSender(),
         toNano('0.3'),
         ex.FeeQuoter_MessageValidated.create({
           fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
           msg: ccipSend,
-          context: beginCell().asSlice(),
+          destGasOverheads: [90_000n],
         }),
       )
       expect(result.transactions).toHaveTransaction({
@@ -361,6 +360,17 @@ describe('OnRamp - executor exit', () => {
         to: onramp.address,
         success: true,
         op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      })
+      expect(await onramp.getPendingFeeReservations()).toBe(fee)
+
+      // The executor's success report releases the reservation: the fee was
+      // consumed by the send.
+      await onramp.sendOnRampExecutorFinishedSuccessfully(executorSender, toNano('0.5'), {
+        executorID: executorID,
+        fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+        msg: ccipSend,
+        metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
+        tokenTransfer: null,
       })
       expect(await onramp.getPendingFeeReservations()).toBe(0n)
 
