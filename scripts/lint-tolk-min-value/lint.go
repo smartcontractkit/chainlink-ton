@@ -27,7 +27,12 @@ import (
 var (
 	markerHeadRE = regexp.MustCompile(`^minval:([a-z][a-z-]*)(?:\s+gate=([A-Za-z/]+))?\s+([A-Za-z_][A-Za-z0-9_.]*)\s*(.*)$`)
 	commentRE    = regexp.MustCompile(`^\s*//\s?(.*)$`)
+	assertRE     = regexp.MustCompile(`\bassertMinValue\s*\(`)
 )
+
+// nearbyCheckWindow is how many lines after a marker a gate=S|A handler must call
+// assertMinValue. It only checks that a call is present, not what it does.
+const nearbyCheckWindow = 8
 
 // Categories and the gate they imply when `gate=` is omitted.
 var defaultGate = map[string]string{
@@ -62,6 +67,7 @@ type marker struct {
 	Detail      string
 	File        string
 	Line        int
+	hasCheck    bool // an assertMinValue call is nearby
 }
 
 func (m marker) scope() string {
@@ -245,6 +251,16 @@ func parseMarkers(text, file string) []marker {
 				gate = defaultGate[category]
 			}
 			contractName, message := splitScope(target)
+			hasCheck := false
+			for j := i + 1; j < len(lines) && j < i+nearbyCheckWindow; j++ {
+				if strings.HasPrefix(strings.TrimSpace(lines[j]), "// minval:") {
+					break // do not borrow the next marker's check
+				}
+				if assertRE.MatchString(lines[j]) {
+					hasCheck = true
+					break
+				}
+			}
 			out = append(out, marker{
 				Category:    category,
 				Gate:        gate,
@@ -254,6 +270,7 @@ func parseMarkers(text, file string) []marker {
 				Description: strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(head[4]), "—–- \t")),
 				File:        file,
 				Line:        i + 1,
+				hasCheck:    hasCheck,
 			})
 			last = len(out) - 1
 		}
@@ -322,6 +339,9 @@ func lint(abiDir, srcDir string, exclude map[string]bool) (report, error) {
 			}
 			if m.Admission != "" && m.Gate != "A" {
 				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: gate=%s/%s requires gate=A", m.File, m.Line, m.Gate, m.Admission))
+			}
+			if (m.Gate == "S" || m.Gate == "A") && !m.hasCheck {
+				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: gate=%s requires a nearby assertMinValue call", m.File, m.Line, m.Gate))
 			}
 			if !allMessages[msg] {
 				r.stale = append(r.stale, fmt.Sprintf("%s:%d: %s not declared by any in-scope contract", m.File, m.Line, m.scope()))

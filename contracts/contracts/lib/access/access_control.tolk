@@ -417,8 +417,6 @@ fun AccessControl<T>.getRoleMembers(self, role: uint256): map<address, bool> {
 /// - the `sender` must have `role`'s admin role.
 ///
 /// Sends a {AccessControl_RoleGranted} event (to: sender, account) if `role` was granted.
-// minval:best-effort gate=none AccessControl_GrantRole
-// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
 fun AccessControl<T>.grantRole(
     mutate self,
     queryId: uint64,
@@ -427,6 +425,8 @@ fun AccessControl<T>.grantRole(
     account: address,
     returnExcess: bool = false
 ): bool {
+// minval:best-effort gate=none AccessControl_GrantRole
+// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account, returnExcess);
 }
@@ -437,8 +437,6 @@ fun AccessControl<T>.grantRole(
 /// - the `sender` must have `role`'s admin role.
 ///
 /// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
-// minval:best-effort gate=none AccessControl_RevokeRole
-// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
 fun AccessControl<T>.revokeRole(
     mutate self,
     queryId: uint64,
@@ -447,6 +445,8 @@ fun AccessControl<T>.revokeRole(
     account: address,
     returnExcess: bool = false
 ): bool {
+// minval:best-effort gate=none AccessControl_RevokeRole
+// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account, returnExcess);
 }
@@ -464,8 +464,6 @@ fun AccessControl<T>.revokeRole(
 /// - the `sender` must be `callerConfirmation`.
 ///
 /// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
-// minval:best-effort gate=none AccessControl_RenounceRole
-// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
 fun AccessControl<T>.renounceRole(
     mutate self,
     queryId: uint64,
@@ -474,6 +472,8 @@ fun AccessControl<T>.renounceRole(
     callerConfirmation: address,
     returnExcess: bool = false
 ): bool {
+// minval:best-effort gate=none AccessControl_RenounceRole
+// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
     if (callerConfirmation != sender) {
         throw AccessControl_Error.BadConfirmation;
     }
