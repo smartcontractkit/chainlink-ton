@@ -62,6 +62,7 @@ struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     destChainSelector: uint64,
     // Destination chain family echoed from the FeeQuoter's validation reply.
     chainFamilySelector: uint32,
+    destBytesOverhead: uint32,
     withdrawRequest: Cell<Router_WithdrawRequest>,
 }
 

@@ -9,4 +9,5 @@ enum OnRamp_Error {
     UnknownToken
     InsufficientValue
     InvalidDestTokenAddress
+    SourceTokenDataTooLarge
 }

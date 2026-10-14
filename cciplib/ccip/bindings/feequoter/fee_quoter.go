@@ -226,13 +226,21 @@ type GetValidatedFee struct {
 type MessageValidated struct {
 	_   tlb.Magic `tlb:"#fbf78e40" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee Fee       `tlb:"."`
-	// DestGasOverheads is the per-token destination gas overhead (Tolk lisp_list<uint32>?).
-	DestGasOverheads *common.LispList[common.UInt32] `tlb:"maybe ^"`
+	// DestOverheads is the per-token destination gas and bytes overheads
+	DestOverheads *common.LispList[DestOverheads] `tlb:"maybe ^"`
 	// Destination chain family the message was validated against, echoed so the
 	// executor can relay it to the OnRamp.
 	ChainFamilySelector uint32     `tlb:"## 32"`
 	Msg                 *cell.Cell `tlb:"^"`       // Original message
 	Context             *cell.Cell `tlb:"maybe ^"` // Optional context cell
+}
+
+// DestOverheads mirrors the Tolk FeeQuoter_DestOverheads: the per-token destination
+// gas overhead (encoded into the emitted transfer's destExecData) and bytes overhead
+// (relayed to the OnRamp to bound the pool's destPoolData).
+type DestOverheads struct {
+	DestGasOverheads   uint32 `tlb:"## 32"`
+	DestBytesOverheads uint32 `tlb:"## 32"`
 }
 
 type Fee struct {
