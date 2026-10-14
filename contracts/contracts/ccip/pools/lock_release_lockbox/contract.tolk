@@ -99,7 +99,8 @@ fun onInternalMessage(in: InMessage): void {
             st.store();
         }
         ReturnExcessesBack => {
-            // minval:best-effort gate=none ReturnExcessesBack — passive excess receipt; retain coins without advancing an operation or granting authority
+            // minval:best-effort gate=none ReturnExcessesBack
+            // minval.detail: passive excess receipt; retain coins without advancing an operation or granting authority
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
@@ -205,7 +206,8 @@ fun onDepositAccountReply(
     assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
 
     try {
-        // minval:check-fail gate=S LockReleaseLockboxTokenPool.DepositAccount_Reply — account ready, no withdraw yet; abort this attempt on shortfall
+        // minval:check-fail gate=S LockReleaseLockboxTokenPool.DepositAccount_Reply
+        // minval.detail: account ready, no withdraw yet; abort this attempt on shortfall
         val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
         assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
@@ -326,7 +328,8 @@ fun onDepositAccountInitFailed(
     msgValue: coins,
     msg: DepositAccount_NotEnoughValue,
 ) {
-    // minval:recovery gate=none LockReleaseLockboxTokenPool.DepositAccount_NotEnoughValue — release unwind when account init is underfunded
+    // minval:recovery gate=none LockReleaseLockboxTokenPool.DepositAccount_NotEnoughValue
+    // minval.detail: release unwind when account init is underfunded
 
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
     val contextCell = msg.forwardPayload;
@@ -428,7 +431,8 @@ fun onDeposited(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    // minval:non-reject gate=none JettonLockBox_Deposited — lockbox owns custody; authenticate and complete, no reversal path exists
+    // minval:non-reject gate=none JettonLockBox_Deposited
+    // minval.detail: lockbox owns custody; authenticate and complete, no reversal path exists
 
     var pool = loadPool(st);
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
@@ -463,7 +467,8 @@ fun onDepositFailed(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
-    // minval:recovery gate=none JettonLockBox_DepositFailed — lock unwind when lockbox deposit is rejected
+    // minval:recovery gate=none JettonLockBox_DepositFailed
+    // minval.detail: lock unwind when lockbox deposit is rejected
 
     if (msg.context == null) {
         return;
@@ -585,7 +590,8 @@ fun onWithdrawFailed(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
-    // minval:recovery gate=none JettonLockBox_WithdrawFailed — release unwind when lockbox withdraw fails
+    // minval:recovery gate=none JettonLockBox_WithdrawFailed
+    // minval.detail: release unwind when lockbox withdraw fails
 
     val withdraw = msg.context!.load();
     assert(withdraw.queryId == msg.queryId && withdraw.token == msg.token && msg.token == st.poolData.load().token(),
@@ -616,7 +622,8 @@ fun onDepositAccountForwardNotification(
     sender: address,
     msg: DepositAccount_ForwardNotification,
 ) {
-    // minval:non-reject gate=none LockReleaseLockboxTokenPool.DepositAccount_ForwardNotification — release committed; authenticate and complete, no reversal exists
+    // minval:non-reject gate=none LockReleaseLockboxTokenPool.DepositAccount_ForwardNotification
+    // minval.detail: release committed; authenticate and complete, no reversal exists
     val forwarded = msg.message.load();
 
     // Parse the forwarded body as TransferNotificationForRecipient.

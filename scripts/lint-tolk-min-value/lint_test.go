@@ -41,12 +41,11 @@ func fixture(t *testing.T, abi, src string) (string, string) {
 
 func TestParseMarker(t *testing.T) {
 	for _, tc := range []struct {
-		name, line, category, gate, message, description string
+		name, line, category, gate, admission, message string
 	}{
-		{"full", "// minval:check-admission gate=A Demo_Request — start of flow", "check-admission", "A", "Demo_Request", "start of flow"},
-		{"default gate", "// minval:check-bounce Demo_Reply — owner config", "check-bounce", "S", "Demo_Reply", "owner config"},
-		{"no summary", "// minval:recovery gate=none Demo_Reply", "recovery", "none", "Demo_Reply", ""},
-		{"hyphen dash", "// minval:check-fail Demo_Reply - owner config", "check-fail", "S", "Demo_Reply", "owner config"},
+		{"admission static", "// minval:check-admission gate=A A=static Demo_Request", "check-admission", "A", "static", "Demo_Request"},
+		{"default gate and admission", "// minval:check-bounce Demo_Reply", "check-bounce", "S", "none", "Demo_Reply"},
+		{"explicit none", "// minval:recovery gate=none A=none Demo_Reply", "recovery", "none", "none", "Demo_Reply"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := parseMarkers(tc.line, "x.tolk")
@@ -54,7 +53,7 @@ func TestParseMarker(t *testing.T) {
 				t.Fatalf("want 1 marker, got %d", len(got))
 			}
 			m := got[0]
-			if m.Category != tc.category || m.Gate != tc.gate || m.Message != tc.message || m.Description != tc.description {
+			if m.Category != tc.category || m.Gate != tc.gate || m.Admission != tc.admission || m.Message != tc.message {
 				t.Fatalf("got %+v", m)
 			}
 		})
@@ -62,21 +61,30 @@ func TestParseMarker(t *testing.T) {
 }
 
 func TestParseDetailBlock(t *testing.T) {
-	src := "// minval:check-bounce gate=S Demo_Request — summary\n" +
-		"// minval.detail:\n" +
-		"//   First line.\n" +
-		"//   Second line.\n" +
+	src := "// minval:check-bounce gate=S Demo_Request\n" +
+		"// minval.detail: summary line\n" +
+		"//   First detail.\n" +
+		"//   Second detail.\n" +
 		"fun f() {}"
 	got := parseMarkers(src, "x.tolk")
-	if len(got) != 1 || got[0].Description != "summary" || got[0].Detail != "First line. Second line." {
+	if len(got) != 1 || got[0].Description != "summary line" || got[0].Detail != "First detail. Second detail." {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestGateLabel(t *testing.T) {
+	if l := (marker{Gate: "A", Admission: "dynamic"}).gateLabel(); l != "A (dynamic)" {
+		t.Fatalf("got %q", l)
+	}
+	if l := (marker{Gate: "S", Admission: "none"}).gateLabel(); l != "S" {
+		t.Fatalf("got %q", l)
 	}
 }
 
 func TestCoverage(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request — config\nfun f() {}\n"+
-			"// minval:check-admission gate=A Demo_Reply — flow start\nfun g() {}")
+		"// minval:check-bounce gate=S Demo_Request\n// minval.detail: config\nfun f() {}\n"+
+			"// minval:check-admission gate=A A=static Demo_Reply\n// minval.detail: flow start\nfun g() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +93,7 @@ func TestCoverage(t *testing.T) {
 		t.Fatalf("unexpected report: %+v", r)
 	}
 	doc := r.contractDoc(r.contracts[0])
-	if !strings.Contains(doc, "| `Demo_Request` | check-bounce | S | config |") {
+	if !strings.Contains(doc, "| `Demo_Reply` | check-admission | A (static) | flow start |") {
 		t.Fatalf("contract doc missing row:\n%s", doc)
 	}
 	if !strings.Contains(r.overview(), "2/2") {
@@ -95,8 +103,8 @@ func TestCoverage(t *testing.T) {
 
 func TestDetailRendered(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request — summary\n// minval.detail:\n//   More detail here.\nfun f() {}\n"+
-			"// minval:check-admission gate=A Demo_Reply — flow\nfun g() {}")
+		"// minval:check-bounce gate=S Demo_Request\n// minval.detail: summary\n//   More detail here.\nfun f() {}\n"+
+			"// minval:check-admission gate=A A=static Demo_Reply\n// minval.detail: flow\nfun g() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +115,7 @@ func TestDetailRendered(t *testing.T) {
 }
 
 func TestMissingMarkerFails(t *testing.T) {
-	abiDir, srcDir := fixture(t, demoABI, "// minval:check-bounce gate=S Demo_Request — config\nfun f() {}")
+	abiDir, srcDir := fixture(t, demoABI, "// minval:check-bounce gate=S Demo_Request\nfun f() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +126,7 @@ func TestMissingMarkerFails(t *testing.T) {
 }
 
 func TestExcludedToleratesMissing(t *testing.T) {
-	abiDir, srcDir := fixture(t, demoABI, "// minval:check-bounce gate=S Demo_Request — config\nfun f() {}")
+	abiDir, srcDir := fixture(t, demoABI, "// minval:check-bounce gate=S Demo_Request\nfun f() {}")
 	r, err := lint(abiDir, srcDir, map[string]bool{"Demo": true})
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +138,7 @@ func TestExcludedToleratesMissing(t *testing.T) {
 
 func TestStaleMarker(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request — a\n// minval:check-bounce gate=S Demo_Reply — b\n// minval:check-bounce gate=S Demo_Typo — c")
+		"// minval:check-bounce gate=S Demo_Request\n// minval:check-bounce gate=S Demo_Reply\n// minval:check-bounce gate=S Demo_Typo")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -142,9 +150,9 @@ func TestStaleMarker(t *testing.T) {
 
 func TestQualifiedOverridesShared(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request — shared default\n"+
-			"// minval:check-admission gate=A Demo.Demo_Request — demo-specific\n"+
-			"// minval:check-bounce gate=S Demo_Reply — reply")
+		"// minval:check-bounce gate=S Demo_Request\n"+
+			"// minval:check-admission gate=A A=static Demo.Demo_Request\n"+
+			"// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -159,19 +167,7 @@ func TestQualifiedOverridesShared(t *testing.T) {
 
 func TestDuplicateUnqualified(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request — a\n// minval:check-bounce gate=S Demo_Request — b\n// minval:check-bounce gate=S Demo_Reply — c")
-	r, err := lint(abiDir, srcDir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ok() || len(r.duplicates) != 1 {
-		t.Fatalf("want duplicate, got %+v", r)
-	}
-}
-
-func TestDuplicateQualified(t *testing.T) {
-	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo.Demo_Request — a\n// minval:check-bounce gate=S Demo.Demo_Request — b\n// minval:check-bounce gate=S Demo_Reply — c")
+		"// minval:check-bounce gate=S Demo_Request\n// minval:check-bounce gate=S Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -183,7 +179,7 @@ func TestDuplicateQualified(t *testing.T) {
 
 func TestStaleQualified(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request — a\n// minval:check-bounce gate=S Nope.Demo_Request — b\n// minval:check-bounce gate=S Demo_Reply — c")
+		"// minval:check-bounce gate=S Demo_Request\n// minval:check-bounce gate=S Nope.Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -195,13 +191,37 @@ func TestStaleQualified(t *testing.T) {
 
 func TestInvalidGate(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=X Demo_Request — a\n// minval:check-bounce gate=S Demo_Reply — c")
+		"// minval:check-bounce gate=X Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r.ok() || len(r.invalid) != 1 {
-		t.Fatalf("want 1 invalid, got %+v", r)
+		t.Fatalf("want invalid gate, got %+v", r)
+	}
+}
+
+func TestInvalidAdmission(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-admission gate=A A=maybe Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.invalid) != 1 {
+		t.Fatalf("want invalid admission, got %+v", r)
+	}
+}
+
+func TestAdmissionRequiresGateA(t *testing.T) {
+	abiDir, srcDir := fixture(t, demoABI,
+		"// minval:check-bounce gate=S A=static Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
+	r, err := lint(abiDir, srcDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ok() || len(r.invalid) != 1 {
+		t.Fatalf("want A=static without gate=A to be invalid, got %+v", r)
 	}
 }
 

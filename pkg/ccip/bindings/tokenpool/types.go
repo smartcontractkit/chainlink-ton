@@ -271,6 +271,20 @@ type AdminConfig struct {
 	DeployableCode        *cell.Cell           `tlb:"maybe ^"`
 }
 
+// MinValueConfig is an optional override of a min-value floor (`value: coins?`).
+// A nil Value means "use the protocol default".
+type MinValueConfig struct {
+	Value *tlb.Coins `tlb:"maybe ."`
+}
+
+// Budget holds the pool's optional budget overrides. `Safety` funds bounded local
+// work and a safe exit; `Admission` is the flow admission threshold checked before
+// capacity consumption.
+type Budget struct {
+	Safety    MinValueConfig `tlb:"."`
+	Admission MinValueConfig `tlb:"."`
+}
+
 // Storage represents the TokenPool_Data storage layout shared by every TokenPool
 // implementation (BurnMint, LockRelease, ...), each of which wraps it as
 // `poolData: Cell<TokenPool_Data>` alongside its own pool-specific fields.
@@ -280,6 +294,7 @@ type Storage struct {
 	TokenDecimals           uint8            `tlb:"## 8"`
 	RemoteChainConfigs      *cell.Dictionary `tlb:"dict 64"`
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
+	Budget                  Budget           `tlb:"."`
 }
 
 // --- Messages - incoming ---
