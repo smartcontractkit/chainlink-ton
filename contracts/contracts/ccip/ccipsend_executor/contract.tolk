@@ -200,7 +200,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
         // No token transfer, so there are no pool-supplied details to report.
-        self.exitSuccessfully(msg.fee, msg.chainFamilySelector, null);
+        self.exitSuccessfully(msg.fee, null);
         return;
     }
     if (msg.destGasOverheads == null) {
@@ -314,6 +314,12 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnWithdraw) {
     val state = self.state.load();
+    // Snapshot the pool's return data from the prepared forward payload BEFORE custody
+    // moves. The OnRamp validates destTokenAddress (from the same payload we relay in the
+    // withdraw request) pre-custody, and onConfirmWithdraw later emits from this state —
+    // so the pool cannot alter these values in its TokenPool_LockOrBurnFinished reply
+    // after the tokens were locked/burned.
+    val prepared = lazy msg.forwardPayload.prepared.load();
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -324,6 +330,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: state.senderDepositAccountWallet,
+            destTokenAmount: prepared.destTokenAmount,
+            lockOrBurnOut: prepared.out.toCell(),
         }.toCell(),
     };
     newState.store();
@@ -355,22 +363,21 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Forward what the pool returned so the OnRamp can emit it. sourcePoolAddress comes
-    // from our own state (the pool we routed the lockOrBurn to) rather than from the
-    // pool's reply, so it stays trusted.
+    // Emit the token transfer from our own state (snapshotted from the prepared forward
+    // payload before custody moved) rather than from the pool's reply, so a misbehaving
+    // pool cannot alter lockOrBurnOut/destTokenAmount after the tokens
+    // were locked/burned. The Finished message is treated as a pure completion signal.
     val state = self.state.load();
-    val out = msg.out.load();
     val tokenTransfer = OnRamp_ExecutorTokenTransfer {
         sourcePoolAddress: state.tokenPool,
-        amount: msg.destTokenAmount as uint256,
-        destTokenAddress: out.destTokenAddress,
-        extraData: out.destPoolData,
+        amount: state.destTokenAmount as uint256,
+        lockOrBurnOut: state.lockOrBurnOut,
         destExecData: encodeDestExecData(state.destGasOverhead),
     }.toCell();
-    self.exitSuccessfully(state.fee, state.chainFamilySelector, tokenTransfer);
+    self.exitSuccessfully(state.fee, tokenTransfer);
 }
 
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, chainFamilySelector: uint32, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -389,7 +396,6 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, chainFamilySelector: ui
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-            chainFamilySelector,
             tokenTransfer,
         }
     });

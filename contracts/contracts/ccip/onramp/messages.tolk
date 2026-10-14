@@ -80,11 +80,10 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     fee: Fee
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
-    // Destination chain family echoed from the FeeQuoter's validation reply, used by the
-    // OnRamp to re-validate the pool-supplied remote token address before emitting.
-    chainFamilySelector: uint32,
     // Pool-supplied token transfer details, forwarded so the OnRamp can include them in
     // the emitted CCIPMessageSent event. Null when the message carries no token transfer.
+    // The CCIPSendExecutor snapshots these from the prepared forward payload before
+    // custody moves, so they are exactly the values the OnRamp validated pre-custody.
     tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?
 }
 

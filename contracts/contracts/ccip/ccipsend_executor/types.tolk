@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../onramp/messages.tolk";
 import "../fee_quoter/types"
+import "../pools/lib/token_pool/types"
 
 const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
 const CCIPSendExecutor_FACILITY_ID = CCIPSendExecutor_FACILITY_NAME.crc32() % 640 + 10;  // 178
@@ -76,6 +77,11 @@ struct CCIPSendExecutor_State_TokenPool_Withdraw {
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
     senderDepositAccountWallet: address,
+    /// Pool return data snapshotted from the prepared forward payload BEFORE custody moves,
+    /// so the pool cannot alter it in the `TokenPool_LockOrBurnFinished` reply after the
+    /// tokens were locked/burned. The OnRamp validates `TokenPool_LockOrBurnOutV1` pre-custody.
+    destTokenAmount: coins,
+    lockOrBurnOut: Cell<TokenPool_LockOrBurnOutV1>,
 }
 
 struct CCIPSendExecutor_State_Finalized {

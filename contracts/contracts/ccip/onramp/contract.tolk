@@ -406,17 +406,6 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
 
     var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, OnRamp_Error.UnknownDestChainSelector);
 
-    // re-validate destTokenAddress provided by TokenPool
-    if (msg.tokenTransfer != null) {
-        val tokenTransfer = lazy msg.tokenTransfer.load();
-        try {
-            validateDestFamilyAddress(msg.chainFamilySelector, tokenTransfer.destTokenAddress.load(), false);
-        } catch {
-            // TBD can we refund the tokens in this edge case were the TokenPool malfunctions and passes a different address to the one provided above? Maybe this is solved in the followup that won't rely on the TP trusting the forward payload.
-            return rejectMessage(OnRamp_Error.InvalidDestTokenAddress as int, destChainConfig.router, ccipsend, metadata.sender);
-        }
-    }
-
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);

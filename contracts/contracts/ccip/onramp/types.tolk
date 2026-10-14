@@ -3,6 +3,7 @@ import "../common/types"
 import "../ccipsend_executor/types"
 import "../../lib/utils"
 import "../../lib/deployable/namespace"
+import "../pools/lib/token_pool/types"
 
 const OnRamp_FACILITY_NAME = "link.chain.ton.ccip.OnRamp";
 const OnRamp_FACILITY_ID = OnRamp_FACILITY_NAME.crc32() % 640 + 10;  // 134
@@ -83,11 +84,14 @@ struct TVM2AnyTokenTransfer {
     // pool it actually routed the lockOrBurn to, so the destination pool can rely on it.
     sourcePoolAddress: address;
     // Cross-chain token amount, always a u256 to match the other chain families. This is
-    // the post-fee amount the pool reported (LockOrBurnFinished.destTokenAmount), which
-    // may differ from the pre-fee amount the sender supplied.
+    // the post-fee amount snapshotted by the CCIPSendExecutor from the pool's prepared
+    // forward payload (TokenPool_LockOrBurnPrepared.destTokenAmount) before custody moved;
+    // it may differ from the pre-fee amount the sender supplied.
     amount: uint256;
     // The address of the destination token, abi encoded in the case of EVM chains.
-    // This value is UNTRUSTED as any pool owner can return whatever value they want.
+    // Pool-supplied but validated against the destination chain family by the OnRamp
+    // before custody moved (onExecutorRequestsWithdraw), and emitted from the executor's
+    // pre-custody snapshot rather than the pool's reply.
     destTokenAddress: Cell<CrossChainAddress>;
     // Optional pool data to be transferred to the destination chain
     // (LockOrBurnOutV1.destPoolData). By default this is capped at
@@ -117,8 +121,7 @@ fun encodeDestExecData(destGasAmount: uint32): cell {
 struct OnRamp_ExecutorTokenTransfer {
     sourcePoolAddress: address;
     amount: uint256;
-    destTokenAddress: Cell<CrossChainAddress>;
-    extraData: cell;
+    lockOrBurnOut: Cell<TokenPool_LockOrBurnOutV1>;
     destExecData: cell;
 }
 
@@ -129,12 +132,13 @@ fun buildTVM2AnyTokenTransfer(transfer: Cell<OnRamp_ExecutorTokenTransfer>?): Sn
     if (transfer == null) {
         return createEmptyCell();
     }
-    val t = transfer!.load();
+    val t = transfer.load();
+    val lockOrBurnOut = lazy t.lockOrBurnOut.load();
     return TVM2AnyTokenTransfer {
         sourcePoolAddress: t.sourcePoolAddress,
         amount: t.amount,
-        destTokenAddress: t.destTokenAddress,
-        extraData: t.extraData,
+        destTokenAddress: lockOrBurnOut.destTokenAddress,
+        extraData: lockOrBurnOut.destPoolData,
         destExecData: t.destExecData,
     }.toCell();
 }

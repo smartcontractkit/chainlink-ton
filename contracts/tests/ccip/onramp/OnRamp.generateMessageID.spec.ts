@@ -9,7 +9,7 @@ import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import { ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
@@ -159,12 +159,13 @@ describe('OnRamp - generate message id', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        chainFamilySelector: ChainFamilySelectors.evm,
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: EVM_ADDRESS,
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },

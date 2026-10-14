@@ -10,7 +10,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
@@ -152,12 +152,13 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        chainFamilySelector: ChainFamilySelectors.evm,
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: EVM_ADDRESS,
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },
@@ -235,12 +236,13 @@ describe('OnRamp - executor exit', () => {
           sender: senderAddress,
           value: 42n,
         }),
-        chainFamilySelector: ChainFamilySelectors.evm,
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: EVM_ADDRESS,
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },
