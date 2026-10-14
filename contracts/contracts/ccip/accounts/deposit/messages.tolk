@@ -8,9 +8,9 @@ import "../../../lib/jetton/messages"
 ///
 /// @dev Deployment is `Deployable_Initialize` (installs code/data) followed by this init. Every
 ///      init is answered, so re-sending it to a deployed account confirms it exists.
-///      The first init waits for the token's TEP-89 response; another init arriving meanwhile
-///      bounces with `InitPending`, so concurrent first inits to the same account fail all but
-///      one and must be retried by the owner.
+///      The first init queries the token's wallet (TEP-89); inits arriving before the response are
+///      queued and answered with it. Once `DepositAccount_MAX_PENDING_INITS` are queued, further
+///      inits bounce with `PendingInitsFull` and must be retried by the owner.
 struct (0x6890a205) DepositAccount_Init {
     queryId: uint64;
     /// Echoed back in the reply.

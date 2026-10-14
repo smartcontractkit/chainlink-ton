@@ -19,6 +19,8 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as Deployable from '../../../wrappers/libraries/Deployable'
 import { generateRandomContractId, generateRandomTonAddress } from '../../../src/utils'
 
+const MAX_PENDING_INITS = 8
+
 describe('DepositAccount', () => {
   let blockchain: Blockchain
   let user: SandboxContract<TreasuryContract>
@@ -85,6 +87,7 @@ describe('DepositAccount', () => {
             user: userAddr(),
             token,
             beneficiaries: beneficiaries(),
+            pendingInits: new Map(),
           }),
         ),
       },
@@ -647,37 +650,73 @@ describe('DepositAccount', () => {
       })
     })
 
-    it('refuses an init while another one waits for the wallet', async () => {
+    const initializedQueryIds = (
+      account: SandboxContract<da.DepositAccount>,
+      res: Awaited<ReturnType<typeof answerWalletQuery>>,
+    ) =>
+      res.transactions.flatMap((tx) => {
+        const body = tx.inMessage?.body
+        if (
+          tx.inMessage?.info.type !== 'internal' ||
+          !tx.inMessage.info.src.equals(account.address) ||
+          !body ||
+          body.beginParse().remainingBits < 32 ||
+          body.beginParse().preloadUint(32) !== da.DepositAccount_Initialized.PREFIX
+        ) {
+          return []
+        }
+        return [da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryId]
+      })
+
+    it('queues inits while the wallet query is pending and answers all of them', async () => {
       const { depositAccount } = await installAccount()
       const first = await initAccount(depositAccount, 1n)
       const second = await initAccount(depositAccount, 2n)
       expect(first.transactions).toHaveTransaction({ from: depositAccount.address, to: token })
+      expect(second.transactions).toHaveTransaction({ to: depositAccount.address, success: true })
       expect(second.transactions).not.toHaveTransaction({ from: depositAccount.address, to: token })
-      expect(second.transactions).toHaveTransaction({
+      expect(second.transactions).not.toHaveTransaction({ from: depositAccount.address })
+
+      const res = await answerWalletQuery(depositAccount, notifier.address)
+      expect(initializedQueryIds(depositAccount, res)).toEqual([1n, 2n])
+    })
+
+    it('answers all queued inits with WalletUnavailable when the token cannot report the wallet', async () => {
+      const { depositAccount } = await installAccount()
+      await initAccount(depositAccount, 1n)
+      await initAccount(depositAccount, 2n)
+      const res = await answerWalletQuery(depositAccount, null)
+      for (const queryId of [1n, 2n]) {
+        expect(res.transactions).toHaveTransaction({
+          from: depositAccount.address,
+          to: recipient.address,
+          op: da.DepositAccount_WalletUnavailable.PREFIX,
+          body: (body) =>
+            !!body &&
+            da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryId === queryId,
+        })
+      }
+    })
+
+    it('refuses an init once the pending queue is full', async () => {
+      const { depositAccount } = await installAccount()
+      for (let i = 0; i < MAX_PENDING_INITS; i++) {
+        const res = await initAccount(depositAccount, BigInt(i))
+        expect(res.transactions).toHaveTransaction({ to: depositAccount.address, success: true })
+      }
+      const overflow = await initAccount(depositAccount, BigInt(MAX_PENDING_INITS))
+      expect(overflow.transactions).toHaveTransaction({
         to: depositAccount.address,
         success: false,
-        exitCode: da.DepositAccount.Errors['DepositAccount_Error.InitPending'],
+        exitCode: da.DepositAccount.Errors['DepositAccount_Error.PendingInitsFull'],
       })
 
       const res = await answerWalletQuery(depositAccount, notifier.address)
-      expect(res.transactions).toHaveTransaction({
-        from: depositAccount.address,
-        to: recipient.address,
-        op: da.DepositAccount_Initialized.PREFIX,
-        body: (body) =>
-          !!body && da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryId === 1n,
-      })
-      expect(res.transactions).not.toHaveTransaction({
-        from: depositAccount.address,
-        to: recipient.address,
-        op: da.DepositAccount_Initialized.PREFIX,
-        body: (body) =>
-          !!body &&
-          body.beginParse().preloadUint(32) === da.DepositAccount_Initialized.PREFIX &&
-          da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryId === 2n,
-      })
+      expect(initializedQueryIds(depositAccount, res)).toEqual(
+        Array.from({ length: MAX_PENDING_INITS }, (_, i) => BigInt(i)),
+      )
 
-      const retry = await initAccount(depositAccount, 2n)
+      const retry = await initAccount(depositAccount, BigInt(MAX_PENDING_INITS))
       expect(retry.transactions).toHaveTransaction({
         from: depositAccount.address,
         to: recipient.address,

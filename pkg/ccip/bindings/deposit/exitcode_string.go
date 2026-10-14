@@ -11,15 +11,16 @@ func _() {
 	_ = x[ExitCodeOnlyOwner-52500]
 	_ = x[ExitCodeOnlyBeneficiary-52501]
 	_ = x[ExitCodeOnlySendExcessesToSender-52502]
-	_ = x[ExitCodeInitPending-52503]
+	_ = x[ExitCodePendingInitsFull-52503]
 	_ = x[ExitCodeOnlyToken-52504]
 	_ = x[ExitCodeNoPendingInit-52505]
 	_ = x[ExitCodeNotEnoughValue-52506]
+	_ = x[ExitCodeWalletUnknown-52507]
 }
 
-const _ExitCode_name = "OnlyOwnerOnlyBeneficiaryOnlySendExcessesToSenderInitPendingOnlyTokenNoPendingInitNotEnoughValue"
+const _ExitCode_name = "OnlyOwnerOnlyBeneficiaryOnlySendExcessesToSenderPendingInitsFullOnlyTokenNoPendingInitNotEnoughValueWalletUnknown"
 
-var _ExitCode_index = [...]uint8{0, 9, 24, 48, 59, 68, 81, 95}
+var _ExitCode_index = [...]uint8{0, 9, 24, 48, 64, 73, 86, 100, 113}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 52500
