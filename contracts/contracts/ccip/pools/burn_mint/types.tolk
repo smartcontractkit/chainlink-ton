@@ -2,13 +2,16 @@
 
 import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
+import "../lib/token_pool/recovery"
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
 const BurnMintTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.BurnMintTokenPool";
 const BurnMintTokenPool_FACILITY_ID = BurnMintTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
-const BurnMintTokenPool_BURN_VALUE = grams("0.05");
+/// `CCT_AskToBurn` value. Must cover the burn and, if it bounces, a funded custody return
+/// (`TokenPool_RETURN_TRANSFER_VALUE`) plus recovery fees.
+const BurnMintTokenPool_BURN_VALUE = TokenPool_RETURN_TRANSFER_VALUE + grams("0.1");
 const BurnMintTokenPool_MINT_VALUE = grams("0.1");
 
 /// Context carried by the CCT burn path (burn only). Stores the pool's own jetton

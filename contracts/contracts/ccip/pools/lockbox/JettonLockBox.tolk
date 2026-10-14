@@ -90,7 +90,8 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     // Only the initializer bound at construction (stateInit) may initialize.
     assert(sender == st.initializer, JettonLockBox_Error.UnauthorizedInitializer);
 
-    // minval:check-bounce gate=S JettonLockBox_Init — one-time init; reject shortfall before binding initializer or changing configuration
+    // minval:check-bounce gate=S JettonLockBox_Init
+    // minval.detail: one-time init; reject shortfall before binding initializer or changing configuration
     val minValue = ccipMinValue();
     assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
@@ -184,7 +185,8 @@ fun onDepositWithTransferNotification(
         assert(deposit!.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
         assert(deposit!.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
-        // minval:check-fail gate=S JettonLockBox.TransferNotificationForRecipient — authenticated deposit; shortfall uses the correlated custody-return path
+        // minval:check-fail gate=S JettonLockBox.TransferNotificationForRecipient
+        // minval.detail: authenticated deposit; shortfall uses the correlated custody-return path
         val minValue = ccipMinValue();
         assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
@@ -252,7 +254,8 @@ fun onDepositWithTransferNotification(
 fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
 
-    // minval:check-bounce gate=S JettonLockBox_Withdraw — reject before withdrawing custody; operator handles the request bounce
+    // minval:check-bounce gate=S JettonLockBox_Withdraw
+    // minval.detail: reject before withdrawing custody; operator handles the request bounce
     val minValue = ccipMinValue();
     assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 

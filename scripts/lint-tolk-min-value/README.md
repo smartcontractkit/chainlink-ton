@@ -9,16 +9,20 @@ expansion, no control-flow analysis. It also generates the value-budget spec.
 One marker per incoming message, anywhere in the contract's sources:
 
 ```tolk
-// minval:<category> gate=<S|A|none> [<Contract>.]<Message> — <summary>
+// minval:<category> gate=<S|A|none> A=<static|dynamic|none> [<Contract>.]<Message>
+// minval.detail: <summary>
+//   <optional detail, until the comment block ends>
 ```
 
 - `category`: `check-admission` | `check-bounce` | `check-fail` | `recovery` | `non-reject` | `best-effort`.
 - `gate`: `S` | `A` | `none`; optional — defaults from the category
   (`check-admission`→`A`, `check-bounce`/`check-fail`→`S`, others→`none`).
+- `A`: `static` | `dynamic` | `none`; optional — qualifies an `A` gate (`static` fixed threshold,
+  `dynamic` when it depends on the message, e.g. `gasLimit`). Requires `gate=A`.
 - `<Message>`: the ABI message name (e.g. `TokenPool_LockOrBurn`).
 - `<Contract>.` (optional): scopes the marker to one contract; it takes precedence over the
   shared default. Omit it for a message handled identically by every contract that declares it.
-- `summary`: one concise line.
+- `summary`: the text after `minval.detail:`; following `//` lines are the long-form detail.
 
 ### Shared vs contract-qualified
 
@@ -27,10 +31,12 @@ message is handled differently by a specific contract, add a `<Contract>.<Messag
 
 ```tolk
 // shared default for the pool trait and its implementations
-// minval:check-fail gate=S TransferNotificationForRecipient — custody receipt
+// minval:check-fail gate=S TransferNotificationForRecipient
+// minval.detail: custody receipt
 
 // Router handles the same opcode as a flow admission point
-// minval:check-admission gate=A Router.TransferNotificationForRecipient — token-transfer entry
+// minval:check-admission gate=A A=static Router.TransferNotificationForRecipient
+// minval.detail: token-transfer entry
 ```
 
 Resolution for a contract+message: a `<Contract>.` marker wins; otherwise the single unqualified
@@ -38,15 +44,15 @@ marker applies. Findings:
 
 - **missing** — no marker resolves for an ABI message.
 - **duplicate** — two unqualified markers for a message, or two markers for the same `<Contract>.<Message>`.
-- **invalid** — malformed marker or unknown gate.
+- **invalid** — malformed marker, unknown gate/admission, or `A=` without `gate=A`.
 - **stale** — a marker for a message no in-scope contract declares, or a `<Contract>.` marker whose
   contract does not declare the message.
 
-An optional long-form description follows as a block:
+Detail example:
 
 ```tolk
-// minval:check-admission gate=A TokenPool_LockOrBurn — outbound flow; safety plus optional admission
-// minval.detail:
+// minval:check-admission gate=A A=static TokenPool_LockOrBurn
+// minval.detail: outbound flow; safety plus optional admission
 //   Checks the resolved safety floor, then the optional admission threshold, before consuming
 //   outbound rate-limit capacity. On shortfall the caller owns rejection recovery.
 ```

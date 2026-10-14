@@ -749,7 +749,7 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  it('burns tokens and finalizes even when the burn confirmation is below the admin floor', async () => {
+  it('burns tokens and finalizes even when the burn confirmation is below the safety floor', async () => {
     const deployerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(burnMintPool.address)
 
@@ -773,7 +773,7 @@ describe('BurnMintTokenPool', () => {
 
     // === Step 1: Send LockOrBurn to the pool ===
     // Pool validates → sends TokenPool_LockOrBurnWithdraw with forward payload back to deployer
-    const adminFloor = toNano('0.1')
+    const adminFloor = toNano('0.3')
     await setTokenPoolSafetyFloor(blockchain, pool.address, adminFloor)
     const lockOrBurn = TokenPool_LockOrBurn.create({
       queryId,
