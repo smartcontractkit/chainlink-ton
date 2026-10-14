@@ -189,7 +189,7 @@ fun onLockOrBurnTransferContinue(
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
     // minval:check-admission gate=A/static BurnMintTokenPool.TransferNotificationForRecipient
-    // minval.detail: burn path; the notification must fund the burn and a custody return on bounce
+    // burn path; the notification must fund the burn and a custody return on bounce
     //   Authenticated custody receipt that commits a burn. Checks the burn obligation
     //   (`BURN_VALUE`) before the fixed burn send; on shortfall the shared handler returns
     //   custody and refunds capacity (local recovery, no rejection).
@@ -263,7 +263,7 @@ fun onClaimMinterAdmin(
     queryId: uint64,
 ) {
     // minval:check-bounce gate=S BurnMintTokenPool_ClaimMinterAdmin
-    // minval.detail: owner-only minter admin claim
+    // owner-only minter admin claim
     val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 
@@ -289,7 +289,7 @@ fun onCCTReturnExcessesBack(
     msg: CCT_ReturnExcessesBack,
 ) {
     // minval:non-reject gate=none CCT_ReturnExcessesBack
-    // minval.detail: burn committed; authenticate and complete, no reversal exists; context-free excess is passive
+    // burn committed; authenticate and complete, no reversal exists; context-free excess is passive
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
     if (msg.forwardPayload == null) {
         return;

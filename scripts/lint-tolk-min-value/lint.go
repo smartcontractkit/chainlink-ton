@@ -15,15 +15,15 @@ import (
 // A value-budget marker on an incoming message handler:
 //
 //	// minval:<category> gate=<S|A|A/static|A/dynamic|none> [<Contract>.]<Message>
-//	// minval.detail: <summary>
+//	// <summary>
 //	//   <optional detail, until the comment block ends>
 //
 // An unqualified marker is a shared default for every contract that declares the
 // message. A `<Contract>.<Message>` marker applies only to that contract and takes
 // precedence. `gate` is optional and defaults from the category. An admission gate
 // may carry a subtype: `A/static` (fixed threshold) or `A/dynamic` (depends on the
-// message, e.g. gasLimit). The summary is the text after `minval.detail:`; following
-// comment lines are the long-form detail.
+// message, e.g. gasLimit). The summary is the first following comment line; the rest
+// are the long-form detail.
 var (
 	markerHeadRE = regexp.MustCompile(`^minval:([a-z][a-z-]*)(?:\s+gate=([A-Za-z/]+))?\s+([A-Za-z_][A-Za-z0-9_.]*)\s*(.*)$`)
 	commentRE    = regexp.MustCompile(`^\s*//\s?(.*)$`)
@@ -32,7 +32,7 @@ var (
 
 // nearbyCheckWindow is how many lines after a marker a gate=S|A handler must call
 // assertMinValue. It only checks that a call is present, not what it does.
-const nearbyCheckWindow = 8
+const nearbyCheckWindow = 10
 
 // Categories and the gate they imply when `gate=` is omitted.
 var defaultGate = map[string]string{
@@ -212,68 +212,66 @@ func loadMarkers(srcDir string) (map[string][]marker, error) {
 func parseMarkers(text, file string) []marker {
 	lines := strings.Split(text, "\n")
 	var out []marker
-	last := -1
 	for i := 0; i < len(lines); i++ {
 		body, ok := commentBody(lines[i])
-		if !ok {
+		if !ok || !strings.HasPrefix(body, "minval:") {
 			continue
 		}
-		switch {
-		case strings.HasPrefix(body, "minval.detail:"):
-			if last < 0 {
-				continue
-			}
-			if summary := strings.TrimSpace(strings.TrimPrefix(body, "minval.detail:")); summary != "" {
-				out[last].Description = summary
-			}
-			var detail []string
-			for j := i + 1; j < len(lines); j++ {
-				b, ok := commentBody(lines[j])
-				if !ok || strings.HasPrefix(b, "minval:") {
-					break
-				}
-				detail = append(detail, b)
-			}
-			for len(detail) > 0 && detail[len(detail)-1] == "" {
-				detail = detail[:len(detail)-1]
-			}
-			out[last].Detail = strings.Join(detail, " ")
-		case strings.HasPrefix(body, "minval:"):
-			head := markerHeadRE.FindStringSubmatch(body)
-			if head == nil {
-				out = append(out, marker{File: file, Line: i + 1})
-				last = len(out) - 1
-				continue
-			}
-			category, target := head[1], head[3]
-			gate, admission := splitGate(head[2])
-			if gate == "" {
-				gate = defaultGate[category]
-			}
-			contractName, message := splitScope(target)
-			hasCheck := false
-			for j := i + 1; j < len(lines) && j < i+nearbyCheckWindow; j++ {
-				if strings.HasPrefix(strings.TrimSpace(lines[j]), "// minval:") {
-					break // do not borrow the next marker's check
-				}
-				if assertRE.MatchString(lines[j]) {
-					hasCheck = true
-					break
-				}
-			}
-			out = append(out, marker{
-				Category:    category,
-				Gate:        gate,
-				Admission:   admission,
-				Contract:    contractName,
-				Message:     message,
-				Description: strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(head[4]), "—–- \t")),
-				File:        file,
-				Line:        i + 1,
-				hasCheck:    hasCheck,
-			})
-			last = len(out) - 1
+		head := markerHeadRE.FindStringSubmatch(body)
+		if head == nil {
+			out = append(out, marker{File: file, Line: i + 1})
+			continue
 		}
+
+		// Description block: the following comment lines. The first is the summary,
+		// the rest the detail. It ends at a blank comment, a non-comment line or the
+		// next marker.
+		var desc []string
+		for j := i + 1; j < len(lines); j++ {
+			b, ok := commentBody(lines[j])
+			if !ok || b == "" || strings.HasPrefix(b, "minval:") {
+				break
+			}
+			desc = append(desc, b)
+		}
+
+		// A gate=S|A marker must have an assertMinValue call nearby.
+		hasCheck := false
+		for j := i + 1; j < len(lines) && j < i+nearbyCheckWindow; j++ {
+			if strings.HasPrefix(strings.TrimSpace(lines[j]), "// minval:") {
+				break // do not borrow the next marker's check
+			}
+			if assertRE.MatchString(lines[j]) {
+				hasCheck = true
+				break
+			}
+		}
+
+		category, target := head[1], head[3]
+		gate, admission := splitGate(head[2])
+		if gate == "" {
+			gate = defaultGate[category]
+		}
+		contractName, message := splitScope(target)
+		m := marker{
+			Category:  category,
+			Gate:      gate,
+			Admission: admission,
+			Contract:  contractName,
+			Message:   message,
+			File:      file,
+			Line:      i + 1,
+			hasCheck:  hasCheck,
+		}
+		// An inline `— summary` on the marker line still wins over the block.
+		if inline := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(head[4]), "—–- \t")); inline != "" {
+			m.Description = inline
+			m.Detail = strings.Join(desc, " ")
+		} else if len(desc) > 0 {
+			m.Description = desc[0]
+			m.Detail = strings.Join(desc[1:], " ")
+		}
+		out = append(out, m)
 	}
 	return out
 }

@@ -84,7 +84,7 @@ fun onInternalMessage(in: InMessage): void {
         }
         ReturnExcessesBack => {
             // minval:best-effort gate=none ReturnExcessesBack
-            // minval.detail: passive excess receipt; retain coins without advancing an operation or granting authority
+            // passive excess receipt; retain coins without advancing an operation or granting authority
         }
         TokenPool_GetTransferInitiator => {
             // TODO: wrong zero addr check, and this should be done on init
@@ -226,7 +226,7 @@ fun onDeposited(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     // minval:non-reject gate=none JettonLockBox_Deposited
-    // minval.detail: lockbox owns custody; authenticate and complete, no reversal path exists
+    // lockbox owns custody; authenticate and complete, no reversal path exists
 
     var pool = loadPool(st);
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
@@ -262,7 +262,7 @@ fun onDepositFailed(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
     // minval:recovery gate=none JettonLockBox_DepositFailed
-    // minval.detail: lock unwind when lockbox deposit is rejected
+    // lock unwind when lockbox deposit is rejected
 
     if (msg.context == null) {
         return;
@@ -411,7 +411,7 @@ fun onWithdrawFailed(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
     // minval:recovery gate=none JettonLockBox_WithdrawFailed
-    // minval.detail: release unwind when lockbox withdraw fails
+    // release unwind when lockbox withdraw fails
 
     val withdraw = msg.context!.load();
     assert(withdraw.queryId == msg.queryId && withdraw.token == msg.token && msg.token == st.poolData.load().token(),

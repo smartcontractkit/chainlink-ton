@@ -10,7 +10,7 @@ One marker per incoming message, anywhere in the contract's sources:
 
 ```tolk
 // minval:<category> gate=<S|A|A/static|A/dynamic|none> [<Contract>.]<Message>
-// minval.detail: <summary>
+// <summary>
 //   <optional detail, until the comment block ends>
 ```
 
@@ -22,7 +22,8 @@ One marker per incoming message, anywhere in the contract's sources:
 - `<Message>`: the ABI message name (e.g. `TokenPool_LockOrBurn`).
 - `<Contract>.` (optional): scopes the marker to one contract; it takes precedence over the
   shared default. Omit it for a message handled identically by every contract that declares it.
-- `summary`: the text after `minval.detail:`; following `//` lines are the long-form detail.
+- `summary`: the first following `//` comment line; the rest are the long-form detail.
+  The block ends at a blank comment, a non-comment line or the next marker.
 
 ### Shared vs contract-qualified
 
@@ -32,11 +33,11 @@ message is handled differently by a specific contract, add a `<Contract>.<Messag
 ```tolk
 // shared default for the pool trait and its implementations
 // minval:check-fail gate=S TransferNotificationForRecipient
-// minval.detail: custody receipt
+// custody receipt
 
 // Router handles the same opcode as a flow admission point
 // minval:check-admission gate=A/static Router.TransferNotificationForRecipient
-// minval.detail: token-transfer entry
+// token-transfer entry
 ```
 
 Resolution for a contract+message: a `<Contract>.` marker wins; otherwise the single unqualified
@@ -52,7 +53,7 @@ Detail example:
 
 ```tolk
 // minval:check-admission gate=A/static TokenPool_LockOrBurn
-// minval.detail: outbound flow; safety plus optional admission
+// outbound flow; safety plus optional admission
 //   Checks the resolved safety floor, then the optional admission threshold, before consuming
 //   outbound rate-limit capacity. On shortfall the caller owns rejection recovery.
 ```
