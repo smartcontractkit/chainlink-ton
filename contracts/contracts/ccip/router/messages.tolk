@@ -113,8 +113,7 @@ struct (0xf28658e0) Router_UseOnRampAccount {
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
-/// Router moves custody (e.g. the pool-supplied remote token address failed destination
-/// family validation). The Router relays the failure to the token pool so it can reinstate
+/// Router moves custody. The Router relays the failure to the token pool so it can reinstate
 /// the rate limit consumed at admission and fail the send.
 struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
     queryID: uint64;

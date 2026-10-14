@@ -150,7 +150,7 @@ type ExecutorFinishedSuccessfully struct {
 	Fee                 feequoter.Fee `tlb:"."`                  // Fee amount
 	Msg                 *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
 	Metadata            Metadata      `tlb:"."`                  // Metadata
-	ChainFamilySelector uint32        `tlb:"## 32"`              // ChainFamilySelector is the destination chain family echoed from the FeeQuoter
+	ChainFamilySelector uint32        `tlb:"## 32"`              // Destination chain family echoed from the FeeQuoter
 	// Pool-supplied token transfer details the OnRamp folds into the emitted
 	// CCIPMessageSent event. Nil when the message carries no token transfer.
 	TokenTransfer *ExecutorTokenTransfer `tlb:"maybe ^"`

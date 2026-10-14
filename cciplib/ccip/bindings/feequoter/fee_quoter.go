@@ -214,9 +214,8 @@ type FeeToken struct {
 
 // Methods
 
-// Generic wrapper for fee quoter messages with context
-// NOTE: Context is `cell?` on-chain, meaning it is written as a presence bit
-// followed by the cell in a ref when present.
+// Generic wrapper for fee quoter messages with context.
+// Context is `cell?` on-chain: a presence bit followed by the cell in a ref when present.
 type GetValidatedFee struct {
 	_       tlb.Magic  `tlb:"#5eee82b8" json:"-"` //nolint:revive // Ignore opcode tag
 	Msg     *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
@@ -224,15 +223,13 @@ type GetValidatedFee struct {
 }
 
 // --- Response from GetValidatedFee ---
-// NOTE: Context is `cell?` on-chain, meaning it is written as a presence bit
-// followed by the cell in a ref when present.
 type MessageValidated struct {
 	_   tlb.Magic `tlb:"#fbf78e40" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee Fee       `tlb:"."`
 	// DestGasOverheads is the per-token destination gas overhead (Tolk lisp_list<uint32>?).
 	DestGasOverheads *common.LispList[common.UInt32] `tlb:"maybe ^"`
-	// ChainFamilySelector is the destination chain family the message was validated
-	// against, echoed so the executor can relay it to the OnRamp.
+	// Destination chain family the message was validated against, echoed so the
+	// executor can relay it to the OnRamp.
 	ChainFamilySelector uint32     `tlb:"## 32"`
 	Msg                 *cell.Cell `tlb:"^"`       // Original message
 	Context             *cell.Cell `tlb:"maybe ^"` // Optional context cell
@@ -243,8 +240,7 @@ type Fee struct {
 	FeeValueJuels  *big.Int   `tlb:"## 96"` // fee value in juels
 }
 
-// NOTE: Context is `cell?` on-chain, meaning it is written as a presence bit
-// followed by the cell in a ref when present.
+// Context is `cell?` on-chain: a presence bit followed by the cell in a ref when present.
 type MessageValidationFailed struct {
 	_         tlb.Magic  `tlb:"#4785cb72" json:"-"` //nolint:revive // Ignore opcode tag
 	ErrorCode *big.Int   `tlb:"## 256"`

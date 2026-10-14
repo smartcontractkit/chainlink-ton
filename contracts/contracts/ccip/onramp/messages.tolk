@@ -60,8 +60,7 @@ struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     queryID: uint64,
     executorID: CCIPSendExecutor_ID,
     destChainSelector: uint64,
-    // Destination chain family echoed from the FeeQuoter's validation reply, used by the
-    // OnRamp to validate the pool-supplied remote token address before custody moves.
+    // Destination chain family echoed from the FeeQuoter's validation reply.
     chainFamilySelector: uint32,
     withdrawRequest: Cell<Router_WithdrawRequest>,
 }
@@ -82,8 +81,7 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     metadata: Metadata
     // Pool-supplied token transfer details, forwarded so the OnRamp can include them in
     // the emitted CCIPMessageSent event. Null when the message carries no token transfer.
-    // The CCIPSendExecutor snapshots these from the prepared forward payload before
-    // custody moves, so they are exactly the values the OnRamp validated pre-custody.
+    // Snapshotted pre-custody, so these are the values the OnRamp validated.
     tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?
 }
 

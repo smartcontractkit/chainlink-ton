@@ -22,7 +22,7 @@ const VALID_EVM_TOKEN_ADDRESS = Buffer.from(
 const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
 // Builds the pool-supplied forward payload the CCIPSendExecutor would relay inside the
-// withdraw request. Only `prepared.out.destTokenAddress` matters for these tests.
+// withdraw request. Only `prepared.out.destTokenAddress` matters here.
 function buildWithdrawRequest(opts: {
   accountWalletAddress: Address
   depositAccount: Address
@@ -129,9 +129,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     executorSender = await deployRealExecutor()
   })
 
-  // Deploys a real executor through OnRamp_Send (like the e2e test) and returns a sender
-  // bound to its address, so the OnRamp's executor-address authorization passes. Also
-  // captures the executor ID embedded in the deploy message's state init.
+  // Deploys a real executor through OnRamp_Send and returns a sender bound to its address,
+  // so the OnRamp's executor-address authorization passes.
   async function deployRealExecutor(): Promise<Sender> {
     const ccipSend = or.Router_CCIPSend.create({
       queryID: 1n,

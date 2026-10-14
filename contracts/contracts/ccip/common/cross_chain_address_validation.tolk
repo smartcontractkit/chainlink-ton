@@ -59,23 +59,14 @@ fun CrossChainAddress.validate32ByteAddress(self, minValue: uint256) {
 }
 
 /// Validates that destAddress matches the expected format of the destination chain family.
-/// Shared by the FeeQuoter (message receivers) and the OnRamp (pool-supplied remote token
-/// addresses); mirrors EVM `FeeQuoter._validateDestFamilyAddress` (Internal.sol):
-/// - EVM:   32-byte abi-encoded address, <= uint160, >= precompile space.
-/// - SVM:   32-byte address; must be non-zero when `requireNonZero` is set.
-/// - APTOS: 32-byte address >= APTOS_PRECOMPILE_SPACE.
-/// - SUI:   32-byte address >= SUI_PRECOMPILE_SPACE when `requireNonZero` is set.
-///
-/// Throws `Common_Error` codes; wrap in try/catch to map them to contract-specific errors.
-///
-/// @dev precondition - assumes the family tag is correct and validated.
+/// Shared by the FeeQuoter and the OnRamp; mirrors EVM `FeeQuoter._validateDestFamilyAddress`.
+/// Throws `DestFamilyAddressValidation_Error` codes; wrap in try/catch to map them to
+/// contract-specific errors. Assumes the family tag is already validated.
 fun validateDestFamilyAddress(chainFamilySelector: uint32, destAddress: CrossChainAddress, gasLimitIsZero: bool) {
     if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
         return destAddress.validateEVMAddress();
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        // SVM addresses don't have a precompile space at the first X addresses,
-        // instead we validate that if the gasLimit is non-zero, the address must
-        // not be 0x0.
+        // SVM has no precompile space: a non-zero gasLimit requires a non-zero address.
         return destAddress.validate32ByteAddress(gasLimitIsZero ? 0 : 1);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
         return destAddress.validate32ByteAddress(APTOS_PRECOMPILE_SPACE);

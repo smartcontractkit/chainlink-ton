@@ -85,13 +85,11 @@ struct TVM2AnyTokenTransfer {
     sourcePoolAddress: address;
     // Cross-chain token amount, always a u256 to match the other chain families. This is
     // the post-fee amount snapshotted by the CCIPSendExecutor from the pool's prepared
-    // forward payload (TokenPool_LockOrBurnPrepared.destTokenAmount) before custody moved;
-    // it may differ from the pre-fee amount the sender supplied.
+    // forward payload; it may differ from the pre-fee amount the sender supplied.
     amount: uint256;
     // The address of the destination token, abi encoded in the case of EVM chains.
     // Pool-supplied but validated against the destination chain family by the OnRamp
-    // before custody moved (onExecutorRequestsWithdraw), and emitted from the executor's
-    // pre-custody snapshot rather than the pool's reply.
+    // before custody moved.
     destTokenAddress: Cell<CrossChainAddress>;
     // Optional pool data to be transferred to the destination chain
     // (LockOrBurnOutV1.destPoolData). By default this is capped at

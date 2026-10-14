@@ -357,11 +357,9 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
     val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
     val out = prepared.out;
 
-    // The chain family comes from the FeeQuoter (relayed by the executor), matching the
-    // config the message was fee-validated against. The remote token address is
-    // pool-supplied and untrusted: validate it before custody moves, mirroring the EVM
-    // FeeQuoter's processPoolReturnData. requireNonZero so SVM/Sui destinations require a
-    // non-zero token address (same as processPoolReturnData).
+    // chainFamilySelector comes from the FeeQuoter via the executor; the remote token
+    // address is pool-supplied and untrusted, so validate it before custody moves
+    // (mirrors EVM FeeQuoter.processPoolReturnData).
     try {
         validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
     } catch {

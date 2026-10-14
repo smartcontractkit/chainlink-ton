@@ -117,8 +117,7 @@ func TestUpdateFeeTokens_WithRemove(t *testing.T) {
 }
 
 // TestMessageValidated_TLBEncodeDecode verifies that MessageValidated round-trips
-// through TLB serialization with the destGasOverheads lisp_list and the echoed
-// chainFamilySelector the executor relays to the OnRamp.
+// through TLB serialization.
 func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 	msgCell := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
 	contextCell := cell.BeginCell().MustStoreUInt(2, 8).EndCell()
@@ -155,8 +154,8 @@ func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 	require.Equal(t, uint32(123456), (*decoded.DestGasOverheads)[1].Value)
 }
 
-// TestMessageValidated_NilDestGasOverheads covers the messaging-only case: the
-// FeeQuoter sends a null destGasOverheads list when the message carries no tokens.
+// TestMessageValidated_NilDestGasOverheads covers the messaging-only case (null
+// destGasOverheads when the message carries no tokens).
 func TestMessageValidated_NilDestGasOverheads(t *testing.T) {
 	msgCell := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
 
@@ -186,7 +185,6 @@ func TestMessageValidated_NilDestGasOverheads(t *testing.T) {
 	require.Equal(t, orig.ChainFamilySelector, decoded.ChainFamilySelector)
 }
 
-// ptrCoins returns a pointer to the given coins value.
 func ptrCoins(c tlb.Coins) *tlb.Coins {
 	return &c
 }

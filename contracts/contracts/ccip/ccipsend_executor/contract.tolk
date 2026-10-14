@@ -314,11 +314,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnWithdraw) {
     val state = self.state.load();
-    // Snapshot the pool's return data from the prepared forward payload BEFORE custody
-    // moves. The OnRamp validates destTokenAddress (from the same payload we relay in the
-    // withdraw request) pre-custody, and onConfirmWithdraw later emits from this state —
-    // so the pool cannot alter these values in its TokenPool_LockOrBurnFinished reply
-    // after the tokens were locked/burned.
+    // Snapshot pool return data before custody moves so the pool cannot alter it in its
+    // TokenPool_LockOrBurnFinished reply; the OnRamp validates destTokenAddress pre-custody.
     val prepared = lazy msg.forwardPayload.prepared.load();
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw> {
         id: self.id,
@@ -363,10 +360,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Emit the token transfer from our own state (snapshotted from the prepared forward
-    // payload before custody moved) rather than from the pool's reply, so a misbehaving
-    // pool cannot alter lockOrBurnOut/destTokenAmount after the tokens
-    // were locked/burned. The Finished message is treated as a pure completion signal.
+    // Emit from our pre-custody snapshot, not the pool's reply, so a misbehaving pool
+    // cannot alter lockOrBurnOut/destTokenAmount after the tokens were locked/burned.
     val state = self.state.load();
     val tokenTransfer = OnRamp_ExecutorTokenTransfer {
         sourcePoolAddress: state.tokenPool,

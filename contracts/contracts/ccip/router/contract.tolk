@@ -509,10 +509,8 @@ get fun onRampAccountAddress(sender: address): address {
 }
 
 /*
-Relays an OnRamp withdrawal rejection to the token pool. The pool consumed its outbound
-rate limit at admission, but the OnRamp refused to hand over custody (e.g. the pool-supplied
-remote token address failed destination family validation), so the pool must reinstate the
-rate limit and fail the send.
+Relays an OnRamp withdrawal rejection to the token pool so it can reinstate the rate limit
+consumed at admission and fail the send.
 */
 fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
     val withdrawRequest = lazy msg.withdrawRequest.load();

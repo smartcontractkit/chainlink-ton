@@ -791,10 +791,9 @@ fun TokenPool<T>.onPreflightCheckFailed(
     self.sendLockOrBurnFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16);
 }
 
-/// Handles a withdrawal rejection from the OnRamp (relayed by the Router): the pool-supplied
-/// remote token address (or another part of the lock/burn output) failed the OnRamp's
-/// validation, so the transfer can never be emitted. Refund the outbound rate limit consumed
-/// at admission and fail the send so the executor can settle.
+/// Handles a withdrawal rejection from the OnRamp (relayed by the Router): the lock/burn
+/// output failed the OnRamp's validation, so the transfer can never be emitted. Refunds the
+/// outbound rate limit consumed at admission and fails the send so the executor can settle.
 /// @dev Only the configured Router may relay this failure.
 fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     mutate self,
@@ -808,7 +807,6 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     // Custody never left the pool's wallet, so reinstate the rate limit consumed at admission.
     self.refundLockOrBurnRateLimit(fwdp);
 
-    // Send failure response back to the executor (replyTo), carrying the OnRamp's error.
     self.sendLockOrBurnFailure(fwdp, msg.errorCode);
 }
 

@@ -77,9 +77,8 @@ struct CCIPSendExecutor_State_TokenPool_Withdraw {
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
     senderDepositAccountWallet: address,
-    /// Pool return data snapshotted from the prepared forward payload BEFORE custody moves,
-    /// so the pool cannot alter it in the `TokenPool_LockOrBurnFinished` reply after the
-    /// tokens were locked/burned. The OnRamp validates `TokenPool_LockOrBurnOutV1` pre-custody.
+    /// Snapshotted from the prepared forward payload before custody moves, so the pool
+    /// cannot alter it in the `TokenPool_LockOrBurnFinished` reply.
     destTokenAmount: coins,
     lockOrBurnOut: Cell<TokenPool_LockOrBurnOutV1>,
 }

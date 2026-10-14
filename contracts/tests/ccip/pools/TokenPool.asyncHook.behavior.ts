@@ -465,8 +465,6 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    // === Withdrawal rejection relayed by the Router (OnRamp address validation) ===
-
     it('refunds the outbound rate limit and fails the executor on LockOrBurnWithdrawFailed', async () => {
       const ctx = await setup()
 
@@ -492,12 +490,10 @@ export function runTokenPoolAsyncHookBehaviorTests(
         prepared,
       })
 
-      // Consume the outbound rate limit through the real admission path: a LockOrBurn
-      // whose async preflight hook never resolves leaves the bucket debited, mirroring
-      // where the real flow stands when the OnRamp later rejects the withdrawal.
-      // (Refunding into a full bucket would be capped at capacity and prove nothing.)
-      // queryId=8 is even → the mock hooks accept the preflight and the pool proceeds to
-      // the withdraw leg; the outbound bucket is debited either way.
+      // Consume the outbound rate limit through the real admission path: queryId=8 is even,
+      // so the mock hooks accept the preflight and the pool proceeds to the withdraw leg,
+      // leaving the bucket debited. (Refunding into a full bucket would be capped and
+      // prove nothing.)
       await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
         queryId: 8n,
         request,
@@ -518,13 +514,12 @@ export function runTokenPoolAsyncHookBehaviorTests(
         },
       )
 
-      // The pool must reinstate the rate limit consumed at admission: the bucket must hold
-      // MORE than it did before the failure notification (back to the pre-consumption level).
+      // The pool must reinstate the rate limit consumed at admission.
       const bucketAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       expect(bucketAfter.outbound.tokens).toBe(bucketBefore.outbound.tokens + toNano('1'))
 
       // ...and notify the executor (replyTo) with a LockOrBurnFailure carrying the
-      // OnRamp's relayed error code. The failure echoes the requestMsg's queryId.
+      // OnRamp's relayed error code.
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
