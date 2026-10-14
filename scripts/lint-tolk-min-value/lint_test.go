@@ -43,9 +43,9 @@ func TestParseMarker(t *testing.T) {
 	for _, tc := range []struct {
 		name, line, category, gate, admission, message string
 	}{
-		{"admission static", "// minval:check-admission gate=A A=static Demo_Request", "check-admission", "A", "static", "Demo_Request"},
-		{"default gate and admission", "// minval:check-bounce Demo_Reply", "check-bounce", "S", "none", "Demo_Reply"},
-		{"explicit none", "// minval:recovery gate=none A=none Demo_Reply", "recovery", "none", "none", "Demo_Reply"},
+		{"admission static", "// minval:check-admission gate=A/static Demo_Request", "check-admission", "A", "static", "Demo_Request"},
+		{"default gate and admission", "// minval:check-bounce Demo_Reply", "check-bounce", "S", "", "Demo_Reply"},
+		{"explicit none", "// minval:recovery gate=none Demo_Reply", "recovery", "none", "", "Demo_Reply"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := parseMarkers(tc.line, "x.tolk")
@@ -73,10 +73,10 @@ func TestParseDetailBlock(t *testing.T) {
 }
 
 func TestGateLabel(t *testing.T) {
-	if l := (marker{Gate: "A", Admission: "dynamic"}).gateLabel(); l != "A (dynamic)" {
+	if l := (marker{Gate: "A", Admission: "dynamic"}).gateLabel(); l != "A/dynamic" {
 		t.Fatalf("got %q", l)
 	}
-	if l := (marker{Gate: "S", Admission: "none"}).gateLabel(); l != "S" {
+	if l := (marker{Gate: "S"}).gateLabel(); l != "S" {
 		t.Fatalf("got %q", l)
 	}
 }
@@ -84,7 +84,7 @@ func TestGateLabel(t *testing.T) {
 func TestCoverage(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
 		"// minval:check-bounce gate=S Demo_Request\n// minval.detail: config\nfun f() {}\n"+
-			"// minval:check-admission gate=A A=static Demo_Reply\n// minval.detail: flow start\nfun g() {}")
+			"// minval:check-admission gate=A/static Demo_Reply\n// minval.detail: flow start\nfun g() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestCoverage(t *testing.T) {
 		t.Fatalf("unexpected report: %+v", r)
 	}
 	doc := r.contractDoc(r.contracts[0])
-	if !strings.Contains(doc, "| `Demo_Reply` | check-admission | A (static) | flow start |") {
+	if !strings.Contains(doc, "| `Demo_Reply` | check-admission | A/static | flow start |") {
 		t.Fatalf("contract doc missing row:\n%s", doc)
 	}
 	if !strings.Contains(r.overview(), "2/2") {
@@ -104,7 +104,7 @@ func TestCoverage(t *testing.T) {
 func TestDetailRendered(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
 		"// minval:check-bounce gate=S Demo_Request\n// minval.detail: summary\n//   More detail here.\nfun f() {}\n"+
-			"// minval:check-admission gate=A A=static Demo_Reply\n// minval.detail: flow\nfun g() {}")
+			"// minval:check-admission gate=A/static Demo_Reply\n// minval.detail: flow\nfun g() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -151,7 +151,7 @@ func TestStaleMarker(t *testing.T) {
 func TestQualifiedOverridesShared(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
 		"// minval:check-bounce gate=S Demo_Request\n"+
-			"// minval:check-admission gate=A A=static Demo.Demo_Request\n"+
+			"// minval:check-admission gate=A/static Demo.Demo_Request\n"+
 			"// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
@@ -203,7 +203,7 @@ func TestInvalidGate(t *testing.T) {
 
 func TestInvalidAdmission(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-admission gate=A A=maybe Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
+		"// minval:check-admission gate=A/maybe Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -215,13 +215,13 @@ func TestInvalidAdmission(t *testing.T) {
 
 func TestAdmissionRequiresGateA(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S A=static Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
+		"// minval:check-bounce gate=S/static Demo_Request\n// minval:check-bounce gate=S Demo_Reply")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r.ok() || len(r.invalid) != 1 {
-		t.Fatalf("want A=static without gate=A to be invalid, got %+v", r)
+		t.Fatalf("want gate=S/static to be invalid, got %+v", r)
 	}
 }
 

@@ -14,18 +14,18 @@ import (
 
 // A value-budget marker on an incoming message handler:
 //
-//	// minval:<category> gate=<S|A|none> A=<static|dynamic|none> [<Contract>.]<Message>
+//	// minval:<category> gate=<S|A|A/static|A/dynamic|none> [<Contract>.]<Message>
 //	// minval.detail: <summary>
 //	//   <optional detail, until the comment block ends>
 //
 // An unqualified marker is a shared default for every contract that declares the
 // message. A `<Contract>.<Message>` marker applies only to that contract and takes
-// precedence. `gate` and `A` are optional: `gate` defaults from the category and `A`
-// defaults to `none`. `A=` qualifies an admission gate (`static` fixed threshold,
-// `dynamic` when it depends on the message, e.g. gasLimit). The summary is the text
-// after `minval.detail:`; following comment lines are the long-form detail.
+// precedence. `gate` is optional and defaults from the category. An admission gate
+// may carry a subtype: `A/static` (fixed threshold) or `A/dynamic` (depends on the
+// message, e.g. gasLimit). The summary is the text after `minval.detail:`; following
+// comment lines are the long-form detail.
 var (
-	markerHeadRE = regexp.MustCompile(`^minval:([a-z][a-z-]*)(?:\s+gate=([A-Za-z-]+))?(?:\s+A=([A-Za-z-]+))?\s+([A-Za-z_][A-Za-z0-9_.]*)\s*(.*)$`)
+	markerHeadRE = regexp.MustCompile(`^minval:([a-z][a-z-]*)(?:\s+gate=([A-Za-z/]+))?\s+([A-Za-z_][A-Za-z0-9_.]*)\s*(.*)$`)
 	commentRE    = regexp.MustCompile(`^\s*//\s?(.*)$`)
 )
 
@@ -41,8 +41,16 @@ var defaultGate = map[string]string{
 
 var (
 	validGates      = map[string]bool{"S": true, "A": true, "none": true}
-	validAdmissions = map[string]bool{"static": true, "dynamic": true, "none": true}
+	validAdmissions = map[string]bool{"static": true, "dynamic": true}
 )
+
+// splitGate splits an `A/static`-style gate into its base gate and admission subtype.
+func splitGate(raw string) (gate, admission string) {
+	if i := strings.IndexByte(raw, '/'); i >= 0 {
+		return raw[:i], raw[i+1:]
+	}
+	return raw, ""
+}
 
 type marker struct {
 	Category    string
@@ -63,10 +71,10 @@ func (m marker) scope() string {
 	return m.Contract + "." + m.Message
 }
 
-// gateLabel renders the gate, annotating an admission with its kind.
+// gateLabel renders the gate, including the admission subtype (e.g. `A/static`).
 func (m marker) gateLabel() string {
-	if m.Gate == "A" && m.Admission != "" && m.Admission != "none" {
-		return "A (" + m.Admission + ")"
+	if m.Admission != "" {
+		return m.Gate + "/" + m.Admission
 	}
 	return m.Gate
 }
@@ -231,12 +239,10 @@ func parseMarkers(text, file string) []marker {
 				last = len(out) - 1
 				continue
 			}
-			category, gate, admission, target := head[1], head[2], head[3], head[4]
+			category, target := head[1], head[3]
+			gate, admission := splitGate(head[2])
 			if gate == "" {
 				gate = defaultGate[category]
-			}
-			if admission == "" {
-				admission = "none"
 			}
 			contractName, message := splitScope(target)
 			out = append(out, marker{
@@ -245,7 +251,7 @@ func parseMarkers(text, file string) []marker {
 				Admission:   admission,
 				Contract:    contractName,
 				Message:     message,
-				Description: strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(head[5]), "—–- \t")),
+				Description: strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(head[4]), "—–- \t")),
 				File:        file,
 				Line:        i + 1,
 			})
@@ -311,11 +317,11 @@ func lint(abiDir, srcDir string, exclude map[string]bool) (report, error) {
 			if !validGates[m.Gate] {
 				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: invalid gate %q", m.File, m.Line, m.Gate))
 			}
-			if !validAdmissions[m.Admission] {
-				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: invalid admission %q", m.File, m.Line, m.Admission))
+			if m.Admission != "" && !validAdmissions[m.Admission] {
+				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: invalid admission subtype %q", m.File, m.Line, m.Admission))
 			}
-			if m.Admission != "none" && m.Gate != "A" {
-				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: A=%s requires gate=A", m.File, m.Line, m.Admission))
+			if m.Admission != "" && m.Gate != "A" {
+				r.invalid = append(r.invalid, fmt.Sprintf("%s:%d: gate=%s/%s requires gate=A", m.File, m.Line, m.Gate, m.Admission))
 			}
 			if !allMessages[msg] {
 				r.stale = append(r.stale, fmt.Sprintf("%s:%d: %s not declared by any in-scope contract", m.File, m.Line, m.scope()))
@@ -441,7 +447,7 @@ func (r report) overview() string {
 	b.WriteString("\n## Notes\n\n")
 	b.WriteString("- An unqualified marker is a shared default; `<Contract>.<Message>` takes precedence.\n")
 	b.WriteString("  Add a qualified marker when a contract needs a different category than the shared default.\n")
-	b.WriteString("- `gate=A` is annotated with `A=static` or `A=dynamic`.\n")
+	b.WriteString("- Admission gates are annotated `A/static` or `A/dynamic`.\n")
 	b.WriteString("- `excluded` contracts are not yet adopted: missing markers there are tolerated by the check.\n")
 	b.WriteString("- This is a coverage and consistency check, not a semantic proof of funding.\n")
 	return b.String()
