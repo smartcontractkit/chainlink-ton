@@ -188,8 +188,11 @@ fun onLockOrBurnTransferContinue(
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    // The burn send must be fundable from this notification, including a funded custody
-    // return if the burn bounces. A shortfall is caught by the shared handler and recovered.
+    // minval:check-admission gate=A/static BurnMintTokenPool.TransferNotificationForRecipient
+    // minval.detail: burn path; the notification must fund the burn and a custody return on bounce
+    //   Authenticated custody receipt that commits a burn. Checks the burn obligation
+    //   (`BURN_VALUE`) before the fixed burn send; on shortfall the shared handler returns
+    //   custody and refunds capacity (local recovery, no rejection).
     assertMinValue(msgValue, BurnMintTokenPool_BURN_VALUE, TokenPool_Error.InsufficientMessageValue);
 
     val requestMsg = lazy fwdPayload.requestMsg.load();
