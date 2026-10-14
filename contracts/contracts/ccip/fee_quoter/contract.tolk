@@ -27,7 +27,7 @@ contract FeeQuoter {
 
     storage: Storage
     incomingMessages: FeeQuoter_InMessage | Ownable2Step_Messages
-    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error
+    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error | DestFamilyAddressValidation_Error
 }
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
@@ -434,13 +434,13 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
         val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        validateDestFamilyAddressForFeeQuoter(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         return (gasLimit, 0);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
         val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = suiExtraArgs.gasLimit;
-        validateDestFamilyAddressForFeeQuoter(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         assert (tokenCount == 0 || suiExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
 
         // objectIds are 32 bytes long
@@ -477,7 +477,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
-        validateDestFamilyAddressForFeeQuoter(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
 
         // accounts are 32 bytes long
         val accounts = svmExtraArgs.accounts.iter();
@@ -562,20 +562,6 @@ fun parseSuiExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): Su
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
-}
-
-fun validateDestFamilyAddressForFeeQuoter(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
-    try {
-        validateDestFamilyAddress(chainFamilySelector, receiver, gasLimit == 0);
-    } catch (e) {
-        // SAFETY: validateDestFamilyAddress can only throw DestFamilyAddressValidation_Error
-        val err = e as DestFamilyAddressValidation_Error;
-        match (err) {
-            DestFamilyAddressValidation_Error.UnsupportedChainFamilySelector => throw FeeQuoter_Error.UnsupportedChainFamilySelector,
-            DestFamilyAddressValidation_Error.InvalidEVMAddress => throw FeeQuoter_Error.InvalidEVMReceiverAddress,
-            DestFamilyAddressValidation_Error.Invalid32ByteAddress => throw FeeQuoter_Error.Invalid32ByteReceiverAddress,
-        }
-    }
 }
 
 fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
