@@ -205,19 +205,19 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         return;
     }
 
-    // If token amounts is empty finalize the message
-    if (self.onrampSend.msg.load().tokenAmounts.empty()) {
-        setGasLimitToMaximum();
-        // No token transfer, so there are no pool-supplied details to report.
-        self.exitSuccessfully(msg.fee, null);
-        return;
-    }
-    if (msg.destGasOverheads == null) {
-        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, 0);
-    }
-    val destGasOverhead = msg.destGasOverheads.asSingle();
-    if (destGasOverhead == null) {
-        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, 0);
+    // The FeeQuoter only reports destGasOverheads for token-transfer messages; a tokenless
+    // message legitimately carries null there, so the single-overhead requirement below
+    // applies to the token path only. It must hold BEFORE the fee is locked: a malformed
+    // validated fee is a validation failure, not a post-reservation refund.
+    var destGasOverhead: uint32? = null;
+    if (!self.onrampSend.msg.load().tokenAmounts.empty()) {
+        if (msg.destGasOverheads == null) {
+            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, 0);
+        }
+        destGasOverhead = msg.destGasOverheads.asSingle();
+        if (destGasOverhead == null) {
+            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, 0);
+        }
     }
 
     val reserveFee = createMessage({
@@ -248,7 +248,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
     self.continueAfterFeeReservation(state.fee, state.destGasOverhead);
 }
 
-fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee, destGasOverhead: uint32) {
+fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee, destGasOverhead: uint32?) {
     val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
     val tokenAmounts = message.tokenAmounts;
     // If token amounts is empty finalize the message.
@@ -265,6 +265,9 @@ fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee
         self.exitWithError(CCIPSendExecutor_Error.UnsupportedNumberOfTokens as uint256, chargedFee.feeTokenAmount);
         return;
     }
+    // Token transfers always carry exactly one destGasOverhead (validated before the fee
+    // was reserved), so it must be present here.
+    val tokenDestGasOverhead = destGasOverhead!;
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
     //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
@@ -285,7 +288,7 @@ fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             chargedFee,
             token: tokenAmount.token,
-            destGasOverhead,
+            destGasOverhead: tokenDestGasOverhead,
         }.toCell(),
     };
     newState.store();

@@ -209,7 +209,9 @@ describe('SendExecutor - Unit tests', () => {
 
   // Delivers the FeeQuoter validation reply and then simulates the OnRamp's
   // OnRamp_ExecutorFeeReserved confirmation, driving the executor past the fee
-  // reservation step so tests can observe the post-reservation behavior.
+  // reservation step so tests can observe the post-reservation behavior. Works for
+  // tokenless sends (no tokenRegistry) and token-transfer sends alike: every message
+  // locks its fee on the OnRamp before continuing.
   async function afterFeeReserved(opts?: {
     send?: or.OnRamp_Send
     fee?: bigint
@@ -226,12 +228,15 @@ describe('SendExecutor - Unit tests', () => {
       tokenRegistry: opts?.tokenRegistry,
     })
 
+    const fee = opts?.fee ?? FeeTokenAmount
+    const onrampBalanceBefore = (await blockchain.getContract(onRampMock.address)).balance
+
     const validatedResult = await sendExecutor.sendFeeQuoterMessageValidated(
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({
-          feeTokenAmount: opts?.fee ?? FeeTokenAmount,
+          feeTokenAmount: fee,
           feeValueJuels: toNano('0.1'),
         }),
         destGasOverheads: opts?.tokenRegistry ? [90_000n] : [],
@@ -246,7 +251,18 @@ describe('SendExecutor - Unit tests', () => {
       to: onRampMock.address,
       success: true,
       op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      body(x) {
+        if (!x) return false
+        const reserveFee = or.OnRamp_ExecutorReserveFee.fromSlice(x.beginParse())
+        return reserveFee.fee === fee
+      },
     })
+
+    // The OnRamp must have received the fee: the balance grows by at least the fee
+    // amount (the mock keeps the reservation roundtrip gas on top; the exact
+    // fee-only delta is asserted against the real OnRamp in the e2e tests).
+    const onrampBalanceAfterValidation = (await blockchain.getContract(onRampMock.address)).balance
+    expect(onrampBalanceAfterValidation).toBeGreaterThanOrEqual(onrampBalanceBefore + fee)
 
     const reservedResult = await sendExecutor.sendOnRampExecutorFeeReserved(
       onRampMock.getSender(),
@@ -499,18 +515,9 @@ describe('SendExecutor - Unit tests', () => {
 
   it('should exit successfully on validated fee without a token transfer or tokenRegistry', async () => {
     // A config without a tokenRegistry and a message without token transfers behaves like the
-    // plain messaging flow: it finishes successfully without touching any registry.
-    const { sendExecutor } = await afterExecute()
-
-    const result = await sendExecutor.sendFeeQuoterMessageValidated(
-      feeQuoterMock.getSender(),
-      toNano('0.3'),
-      sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        destGasOverheads: null,
-        msg: onrampSend.msg,
-      }),
-    )
+    // plain messaging flow: the fee is still locked on the OnRamp first, then it finishes
+    // successfully without touching any registry.
+    const { sendExecutor, result } = await afterFeeReserved()
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -526,17 +533,7 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incoming value', async () => {
-    const { sendExecutor } = await afterExecute()
-
-    const result = await sendExecutor.sendFeeQuoterMessageValidated(
-      feeQuoterMock.getSender(),
-      toNano('0.3'),
-      sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        destGasOverheads: null,
-        msg: onrampSend.msg,
-      }),
-    )
+    const { sendExecutor, result } = await afterFeeReserved()
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -686,19 +683,9 @@ describe('SendExecutor - Unit tests', () => {
   }
 
   it('should throw on validation message after successful exit', async () => {
-    const { sendExecutor } = await afterExecute()
-
-    // The executor finalizes immediately on the validated fee: the send has no
-    // token transfers, so there is nothing to reserve or execute.
-    const result = await sendExecutor.sendFeeQuoterMessageValidated(
-      feeQuoterMock.getSender(),
-      toNano('0.3'),
-      sx.FeeQuoter_MessageValidated.create({
-        fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
-        destGasOverheads: null,
-        msg: onrampSend.msg,
-      }),
-    )
+    // The send has no token transfers: the executor still locks the fee on the
+    // OnRamp first, then finalizes without any token work.
+    const { sendExecutor, result } = await afterFeeReserved()
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,

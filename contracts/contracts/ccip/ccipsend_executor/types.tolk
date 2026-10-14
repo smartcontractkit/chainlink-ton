@@ -46,7 +46,9 @@ struct CCIPSendExecutor_State_OnGoingFeeValidation {
 struct CCIPSendExecutor_State_OnGoingFeeReservation {
     // `fee` is not considered charged until the OnRamp has reserved it and returned `OnRamp_ExecutorFeeReserved`.
     fee: Fee,
-    destGasOverhead: uint32,
+    // Null for tokenless messages: the FeeQuoter reports no destGasOverheads when the
+    // send carries no token transfers, and the value is only consumed by the token path.
+    destGasOverhead: uint32?,
 }
 
 struct CCIPSendExecutor_State_TokenRegistryAccess {
