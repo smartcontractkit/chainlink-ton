@@ -1,4 +1,4 @@
-import { Address, beginCell, Sender, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'
@@ -22,12 +22,13 @@ const VALID_EVM_TOKEN_ADDRESS = Buffer.from(
 const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
 // Builds the pool-supplied forward payload the CCIPSendExecutor would relay inside the
-// withdraw request. Only `prepared.out.destTokenAddress` matters here.
+// withdraw request. Only `prepared.out.destTokenAddress` and `destPoolData` matter here.
 function buildWithdrawRequest(opts: {
   accountWalletAddress: Address
   depositAccount: Address
   tokenPool: Address
   destTokenAddress: Buffer
+  destPoolData: Cell
   originalSender: Address
 }): rt.Router_WithdrawRequest {
   const requestMsg = tp.TokenPool_LockOrBurn.create({
@@ -55,7 +56,7 @@ function buildWithdrawRequest(opts: {
     destTokenAmount: 1n,
     out: tp.TokenPool_LockOrBurnOutV1.create({
       destTokenAddress: FromBuffer(opts.destTokenAddress),
-      destPoolData: beginCell().storeUint(0, 256).endCell(),
+      destPoolData: opts.destPoolData,
     }),
   })
 
@@ -177,18 +178,22 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   const sendWithdraw = async (
     destTokenAddress: Buffer,
     chainFamilySelector: bigint = ChainFamilySelectors.evm,
+    // 32 bytes of pool data against a 32-byte limit: the equality boundary.
+    destPoolData: Cell = beginCell().storeUint(0, 256).endCell(),
+    destBytesOverhead: bigint = 32n,
   ) =>
     onramp.sendOnRampExecutorRequestsWithdraw(executorSender, toNano('1'), {
       queryID: 1n,
       executorID,
       destChainSelector: DEST_CHAIN_SELECTOR,
       chainFamilySelector,
-      destBytesOverhead: 32n,
+      destBytesOverhead,
       withdrawRequest: buildWithdrawRequest({
         accountWalletAddress: mockAccountWallet.address,
         depositAccount: mockDepositAccount.address,
         tokenPool: mockTokenPool.address,
         destTokenAddress,
+        destPoolData,
         originalSender: deployer.address,
       }),
     })
@@ -205,6 +210,56 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
+      op: rt.Router_WithdrawToTokenPool.PREFIX,
+    })
+  })
+
+  it('forwards the withdrawal when destPoolData is below the destBytesOverhead limit', async () => {
+    // 16 bytes of pool data against a 32-byte limit: strictly under, so the size check
+    // must pass and the withdrawal must proceed.
+    const result = await sendWithdraw(
+      VALID_EVM_TOKEN_ADDRESS,
+      ChainFamilySelectors.evm,
+      beginCell().storeUint(0, 128).endCell(),
+      32n,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Router_WithdrawToTokenPool.PREFIX,
+    })
+  })
+
+  it('notifies the router when destPoolData exceeds the destBytesOverhead limit', async () => {
+    // 64 bytes of pool data against a 32-byte limit: the size check must reject with
+    // SourceTokenDataTooLarge before any withdrawal reaches the router.
+    const result = await sendWithdraw(
+      VALID_EVM_TOKEN_ADDRESS,
+      ChainFamilySelectors.evm,
+      beginCell().storeUint(0, 512).endCell(),
+      32n,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
+      body(x) {
+        if (!x) return false
+        const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
+        return (
+          failure.queryID === 1n &&
+          failure.error === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
+        )
+      },
+    })
+    // No withdrawal must reach the router.
+    expect(result.transactions).not.toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
       op: rt.Router_WithdrawToTokenPool.PREFIX,
     })
   })
