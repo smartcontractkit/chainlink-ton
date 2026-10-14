@@ -249,12 +249,12 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
-    val (fee, _, _, _) = calculateValidatedFee(msg);
+    val (fee, _, _) = calculateValidatedFee(msg);
     return fee.feeTokenAmount;
 }
 
-// @returns (fee, destGasOverheads, destBytesOverhead, chainFamilySelector)
-fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?, lisp_list<uint32>?, uint32) {
+// @returns (fee, destOverheads, chainFamilySelector)
+fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestOverheads>?, uint32) {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -297,25 +297,24 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?, lisp_
     var premiumFeeUsdWei = 0;
     var tokenTransferGas = 0;
 
-    var destGasOverheads: lisp_list<uint32>? = null;
-    var destBytesOverheads: lisp_list<uint32>? = null;
+    var destOverheads: lisp_list<FeeQuoter_DestOverheads>? = null;
     var tokenAmountsIter = msg.tokenAmounts.iter();
     if (!tokenAmountsIter.empty()) {
-        var backwardsDestGasOverheads: lisp_list<uint32> = [];
-        var backwardsDestBytesOverheads: lisp_list<uint32> = [];
+        var backwardsDestOverheads: lisp_list<FeeQuoter_DestOverheads> = [];
         while (!tokenAmountsIter.empty()) {
             val tokenAmount = tokenAmountsIter.next();
 
             val (tokenPremiumFeeUsdWei, destGasOverhead, destBytesOverhead) = _tokenTransferFee(st, destChainConfig, tokenAmount);
-            val tokenGas= destGasOverhead as int;
+            val tokenGas = destGasOverhead as int;
 
             premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
             tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
-            backwardsDestGasOverheads.prependHead(tokenGas);
-            backwardsDestBytesOverheads.prependHead(destBytesOverhead);
+            backwardsDestOverheads.prependHead(FeeQuoter_DestOverheads {
+                destGasOverheads: destGasOverhead,
+                destBytesOverheads: destBytesOverhead,
+            });
         }
-        destGasOverheads = backwardsDestGasOverheads.calculateReversed();
-        destBytesOverheads = backwardsDestBytesOverheads.calculateReversed();
+        destOverheads = backwardsDestOverheads.calculateReversed();
     } else {
         premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     }
@@ -345,8 +344,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?, lisp_
             feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
             feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
         },
-        destGasOverheads,
-        destBytesOverheads,
+        destOverheads,
         destChainConfig.config.chainFamilySelector,
     );
 }
@@ -573,7 +571,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val (fee, destGasOverheads, destBytesOverheads, chainFamilySelector) = calculateValidatedFee(msg);
+        val (fee, destOverheads, chainFamilySelector) = calculateValidatedFee(msg);
 
         response = createMessage({
             bounce: true,
@@ -581,8 +579,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
             dest: sender,
             body: FeeQuoter_MessageValidated {
                 fee,
-                destGasOverheads,
-                destBytesOverheads,
+                destOverheads,
                 chainFamilySelector,
                 msg: payload.msg,
                 context: payload.context,

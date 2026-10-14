@@ -65,6 +65,11 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
+struct FeeQuoter_DestOverheads {
+    destGasOverheads: uint32;
+    destBytesOverheads: uint32;
+}
+
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;
 const VAL_1E16: uint256 = 10000000000000000;

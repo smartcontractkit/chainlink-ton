@@ -996,8 +996,7 @@ export const FeeQuoter_GetValidatedFee = {
 /**
  > struct (0xfbf78e40) FeeQuoter_MessageValidated {
  >     fee: Fee
- >     destGasOverheads: lisp_list<uint32>?
- >     destBytesOverheads: lisp_list<uint32>?
+ >     destOverheads: lisp_list<FeeQuoter_DestOverheads>?
  >     chainFamilySelector: uint32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
@@ -1006,8 +1005,7 @@ export const FeeQuoter_GetValidatedFee = {
 export interface FeeQuoter_MessageValidated {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    destGasOverheads: lisp_list<uint32> | null
-    destBytesOverheads: lisp_list<uint32> | null
+    destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
     chainFamilySelector: uint32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
@@ -1018,8 +1016,7 @@ export const FeeQuoter_MessageValidated = {
 
     create(args: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
-        destBytesOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
         chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
@@ -1035,12 +1032,7 @@ export const FeeQuoter_MessageValidated = {
         return {
             $: 'FeeQuoter_MessageValidated',
             fee: Fee.fromSlice(s),
-            destGasOverheads: s.loadBoolean() ? loadLispListOf<uint32>(s,
-                (s) => s.loadUintBig(32)
-            ) : null,
-            destBytesOverheads: s.loadBoolean() ? loadLispListOf<uint32>(s,
-                (s) => s.loadUintBig(32)
-            ) : null,
+            destOverheads: s.loadBoolean() ? loadLispListOf<FeeQuoter_DestOverheads>(s, FeeQuoter_DestOverheads.fromSlice) : null,
             chainFamilySelector: s.loadUintBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
@@ -1049,15 +1041,8 @@ export const FeeQuoter_MessageValidated = {
     store(self: FeeQuoter_MessageValidated, b: c.Builder): void {
         b.storeUint(0xfbf78e40, 32);
         Fee.store(self.fee, b);
-        storeTolkNullable<lisp_list<uint32>>(self.destGasOverheads, b,
-            (v,b) => { storeLispListOf<uint32>(v, b,
-                (v,b) => b.storeUint(v, 32)
-            ); }
-        );
-        storeTolkNullable<lisp_list<uint32>>(self.destBytesOverheads, b,
-            (v,b) => { storeLispListOf<uint32>(v, b,
-                (v,b) => b.storeUint(v, 32)
-            ); }
+        storeTolkNullable<lisp_list<FeeQuoter_DestOverheads>>(self.destOverheads, b,
+            (v,b) => storeLispListOf<FeeQuoter_DestOverheads>(v, b, FeeQuoter_DestOverheads.store)
         );
         b.storeUint(self.chainFamilySelector, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
@@ -1117,6 +1102,44 @@ export const FeeQuoter_MessageValidationFailed = {
     },
     toCell(self: FeeQuoter_MessageValidationFailed): c.Cell {
         return makeCellFrom<FeeQuoter_MessageValidationFailed>(self, FeeQuoter_MessageValidationFailed.store);
+    }
+}
+
+/**
+ > struct FeeQuoter_DestOverheads {
+ >     destGasOverheads: uint32
+ >     destBytesOverheads: uint32
+ > }
+ */
+export interface FeeQuoter_DestOverheads {
+    readonly $: 'FeeQuoter_DestOverheads'
+    destGasOverheads: uint32
+    destBytesOverheads: uint32
+}
+
+export const FeeQuoter_DestOverheads = {
+    create(args: {
+        destGasOverheads: uint32
+        destBytesOverheads: uint32
+    }): FeeQuoter_DestOverheads {
+        return {
+            $: 'FeeQuoter_DestOverheads',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): FeeQuoter_DestOverheads {
+        return {
+            $: 'FeeQuoter_DestOverheads',
+            destGasOverheads: s.loadUintBig(32),
+            destBytesOverheads: s.loadUintBig(32),
+        }
+    },
+    store(self: FeeQuoter_DestOverheads, b: c.Builder): void {
+        b.storeUint(self.destGasOverheads, 32);
+        b.storeUint(self.destBytesOverheads, 32);
+    },
+    toCell(self: FeeQuoter_DestOverheads): c.Cell {
+        return makeCellFrom<FeeQuoter_DestOverheads>(self, FeeQuoter_DestOverheads.store);
     }
 }
 
@@ -2211,8 +2234,7 @@ export const CCIPSendExecutor_State_OnGoingFeeValidation = {
  > struct CCIPSendExecutor_State_TokenRegistryAccess {
  >     fee: Fee
  >     token: address
- >     destGasOverhead: uint32
- >     destBytesOverhead: uint32
+ >     destOverheads: FeeQuoter_DestOverheads
  >     chainFamilySelector: uint32
  > }
  */
@@ -2220,8 +2242,7 @@ export interface CCIPSendExecutor_State_TokenRegistryAccess {
     readonly $: 'CCIPSendExecutor_State_TokenRegistryAccess'
     fee: Fee
     token: c.Address
-    destGasOverhead: uint32
-    destBytesOverhead: uint32
+    destOverheads: FeeQuoter_DestOverheads
     chainFamilySelector: uint32
 }
 
@@ -2229,8 +2250,7 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
     create(args: {
         fee: Fee
         token: c.Address
-        destGasOverhead: uint32
-        destBytesOverhead: uint32
+        destOverheads: FeeQuoter_DestOverheads
         chainFamilySelector: uint32
     }): CCIPSendExecutor_State_TokenRegistryAccess {
         return {
@@ -2243,16 +2263,14 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
             $: 'CCIPSendExecutor_State_TokenRegistryAccess',
             fee: Fee.fromSlice(s),
             token: s.loadAddress(),
-            destGasOverhead: s.loadUintBig(32),
-            destBytesOverhead: s.loadUintBig(32),
+            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
         }
     },
     store(self: CCIPSendExecutor_State_TokenRegistryAccess, b: c.Builder): void {
         Fee.store(self.fee, b);
         b.storeAddress(self.token);
-        b.storeUint(self.destGasOverhead, 32);
-        b.storeUint(self.destBytesOverhead, 32);
+        FeeQuoter_DestOverheads.store(self.destOverheads, b);
         b.storeUint(self.chainFamilySelector, 32);
     },
     toCell(self: CCIPSendExecutor_State_TokenRegistryAccess): c.Cell {
@@ -2263,8 +2281,7 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
 /**
  > struct CCIPSendExecutor_State_WalletAddressValidation {
  >     fee: Fee
- >     destGasOverhead: uint32
- >     destBytesOverhead: uint32
+ >     destOverheads: FeeQuoter_DestOverheads
  >     chainFamilySelector: uint32
  >     minterAddress: address
  >     tokenPool: address
@@ -2273,8 +2290,7 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
 export interface CCIPSendExecutor_State_WalletAddressValidation {
     readonly $: 'CCIPSendExecutor_State_WalletAddressValidation'
     fee: Fee
-    destGasOverhead: uint32
-    destBytesOverhead: uint32
+    destOverheads: FeeQuoter_DestOverheads
     chainFamilySelector: uint32
     minterAddress: c.Address
     tokenPool: c.Address
@@ -2283,8 +2299,7 @@ export interface CCIPSendExecutor_State_WalletAddressValidation {
 export const CCIPSendExecutor_State_WalletAddressValidation = {
     create(args: {
         fee: Fee
-        destGasOverhead: uint32
-        destBytesOverhead: uint32
+        destOverheads: FeeQuoter_DestOverheads
         chainFamilySelector: uint32
         minterAddress: c.Address
         tokenPool: c.Address
@@ -2298,8 +2313,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
         return {
             $: 'CCIPSendExecutor_State_WalletAddressValidation',
             fee: Fee.fromSlice(s),
-            destGasOverhead: s.loadUintBig(32),
-            destBytesOverhead: s.loadUintBig(32),
+            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
             minterAddress: s.loadAddress(),
             tokenPool: s.loadAddress(),
@@ -2307,8 +2321,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
     },
     store(self: CCIPSendExecutor_State_WalletAddressValidation, b: c.Builder): void {
         Fee.store(self.fee, b);
-        b.storeUint(self.destGasOverhead, 32);
-        b.storeUint(self.destBytesOverhead, 32);
+        FeeQuoter_DestOverheads.store(self.destOverheads, b);
         b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.tokenPool);
@@ -2321,8 +2334,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
 /**
  > struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
  >     fee: Fee
- >     destGasOverhead: uint32
- >     destBytesOverhead: uint32
+ >     destOverheads: FeeQuoter_DestOverheads
  >     chainFamilySelector: uint32
  >     tokenPool: address
  >     senderDepositAccountWallet: address
@@ -2331,8 +2343,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
 export interface CCIPSendExecutor_State_TokenPool_LockOrBurn {
     readonly $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn'
     fee: Fee
-    destGasOverhead: uint32
-    destBytesOverhead: uint32
+    destOverheads: FeeQuoter_DestOverheads
     chainFamilySelector: uint32
     tokenPool: c.Address
     senderDepositAccountWallet: c.Address
@@ -2341,8 +2352,7 @@ export interface CCIPSendExecutor_State_TokenPool_LockOrBurn {
 export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
     create(args: {
         fee: Fee
-        destGasOverhead: uint32
-        destBytesOverhead: uint32
+        destOverheads: FeeQuoter_DestOverheads
         chainFamilySelector: uint32
         tokenPool: c.Address
         senderDepositAccountWallet: c.Address
@@ -2356,8 +2366,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn',
             fee: Fee.fromSlice(s),
-            destGasOverhead: s.loadUintBig(32),
-            destBytesOverhead: s.loadUintBig(32),
+            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
             tokenPool: s.loadAddress(),
             senderDepositAccountWallet: s.loadAddress(),
@@ -2365,8 +2374,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
     },
     store(self: CCIPSendExecutor_State_TokenPool_LockOrBurn, b: c.Builder): void {
         Fee.store(self.fee, b);
-        b.storeUint(self.destGasOverhead, 32);
-        b.storeUint(self.destBytesOverhead, 32);
+        FeeQuoter_DestOverheads.store(self.destOverheads, b);
         b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.tokenPool);
         b.storeAddress(self.senderDepositAccountWallet);
@@ -2379,8 +2387,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
 /**
  > struct CCIPSendExecutor_State_TokenPool_Withdraw {
  >     fee: Fee
- >     destGasOverhead: uint32
- >     destBytesOverhead: uint32
+ >     destOverheads: FeeQuoter_DestOverheads
  >     chainFamilySelector: uint32
  >     tokenPool: address
  >     senderDepositAccountWallet: address
@@ -2391,8 +2398,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
 export interface CCIPSendExecutor_State_TokenPool_Withdraw {
     readonly $: 'CCIPSendExecutor_State_TokenPool_Withdraw'
     fee: Fee
-    destGasOverhead: uint32
-    destBytesOverhead: uint32
+    destOverheads: FeeQuoter_DestOverheads
     chainFamilySelector: uint32
     tokenPool: c.Address
     senderDepositAccountWallet: c.Address
@@ -2403,8 +2409,7 @@ export interface CCIPSendExecutor_State_TokenPool_Withdraw {
 export const CCIPSendExecutor_State_TokenPool_Withdraw = {
     create(args: {
         fee: Fee
-        destGasOverhead: uint32
-        destBytesOverhead: uint32
+        destOverheads: FeeQuoter_DestOverheads
         chainFamilySelector: uint32
         tokenPool: c.Address
         senderDepositAccountWallet: c.Address
@@ -2420,8 +2425,7 @@ export const CCIPSendExecutor_State_TokenPool_Withdraw = {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_Withdraw',
             fee: Fee.fromSlice(s),
-            destGasOverhead: s.loadUintBig(32),
-            destBytesOverhead: s.loadUintBig(32),
+            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
             tokenPool: s.loadAddress(),
             senderDepositAccountWallet: s.loadAddress(),
@@ -2431,8 +2435,7 @@ export const CCIPSendExecutor_State_TokenPool_Withdraw = {
     },
     store(self: CCIPSendExecutor_State_TokenPool_Withdraw, b: c.Builder): void {
         Fee.store(self.fee, b);
-        b.storeUint(self.destGasOverhead, 32);
-        b.storeUint(self.destBytesOverhead, 32);
+        FeeQuoter_DestOverheads.store(self.destOverheads, b);
         b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.tokenPool);
         b.storeAddress(self.senderDepositAccountWallet);
@@ -2621,7 +2624,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2681,8 +2684,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidated(body: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
-        destBytesOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
         chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
@@ -2782,8 +2784,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendFeeQuoterMessageValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
-        destBytesOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
         chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */

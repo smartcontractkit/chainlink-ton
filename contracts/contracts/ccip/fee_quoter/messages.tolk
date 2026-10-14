@@ -38,8 +38,7 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 // nolint:opcode : crc32('FeeQuoter_MessageValidated_V2')
 struct (0xfbf78e40) FeeQuoter_MessageValidated {
     fee: Fee
-    destGasOverheads: lisp_list<uint32>?
-    destBytesOverheads: lisp_list<uint32>?
+    destOverheads: lisp_list<FeeQuoter_DestOverheads>?
     chainFamilySelector: uint32
     msg: Cell<Router_CCIPSend>
     context: cell? = null
