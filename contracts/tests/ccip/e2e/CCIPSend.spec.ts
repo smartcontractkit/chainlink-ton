@@ -29,6 +29,7 @@ describe('Router', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 1
     blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
