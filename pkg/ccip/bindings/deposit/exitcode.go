@@ -10,7 +10,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ExitCodeOnlyOwner)
-		ecMax = int32(ExitCodeNotEnoughValue)
+		ecMax = int32(ExitCodeWalletUnknown)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -20,8 +20,9 @@ const (
 	ExitCodeOnlyOwner ExitCode = iota + 52500
 	ExitCodeOnlyBeneficiary
 	ExitCodeOnlySendExcessesToSender
-	ExitCodeInitPending
+	ExitCodePendingInitsFull
 	ExitCodeOnlyToken
 	ExitCodeNoPendingInit
 	ExitCodeNotEnoughValue
+	ExitCodeWalletUnknown
 )

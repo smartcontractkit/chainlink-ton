@@ -32,6 +32,10 @@ func TestData_EncodingAndDecoding(t *testing.T) {
 		Beneficiaries: tlbe.NewDict[common.AddressWrap, struct{}](map[common.AddressWrap]struct{}{
 			{Val: beneficiary}: {},
 		}),
+		PendingInits: tlbe.NewDict[uint8, PendingInit](map[uint8]PendingInit{
+			0: {QueryID: 7, ForwardPayload: cell.BeginCell().MustStoreUInt(1, 8).EndCell(), Value: tlb.MustFromTON("0.1")},
+			1: {QueryID: 8, Value: tlb.MustFromTON("0.2")},
+		}),
 	}
 
 	c, err := tlb.ToCell(data)
@@ -45,6 +49,13 @@ func TestData_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, data.User, decoded.User)
 	require.Equal(t, data.Token, decoded.Token)
 	require.Len(t, decoded.Beneficiaries.AsMap(), 1)
+	pending := decoded.PendingInits.AsMap()
+	require.Len(t, pending, 2)
+	require.Equal(t, uint64(7), pending[0].QueryID)
+	require.NotNil(t, pending[0].ForwardPayload)
+	require.Equal(t, uint64(8), pending[1].QueryID)
+	require.Nil(t, pending[1].ForwardPayload)
+	require.Equal(t, "0.2", pending[1].Value.String())
 
 	// Compare the decoded beneficiary address by value (AddressWrap keys hold pointers, so
 	// map-key equality would otherwise compare pointer identity).

@@ -1012,9 +1012,9 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
 /// and fails the relay.
 ///
 /// The account learns its jetton wallet on its first init, so it can tell which notifications are
-/// deliveries of this token. While that first init waits for the
-/// wallet, a concurrent relay to the same new account bounces its init (`InitPending`) and fails;
-/// the message is then retried through manual execution.
+/// deliveries of this token. Concurrent relays to the same new account queue their inits behind
+/// the first one; past `DepositAccount_MAX_PENDING_INITS` the init bounces (`PendingInitsFull`)
+/// and fails the relay, which is then retried through manual execution.
 ///
 /// sequenceDiagram
 ///     OffRamp        ->> Router:         Router_RelayReleaseOrMint

@@ -29,8 +29,8 @@ type Data struct {
 	Beneficiaries *tlbe.Dict[common.AddressWrap, struct{}] `tlb:"."`
 	// Wallet is the account's jetton wallet, learned from Token on the first init.
 	Wallet *address.Address `tlb:"maybe ^ addr"`
-	// PendingInit is the init waiting for the wallet query; others arriving meanwhile are refused.
-	PendingInit *PendingInit `tlb:"maybe ^"`
+	// PendingInits are the inits waiting for the wallet query, keyed by arrival order.
+	PendingInits *tlbe.Dict[uint8, PendingInit] `tlb:"."`
 }
 
 // PendingInit is an init waiting for the account's jetton wallet to be learned.

@@ -13,6 +13,7 @@ import { ChainSelectors } from '../../utils/Selectors'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 
 const relayValue = toNano('1')
+const MAX_PENDING_INITS = 8n
 
 // Router_Error.DepositAccountWalletUnavailable is only reported as an exit code, never thrown, so
 // the generated Errors map omits it.
@@ -296,8 +297,10 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
     it('fails the relay back to the OffRamp when the receiver account bounces the init', async () => {
-      // The first relay leaves an init waiting for the wallet, so the second init bounces.
-      await relay(relayOf(13n))
+      // Fill the account's pending-init queue so the next init bounces.
+      for (let i = 0n; i < MAX_PENDING_INITS; i++) {
+        await relay(relayOf(100n + i))
+      }
       const result = await relay(relayOf(14n))
       expect(result.transactions).toHaveTransaction({
         from: router.address,
@@ -311,7 +314,7 @@ describe('Router.relayReleaseOrMint', () => {
             failed.tokenPool.equals(tokenPool.address) &&
             failed.replyTo.equals(executor.address) &&
             failed.exitCode ===
-              BigInt(deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'])
+              BigInt(deposit.DepositAccount.Errors['DepositAccount_Error.PendingInitsFull'])
           )
         },
       })

@@ -5,6 +5,8 @@ const DepositAccount_MIN_GRAM_TO_RESERVE: int = grams("0.05");
 const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.01") // TODO update with real value
 /// Attached to the TEP-89 wallet query; the token's response returns the unspent part.
 const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.02") // TODO update with real value
+/// Inits that can wait for the wallet query at once; further ones bounce with `PendingInitsFull`.
+const DepositAccount_MAX_PENDING_INITS: int = 8
 
 /// A deposit account escrows a single jetton (`token`) for a single `user`. A fixed set of
 /// `beneficiaries` may withdraw it, and incoming jetton transfer notifications are forwarded to
@@ -22,8 +24,8 @@ struct DepositAccount_Data {
     beneficiaries: map<address, ()>;
     /// Jetton wallet of the account, learned from `token` on the first init.
     wallet: Cell<address>? = null;
-    /// Init waiting for the wallet query.
-    pendingInit: Cell<DepositAccount_PendingInit>? = null;
+    /// Inits waiting for the wallet query, keyed by arrival order.
+    pendingInits: map<uint8, DepositAccount_PendingInit> = [];
 }
 
 struct DepositAccount_PendingInit {
@@ -45,8 +47,9 @@ enum DepositAccount_Error {
     /// Thrown when a withdraw's `AskToTransfer.sendExcessesTo` is not the requester, which a
     /// bounced withdraw is reported back to.
     OnlySendExcessesToSender
-    /// Thrown when an init asks to learn the wallet while another init is already waiting for it.
-    InitPending
+    /// Thrown when an init arrives while `DepositAccount_MAX_PENDING_INITS` inits already wait for
+    /// the wallet query.
+    PendingInitsFull
     /// Thrown when a `ResponseWalletAddress` does not come from the account's token.
     OnlyToken
     /// Thrown when a `ResponseWalletAddress` arrives with no init waiting for it.

@@ -68,10 +68,8 @@ fun onBouncedMessage(in: InMessageBounced) {
         }
         RequestWalletAddress => {
             var data = DepositAccount_Data.load();
-            if (data.pendingInit != null) {
-                replyToPendingInit(mutate data, false);
-                data.store();
-            }
+            replyToPendingInits(mutate data, false);
+            data.store();
         }
         else => {}
     }
@@ -81,8 +79,9 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
     var data = DepositAccount_Data.load();
     assert(sender == data.owner, DepositAccount_Error.OnlyOwner);
     val waitForWallet = data.wallet == null;
-    assert(!(waitForWallet && data.pendingInit != null), DepositAccount_Error.InitPending);
-    val initCost = DepositAccount_MIN_GRAM_TO_INIT + (waitForWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
+    val lastPending = data.pendingInits.findLast();
+    val queryWallet = waitForWallet && !lastPending.isFound;
+    val initCost = DepositAccount_MIN_GRAM_TO_INIT + (queryWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `getOriginalBalance` already includes the inbound value.
     assert(
         contract.getOriginalBalance() >= DepositAccount_MIN_GRAM_TO_RESERVE + initCost && msgValue >= initCost,
@@ -105,12 +104,18 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
         return;
     }
 
-    data.pendingInit = DepositAccount_PendingInit {
+    // Keys are contiguous from 0: the queue is only ever emptied as a whole.
+    val nextKey = lastPending.isFound ? lastPending.getKey() + 1 : 0;
+    assert(nextKey < DepositAccount_MAX_PENDING_INITS, DepositAccount_Error.PendingInitsFull);
+    data.pendingInits.set(nextKey, {
         queryId: msg.queryId,
         forwardPayload: msg.forwardPayload,
         value: msgValue - initCost,
-    }.toCell();
+    });
     data.store();
+    if (!queryWallet) {
+        return;
+    }
     val query = createMessage({
         bounce: BounceMode.RichBounce,
         value: DepositAccount_WALLET_QUERY_VALUE,
@@ -127,33 +132,37 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
 fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
     var data = DepositAccount_Data.load();
     assert(sender == data.token, DepositAccount_Error.OnlyToken);
-    assert(data.pendingInit != null, DepositAccount_Error.NoPendingInit);
+    assert(!data.pendingInits.isEmpty(), DepositAccount_Error.NoPendingInit);
     val walletLearned = msg.jettonWalletAddress != null;
     if (walletLearned) {
         data.wallet = msg.jettonWalletAddress!.toCell();
     }
-    replyToPendingInit(mutate data, walletLearned);
+    replyToPendingInits(mutate data, walletLearned);
     data.store();
 }
 
-fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
-    val pending = data.pendingInit!.load();
-    data.pendingInit = null;
-    if (walletLearned) {
-        createMessage({
-            bounce: BounceMode.NoBounce,
-            value: pending.value,
-            dest: data.owner,
-            body: DepositAccount_Initialized { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
-    } else {
-        createMessage({
-            bounce: BounceMode.NoBounce,
-            value: pending.value,
-            dest: data.owner,
-            body: DepositAccount_WalletUnavailable { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+fun replyToPendingInits(mutate data: DepositAccount_Data, walletLearned: bool) {
+    var entry = data.pendingInits.findFirst();
+    while (entry.isFound) {
+        val pending = entry.loadValue();
+        if (walletLearned) {
+            createMessage({
+                bounce: BounceMode.NoBounce,
+                value: pending.value,
+                dest: data.owner,
+                body: DepositAccount_Initialized { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
+            }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+        } else {
+            createMessage({
+                bounce: BounceMode.NoBounce,
+                value: pending.value,
+                dest: data.owner,
+                body: DepositAccount_WalletUnavailable { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
+            }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+        }
+        entry = data.pendingInits.iterateNext(entry);
     }
+    data.pendingInits = [];
 }
 
 fun onWithdraw(sender: address, msg: DepositAccount_Withdraw) {

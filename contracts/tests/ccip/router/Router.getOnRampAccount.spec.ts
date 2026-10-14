@@ -13,6 +13,7 @@ import { setup, contractsCoverageConfig } from './Router.Setup'
 // Value covering Router_Costs.GetOnRampAccount() plus the account's init compute/storage and
 // the reply round-trip (the Router carries all remaining value forward on each leg).
 const getOnRampAccountValue = toNano('1')
+const MAX_PENDING_INITS = 8n
 
 describe('Router.getOnRampAccount', () => {
   let blockchain: Blockchain
@@ -339,20 +340,22 @@ describe('Router.getOnRampAccount', () => {
   })
 
   it('notifies the user when the account init bounces', async () => {
-    // The first request waits for the token's wallet response, so a second one is refused.
-    await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
-      queryId: 1n,
-      token,
-    })
+    // Fill the account's pending-init queue so the next request is refused.
+    for (let i = 0n; i < MAX_PENDING_INITS; i++) {
+      await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
+        queryId: i,
+        token,
+      })
+    }
     const result = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
-      { queryId: 2n, token },
+      { queryId: MAX_PENDING_INITS, token },
     )
     expectOnRampAccountFailed(
       result,
-      2n,
-      deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'],
+      MAX_PENDING_INITS,
+      deposit.DepositAccount.Errors['DepositAccount_Error.PendingInitsFull'],
     )
   })
 
