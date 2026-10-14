@@ -738,7 +738,7 @@ fun MCMS<T>.setRoot(
 ) {
     // Verify value covers the fee
     // minval:check-admission gate=A/static MCMS_SetRoot
-    // minval.detail: must cover the set-root cost; rejects on shortfall
+    // must cover the set-root cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
@@ -968,7 +968,7 @@ fun MCMS<T>.execute(
 ) {
     // Verify value covers the fee
     // minval:check-admission gate=A/dynamic MCMS_Execute
-    // minval.detail: covers the execute cost and the op.value floor; fans out to the target
+    // covers the execute cost and the op.value floor; fans out to the target
     assertMinValue(value, MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
 
     // Unpack the root info from the contract data
@@ -1093,7 +1093,7 @@ fun MCMS<T>.setConfig(
 
     // Verify value covers the fee
     // minval:check-admission gate=A/static MCMS_SetConfig
-    // minval.detail: must cover the set-config cost; rejects on shortfall
+    // must cover the set-config cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
 
     // Validate input lengths
@@ -1283,7 +1283,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     newOpFinalizationTimeout: uint32
 ): void {
 // minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
-// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
+// GAP: owner-only, no value gate; add a safety check (check-bounce)
     self.data.ownable.requireOwner(sender);
 
     // Unpack the root info from the contract data
@@ -1333,7 +1333,7 @@ fun MCMS<T>.submitErrorReport(
 
     // Verify value covers the fee
     // minval:check-admission gate=A/static MCMS_SubmitErrorReport
-    // minval.detail: must cover the error-report cost; rejects on shortfall
+    // must cover the error-report cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
@@ -1408,7 +1408,7 @@ fun MCMS<T>.transferOracleRole(
     newOracle: address
 ) {
 // minval:best-effort gate=none MCMS_TransferOracleRole
-// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
+// GAP: owner-only, no value gate; add a safety check (check-bounce)
     self.data.ownable.requireOwner(sender);
 
     val oldOracle = self.data.oracle;
@@ -1434,7 +1434,7 @@ fun MCMS<T>.cleanExpiredRoots(
     roots: SnakedCell<RootDescriptor>,
 ) {
 // minval:best-effort gate=none MCMS_CleanExpiredRoots
-// minval.detail: GAP: owner-only, no value gate; loops over roots; add a safety check
+// GAP: owner-only, no value gate; loops over roots; add a safety check
     self.data.ownable.requireOwner(sender);
 
     var rootsIter = roots.iter();
@@ -1560,17 +1560,17 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         }
         // noop handlers (expected replies for ownable ops when owning self)
         // minval:non-reject gate=none MCMS_OracleRoleTransferred
-        // minval.detail: noop reply to our own oracle-role transfer; nothing to finalize
+        // noop reply to our own oracle-role transfer; nothing to finalize
         MCMS_OracleRoleTransferred => {
             // noop
         }
         // minval:non-reject gate=none MCMS_ConfigSet
-        // minval.detail: noop reply to our own config set; nothing to finalize
+        // noop reply to our own config set; nothing to finalize
         MCMS_ConfigSet => {
             // noop
         },
         // minval:non-reject gate=none MCMS_ExpiredRootsCleaned
-        // minval.detail: noop reply to our own roots cleanup; nothing to finalize
+        // noop reply to our own roots cleanup; nothing to finalize
         MCMS_ExpiredRootsCleaned => {
             // noop
         }

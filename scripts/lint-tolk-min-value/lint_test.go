@@ -21,8 +21,8 @@ const demoABI = `{
 
 // Valid markers: gate S/A with a nearby assertMinValue call.
 const (
-	demoReq = "// minval:check-bounce gate=S Demo_Request\n// minval.detail: config\nassertMinValue(value, 1, 1);\n"
-	demoRep = "// minval:check-admission gate=A/static Demo_Reply\n// minval.detail: flow\nassertMinValue(value, 1, 1);\n"
+	demoReq = "// minval:check-bounce gate=S Demo_Request\n// config\nassertMinValue(value, 1, 1);\n"
+	demoRep = "// minval:check-admission gate=A/static Demo_Reply\n// flow\nassertMinValue(value, 1, 1);\n"
 )
 
 func fixture(t *testing.T, abi, src string) (string, string) {
@@ -68,7 +68,7 @@ func TestParseMarker(t *testing.T) {
 
 func TestParseDetailBlock(t *testing.T) {
 	src := "// minval:check-bounce gate=S Demo_Request\n" +
-		"// minval.detail: summary line\n" +
+		"// summary line\n" +
 		"//   First detail.\n" +
 		"//   Second detail.\n" +
 		"assertMinValue(value, 1, 1);\nfun f() {}"
@@ -107,7 +107,7 @@ func TestCoverage(t *testing.T) {
 
 func TestMissingNearbyCheck(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request\n// minval.detail: config\nfun f() {}\n"+demoRep+"fun g() {}")
+		"// minval:check-bounce gate=S Demo_Request\n// config\nfun f() {}\n"+demoRep+"fun g() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestMissingNearbyCheck(t *testing.T) {
 
 func TestDetailRendered(t *testing.T) {
 	abiDir, srcDir := fixture(t, demoABI,
-		"// minval:check-bounce gate=S Demo_Request\n// minval.detail: summary\n//   More detail here.\nassertMinValue(value, 1, 1);\nfun f() {}\n"+
+		"// minval:check-bounce gate=S Demo_Request\n// summary\n//   More detail here.\nassertMinValue(value, 1, 1);\nfun f() {}\n"+
 			demoRep+"fun g() {}")
 	r, err := lint(abiDir, srcDir, nil)
 	if err != nil {

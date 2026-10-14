@@ -100,7 +100,7 @@ fun onInternalMessage(in: InMessage): void {
         }
         ReturnExcessesBack => {
             // minval:best-effort gate=none ReturnExcessesBack
-            // minval.detail: passive excess receipt; retain coins without advancing an operation or granting authority
+            // passive excess receipt; retain coins without advancing an operation or granting authority
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
@@ -207,7 +207,7 @@ fun onDepositAccountReply(
 
     try {
         // minval:check-fail gate=S LockReleaseLockboxTokenPool.DepositAccount_Reply
-        // minval.detail: account ready, no withdraw yet; abort this attempt on shortfall
+        // account ready, no withdraw yet; abort this attempt on shortfall
         val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
         assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
@@ -329,7 +329,7 @@ fun onDepositAccountInitFailed(
     msg: DepositAccount_NotEnoughValue,
 ) {
     // minval:recovery gate=none LockReleaseLockboxTokenPool.DepositAccount_NotEnoughValue
-    // minval.detail: release unwind when account init is underfunded
+    // release unwind when account init is underfunded
 
     assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
     val contextCell = msg.forwardPayload;
@@ -432,7 +432,7 @@ fun onDeposited(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     // minval:non-reject gate=none JettonLockBox_Deposited
-    // minval.detail: lockbox owns custody; authenticate and complete, no reversal path exists
+    // lockbox owns custody; authenticate and complete, no reversal path exists
 
     var pool = loadPool(st);
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
@@ -468,7 +468,7 @@ fun onDepositFailed(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
     // minval:recovery gate=none JettonLockBox_DepositFailed
-    // minval.detail: lock unwind when lockbox deposit is rejected
+    // lock unwind when lockbox deposit is rejected
 
     if (msg.context == null) {
         return;
@@ -591,7 +591,7 @@ fun onWithdrawFailed(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
     // minval:recovery gate=none JettonLockBox_WithdrawFailed
-    // minval.detail: release unwind when lockbox withdraw fails
+    // release unwind when lockbox withdraw fails
 
     val withdraw = msg.context!.load();
     assert(withdraw.queryId == msg.queryId && withdraw.token == msg.token && msg.token == st.poolData.load().token(),
@@ -623,7 +623,7 @@ fun onDepositAccountForwardNotification(
     msg: DepositAccount_ForwardNotification,
 ) {
     // minval:non-reject gate=none LockReleaseLockboxTokenPool.DepositAccount_ForwardNotification
-    // minval.detail: release committed; authenticate and complete, no reversal exists
+    // release committed; authenticate and complete, no reversal exists
     val forwarded = msg.message.load();
 
     // Parse the forwarded body as TransferNotificationForRecipient.

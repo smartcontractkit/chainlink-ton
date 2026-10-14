@@ -224,7 +224,7 @@ fun onInternalMessage(in: InMessage) {
             // TODO minValue is probably higher for a tokenTransfer as it needs more hops.
             // We should revisit our entire min gas assertion model anyway
             // minval:check-admission gate=A/static Router.TransferNotificationForRecipient
-            // minval.detail: token-transfer entry; admits the outbound flow
+            // token-transfer entry; admits the outbound flow
             assertMinValue(in.valueCoins, Router_Costs.CCIPSend(), Router_Error.InsufficientFee);
 
             // TODO: this doesn't compile

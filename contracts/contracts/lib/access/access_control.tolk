@@ -426,7 +426,7 @@ fun AccessControl<T>.grantRole(
     returnExcess: bool = false
 ): bool {
 // minval:best-effort gate=none AccessControl_GrantRole
-// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
+// GAP: trait has no value gate; the caller's dispatch owns funding
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account, returnExcess);
 }
@@ -446,7 +446,7 @@ fun AccessControl<T>.revokeRole(
     returnExcess: bool = false
 ): bool {
 // minval:best-effort gate=none AccessControl_RevokeRole
-// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
+// GAP: trait has no value gate; the caller's dispatch owns funding
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account, returnExcess);
 }
@@ -473,7 +473,7 @@ fun AccessControl<T>.renounceRole(
     returnExcess: bool = false
 ): bool {
 // minval:best-effort gate=none AccessControl_RenounceRole
-// minval.detail: GAP: trait has no value gate; the caller's dispatch owns funding
+// GAP: trait has no value gate; the caller's dispatch owns funding
     if (callerConfirmation != sender) {
         throw AccessControl_Error.BadConfirmation;
     }
