@@ -387,7 +387,7 @@ fun onExecutorReserveFee(msg: OnRamp_ExecutorReserveFee, sendExecutor: address) 
         },
     });
     // SAFETY: reserveGramsOnBalance ensures that the necessary funds are reserved before sending the confirmation message.
-    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
+    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
