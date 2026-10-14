@@ -10,7 +10,7 @@ import (
 )
 
 // Contracts not yet migrated: missing markers there do not fail the check.
-const defaultExcluded = "CCIPSendExecutor,DepositAccount,FeeQuoter,MCMS,MerkleRoot,OffRamp,OnRamp,OnRampAccount,ReceiveExecutor,Router,Timelock,TokenAdminRegistry,TokenAdminRegistryEntry"
+const defaultExcluded = "CCIPSendExecutor,DepositAccount,FeeQuoter,MerkleRoot,OffRamp,OnRamp,OnRampAccount,ReceiveExecutor,Router,TokenAdminRegistry,TokenAdminRegistryEntry"
 
 func main() {
 	abiDir := flag.String("abi", "contracts/build/abi", "directory with generated contract ABIs")

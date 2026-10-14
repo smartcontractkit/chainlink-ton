@@ -724,6 +724,8 @@ fun MCMS<T>.load(context: T? = null, hooks: MCMS_Hooks<T>? = null): MCMS<T> {
 ///
 /// @dev this method can be executed by anyone who has the root and valid signatures.
 /// as we validate the correctness of signatures, this imposes no risk.
+// minval:check-admission gate=A/static MCMS_SetRoot
+// minval.detail: must cover the set-root cost; rejects on shortfall
 fun MCMS<T>.setRoot(
     mutate self,
     sender: address,
@@ -957,6 +959,8 @@ fun MCMS<T>.setRoot(
 ///
 /// @dev the gas limit of the call can be freely determined by the caller of this function.
 /// We expect callees to revert if they run out of gas.
+// minval:check-admission gate=A/dynamic MCMS_Execute
+// minval.detail: covers the execute cost and the op.value floor; fans out to the target
 fun MCMS<T>.execute(
     mutate self,
     sender: address,
@@ -1079,6 +1083,8 @@ fun MCMS<T>.execute(
 /// invalidate the current root, so to prevent further ops from being executed. This
 /// might be used when the current root was signed under a loser group configuration or when
 /// some previous signers aren't trusted any more.
+// minval:check-admission gate=A/static MCMS_SetConfig
+// minval.detail: must cover the set-config cost; rejects on shortfall
 fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
@@ -1276,6 +1282,8 @@ fun MCMS<T>.setConfig(
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {MCMS_UpdateOpFinalizationTimeout} for more information.
+// minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
+// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
 fun MCMS<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
@@ -1314,6 +1322,8 @@ fun MCMS<T>.updateOpFinalizationTimeout(
 /// Submit an oracle error report, which marks the current root as invalid.
 ///
 /// @see <MCMS_SubmitErrorReport> for more information.
+// minval:check-admission gate=A/static MCMS_SubmitErrorReport
+// minval.detail: must cover the error-report cost; rejects on shortfall
 fun MCMS<T>.submitErrorReport(
     mutate self,
     sender: address,
@@ -1399,6 +1409,8 @@ fun MCMS<T>.submitErrorReport(
 /// Transfer the error oracle role - requires owner.
 ///
 /// @see <MCMS_TransferOracleRole> for more information.
+// minval:best-effort gate=none MCMS_TransferOracleRole
+// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
 fun MCMS<T>.transferOracleRole(
     mutate self,
     sender: address,
@@ -1423,6 +1435,8 @@ fun MCMS<T>.transferOracleRole(
 /// Delete expired roots from storage map to reduce (accumulated) rent - requires owner.
 ///
 /// @see <MCMS_CleanExpiredRoots> for more information.
+// minval:best-effort gate=none MCMS_CleanExpiredRoots
+// minval.detail: GAP: owner-only, no value gate; loops over roots; add a safety check
 fun MCMS<T>.cleanExpiredRoots(
     mutate self,
     sender: address,
@@ -1554,12 +1568,18 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.cleanExpiredRoots(msgSender, msgValue, msg.queryId, msg.roots);
         }
         // noop handlers (expected replies for ownable ops when owning self)
+        // minval:non-reject gate=none MCMS_OracleRoleTransferred
+        // minval.detail: noop reply to our own oracle-role transfer; nothing to finalize
         MCMS_OracleRoleTransferred => {
             // noop
         }
+        // minval:non-reject gate=none MCMS_ConfigSet
+        // minval.detail: noop reply to our own config set; nothing to finalize
         MCMS_ConfigSet => {
             // noop
         },
+        // minval:non-reject gate=none MCMS_ExpiredRootsCleaned
+        // minval.detail: noop reply to our own roots cleanup; nothing to finalize
         MCMS_ExpiredRootsCleaned => {
             // noop
         }

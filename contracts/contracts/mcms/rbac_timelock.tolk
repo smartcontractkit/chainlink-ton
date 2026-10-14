@@ -306,7 +306,9 @@ type Timelock_InMessage =
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch
     | Timelock_UpdateExecutorRoleCheck
-    | Timelock_SubmitErrorReport;
+    | Timelock_SubmitErrorReport
+    // Role management handled by the AccessControl trait in the dispatch fallback.
+    | AccessControl_InMessage;
 
 /// Union of all outgoing messages.
 type Timelock_OutMessage =
@@ -729,6 +731,8 @@ fun Timelock<T>.hashOperationBatch(self, op: Timelock_OperationBatch): uint256 {
 }
 
 /// Initializes the contract
+// minval:check-admission gate=A/static Timelock_Init
+// minval.detail: must cover the init cost and rent reserve; rejects on shortfall
 fun Timelock<T>.init(
     mutate self,
     sender: address,
@@ -811,6 +815,8 @@ fun Timelock<T>.init(
 /// - the caller must have the 'proposer' or 'admin' role.
 /// - all payloads must not start with a blocked function selector.
 ///
+// minval:check-admission gate=A/dynamic Timelock_ScheduleBatch
+// minval.detail: size-scaled (per-call event fees + reply); rejects on shortfall
 fun Timelock<T>.scheduleBatch(
     mutate self,
     sender: address,
@@ -879,6 +885,8 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
 ///
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
+// minval:best-effort gate=none Timelock_Cancel
+// minval.detail: GAP: role-gated, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
@@ -912,6 +920,8 @@ fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uin
 ///         2. Message bounced back                              [predecessor invalidated, can't retry]
 ///         3. Oracle reported an error (e.g., out-of-gas error) [predecessor invalidated, can't retry]
 ///
+// minval:check-admission gate=A/dynamic Timelock_ExecuteBatch
+// minval.detail: size-scaled (per-call event fees + reply); rejects on shortfall
 fun Timelock<T>.executeBatch(
     mutate self,
     sender: address,
@@ -1019,6 +1029,8 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 
 /// Changes the minimum timelock duration for future operations.
 /// @see {Timelock_UpdateDelay} for more information.
+// minval:best-effort gate=none Timelock_UpdateDelay
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.updateDelay(
     mutate self,
     sender: address,
@@ -1048,6 +1060,8 @@ fun Timelock<T>.updateDelay(
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
+// minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
@@ -1090,6 +1104,8 @@ fun Timelock<T>.updateOpFinalizationTimeout(
 ///
 /// - the caller must have the 'admin' role.
 ///
+// minval:best-effort gate=none Timelock_BlockFunctionSelector
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.blockFunctionSelector(
     mutate self,
     sender: address,
@@ -1125,6 +1141,8 @@ fun Timelock<T>.blockFunctionSelector(
 ///
 /// - the caller must have the 'admin' role.
 ///
+// minval:best-effort gate=none Timelock_UnblockFunctionSelector
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.unblockFunctionSelector(
     mutate self,
     sender: address,
@@ -1162,6 +1180,8 @@ fun Timelock<T>.unblockFunctionSelector(
 ///
 /// - the caller must have the 'bypasser' or 'admin' role.
 ///
+// minval:check-admission gate=A/dynamic Timelock_BypasserExecuteBatch
+// minval.detail: size-scaled (per-call fees + reply); rejects on shortfall
 fun Timelock<T>.bypasserExecuteBatch(
     mutate self,
     sender: address,
@@ -1214,6 +1234,8 @@ fun Timelock<T>.bypasserExecuteBatch(
 /// Updates the executor role check (enabled/disabled) which guards the execution of operations.
 ///
 /// @see <Timelock_UpdateExecutorRoleCheck> for more information.
+// minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.updateExecutorRoleCheck(
     mutate self,
     sender: address,
@@ -1239,6 +1261,8 @@ fun Timelock<T>.updateExecutorRoleCheck(
 /// Submit an oracle error report, which marks the current operation in error state.
 ///
 /// @see <Timelock_SubmitErrorReport> for more information.
+// minval:check-admission gate=A/static Timelock_SubmitErrorReport
+// minval.detail: must cover the error-report cost; rejects on shortfall
 fun Timelock<T>.submitErrorReport(
     mutate self,
     sender: address,
@@ -1424,17 +1448,18 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             self.submitErrorReport(msgSender, msgValue, msg.queryId, msg.opBatch.load(),
                 msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
+        // Role management handled by the AccessControl trait.
+        AccessControl_GrantRole => {
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
+        }
+        AccessControl_RevokeRole => {
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
+        }
+        AccessControl_RenounceRole => {
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
+        }
         else => {
-            assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
-            var rbac = self.hookTrait__AccessControl();
-
-            val msgHandled = 0
-                || rbac.onInternalMessage(msgSender, msgValue, msgBody);
-
-            if (msgHandled) {
-                // Map from underlying trait storage to contract storage
-                self.data.rbac = rbac.data.toCell();
-            }
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
 
             // Notice: allow empty message (top up)
             // @dev Contract might receive/hold TON as part of the maintenance process.
@@ -1443,6 +1468,18 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             //  - ignore all other messages, empty or not empty
             //  - accept generic replies, don't throw "wrong opcode"
         }
+    }
+}
+
+/// Dispatches an AccessControl message (or an unrecognized message) to the trait.
+fun Timelock<T>.dispatchAccessControl(mutate self, sender: address, value: coins, body: slice) {
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    var rbac = self.hookTrait__AccessControl();
+    val msgHandled = 0
+        || rbac.onInternalMessage(sender, value, body);
+    if (msgHandled) {
+        // Map from underlying trait storage to contract storage
+        self.data.rbac = rbac.data.toCell();
     }
 }
 
