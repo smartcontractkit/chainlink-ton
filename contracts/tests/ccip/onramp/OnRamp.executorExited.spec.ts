@@ -155,8 +155,10 @@ describe('OnRamp - executor exit', () => {
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },
@@ -237,8 +239,10 @@ describe('OnRamp - executor exit', () => {
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },
