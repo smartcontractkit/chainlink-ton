@@ -244,8 +244,11 @@ fun onLockOrBurnTransferContinue(
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    // The burn send must be fundable from this notification, including a funded custody
-    // return if the burn bounces. A shortfall is caught by the shared handler and recovered.
+    // minval:check-admission gate=A/static BurnMintTokenPool.TransferNotificationForRecipient
+    // minval.detail: burn path; the notification must fund the burn and a custody return on bounce
+    //   Authenticated custody receipt that commits a burn. Checks the burn obligation
+    //   (`BURN_VALUE`) before the fixed burn send; on shortfall the shared handler returns
+    //   custody and refunds capacity (local recovery, no rejection).
     assertMinValue(msgValue, BurnMintTokenPool_BURN_VALUE, TokenPool_Error.InsufficientMessageValue);
 
     val requestMsg = lazy fwdPayload.requestMsg.load();
@@ -440,10 +443,14 @@ fun onDepositAccountReply(
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
 
     try {
-        // minval:check-fail gate=S BurnMintTokenPool.DepositAccount_Reply
-        // minval.detail: account ready, no mint yet; abort this attempt on shortfall
+        // minval:check-admission gate=A/static BurnMintTokenPool.DepositAccount_Reply
+        // minval.detail: account ready; the reply must fund the mint
+        //   Checks the safety floor and the mint obligation (`MINT_VALUE`) before the fixed mint
+        //   send; on shortfall the attempt aborts, capacity is restored and no mint is issued
+        //   (local recovery, no rejection).
         val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
         assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
+        assertMinValue(msgValue, BurnMintTokenPool_MINT_VALUE, TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
         var pool = loadPool(st);
         pool.recoverReleaseOrMintFailure(operation, errorCode as uint16, msgValue);
