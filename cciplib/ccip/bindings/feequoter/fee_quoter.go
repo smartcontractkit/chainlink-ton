@@ -228,6 +228,8 @@ type MessageValidated struct {
 	Fee Fee       `tlb:"."`
 	// DestGasOverheads is the per-token destination gas overhead (Tolk lisp_list<uint32>?).
 	DestGasOverheads *common.LispList[common.UInt32] `tlb:"maybe ^"`
+	// DestBytesOverheads is the per-token destination bytes overhead (Tolk lisp_list<uint32>?).
+	DestBytesOverheads *common.LispList[common.UInt32] `tlb:"maybe ^"`
 	// Destination chain family the message was validated against, echoed so the
 	// executor can relay it to the OnRamp.
 	ChainFamilySelector uint32     `tlb:"## 32"`

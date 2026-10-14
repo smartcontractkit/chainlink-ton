@@ -131,6 +131,10 @@ func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 			{Value: 90000},
 			{Value: 123456},
 		},
+		DestBytesOverheads: &common.LispList[common.UInt32]{
+			{Value: 32},
+			{Value: 64},
+		},
 		ChainFamilySelector: 0x2812d52c,
 		Msg:                 msgCell,
 		Context:             contextCell,
@@ -152,10 +156,14 @@ func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 	require.Len(t, *decoded.DestGasOverheads, 2)
 	require.Equal(t, uint32(90000), (*decoded.DestGasOverheads)[0].Value)
 	require.Equal(t, uint32(123456), (*decoded.DestGasOverheads)[1].Value)
+	require.NotNil(t, decoded.DestBytesOverheads)
+	require.Len(t, *decoded.DestBytesOverheads, 2)
+	require.Equal(t, uint32(32), (*decoded.DestBytesOverheads)[0].Value)
+	require.Equal(t, uint32(64), (*decoded.DestBytesOverheads)[1].Value)
 }
 
 // TestMessageValidated_NilDestGasOverheads covers the messaging-only case (null
-// destGasOverheads when the message carries no tokens).
+// destGasOverheads/destBytesOverheads when the message carries no tokens).
 func TestMessageValidated_NilDestGasOverheads(t *testing.T) {
 	msgCell := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
 
@@ -165,6 +173,7 @@ func TestMessageValidated_NilDestGasOverheads(t *testing.T) {
 			FeeValueJuels:  big.NewInt(1),
 		},
 		DestGasOverheads:    nil,
+		DestBytesOverheads:  nil,
 		ChainFamilySelector: 0x1e10bdc4,
 		Msg:                 msgCell,
 		Context:             nil,
@@ -182,6 +191,7 @@ func TestMessageValidated_NilDestGasOverheads(t *testing.T) {
 	require.Equal(t, c.Hash(), reencoded.Hash(), "cell hash mismatch after round-trip")
 
 	require.Nil(t, decoded.DestGasOverheads)
+	require.Nil(t, decoded.DestBytesOverheads)
 	require.Equal(t, orig.ChainFamilySelector, decoded.ChainFamilySelector)
 }
 
