@@ -148,7 +148,18 @@ fun onBouncedMessage(in: InMessageBounced) {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.load();
             this.exitWithError(CCIPSendExecutor_Error.OnRampFeeReservationBounce, NO_FEE_CHARGED);
         }
-        //TODO: We should handle bounced messages from the TokenRegistry, as that means the token is not enabled on the lane
+        // The token registry failed to answer the token-info query. The fee is
+        // already reserved on the OnRamp, so finalize with an error and refund it.
+        TokenAdminRegistry_GetTokenInfo => {
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            this.exitWithError(CCIPSendExecutor_Error.TokenRegistryBounce, this.state.load().chargedFee.feeTokenAmount);
+        }
+        // The jetton minter failed to answer the wallet-address query. The fee is
+        // already reserved on the OnRamp, so finalize with an error and refund it.
+        RequestWalletAddress => {
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.load();
+            this.exitWithError(CCIPSendExecutor_Error.MinterBounce, this.state.load().chargedFee.feeTokenAmount);
+        }
     }
 }
 

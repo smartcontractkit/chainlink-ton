@@ -69,4 +69,6 @@ fun SendExecutor_Costs.MessageValidationFailed(): int {
 type CCIPSendExecutor_BouncedMessage =
     | FeeQuoter_GetValidatedFee
     | OnRamp_ExecutorReserveFee
+    | TokenAdminRegistry_GetTokenInfo
+    | RequestWalletAddress
     ;

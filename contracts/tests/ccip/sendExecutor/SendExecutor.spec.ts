@@ -1010,6 +1010,104 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
+  it('should exit with error and refund the charged fee when the token registry bounces', async () => {
+    // A token registry that bounces everything: the GetTokenInfo query sent
+    // after the fee reservation bounces back, so the executor must finalize
+    // with an error and refund the fee already reserved on the OnRamp.
+    const registryBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    // The bouncer's address is deterministic, so it may already be deployed by
+    // an earlier test in this suite; (re)sending the deploy message is harmless.
+    await registryBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+    const { sendExecutor, result } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: registryBouncer.address,
+    })
+
+    // The registry query bounced back to the executor.
+    expect(result.transactions).toHaveTransaction({
+      from: registryBouncer.address,
+      to: sendExecutor.address,
+      success: true,
+      op: 0xffffffff,
+    })
+
+    // The executor finalizes with the registry bounce error and refunds the fee.
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.OnRamp_ExecutorFinishedWithError.fromSlice(
+          x.beginParse(),
+        )
+        return (
+          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.error ===
+            BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenRegistryBounce']) &&
+          executorFinishedWithError.refund === FeeTokenAmount
+        )
+      },
+    })
+  })
+
+  it('should exit with error and refund the charged fee when the minter bounces', async () => {
+    // A jetton minter that bounces everything: the RequestWalletAddress query
+    // sent after the token info reply bounces back, so the executor must
+    // finalize with an error and refund the fee already reserved on the OnRamp.
+    const minterBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    await minterBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+    const { sendExecutor } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
+    })
+
+    const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
+      tokenRegistryMock.getSender(),
+      toNano('0.3'),
+      {
+        queryId: 0n,
+        token: WRAPPED_NATIVE,
+        minterAddress: minterBouncer.address,
+        tokenPool: deployer.address, // non-null so the executor proceeds
+        version: 0n,
+      },
+    )
+
+    // The wallet-address query bounced back to the executor.
+    expect(result.transactions).toHaveTransaction({
+      from: minterBouncer.address,
+      to: sendExecutor.address,
+      success: true,
+      op: 0xffffffff,
+    })
+
+    // The executor finalizes with the minter bounce error and refunds the fee.
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.OnRamp_ExecutorFinishedWithError.fromSlice(
+          x.beginParse(),
+        )
+        return (
+          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.error ===
+            BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.MinterBounce']) &&
+          executorFinishedWithError.refund === FeeTokenAmount
+        )
+      },
+    })
+  })
+
   it('should exit with error and refund the charged fee when the token is not enabled', async () => {
     // The token registry reports no pool for the token: the executor exits with
     // TokenNotEnabled and refunds the fee that was already reserved on the OnRamp.
